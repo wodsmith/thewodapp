@@ -453,18 +453,28 @@ export const getUserCompetitionRegistrationsFn = createServerFn({
         )
     }
 
-    // Merge and deduplicate (a captain appears in both direct and team sets)
-    const seenIds = new Set<string>()
-    const allRegistrations: typeof directRegistrations = []
+    // Merge and deduplicate by division.
+    // Direct registrations (user's own rows) take priority.
+    // Team query may return teammate rows in the same division — skip those.
+    const divisionMap = new Map<string | null, (typeof directRegistrations)[0]>()
 
-    for (const reg of [...directRegistrations, ...teamRegistrations]) {
-      if (!seenIds.has(reg.id)) {
-        seenIds.add(reg.id)
-        allRegistrations.push(reg)
+    for (const reg of directRegistrations) {
+      divisionMap.set(reg.divisionId, reg)
+    }
+
+    for (const reg of teamRegistrations) {
+      if (!divisionMap.has(reg.divisionId)) {
+        divisionMap.set(reg.divisionId, reg)
+      } else if (
+        reg.userId === data.userId &&
+        divisionMap.get(reg.divisionId)!.userId !== data.userId
+      ) {
+        // Prefer the user's own row over a teammate's row
+        divisionMap.set(reg.divisionId, reg)
       }
     }
 
-    return { registrations: allRegistrations }
+    return { registrations: Array.from(divisionMap.values()) }
   })
 
 /**

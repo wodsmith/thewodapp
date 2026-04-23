@@ -24,7 +24,7 @@
 
 import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
-import { and, eq } from "drizzle-orm"
+import { and, eq, isNull } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -90,18 +90,6 @@ function mapToNewStatus(status: ScoreStatus): "scored" | "cap" | "dq" | "withdra
     case "dns":
     case "dnf": return "withdrawn"
     default: return "scored"
-  }
-}
-
-function getStatusOrder(status: ScoreStatus): number {
-  switch (status) {
-    case "scored": return STATUS_ORDER.scored
-    case "cap": return STATUS_ORDER.cap
-    case "dq": return STATUS_ORDER.dq
-    case "withdrawn":
-    case "dns":
-    case "dnf": return STATUS_ORDER.withdrawn
-    default: return STATUS_ORDER.scored
   }
 }
 
@@ -213,18 +201,57 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
           const workoutTiebreakScheme = (workoutInfo.tiebreakScheme as TiebreakScheme) ?? null
 
           let encodedValue: number | null = null
+          let encodedRounds: number[] = []
+          const hasRoundScores = !!(
+            data.roundScores && data.roundScores.length > 0
+          )
 
           if (data.roundScores && data.roundScores.length > 0) {
             const roundInputs = data.roundScores.map((rs) => ({ raw: rs.score }))
             const result = encodeRounds(roundInputs, scheme, scoreType)
+            // Reject partial rounds so roundStatuses aligns with the rows
+            // we insert below (encodeRounds silently drops null encodes).
+            if (result.rounds.length !== data.roundScores.length) {
+              return json(
+                { error: "Every round must be a valid score" },
+                { status: 422, headers },
+              )
+            }
             encodedValue = result.aggregated
+            encodedRounds = result.rounds
           } else if (data.score?.trim()) {
             encodedValue = encodeScore(data.score, scheme)
           }
 
-          const newStatus = mapToNewStatus(data.scoreStatus)
+          // For multi-round `time-with-cap` the status is derived server
+          // side from individual rounds (parent becomes "cap" if any round
+          // meets the per-round cap). Single-round keeps legacy clamping.
+          let newStatus = mapToNewStatus(data.scoreStatus)
+          const roundStatuses: Array<"scored" | "cap"> = []
+          let cappedRoundCount = 0
 
-          if (newStatus === "cap" && scheme === "time-with-cap" && workoutInfo.timeCap) {
+          if (
+            scheme === "time-with-cap" &&
+            workoutInfo.timeCap &&
+            hasRoundScores &&
+            encodedValue !== null
+          ) {
+            const capMs = workoutInfo.timeCap * 1000
+            for (const roundValue of encodedRounds) {
+              const isRoundCapped = roundValue >= capMs
+              roundStatuses.push(isRoundCapped ? "cap" : "scored")
+              if (isRoundCapped) cappedRoundCount++
+            }
+            // Preserve terminal statuses (dq/withdrawn). Only flip between
+            // scored/cap when the caller said the score is scored/cap.
+            if (newStatus !== "dq" && newStatus !== "withdrawn") {
+              newStatus = cappedRoundCount > 0 ? "cap" : "scored"
+            }
+          } else if (
+            newStatus === "cap" &&
+            scheme === "time-with-cap" &&
+            workoutInfo.timeCap
+          ) {
             encodedValue = workoutInfo.timeCap * 1000
           }
 
@@ -252,6 +279,7 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
                   status: newStatus,
                   scheme,
                   scoreType,
+                  cappedRoundCount,
                   timeCap:
                     newStatus === "cap" && timeCapMs && secondaryValue !== null
                       ? { ms: timeCapMs, secondaryValue }
@@ -275,7 +303,7 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
                 scoreType,
                 scoreValue: encodedValue,
                 status: newStatus,
-                statusOrder: getStatusOrder(data.scoreStatus),
+                statusOrder: STATUS_ORDER[newStatus],
                 sortKey: sortKey ? sortKeyToString(sortKey) : null,
                 tiebreakScheme: workoutTiebreakScheme,
                 tiebreakValue,
@@ -289,7 +317,7 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
                 set: {
                   scoreValue: encodedValue,
                   status: newStatus,
-                  statusOrder: getStatusOrder(data.scoreStatus),
+                  statusOrder: STATUS_ORDER[newStatus],
                   sortKey: sortKey ? sortKeyToString(sortKey) : null,
                   tiebreakScheme: workoutTiebreakScheme,
                   tiebreakValue,
@@ -300,15 +328,17 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
                 },
               })
 
+            const finalScoreConditions = [
+              eq(scoresTable.competitionEventId, data.trackWorkoutId),
+              eq(scoresTable.userId, data.userId),
+              data.divisionId
+                ? eq(scoresTable.scalingLevelId, data.divisionId)
+                : isNull(scoresTable.scalingLevelId),
+            ]
             const [finalScore] = await tx
               .select({ id: scoresTable.id })
               .from(scoresTable)
-              .where(
-                and(
-                  eq(scoresTable.competitionEventId, data.trackWorkoutId),
-                  eq(scoresTable.userId, data.userId),
-                ),
-              )
+              .where(and(...finalScoreConditions))
               .limit(1)
 
             if (!finalScore) throw new Error("Failed to retrieve score after upsert")
@@ -329,7 +359,12 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
                   roundValue = encodeScore(round.score, scheme) ?? 0
                 }
 
-                return { scoreId: id, roundNumber: index + 1, value: roundValue, status: null }
+                return {
+                  scoreId: id,
+                  roundNumber: index + 1,
+                  value: roundValue,
+                  status: roundStatuses[index] ?? null,
+                }
               })
 
               await tx.insert(scoreRoundsTable).values(roundsToInsert)

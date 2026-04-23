@@ -130,5 +130,18 @@ export async function seed(client: Connection): Promise<void> {
 		{ id: "tw_online_event1", track_id: "track_online_qualifier_2026", workout_id: "wod_online_fran", track_order: 1, notes: "Event 1: Complete Fran and submit your video within the submission window.", points_multiplier: 100, heat_status: "draft", event_status: "published", created_at: ts, updated_at: ts, update_counter: 0 },
 		{ id: "tw_online_event2", track_id: "track_online_qualifier_2026", workout_id: "wod_online_karen", track_order: 2, notes: "Event 2: Complete Karen and submit your video within the submission window.", points_multiplier: 100, heat_status: "draft", event_status: "published", created_at: ts, updated_at: ts, update_counter: 0 },
 		{ id: "tw_online_event3", track_id: "track_online_qualifier_2026", workout_id: "wod_online_amrap", track_order: 3, notes: "Event 3: Complete the AMRAP and submit your video within the submission window.", points_multiplier: 150, heat_status: "draft", event_status: "published", created_at: ts, updated_at: ts, update_counter: 0 },
+		// Event 4: Parent (no sub-events in this batch — sub-events need parent_event_id column)
+		{ id: "tw_online_event4_parent", track_id: "track_online_qualifier_2026", workout_id: "wod_online_couplet_parent", track_order: 4, notes: "Event 4: Couplet Challenge — sprint WOD + max clean, scored per sub-event.", points_multiplier: 100, heat_status: "draft", event_status: "published", created_at: ts, updated_at: ts, update_counter: 0 },
+	])
+
+	// Online Qualifier sub-events (separate batch for parent_event_id column)
+	await batchInsert(client, "track_workouts", [
+		{ id: "tw_online_event4_sprint", track_id: "track_online_qualifier_2026", workout_id: "wod_online_couplet_sprint", track_order: 4.01, parent_event_id: "tw_online_event4_parent", notes: null, points_multiplier: 100, heat_status: "draft", event_status: "published", created_at: ts, updated_at: ts, update_counter: 0 },
+		{ id: "tw_online_event4_clean", track_id: "track_online_qualifier_2026", workout_id: "wod_online_couplet_max_clean", track_order: 4.02, parent_event_id: "tw_online_event4_parent", notes: null, points_multiplier: 100, heat_status: "draft", event_status: "published", created_at: ts, updated_at: ts, update_counter: 0 },
+	])
+
+	// Online Qualifier Event 5 — multi-round scoring (3 rounds scored individually)
+	await batchInsert(client, "track_workouts", [
+		{ id: "tw_online_event5", track_id: "track_online_qualifier_2026", workout_id: "wod_online_triple_amrap", track_order: 5, notes: "Event 5: Triple AMRAP — 3 rounds scored individually, testing per-round score inputs.", points_multiplier: 100, heat_status: "draft", event_status: "published", created_at: ts, updated_at: ts, update_counter: 0 },
 	])
 }

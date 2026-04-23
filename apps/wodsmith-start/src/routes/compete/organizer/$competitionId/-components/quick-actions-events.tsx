@@ -74,8 +74,19 @@ export function QuickActionsEvents({
     trackWorkoutId: string,
     newStatus: "draft" | "published",
   ) => {
-    setPendingEvents((prev) => new Set(prev).add(trackWorkoutId))
+    // Find child events that need the same status update
+    const childEvents = events.filter(
+      (e) => e.parentEventId === trackWorkoutId,
+    )
+    const allIds = [trackWorkoutId, ...childEvents.map((e) => e.id)]
+
+    setPendingEvents((prev) => {
+      const next = new Set(prev)
+      for (const id of allIds) next.add(id)
+      return next
+    })
     try {
+      // Server cascades eventStatus to child sub-events automatically
       await doUpdate({ trackWorkoutId, eventStatus: newStatus })
       await router.invalidate()
     } catch (err) {
@@ -83,22 +94,37 @@ export function QuickActionsEvents({
     } finally {
       setPendingEvents((prev) => {
         const next = new Set(prev)
-        next.delete(trackWorkoutId)
+        for (const id of allIds) next.delete(id)
         return next
       })
     }
   }
 
   const handlePublishAll = async () => {
-    const draftEvents = topLevelEvents.filter((e) => e.eventStatus !== "published")
-    if (draftEvents.length === 0) return
+    // Collect all draft events including children of draft parents
+    const draftParents = topLevelEvents.filter(
+      (e) => e.eventStatus !== "published",
+    )
+    if (draftParents.length === 0) return
+
+    const allDraftIds = draftParents.flatMap((parent) => {
+      const children = events.filter(
+        (e) =>
+          e.parentEventId === parent.id && e.eventStatus !== "published",
+      )
+      return [parent.id, ...children.map((c) => c.id)]
+    })
 
     setIsPublishingAll(true)
     try {
-      for (const event of draftEvents) {
-        await doUpdate({ trackWorkoutId: event.id, eventStatus: "published" })
-      }
-      toast.success(`Published ${draftEvents.length} event(s)`)
+      // Server cascades eventStatus to child sub-events automatically,
+      // so we only need to update parent events
+      await Promise.all(
+        draftParents.map((parent) =>
+          doUpdate({ trackWorkoutId: parent.id, eventStatus: "published" }),
+        ),
+      )
+      toast.success(`Published ${allDraftIds.length} event(s)`)
       await router.invalidate()
     } catch (err) {
       toast.error(

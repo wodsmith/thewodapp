@@ -28,6 +28,19 @@ export interface SubmissionStatus {
   canSubmit: boolean
 }
 
+export interface ChildEvent {
+  id: string
+  workoutId: string
+  workout: {
+    name: string
+    description: string | null
+    scheme: string
+    timeCap: number | null
+  }
+  pointsMultiplier: number | null
+  trackOrder: number
+}
+
 interface CompetitionWorkoutCardProps {
   eventId: string
   slug: string
@@ -46,6 +59,8 @@ interface CompetitionWorkoutCardProps {
   isRegistered?: boolean
   submissionStatus?: SubmissionStatus | null
   timeCap?: number | null // in seconds
+  childEvents?: ChildEvent[]
+  childDivisionDescriptionsMap?: Record<string, DivisionDescription[]>
   venue?: {
     id: string
     name: string
@@ -154,7 +169,6 @@ function getCtaConfig(
 export function CompetitionWorkoutCard({
   eventId,
   slug,
-  trackOrder,
   name,
   scheme,
   description,
@@ -169,6 +183,8 @@ export function CompetitionWorkoutCard({
   isRegistered,
   submissionStatus,
   timeCap,
+  childEvents,
+  childDivisionDescriptionsMap,
   venue,
   schedule,
 }: CompetitionWorkoutCardProps) {
@@ -202,15 +218,6 @@ export function CompetitionWorkoutCard({
             {/* Mobile: stacked layout */}
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between sm:gap-4">
               <div className="flex items-baseline gap-3 sm:items-start sm:gap-4">
-                <span className="text-4xl sm:text-6xl font-black text-primary/70 leading-none select-none">
-                  {(() => {
-                    const n = Number(trackOrder)
-                    if (n % 1 === 0) return String(n).padStart(2, "0")
-                    const whole = Math.floor(n)
-                    const decimal = Math.round((n - whole) * 100)
-                    return `${whole}.${String(decimal).padStart(2, "0")}`
-                  })()}
-                </span>
                 <div className="sm:pt-1">
                   <div className="flex items-center gap-2">
                     <h3 className="text-xl sm:text-2xl font-bold tracking-tight">
@@ -269,14 +276,7 @@ export function CompetitionWorkoutCard({
           {/* Specs Row */}
           <div className="flex flex-wrap gap-2 mb-4 sm:mb-6">
             {formattedTimeCap && (
-              <div
-                className={cn(
-                  "inline-flex items-center gap-1 px-2 py-0.5 sm:gap-1.5 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-medium border",
-                  scheme === "time-with-cap"
-                    ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900"
-                    : "bg-secondary text-secondary-foreground border-transparent",
-                )}
-              >
+              <div className="inline-flex items-center gap-1 px-2 py-0.5 sm:gap-1.5 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-medium bg-secondary text-secondary-foreground">
                 <Timer className="h-3 w-3 sm:h-4 sm:w-4" />
                 {formattedTimeCap} Cap
               </div>
@@ -308,9 +308,9 @@ export function CompetitionWorkoutCard({
           </div>
 
           {/* Venue Section */}
-          <div className="mb-4 sm:mb-6">
-            {venue?.address && hasAddressData(venue.address) ? (
-              (() => {
+          {venue?.address && hasAddressData(venue.address) && (
+            <div className="mb-4 sm:mb-6">
+              {(() => {
                 const mapsUrl = getGoogleMapsUrl(venue.address)
                 return (
                   <div className="flex flex-wrap items-center gap-2 sm:gap-3">
@@ -336,14 +336,9 @@ export function CompetitionWorkoutCard({
                     )}
                   </div>
                 )
-              })()
-            ) : (
-              <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground italic">
-                <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span>Venue to be announced</span>
-              </div>
-            )}
-          </div>
+              })()}
+            </div>
+          )}
 
           {/* Content Grid */}
           <div
@@ -360,13 +355,11 @@ export function CompetitionWorkoutCard({
             >
               <div className="prose prose-sm max-w-none dark:prose-invert space-y-4">
                 {/* Base workout description */}
-                <p className="whitespace-pre-wrap text-sm sm:text-base leading-relaxed">
-                  {description || (
-                    <span className="italic text-muted-foreground">
-                      Details to be announced.
-                    </span>
-                  )}
-                </p>
+                {description && (
+                  <p className="whitespace-pre-wrap text-sm sm:text-base leading-relaxed">
+                    {description}
+                  </p>
+                )}
 
                 {/* Division-specific scale info */}
                 {divisionScale && (
@@ -382,6 +375,65 @@ export function CompetitionWorkoutCard({
                         {divisionScale}
                       </p>
                     </div>
+                  </div>
+                )}
+
+                {/* Sub-events */}
+                {childEvents && childEvents.length > 0 && (
+                  <div className="border-t pt-3 mt-3 space-y-3">
+                    {childEvents.map((child) => {
+                      const childDescriptions =
+                        childDivisionDescriptionsMap?.[child.workoutId] ?? []
+                      const childDivisionDesc = childDescriptions.find(
+                        (d) => d.divisionId === selectedDivisionId,
+                      )
+                      const childScale =
+                        childDivisionDesc?.description?.trim() || null
+                      const childScheme = getSchemeLabel(
+                        child.workout.scheme,
+                        child.workout.timeCap,
+                      )
+
+                      return (
+                        <div key={child.id} className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold">
+                              {child.workout.name}
+                            </span>
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] sm:text-xs"
+                            >
+                              {childScheme}
+                            </Badge>
+                            {child.pointsMultiplier &&
+                              child.pointsMultiplier !== 100 && (
+                                <span className="text-xs text-muted-foreground">
+                                  {child.pointsMultiplier / 100}x
+                                </span>
+                              )}
+                          </div>
+                          {child.workout.description && (
+                            <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                              {child.workout.description}
+                            </p>
+                          )}
+                          {childScale && (
+                            <div className="flex items-start gap-2 mt-1">
+                              <Badge
+                                variant="secondary"
+                                className="shrink-0 text-[10px] sm:text-xs"
+                              >
+                                {childDivisionDesc?.divisionLabel || "Division"}
+                              </Badge>
+                              <p className="whitespace-pre-wrap text-xs sm:text-sm text-muted-foreground">
+                                {childScale}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </div>

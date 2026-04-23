@@ -33,7 +33,9 @@ import { seed as seedSubEvents } from "./seeders/15-sub-events"
 import { seed as seedWinterThrowdownScores } from "./seeders/16-winter-throwdown-scores"
 import { seed as seedSeriesEventTemplates } from "./seeders/17-series-event-templates"
 import { seed as seedRegistrationQuestions } from "./seeders/18-registration-questions"
-import { seed as seedCohosts } from "./seeders/19-cohosts"
+import { seed as seedBroadcasts } from "./seeders/19-broadcasts"
+import { seed as seedCompetitionInvites } from "./seeders/20-competition-invites"
+import { seed as seedCohosts } from "./seeders/21-cohosts"
 
 const seeders = [
 	{ name: "01-global-defaults", fn: seedGlobalDefaults },
@@ -55,7 +57,9 @@ const seeders = [
 	{ name: "16-winter-throwdown-scores", fn: seedWinterThrowdownScores },
 	{ name: "17-series-event-templates", fn: seedSeriesEventTemplates },
 	{ name: "18-registration-questions", fn: seedRegistrationQuestions },
-	{ name: "19-cohosts", fn: seedCohosts },
+	{ name: "19-broadcasts", fn: seedBroadcasts },
+	{ name: "20-competition-invites", fn: seedCompetitionInvites },
+	{ name: "21-cohosts", fn: seedCohosts },
 ]
 
 async function main() {

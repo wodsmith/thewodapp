@@ -17,6 +17,7 @@ interface WorkoutWithType {
   name: string
   workoutType: string
   trackOrder: number
+  parentEventId: string | null
 }
 
 interface CompetitionEvent {
@@ -78,6 +79,23 @@ export function SubmissionWindowsManager({
   const defaultUpsertEvents = useServerFn(upsertCompetitionEventsFn)
   const upsertEvents = overrides?.upsertCompetitionEvents ?? defaultUpsertEvents
 
+  // Separate parent (top-level) workouts from sub-events
+  const parentWorkouts = useMemo(
+    () => workouts.filter((w) => !w.parentEventId),
+    [workouts],
+  )
+  const childrenByParent = useMemo(() => {
+    const map = new Map<string, WorkoutWithType[]>()
+    for (const w of workouts) {
+      if (w.parentEventId) {
+        const children = map.get(w.parentEventId) || []
+        children.push(w)
+        map.set(w.parentEventId, children)
+      }
+    }
+    return map
+  }, [workouts])
+
   // Initialize state from server data
   useEffect(() => {
     // Prevent double initialization in strict mode
@@ -98,9 +116,20 @@ export function SubmissionWindowsManager({
       }
     >()
 
+    // Only track parent (top-level) workouts in assignments — sub-events
+    // are automatically included with their parent
+    const subEventIds = new Set(
+      workouts.filter((w) => w.parentEventId).map((w) => w.id),
+    )
+
     for (const event of initialEvents) {
       // Skip events with no submission window configured
       if (!event.submissionOpensAt && !event.submissionClosesAt) {
+        continue
+      }
+
+      // Skip sub-events — they inherit their parent's window
+      if (subEventIds.has(event.trackWorkoutId)) {
         continue
       }
 
@@ -139,7 +168,7 @@ export function SubmissionWindowsManager({
     // Mark as clean since we just loaded from server
     markClean()
     setIsInitialized(true)
-  }, [initialEvents, setWindows, assignWorkout, markClean, reset])
+  }, [initialEvents, setWindows, assignWorkout, markClean, reset, workouts])
 
   // Monitor for drag-drop events
   useEffect(() => {
@@ -231,6 +260,16 @@ export function SubmissionWindowsManager({
             submissionOpensAt: window.submissionOpensAt,
             submissionClosesAt: window.submissionClosesAt,
           })
+          // Include child sub-events with same window times
+          const children = childrenByParent.get(workoutId) || []
+          for (const child of children) {
+            assignedIds.add(child.id)
+            events.push({
+              trackWorkoutId: child.id,
+              submissionOpensAt: window.submissionOpensAt,
+              submissionClosesAt: window.submissionClosesAt,
+            })
+          }
         }
       }
 
@@ -329,7 +368,7 @@ export function SubmissionWindowsManager({
       <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
         <div className="space-y-4">
           <UnassignedWorkoutsPool
-            workouts={workouts}
+            workouts={parentWorkouts}
             assignedWorkoutIds={assignedWorkoutIds}
             instanceId={instanceId}
           />
@@ -348,14 +387,19 @@ export function SubmissionWindowsManager({
             windows.map((window) => {
               const windowWorkouts = (workoutAssignments.get(window.id) || [])
                 .map((workoutId) => {
-                  const workout = workouts.find((w) => w.id === workoutId)
-                  return workout
-                    ? {
-                        id: workout.id,
-                        name: workout.name,
-                        trackWorkoutId: workout.id,
-                      }
-                    : null
+                  const workout = parentWorkouts.find(
+                    (w) => w.id === workoutId,
+                  )
+                  if (!workout) return null
+                  const children = (
+                    childrenByParent.get(workoutId) || []
+                  ).map((c) => ({ id: c.id, name: c.name }))
+                  return {
+                    id: workout.id,
+                    name: workout.name,
+                    trackWorkoutId: workout.id,
+                    children,
+                  }
                 })
                 .filter((w): w is NonNullable<typeof w> => w !== null)
 

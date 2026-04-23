@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import type { Movement, Sponsor } from "@/db/schema"
+import type { EventDivisionMappingData } from "@/server-fns/event-division-mapping-fns"
 import type { ScoreType, WorkoutScheme } from "@/db/schemas/workouts"
 import {
   SCORE_TYPE_VALUES,
@@ -128,6 +129,7 @@ interface CompetitionWorkout {
   trackId: string
   workoutId: string
   trackOrder: number
+  parentEventId: string | null
   notes: string | null
   pointsMultiplier: number | null
   sponsorId: string | null
@@ -164,6 +166,7 @@ interface EventDetailsFormProps {
   overrides?: EventDetailsFormOverrides
   /** Base route prefix for navigation links (defaults to "/compete/organizer") */
   routePrefix?: string
+  eventDivisionMappings?: EventDivisionMappingData
 }
 
 export function EventDetailsForm({
@@ -178,10 +181,26 @@ export function EventDetailsForm({
   formId = EVENT_DETAILS_FORM_ID,
   overrides,
   routePrefix = "/compete/organizer",
+  eventDivisionMappings,
 }: EventDetailsFormProps) {
   const router = useRouter()
   const navigate = useNavigate()
   const saveFn = overrides?.saveFn ?? saveCompetitionEventFn
+
+  // Filter divisions to only those mapped to this event (if mappings exist).
+  // Sub-events inherit their parent's mappings.
+  const variationDivisions = (() => {
+    if (!eventDivisionMappings?.hasMappings) return divisions
+    const lookupId = event.parentEventId ?? event.id
+    const mappedDivisionIds = new Set(
+      eventDivisionMappings.mappings
+        .filter((m) => m.trackWorkoutId === lookupId)
+        .map((m) => m.divisionId),
+    )
+    // If this event (or its parent) has no explicit mappings, show all divisions
+    if (mappedDivisionIds.size === 0) return divisions
+    return divisions.filter((d) => mappedDivisionIds.has(d.id))
+  })()
 
   // Build initial division descriptions
   const initialDivisionDescs: Record<string, string> = {}
@@ -654,14 +673,16 @@ export function EventDetailsForm({
               <CardHeader>
                 <CardTitle>Division Variations</CardTitle>
                 <CardDescription>
-                  {divisions.length > 0
+                  {variationDivisions.length > 0
                     ? "Customize the workout description for each division. Leave empty to use the default description above."
-                    : "Create divisions for this competition to add division-specific workout variations."}
+                    : divisions.length > 0
+                      ? "No divisions are mapped to this event. Configure event-division mappings to add variations."
+                      : "Create divisions for this competition to add division-specific workout variations."}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {divisions.length > 0 ? (
-                  divisions
+                {variationDivisions.length > 0 ? (
+                  variationDivisions
                     .sort((a, b) => a.position - b.position)
                     .map((division) => (
                       <FormField
@@ -702,6 +723,12 @@ export function EventDetailsForm({
                         )}
                       />
                     ))
+                ) : divisions.length > 0 ? (
+                  <div className="text-center py-6">
+                    <p className="text-muted-foreground">
+                      No divisions are mapped to this event.
+                    </p>
+                  </div>
                 ) : (
                   <div className="text-center py-6">
                     <p className="text-muted-foreground mb-4">

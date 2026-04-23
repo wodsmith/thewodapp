@@ -69,12 +69,15 @@ export const Route = createFileRoute("/compete/organizer/$competitionId")({
 const routeLabels: Record<string, string> = {
   divisions: "Divisions",
   athletes: "Registrations",
+  invites: "Invites",
   events: "Events",
+  "event-divisions": "Event Divisions",
   "submission-windows": "Submission Windows",
   schedule: "Schedule",
   locations: "Locations",
   volunteers: "Volunteers",
   results: "Results", // Overridden to "Submissions" for online competitions
+  "leaderboard-preview": "Leaderboard Preview",
   review: "Review",
   pricing: "Pricing",
   revenue: "Revenue",

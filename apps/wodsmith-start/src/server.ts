@@ -2,7 +2,7 @@
  * Custom server entry point for TanStack Start on Cloudflare Workers.
  *
  * This file extends the default TanStack Start server entry to add
- * Cloudflare-specific handlers like scheduled (cron) triggers.
+ * Cloudflare-specific handlers like the broadcast-email queue consumer.
  *
  * OBSERVABILITY:
  * - All HTTP requests are wrapped with request context for tracing
@@ -16,7 +16,6 @@
 import type {
   ExecutionContext,
   MessageBatch,
-  ScheduledController,
 } from "@cloudflare/workers-types"
 import * as Sentry from "@sentry/cloudflare"
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry"
@@ -27,7 +26,6 @@ import { withEvlog } from "./lib/evlog"
 import {
   extractRequestInfo,
   logError,
-  logInfo,
   logWarning,
   withRequestContext,
 } from "./lib/logging"
@@ -237,81 +235,12 @@ async function fetchWithLogging(
  * Wrapped with Sentry.withSentry for server-side error tracking and APM.
  * This object conforms to Cloudflare's ExportedHandler interface:
  * - `fetch`: Handles all HTTP requests (with logging and request context)
- * - `scheduled`: Handles cron trigger events (monitored by Sentry)
+ * - `queue`: Handles broadcast email queue messages
  */
 export default Sentry.withSentry((env: Env) => getSentryOptions(env), {
   // HTTP requests with logging and request context
   fetch: fetchWithLogging,
 
-  // Cloudflare cron trigger handler - invoked directly by Cloudflare's scheduler.
-  // Schedule configured in alchemy.run.ts (every 15 minutes).
-  async scheduled(
-    controller: ScheduledController,
-    _env: Env,
-    _ctx: ExecutionContext,
-  ) {
-    // Wrap cron execution with request context for tracing
-    return withRequestContext(
-      {
-        method: "CRON",
-        path: controller.cron,
-      },
-      async () => {
-        await Sentry.withMonitor(
-          "submission-window-notifications",
-          async () => {
-            logInfo({
-              message: "[Cron] Scheduled handler triggered",
-              attributes: {
-                cron: controller.cron,
-                scheduledTime: controller.scheduledTime,
-              },
-            })
-
-            try {
-              // Dynamic import to keep cold start fast
-              const { processSubmissionWindowNotifications } = await import(
-                "./server/notifications/submission-window"
-              )
-
-              const result = await processSubmissionWindowNotifications()
-
-              logInfo({
-                message: "[Cron] Submission window notifications processed",
-                attributes: {
-                  cron: controller.cron,
-                  windowOpens: result.windowOpens,
-                  windowCloses24h: result.windowCloses24h,
-                  windowCloses1h: result.windowCloses1h,
-                  windowCloses15m: result.windowCloses15m,
-                  windowClosed: result.windowClosed,
-                  errors: result.errors,
-                },
-              })
-            } catch (err) {
-              logError({
-                message:
-                  "[Cron] Failed to process submission window notifications",
-                error: err,
-                attributes: {
-                  cron: controller.cron,
-                  scheduledTime: controller.scheduledTime,
-                },
-              })
-              // Re-throw so Sentry.withMonitor detects failure
-              throw err
-            }
-          },
-          {
-            schedule: {
-              type: "crontab",
-              value: "*/15 * * * *",
-            },
-          },
-        )
-      },
-    )
-  },
   // Cloudflare Queue consumer for broadcast email delivery.
   // Messages are enqueued by sendBroadcastFn and processed here asynchronously.
   async queue(

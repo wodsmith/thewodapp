@@ -35,22 +35,11 @@ vi.mock("lucide-react", () => {
 	}
 })
 
-// Mock YouTube embed components
-vi.mock("@/components/compete/youtube-embed", () => ({
-	YouTubeEmbed: ({ url, title }: { url: string; title?: string }) => (
-		<div data-testid="youtube-embed" data-url={url} data-title={title} />
+// Mock VideoEmbed component
+vi.mock("@/components/video-embed", () => ({
+	VideoEmbed: ({ url }: { url: string | null }) => (
+		<div data-testid="video-embed" data-url={url} />
 	),
-	isYouTubeUrl: (url: string) => {
-		try {
-			const parsed = new URL(url)
-			return (
-				parsed.hostname.includes("youtube.com") ||
-				parsed.hostname.includes("youtu.be")
-			)
-		} catch {
-			return false
-		}
-	},
 }))
 
 // Mock url utility
@@ -112,7 +101,7 @@ function createDefaultWorkout(
 
 describe("VideoSubmissionPreview", () => {
 	describe("video display", () => {
-		it("renders YouTube embed for YouTube URLs", () => {
+		it("renders VideoEmbed for YouTube URLs", () => {
 			render(
 				<VideoSubmissionPreview
 					submissions={[createDefaultSubmission()]}
@@ -121,10 +110,14 @@ describe("VideoSubmissionPreview", () => {
 				/>,
 			)
 
-			expect(screen.getByTestId("youtube-embed")).toBeTruthy()
+			const embed = screen.getByTestId("video-embed")
+			expect(embed).toBeTruthy()
+			expect(embed.getAttribute("data-url")).toBe(
+				"https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+			)
 		})
 
-		it("renders external link for non-YouTube URLs", () => {
+		it("renders VideoEmbed for Vimeo URLs", () => {
 			render(
 				<VideoSubmissionPreview
 					submissions={[createDefaultSubmission({
@@ -135,39 +128,29 @@ describe("VideoSubmissionPreview", () => {
 				/>,
 			)
 
-			expect(screen.queryByTestId("youtube-embed")).toBeNull()
-			expect(screen.getByText("External video link")).toBeTruthy()
-			expect(screen.getByText("Open")).toBeTruthy()
+			const embed = screen.getByTestId("video-embed")
+			expect(embed).toBeTruthy()
+			expect(embed.getAttribute("data-url")).toBe(
+				"https://vimeo.com/123456",
+			)
 		})
 
-		it("uses safe URL href for external links", () => {
+		it("renders VideoEmbed for WodProof URLs", () => {
 			render(
 				<VideoSubmissionPreview
 					submissions={[createDefaultSubmission({
-						videoUrl: "https://vimeo.com/123456",
+						videoUrl: "https://wodproofapp.com/cloud/?v=abc123test",
 					})]}
 					teamSize={1}
 					canEdit={false}
 				/>,
 			)
 
-			const link = screen.getByText("Open").closest("a")
-			expect(link?.href).toContain("vimeo.com/123456")
-		})
-
-		it("uses # href for unsafe external URLs", () => {
-			render(
-				<VideoSubmissionPreview
-					submissions={[createDefaultSubmission({
-						videoUrl: "javascript:alert(1)",
-					})]}
-					teamSize={1}
-					canEdit={false}
-				/>,
+			const embed = screen.getByTestId("video-embed")
+			expect(embed).toBeTruthy()
+			expect(embed.getAttribute("data-url")).toBe(
+				"https://wodproofapp.com/cloud/?v=abc123test",
 			)
-
-			const link = screen.getByText("Open").closest("a")
-			expect(link?.getAttribute("href")).toBe("#")
 		})
 	})
 
@@ -525,6 +508,99 @@ describe("VideoSubmissionPreview", () => {
 			expect(
 				screen.getByText("Submission window is closed."),
 			).toBeTruthy()
+		})
+	})
+
+	describe("team display", () => {
+		it("shows Partner labels for team submissions", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[
+						createDefaultSubmission({ videoIndex: 0 }),
+						createDefaultSubmission({
+							id: "sub-2",
+							videoIndex: 1,
+							videoUrl: "https://vimeo.com/456",
+						}),
+					]}
+					teamSize={3}
+					canEdit={false}
+				/>,
+			)
+
+			expect(screen.getByText("Partner 1")).toBeTruthy()
+			expect(screen.getByText("Partner 2")).toBeTruthy()
+		})
+
+		it("shows team submission count in description", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[
+						createDefaultSubmission({ videoIndex: 0 }),
+						createDefaultSubmission({ id: "sub-2", videoIndex: 1 }),
+					]}
+					teamSize={3}
+					canEdit={true}
+				/>,
+			)
+
+			expect(
+				screen.getByText(
+					/2 of 3 videos submitted/,
+				),
+			).toBeTruthy()
+		})
+
+		it("shows Team score label for team with workout", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission()]}
+					teamSize={2}
+					score={{
+						scoreValue: 300000,
+						displayScore: "5:00",
+						status: "scored",
+						secondaryValue: null,
+						tiebreakValue: null,
+					}}
+					workout={createDefaultWorkout()}
+					canEdit={false}
+				/>,
+			)
+
+			expect(screen.getByText("Team Time")).toBeTruthy()
+		})
+
+		it("shows individual label when teamSize is 1", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
+					score={{
+						scoreValue: 300000,
+						displayScore: "5:00",
+						status: "scored",
+						secondaryValue: null,
+						tiebreakValue: null,
+					}}
+					workout={createDefaultWorkout()}
+					canEdit={false}
+				/>,
+			)
+
+			expect(screen.getByText("Your Time")).toBeTruthy()
+		})
+
+		it("does not show per-video labels for individual submissions", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
+					canEdit={false}
+				/>,
+			)
+
+			expect(screen.queryByText("Partner 1")).toBeNull()
 		})
 	})
 })

@@ -13,6 +13,7 @@ interface CompetitionHeroProps {
   canManage?: boolean
   isCohost?: boolean
   isVolunteer?: boolean
+  hasJudgesSchedule?: boolean
 }
 
 export function CompetitionHero({
@@ -20,9 +21,10 @@ export function CompetitionHero({
   canManage = false,
   isCohost = false,
   isVolunteer = false,
+  hasJudgesSchedule = false,
 }: CompetitionHeroProps) {
-  // Show judges schedule link for organizers and volunteers
-  const showJudgesScheduleLink = canManage || isVolunteer
+  // Show judges schedule link for organizers and volunteers, but only if a schedule exists
+  const showJudgesScheduleLink = (canManage || isVolunteer) && hasJudgesSchedule
   // Use competition profile image, fall back to organizing team avatar
   const profileImage =
     competition.profileImageUrl ?? competition.organizingTeam?.avatarUrl

@@ -130,6 +130,53 @@ async function checkVimeoAccessibility(videoId: string): Promise<boolean> {
 }
 
 /**
+ * Check if a WodProof video is accessible by sending a HEAD request to the S3 URL
+ */
+async function checkWodProofAccessibility(videoId: string): Promise<boolean> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), OEMBED_TIMEOUT_MS)
+
+  try {
+    const s3Url = `https://s3.us-east-1.amazonaws.com/wodproof-cloud/${videoId}.mp4`
+    const response = await fetch(s3Url, {
+      method: "HEAD",
+      signal: controller.signal,
+    })
+
+    clearTimeout(timeoutId)
+    return response.ok
+  } catch {
+    clearTimeout(timeoutId)
+    return false
+  }
+}
+
+/**
+ * Check if a WeTime preview URL is reachable. The preview page itself is public;
+ * the MP4 inside requires an authenticated fetch to resolve (see
+ * resolveWeTimeVideoUrlFn), so at validation time we just verify the share URL
+ * resolves.
+ */
+async function checkWeTimeAccessibility(videoId: string): Promise<boolean> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), OEMBED_TIMEOUT_MS)
+
+  try {
+    const previewUrl = `https://wetime.io/preview/${videoId}`
+    const response = await fetch(previewUrl, {
+      method: "HEAD",
+      signal: controller.signal,
+    })
+
+    clearTimeout(timeoutId)
+    return response.ok
+  } catch {
+    clearTimeout(timeoutId)
+    return false
+  }
+}
+
+/**
  * Check video accessibility based on platform
  */
 async function checkVideoAccessibility(
@@ -140,6 +187,10 @@ async function checkVideoAccessibility(
       return checkYouTubeAccessibility(parsed.videoId)
     case "vimeo":
       return checkVimeoAccessibility(parsed.videoId)
+    case "wodproof":
+      return checkWodProofAccessibility(parsed.videoId)
+    case "wetime":
+      return checkWeTimeAccessibility(parsed.videoId)
     default:
       return false
   }

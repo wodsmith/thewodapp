@@ -277,6 +277,7 @@ describe('Competition Score Server Functions (TanStack)', () => {
         {
           id: 'score-1',
           userId: 'user-1',
+          scalingLevelId: 'div-1',
           scoreValue: 300000, // 5:00 in milliseconds
           status: 'scored',
           scheme: 'time',

@@ -10,14 +10,17 @@
 import { Link, useRouterState } from "@tanstack/react-router"
 import {
   AlertTriangle,
+  BarChart3,
   Calculator,
   Calendar,
   ClipboardSignature,
   Clock,
   DollarSign,
+  Grid3X3,
   Handshake,
   Home,
   Layers,
+  Mail,
   MapPin,
   Medal,
   Megaphone,
@@ -82,6 +85,11 @@ const getNavigation = (
       items: [
         { label: "Divisions", href: `${basePath}/divisions`, icon: Layers },
         { label: "Events", href: `${basePath}/events`, icon: Trophy },
+        {
+          label: "Event Divisions",
+          href: `${basePath}/event-divisions`,
+          icon: Grid3X3,
+        },
         // Submission Windows only for online competitions
         ...(competitionType === "online"
           ? [
@@ -94,6 +102,7 @@ const getNavigation = (
           : []),
         { label: "Scoring", href: `${basePath}/scoring`, icon: Calculator },
         { label: "Registrations", href: `${basePath}/athletes`, icon: Users },
+        { label: "Invites", href: `${basePath}/invites`, icon: Mail },
         {
           label: "Waivers",
           href: `${basePath}/waivers`,
@@ -124,6 +133,11 @@ const getNavigation = (
           label: competitionType === "online" ? "Submissions" : "Results",
           href: `${basePath}/results`,
           icon: Medal,
+        },
+        {
+          label: "Leaderboard Preview",
+          href: `${basePath}/leaderboard-preview`,
+          icon: BarChart3,
         },
         {
           label: "Broadcasts",

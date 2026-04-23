@@ -51,11 +51,15 @@ Athletes can register for multiple divisions in a single checkout session.
 
 Each division becomes a separate line item in Stripe Checkout and a separate `commercePurchaseTable` record. Free divisions within a mixed checkout are registered immediately while paid ones go through Stripe. The `items` array in the input schema supports this, with duplicate division validation.
 
+Downstream, scores stay scoped per division — see [[lat.md/domain#Domain Model#Scoring#One score per athlete per event per division]] for the unique key and write/read contracts that prevent a partner-division score from leaking onto the individual leaderboard when the same track workout is shared across both divisions.
+
 ## Team Registration
 
 Team divisions (teamSize > 1) require a team name and teammate emails during registration.
 
-The captain (registering user) creates the team. A `competition_team` is created in the `teamTable` with `competitionMetadata` JSON storing `competitionId` and `divisionId`. Teammates are invited via `inviteUserToTeamInternal`: existing users are added directly to the team; new users receive an email invitation with a 30-day token. Teammates are also added to the `competition_event` team.
+The captain (registering user) creates the team. A `competition_team` is created in the `teamTable` with `competitionMetadata` JSON storing `competitionId` and `divisionId`. Teammates are invited via [[apps/wodsmith-start/src/server/registration.ts#inviteUserToTeamInternal]]: existing users are added directly to the team; new users receive an email invitation with a 30-day token. Teammates are also added to the `competition_event` team. Captains can refresh expired invites via [[apps/wodsmith-start/src/server-fns/registration-fns.ts#refreshCompetitionTeamInviteFn]], which generates a new token, extends the expiry by 30 days, and resends the email.
+
+Organizers manage roster composition from the [[organizer-dashboard#Registrations (Athletes)#Athlete Detail Page]] without captaincy: [[apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts#addTeammateToRegistrationFn]] creates a pending invite directly (bypasses the captain-only `INVITE_MEMBERS` check by inlining the invite insert + email send), [[apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts#removeTeammateFromRegistrationFn]] deactivates a single athlete-team membership (and the matching event-team membership) without touching the captain, [[apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts#cancelPendingTeamInviteFn]] sets a pending invite to `CANCELLED`, and [[apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts#resendTeamInviteAsOrganizerFn]] resends any pending invite regardless of expiry (vs. the captain-only fn which only permits *expired* refreshes).
 
 ## Capacity Management
 

@@ -210,7 +210,7 @@ export function EventResourcesCard({
             <div>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
-                Event Resources
+                Quick Links
               </CardTitle>
               <CardDescription className="mt-1">
                 Attach videos, documents, or instructions to this event

@@ -1,10 +1,13 @@
 "use client"
 
-import { getRouteApi, useNavigate, useSearch } from "@tanstack/react-router"
+import { useNavigate, useSearch } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { BarChart3, Eye, EyeOff } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useIsMobile } from "@/hooks/use-mobile"
+import {
+  getStatusConfig,
+  reviewStatusOrder,
+} from "@/components/compete/submission-status-badge"
 import { CompetitionLeaderboardTable } from "@/components/competition-leaderboard-table"
 import { OnlineCompetitionLeaderboardTable } from "@/components/online-competition-leaderboard-table"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -24,26 +27,84 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  type CompetitionLeaderboardEntry,
-  getCompetitionLeaderboardFn,
-} from "@/server-fns/leaderboard-fns"
+import { WorkoutPreview } from "@/components/workout-preview"
+import { useIsMobile } from "@/hooks/use-mobile"
+import { cn } from "@/lib/utils"
 import {
   type DivisionDescription,
   getPublicEventDetailsFn,
   getWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
-import { WorkoutPreview } from "@/components/workout-preview"
+import {
+  type CompetitionLeaderboardEntry,
+  getCompetitionLeaderboardFn,
+} from "@/server-fns/leaderboard-fns"
 import type { ScoringAlgorithm } from "@/types/scoring"
 
-// Get parent route API to access divisions from loader
-const parentRoute = getRouteApi("/compete/$slug")
+interface LeaderboardDivision {
+  id: string
+  label: string
+}
+
+interface LeaderboardCompetitionInfo {
+  slug: string
+  competitionType: "in-person" | "online"
+}
 
 /**
  * Props for the LeaderboardPageContent component
  */
 interface LeaderboardPageContentProps {
   competitionId: string
+  /** Divisions available for filtering. Required. */
+  divisions: LeaderboardDivision[] | null | undefined
+  /** Competition info needed for URL generation and table selection. */
+  competition: LeaderboardCompetitionInfo
+  /**
+   * Preview mode: request the leaderboard with the publication filter
+   * bypassed so organizers see unpublished results. Caller is responsible
+   * for routing this only to authorized organizer views.
+   */
+  preview?: boolean
+}
+
+/**
+ * Legend for the review-status badges shown on the organizer-preview
+ * leaderboard. Mirrors the icon + color config from `ReviewStatusIndicator`
+ * in [[online-competition-leaderboard-table.tsx]] so organizers can decode
+ * the inline cell badges at a glance.
+ */
+function ReviewStatusLegend() {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs">
+      <span className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.08em] font-semibold text-muted-foreground">
+        Review
+        <span
+          aria-hidden
+          className="h-px w-6 bg-border"
+        />
+      </span>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {reviewStatusOrder.map((status) => {
+          const config = getStatusConfig(status)
+          const Icon = config.icon
+          return (
+            <span
+              key={status}
+              title={config.description}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 font-medium tabular-nums",
+                config.className,
+              )}
+            >
+              <Icon className={cn("h-3 w-3", config.iconClassName)} />
+              {config.label}
+            </span>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 /**
@@ -54,6 +115,9 @@ interface LeaderboardPageContentProps {
  */
 export function LeaderboardPageContent({
   competitionId,
+  divisions,
+  competition,
+  preview = false,
 }: LeaderboardPageContentProps) {
   const navigate = useNavigate()
   const isMobile = useIsMobile()
@@ -63,9 +127,6 @@ export function LeaderboardPageContent({
     event?: string
     affiliate?: string
   }
-
-  // Get divisions and competition from parent route loader
-  const { divisions, competition } = parentRoute.useLoaderData()
 
   // Default to first division if available
   const defaultDivision = divisions?.[0]?.id ?? ""
@@ -115,13 +176,41 @@ export function LeaderboardPageContent({
   const getEventDetails = useServerFn(getPublicEventDetailsFn)
   const getDivisionDescriptions = useServerFn(getWorkoutDivisionDescriptionsFn)
 
-  // Close preview when event changes
-  // biome-ignore lint/correctness/useExhaustiveDependencies: selectedEventId triggers reset intentionally
+  // Extract events from leaderboard data — must be before effectiveEventId and preview hooks
+  const events = useMemo(() => {
+    if (leaderboard.length === 0) return []
+
+    const firstEntry = leaderboard[0]
+    if (!firstEntry) return []
+
+    return firstEntry.eventResults
+      .map((r) => ({
+        id: r.trackWorkoutId,
+        name: r.eventName,
+        trackOrder: r.trackOrder,
+        scheme: r.scheme,
+        parentEventId: r.parentEventId,
+        parentEventName: r.parentEventName,
+      }))
+      .sort((a, b) => a.trackOrder - b.trackOrder)
+  }, [leaderboard])
+
+  // Validate selectedEventId against division-filtered events to prevent stale URL params.
+  // When event-division mappings exist, the server only returns events mapped to
+  // the selected division. If the URL has an event ID that's not in the filtered list
+  // (e.g. shared link across divisions), fall back to overall view.
+  const effectiveEventId = useMemo(() => {
+    if (!selectedEventId) return null
+    return events.some((e) => e.id === selectedEventId) ? selectedEventId : null
+  }, [selectedEventId, events])
+
+  // Close preview when effective event changes (includes division-filtered invalidation)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: effectiveEventId triggers reset intentionally
   useEffect(() => {
     setIsPreviewOpen(false)
     setPreviewData(null)
     setPreviewError(null)
-  }, [selectedEventId])
+  }, [effectiveEventId])
 
   const handleTogglePreview = useCallback(async () => {
     if (isPreviewOpen) {
@@ -129,10 +218,10 @@ export function LeaderboardPageContent({
       return
     }
 
-    if (!selectedEventId) return
+    if (!effectiveEventId) return
 
     // Check cache first
-    const cached = previewCache.current.get(selectedEventId)
+    const cached = previewCache.current.get(effectiveEventId)
     if (cached) {
       setPreviewData(cached)
       setIsPreviewOpen(true)
@@ -147,7 +236,7 @@ export function LeaderboardPageContent({
     try {
       const result = await getEventDetails({
         data: {
-          eventId: selectedEventId,
+          eventId: effectiveEventId,
           competitionId,
         },
       })
@@ -177,7 +266,7 @@ export function LeaderboardPageContent({
           workoutId: result.event.workout.id,
           divisionDescriptions,
         }
-        previewCache.current.set(selectedEventId, data)
+        previewCache.current.set(effectiveEventId, data)
         setPreviewData(data)
       } else {
         setPreviewError("Workout details not found.")
@@ -189,7 +278,7 @@ export function LeaderboardPageContent({
     }
   }, [
     isPreviewOpen,
-    selectedEventId,
+    effectiveEventId,
     competitionId,
     divisions,
     getEventDetails,
@@ -217,6 +306,7 @@ export function LeaderboardPageContent({
           data: {
             competitionId,
             divisionId: selectedDivision,
+            preview,
           },
         })
 
@@ -245,7 +335,7 @@ export function LeaderboardPageContent({
     return () => {
       cancelled = true
     }
-  }, [competitionId, selectedDivision, getLeaderboard])
+  }, [competitionId, selectedDivision, getLeaderboard, preview])
 
   // Handle division change - update URL
   const handleDivisionChange = useCallback(
@@ -279,25 +369,6 @@ export function LeaderboardPageContent({
     },
     [navigate],
   )
-
-  // Extract events from leaderboard data
-  const events = useMemo(() => {
-    if (leaderboard.length === 0) return []
-
-    const firstEntry = leaderboard[0]
-    if (!firstEntry) return []
-
-    return firstEntry.eventResults
-      .map((r) => ({
-        id: r.trackWorkoutId,
-        name: r.eventName,
-        trackOrder: r.trackOrder,
-        scheme: r.scheme,
-        parentEventId: r.parentEventId,
-        parentEventName: r.parentEventName,
-      }))
-      .sort((a, b) => a.trackOrder - b.trackOrder)
-  }, [leaderboard])
 
   // Extract unique affiliates for filter dropdown
   const affiliates = useMemo(() => {
@@ -466,7 +537,7 @@ export function LeaderboardPageContent({
           {/* View selector (Overall vs individual events) */}
           {events.length > 0 && (
             <Select
-              value={selectedEventId ?? "overall"}
+              value={effectiveEventId ?? "overall"}
               onValueChange={handleEventChange}
             >
               <SelectTrigger className="w-[200px]">
@@ -504,7 +575,7 @@ export function LeaderboardPageContent({
           )}
 
           {/* View Workout button */}
-          {selectedEventId && (
+          {effectiveEventId && (
             <Button variant="outline" size="sm" onClick={handleTogglePreview}>
               {isPreviewOpen ? (
                 <EyeOff className="h-4 w-4 mr-1.5" />
@@ -522,10 +593,15 @@ export function LeaderboardPageContent({
             </span>
           )}
         </div>
+
+        {/* Review-status legend (organizer preview, online only) */}
+        {preview && competition.competitionType === "online" && (
+          <ReviewStatusLegend />
+        )}
       </div>
 
       {/* Desktop: Collapsible workout preview */}
-      {selectedEventId && !isMobile && (
+      {effectiveEventId && !isMobile && (
         <Collapsible open={isPreviewOpen}>
           <CollapsibleContent>
             {previewError ? (
@@ -542,7 +618,7 @@ export function LeaderboardPageContent({
                 tags={previewData?.tags ?? []}
                 eventDetailUrl={{
                   slug: competition.slug,
-                  eventId: selectedEventId,
+                  eventId: effectiveEventId,
                 }}
                 isLoading={isPreviewLoading}
                 divisionScale={selectedDivisionDesc?.description}
@@ -558,21 +634,23 @@ export function LeaderboardPageContent({
           <OnlineCompetitionLeaderboardTable
             leaderboard={filteredLeaderboard}
             events={events}
-            selectedEventId={selectedEventId}
+            selectedEventId={effectiveEventId}
             scoringAlgorithm={scoringAlgorithm}
+            linkToSubmission={preview}
+            competitionId={competitionId}
           />
         ) : (
           <CompetitionLeaderboardTable
             leaderboard={filteredLeaderboard}
             events={events}
-            selectedEventId={selectedEventId}
+            selectedEventId={effectiveEventId}
             scoringAlgorithm={scoringAlgorithm}
           />
         )}
       </div>
 
       {/* Mobile: Bottom Sheet workout preview */}
-      {selectedEventId && isMobile && (
+      {effectiveEventId && isMobile && (
         <Sheet open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
           <SheetContent
             side="bottom"
@@ -595,7 +673,7 @@ export function LeaderboardPageContent({
                 tags={previewData?.tags ?? []}
                 eventDetailUrl={{
                   slug: competition.slug,
-                  eventId: selectedEventId,
+                  eventId: effectiveEventId,
                 }}
                 isLoading={isPreviewLoading}
                 divisionScale={selectedDivisionDesc?.description}

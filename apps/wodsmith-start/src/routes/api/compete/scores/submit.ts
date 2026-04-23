@@ -26,7 +26,10 @@ import {
   competitionsTable,
   REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
-import { programmingTracksTable, trackWorkoutsTable } from "@/db/schemas/programming"
+import {
+  programmingTracksTable,
+  trackWorkoutsTable,
+} from "@/db/schemas/programming"
 import { scoresTable } from "@/db/schemas/scores"
 import type { TiebreakScheme } from "@/db/schemas/workouts"
 import { workouts } from "@/db/schemas/workouts"
@@ -45,13 +48,17 @@ import { corsHeaders, getSessionFromBearerOrCookie } from "@/utils/bearer-auth"
 const submitScoreSchema = z.object({
   competitionId: z.string().min(1),
   trackWorkoutId: z.string().min(1),
+  divisionId: z.string().optional(),
   score: z.string().min(1, "Score is required"),
   status: z.enum(["scored", "cap"]),
   secondaryScore: z.string().optional(),
   tiebreakScore: z.string().optional(),
 })
 
-async function checkSubmissionWindow(competitionId: string, trackWorkoutId: string) {
+async function checkSubmissionWindow(
+  competitionId: string,
+  trackWorkoutId: string,
+) {
   const db = getDb()
 
   const [competition] = await db
@@ -106,7 +113,10 @@ export const Route = createFileRoute("/api/compete/scores/submit")({
 
       POST: async ({ request }: { request: Request }) => {
         const origin = request.headers.get("Origin")
-        const headers = { "Content-Type": "application/json", ...corsHeaders(origin) }
+        const headers = {
+          "Content-Type": "application/json",
+          ...corsHeaders(origin),
+        }
 
         const session = await getSessionFromBearerOrCookie(request)
         if (!session?.userId) {
@@ -133,28 +143,48 @@ export const Route = createFileRoute("/api/compete/scores/submit")({
         const userId = session.userId
 
         try {
-          // Check registration
-          const [registration] = await db
+          // Check registration — scope to specific division when provided
+          const regConditions = [
+            eq(competitionRegistrationsTable.eventId, data.competitionId),
+            eq(competitionRegistrationsTable.userId, userId),
+            ne(
+              competitionRegistrationsTable.status,
+              REGISTRATION_STATUS.REMOVED,
+            ),
+          ]
+          if (data.divisionId) {
+            regConditions.push(
+              eq(competitionRegistrationsTable.divisionId, data.divisionId),
+            )
+          }
+
+          const registrations = await db
             .select({
               id: competitionRegistrationsTable.id,
               divisionId: competitionRegistrationsTable.divisionId,
             })
             .from(competitionRegistrationsTable)
-            .where(
-              and(
-                eq(competitionRegistrationsTable.eventId, data.competitionId),
-                eq(competitionRegistrationsTable.userId, userId),
-                ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
-              ),
-            )
-            .limit(1)
+            .where(and(...regConditions))
+            .limit(2)
 
-          if (!registration) {
+          if (registrations.length === 0) {
             return json(
               { error: "You are not registered for this competition" },
               { status: 403, headers },
             )
           }
+
+          if (registrations.length > 1) {
+            return json(
+              {
+                error:
+                  "You are registered in multiple divisions for this competition. Please specify divisionId.",
+              },
+              { status: 422, headers },
+            )
+          }
+
+          const registration = registrations[0]
 
           // Check submission window
           const windowStatus = await checkSubmissionWindow(
@@ -171,7 +201,10 @@ export const Route = createFileRoute("/api/compete/scores/submit")({
 
           // Get track workout info
           const [trackWorkout] = await db
-            .select({ workoutId: trackWorkoutsTable.workoutId, trackId: trackWorkoutsTable.trackId })
+            .select({
+              workoutId: trackWorkoutsTable.workoutId,
+              trackId: trackWorkoutsTable.trackId,
+            })
             .from(trackWorkoutsTable)
             .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
             .limit(1)
@@ -192,24 +225,34 @@ export const Route = createFileRoute("/api/compete/scores/submit")({
             .limit(1)
 
           if (!workout) {
-            return json({ error: "Workout not found" }, { status: 404, headers })
+            return json(
+              { error: "Workout not found" },
+              { status: 404, headers },
+            )
           }
 
           const scheme = workout.scheme as WorkoutScheme
-          const scoreType = (workout.scoreType as ScoreType) || getDefaultScoreType(scheme)
+          const scoreType =
+            (workout.scoreType as ScoreType) || getDefaultScoreType(scheme)
 
           // Validate score
           const parseResult = parseScore(data.score, scheme)
           if (!parseResult.isValid) {
             return json(
-              { error: `Invalid score format: ${parseResult.error || "Please check your entry"}` },
+              {
+                error: `Invalid score format: ${parseResult.error || "Please check your entry"}`,
+              },
               { status: 422, headers },
             )
           }
 
           let encodedValue: number | null = encodeScore(data.score, scheme)
 
-          if (data.status === "cap" && scheme === "time-with-cap" && workout.timeCap) {
+          if (
+            data.status === "cap" &&
+            scheme === "time-with-cap" &&
+            workout.timeCap
+          ) {
             encodedValue = workout.timeCap * 1000
           }
 
@@ -221,14 +264,22 @@ export const Route = createFileRoute("/api/compete/scores/submit")({
 
           let tiebreakValue: number | null = null
           if (data.tiebreakScore && workout.tiebreakScheme) {
-            tiebreakValue = encodeScore(data.tiebreakScore, workout.tiebreakScheme as WorkoutScheme)
+            tiebreakValue = encodeScore(
+              data.tiebreakScore,
+              workout.tiebreakScheme as WorkoutScheme,
+            )
           }
 
           const timeCapMs = workout.timeCap ? workout.timeCap * 1000 : null
 
           const sortKey =
             encodedValue !== null
-              ? computeSortKey({ value: encodedValue, status: data.status, scheme, scoreType })
+              ? computeSortKey({
+                  value: encodedValue,
+                  status: data.status,
+                  scheme,
+                  scoreType,
+                })
               : null
 
           // Get team from track
@@ -239,10 +290,14 @@ export const Route = createFileRoute("/api/compete/scores/submit")({
             .limit(1)
 
           if (!track?.ownerTeamId) {
-            return json({ error: "Could not determine team ownership" }, { status: 500, headers })
+            return json(
+              { error: "Could not determine team ownership" },
+              { status: 500, headers },
+            )
           }
 
-          const statusOrder = data.status === "cap" ? STATUS_ORDER.cap : STATUS_ORDER.scored
+          const statusOrder =
+            data.status === "cap" ? STATUS_ORDER.cap : STATUS_ORDER.scored
 
           await db
             .insert(scoresTable)
@@ -257,7 +312,8 @@ export const Route = createFileRoute("/api/compete/scores/submit")({
               status: data.status,
               statusOrder,
               sortKey: sortKey ? sortKeyToString(sortKey) : null,
-              tiebreakScheme: (workout.tiebreakScheme as TiebreakScheme) ?? null,
+              tiebreakScheme:
+                (workout.tiebreakScheme as TiebreakScheme) ?? null,
               tiebreakValue,
               timeCapMs,
               secondaryValue,
@@ -271,7 +327,8 @@ export const Route = createFileRoute("/api/compete/scores/submit")({
                 status: data.status,
                 statusOrder,
                 sortKey: sortKey ? sortKeyToString(sortKey) : null,
-                tiebreakScheme: (workout.tiebreakScheme as TiebreakScheme) ?? null,
+                tiebreakScheme:
+                  (workout.tiebreakScheme as TiebreakScheme) ?? null,
                 tiebreakValue,
                 timeCapMs,
                 secondaryValue,
@@ -280,28 +337,43 @@ export const Route = createFileRoute("/api/compete/scores/submit")({
               },
             })
 
+          const finalScoreConditions = [
+            eq(scoresTable.competitionEventId, data.trackWorkoutId),
+            eq(scoresTable.userId, userId),
+          ]
+          if (registration.divisionId) {
+            finalScoreConditions.push(
+              eq(scoresTable.scalingLevelId, registration.divisionId),
+            )
+          }
+
           const [finalScore] = await db
             .select({ id: scoresTable.id })
             .from(scoresTable)
-            .where(
-              and(
-                eq(scoresTable.competitionEventId, data.trackWorkoutId),
-                eq(scoresTable.userId, userId),
-              ),
-            )
+            .where(and(...finalScoreConditions))
             .limit(1)
 
           if (!finalScore) {
-            return json({ error: "Failed to save score" }, { status: 500, headers })
+            return json(
+              { error: "Failed to save score" },
+              { status: 500, headers },
+            )
           }
 
           return json(
-            { success: true, scoreId: finalScore.id, message: "Score submitted successfully" },
+            {
+              success: true,
+              scoreId: finalScore.id,
+              message: "Score submitted successfully",
+            },
             { headers },
           )
         } catch (err) {
           console.error("[API] /api/compete/scores/submit error:", err)
-          return json({ error: "Internal server error" }, { status: 500, headers })
+          return json(
+            { error: "Internal server error" },
+            { status: 500, headers },
+          )
         }
       },
     },

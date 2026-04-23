@@ -5,7 +5,7 @@
 
 import { createId } from "@paralleldrive/cuid2"
 import { createServerFn } from "@tanstack/react-start"
-import { and, asc, eq, inArray } from "drizzle-orm"
+import { and, asc, eq, inArray, isNull } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -638,7 +638,7 @@ export const getPublicEventDetailsFn = createServerFn({
 
     const event = trackWorkoutResult[0]
 
-    // Count total published events in this track for "Event X of Y" display
+    // Count total published top-level events in this track for "Event X of Y" display
     const totalEventsResult = await db
       .select({ id: trackWorkoutsTable.id })
       .from(trackWorkoutsTable)
@@ -646,6 +646,7 @@ export const getPublicEventDetailsFn = createServerFn({
         and(
           eq(trackWorkoutsTable.trackId, event.trackId),
           eq(trackWorkoutsTable.eventStatus, "published"),
+          isNull(trackWorkoutsTable.parentEventId),
         ),
       )
     const totalEvents = totalEventsResult.length

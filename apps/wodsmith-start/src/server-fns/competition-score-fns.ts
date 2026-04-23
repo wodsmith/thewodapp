@@ -62,6 +62,9 @@ import {
   sortKeyToString,
 } from "@/lib/scoring"
 import { getSessionFromCookie } from "@/utils/auth"
+import { requireTeamPermission } from "@/utils/team-auth"
+import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { aggregateValues } from "@/lib/scoring"
 
 // ============================================================================
 // Types
@@ -234,26 +237,6 @@ async function isWithinSubmissionWindow(
 }
 
 /**
- * Map ScoreStatus to statusOrder for the scores table.
- */
-function getStatusOrder(status: ScoreStatus): number {
-  switch (status) {
-    case "scored":
-      return STATUS_ORDER.scored // 0
-    case "cap":
-      return STATUS_ORDER.cap // 1
-    case "dq":
-      return STATUS_ORDER.dq // 2
-    case "withdrawn":
-    case "dns":
-    case "dnf":
-      return STATUS_ORDER.withdrawn // 3
-    default:
-      return STATUS_ORDER.scored // 0 - default to scored
-  }
-}
-
-/**
  * Map ScoreStatus to the simplified status type for scores table.
  */
 function mapToNewStatus(
@@ -343,6 +326,11 @@ const deleteCompetitionScoreInputSchema = z.object({
   competitionId: z.string().min(1),
   trackWorkoutId: z.string().min(1),
   userId: z.string().min(1),
+  // Required (nullable). `null` targets an open/null-division registration's
+  // score; an explicit string targets that specific division. Optional was
+  // unsafe — a missing field collapsed to an unscoped delete that wiped every
+  // division's score for the user/workout pair.
+  divisionId: z.string().nullable(),
 })
 
 // ============================================================================
@@ -540,19 +528,28 @@ export const getEventScoreEntryDataFn = createServerFn({ method: "GET" })
 
     const filteredRegistrations = registrations
 
-    // Get existing scores for this event
+    // Get existing scores for this event. When an athlete is registered in
+    // multiple divisions for a shared workout, a lookup by userId alone
+    // returns rows for every division. We pull all rows for the candidate
+    // users and key the result map by (userId, scalingLevelId) below so each
+    // registration is matched to its own division's score — never another
+    // division's row.
     const userIds = filteredRegistrations.map((r) => r.user.id)
+    const existingScoresConditions = [
+      eq(scoresTable.competitionEventId, data.trackWorkoutId),
+      inArray(scoresTable.userId, userIds),
+    ]
+    if (data.divisionId) {
+      existingScoresConditions.push(
+        eq(scoresTable.scalingLevelId, data.divisionId),
+      )
+    }
     const existingScores =
       userIds.length > 0
         ? await db
             .select()
             .from(scoresTable)
-            .where(
-              and(
-                eq(scoresTable.competitionEventId, data.trackWorkoutId),
-                inArray(scoresTable.userId, userIds),
-              ),
-            )
+            .where(and(...existingScoresConditions))
         : []
 
     // Get score_rounds for all existing scores
@@ -606,8 +603,13 @@ export const getEventScoreEntryDataFn = createServerFn({ method: "GET" })
       setsByScoreId.set(round.scoreId, existing)
     }
 
-    // Create a map of userId to score
-    const scoresByUserId = new Map(existingScores.map((s) => [s.userId, s]))
+    // Key by (userId, scalingLevelId) so a multi-division athlete's score in
+    // division A doesn't get attached to their division-B registration row.
+    const scoreKey = (userId: string, scalingLevelId: string | null) =>
+      `${userId}::${scalingLevelId ?? ""}`
+    const scoresByUserDivision = new Map(
+      existingScores.map((s) => [scoreKey(s.userId, s.scalingLevelId), s]),
+    )
 
     // Get unique divisions for the filter dropdown
     const divisionIds = [
@@ -676,7 +678,9 @@ export const getEventScoreEntryDataFn = createServerFn({ method: "GET" })
     // Build athletes array
     const athletes: EventScoreEntryAthlete[] = filteredRegistrations.map(
       (reg) => {
-        const existingScore = scoresByUserId.get(reg.user.id)
+        const existingScore = scoresByUserDivision.get(
+          scoreKey(reg.user.id, reg.registration.divisionId),
+        )
         const scoreSets = existingScore
           ? (setsByScoreId.get(existingScore.id) || []).sort(
               (a, b) => a.setNumber - b.setNumber,
@@ -855,7 +859,14 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
     }> => {
       const db = getDb()
 
-      getEvlog()?.set({ action: "save_score", score: { competitionId: data.competitionId, registrationId: data.registrationId, workoutId: data.workoutId } })
+      getEvlog()?.set({
+        action: "save_score",
+        score: {
+          competitionId: data.competitionId,
+          registrationId: data.registrationId,
+          workoutId: data.workoutId,
+        },
+      })
 
       // Update request context for tracing
       addRequestContextAttribute("competitionId", data.competitionId)
@@ -908,26 +919,58 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
 
       // Encode score using encoding
       let encodedValue: number | null = null
+      let encodedRounds: number[] = []
+      const hasRoundScores = !!(data.roundScores && data.roundScores.length > 0)
 
       if (data.roundScores && data.roundScores.length > 0) {
         // Multi-round: encode each round and aggregate
         const roundInputs = data.roundScores.map((rs) => ({ raw: rs.score }))
         const result = encodeRounds(roundInputs, scheme, scoreType)
+        // `encodeRounds` drops rounds that fail to encode — that would
+        // misalign roundStatuses with the per-round rows we insert below.
+        if (result.rounds.length !== data.roundScores.length) {
+          throw new Error("Every round in roundScores must be a valid score")
+        }
         encodedValue = result.aggregated
+        encodedRounds = result.rounds
       } else if (data.score?.trim()) {
         // Single score: encode directly
         encodedValue = encodeScore(data.score, scheme)
       }
 
-      // Map status to simplified type
-      const newStatus = mapToNewStatus(data.scoreStatus)
+      // Map client-declared status to simplified type. For multi-round
+      // `time-with-cap` we derive status server-side from the rounds
+      // themselves (mirroring `submitVideoFn`), ignoring the client value.
+      let newStatus = mapToNewStatus(data.scoreStatus)
+      const roundStatuses: Array<"scored" | "cap"> = []
+      let cappedRoundCount = 0
 
-      // Handle CAP status for time-with-cap workouts
       if (
+        scheme === "time-with-cap" &&
+        data.workout.timeCap &&
+        hasRoundScores &&
+        encodedValue !== null
+      ) {
+        // Multi-round time cap: per-round inference. Preserve the summed
+        // total — do NOT clamp to cap. Parent status becomes "cap" if any
+        // round is capped.
+        const capMs = data.workout.timeCap * 1000
+        for (const roundValue of encodedRounds) {
+          const isRoundCapped = roundValue >= capMs
+          roundStatuses.push(isRoundCapped ? "cap" : "scored")
+          if (isRoundCapped) cappedRoundCount++
+        }
+        // Preserve terminal statuses (dq/withdrawn). Only flip between
+        // scored/cap when the caller declared a non-terminal status.
+        if (newStatus !== "dq" && newStatus !== "withdrawn") {
+          newStatus = cappedRoundCount > 0 ? "cap" : "scored"
+        }
+      } else if (
         newStatus === "cap" &&
         scheme === "time-with-cap" &&
         data.workout.timeCap
       ) {
+        // Single-round legacy clamp + reps-at-cap behavior.
         encodedValue = data.workout.timeCap * 1000
       }
 
@@ -958,8 +1001,10 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
         }
       }
 
-      // Compute sort key for efficient leaderboard queries
-      // Include tiebreak in sortKey so tied scores can be differentiated
+      // Compute sort key for efficient leaderboard queries.
+      // Includes the multi-round `cappedRoundCount` tiebreaker so scores
+      // with fewer capped rounds sort ahead of scores with more, even
+      // when the summed total is slower.
       const sortKey =
         encodedValue !== null
           ? computeSortKey({
@@ -967,6 +1012,7 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
               status: newStatus,
               scheme,
               scoreType,
+              cappedRoundCount,
               // Include time cap info for capped scores
               timeCap:
                 newStatus === "cap" && timeCapMs && secondaryValue !== null
@@ -1016,7 +1062,7 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
             scoreType,
             scoreValue: encodedValue,
             status: newStatus,
-            statusOrder: getStatusOrder(data.scoreStatus),
+            statusOrder: STATUS_ORDER[newStatus],
             sortKey: sortKey ? sortKeyToString(sortKey) : null,
             tiebreakScheme: workoutTiebreakScheme,
             tiebreakValue,
@@ -1030,7 +1076,7 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
             set: {
               scoreValue: encodedValue,
               status: newStatus,
-              statusOrder: getStatusOrder(data.scoreStatus),
+              statusOrder: STATUS_ORDER[newStatus],
               sortKey: sortKey ? sortKeyToString(sortKey) : null,
               tiebreakScheme: workoutTiebreakScheme,
               tiebreakValue,
@@ -1041,16 +1087,21 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
             },
           })
 
-        // Get the final score ID (either new or existing)
+        // Get the final score ID (either new or existing). Always scope by
+        // division — null divisionId is its own scope (isNull), not a
+        // wildcard, so we never grab a sibling division's row when the
+        // athlete has scores in multiple divisions for a shared workout.
+        const finalScoreConditions = [
+          eq(scoresTable.competitionEventId, data.trackWorkoutId),
+          eq(scoresTable.userId, data.userId),
+          data.divisionId
+            ? eq(scoresTable.scalingLevelId, data.divisionId)
+            : isNull(scoresTable.scalingLevelId),
+        ]
         const [finalScore] = await tx
           .select({ id: scoresTable.id })
           .from(scoresTable)
-          .where(
-            and(
-              eq(scoresTable.competitionEventId, data.trackWorkoutId),
-              eq(scoresTable.userId, data.userId),
-            ),
-          )
+          .where(and(...finalScoreConditions))
           .limit(1)
 
         if (!finalScore) {
@@ -1066,7 +1117,10 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
             .delete(scoreRoundsTable)
             .where(eq(scoreRoundsTable.scoreId, id))
 
-          // Convert and insert new rounds
+          // Convert and insert new rounds. For multi-round time caps we
+          // persist per-round `status` ("cap" / "scored") derived above
+          // so the leaderboard can count capped rounds without replaying
+          // the cap check, and so the round breakdown UI tags each round.
           const roundsToInsert = data.roundScores.map((round, index) => {
             let roundValue: number
 
@@ -1089,7 +1143,7 @@ export const saveCompetitionScoreFn = createServerFn({ method: "POST" })
               scoreId: id,
               roundNumber: index + 1,
               value: roundValue,
-              status: null,
+              status: roundStatuses[index] ?? null,
             }
           })
 
@@ -1160,7 +1214,10 @@ export const saveCompetitionScoresFn = createServerFn({ method: "POST" })
       const errors: Array<{ userId: string; error: string }> = []
       let savedCount = 0
 
-      getEvlog()?.set({ action: "save_scores_batch", batch: { competitionId: data.competitionId, count: data.scores.length } })
+      getEvlog()?.set({
+        action: "save_scores_batch",
+        batch: { competitionId: data.competitionId, count: data.scores.length },
+      })
 
       // Update request context
       addRequestContextAttribute("competitionId", data.competitionId)
@@ -1252,7 +1309,15 @@ export const saveCompetitionScoresFn = createServerFn({ method: "POST" })
       }
 
       // Restore batch-level action after per-item saves overwrote it
-      getEvlog()?.set({ action: "save_scores_batch", batch: { competitionId: data.competitionId, count: data.scores.length, saved: savedCount, errors: errors.length } })
+      getEvlog()?.set({
+        action: "save_scores_batch",
+        batch: {
+          competitionId: data.competitionId,
+          count: data.scores.length,
+          saved: savedCount,
+          errors: errors.length,
+        },
+      })
 
       logInfo({
         message: "[Score] Batch save competition scores completed",
@@ -1278,7 +1343,13 @@ export const deleteCompetitionScoreFn = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ success: boolean }> => {
     const db = getDb()
 
-    getEvlog()?.set({ action: "delete_score", score: { competitionId: data.competitionId, trackWorkoutId: data.trackWorkoutId } })
+    getEvlog()?.set({
+      action: "delete_score",
+      score: {
+        competitionId: data.competitionId,
+        trackWorkoutId: data.trackWorkoutId,
+      },
+    })
 
     // Update request context
     addRequestContextAttribute("competitionId", data.competitionId)
@@ -1294,15 +1365,18 @@ export const deleteCompetitionScoreFn = createServerFn({ method: "POST" })
       },
     })
 
-    // Delete from scores table (score_rounds are cascade deleted)
-    await db
-      .delete(scoresTable)
-      .where(
-        and(
-          eq(scoresTable.competitionEventId, data.trackWorkoutId),
-          eq(scoresTable.userId, data.userId),
-        ),
-      )
+    // Delete from scores table (score_rounds are cascade deleted). Always
+    // scope by division (or explicit null) so removing one registration's
+    // score never wipes the athlete's score in a sibling division when a
+    // workout is shared across divisions.
+    const deleteConditions = [
+      eq(scoresTable.competitionEventId, data.trackWorkoutId),
+      eq(scoresTable.userId, data.userId),
+      data.divisionId
+        ? eq(scoresTable.scalingLevelId, data.divisionId)
+        : isNull(scoresTable.scalingLevelId),
+    ]
+    await db.delete(scoresTable).where(and(...deleteConditions))
 
     logEntityDeleted({
       entity: "score",
@@ -1412,6 +1486,7 @@ export const getCompetitionWorkoutsForScoreEntryFn = createServerFn({
         trackOrder: trackWorkoutsTable.trackOrder,
         notes: trackWorkoutsTable.notes,
         pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
+        parentEventId: trackWorkoutsTable.parentEventId,
         heatStatus: trackWorkoutsTable.heatStatus,
         eventStatus: trackWorkoutsTable.eventStatus,
         sponsorId: trackWorkoutsTable.sponsorId,
@@ -1493,4 +1568,278 @@ export const getCompetitionDivisionsForScoreEntryFn = createServerFn({
       .orderBy(scalingLevelsTable.position)
 
     return { divisions }
+  })
+
+/**
+ * Backfill: Recompute multi-round time-with-cap scores that were saved
+ * with the old clamping bug (parent scoreValue clamped to timeCap).
+ *
+ * For each affected score:
+ * - Re-aggregates parent scoreValue from the persisted rounds using the
+ *   workout's scoreType.
+ * - Recomputes per-round status based on encoded value vs cap.
+ * - Recomputes parent status: "cap" if any round capped, else "scored".
+ * - Recomputes sortKey.
+ *
+ * Scoped to a single competition. Requires MANAGE_COMPETITIONS.
+ */
+export const backfillMultiRoundCapScoresFn = createServerFn({ method: "POST" })
+  .inputValidator((raw: unknown) =>
+    z
+      .object({
+        organizingTeamId: z.string().min(1),
+        competitionId: z.string().min(1),
+        /** Dry-run: compute but don't write. Defaults to false. */
+        dryRun: z.boolean().optional(),
+      })
+      .parse(raw),
+  )
+  .handler(async ({ data }) => {
+    const db = getDb()
+
+    const [competition] = await db
+      .select({ organizingTeamId: competitionsTable.organizingTeamId })
+      .from(competitionsTable)
+      .where(eq(competitionsTable.id, data.competitionId))
+      .limit(1)
+
+    if (!competition) {
+      throw new Error("Competition not found")
+    }
+
+    if (competition.organizingTeamId !== data.organizingTeamId) {
+      throw new Error("Competition does not belong to this team")
+    }
+
+    await requireTeamPermission(
+      competition.organizingTeamId,
+      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+    )
+
+    // Resolve track for this competition to scope trackWorkoutIds.
+    // Competition ownership was verified above, so competitionId filter is
+    // sufficient for multi-tenant isolation.
+    const track = await db.query.programmingTracksTable.findFirst({
+      where: eq(programmingTracksTable.competitionId, data.competitionId),
+    })
+    if (!track) {
+      return { scanned: 0, updated: 0, skipped: 0, changes: [] }
+    }
+
+    const trackWorkoutRows = await db
+      .select({
+        id: trackWorkoutsTable.id,
+        workoutId: trackWorkoutsTable.workoutId,
+        scheme: workouts.scheme,
+        scoreType: workouts.scoreType,
+        timeCap: workouts.timeCap,
+        tiebreakScheme: workouts.tiebreakScheme,
+      })
+      .from(trackWorkoutsTable)
+      .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+      .where(
+        and(
+          eq(trackWorkoutsTable.trackId, track.id),
+          eq(workouts.scheme, "time-with-cap"),
+        ),
+      )
+
+    if (trackWorkoutRows.length === 0) {
+      return { scanned: 0, updated: 0, skipped: 0, changes: [] }
+    }
+
+    const trackWorkoutIds = trackWorkoutRows.map((tw) => tw.id)
+    const twById = new Map(trackWorkoutRows.map((tw) => [tw.id, tw]))
+
+    // Load all scores for these track workouts
+    const scores = await db
+      .select({
+        id: scoresTable.id,
+        userId: scoresTable.userId,
+        competitionEventId: scoresTable.competitionEventId,
+        scheme: scoresTable.scheme,
+        scoreType: scoresTable.scoreType,
+        scoreValue: scoresTable.scoreValue,
+        status: scoresTable.status,
+        timeCapMs: scoresTable.timeCapMs,
+        tiebreakScheme: scoresTable.tiebreakScheme,
+        tiebreakValue: scoresTable.tiebreakValue,
+        secondaryValue: scoresTable.secondaryValue,
+        sortKey: scoresTable.sortKey,
+      })
+      .from(scoresTable)
+      .where(inArray(scoresTable.competitionEventId, trackWorkoutIds))
+
+    if (scores.length === 0) {
+      return { scanned: 0, updated: 0, skipped: 0, changes: [] }
+    }
+
+    const scoreIds = scores.map((s) => s.id)
+    const roundRows = await db
+      .select({
+        scoreId: scoreRoundsTable.scoreId,
+        id: scoreRoundsTable.id,
+        roundNumber: scoreRoundsTable.roundNumber,
+        value: scoreRoundsTable.value,
+        status: scoreRoundsTable.status,
+      })
+      .from(scoreRoundsTable)
+      .where(inArray(scoreRoundsTable.scoreId, scoreIds))
+
+    // Group rounds by scoreId
+    const roundsByScore = new Map<string, typeof roundRows>()
+    for (const r of roundRows) {
+      const list = roundsByScore.get(r.scoreId) ?? []
+      list.push(r)
+      roundsByScore.set(r.scoreId, list)
+    }
+
+    const changes: Array<{
+      scoreId: string
+      userId: string
+      trackWorkoutId: string | null
+      before: { scoreValue: number | null; status: string }
+      after: { scoreValue: number; status: "scored" | "cap" }
+      rounds: Array<{
+        roundNumber: number
+        value: number
+        status: "scored" | "cap"
+      }>
+    }> = []
+
+    let updated = 0
+    let skipped = 0
+
+    for (const score of scores) {
+      const rounds = (roundsByScore.get(score.id) ?? []).sort(
+        (a, b) => a.roundNumber - b.roundNumber,
+      )
+      if (rounds.length < 2) {
+        skipped++
+        continue
+      }
+      const tw = score.competitionEventId
+        ? twById.get(score.competitionEventId)
+        : null
+      if (!tw || !tw.timeCap) {
+        skipped++
+        continue
+      }
+
+      const capMs = tw.timeCap * 1000
+      const roundValues = rounds.map((r) => r.value)
+      const effectiveScoreType =
+        (tw.scoreType as ScoreType) ||
+        (score.scoreType as ScoreType) ||
+        getDefaultScoreType("time-with-cap")
+
+      const recomputedValue = aggregateValues(roundValues, effectiveScoreType)
+      if (recomputedValue === null) {
+        skipped++
+        continue
+      }
+
+      const roundStatuses: Array<"scored" | "cap"> = roundValues.map((v) =>
+        v >= capMs ? "cap" : "scored",
+      )
+      const cappedRoundCount = roundStatuses.filter((s) => s === "cap").length
+      const anyCap = cappedRoundCount > 0
+      const newStatus: "scored" | "cap" = anyCap ? "cap" : "scored"
+
+      const newSortKey = computeSortKey({
+        value: recomputedValue,
+        status: newStatus,
+        scheme: "time-with-cap",
+        scoreType: effectiveScoreType,
+        cappedRoundCount,
+        tiebreak:
+          score.tiebreakValue !== null && score.tiebreakScheme
+            ? {
+                scheme: score.tiebreakScheme as "time" | "reps",
+                value: score.tiebreakValue,
+              }
+            : undefined,
+      })
+      const newSortKeyString = sortKeyToString(newSortKey)
+
+      // Only update when something actually changed. A stale `sortKey` is
+      // on its own sufficient reason to rewrite — this is how the backfill
+      // repairs scores written before the cap-count tiebreaker was added.
+      const valueChanged = score.scoreValue !== recomputedValue
+      const statusChanged = score.status !== newStatus
+      const roundStatusChanged = rounds.some(
+        (r, i) => (r.status ?? null) !== roundStatuses[i],
+      )
+      const sortKeyChanged = score.sortKey !== newSortKeyString
+
+      if (
+        !valueChanged &&
+        !statusChanged &&
+        !roundStatusChanged &&
+        !sortKeyChanged
+      ) {
+        skipped++
+        continue
+      }
+
+      changes.push({
+        scoreId: score.id,
+        userId: score.userId,
+        trackWorkoutId: score.competitionEventId,
+        before: { scoreValue: score.scoreValue, status: score.status },
+        after: { scoreValue: recomputedValue, status: newStatus },
+        rounds: rounds.map((r, i) => ({
+          roundNumber: r.roundNumber,
+          value: r.value,
+          status: roundStatuses[i],
+        })),
+      })
+
+      if (!data.dryRun) {
+        await db.transaction(async (tx) => {
+          await tx
+            .update(scoresTable)
+            .set({
+              scoreValue: recomputedValue,
+              status: newStatus,
+              statusOrder: STATUS_ORDER[newStatus],
+              sortKey: newSortKeyString,
+              updatedAt: new Date(),
+            })
+            .where(eq(scoresTable.id, score.id))
+
+          for (let i = 0; i < rounds.length; i++) {
+            const round = rounds[i]
+            const desired = roundStatuses[i]
+            if ((round.status ?? null) !== desired) {
+              await tx
+                .update(scoreRoundsTable)
+                .set({ status: desired })
+                .where(eq(scoreRoundsTable.id, round.id))
+            }
+          }
+        })
+      }
+
+      updated++
+    }
+
+    logInfo({
+      message: "[Score] Multi-round cap backfill completed",
+      attributes: {
+        competitionId: data.competitionId,
+        scanned: scores.length,
+        updated,
+        skipped,
+        dryRun: !!data.dryRun,
+      },
+    })
+
+    return {
+      scanned: scores.length,
+      updated,
+      skipped,
+      dryRun: !!data.dryRun,
+      changes,
+    }
   })

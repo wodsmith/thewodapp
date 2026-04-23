@@ -1,5 +1,6 @@
 "use client"
 
+import { Link, useLocation } from "@tanstack/react-router"
 import {
   type CellContext,
   type ColumnDef,
@@ -49,6 +50,7 @@ import {
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { VideoEmbed } from "@/components/video-embed"
+import { getStatusConfig } from "@/components/compete/submission-status-badge"
 import { VideoVoteButtons } from "@/components/compete/video-vote-buttons"
 import { getLeaderboardVideosFn } from "@/server-fns/video-submission-fns"
 import { getVideoVoteCountsFn } from "@/server-fns/video-vote-fns"
@@ -81,6 +83,53 @@ interface OnlineCompetitionLeaderboardTableProps {
   }>
   selectedEventId: string | null
   scoringAlgorithm: ScoringAlgorithm
+  /**
+   * When true, wrap each scored cell in a link to the organizer submission
+   * review page. Requires `competitionId` so the target URL can be built.
+   * Only applies to the organizer preview route — the public leaderboard
+   * leaves this false.
+   */
+  linkToSubmission?: boolean
+  competitionId?: string
+}
+
+/**
+ * Wrap score-cell children in a link to the organizer submission review
+ * page when we're on the organizer preview and the result has a matching
+ * video submission. Otherwise render the children as-is. Keeps cell styling
+ * consistent by stretching the link to fill the cell.
+ */
+function SubmissionLinkWrapper({
+  enabled,
+  competitionId,
+  eventId,
+  submissionId,
+  children,
+}: {
+  enabled: boolean
+  competitionId: string | undefined
+  eventId: string
+  submissionId: string | null
+  children: React.ReactNode
+}) {
+  const location = useLocation()
+  if (!enabled || !competitionId || !submissionId) {
+    return <>{children}</>
+  }
+  // Record the exact preview URL (path + any filter search params) so the
+  // submission page's back button returns us to this view — same division,
+  // event, and affiliate filters intact.
+  const back = `${location.pathname}${location.searchStr ?? ""}`
+  return (
+    <Link
+      to="/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId"
+      params={{ competitionId, eventId, submissionId }}
+      search={{ back }}
+      className="block hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
+    >
+      {children}
+    </Link>
+  )
 }
 
 function getRankIcon(rank: number) {
@@ -137,17 +186,105 @@ function formatMemberName(member: TeamMemberInfo): string {
   return member.isCaptain ? `${name} (C)` : name
 }
 
+/**
+ * Compact badge showing how many rounds were capped on a multi-round score.
+ * Hidden for single-round and fully-scored multi-round results.
+ */
+function CappedRoundsIndicator({
+  result,
+}: {
+  result: CompetitionLeaderboardEntry["eventResults"][number]
+}) {
+  // Only surface the badge next to a real score. Missing-submission rows
+  // (rawScore null) and single-round scores don't get one.
+  if (result.rawScore === null) return null
+  if (result.totalRoundCount <= 1) return null
+  if (result.cappedRoundCount <= 0) return null
+
+  const allCapped = result.cappedRoundCount === result.totalRoundCount
+  const label = allCapped
+    ? `All ${result.totalRoundCount} rounds capped`
+    : `${result.cappedRoundCount}/${result.totalRoundCount} rounds capped`
+
+  return (
+    <span
+      role="img"
+      aria-label={label}
+      title={label}
+      className="inline-flex items-center rounded-sm border border-amber-500/40 bg-amber-500/10 px-1 py-px text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300"
+    >
+      {result.cappedRoundCount}/{result.totalRoundCount} cap
+    </span>
+  )
+}
+
+/**
+ * Compact review-status indicator shown on organizer-preview leaderboard
+ * cells. Renders a colored status icon (reusing the SubmissionStatusBadge
+ * config for consistency) plus an "X/Y" count for partner divisions where
+ * a single registration has multiple videos to review.
+ *
+ * Hidden when there's no submission yet (`reviewSummary` is null) — that
+ * case already shows "—" via the calling cell.
+ */
+function ReviewStatusIndicator({
+  summary,
+}: {
+  summary:
+    | NonNullable<
+        CompetitionLeaderboardEntry["eventResults"][number]["reviewSummary"]
+      >
+    | null
+}) {
+  if (!summary) return null
+
+  const config = getStatusConfig(summary.worstStatus)
+  const Icon = config.icon
+
+  // Surface the team-vs-individual split: partner divisions get an "X/Y"
+  // counter so the organizer sees how much review work is left even when
+  // some teammates' videos are already verified. Individuals only get the
+  // single icon — extra text would be noise.
+  const isPartner = summary.expectedVideos > 1
+  const reviewedFraction = `${summary.reviewedCount}/${summary.expectedVideos}`
+  const tooltipParts = [
+    `${config.label}`,
+    isPartner
+      ? `${summary.reviewedCount} of ${summary.expectedVideos} videos reviewed${
+          summary.totalSubmitted < summary.expectedVideos
+            ? ` (${summary.expectedVideos - summary.totalSubmitted} not submitted)`
+            : ""
+        }`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ")
+
+  return (
+    <span
+      role="img"
+      title={tooltipParts}
+      aria-label={tooltipParts}
+      className={cn(
+        "inline-flex items-center gap-1 rounded-sm border px-1 py-px text-[10px] font-semibold tabular-nums",
+        config.className,
+      )}
+    >
+      <Icon className={cn("h-3 w-3", config.iconClassName)} />
+      {isPartner && reviewedFraction}
+    </span>
+  )
+}
+
 /** Subtle warning icon indicating a penalty or score adjustment */
 function PenaltyIndicator({
   result,
 }: {
   result: CompetitionLeaderboardEntry["eventResults"][number]
 }) {
-  if (!result.penaltyType && !result.isDirectlyModified) return null
+  if (!result.penaltyType) return null
 
-  const label = result.penaltyType
-    ? `${result.penaltyType === "major" ? "Major" : "Minor"} Penalty${result.penaltyPercentage != null ? ` (${result.penaltyPercentage}%)` : ""}`
-    : "Score Adjusted"
+  const label = `${result.penaltyType === "major" ? "Major" : "Minor"} Penalty${result.penaltyPercentage != null ? ` (${result.penaltyPercentage}%)` : ""}`
 
   return (
     <span title={label}>
@@ -201,13 +338,13 @@ function SortableHeader({
   return (
     <button
       type="button"
-      className="flex items-center gap-1.5 text-xs uppercase tracking-wide font-medium hover:text-foreground transition-colors"
+      className="flex w-full items-center justify-between gap-1.5 text-xs uppercase tracking-wide font-medium hover:text-foreground transition-colors"
       onClick={() => column.toggleSorting()}
     >
-      {children}
+      <span className="min-w-0 flex-1 truncate text-left">{children}</span>
       <ArrowUpDown
         className={cn(
-          "h-3 w-3 transition-colors",
+          "h-3 w-3 shrink-0 transition-colors",
           sorted ? "text-foreground" : "text-muted-foreground/40",
         )}
       />
@@ -430,10 +567,7 @@ function ExpandedVideoContent({
               value={v.id}
               className="rounded-md px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm"
             >
-              {v.athleteName}
-              {v.videoIndex === 0 && (
-                <span className="ml-1 text-muted-foreground">(C)</span>
-              )}
+              {v.videoIndex === 0 ? "Captain" : `Teammate ${v.videoIndex}`}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -481,6 +615,8 @@ function MobileOnlineLeaderboardRow({
   voteCounts,
   isLoggedIn,
   currentUserId,
+  linkToSubmission,
+  competitionId,
 }: {
   entry: CompetitionLeaderboardEntry
   events: Array<{
@@ -495,6 +631,8 @@ function MobileOnlineLeaderboardRow({
   voteCounts: VoteCounts
   isLoggedIn: boolean
   currentUserId: string | null
+  linkToSubmission: boolean
+  competitionId: string | undefined
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const isOwnSubmission =
@@ -611,35 +749,48 @@ function MobileOnlineLeaderboardRow({
                     {event.name}
                   </span>
                   {result && result.rank > 0 ? (
-                    <div className="flex flex-col gap-0.5">
-                      <span className="font-medium tabular-nums">
-                        {result.formattedScore}
-                        {result.formattedTiebreak && (
-                          <span className="text-muted-foreground font-normal ml-1">
-                            (TB: {result.formattedTiebreak})
+                    <SubmissionLinkWrapper
+                      enabled={linkToSubmission}
+                      competitionId={competitionId}
+                      eventId={result.trackWorkoutId}
+                      submissionId={result.videoSubmissionId}
+                    >
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-medium tabular-nums inline-flex items-center gap-1">
+                          {result.formattedScore}
+                          <CappedRoundsIndicator result={result} />
+                          {linkToSubmission && (
+                            <ReviewStatusIndicator
+                              summary={result.reviewSummary}
+                            />
+                          )}
+                          {result.formattedTiebreak && (
+                            <span className="text-muted-foreground font-normal ml-1">
+                              (TB: {result.formattedTiebreak})
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                          #{result.rank}{" "}
+                          {formatPoints(result.points, scoringAlgorithm)}
+                        </span>
+                        {result.penaltyType && (
+                          <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
+                            <AlertTriangle className="h-2.5 w-2.5" />
+                            {result.penaltyType === "major" ? "Major" : "Minor"}{" "}
+                            Penalty
+                            {result.penaltyPercentage != null &&
+                              ` · ${result.penaltyPercentage}% deduction`}
                           </span>
                         )}
-                      </span>
-                      <span className="text-xs text-muted-foreground tabular-nums">
-                        #{result.rank}{" "}
-                        {formatPoints(result.points, scoringAlgorithm)}
-                      </span>
-                      {result.penaltyType && (
-                        <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
-                          <AlertTriangle className="h-2.5 w-2.5" />
-                          {result.penaltyType === "major" ? "Major" : "Minor"}{" "}
-                          Penalty
-                          {result.penaltyPercentage != null &&
-                            ` · ${result.penaltyPercentage}% deduction`}
-                        </span>
-                      )}
-                      {!result.penaltyType && result.isDirectlyModified && (
-                        <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
-                          <AlertTriangle className="h-2.5 w-2.5" />
-                          Score adjusted by organizer
-                        </span>
-                      )}
-                    </div>
+                        {!result.penaltyType && result.isDirectlyModified && (
+                          <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
+                            <AlertTriangle className="h-2.5 w-2.5" />
+                            Score adjusted by organizer
+                          </span>
+                        )}
+                      </div>
+                    </SubmissionLinkWrapper>
                   ) : (
                     <span className="text-muted-foreground italic">—</span>
                   )}
@@ -687,6 +838,8 @@ export function OnlineCompetitionLeaderboardTable({
   events,
   selectedEventId,
   scoringAlgorithm,
+  linkToSubmission = false,
+  competitionId,
 }: OnlineCompetitionLeaderboardTableProps) {
   const session = useSession()
   const isLoggedIn = !!session?.userId
@@ -874,15 +1027,26 @@ export function OnlineCompetitionLeaderboardTable({
               return <span className="text-muted-foreground italic">—</span>
             }
             return (
-              <span className="font-medium tabular-nums inline-flex items-center gap-1">
-                {result.formattedScore}
-                <PenaltyIndicator result={result} />
-                {result.formattedTiebreak && (
-                  <span className="text-muted-foreground font-normal ml-1">
-                    (TB: {result.formattedTiebreak})
-                  </span>
-                )}
-              </span>
+              <SubmissionLinkWrapper
+                enabled={linkToSubmission}
+                competitionId={competitionId}
+                eventId={result.trackWorkoutId}
+                submissionId={result.videoSubmissionId}
+              >
+                <span className="font-medium tabular-nums inline-flex items-center gap-1">
+                  {result.formattedScore}
+                  <CappedRoundsIndicator result={result} />
+                  <PenaltyIndicator result={result} />
+                  {linkToSubmission && (
+                    <ReviewStatusIndicator summary={result.reviewSummary} />
+                  )}
+                  {result.formattedTiebreak && (
+                    <span className="text-muted-foreground font-normal ml-1">
+                      (TB: {result.formattedTiebreak})
+                    </span>
+                  )}
+                </span>
+              </SubmissionLinkWrapper>
             )
           },
         },
@@ -951,9 +1115,7 @@ export function OnlineCompetitionLeaderboardTable({
         id: `event-${event.id}`,
         header: ({ column }: LeaderboardHeaderContext) => (
           <SortableHeader column={column}>
-            <span className="truncate max-w-[100px]" title={event.name}>
-              {event.name}
-            </span>
+            <span title={event.name}>{event.name}</span>
           </SortableHeader>
         ),
         accessorFn: (row: CompetitionLeaderboardEntry) => {
@@ -970,23 +1132,34 @@ export function OnlineCompetitionLeaderboardTable({
             return <span className="text-muted-foreground">-</span>
           }
           return (
-            <div className="flex flex-col gap-0.5">
-              <span className="font-medium tabular-nums inline-flex items-center gap-1">
-                {result.formattedScore}
-                <PenaltyIndicator result={result} />
-                {result.formattedTiebreak && (
-                  <span className="text-muted-foreground font-normal ml-1">
-                    (TB: {result.formattedTiebreak})
-                  </span>
-                )}
-              </span>
-              <div className="flex items-center gap-1 text-xs text-muted-foreground tabular-nums">
-                <span className="font-medium">#{result.rank}</span>
-                <span>·</span>
-                <span>{formatPoints(result.points, scoringAlgorithm)}</span>
-                {result.videoUrl && <Video className="h-3 w-3 ml-0.5" />}
+            <SubmissionLinkWrapper
+              enabled={linkToSubmission}
+              competitionId={competitionId}
+              eventId={result.trackWorkoutId}
+              submissionId={result.videoSubmissionId}
+            >
+              <div className="flex flex-col gap-0.5">
+                <span className="font-medium tabular-nums inline-flex items-center gap-1">
+                  {result.formattedScore}
+                  <CappedRoundsIndicator result={result} />
+                  <PenaltyIndicator result={result} />
+                  {result.formattedTiebreak && (
+                    <span className="text-muted-foreground font-normal ml-1">
+                      (TB: {result.formattedTiebreak})
+                    </span>
+                  )}
+                </span>
+                <div className="flex items-center gap-1 text-xs text-muted-foreground tabular-nums">
+                  <span className="font-medium">#{result.rank}</span>
+                  <span>·</span>
+                  <span>{formatPoints(result.points, scoringAlgorithm)}</span>
+                  {result.videoUrl && <Video className="h-3 w-3 ml-0.5" />}
+                  {linkToSubmission && (
+                    <ReviewStatusIndicator summary={result.reviewSummary} />
+                  )}
+                </div>
               </div>
-            </div>
+            </SubmissionLinkWrapper>
           )
         },
         sortingFn: "basic",
@@ -1000,6 +1173,8 @@ export function OnlineCompetitionLeaderboardTable({
     isTeamLeaderboard,
     hasAffiliates,
     scoringAlgorithm,
+    linkToSubmission,
+    competitionId,
   ])
 
   const validatedSorting = useMemo<SortingState>(() => {
@@ -1181,6 +1356,8 @@ export function OnlineCompetitionLeaderboardTable({
                 voteCounts={voteCounts}
                 isLoggedIn={isLoggedIn}
                 currentUserId={currentUserId}
+                linkToSubmission={linkToSubmission}
+                competitionId={competitionId}
               />
             ))}
           </div>

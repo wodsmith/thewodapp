@@ -14,8 +14,8 @@
  *   computeSortKey,
  * } from "@/lib/scoring"
  *
- * // Parse user input
- * const result = parseScore("1234", "time")
+ * // Parse user input — bare digits are raw seconds, matching encodeScore
+ * const result = parseScore("12:34", "time")
  * // → { isValid: true, encoded: 754000, formatted: "12:34" }
  *
  * // Encode for database
@@ -54,6 +54,7 @@ export {
   calculateCustomPoints,
   // Factory function - main entry point
   calculateEventPoints,
+  calculatePointsForPlace,
   // Algorithm implementations
   calculatePScore,
   calculateTraditionalPoints,

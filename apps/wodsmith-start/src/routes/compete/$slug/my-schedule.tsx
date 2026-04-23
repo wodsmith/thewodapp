@@ -133,10 +133,17 @@ function MySchedulePage() {
 
           {hasScoreAccess && (
             <Button asChild>
-              <Link to="/compete/$slug/scores" params={{ slug }}>
-                <ClipboardList className="mr-2 h-4 w-4" />
-                Enter Scores
-              </Link>
+              {competition.competitionType === "online" ? (
+                <Link to="/compete/$slug/review" params={{ slug }}>
+                  <ClipboardList className="mr-2 h-4 w-4" />
+                  Review Submissions
+                </Link>
+              ) : (
+                <Link to="/compete/$slug/scores" params={{ slug }}>
+                  <ClipboardList className="mr-2 h-4 w-4" />
+                  Enter Scores
+                </Link>
+              )}
             </Button>
           )}
         </div>

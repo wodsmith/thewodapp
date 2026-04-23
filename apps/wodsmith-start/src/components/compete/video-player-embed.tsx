@@ -8,9 +8,15 @@
  */
 
 import { ExternalLink } from "lucide-react"
-import { useEffect, useId, useRef } from "react"
+import { useEffect, useId, useRef, useState } from "react"
+import { useServerFn } from "@tanstack/react-start"
 import { cn } from "@/lib/utils"
-import { parseVideoUrl, type VideoPlatform } from "@/schemas/video-url"
+import {
+  getWodProofVideoUrl,
+  parseVideoUrl,
+  type VideoPlatform,
+} from "@/schemas/video-url"
+import { resolveWeTimeVideoUrlFn } from "@/server-fns/wetime-resolve-fns"
 import { isSafeUrl } from "@/utils/url"
 
 // ── Common player interface ──────────────────────────────────────────
@@ -208,6 +214,214 @@ function VimeoPlayer({
   )
 }
 
+// ── WodProof Player ─────────────────────────────────────────────────
+
+function WodProofPlayer({
+  videoId,
+  originalUrl,
+  className,
+  onPlayerReady,
+}: {
+  videoId: string
+  originalUrl: string
+  className?: string
+  onPlayerReady?: (player: VideoPlayerRef) => void
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const onReadyRef = useRef(onPlayerReady)
+  onReadyRef.current = onPlayerReady
+  const [error, setError] = useState(false)
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    const handleCanPlay = () => {
+      const ref: VideoPlayerRef = {
+        platform: "wodproof",
+        pauseVideo: () => video.pause(),
+        playVideo: () => {
+          video.play()
+        },
+        getCurrentTime: () => video.currentTime,
+        seekTo: (seconds) => {
+          video.currentTime = seconds
+        },
+      }
+      onReadyRef.current?.(ref)
+    }
+
+    video.addEventListener("canplay", handleCanPlay)
+    return () => video.removeEventListener("canplay", handleCanPlay)
+  }, [])
+
+  if (error) {
+    return (
+      <div
+        className={cn(
+          "relative aspect-video w-full overflow-hidden rounded-lg bg-muted flex flex-col items-center justify-center gap-3 p-4",
+          className,
+        )}
+      >
+        <span className="text-sm text-muted-foreground">
+          Video could not be loaded
+        </span>
+        <a
+          href={isSafeUrl(originalUrl) ? originalUrl : "#"}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 text-primary hover:underline text-sm"
+        >
+          <ExternalLink className="h-4 w-4" />
+          Open in WodProof
+        </a>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className={cn(
+        "relative aspect-video w-full overflow-hidden rounded-lg bg-black",
+        className,
+      )}
+    >
+      {/* biome-ignore lint/a11y/useMediaCaption: workout videos don't have captions */}
+      <video
+        ref={videoRef}
+        src={getWodProofVideoUrl(videoId)}
+        controls
+        playsInline
+        className="absolute inset-0 h-full w-full"
+        onError={() => setError(true)}
+      />
+    </div>
+  )
+}
+
+// ── WeTime Player ───────────────────────────────────────────────────
+
+function WeTimePlayer({
+  videoId,
+  originalUrl,
+  className,
+  onPlayerReady,
+}: {
+  videoId: string
+  originalUrl: string
+  className?: string
+  onPlayerReady?: (player: VideoPlayerRef) => void
+}) {
+  const resolveFn = useServerFn(resolveWeTimeVideoUrlFn)
+  const [videoUrl, setVideoUrl] = useState<string | null>(null)
+  const [resolveFailed, setResolveFailed] = useState(false)
+  const [videoError, setVideoError] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const onReadyRef = useRef(onPlayerReady)
+  onReadyRef.current = onPlayerReady
+
+  useEffect(() => {
+    let cancelled = false
+    setVideoUrl(null)
+    setResolveFailed(false)
+    setVideoError(false)
+    resolveFn({ data: { videoId } })
+      .then((res) => {
+        if (cancelled) return
+        setVideoUrl(res.videoUrl)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setResolveFailed(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [videoId, resolveFn])
+
+  useEffect(() => {
+    if (!videoUrl) return
+    const video = videoRef.current
+    if (!video) return
+
+    const handleCanPlay = () => {
+      const ref: VideoPlayerRef = {
+        platform: "wetime",
+        pauseVideo: () => video.pause(),
+        playVideo: () => {
+          video.play()
+        },
+        getCurrentTime: () => video.currentTime,
+        seekTo: (seconds) => {
+          video.currentTime = seconds
+        },
+      }
+      onReadyRef.current?.(ref)
+    }
+
+    video.addEventListener("canplay", handleCanPlay)
+    return () => video.removeEventListener("canplay", handleCanPlay)
+  }, [videoUrl])
+
+  // Resolver failed or video failed to load — fall back to external link
+  if (resolveFailed || videoError) {
+    return (
+      <div
+        className={cn(
+          "relative aspect-video w-full overflow-hidden rounded-lg bg-muted flex flex-col items-center justify-center gap-3 p-4",
+          className,
+        )}
+      >
+        <span className="text-sm text-muted-foreground">
+          Video could not be loaded
+        </span>
+        <a
+          href={isSafeUrl(originalUrl) ? originalUrl : "#"}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 text-primary hover:underline text-sm"
+        >
+          <ExternalLink className="h-4 w-4" />
+          Open in WeTime
+        </a>
+      </div>
+    )
+  }
+
+  // Still resolving — show loading placeholder
+  if (!videoUrl) {
+    return (
+      <div
+        className={cn(
+          "relative aspect-video w-full overflow-hidden rounded-lg bg-black flex items-center justify-center",
+          className,
+        )}
+      >
+        <span className="text-xs text-muted-foreground">Loading video…</span>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className={cn(
+        "relative aspect-video w-full overflow-hidden rounded-lg bg-black",
+        className,
+      )}
+    >
+      {/* biome-ignore lint/a11y/useMediaCaption: workout videos don't have captions */}
+      <video
+        ref={videoRef}
+        src={videoUrl}
+        controls
+        playsInline
+        className="absolute inset-0 h-full w-full object-contain"
+        onError={() => setVideoError(true)}
+      />
+    </div>
+  )
+}
+
 // ── Unified component ────────────────────────────────────────────────
 
 export function VideoPlayerEmbed({
@@ -217,11 +431,12 @@ export function VideoPlayerEmbed({
 }: VideoPlayerEmbedProps) {
   const parsed = parseVideoUrl(url)
 
-  if (!parsed) {
+  // No parse result or platform without embed support
+  if (!parsed || !parsed.supportsEmbed) {
     return (
       <div
         className={cn(
-          "relative aspect-video w-full overflow-hidden rounded-lg bg-muted flex items-center justify-center p-4",
+          "relative aspect-video w-full overflow-hidden rounded-lg bg-muted flex flex-col items-center justify-center gap-3 p-4",
           className,
         )}
       >
@@ -256,15 +471,35 @@ export function VideoPlayerEmbed({
           onPlayerReady={onPlayerReady}
         />
       )
+    case "wodproof":
+      return (
+        <WodProofPlayer
+          videoId={parsed.videoId}
+          originalUrl={parsed.originalUrl}
+          className={className}
+          onPlayerReady={onPlayerReady}
+        />
+      )
+    case "wetime":
+      return (
+        <WeTimePlayer
+          videoId={parsed.videoId}
+          originalUrl={parsed.originalUrl}
+          className={className}
+          onPlayerReady={onPlayerReady}
+        />
+      )
   }
 }
 
 /**
- * Check if a video URL supports interactive playback (seek, getCurrentTime)
+ * Check if a video URL supports interactive playback (seek, getCurrentTime).
+ * WeTime resolves to a CloudFront MP4 and plays in a native <video> element,
+ * which supports the full interactive ref (seek/getCurrentTime) once resolved.
  */
 export function supportsInteractivePlayer(url: string): boolean {
   const parsed = parseVideoUrl(url)
-  return parsed?.platform === "youtube" || parsed?.platform === "vimeo"
+  return parsed?.supportsEmbed ?? false
 }
 
 /**
@@ -278,5 +513,9 @@ export function getVideoPlatformName(url: string): string | null {
       return "YouTube"
     case "vimeo":
       return "Vimeo"
+    case "wodproof":
+      return "WodProof"
+    case "wetime":
+      return "WeTime"
   }
 }

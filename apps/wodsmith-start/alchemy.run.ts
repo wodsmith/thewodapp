@@ -550,17 +550,6 @@ const broadcastEmailQueue = await Queue(`broadcast-email-queue-${stage}`, {
  */
 const website = await TanStackStart("app", {
   /**
-   * Cron triggers for scheduled jobs.
-   *
-   * The scheduled handler in src/server.ts processes these triggers.
-   * Currently runs submission window notifications every 15 minutes.
-   *
-   * @see src/server.ts for the scheduled handler implementation
-   * @see https://developers.cloudflare.com/workers/configuration/cron-triggers/
-   */
-  crons: ["*/15 * * * *"],
-
-  /**
    * Queue consumer registration.
    *
    * Registers this Worker as the consumer for the broadcast email queue
@@ -568,7 +557,16 @@ const website = await TanStackStart("app", {
    *
    * @see src/server/broadcast-queue-consumer.ts for the consumer implementation
    */
-  eventSources: [broadcastEmailQueue],
+  eventSources: [
+    {
+      queue: broadcastEmailQueue,
+      settings: {
+        // Process one queue message at a time so the per-send delay in
+        // broadcast-queue-consumer.ts keeps us under Resend's 5 emails/s limit.
+        maxConcurrency: 1,
+      },
+    },
+  ],
 
   /**
    * Cloudflare resource bindings available to the application.

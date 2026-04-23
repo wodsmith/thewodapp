@@ -179,42 +179,52 @@ function DivisionsGroupedByPrice({
     <div className="space-y-6">
       {/* Free Tier */}
       {freeDivisions.length > 0 && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-green-600 dark:text-green-400">
-              Free
-            </span>
-            <span className="text-xs text-muted-foreground">
-              ({freeDivisions.length}{" "}
-              {freeDivisions.length === 1 ? "division" : "divisions"})
-            </span>
+        <Collapsible className="group/tier" defaultOpen>
+          <div className="space-y-2">
+            <CollapsibleTrigger className="flex items-center gap-2 w-full cursor-pointer">
+              <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                Free
+              </span>
+              <span className="text-xs text-muted-foreground">
+                ({freeDivisions.length}{" "}
+                {freeDivisions.length === 1 ? "division" : "divisions"})
+              </span>
+              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground ml-auto transition-transform group-data-[state=open]/tier:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="space-y-2 border-l-2 border-green-600/30 dark:border-green-400/30 pl-4">
+                {freeDivisions.map((division) => (
+                  <DivisionRow key={division.id} division={division} />
+                ))}
+              </div>
+            </CollapsibleContent>
           </div>
-          <div className="space-y-2 border-l-2 border-green-600/30 dark:border-green-400/30 pl-4">
-            {freeDivisions.map((division) => (
-              <DivisionRow key={division.id} division={division} />
-            ))}
-          </div>
-        </div>
+        </Collapsible>
       )}
 
       {/* Paid Tiers */}
       {paidTiers.map(([feeCents, tierDivisions]) => (
-        <div key={feeCents} className="space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground">
-              {formatPrice(feeCents)}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              ({tierDivisions.length}{" "}
-              {tierDivisions.length === 1 ? "division" : "divisions"})
-            </span>
+        <Collapsible key={feeCents} className="group/tier" defaultOpen>
+          <div className="space-y-2">
+            <CollapsibleTrigger className="flex items-center gap-2 w-full cursor-pointer">
+              <span className="text-sm font-medium text-muted-foreground">
+                {formatPrice(feeCents)}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                ({tierDivisions.length}{" "}
+                {tierDivisions.length === 1 ? "division" : "divisions"})
+              </span>
+              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground ml-auto transition-transform group-data-[state=open]/tier:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="space-y-2 border-l-2 border-border pl-4">
+                {tierDivisions.map((division) => (
+                  <DivisionRow key={division.id} division={division} />
+                ))}
+              </div>
+            </CollapsibleContent>
           </div>
-          <div className="space-y-2 border-l-2 border-border pl-4">
-            {tierDivisions.map((division) => (
-              <DivisionRow key={division.id} division={division} />
-            ))}
-          </div>
-        </div>
+        </Collapsible>
       ))}
     </div>
   )
