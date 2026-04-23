@@ -16,6 +16,12 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { initiatePurchaseTransferFn } from "@/server-fns/purchase-transfer-fns"
 
+export interface TransferRegistrationData {
+  purchaseId: string
+  targetEmail: string
+  notes?: string
+}
+
 interface TransferRegistrationDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -27,15 +33,24 @@ interface TransferRegistrationDialogProps {
     commercePurchaseId: string | null
   }
   competitionId: string
+  /** Optional callback to override the default organizer server fn. Used by cohost routes. */
+  onTransferRegistration?: (data: TransferRegistrationData) => Promise<void>
+  /** When true, disables the form and shows a message that this action is not available. */
+  disabled?: boolean
+  /** Custom message to show when the dialog is disabled. */
+  disabledMessage?: string
 }
 
 export function TransferRegistrationDialog({
   open,
   onOpenChange,
   registration,
+  onTransferRegistration,
+  disabled: disabledProp,
+  disabledMessage,
 }: TransferRegistrationDialogProps) {
   const router = useRouter()
-  const initiatePurchaseTransfer = useServerFn(initiatePurchaseTransferFn)
+  const initiatePurchaseTransferDefault = useServerFn(initiatePurchaseTransferFn)
   const [targetEmail, setTargetEmail] = useState("")
   const [notes, setNotes] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -54,13 +69,18 @@ export function TransferRegistrationDialog({
 
     setIsSubmitting(true)
     try {
-      await initiatePurchaseTransfer({
-        data: {
-          purchaseId: registration.commercePurchaseId,
-          targetEmail,
-          notes: notes || undefined,
-        },
-      })
+      const transferData: TransferRegistrationData = {
+        purchaseId: registration.commercePurchaseId,
+        targetEmail,
+        notes: notes || undefined,
+      }
+
+      if (onTransferRegistration) {
+        await onTransferRegistration(transferData)
+      } else {
+        await initiatePurchaseTransferDefault({ data: transferData })
+      }
+
       toast.success(
         "Transfer initiated. An email has been sent to the recipient.",
       )
@@ -75,7 +95,7 @@ export function TransferRegistrationDialog({
     }
   }
 
-  const isDisabled = !registration.commercePurchaseId
+  const isDisabled = disabledProp || !registration.commercePurchaseId
   const canSubmit = !isDisabled && !!targetEmail && !isSubmitting
 
   return (
@@ -105,8 +125,8 @@ export function TransferRegistrationDialog({
         <div className="space-y-4 py-2">
           {isDisabled && (
             <p className="text-sm text-destructive">
-              This registration does not have an associated purchase and cannot
-              be transferred.
+              {disabledMessage ??
+                "This registration does not have an associated purchase and cannot be transferred."}
             </p>
           )}
 

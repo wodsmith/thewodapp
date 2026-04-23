@@ -17,6 +17,7 @@ vi.mock("@/db", () => ({
 const userId = "user-123"
 const otherUserId = "user-other-456"
 const teamId = "team-abc"
+const competitionTeamId = "comp-team-xyz"
 const competitionId = "comp-test-123"
 
 // Mock team permission function
@@ -24,6 +25,18 @@ const mockHasTeamPermission = vi.fn()
 
 vi.mock("@/utils/team-auth", () => ({
 	hasTeamPermission: (...args: unknown[]) => mockHasTeamPermission(...args),
+}))
+
+// Mock session and cohost permissions
+const mockGetSessionFromCookie = vi.fn()
+const mockGetCohostPermissions = vi.fn()
+
+vi.mock("@/utils/auth", () => ({
+	getSessionFromCookie: (...args: unknown[]) => mockGetSessionFromCookie(...args),
+}))
+
+vi.mock("@/server/cohost", () => ({
+	getCohostPermissions: (...args: unknown[]) => mockGetCohostPermissions(...args),
 }))
 
 // Import after mocks
@@ -34,11 +47,13 @@ function createMockCompetition(
 	overrides: Partial<{
 		id: string
 		organizingTeamId: string
+		competitionTeamId: string
 	}> = {},
 ) {
 	return {
 		id: overrides.id ?? competitionId,
 		organizingTeamId: overrides.organizingTeamId ?? teamId,
+		competitionTeamId: overrides.competitionTeamId ?? competitionTeamId,
 	}
 }
 
@@ -56,6 +71,8 @@ describe("checkUploadAuthorization", () => {
 		mockDb.reset()
 		mockDb.registerTable("competitionsTable")
 		mockHasTeamPermission.mockResolvedValue(true)
+		mockGetSessionFromCookie.mockResolvedValue(null)
+		mockGetCohostPermissions.mockResolvedValue(null)
 	})
 
 	describe("judging-sheet uploads", () => {
@@ -99,6 +116,45 @@ describe("checkUploadAuthorization", () => {
 			expect(result.error).toBe(
 				"Not authorized to upload judging sheets",
 			)
+		})
+
+		it("authorizes judging-sheet upload for cohost with events permission", async () => {
+			setupCompetitionQuery(createMockCompetition())
+			mockHasTeamPermission.mockResolvedValue(false)
+			const mockSession = { userId, teams: [] }
+			mockGetSessionFromCookie.mockResolvedValue(mockSession)
+			mockGetCohostPermissions.mockResolvedValue({ editEvents: true })
+
+			const result = await checkUploadAuthorization(
+				"judging-sheet",
+				competitionId,
+				userId,
+			)
+
+			expect(result.authorized).toBe(true)
+			expect(result.error).toBeUndefined()
+			// Must use competitionTeamId (not organizingTeamId) for cohost lookup
+			expect(mockGetCohostPermissions).toHaveBeenCalledWith(mockSession, competitionTeamId)
+		})
+
+		it("rejects judging-sheet upload for cohost without events permission", async () => {
+			setupCompetitionQuery(createMockCompetition())
+			mockHasTeamPermission.mockResolvedValue(false)
+			const mockSession = { userId, teams: [] }
+			mockGetSessionFromCookie.mockResolvedValue(mockSession)
+			mockGetCohostPermissions.mockResolvedValue({ editEvents: false })
+
+			const result = await checkUploadAuthorization(
+				"judging-sheet",
+				competitionId,
+				userId,
+			)
+
+			expect(result.authorized).toBe(false)
+			expect(result.error).toBe(
+				"Not authorized to upload judging sheets",
+			)
+			expect(mockGetCohostPermissions).toHaveBeenCalledWith(mockSession, competitionTeamId)
 		})
 
 		it("authorizes judging-sheet upload when user has permission", async () => {

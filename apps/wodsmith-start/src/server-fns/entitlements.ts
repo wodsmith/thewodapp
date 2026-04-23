@@ -3,6 +3,7 @@
  * These can be called from client components via useServerFn
  */
 import { createServerFn } from "@tanstack/react-start"
+import { z } from "zod"
 import { FEATURES } from "@/config/features"
 import { hasFeature } from "@/server/entitlements"
 import { getSessionFromCookie } from "@/utils/auth"
@@ -27,3 +28,20 @@ export const checkWorkoutTrackingAccess = createServerFn({
 
   return hasFeature(activeTeamId, FEATURES.WORKOUT_TRACKING)
 })
+
+/**
+ * Check if a specific team has access to a given feature.
+ * Used by route loaders that already know the team ID.
+ */
+export const checkTeamHasFeatureFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        teamId: z.string().min(1),
+        featureKey: z.string().min(1),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    return hasFeature(data.teamId, data.featureKey)
+  })

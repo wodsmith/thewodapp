@@ -46,12 +46,27 @@ import {
 } from "@/components/ui/card"
 import type { Waiver } from "@/db/schemas/waivers"
 import { deleteWaiverFn, reorderWaiversFn } from "@/server-fns/waiver-fns"
+import type { WaiverFormDialogOverrides } from "./waiver-form-dialog"
 import { WaiverFormDialog } from "./waiver-form-dialog"
+
+export interface WaiverListOverrides extends WaiverFormDialogOverrides {
+  deleteWaiver?: (opts: {
+    data: { waiverId: string; competitionId: string; teamId: string }
+  }) => Promise<{ success: true }>
+  reorderWaivers?: (opts: {
+    data: {
+      competitionId: string
+      teamId: string
+      waivers: { id: string; position: number }[]
+    }
+  }) => Promise<{ success: true }>
+}
 
 interface WaiverListProps {
   competitionId: string
   teamId: string
   waivers: Waiver[]
+  overrides?: WaiverListOverrides
 }
 
 interface WaiverItemProps {
@@ -224,6 +239,7 @@ export function WaiverList({
   competitionId,
   teamId,
   waivers: initialWaivers,
+  overrides,
 }: WaiverListProps) {
   const [waivers, setWaivers] = useState(initialWaivers)
   const [instanceId] = useState(() => Symbol("waiver-list"))
@@ -232,9 +248,11 @@ export function WaiverList({
   const [deletingWaiverId, setDeletingWaiverId] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // Use TanStack Start's useServerFn hook for server function calls
-  const reorderWaivers = useServerFn(reorderWaiversFn)
-  const deleteWaiver = useServerFn(deleteWaiverFn)
+  // Use overrides if provided, otherwise default organizer server fns via useServerFn
+  const defaultReorderWaivers = useServerFn(reorderWaiversFn)
+  const defaultDeleteWaiver = useServerFn(deleteWaiverFn)
+  const reorderWaivers = overrides?.reorderWaivers ?? defaultReorderWaivers
+  const deleteWaiver = overrides?.deleteWaiver ?? defaultDeleteWaiver
 
   const handleDrop = async (sourceIndex: number, targetIndex: number) => {
     // Capture previous state before optimistic update to avoid stale closure
@@ -361,6 +379,7 @@ export function WaiverList({
         competitionId={competitionId}
         teamId={teamId}
         onSuccess={handleWaiverCreated}
+        overrides={overrides ? { createWaiver: overrides.createWaiver, updateWaiver: overrides.updateWaiver } : undefined}
       />
 
       {/* Edit Dialog */}
@@ -372,6 +391,7 @@ export function WaiverList({
           teamId={teamId}
           waiver={editingWaiver}
           onSuccess={handleWaiverUpdated}
+          overrides={overrides ? { createWaiver: overrides.createWaiver, updateWaiver: overrides.updateWaiver } : undefined}
         />
       )}
 

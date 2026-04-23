@@ -79,6 +79,47 @@ interface RotationTimelineProps {
   onFilterEmptyLanesChange: (value: boolean) => void
   /** Callback when rotations are updated */
   onRotationsChange?: (rotations: CompetitionJudgeRotation[]) => void
+  /** Optional override for updateJudgeRotationFn (used by cohost routes) */
+  onUpdateJudgeRotation?: (args: {
+    data: Record<string, unknown>
+  }) => Promise<{ success: boolean; data: unknown }>
+  /** Optional override for deleteVolunteerRotationsFn (used by cohost routes) */
+  onDeleteVolunteerRotations?: (args: {
+    data: Record<string, unknown>
+  }) => Promise<{ success: boolean; data: { deletedCount: number } }>
+  /** Optional override for createJudgeRotationFn (used by cohost routes) */
+  onCreateJudgeRotation?: (args: {
+    data: Record<string, unknown>
+  }) => Promise<{ success: boolean; data: unknown }>
+  /** Optional override for batchCreateRotationsFn (used by cohost routes) */
+  onBatchCreateRotations?: (args: {
+    data: Record<string, unknown>
+  }) => Promise<{
+    success: boolean
+    data: { rotationIds: string[]; rotations: unknown[] }
+  }>
+  /** Optional override for batchDeleteRotationsFn (used by cohost routes) */
+  onBatchDeleteRotations?: (args: {
+    data: Record<string, unknown>
+  }) => Promise<{ success: boolean; data: { deletedCount: number } }>
+  /** Optional override for deleteJudgeRotationFn (used by cohost routes) */
+  onDeleteJudgeRotation?: (args: {
+    data: Record<string, unknown>
+  }) => Promise<{ success: boolean }>
+  /** Optional override for batchUpdateVolunteerRotationsFn (used by cohost routes) */
+  onBatchUpdateVolunteerRotations?: (args: {
+    data: Record<string, unknown>
+  }) => Promise<{
+    success: boolean
+    data: { rotationIds: string[]; rotations: unknown[] }
+  }>
+  /** Optional override for adjustRotationsForOccupiedLanesFn (used by cohost routes) */
+  onAdjustRotationsForOccupiedLanes?: (args: {
+    data: Record<string, unknown>
+  }) => Promise<{
+    success: boolean
+    data: { deletedCount: number; createdCount: number; unchangedCount: number }
+  }>
 }
 
 /**
@@ -101,6 +142,11 @@ export function RotationTimeline({
   filterEmptyLanes,
   onFilterEmptyLanesChange,
   onRotationsChange,
+  onUpdateJudgeRotation,
+  onDeleteVolunteerRotations,
+  onBatchCreateRotations,
+  onBatchUpdateVolunteerRotations,
+  onAdjustRotationsForOccupiedLanes,
 }: RotationTimelineProps) {
   const heatsCount = heatsWithAssignments.length
   const [availabilityFilter, setAvailabilityFilter] = useState<
@@ -580,7 +626,8 @@ export function RotationTimeline({
       }
 
       try {
-        await updateJudgeRotationFn({
+        const updateFn = onUpdateJudgeRotation ?? updateJudgeRotationFn
+        await updateFn({
           data: {
             teamId,
             rotationId: rotation.id,
@@ -595,7 +642,7 @@ export function RotationTimeline({
         toast.error("Failed to update rotation")
       }
     },
-    [teamId, refreshRotations],
+    [teamId, refreshRotations, onUpdateJudgeRotation],
   )
 
   function handleEditVolunteerRotations(membershipId: string) {
@@ -718,7 +765,8 @@ export function RotationTimeline({
 
     setIsDeleting(true)
     try {
-      await deleteVolunteerRotationsFn({
+      const deleteFn = onDeleteVolunteerRotations ?? deleteVolunteerRotationsFn
+      await deleteFn({
         data: {
           teamId,
           membershipId: deletingVolunteerId,
@@ -750,7 +798,8 @@ export function RotationTimeline({
         occupiedLanesObj[String(heatNum)] = Array.from(lanesSet)
       }
 
-      const result = await adjustRotationsForOccupiedLanesFn({
+      const adjustFn = onAdjustRotationsForOccupiedLanes ?? adjustRotationsForOccupiedLanesFn
+      const result = await adjustFn({
         data: {
           teamId,
           competitionId,
@@ -875,6 +924,8 @@ export function RotationTimeline({
                 onCancel={handleEditorCancel}
                 onPreviewChange={setPreviewCells}
                 onJudgeSelect={setSelectedVolunteerId}
+                onBatchCreateRotations={onBatchCreateRotations}
+                onBatchUpdateVolunteerRotations={onBatchUpdateVolunteerRotations}
               />
             ) : rotations.length === 0 ? (
               /* Empty State */

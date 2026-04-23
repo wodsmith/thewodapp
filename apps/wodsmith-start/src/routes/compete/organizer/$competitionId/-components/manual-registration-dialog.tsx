@@ -28,12 +28,33 @@ import type { CompetitionDivisionWithCounts } from "@/server-fns/competition-div
 import { createManualRegistrationFn } from "@/server-fns/registration-fns"
 import type { RegistrationQuestionWithSource } from "@/server-fns/registration-questions-fns"
 
+export interface ManualRegistrationData {
+  competitionId: string
+  athleteEmail: string
+  athleteFirstName?: string
+  athleteLastName?: string
+  divisionId: string
+  paymentStatus: "COMP" | "PAID_OFFLINE"
+  answers?: Array<{ questionId: string; answer: string }>
+  teamName?: string
+  teammates?: Array<{ email: string; firstName: string; lastName: string }>
+}
+
+export interface ManualRegistrationResult {
+  registrationId?: string
+  divisionFeeCents?: number
+  isNewAthlete?: boolean
+  success?: boolean
+}
+
 interface ManualRegistrationDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   competitionId: string
   divisions: CompetitionDivisionWithCounts[]
   questions: RegistrationQuestionWithSource[]
+  /** Optional callback to override the default organizer server fn. Used by cohost routes. */
+  onCreateRegistration?: (data: ManualRegistrationData) => Promise<ManualRegistrationResult>
 }
 
 type Step = "athlete" | "division" | "team" | "questions" | "confirm"
@@ -48,9 +69,10 @@ export function ManualRegistrationDialog({
   competitionId,
   divisions,
   questions,
+  onCreateRegistration,
 }: ManualRegistrationDialogProps) {
   const router = useRouter()
-  const createManualRegistration = useServerFn(createManualRegistrationFn)
+  const createManualRegistrationDefault = useServerFn(createManualRegistrationFn)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Step state
@@ -175,19 +197,21 @@ export function ManualRegistrationDialog({
         .filter(([, value]) => value.trim().length > 0)
         .map(([questionId, answer]) => ({ questionId, answer }))
 
-      const result = await createManualRegistration({
-        data: {
-          competitionId,
-          athleteEmail,
-          athleteFirstName: athleteFirstName || undefined,
-          athleteLastName: athleteLastName || undefined,
-          divisionId,
-          paymentStatus: isDivisionFree ? "COMP" : paymentStatus,
-          answers: answersArray.length > 0 ? answersArray : undefined,
-          teamName: isTeamDivision ? teamName : undefined,
-          teammates: isTeamDivision ? teammates : undefined,
-        },
-      })
+      const registrationData: ManualRegistrationData = {
+        competitionId,
+        athleteEmail,
+        athleteFirstName: athleteFirstName || undefined,
+        athleteLastName: athleteLastName || undefined,
+        divisionId,
+        paymentStatus: isDivisionFree ? "COMP" : paymentStatus,
+        answers: answersArray.length > 0 ? answersArray : undefined,
+        teamName: isTeamDivision ? teamName : undefined,
+        teammates: isTeamDivision ? teammates : undefined,
+      }
+
+      const result = onCreateRegistration
+        ? await onCreateRegistration(registrationData)
+        : await createManualRegistrationDefault({ data: registrationData })
 
       // Track PostHog event
       trackEvent("manual_registration_created", {
@@ -202,7 +226,9 @@ export function ManualRegistrationDialog({
       toast.success("Registration created successfully")
       onOpenChange(false)
       resetForm()
-      router.invalidate()
+      await router.invalidate().catch(() => {
+        // Swallow invalidation errors — the mutation already succeeded
+      })
     } catch (error) {
       toast.error(
         error instanceof Error

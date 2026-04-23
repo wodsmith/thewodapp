@@ -74,6 +74,13 @@ interface CompetitionLeaderboardTableProps {
   }>
   selectedEventId: string | null // null = overall view
   scoringAlgorithm: ScoringAlgorithm
+  /**
+   * When true, the affiliate column is suppressed — affiliate still shows
+   * as subtext under the athlete name via `TeamCell`. Used by the organizer
+   * and cohost leaderboard previews to free horizontal space for event
+   * columns.
+   */
+  preview?: boolean
 }
 
 function getRankIcon(rank: number) {
@@ -470,6 +477,7 @@ export function CompetitionLeaderboardTable({
   events,
   selectedEventId,
   scoringAlgorithm,
+  preview = false,
 }: CompetitionLeaderboardTableProps) {
   // Compute the correct default sort column based on view mode
   const defaultSortColumn = selectedEventId ? "eventRank" : "overallRank"
@@ -514,10 +522,12 @@ export function CompetitionLeaderboardTable({
     [leaderboard],
   )
 
-  // Show affiliate column only when at least one entry has an affiliate
+  // Show affiliate column only when at least one entry has an affiliate.
+  // In preview mode the column is suppressed — affiliate renders as subtext
+  // under the athlete name via `TeamCell` instead.
   const hasAffiliates = useMemo(
-    () => leaderboard.some((entry) => entry.affiliate),
-    [leaderboard],
+    () => !preview && leaderboard.some((entry) => entry.affiliate),
+    [leaderboard, preview],
   )
 
   // Build columns dynamically based on view mode

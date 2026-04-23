@@ -55,6 +55,19 @@ import {
 } from "@/server-fns/competition-heats-fns"
 import type { CompetitionWorkout } from "@/server-fns/competition-workouts-fns"
 import { updateCompetitionWorkoutFn } from "@/server-fns/competition-workouts-fns"
+
+interface HeatScheduleManagerOverrides {
+  createHeatFn?: (args: { data: any }) => Promise<{ heat: any }>
+  deleteHeatFn?: (args: { data: any }) => Promise<any>
+  reorderHeatsFn?: (args: { data: any }) => Promise<any>
+  getNextHeatNumberFn?: (args: { data: any }) => Promise<{ nextHeatNumber: number }>
+  bulkCreateHeatsFn?: (args: { data: any }) => Promise<{ heats: any[] }>
+  bulkUpdateHeatsFn?: (args: { data: any }) => Promise<any>
+  copyHeatsFromEventFn?: (args: { data: any }) => Promise<{ heats: any[] }>
+  getEventsWithHeatsFn?: (args: { data: any }) => Promise<{ events: any[] }>
+  updateCompetitionWorkoutFn?: (args: { data: any }) => Promise<any>
+}
+
 import { DraggableAthlete } from "./draggable-athlete"
 import { EventOverview } from "./event-overview"
 import { HeatCard } from "./heat-card"
@@ -101,6 +114,7 @@ interface HeatScheduleManagerProps {
   divisions: Division[]
   registrations: Registration[]
   onHeatsChange?: (heats: HeatWithAssignments[]) => void
+  overrides?: HeatScheduleManagerOverrides
 }
 
 // Draggable Division Header Component
@@ -201,6 +215,7 @@ export function HeatScheduleManager({
   divisions,
   registrations,
   onHeatsChange,
+  overrides,
 }: HeatScheduleManagerProps) {
   // Support both controlled and uncontrolled state
   const [internalHeats, setInternalHeats] = useState(controlledHeats)
@@ -292,7 +307,8 @@ export function HeatScheduleManager({
 
     setIsUpdatingWorkout(true)
     try {
-      await updateCompetitionWorkoutFn({
+      const updateWorkoutFn = overrides?.updateCompetitionWorkoutFn ?? updateCompetitionWorkoutFn
+      await updateWorkoutFn({
         data: {
           trackWorkoutId: eventId,
           teamId: organizingTeamId,
@@ -535,7 +551,8 @@ export function HeatScheduleManager({
       if (isBulkCreateOpen && selectedEventId) {
         setIsLoadingEvents(true)
         try {
-          const result = await getEventsWithHeatsFn({
+          const getEventsFn = overrides?.getEventsWithHeatsFn ?? getEventsWithHeatsFn
+          const result = await getEventsFn({
             data: {
               competitionId,
               excludeTrackWorkoutId: selectedEventId,
@@ -557,7 +574,7 @@ export function HeatScheduleManager({
       }
     }
     fetchEventsWithHeats()
-  }, [isBulkCreateOpen, selectedEventId, competitionId])
+  }, [isBulkCreateOpen, selectedEventId, competitionId, overrides?.getEventsWithHeatsFn])
 
   // Instance ID for heat list scoping (drag-drop)
   const [heatListInstanceId] = useState(() => Symbol("heat-list"))
@@ -683,12 +700,14 @@ export function HeatScheduleManager({
     setIsCreating(true)
     try {
       // Get next heat number from server
-      const { nextHeatNumber } = await getNextHeatNumberFn({
+      const getNextFn = overrides?.getNextHeatNumberFn ?? getNextHeatNumberFn
+      const { nextHeatNumber } = await getNextFn({
         data: { trackWorkoutId: selectedEventId },
       })
 
       // Create heat via server function
-      const result = await createHeatFn({
+      const createFn = overrides?.createHeatFn ?? createHeatFn
+      const result = await createFn({
         data: {
           competitionId,
           trackWorkoutId: selectedEventId,
@@ -744,7 +763,8 @@ export function HeatScheduleManager({
 
     setIsDeleting(true)
     try {
-      await deleteHeatFn({ data: { heatId } })
+      const delFn = overrides?.deleteHeatFn ?? deleteHeatFn
+      await delFn({ data: { heatId } })
       toast.success("Heat deleted")
     } catch (error) {
       // Revert on error
@@ -824,7 +844,8 @@ export function HeatScheduleManager({
 
     setIsReordering(true)
     try {
-      await reorderHeatsFn({
+      const reorderFn = overrides?.reorderHeatsFn ?? reorderHeatsFn
+      await reorderFn({
         data: {
           trackWorkoutId: selectedEventId,
           heatIds: orderedHeatIds,
@@ -1017,7 +1038,8 @@ export function HeatScheduleManager({
         durationMinutes: bulkEditDuration,
       }))
 
-      await bulkUpdateHeatsFn({ data: { heats: heatsData } })
+      const bulkUpdateFn = overrides?.bulkUpdateHeatsFn ?? bulkUpdateHeatsFn
+      await bulkUpdateFn({ data: { heats: heatsData } })
 
       // Update local state
       setHeats(
@@ -1051,7 +1073,8 @@ export function HeatScheduleManager({
 
     setIsCopying(true)
     try {
-      const result = await copyHeatsFromEventFn({
+      const copyFn = overrides?.copyHeatsFromEventFn ?? copyHeatsFromEventFn
+      const result = await copyFn({
         data: {
           sourceTrackWorkoutId: copySourceEventId,
           targetTrackWorkoutId: selectedEventId,
@@ -1135,7 +1158,8 @@ export function HeatScheduleManager({
         }))
 
       // Call bulk create server function
-      const result = await bulkCreateHeatsFn({
+      const bulkCreateFn = overrides?.bulkCreateHeatsFn ?? bulkCreateHeatsFn
+      const result = await bulkCreateFn({
         data: {
           competitionId,
           trackWorkoutId: selectedEventId,

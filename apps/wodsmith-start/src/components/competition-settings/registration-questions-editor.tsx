@@ -101,6 +101,51 @@ const questionFormSchema = z.object({
 
 type QuestionFormValues = z.infer<typeof questionFormSchema>
 
+/**
+ * Optional overrides so cohost routes can inject cohost-authed server fns
+ * instead of the default organizer ones. Callbacks receive the same params
+ * the component would normally pass to the organizer fns; the cohost route
+ * maps `teamId` -> `competitionTeamId` in the wrapper. Series-level fns
+ * don't need overrides because cohosts don't manage series.
+ */
+export interface RegistrationQuestionsOverrides {
+  createQuestion?: (params: {
+    data: {
+      competitionId: string
+      teamId: string
+      type: "text" | "select" | "number"
+      label: string
+      helpText?: string | null
+      options?: string[] | null
+      required: boolean
+      forTeammates: boolean
+      questionTarget?: "athlete" | "volunteer"
+    }
+  }) => Promise<{ question: RegistrationQuestion }>
+  updateQuestion?: (params: {
+    data: {
+      questionId: string
+      teamId: string
+      type?: "text" | "select" | "number"
+      label?: string
+      helpText?: string | null
+      options?: string[] | null
+      required?: boolean
+      forTeammates?: boolean
+    }
+  }) => Promise<{ question: RegistrationQuestion }>
+  deleteQuestion?: (params: {
+    data: { questionId: string; teamId: string }
+  }) => Promise<{ success: boolean }>
+  reorderQuestions?: (params: {
+    data: {
+      competitionId: string
+      teamId: string
+      orderedQuestionIds: string[]
+    }
+  }) => Promise<{ success: boolean }>
+}
+
 interface RegistrationQuestionsEditorProps {
   entityType: "competition" | "series"
   entityId: string
@@ -108,6 +153,7 @@ interface RegistrationQuestionsEditorProps {
   questions: RegistrationQuestion[]
   onQuestionsChange: () => void
   questionTarget?: "athlete" | "volunteer"
+  overrides?: RegistrationQuestionsOverrides
 }
 
 interface QuestionItemProps {
@@ -348,6 +394,7 @@ interface QuestionFormDialogProps {
   onClose: () => void
   onSuccess: () => void
   questionTarget?: "athlete" | "volunteer"
+  overrides?: RegistrationQuestionsOverrides
 }
 
 function QuestionFormDialog({
@@ -359,14 +406,18 @@ function QuestionFormDialog({
   onClose,
   onSuccess,
   questionTarget = "athlete",
+  overrides,
 }: QuestionFormDialogProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [optionInput, setOptionInput] = useState("")
   const isEditing = !!question
 
-  const createCompetitionQuestion = useServerFn(createQuestionFn)
+  const defaultCreateCompetitionQuestion = useServerFn(createQuestionFn)
   const createSeriesQuestion = useServerFn(createSeriesQuestionFn)
-  const updateQuestion = useServerFn(updateQuestionFn)
+  const defaultUpdateQuestion = useServerFn(updateQuestionFn)
+
+  const createCompetitionQuestion = overrides?.createQuestion ?? defaultCreateCompetitionQuestion
+  const updateQuestion = overrides?.updateQuestion ?? defaultUpdateQuestion
 
   const form = useForm<QuestionFormValues>({
     resolver: zodResolver(questionFormSchema),
@@ -698,6 +749,7 @@ export function RegistrationQuestionsEditor({
   questions: initialQuestions,
   onQuestionsChange,
   questionTarget = "athlete",
+  overrides,
 }: RegistrationQuestionsEditorProps) {
   const [questions, setQuestions] = useState(initialQuestions)
   const [instanceId] = useState(() => Symbol("registration-questions"))
@@ -707,9 +759,12 @@ export function RegistrationQuestionsEditor({
     useState<RegistrationQuestion | null>(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
 
-  const reorderCompetitionQuestions = useServerFn(reorderQuestionsFn)
+  const defaultReorderCompetitionQuestions = useServerFn(reorderQuestionsFn)
   const reorderSeriesQuestionsServer = useServerFn(reorderSeriesQuestionsFn)
-  const deleteQuestion = useServerFn(deleteQuestionFn)
+  const defaultDeleteQuestion = useServerFn(deleteQuestionFn)
+
+  const reorderCompetitionQuestions = overrides?.reorderQuestions ?? defaultReorderCompetitionQuestions
+  const deleteQuestion = overrides?.deleteQuestion ?? defaultDeleteQuestion
 
   // Update local state when prop changes
   useEffect(() => {
@@ -849,6 +904,7 @@ export function RegistrationQuestionsEditor({
         onClose={handleFormClose}
         onSuccess={handleFormSuccess}
         questionTarget={questionTarget}
+        overrides={overrides}
       />
 
       <AlertDialog

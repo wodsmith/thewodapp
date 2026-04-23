@@ -9,6 +9,8 @@ import { getDb } from "@/db"
 import { competitionsTable } from "@/db/schema"
 import { competitionGroupsTable } from "@/db/schemas/competitions"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { getSessionFromCookie } from "@/utils/auth"
+import { getCohostPermissions } from "@/server/cohost"
 import { hasTeamPermission } from "@/utils/team-auth"
 
 export interface UploadAuthorizationResult {
@@ -86,6 +88,14 @@ export async function checkUploadAuthorization(
       TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
     )
     if (!hasPermission) {
+      // Also check cohost "editEvents" permission (cohosts use a separate permission model)
+      const session = await getSessionFromCookie()
+      if (session) {
+        const cohostPerms = competition ? await getCohostPermissions(session, competition.competitionTeamId) : null
+        if (cohostPerms?.editEvents) {
+          return { authorized: true }
+        }
+      }
       return {
         authorized: false,
         error: "Not authorized to upload judging sheets",

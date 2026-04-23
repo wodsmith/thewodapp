@@ -1,5 +1,6 @@
 "use client"
 
+import { useRouter } from "@tanstack/react-router"
 import { Check, Copy, Download, UserPlus, X } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
@@ -100,6 +101,20 @@ interface VolunteersListProps {
       }>
     }
   >
+  /** Optional callback for bulk role assignment. Defaults to organizer server fn. */
+  onBulkAssignRole?: (params: { membershipIds: string[]; competitionId: string; roleType: string }) => Promise<{ succeeded: number; failed: number }>
+  /** Optional callback to invite a volunteer. Passed through to InviteVolunteerDialog. */
+  onInviteVolunteer?: (params: { name?: string; email: string; competitionTeamId: string; competitionId: string; roleTypes: string[] }) => Promise<{ success: boolean }>
+  /** Optional callback to add a role type. Passed through to VolunteerRow. */
+  onAddRoleType?: (params: { membershipId: string; competitionId: string; roleType: string }) => Promise<{ success: boolean }>
+  /** Optional callback to remove a role type. Passed through to VolunteerRow. */
+  onRemoveRoleType?: (params: { membershipId: string; competitionId: string; roleType: string }) => Promise<{ success: boolean }>
+  /** Optional callback to update volunteer metadata. Passed through to VolunteerRow. */
+  onUpdateMetadata?: (params: { membershipId: string; competitionId: string; metadata: Record<string, unknown> }) => Promise<{ success: boolean }>
+  /** Optional callback to grant score access. Passed through to VolunteerRow. */
+  onGrantScoreAccess?: (params: { volunteerId: string; competitionTeamId: string; competitionId: string; grantedBy: string }) => Promise<{ success: boolean }>
+  /** Optional callback to revoke score access. Passed through to VolunteerRow. */
+  onRevokeScoreAccess?: (params: { userId: string; competitionTeamId: string; competitionId: string }) => Promise<{ success: boolean }>
 }
 
 /**
@@ -117,6 +132,13 @@ export function VolunteersList({
   volunteerQuestions,
   answersByInvitation,
   emailToInvitationId,
+  onBulkAssignRole,
+  onInviteVolunteer,
+  onAddRoleType,
+  onRemoveRoleType,
+  onUpdateMetadata,
+  onGrantScoreAccess,
+  onRevokeScoreAccess,
 }: VolunteersListProps) {
   /** Look up answers for a volunteer by invitationId (pending) or user email (approved) */
   function getAnswersForVolunteer(
@@ -130,6 +152,7 @@ export function VolunteersList({
     }
     return invitationId ? (answersByInvitation[invitationId] ?? []) : []
   }
+  const router = useRouter()
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
   const [filter, setFilter] = useState<"all" | "pending" | "approved">("all")
   const [availabilityFilter, setAvailabilityFilter] = useState<string | null>(
@@ -301,14 +324,23 @@ export function VolunteersList({
 
     setIsBulkAssigning(true)
     try {
-      const result = await bulkAssignVolunteerRoleFn({
-        data: {
+      let result: { succeeded: number; failed: number }
+      if (onBulkAssignRole) {
+        result = await onBulkAssignRole({
           membershipIds,
-          organizingTeamId,
           competitionId,
           roleType,
-        },
-      })
+        })
+      } else {
+        result = await bulkAssignVolunteerRoleFn({
+          data: {
+            membershipIds,
+            organizingTeamId,
+            competitionId,
+            roleType,
+          },
+        })
+      }
 
       if (result.failed > 0) {
         toast.warning(
@@ -318,6 +350,7 @@ export function VolunteersList({
         toast.success(`Assigned role to ${result.succeeded} volunteers`)
       }
       setSelectedIds(new Set())
+      await router.invalidate()
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to assign roles",
@@ -478,6 +511,7 @@ export function VolunteersList({
             organizingTeamId={organizingTeamId}
             open={inviteDialogOpen}
             onOpenChange={setInviteDialogOpen}
+            onInviteVolunteer={onInviteVolunteer}
           />
         </CardContent>
       </Card>
@@ -575,6 +609,7 @@ export function VolunteersList({
           organizingTeamId={organizingTeamId}
           open={inviteDialogOpen}
           onOpenChange={setInviteDialogOpen}
+          onInviteVolunteer={onInviteVolunteer}
         />
       </div>
 
@@ -667,6 +702,11 @@ export function VolunteersList({
                     answers={getAnswersForVolunteer(volunteerItem)}
                     questions={volunteerQuestions}
                     variant="card"
+                    onAddRoleType={onAddRoleType}
+                    onRemoveRoleType={onRemoveRoleType}
+                    onUpdateMetadata={onUpdateMetadata}
+                    onGrantScoreAccess={onGrantScoreAccess}
+                    onRevokeScoreAccess={onRevokeScoreAccess}
                   />
                 )
               }
@@ -692,6 +732,11 @@ export function VolunteersList({
                   answers={getAnswersForVolunteer(volunteer)}
                   questions={volunteerQuestions}
                   variant="card"
+                  onAddRoleType={onAddRoleType}
+                  onRemoveRoleType={onRemoveRoleType}
+                  onUpdateMetadata={onUpdateMetadata}
+                  onGrantScoreAccess={onGrantScoreAccess}
+                  onRevokeScoreAccess={onRevokeScoreAccess}
                 />
               )
             })}
@@ -774,6 +819,11 @@ export function VolunteersList({
                             }
                             answers={getAnswersForVolunteer(volunteerItem)}
                             questions={volunteerQuestions}
+                            onAddRoleType={onAddRoleType}
+                            onRemoveRoleType={onRemoveRoleType}
+                            onUpdateMetadata={onUpdateMetadata}
+                            onGrantScoreAccess={onGrantScoreAccess}
+                            onRevokeScoreAccess={onRevokeScoreAccess}
                           />
                         )
                       }
@@ -798,6 +848,11 @@ export function VolunteersList({
                           }
                           answers={getAnswersForVolunteer(volunteer)}
                           questions={volunteerQuestions}
+                          onAddRoleType={onAddRoleType}
+                          onRemoveRoleType={onRemoveRoleType}
+                          onUpdateMetadata={onUpdateMetadata}
+                          onGrantScoreAccess={onGrantScoreAccess}
+                          onRevokeScoreAccess={onRevokeScoreAccess}
                         />
                       )
                     })}

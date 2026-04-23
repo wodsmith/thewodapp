@@ -42,12 +42,27 @@ interface QuickActionsDivisionResultsProps {
   competitionId: string
   organizingTeamId: string
   divisionResults: AllEventsResultsStatusResponse
+  /** Optional callback to override the default organizer publishDivisionResultsFn */
+  onPublishDivisionResults?: (params: {
+    competitionId: string
+    eventId: string
+    divisionId: string
+    publish: boolean
+  }) => Promise<{ success: boolean; publishedAt: Date | null }>
+  /** Optional callback to override the default organizer publishAllDivisionResultsFn */
+  onPublishAllDivisionResults?: (params: {
+    competitionId: string
+    eventId: string
+    publish: boolean
+  }) => Promise<{ success: boolean; updatedCount: number }>
 }
 
 export function QuickActionsDivisionResults({
   competitionId,
   organizingTeamId,
   divisionResults,
+  onPublishDivisionResults,
+  onPublishAllDivisionResults,
 }: QuickActionsDivisionResultsProps) {
   const router = useRouter()
   // Track pending state per event+division combination
@@ -76,6 +91,44 @@ export function QuickActionsDivisionResults({
   const getDivisionKey = (eventId: string, divisionId: string) =>
     `${eventId}:${divisionId}`
 
+  const doPublishDivision = async (params: {
+    competitionId: string
+    eventId: string
+    divisionId: string
+    publish: boolean
+  }) => {
+    if (onPublishDivisionResults) {
+      return onPublishDivisionResults(params)
+    }
+    return publishDivisionResults({
+      data: {
+        competitionId: params.competitionId,
+        organizingTeamId,
+        eventId: params.eventId,
+        divisionId: params.divisionId,
+        publish: params.publish,
+      },
+    })
+  }
+
+  const doPublishAllDivisions = async (params: {
+    competitionId: string
+    eventId: string
+    publish: boolean
+  }) => {
+    if (onPublishAllDivisionResults) {
+      return onPublishAllDivisionResults(params)
+    }
+    return publishAllDivisionResults({
+      data: {
+        competitionId: params.competitionId,
+        organizingTeamId,
+        eventId: params.eventId,
+        publish: params.publish,
+      },
+    })
+  }
+
   const handleToggleDivisionResults = async (
     eventId: string,
     divisionId: string,
@@ -84,14 +137,11 @@ export function QuickActionsDivisionResults({
     const key = getDivisionKey(eventId, divisionId)
     setPendingDivisions((prev) => new Set(prev).add(key))
     try {
-      await publishDivisionResults({
-        data: {
-          competitionId,
-          organizingTeamId,
-          eventId,
-          divisionId,
-          publish,
-        },
+      await doPublishDivision({
+        competitionId,
+        eventId,
+        divisionId,
+        publish,
       })
       toast.success(
         publish ? "Division results published" : "Division results unpublished",
@@ -116,13 +166,10 @@ export function QuickActionsDivisionResults({
   ) => {
     setBulkUpdatingEvents((prev) => new Set(prev).add(eventId))
     try {
-      const result = await publishAllDivisionResults({
-        data: {
-          competitionId,
-          organizingTeamId,
-          eventId,
-          publish,
-        },
+      const result = await doPublishAllDivisions({
+        competitionId,
+        eventId,
+        publish,
       })
       toast.success(
         publish

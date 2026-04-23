@@ -1,5 +1,5 @@
 import { useEffect } from "react"
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router"
 import { z } from "zod"
 import type { JudgeAssignmentVersion } from "@/db/schema"
 import type { LaneShiftPattern } from "@/db/schemas/volunteers"
@@ -259,6 +259,7 @@ function VolunteersPage() {
 
   const { tab, event: eventFromUrl } = Route.useSearch()
   const navigate = useNavigate()
+  const router = useRouter()
 
   const handleTabChange = (value: string) => {
     navigate({
@@ -304,7 +305,7 @@ function VolunteersPage() {
   }, [isInPerson, tab, navigate])
 
   const handleQuestionsChange = () => {
-    // Loader will refetch on next navigation; for now this is a no-op
+    router.invalidate()
   }
 
   return (
@@ -432,6 +433,7 @@ function VolunteersPage() {
           questionTarget="volunteer"
         />
       </TabsContent>
+
     </Tabs>
   )
 }

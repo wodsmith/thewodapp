@@ -522,8 +522,13 @@ export async function getCompetitionLeaderboard(params: {
   // Two filtering mechanisms (event-division mappings take priority over heats):
   // 1. Event-division mappings: explicit organizer-configured event↔division assignments
   // 2. Heat-based filtering: fallback using heat assignments when no explicit mappings exist
+  //
+  // Preview mode (organizer/cohost) skips event-level division filtering so the
+  // preview surfaces every event in the competition as a column — unscored
+  // cells render as "—". Registration-level division filtering still applies
+  // below so ranking stays scoped to the selected division.
   let filteredTrackWorkouts = trackWorkouts
-  if (params.divisionId) {
+  if (params.divisionId && !params.bypassPublicationFilter) {
     // Check for explicit event-division mappings first
     let eventDivisionMappings: Array<{ trackWorkoutId: string }> = []
     try {

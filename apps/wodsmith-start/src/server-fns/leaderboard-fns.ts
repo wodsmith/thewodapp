@@ -33,6 +33,7 @@ import {
   type TeamMemberInfo as ServerTeamMemberInfo,
 } from "@/server/competition-leaderboard"
 import type { ScoringAlgorithm } from "@/types/scoring"
+import { requireCohostPermission } from "@/utils/cohost-auth"
 import { requireTeamPermission } from "@/utils/team-auth"
 
 // ============================================================================
@@ -109,7 +110,11 @@ export const getCompetitionLeaderboardFn = createServerFn({ method: "GET" })
       const db = getDb()
       const competition = await db.query.competitionsTable.findFirst({
         where: eq(competitionsTable.id, data.competitionId),
-        columns: { id: true, organizingTeamId: true },
+        columns: {
+          id: true,
+          organizingTeamId: true,
+          competitionTeamId: true,
+        },
       })
 
       if (!competition) {
@@ -120,10 +125,20 @@ export const getCompetitionLeaderboardFn = createServerFn({ method: "GET" })
         throw new Error("Competition not found")
       }
 
-      await requireTeamPermission(
-        competition.organizingTeamId,
-        TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-      )
+      // Allow either organizer (MANAGE_COMPETITIONS on organizing team) or
+      // cohost (leaderboardPreview permission on the competition team).
+      try {
+        await requireTeamPermission(
+          competition.organizingTeamId,
+          TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+        )
+      } catch (orgErr) {
+        if (!competition.competitionTeamId) throw orgErr
+        await requireCohostPermission(
+          competition.competitionTeamId,
+          "leaderboardPreview",
+        )
+      }
     }
 
     const result = await getCompetitionLeaderboard({

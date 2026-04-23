@@ -61,6 +61,10 @@ The event details view ([[apps/wodsmith-start/src/components/event-details-conte
 
 Competition management dashboard for organizers. Accessible at `/compete/organizer/{competitionId}/`. Handles divisions, heats, scheduling, scoring, volunteers, and settings.
 
+### compete/cohost
+
+Co-host dashboard for users invited to help manage a competition. Accessible at `/compete/cohost/{competitionId}/`. Mirrors the organizer dashboard but filters navigation and features based on `CohostMembershipMetadata` permissions.
+
 ### admin
 
 Platform-level admin routes for WODsmith operators. Manages teams, competitions, entitlements, and demo data.

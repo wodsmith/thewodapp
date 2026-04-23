@@ -14,11 +14,19 @@ import {
   publishHeatScheduleFn,
 } from "@/server-fns/competition-heats-fns"
 
+interface HeatSchedulePublishingOverrides {
+  publishHeatFn?: (args: { data: { heatId: string; publish: boolean; organizingTeamId: string } }) => Promise<{ success: boolean; schedulePublishedAt: Date | null }>
+  publishAllFn?: (args: { data: { trackWorkoutId: string; publish: boolean; organizingTeamId: string } }) => Promise<{ success: boolean; updatedCount: number; schedulePublishedAt?: Date | null }>
+}
+
 interface HeatSchedulePublishingCardProps {
   trackWorkoutId: string
   eventName: string
   competitionId: string
   organizingTeamId: string
+  overrides?: HeatSchedulePublishingOverrides
+  /** Base route prefix for navigation links (defaults to "/compete/organizer") */
+  routePrefix?: string
 }
 
 /**
@@ -45,6 +53,8 @@ export function HeatSchedulePublishingCard({
   eventName,
   competitionId,
   organizingTeamId,
+  overrides,
+  routePrefix = "/compete/organizer",
 }: HeatSchedulePublishingCardProps) {
   const [statuses, setStatuses] = useState<HeatPublishStatus[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -77,7 +87,8 @@ export function HeatSchedulePublishingCard({
   async function handleToggleHeat(heatId: string, currentlyPublished: boolean) {
     setPublishingHeatId(heatId)
     try {
-      const result = await publishHeatScheduleFn({
+      const publishFn = overrides?.publishHeatFn ?? publishHeatScheduleFn
+      const result = await publishFn({
         data: {
           heatId,
           publish: !currentlyPublished,
@@ -117,7 +128,8 @@ export function HeatSchedulePublishingCard({
   async function handlePublishAll(publish: boolean) {
     setIsPublishingAll(true)
     try {
-      const result = await publishAllHeatsForEventFn({
+      const publishAllFn = overrides?.publishAllFn ?? publishAllHeatsForEventFn
+      const result = await publishAllFn({
         data: {
           trackWorkoutId,
           publish,
@@ -188,7 +200,7 @@ export function HeatSchedulePublishingCard({
           </p>
           <Button asChild variant="outline" size="sm">
             <Link
-              to="/compete/organizer/$competitionId/schedule"
+              to={`${routePrefix}/$competitionId/schedule` as string}
               params={{ competitionId }}
             >
               <Calendar className="h-4 w-4 mr-2" />

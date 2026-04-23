@@ -86,6 +86,14 @@ interface RotationEditorProps {
   onCancel: () => void
   /** Called when form values change to show preview cells in the grid */
   onPreviewChange?: (cells: PreviewCell[]) => void
+  /** Optional override for createJudgeRotationFn (used by cohost routes) */
+  onCreateJudgeRotation?: (args: {
+    data: Record<string, unknown>
+  }) => Promise<{ success: boolean; data: unknown }>
+  /** Optional override for updateJudgeRotationFn (used by cohost routes) */
+  onUpdateJudgeRotation?: (args: {
+    data: Record<string, unknown>
+  }) => Promise<{ success: boolean; data: unknown }>
 }
 
 /**
@@ -108,6 +116,8 @@ export function RotationEditor({
   onSuccess,
   onCancel,
   onPreviewChange,
+  onCreateJudgeRotation,
+  onUpdateJudgeRotation,
 }: RotationEditorProps) {
   const isEditing = !!rotation
   const [conflicts, setConflicts] = useState<string[]>([])
@@ -232,7 +242,8 @@ export function RotationEditor({
     if (isEditing) {
       setIsUpdating(true)
       try {
-        const result = await updateJudgeRotationFn({
+        const updateFn = onUpdateJudgeRotation ?? updateJudgeRotationFn
+        const result = await updateFn({
           data: {
             teamId,
             rotationId: rotation.id,
@@ -254,7 +265,8 @@ export function RotationEditor({
     } else {
       setIsCreating(true)
       try {
-        const result = await createJudgeRotationFn({
+        const createFn = onCreateJudgeRotation ?? createJudgeRotationFn
+        const result = await createFn({
           data: {
             teamId,
             competitionId,

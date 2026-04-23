@@ -35,6 +35,19 @@ interface DivisionDescription {
   description: string | null
 }
 
+/** Optional callback overrides for mutation server fns (used by cohost routes) */
+interface EventManagerOverrides {
+  createWorkoutFn?: (args: {
+    data: NonNullable<Parameters<typeof createWorkoutAndAddToCompetitionFn>[0]>["data"]
+  }) => ReturnType<typeof createWorkoutAndAddToCompetitionFn>
+  removeWorkoutFn?: (args: {
+    data: NonNullable<Parameters<typeof removeWorkoutFromCompetitionFn>[0]>["data"]
+  }) => ReturnType<typeof removeWorkoutFromCompetitionFn>
+  reorderEventsFn?: (args: {
+    data: NonNullable<Parameters<typeof reorderCompetitionEventsFn>[0]>["data"]
+  }) => ReturnType<typeof reorderCompetitionEventsFn>
+}
+
 interface OrganizerEventManagerProps {
   competitionId: string
   organizingTeamId: string
@@ -47,6 +60,10 @@ interface OrganizerEventManagerProps {
   seriesName?: string | null
   /** Map of competition event ID -> template event name (for series badges) */
   seriesEventMap?: Map<string, string>
+  /** Override mutation fns (e.g. cohost equivalents) */
+  overrides?: EventManagerOverrides
+  /** Base route for event detail links (defaults to organizer route) */
+  eventDetailRoute?: string
 }
 
 export function OrganizerEventManager({
@@ -59,8 +76,13 @@ export function OrganizerEventManager({
   sponsors,
   seriesName,
   seriesEventMap,
+  overrides,
+  eventDetailRoute,
 }: OrganizerEventManagerProps) {
   const router = useRouter()
+  const createWorkoutFn = overrides?.createWorkoutFn ?? createWorkoutAndAddToCompetitionFn
+  const removeWorkoutFn = overrides?.removeWorkoutFn ?? removeWorkoutFromCompetitionFn
+  const reorderEventsFn = overrides?.reorderEventsFn ?? reorderCompetitionEventsFn
   const [events, setEvents] = useState(initialEvents)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showAddDialog, setShowAddDialog] = useState(false)
@@ -144,7 +166,7 @@ export function OrganizerEventManager({
   }) => {
     setIsCreating(true)
     try {
-      const result = await createWorkoutAndAddToCompetitionFn({
+      const result = await createWorkoutFn({
         data: {
           competitionId,
           teamId: organizingTeamId,
@@ -199,7 +221,7 @@ export function OrganizerEventManager({
     setIsAdding(true)
     try {
       // Create as a remix of the existing workout
-      const result = await createWorkoutAndAddToCompetitionFn({
+      const result = await createWorkoutFn({
         data: {
           competitionId,
           teamId: organizingTeamId,
@@ -239,7 +261,7 @@ export function OrganizerEventManager({
     )
 
     try {
-      await removeWorkoutFromCompetitionFn({
+      await removeWorkoutFn({
         data: {
           trackWorkoutId,
           teamId: organizingTeamId,
@@ -297,7 +319,7 @@ export function OrganizerEventManager({
       }))
 
       try {
-        await reorderCompetitionEventsFn({
+        await reorderEventsFn({
           data: {
             competitionId,
             teamId: organizingTeamId,
@@ -354,7 +376,7 @@ export function OrganizerEventManager({
     }))
 
     try {
-      await reorderCompetitionEventsFn({
+      await reorderEventsFn({
         data: {
           competitionId,
           teamId: organizingTeamId,
@@ -440,6 +462,7 @@ export function OrganizerEventManager({
                       onAddSubEvent={() => handleAddSubEvent(event.id)}
                       isParentEvent={isParent}
                       childCount={children.length}
+                      eventDetailRoute={eventDetailRoute}
                       seriesName={seriesName}
                       seriesTemplateName={seriesEventMap?.get(event.id)}
                     />
@@ -467,6 +490,7 @@ export function OrganizerEventManager({
                         }
                         isSubEvent
                         parentEventId={event.id}
+                        eventDetailRoute={eventDetailRoute}
                         seriesName={seriesName}
                         seriesTemplateName={seriesEventMap?.get(child.id)}
                       />

@@ -22,37 +22,51 @@ import {
   updateEventResourceFn,
 } from "@/server-fns/event-resources-fns"
 
+interface EventResourcesOverrides {
+  createFn?: (args: { data: { eventId: string; teamId: string; title: string; description?: string; url?: string; sortOrder?: number } }) => Promise<{ resource: EventResource }>
+  updateFn?: (args: { data: { resourceId: string; teamId: string; title?: string; description?: string | null; url?: string | null; sortOrder?: number } }) => Promise<{ resource?: EventResource }>
+  deleteFn?: (args: { data: { resourceId: string; teamId: string } }) => Promise<{ success: boolean }>
+  reorderFn?: (args: { data: { eventId: string; teamId: string; updates: Array<{ resourceId: string; sortOrder: number }> } }) => Promise<{ updateCount: number }>
+}
+
 interface EventResourcesCardProps {
   eventId: string
   teamId: string
   initialResources: EventResource[]
+  overrides?: EventResourcesOverrides
 }
 
 export function EventResourcesCard({
   eventId,
   teamId,
   initialResources,
+  overrides,
 }: EventResourcesCardProps) {
   const [resources, setResources] = useState<EventResource[]>(initialResources)
+
+  // Sync local state when loader data changes (e.g., after router.invalidate())
+  useEffect(() => {
+    setResources(initialResources)
+  }, [initialResources])
+
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingResource, setEditingResource] = useState<EventResource | null>(
     null,
   )
   const [isSaving, setIsSaving] = useState(false)
 
-  // Server functions
-  const createResource = useServerFn(createEventResourceFn)
-  const updateResource = useServerFn(updateEventResourceFn)
-  const deleteResource = useServerFn(deleteEventResourceFn)
-  const reorderResources = useServerFn(reorderEventResourcesFn)
+  // Server functions (use overrides if provided, else defaults)
+  const _createResource = useServerFn(createEventResourceFn)
+  const _updateResource = useServerFn(updateEventResourceFn)
+  const _deleteResource = useServerFn(deleteEventResourceFn)
+  const _reorderResources = useServerFn(reorderEventResourcesFn)
+  const createResource = overrides?.createFn ?? _createResource
+  const updateResource = overrides?.updateFn ?? _updateResource
+  const deleteResource = overrides?.deleteFn ?? _deleteResource
+  const reorderResources = overrides?.reorderFn ?? _reorderResources
 
   // Unique instance ID for drag-and-drop
   const instanceId = useMemo(() => Symbol("event-resources"), [])
-
-  // Sync with initial resources when they change
-  useEffect(() => {
-    setResources(initialResources)
-  }, [initialResources])
 
   // Handle drag-and-drop reorder
   const handleDrop = useCallback(

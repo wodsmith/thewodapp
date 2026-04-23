@@ -11,6 +11,7 @@ import { formatUTCDateRange } from "@/utils/date-utils"
 interface CompetitionHeroProps {
   competition: CompetitionWithOrganizingTeam
   canManage?: boolean
+  isCohost?: boolean
   isVolunteer?: boolean
   hasJudgesSchedule?: boolean
 }
@@ -18,6 +19,7 @@ interface CompetitionHeroProps {
 export function CompetitionHero({
   competition,
   canManage = false,
+  isCohost = false,
   isVolunteer = false,
   hasJudgesSchedule = false,
 }: CompetitionHeroProps) {
@@ -118,7 +120,10 @@ export function CompetitionHero({
                 {/* Desktop action buttons */}
                 <div className="hidden shrink-0 flex-col items-end gap-2 sm:flex">
                   {canManage && (
-                    <a href={`/compete/organizer/${competition.id}`}>
+                    <Link
+                      to="/compete/organizer/$competitionId"
+                      params={{ competitionId: competition.id }}
+                    >
                       <Button
                         variant="secondary"
                         size="sm"
@@ -127,7 +132,42 @@ export function CompetitionHero({
                         <Settings className="mr-1 h-4 w-4" />
                         Manage
                       </Button>
-                    </a>
+                    </Link>
+                  )}
+                  {isCohost && !canManage && (
+                    <Link
+                      to="/compete/cohost/$competitionId"
+                      params={{ competitionId: competition.id }}
+                    >
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="bg-amber-600 text-white hover:bg-amber-500"
+                      >
+                        <Settings className="mr-1 h-4 w-4" />
+                        Manage as Co-Host
+                      </Button>
+                    </Link>
+                  )}
+                  {isCohost && canManage && (
+                    <Link
+                      to="/compete/cohost/$competitionId"
+                      params={{ competitionId: competition.id }}
+                    >
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className={cn(
+                          "border",
+                          hasBanner
+                            ? "border-white/10 bg-white/10 text-slate-100 hover:bg-white/20"
+                            : "border-black/10 bg-black/5 text-foreground hover:bg-black/10 dark:border-white/10 dark:bg-white/10 dark:text-slate-100 dark:hover:bg-white/20",
+                        )}
+                      >
+                        <Settings className="mr-1 h-4 w-4" />
+                        Co-Host View
+                      </Button>
+                    </Link>
                   )}
                   {showJudgesScheduleLink && (
                     <Link
@@ -155,7 +195,10 @@ export function CompetitionHero({
               {/* Mobile action buttons */}
               <div className="flex flex-wrap items-center gap-2 sm:hidden">
                 {canManage && (
-                  <a href={`/compete/organizer/${competition.id}`}>
+                  <Link
+                    to="/compete/organizer/$competitionId"
+                    params={{ competitionId: competition.id }}
+                  >
                     <Button
                       variant="secondary"
                       size="sm"
@@ -164,7 +207,42 @@ export function CompetitionHero({
                       <Settings className="mr-1 h-4 w-4" />
                       Manage
                     </Button>
-                  </a>
+                  </Link>
+                )}
+                {isCohost && !canManage && (
+                  <Link
+                    to="/compete/cohost/$competitionId"
+                    params={{ competitionId: competition.id }}
+                  >
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="bg-amber-600 text-white hover:bg-amber-500"
+                    >
+                      <Settings className="mr-1 h-4 w-4" />
+                      Co-Host
+                    </Button>
+                  </Link>
+                )}
+                {isCohost && canManage && (
+                  <Link
+                    to="/compete/cohost/$competitionId"
+                    params={{ competitionId: competition.id }}
+                  >
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className={cn(
+                        "border",
+                        hasBanner
+                          ? "border-white/10 bg-white/10 text-slate-100 hover:bg-white/20"
+                          : "border-black/10 bg-black/5 text-foreground hover:bg-black/10 dark:border-white/10 dark:bg-white/10 dark:text-slate-100 dark:hover:bg-white/20",
+                      )}
+                    >
+                      <Settings className="mr-1 h-4 w-4" />
+                      Co-Host
+                    </Button>
+                  </Link>
                 )}
                 {showJudgesScheduleLink && (
                   <Link

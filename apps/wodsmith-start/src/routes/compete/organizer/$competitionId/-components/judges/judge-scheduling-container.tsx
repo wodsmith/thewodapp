@@ -48,6 +48,63 @@ interface EventDefaults {
   minHeatBuffer: number | null
 }
 
+/** Override callbacks for cohost access to judge scheduling mutations */
+export interface JudgeSchedulingOverrides {
+  /** Override for rollbackToVersionFn */
+  rollbackToVersion?: (args: {
+    data: { versionId: string; teamId: string }
+  }) => Promise<JudgeAssignmentVersion>
+  /** Override for createJudgeRotationFn */
+  createJudgeRotation?: (args: { data: Record<string, unknown> }) => Promise<{
+    success: boolean
+    data: CompetitionJudgeRotation
+  }>
+  /** Override for updateJudgeRotationFn */
+  updateJudgeRotation?: (args: { data: Record<string, unknown> }) => Promise<{
+    success: boolean
+    data: CompetitionJudgeRotation
+  }>
+  /** Override for deleteJudgeRotationFn */
+  deleteJudgeRotation?: (args: {
+    data: Record<string, unknown>
+  }) => Promise<{ success: boolean }>
+  /** Override for updateEventDefaultsFn */
+  updateEventDefaults?: (args: {
+    data: Record<string, unknown>
+  }) => Promise<{ success: boolean }>
+  /** Override for batchCreateRotationsFn */
+  batchCreateRotations?: (args: { data: Record<string, unknown> }) => Promise<{
+    success: boolean
+    data: { rotationIds: string[]; rotations: CompetitionJudgeRotation[] }
+  }>
+  /** Override for deleteVolunteerRotationsFn */
+  deleteVolunteerRotations?: (args: {
+    data: Record<string, unknown>
+  }) => Promise<{ success: boolean; data: { deletedCount: number } }>
+  /** Override for batchDeleteRotationsFn */
+  batchDeleteRotations?: (args: {
+    data: Record<string, unknown>
+  }) => Promise<{ success: boolean; data: { deletedCount: number } }>
+  /** Override for batchUpdateVolunteerRotationsFn */
+  batchUpdateVolunteerRotations?: (args: {
+    data: Record<string, unknown>
+  }) => Promise<{
+    success: boolean
+    data: { rotationIds: string[]; rotations: CompetitionJudgeRotation[] }
+  }>
+  /** Override for publishRotationsFn */
+  publishRotations?: (args: {
+    data: Record<string, unknown>
+  }) => Promise<JudgeAssignmentVersion>
+  /** Override for adjustRotationsForOccupiedLanesFn */
+  adjustRotationsForOccupiedLanes?: (args: {
+    data: Record<string, unknown>
+  }) => Promise<{
+    success: boolean
+    data: { deletedCount: number; createdCount: number; unchangedCount: number }
+  }>
+}
+
 interface JudgeSchedulingContainerProps {
   competitionId: string
   competitionSlug: string
@@ -72,6 +129,8 @@ interface JudgeSchedulingContainerProps {
   selectedEventId: string
   /** Callback when event selection changes */
   onEventChange: (eventId: string) => void
+  /** Optional override callbacks for cohost routes */
+  overrides?: JudgeSchedulingOverrides
 }
 
 /**
@@ -95,6 +154,7 @@ export function JudgeSchedulingContainer({
   competitionDefaultPattern,
   selectedEventId,
   onEventChange,
+  overrides,
 }: JudgeSchedulingContainerProps) {
   const isOnline = competitionType === "online"
   const [assignments, setAssignments] =
@@ -264,7 +324,8 @@ export function JudgeSchedulingContainer({
     // Rollback to different version
     setIsRollingBack(true)
     try {
-      const result = await rollbackToVersionFn({
+      const rollbackFn = overrides?.rollbackToVersion ?? rollbackToVersionFn
+      const result = await rollbackFn({
         data: {
           teamId: organizingTeamId,
           versionId,
@@ -715,6 +776,7 @@ export function JudgeSchedulingContainer({
             minHeatBuffer={selectedEventDefaults.rawMinHeatBuffer}
             competitionDefaultHeats={competitionDefaultHeats}
             competitionDefaultPattern={competitionDefaultPattern}
+            onUpdateEventDefaults={overrides?.updateEventDefaults}
           />
 
           {/* Rotation Overview */}
@@ -731,6 +793,7 @@ export function JudgeSchedulingContainer({
                 : 1
             }
             onPublishSuccess={refreshVersionData}
+            onPublishRotations={overrides?.publishRotations}
           />
 
           {/* Rotation Timeline */}
@@ -753,6 +816,14 @@ export function JudgeSchedulingContainer({
               filterEmptyLanes={filterEmptyLanes}
               onFilterEmptyLanesChange={setFilterEmptyLanes}
               onRotationsChange={setEventRotations}
+              onUpdateJudgeRotation={overrides?.updateJudgeRotation}
+              onDeleteVolunteerRotations={overrides?.deleteVolunteerRotations}
+              onCreateJudgeRotation={overrides?.createJudgeRotation}
+              onBatchCreateRotations={overrides?.batchCreateRotations}
+              onBatchDeleteRotations={overrides?.batchDeleteRotations}
+              onDeleteJudgeRotation={overrides?.deleteJudgeRotation}
+              onBatchUpdateVolunteerRotations={overrides?.batchUpdateVolunteerRotations}
+              onAdjustRotationsForOccupiedLanes={overrides?.adjustRotationsForOccupiedLanes}
             />
           ) : (
             <Card>

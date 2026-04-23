@@ -22,6 +22,11 @@ interface Props {
   }
   /** Optional list of events for head-to-head tiebreaker selection */
   events?: Array<{ id: string; name: string }>
+  /** Optional callback to override the default organizer save action */
+  onSaveScoringConfig?: (data: {
+    competitionId: string
+    scoringConfig: ScoringConfig
+  }) => Promise<unknown>
 }
 
 /**
@@ -46,7 +51,11 @@ function parseScoringConfig(settings: string | null): ScoringConfig {
  *
  * Wraps ScoringConfigForm with save functionality for competition settings.
  */
-export function ScoringSettingsForm({ competition, events }: Props) {
+export function ScoringSettingsForm({
+  competition,
+  events,
+  onSaveScoringConfig,
+}: Props) {
   const router = useRouter()
   const updateScoringConfig = useServerFn(updateCompetitionScoringConfigFn)
   const [isSaving, setIsSaving] = useState(false)
@@ -57,12 +66,19 @@ export function ScoringSettingsForm({ competition, events }: Props) {
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      await updateScoringConfig({
-        data: {
+      if (onSaveScoringConfig) {
+        await onSaveScoringConfig({
           competitionId: competition.id,
           scoringConfig: config,
-        },
-      })
+        })
+      } else {
+        await updateScoringConfig({
+          data: {
+            competitionId: competition.id,
+            scoringConfig: config,
+          },
+        })
+      }
       toast.success("Scoring configuration saved")
       router.invalidate()
     } catch (error) {

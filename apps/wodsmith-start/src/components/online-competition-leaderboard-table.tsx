@@ -933,9 +933,13 @@ export function OnlineCompetitionLeaderboardTable({
     [leaderboard],
   )
 
+  // Preview (organizer/cohost) suppresses the dedicated affiliate column —
+  // affiliate renders as subtext under the athlete name via `TeamCell`, freeing
+  // horizontal space for event columns. `linkToSubmission` is only true on the
+  // preview route.
   const hasAffiliates = useMemo(
-    () => leaderboard.some((entry) => entry.affiliate),
-    [leaderboard],
+    () => !linkToSubmission && leaderboard.some((entry) => entry.affiliate),
+    [leaderboard, linkToSubmission],
   )
 
   const columns = useMemo<ColumnDef<CompetitionLeaderboardEntry>[]>(() => {

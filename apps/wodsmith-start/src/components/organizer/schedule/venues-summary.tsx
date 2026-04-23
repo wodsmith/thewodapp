@@ -8,10 +8,12 @@ import type { CompetitionVenue } from "@/db/schemas/competitions"
 interface VenuesSummaryProps {
   competitionId: string
   venues: CompetitionVenue[]
+  /** Base route prefix for navigation links (defaults to "/compete/organizer") */
+  routePrefix?: string
 }
 
-export function VenuesSummary({ competitionId, venues }: VenuesSummaryProps) {
-  const locationsHref = `/compete/organizer/${competitionId}/locations`
+export function VenuesSummary({ competitionId, venues, routePrefix = "/compete/organizer" }: VenuesSummaryProps) {
+  const locationsHref = `${routePrefix}/${competitionId}/locations`
 
   if (venues.length === 0) {
     return (

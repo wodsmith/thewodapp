@@ -77,6 +77,20 @@ interface MultiRotationEditorProps {
   onPreviewChange?: (cells: MultiPreviewCell[]) => void
   /** Called when judge selection changes (for highlighting existing rotations) */
   onJudgeSelect?: (membershipId: string | null) => void
+  /** Optional override for batchCreateRotationsFn (used by cohost routes) */
+  onBatchCreateRotations?: (args: {
+    data: Record<string, unknown>
+  }) => Promise<{
+    success: boolean
+    data: { rotationIds: string[]; rotations: unknown[] }
+  }>
+  /** Optional override for batchUpdateVolunteerRotationsFn (used by cohost routes) */
+  onBatchUpdateVolunteerRotations?: (args: {
+    data: Record<string, unknown>
+  }) => Promise<{
+    success: boolean
+    data: { rotationIds: string[]; rotations: unknown[] }
+  }>
 }
 
 /**
@@ -133,6 +147,8 @@ export function MultiRotationEditor({
   onCancel,
   onPreviewChange,
   onJudgeSelect,
+  onBatchCreateRotations,
+  onBatchUpdateVolunteerRotations,
 }: MultiRotationEditorProps) {
   const isEditing = !!existingRotations && existingRotations.length > 0
   // When adding a new rotation (activeBlockIndex >= existingRotations length),
@@ -461,7 +477,9 @@ export function MultiRotationEditor({
     if (isEditing) {
       setIsUpdating(true)
       try {
-        const result = await batchUpdateVolunteerRotationsFn({
+        const updateFn =
+          onBatchUpdateVolunteerRotations ?? batchUpdateVolunteerRotationsFn
+        const result = await updateFn({
           data: {
             teamId,
             competitionId,
@@ -486,7 +504,8 @@ export function MultiRotationEditor({
     } else {
       setIsCreating(true)
       try {
-        const result = await batchCreateRotationsFn({
+        const createFn = onBatchCreateRotations ?? batchCreateRotationsFn
+        const result = await createFn({
           data: {
             teamId,
             competitionId,

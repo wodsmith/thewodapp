@@ -75,6 +75,8 @@ interface InviteVolunteerDialogProps {
   organizingTeamId: string
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Optional callback for inviting. Defaults to organizer server fn. */
+  onInviteVolunteer?: (params: { name?: string; email: string; competitionTeamId: string; competitionId: string; roleTypes: string[] }) => Promise<{ success: boolean }>
 }
 
 export function InviteVolunteerDialog({
@@ -83,6 +85,7 @@ export function InviteVolunteerDialog({
   organizingTeamId,
   open,
   onOpenChange,
+  onInviteVolunteer,
 }: InviteVolunteerDialogProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -101,22 +104,32 @@ export function InviteVolunteerDialog({
     toast.loading("Sending invitation...")
 
     try {
-      await inviteVolunteerFn({
-        data: {
+      if (onInviteVolunteer) {
+        await onInviteVolunteer({
           name: data.name || undefined,
           email: data.email,
           competitionTeamId,
-          organizingTeamId,
           competitionId,
           roleTypes: data.roleTypes,
-        },
-      })
+        })
+      } else {
+        await inviteVolunteerFn({
+          data: {
+            name: data.name || undefined,
+            email: data.email,
+            competitionTeamId,
+            organizingTeamId,
+            competitionId,
+            roleTypes: data.roleTypes,
+          },
+        })
+      }
 
       toast.dismiss()
       toast.success("Volunteer invitation sent")
       form.reset()
       onOpenChange(false)
-      router.invalidate()
+      await router.invalidate()
     } catch (error) {
       toast.dismiss()
       toast.error(

@@ -9,7 +9,10 @@ export { DraggableJudge } from "./draggable-judge"
 export { EventDefaultsEditor } from "./event-defaults-editor"
 export { JudgeHeatCard } from "./judge-heat-card"
 export { JudgeOverview } from "./judge-overview"
-export { JudgeSchedulingContainer } from "./judge-scheduling-container"
+export {
+  JudgeSchedulingContainer,
+  type JudgeSchedulingOverrides,
+} from "./judge-scheduling-container"
 export {
   type MultiPreviewCell,
   MultiRotationEditor,

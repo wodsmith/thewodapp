@@ -17,6 +17,7 @@ import {
   Clock,
   DollarSign,
   Grid3X3,
+  Handshake,
   Home,
   Layers,
   Mail,
@@ -84,6 +85,7 @@ const getNavigation = (
       items: [
         { label: "Divisions", href: `${basePath}/divisions`, icon: Layers },
         { label: "Events", href: `${basePath}/events`, icon: Trophy },
+        { label: "Locations", href: `${basePath}/locations`, icon: MapPin },
         {
           label: "Event Divisions",
           href: `${basePath}/event-divisions`,
@@ -122,7 +124,6 @@ const getNavigation = (
               },
             ]
           : []),
-        { label: "Locations", href: `${basePath}/locations`, icon: MapPin },
         {
           label: "Volunteers",
           href: `${basePath}/volunteers`,
@@ -152,6 +153,11 @@ const getNavigation = (
         { label: "Revenue", href: `${basePath}/revenue`, icon: DollarSign },
         { label: "Coupons", href: `${basePath}/coupons`, icon: Tag },
         { label: "Sponsors", href: `${basePath}/sponsors`, icon: Sparkles },
+        {
+          label: "Co-Hosts",
+          href: `${basePath}/co-hosts`,
+          icon: Handshake,
+        },
       ],
     },
     {

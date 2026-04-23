@@ -30,12 +30,21 @@ interface QuickActionsEventsProps {
   events: CompetitionWorkout[]
   organizingTeamId: string
   competitionId: string
+  /** Optional callback to override the default organizer updateCompetitionWorkoutFn */
+  onUpdateWorkout?: (params: {
+    trackWorkoutId: string
+    eventStatus?: "draft" | "published"
+  }) => Promise<unknown>
+  /** Optional route path for results link (defaults to organizer results route) */
+  resultsLinkTo?: string
 }
 
 export function QuickActionsEvents({
   events,
   organizingTeamId,
   competitionId,
+  onUpdateWorkout,
+  resultsLinkTo,
 }: QuickActionsEventsProps) {
   const router = useRouter()
   const updateCompetitionWorkout = useServerFn(updateCompetitionWorkoutFn)
@@ -44,6 +53,22 @@ export function QuickActionsEvents({
 
   // Filter out sub-events — only show top-level events
   const topLevelEvents = events.filter((e) => !e.parentEventId)
+
+  const doUpdate = async (params: {
+    trackWorkoutId: string
+    eventStatus?: "draft" | "published"
+  }) => {
+    if (onUpdateWorkout) {
+      return onUpdateWorkout(params)
+    }
+    return updateCompetitionWorkout({
+      data: {
+        trackWorkoutId: params.trackWorkoutId,
+        teamId: organizingTeamId,
+        eventStatus: params.eventStatus,
+      },
+    })
+  }
 
   const handleToggleEventStatus = async (
     trackWorkoutId: string,
@@ -62,13 +87,7 @@ export function QuickActionsEvents({
     })
     try {
       // Server cascades eventStatus to child sub-events automatically
-      await updateCompetitionWorkout({
-        data: {
-          trackWorkoutId,
-          teamId: organizingTeamId,
-          eventStatus: newStatus,
-        },
-      })
+      await doUpdate({ trackWorkoutId, eventStatus: newStatus })
       await router.invalidate()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update event")
@@ -102,13 +121,7 @@ export function QuickActionsEvents({
       // so we only need to update parent events
       await Promise.all(
         draftParents.map((parent) =>
-          updateCompetitionWorkout({
-            data: {
-              trackWorkoutId: parent.id,
-              teamId: organizingTeamId,
-              eventStatus: "published",
-            },
-          }),
+          doUpdate({ trackWorkoutId: parent.id, eventStatus: "published" }),
         ),
       )
       toast.success(`Published ${allDraftIds.length} event(s)`)
@@ -233,7 +246,10 @@ export function QuickActionsEvents({
                     asChild
                   >
                     <Link
-                      to="/compete/organizer/$competitionId/results"
+                      to={
+                        (resultsLinkTo ??
+                          "/compete/organizer/$competitionId/results") as string
+                      }
                       params={{ competitionId }}
                       search={{ event: event.id }}
                     >
