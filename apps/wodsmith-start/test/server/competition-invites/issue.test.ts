@@ -88,6 +88,7 @@ describe("issueInvitesForRecipients", () => {
       championshipCompetitionId: "comp_c",
       championshipDivisionId: "div_rxm",
       rsvpDeadlineAt: new Date("2026-05-01T00:00:00Z"),
+      roundId: "crnd_test",
       recipients: [],
     })
     expect(result).toEqual({ inserted: [], alreadyActive: [] })
@@ -99,6 +100,7 @@ describe("issueInvitesForRecipients", () => {
         championshipCompetitionId: "comp_c",
         championshipDivisionId: "div_rxm",
         rsvpDeadlineAt: new Date("2026-05-01T00:00:00Z"),
+        roundId: "crnd_test",
         recipients: [
           {
             email: "free@example.com",
@@ -120,6 +122,7 @@ describe("issueInvitesForRecipients", () => {
         championshipCompetitionId: "comp_c",
         championshipDivisionId: "div_rxm",
         rsvpDeadlineAt: new Date("2026-05-01T00:00:00Z"),
+        roundId: "crnd_test",
         recipients: [
           {
             email: "not-an-email",

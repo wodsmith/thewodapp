@@ -60,8 +60,12 @@ export interface IssueInvitesInput {
   championshipCompetitionId: string
   championshipDivisionId: string
   rsvpDeadlineAt: Date
-  /** Phase 2: empty-string sentinel; Phase 3 replaces with a real round id. */
-  roundId?: string
+  /**
+   * The round this batch of invites belongs to. Required as of Phase 3 —
+   * Phase 2's empty-string sentinel was backfilled to a synthetic
+   * "Round 1 — Backfill" row and callers must always supply a real id.
+   */
+  roundId: string
   recipients: IssueInviteRecipient[]
 }
 
@@ -250,7 +254,7 @@ export async function issueInvitesForRecipients(
       const row: CompetitionInvite = {
         id,
         championshipCompetitionId: input.championshipCompetitionId,
-        roundId: input.roundId ?? "",
+        roundId: input.roundId,
         origin: r.origin,
         sourceId: r.origin === COMPETITION_INVITE_ORIGIN.SOURCE
           ? r.sourceId ?? null
@@ -308,8 +312,10 @@ export interface ReissueInviteInput {
   inviteId: string
   newExpiresAt: Date
   /**
-   * Phase 2 optionally updates the invite's roundId (implicit round-label
-   * metadata). Phase 3 will make this a real round FK.
+   * Optional new round attribution. When omitted the invite stays attached
+   * to its existing round (the common "Extend" path). When set, the invite
+   * is re-attributed to the supplied round — e.g. when a draft bespoke
+   * invite is activated by a fresh send.
    */
   roundId?: string
 }

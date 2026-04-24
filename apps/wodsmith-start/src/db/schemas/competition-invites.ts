@@ -24,6 +24,7 @@ import {
 import {
   commonColumns,
   createCompetitionInviteId,
+  createCompetitionInviteRoundId,
   createCompetitionInviteSourceId,
 } from "./common"
 
@@ -198,10 +199,14 @@ export const competitionInvitesTable = mysqlTable(
     // active-invite unique index below fits under MySQL's 3072-byte key
     // limit; we issue ULIDs (~30 chars with prefix) so 64 is ample.
     championshipCompetitionId: varchar({ length: 64 }).notNull(),
-    // The round this invite was sent in. Phase 2 uses an empty-string
-    // sentinel; Phase 3 introduces `competition_invite_rounds` and
-    // backfills real IDs.
-    roundId: varchar({ length: 255 }).default("").notNull(),
+    // The round this invite was sent in. Logical reference to
+    // `competition_invite_rounds.id`. NULL on draft bespoke invites that
+    // haven't been picked into a send yet — they take on a real round id
+    // the moment the organizer issues them. Phase 3 backfills the Phase-2
+    // empty-string rows that already had a token to a synthetic
+    // "Round 1 — Backfill" per championship; remaining empty-string rows
+    // (drafts) become NULL.
+    roundId: varchar({ length: 255 }),
     // "source" | "bespoke" — discriminator for how the invite came to exist.
     origin: varchar({ length: 20 })
       .$type<CompetitionInviteOrigin>()
@@ -300,3 +305,110 @@ export const competitionInvitesTable = mysqlTable(
 )
 
 export type CompetitionInvite = InferSelectModel<typeof competitionInvitesTable>
+
+// ============================================================================
+// Round Status
+// ============================================================================
+
+/**
+ * `draft` — organizer is still composing the round; subject/body/deadline
+ *   editable; selecting Send transitions to `sending`.
+ * `sending` — the send transaction is in flight (insert invites + enqueue
+ *   email messages). Set by `sendRound` before any invites are inserted; a
+ *   fully-successful send moves to `sent`. A pre-send rollback (validation,
+ *   capacity, etc.) leaves the round in `draft`.
+ * `sent` — every recipient was inserted and queued. Email-delivery failures
+ *   are tracked per-invite via `emailDeliveryStatus`; the round itself is
+ *   still `sent` if at least one recipient was dispatched.
+ * `failed` — the send transaction crashed *after* `sending` was set and
+ *   before `sent`. Recoverable: the round can be retried.
+ */
+export const COMPETITION_INVITE_ROUND_STATUS = {
+  DRAFT: "draft",
+  SENDING: "sending",
+  SENT: "sent",
+  FAILED: "failed",
+} as const
+
+export type CompetitionInviteRoundStatus =
+  (typeof COMPETITION_INVITE_ROUND_STATUS)[keyof typeof COMPETITION_INVITE_ROUND_STATUS]
+
+// ============================================================================
+// Competition Invite Rounds
+// ============================================================================
+
+/**
+ * A wave of invites for a championship. Rounds carry the metadata that
+ * describes a send (subject, body composition, RSVP deadline) and the
+ * status of the send itself. Per-recipient rows live on
+ * `competition_invites` and reference the round via `roundId`.
+ *
+ * Body model: `bodyJson` is a serialized React Email composition (Phase 4
+ * formalizes the schema; Phase 3 stores plaintext-or-stub JSON written by
+ * the existing send dialog). `emailTemplateId` is a logical reference to
+ * `competition_invite_email_templates.id` once Phase 4 lands; Phase 3
+ * leaves it null.
+ *
+ * State machine: `draft → sending → sent | failed`. The `sendRound` helper
+ * acquires `SELECT ... FOR UPDATE` on the round row and rejects any
+ * transition out of `draft`, which is the double-click defense.
+ *
+ * `roundNumber` is dense per championship and assigned at draft creation
+ * (max(roundNumber)+1 within the championship). It's a display value, not
+ * a uniqueness key — the unique index on (championshipCompetitionId,
+ * roundNumber) just keeps the dense numbering coherent.
+ */
+export const competitionInviteRoundsTable = mysqlTable(
+  "competition_invite_rounds",
+  {
+    ...commonColumns,
+    id: varchar({ length: 255 })
+      .primaryKey()
+      .$defaultFn(() => createCompetitionInviteRoundId())
+      .notNull(),
+    championshipCompetitionId: varchar({ length: 255 }).notNull(),
+    // 1-based, dense per competition. Display value.
+    roundNumber: int().notNull(),
+    // Organizer-edited display label, e.g. "Round 1 — Guaranteed".
+    label: varchar({ length: 255 }).notNull(),
+    // Phase 4: optional pointer to a saved email template.
+    emailTemplateId: varchar({ length: 255 }),
+    // Email subject line as sent.
+    subject: varchar({ length: 255 }).notNull(),
+    // Serialized React Email composition. Phase 3 stores a minimal shape;
+    // Phase 4 finalizes the schema.
+    bodyJson: text(),
+    // Reply-to address; defaults to the championship's contact email at
+    // send time when null.
+    replyTo: varchar({ length: 255 }),
+    // Hard expiry for invites issued in this round. Mirrored to each
+    // invite's `expiresAt` at insert time so per-invite extensions don't
+    // re-touch the round.
+    rsvpDeadlineAt: datetime().notNull(),
+    // See COMPETITION_INVITE_ROUND_STATUS.
+    status: varchar({ length: 20 })
+      .$type<CompetitionInviteRoundStatus>()
+      .default("draft")
+      .notNull(),
+    sentAt: datetime(),
+    sentByUserId: varchar({ length: 255 }),
+    // Snapshot of how many invites were inserted. Set by `sendRound` once
+    // the insert succeeds; `0` while draft. Stored for fast timeline reads
+    // without an aggregate over `competition_invites`.
+    recipientCount: int().default(0).notNull(),
+  },
+  (table) => [
+    uniqueIndex("competition_invite_rounds_championship_number_idx").on(
+      table.championshipCompetitionId,
+      table.roundNumber,
+    ),
+    index("competition_invite_rounds_championship_status_idx").on(
+      table.championshipCompetitionId,
+      table.status,
+    ),
+  ],
+)
+
+export type CompetitionInviteRound = InferSelectModel<
+  typeof competitionInviteRoundsTable
+>

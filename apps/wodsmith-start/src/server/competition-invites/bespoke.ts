@@ -8,7 +8,7 @@
  *   - `status = "pending"`
  *   - `activeMarker = "active"` — enforces the unique-active index so the
  *     organizer cannot add the same (email, division) twice.
- *   - `roundId = ""` (Phase 2 sentinel)
+ *   - `roundId = NULL` — set when the organizer picks the row into a send.
  *   - `claimTokenHash = NULL` — no token issued until the row is picked
  *     into a send.
  *
@@ -127,7 +127,7 @@ export async function createBespokeInvite(
     const row: CompetitionInvite = {
       id,
       championshipCompetitionId: input.championshipCompetitionId,
-      roundId: "",
+      roundId: null,
       origin: COMPETITION_INVITE_ORIGIN.BESPOKE,
       sourceId: null,
       sourceCompetitionId: null,
@@ -382,7 +382,7 @@ export async function createBespokeInvitesBulk(
   const newRows: CompetitionInvite[] = insertable.map((r) => ({
     id: createCompetitionInviteId(),
     championshipCompetitionId: input.championshipCompetitionId,
-    roundId: "",
+    roundId: null,
     origin: COMPETITION_INVITE_ORIGIN.BESPOKE,
     sourceId: null,
     sourceCompetitionId: null,

@@ -18,7 +18,7 @@ function inviteFixture(
   return {
     id: "cinv_test",
     championshipCompetitionId: "comp_c",
-    roundId: "",
+    roundId: "crnd_test",
     origin: COMPETITION_INVITE_ORIGIN.SOURCE,
     sourceId: "cisrc_1",
     sourceCompetitionId: "comp_s",

@@ -71,6 +71,17 @@ import {
 } from "@/server/competition-invites/issue"
 import { getChampionshipRoster } from "@/server/competition-invites/roster"
 import {
+  beginSendingRound,
+  createRoundDraft,
+  finalizeRoundSend,
+  getRoundById,
+  listRoundsForChampionship,
+  markRoundFailed,
+  RoundStateConflictError,
+  RoundValidationError,
+  updateRoundDraft,
+} from "@/server/competition-invites/rounds"
+import {
   createSource,
   deleteSource,
   getSourceById,
@@ -168,7 +179,48 @@ const issueInvitesInputSchema = z.object({
   rsvpDeadlineAt: z.coerce.date(),
   subject: z.string().min(1).max(255),
   bodyText: z.string().max(10_000).optional(),
+  /**
+   * Optional override for the round label. When omitted the server picks
+   * "Round N" using the championship's next dense round number.
+   */
+  roundLabel: z.string().min(1).max(255).optional(),
+  /**
+   * If supplied, attach the new invites to an existing draft round
+   * instead of creating one. The round must belong to the championship
+   * and still be in `draft` status.
+   */
+  roundId: z.string().min(1).optional(),
   recipients: z.array(issueInvitesRecipientSchema).min(1).max(500),
+})
+
+const createRoundDraftInputSchema = z.object({
+  championshipCompetitionId: z.string().min(1),
+  label: z.string().min(1).max(255),
+  subject: z.string().min(1).max(255),
+  rsvpDeadlineAt: z.coerce.date(),
+  bodyJson: z.string().max(50_000).optional(),
+  emailTemplateId: z.string().min(1).nullable().optional(),
+  replyTo: z.string().email().nullable().optional(),
+})
+
+const updateRoundDraftInputSchema = z.object({
+  id: z.string().min(1),
+  championshipCompetitionId: z.string().min(1),
+  label: z.string().min(1).max(255).optional(),
+  subject: z.string().min(1).max(255).optional(),
+  rsvpDeadlineAt: z.coerce.date().optional(),
+  bodyJson: z.string().max(50_000).nullable().optional(),
+  emailTemplateId: z.string().min(1).nullable().optional(),
+  replyTo: z.string().email().nullable().optional(),
+})
+
+const listRoundsInputSchema = z.object({
+  championshipCompetitionId: z.string().min(1),
+})
+
+const getRoundDetailInputSchema = z.object({
+  championshipCompetitionId: z.string().min(1),
+  roundId: z.string().min(1),
 })
 
 const bespokeInviteInputSchema = z.object({
@@ -808,11 +860,13 @@ async function renderInviteEmailHtml(params: {
 /**
  * Send invites to a set of recipients for a specific championship division.
  *
- * Composes the Phase 2 pipeline: insert or reissue rows, render per-recipient
- * HTML, enqueue invite messages onto the shared email queue. "Already active
- * draft" bespoke rows get activated via reissue; "already active with token"
- * rows come back as skipped so the organizer can choose to re-send
- * explicitly via a re-issue flow (sub-arc D).
+ * Composes the Phase 3 pipeline: create (or reuse) a draft round, transition
+ * it to `sending`, insert or reissue rows attached to that round, render
+ * per-recipient HTML, enqueue invite messages onto the shared email queue,
+ * and finalize the round to `sent`. "Already active draft" bespoke rows get
+ * activated via reissue and re-attached to the new round; "already active
+ * with token" rows come back as skipped so the organizer can choose to
+ * re-send explicitly via a re-issue flow.
  *
  * Permission: `MANAGE_COMPETITIONS` on the championship's organizing team.
  * Free divisions are rejected inside the issue helpers.
@@ -841,6 +895,71 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
           championshipTeamId,
           TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
         )
+
+        // Either use the supplied draft round, or create one on the fly so
+        // every Phase-3 send is attributed to a real round row even when
+        // the call originates from the simple "Send invites" button on the
+        // roster page (which doesn't expose round metadata directly).
+        let round
+        if (data.roundId) {
+          const existing = await getRoundById(data.roundId)
+          if (
+            !existing ||
+            existing.championshipCompetitionId !==
+              data.championshipCompetitionId
+          ) {
+            throw new Error("Round not found")
+          }
+          round = existing
+        } else {
+          round = await createRoundDraft({
+            championshipCompetitionId: data.championshipCompetitionId,
+            label: data.roundLabel ?? "",
+            subject: data.subject,
+            rsvpDeadlineAt: data.rsvpDeadlineAt,
+            bodyJson: data.bodyText
+              ? JSON.stringify({ kind: "plaintext", body: data.bodyText })
+              : null,
+          }).catch(async (err) => {
+            if (err instanceof RoundValidationError) {
+              // Empty `roundLabel` falls through here when the caller
+              // didn't specify one — try again with the dense fallback
+              // generated from the round number.
+              if (!data.roundLabel) {
+                const rounds = await listRoundsForChampionship(
+                  data.championshipCompetitionId,
+                )
+                const next = rounds.length === 0 ? 1 : rounds[0]!.roundNumber
+                return createRoundDraft({
+                  championshipCompetitionId: data.championshipCompetitionId,
+                  label: `Round ${next}`,
+                  subject: data.subject,
+                  rsvpDeadlineAt: data.rsvpDeadlineAt,
+                  bodyJson: data.bodyText
+                    ? JSON.stringify({
+                        kind: "plaintext",
+                        body: data.bodyText,
+                      })
+                    : null,
+                })
+              }
+            }
+            throw err
+          })
+        }
+
+        // Transition the round into `sending`. Any non-recoverable error
+        // below will mark it `failed` so a retry from the same row is safe.
+        try {
+          await beginSendingRound({ roundId: round.id })
+        } catch (err) {
+          if (err instanceof RoundStateConflictError) {
+            throw new Error(
+              `Round ${round.id} is no longer a draft (status=${err.observedStatus ?? "missing"}); refresh and try again.`,
+            )
+          }
+          throw err
+        }
 
         const db = getDb()
         const [championship, division, organizingTeam] = await Promise.all([
@@ -893,9 +1012,14 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
             championshipCompetitionId: data.championshipCompetitionId,
             championshipDivisionId: data.championshipDivisionId,
             rsvpDeadlineAt: data.rsvpDeadlineAt,
+            roundId: round.id,
             recipients,
           })
         } catch (err) {
+          // Send transition fully rolls back: mark the round failed so the
+          // organizer can retry from the same draft after the cause is
+          // addressed (free-comp, capacity, etc.).
+          await markRoundFailed({ roundId: round.id }).catch(() => {})
           if (err instanceof FreeCompetitionNotEligibleError) {
             throw new Error(err.message)
           }
@@ -903,6 +1027,8 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
         }
 
         // Activate draft bespoke rows that came back as alreadyActive+isDraft.
+        // Re-attribute them to *this* round so the timeline shows them in the
+        // wave that picked them up rather than the historical send.
         const activated: Array<{
           invite: CompetitionInvite
           plaintextToken: string
@@ -912,6 +1038,7 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
           const rotated = await reissueInvite({
             inviteId: prior.existingInviteId,
             newExpiresAt: data.rsvpDeadlineAt,
+            roundId: round.id,
           })
           activated.push({
             invite: rotated.invite,
@@ -978,11 +1105,27 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
 
         const skipped = issueResult.alreadyActive.filter((r) => !r.isDraft)
 
+        // Finalize the round once every recipient was inserted + enqueued.
+        // A failure here leaves the row `sending`; a follow-up retry sees
+        // the same draft is now `sending` and the conflict guard surfaces
+        // a clean error to the organizer rather than re-issuing.
+        try {
+          await finalizeRoundSend({
+            roundId: round.id,
+            recipientCount: allToDispatch.length,
+            sentByUserId: session.userId,
+          })
+        } catch (err) {
+          await markRoundFailed({ roundId: round.id }).catch(() => {})
+          throw err
+        }
+
         logInfo({
           message: "[Invites] issueInvitesFn dispatched",
           attributes: {
             championshipCompetitionId: data.championshipCompetitionId,
             divisionId: data.championshipDivisionId,
+            roundId: round.id,
             sent: allToDispatch.length,
             skipped: skipped.length,
           },
@@ -990,6 +1133,7 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
 
         return {
           sentCount: allToDispatch.length,
+          roundId: round.id,
           skipped,
         }
       },
@@ -1185,6 +1329,346 @@ export const listActiveInvitesFn = createServerFn({ method: "GET" })
           }),
         )
         return { invites }
+      },
+    )
+  })
+
+// ============================================================================
+// Round CRUD + listing (Phase 3)
+// ============================================================================
+
+const revokeInviteInputSchema = z.object({
+  inviteId: z.string().min(1),
+  championshipCompetitionId: z.string().min(1),
+})
+
+/**
+ * Stage a fresh draft round for the championship. Used by the round
+ * builder UI to begin a new wave that the organizer can then attach
+ * recipients to before sending. Permission: `MANAGE_COMPETITIONS` on
+ * the championship's organizing team.
+ */
+export const createRoundDraftFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => createRoundDraftInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "createRoundDraftFn",
+        attributes: {
+          championshipCompetitionId: data.championshipCompetitionId,
+        },
+      },
+      async () => {
+        const championshipTeamId = await getCompetitionOrganizingTeamId(
+          data.championshipCompetitionId,
+        )
+        await requireTeamPermission(
+          championshipTeamId,
+          TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+        )
+
+        const round = await createRoundDraft({
+          championshipCompetitionId: data.championshipCompetitionId,
+          label: data.label,
+          subject: data.subject,
+          rsvpDeadlineAt: data.rsvpDeadlineAt,
+          bodyJson: data.bodyJson,
+          emailTemplateId: data.emailTemplateId,
+          replyTo: data.replyTo,
+        })
+
+        logEntityCreated({
+          entity: "competition_invite_round",
+          id: round.id,
+          parentEntity: "competition",
+          parentId: data.championshipCompetitionId,
+          attributes: {
+            roundNumber: round.roundNumber,
+            status: round.status,
+          },
+        })
+
+        return { round }
+      },
+    )
+  })
+
+/**
+ * Edit a draft round's metadata. Rejects if the round has already
+ * advanced past `draft` — the UI is expected to refresh and show the
+ * timeline view instead.
+ */
+export const updateRoundDraftFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => updateRoundDraftInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "updateRoundDraftFn",
+        attributes: { roundId: data.id },
+      },
+      async () => {
+        const championshipTeamId = await getCompetitionOrganizingTeamId(
+          data.championshipCompetitionId,
+        )
+        await requireTeamPermission(
+          championshipTeamId,
+          TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+        )
+
+        const existing = await getRoundById(data.id)
+        if (
+          !existing ||
+          existing.championshipCompetitionId !== data.championshipCompetitionId
+        ) {
+          throw new Error("Round not found")
+        }
+
+        let round
+        try {
+          round = await updateRoundDraft({
+            id: data.id,
+            label: data.label,
+            subject: data.subject,
+            rsvpDeadlineAt: data.rsvpDeadlineAt,
+            bodyJson: data.bodyJson,
+            emailTemplateId: data.emailTemplateId,
+            replyTo: data.replyTo,
+          })
+        } catch (err) {
+          if (err instanceof RoundStateConflictError) {
+            throw new Error(
+              `This round is no longer editable (status=${err.observedStatus ?? "missing"}).`,
+            )
+          }
+          throw err
+        }
+
+        logEntityUpdated({
+          entity: "competition_invite_round",
+          id: round.id,
+          attributes: { status: round.status },
+        })
+
+        return { round }
+      },
+    )
+  })
+
+/**
+ * List rounds for a championship in reverse-chronological order. Drives the
+ * rounds-timeline view on the organizer invites route.
+ */
+export const listRoundsFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => listRoundsInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "listRoundsFn",
+        attributes: {
+          championshipCompetitionId: data.championshipCompetitionId,
+        },
+      },
+      async () => {
+        const championshipTeamId = await getCompetitionOrganizingTeamId(
+          data.championshipCompetitionId,
+        )
+        await requireTeamPermission(
+          championshipTeamId,
+          TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+        )
+
+        const rounds = await listRoundsForChampionship(
+          data.championshipCompetitionId,
+        )
+
+        // Aggregate per-round invite counts grouped by status — this
+        // powers the timeline progress bar (paid / accepted / pending /
+        // declined / expired). One small COUNT-by-status query per
+        // listing keeps the timeline page-load bounded.
+        if (rounds.length === 0) {
+          return {
+            rounds: [] as Array<{
+              round: typeof rounds[number]
+              counts: Record<string, number>
+            }>,
+          }
+        }
+
+        const db = getDb()
+        const roundIds = rounds.map((r) => r.id)
+        const countRows = await db
+          .select({
+            roundId: competitionInvitesTable.roundId,
+            status: competitionInvitesTable.status,
+            count: sql<number>`count(*)`,
+          })
+          .from(competitionInvitesTable)
+          .where(inArray(competitionInvitesTable.roundId, roundIds))
+          .groupBy(
+            competitionInvitesTable.roundId,
+            competitionInvitesTable.status,
+          )
+
+        const countsByRound = new Map<string, Record<string, number>>()
+        for (const row of countRows) {
+          if (!row.roundId) continue
+          const bucket = countsByRound.get(row.roundId) ?? {}
+          bucket[row.status] = Number(row.count)
+          countsByRound.set(row.roundId, bucket)
+        }
+
+        return {
+          rounds: rounds.map((round) => ({
+            round,
+            counts: countsByRound.get(round.id) ?? {},
+          })),
+        }
+      },
+    )
+  })
+
+/**
+ * Detail view for a single round — round metadata + recipients grouped by
+ * origin (source vs bespoke) so the round-detail page can render two
+ * panels without re-shaping the data client-side.
+ */
+export const getRoundDetailFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => getRoundDetailInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "getRoundDetailFn",
+        attributes: { roundId: data.roundId },
+      },
+      async () => {
+        const championshipTeamId = await getCompetitionOrganizingTeamId(
+          data.championshipCompetitionId,
+        )
+        await requireTeamPermission(
+          championshipTeamId,
+          TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+        )
+
+        const round = await getRoundById(data.roundId)
+        if (
+          !round ||
+          round.championshipCompetitionId !== data.championshipCompetitionId
+        ) {
+          throw new Error("Round not found")
+        }
+
+        const db = getDb()
+        const invites = await db
+          .select({
+            id: competitionInvitesTable.id,
+            email: competitionInvitesTable.email,
+            origin: competitionInvitesTable.origin,
+            status: competitionInvitesTable.status,
+            championshipDivisionId:
+              competitionInvitesTable.championshipDivisionId,
+            sourceId: competitionInvitesTable.sourceId,
+            sourcePlacement: competitionInvitesTable.sourcePlacement,
+            sourcePlacementLabel:
+              competitionInvitesTable.sourcePlacementLabel,
+            inviteeFirstName: competitionInvitesTable.inviteeFirstName,
+            inviteeLastName: competitionInvitesTable.inviteeLastName,
+            bespokeReason: competitionInvitesTable.bespokeReason,
+            sendAttempt: competitionInvitesTable.sendAttempt,
+            paidAt: competitionInvitesTable.paidAt,
+            declinedAt: competitionInvitesTable.declinedAt,
+            revokedAt: competitionInvitesTable.revokedAt,
+          })
+          .from(competitionInvitesTable)
+          .where(eq(competitionInvitesTable.roundId, data.roundId))
+
+        return { round, invites }
+      },
+    )
+  })
+
+/**
+ * Manually revoke a single pending invite. Used by the roster row action.
+ * Nulls the claim token + active marker so the link dies on the next click
+ * and a re-invite (in any subsequent round) is unblocked.
+ */
+export const revokeInviteFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => revokeInviteInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "revokeInviteFn",
+        attributes: { inviteId: data.inviteId },
+      },
+      async () => {
+        const championshipTeamId = await getCompetitionOrganizingTeamId(
+          data.championshipCompetitionId,
+        )
+        await requireTeamPermission(
+          championshipTeamId,
+          TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+        )
+
+        const db = getDb()
+        const now = new Date()
+        const result = await db
+          .update(competitionInvitesTable)
+          .set({
+            status: COMPETITION_INVITE_STATUS.REVOKED,
+            revokedAt: now,
+            revokedByUserId: session.userId,
+            claimTokenHash: null,
+            activeMarker: null,
+            updatedAt: now,
+          })
+          .where(
+            and(
+              eq(competitionInvitesTable.id, data.inviteId),
+              eq(
+                competitionInvitesTable.championshipCompetitionId,
+                data.championshipCompetitionId,
+              ),
+              eq(
+                competitionInvitesTable.status,
+                COMPETITION_INVITE_STATUS.PENDING,
+              ),
+            ),
+          )
+
+        const affected = (result as unknown as { affectedRows?: number })
+          .affectedRows
+        if (affected === 0) {
+          throw new Error(
+            "This invite is no longer pending and cannot be revoked.",
+          )
+        }
+
+        logEntityUpdated({
+          entity: "competition_invite",
+          id: data.inviteId,
+          attributes: { status: COMPETITION_INVITE_STATUS.REVOKED },
+        })
+
+        return { ok: true as const }
       },
     )
   })
