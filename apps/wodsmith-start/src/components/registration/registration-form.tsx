@@ -268,6 +268,11 @@ type Props = {
    *  purchase metadata with the invite id so the workflow can flip the
    *  invite to `accepted_paid`. */
   inviteToken?: string
+  /** ADR-0011 Phase 2 — championship division the invite is locked to.
+   *  When present alongside `inviteToken`, the form pins the selection to
+   *  this division and hides the multi-select UI so the athlete can only
+   *  register for the division they were invited to. */
+  inviteDivisionId?: string
 }
 
 export function RegistrationForm({
@@ -291,6 +296,7 @@ export function RegistrationForm({
   previousAnswers = [],
   signedWaiverIds = [],
   inviteToken,
+  inviteDivisionId,
 }: Props) {
   const navigate = useNavigate()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -301,13 +307,44 @@ export function RegistrationForm({
     return coupon?.competitionSlug === competition.slug ? coupon : null
   })
 
-  // Multi-select state
-  const [selectedDivisionIds, setSelectedDivisionIds] = useState<string[]>([])
+  // Lock to the invited division when arriving from a claim link. Both
+  // `inviteToken` and `inviteDivisionId` must be present and the division
+  // must exist in this competition's scaling group.
+  const lockedDivision =
+    inviteToken && inviteDivisionId
+      ? scalingGroup.scalingLevels.find((l) => l.id === inviteDivisionId)
+      : undefined
+  const isInviteLocked = !!lockedDivision
+
+  // Multi-select state — when locked, pre-select the invited division so
+  // the rest of the form (fee breakdown, team fields, submit) keys off it.
+  const [selectedDivisionIds, setSelectedDivisionIds] = useState<string[]>(
+    () => (lockedDivision ? [lockedDivision.id] : []),
+  )
   const [affiliateName, setAffiliateName] = useState(defaultAffiliateName ?? "")
 
-  // Team details per division (for team divisions)
+  // Team details per division (for team divisions). When locked to a team
+  // division, seed the entry so the team fields render on first paint.
   const [teamEntries, setTeamEntries] = useState<Map<string, TeamEntry>>(
-    new Map(),
+    () => {
+      if (!lockedDivision || lockedDivision.teamSize <= 1) return new Map()
+      const teammatesNeeded = lockedDivision.teamSize - 1
+      return new Map<string, TeamEntry>([
+        [
+          lockedDivision.id,
+          {
+            divisionId: lockedDivision.id,
+            teamName: "",
+            teammates: Array.from({ length: teammatesNeeded }, () => ({
+              email: "",
+              firstName: "",
+              lastName: "",
+              affiliateName: "",
+            })),
+          },
+        ],
+      ])
+    },
   )
 
   // Fee data per division (for combined total)
@@ -405,6 +442,8 @@ export function RegistrationForm({
 
   // Handle division checkbox toggle
   const handleDivisionToggle = (divisionId: string, checked: boolean) => {
+    // Invite-locked: pinned to a single division, no add/remove allowed.
+    if (isInviteLocked) return
     if (checked) {
       setSelectedDivisionIds((prev) => [...prev, divisionId])
       const division = getDivision(divisionId)
@@ -719,11 +758,13 @@ export function RegistrationForm({
   const registrationMessage = getRegistrationMessage()
   const hasSelectedDivisions = selectedDivisionIds.length > 0
 
-  // Determine if submit should be disabled
+  // Determine if submit should be disabled. Invite-locked registrations
+  // bypass the registration-window check (matching the server fn) so an
+  // invitee can complete checkout before public open / after close.
   const competitionFull = competitionCapacity?.isFull ?? false
   const submitDisabled =
     isSubmitting ||
-    !registrationOpen ||
+    (!registrationOpen && !isInviteLocked) ||
     competitionFull ||
     !hasSelectedDivisions ||
     !affiliateName.trim() ||
@@ -814,7 +855,7 @@ export function RegistrationForm({
         </Card>
       )}
 
-      {!registrationOpen && registrationMessage && (
+      {!registrationOpen && registrationMessage && !isInviteLocked && (
         <Card className="border-yellow-500/50 bg-yellow-500/10">
           <CardContent className="pt-6">
             <p className="text-sm font-medium">{registrationMessage}</p>
@@ -856,56 +897,85 @@ export function RegistrationForm({
       </Card>
 
       <form onSubmit={onSubmit} className="space-y-6">
-        {/* Division Selection - Searchable multi-select dropdown */}
+        {/* Division Selection — locked to the invited division when arriving
+            from a claim link, otherwise a searchable multi-select. */}
         <Card>
           <CardHeader>
             <CardTitle>
-              Select Division{selectedDivisionIds.length > 1 ? "s" : ""}
+              {isInviteLocked
+                ? "Invited Division"
+                : `Select Division${selectedDivisionIds.length > 1 ? "s" : ""}`}
             </CardTitle>
             <CardDescription>
-              Choose one or more divisions to register for
+              {isInviteLocked
+                ? "Your invite is locked to this division."
+                : "Choose one or more divisions to register for"}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <DivisionMultiSelect
-              scalingLevels={scalingGroup.scalingLevels}
-              publicDivisions={publicDivisions}
-              selectedIds={selectedDivisionIds}
-              registeredDivisionIds={registeredDivisionIdSet}
-              removedDivisionIds={removedDivisionIdSet}
-              onToggle={handleDivisionToggle}
-              disabled={isSubmitting || !registrationOpen || competitionFull}
-            />
-            {/* Selected divisions shown as badges */}
-            {hasSelectedDivisions && (
-              <div className="flex flex-wrap gap-1.5 mt-3">
-                {selectedDivisionIds.map((id) => {
-                  const level = getDivision(id)
-                  if (!level) return null
-                  return (
-                    <Badge
-                      key={id}
-                      variant="secondary"
-                      className="pl-2 pr-1 py-1 gap-1"
-                    >
-                      {level.label}
-                      <button
-                        type="button"
-                        onClick={() => handleDivisionToggle(id, false)}
-                        className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
-                        disabled={isSubmitting || !registrationOpen}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
+            {isInviteLocked && lockedDivision ? (
+              <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2.5">
+                <div className="flex items-center gap-2">
+                  {(lockedDivision.teamSize ?? 1) > 1 ? (
+                    <Badge variant="secondary" className="text-xs">
+                      <Users className="w-3 h-3 mr-1" />
+                      {lockedDivision.teamSize}
                     </Badge>
-                  )
-                })}
+                  ) : (
+                    <Badge variant="outline" className="text-xs">
+                      <User className="w-3 h-3 mr-1" />
+                      Indy
+                    </Badge>
+                  )}
+                  <span className="font-medium">{lockedDivision.label}</span>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  Cannot be changed
+                </span>
               </div>
-            )}
-            {!hasSelectedDivisions && (
-              <p className="text-sm text-muted-foreground mt-3">
-                Select at least one division to continue
-              </p>
+            ) : (
+              <>
+                <DivisionMultiSelect
+                  scalingLevels={scalingGroup.scalingLevels}
+                  publicDivisions={publicDivisions}
+                  selectedIds={selectedDivisionIds}
+                  registeredDivisionIds={registeredDivisionIdSet}
+                  removedDivisionIds={removedDivisionIdSet}
+                  onToggle={handleDivisionToggle}
+                  disabled={isSubmitting || !registrationOpen || competitionFull}
+                />
+                {/* Selected divisions shown as badges */}
+                {hasSelectedDivisions && (
+                  <div className="flex flex-wrap gap-1.5 mt-3">
+                    {selectedDivisionIds.map((id) => {
+                      const level = getDivision(id)
+                      if (!level) return null
+                      return (
+                        <Badge
+                          key={id}
+                          variant="secondary"
+                          className="pl-2 pr-1 py-1 gap-1"
+                        >
+                          {level.label}
+                          <button
+                            type="button"
+                            onClick={() => handleDivisionToggle(id, false)}
+                            className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                            disabled={isSubmitting || !registrationOpen}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </Badge>
+                      )
+                    })}
+                  </div>
+                )}
+                {!hasSelectedDivisions && (
+                  <p className="text-sm text-muted-foreground mt-3">
+                    Select at least one division to continue
+                  </p>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -1328,7 +1398,7 @@ export function RegistrationForm({
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 Processing...
               </>
-            ) : !registrationOpen ? (
+            ) : !registrationOpen && !isInviteLocked ? (
               "Registration Closed"
             ) : competitionFull ? (
               "Competition Full"

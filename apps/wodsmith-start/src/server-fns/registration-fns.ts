@@ -308,13 +308,16 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
       if (invite.championshipCompetitionId !== input.competitionId) {
         throw new Error("Invite does not match this competition")
       }
+      // Invites are pinned to a single division — reject both wrong-division
+      // and "invited division plus extras" submissions. The UI hides the
+      // multi-select when arriving from a claim link; this is the server-side
+      // backstop.
       if (
-        !input.items.some(
-          (i) => i.divisionId === invite.championshipDivisionId,
-        )
+        input.items.length !== 1 ||
+        input.items[0].divisionId !== invite.championshipDivisionId
       ) {
         throw new Error(
-          "Invite is locked to a different division than the one selected",
+          "Invite is locked to a single division — register only for the invited division",
         )
       }
       const sessionEmail = normalizeInviteEmail(session.user.email ?? "")

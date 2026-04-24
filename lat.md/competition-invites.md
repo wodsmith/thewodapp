@@ -134,9 +134,9 @@ In dev (no `RESEND_API_KEY`) the consumer logs the preview and marks delivery as
 [[apps/wodsmith-start/src/server-fns/registration-fns.ts]]'s `initiateRegistrationPaymentFn` accepts an optional `inviteToken`. When supplied:
 
 - The token is resolved + claimability-checked + email-matched against the session — any of these failing short-circuits with an error that the registration form can surface.
-- The invite's `championshipDivisionId` must match one of the selected items (ADR: invites are locked per division).
-- The registration-window check is skipped for invite-holders (invites often precede public-open or survive past close).
-- The matching item's purchase metadata gets `inviteId` tagged. Non-matching items (multi-division registrations) don't inherit the tag.
+- The submitted `items` must be exactly the invited division — `items.length === 1 && items[0].divisionId === invite.championshipDivisionId`. Invites are pinned per division, so the server rejects both wrong-division submissions and "invited division plus extras". The registration form locks the UI to match (single read-only division, no multi-select) when `inviteToken` is present.
+- The registration-window check is skipped for invite-holders (invites often precede public-open or survive past close). The form mirrors this — the `!registrationOpen` disable on the submit button is bypassed when the invite lock is active.
+- The single item's purchase metadata gets `inviteId` tagged so the Stripe workflow can flip the invite on payment success.
 
 [[apps/wodsmith-start/src/workflows/stripe-checkout-workflow.ts]] reads `inviteId` from the purchase metadata inside `create-registration`, threads it through `RegistrationStepResult`, and runs a new `update-competition-invite-status` step after registration creation. The step flips the invite to `accepted_paid`, sets `paidAt`, sets `claimedRegistrationId`, and nulls `claimTokenHash` so a replay of the original email link short-circuits. Idempotent via the `status = "pending"` guard on the update predicate so a workflow retry doesn't double-flip. `processCheckoutInline` (local-dev path) runs the same helper to keep behavior consistent without Cloudflare Workflows.
 
@@ -154,7 +154,7 @@ The draft-bespoke section renders inline below the roster table, pulling from `l
 
 The claim route's "Continue to registration" CTA now links to `/compete/$slug/register?invite=<token>&divisionId=<id>`.
 
-The register route's `validateSearch` accepts both `invite` (the plaintext token) and `divisionId` (the invited division — invites are locked to one division at issue time). The route forwards the token to `RegistrationForm` as the `inviteToken` prop, which passes it to `initiateRegistrationPaymentFn` on submit. The `divisionId` lets the form pre-select (and pin) the right division. Combined with the purchase-metadata + Stripe-workflow wiring from sub-arc C, this closes the Organizer Send → athlete claim → Stripe → `accepted_paid` loop end-to-end.
+The register route's `validateSearch` accepts both `invite` (the plaintext token) and `divisionId` (the invited division — invites are locked to one division at issue time). The route forwards both into `RegistrationForm` as the `inviteToken` and `inviteDivisionId` props. When both are present and the division resolves against the competition's scaling group, the form treats the registration as invite-locked: it pre-seeds `selectedDivisionIds = [inviteDivisionId]`, seeds the team-entry map for team divisions, and replaces the multi-select dropdown with a read-only "Invited Division" display. The closed-window banner and submit-button "Registration Closed" copy are also bypassed in this mode so the registration-window-skip from the server fn isn't visually contradicted. Combined with the purchase-metadata + Stripe-workflow wiring from sub-arc C, this closes the Organizer Send → athlete claim → Stripe → `accepted_paid` loop end-to-end.
 
 ## Invite expiry sweep
 
