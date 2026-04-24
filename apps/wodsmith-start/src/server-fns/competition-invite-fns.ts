@@ -23,6 +23,7 @@ import { z } from "zod"
 import { getDb } from "@/db"
 import {
   COMPETITION_INVITE_ACTIVE_MARKER,
+  COMPETITION_INVITE_EMAIL_DELIVERY_STATUS,
   COMPETITION_INVITE_ORIGIN,
   COMPETITION_INVITE_SOURCE_KIND,
   COMPETITION_INVITE_STATUS,
@@ -162,10 +163,20 @@ const issueInvitesRecipientSchema = z.object({
   userId: z.string().min(1).nullable().optional(),
 })
 
+// YYYY-MM-DD calendar string. We pass the date as a string (rather than
+// a `Date`) so the email-label calendar day always matches what the
+// organizer typed in the picker. Sending a `Date` and formatting it on
+// Workers (TZ=UTC) used to render "one day later" for any organizer
+// west of UTC because `new Date("YYYY-MM-DDTHH:MM:SS")` parses as the
+// browser's local time and then crosses the UTC boundary.
+const calendarDayRegex = /^\d{4}-\d{2}-\d{2}$/
+
 const issueInvitesInputSchema = z.object({
   championshipCompetitionId: z.string().min(1),
   championshipDivisionId: z.string().min(1),
-  rsvpDeadlineAt: z.coerce.date(),
+  rsvpDeadlineDate: z
+    .string()
+    .regex(calendarDayRegex, "Expected YYYY-MM-DD calendar date"),
   subject: z.string().min(1).max(255),
   bodyText: z.string().max(10_000).optional(),
   recipients: z.array(issueInvitesRecipientSchema).min(1).max(500),
@@ -887,12 +898,43 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
           userId: r.userId ?? null,
         }))
 
+        // Build expiresAt as the UTC end-of-day of the picked calendar
+        // date. The label is formatted from the same y/m/d ints we just
+        // parsed, so the email body always shows the calendar day the
+        // organizer typed regardless of the worker's TZ.
+        const [yearStr, monthStr, dayStr] =
+          data.rsvpDeadlineDate.split("-")
+        const yearN = Number(yearStr)
+        const monthN = Number(monthStr)
+        const dayN = Number(dayStr)
+        const rsvpDeadlineAt = new Date(
+          Date.UTC(yearN, monthN - 1, dayN, 23, 59, 59),
+        )
+        if (Number.isNaN(rsvpDeadlineAt.getTime())) {
+          throw new Error("Invalid RSVP deadline")
+        }
+        const monthNames = [
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
+        ]
+        const rsvpDeadlineLabel = `${monthNames[monthN - 1]} ${dayN}, ${yearN}`
+
         let issueResult: IssueInvitesResult
         try {
           issueResult = await issueInvitesForRecipients({
             championshipCompetitionId: data.championshipCompetitionId,
             championshipDivisionId: data.championshipDivisionId,
-            rsvpDeadlineAt: data.rsvpDeadlineAt,
+            rsvpDeadlineAt,
             recipients,
           })
         } catch (err) {
@@ -911,7 +953,7 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
           if (!prior.isDraft) continue
           const rotated = await reissueInvite({
             inviteId: prior.existingInviteId,
-            newExpiresAt: data.rsvpDeadlineAt,
+            newExpiresAt: rsvpDeadlineAt,
           })
           activated.push({
             invite: rotated.invite,
@@ -921,76 +963,120 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
 
         const allToDispatch = [...issueResult.inserted, ...activated]
 
-        const rsvpDeadlineLabel = data.rsvpDeadlineAt.toLocaleDateString(
-          "en-US",
-          { month: "long", day: "numeric", year: "numeric" },
-        )
-
         // Render + enqueue per invite. Render is intentionally sequential
         // to keep memory bounded when a round targets hundreds of recipients.
+        // Each iteration is wrapped in try/catch so a single throw in the
+        // middle of a large batch (render exception, queue.send blip,
+        // Workers CPU/memory cap) doesn't abort the whole loop and leave
+        // the un-dispatched rows in `queued` limbo with no recovery
+        // path. On failure we flip `emailDeliveryStatus` to `failed` on
+        // the row so a follow-up Send picks it up via the
+        // `alreadyActive` re-issue branch.
         const queue = (env as unknown as Record<string, unknown>)
           .BROADCAST_EMAIL_QUEUE as Queue<QueueEmailMessage> | undefined
 
+        const failed: Array<{ inviteId: string; email: string; error: string }> = []
+
         for (const { invite, plaintextToken } of allToDispatch) {
-          const bodyHtml = await renderInviteEmailHtml({
-            invite,
-            plaintextToken,
-            championshipSlug: championship.slug,
-            championshipName: championship.name,
-            divisionLabel: division.label,
-            organizerTeamName: organizingTeam?.name ?? "Organizer",
-            subject: data.subject,
-            bodyText: data.bodyText,
-            rsvpDeadlineLabel,
-          })
+          try {
+            const bodyHtml = await renderInviteEmailHtml({
+              invite,
+              plaintextToken,
+              championshipSlug: championship.slug,
+              championshipName: championship.name,
+              divisionLabel: division.label,
+              organizerTeamName: organizingTeam?.name ?? "Organizer",
+              subject: data.subject,
+              bodyText: data.bodyText,
+              rsvpDeadlineLabel,
+            })
 
-          const message: InviteEmailMessage = {
-            kind: "competition-invite",
-            inviteId: invite.id,
-            sendAttempt: invite.sendAttempt,
-            competitionId: invite.championshipCompetitionId,
-            email: invite.email,
-            subject: data.subject,
-            bodyHtml,
-          }
+            const message: InviteEmailMessage = {
+              kind: "competition-invite",
+              inviteId: invite.id,
+              sendAttempt: invite.sendAttempt,
+              competitionId: invite.championshipCompetitionId,
+              email: invite.email,
+              subject: data.subject,
+              bodyHtml,
+            }
 
-          if (queue) {
-            await queue.send(message)
-          } else {
-            logInfo({
-              message: "[Invites] No queue binding — logging invite email",
+            if (queue) {
+              await queue.send(message)
+            } else {
+              logInfo({
+                message: "[Invites] No queue binding — logging invite email",
+                attributes: { inviteId: invite.id, email: invite.email },
+              })
+            }
+
+            logEntityCreated({
+              entity: "competition_invite",
+              id: invite.id,
+              parentEntity: "competition",
+              parentId: invite.championshipCompetitionId,
+              attributes: {
+                origin: invite.origin,
+                sendAttempt: invite.sendAttempt,
+                activeMarker: invite.activeMarker,
+              },
+            })
+          } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : String(err)
+            failed.push({
+              inviteId: invite.id,
+              email: invite.email,
+              error: errorMsg,
+            })
+            logWarning({
+              message: "[Invites] Dispatch failed mid-batch",
+              error: err,
               attributes: { inviteId: invite.id, email: invite.email },
             })
+            // Flip the row so resend treats it as redeliverable. The
+            // `failed` status is a hint for the consumer/UX layer; the
+            // row's `claimTokenHash` stays valid so a future re-send
+            // can redeliver the same token rather than rotating it.
+            try {
+              const db = getDb()
+              await db
+                .update(competitionInvitesTable)
+                .set({
+                  emailDeliveryStatus:
+                    COMPETITION_INVITE_EMAIL_DELIVERY_STATUS.FAILED,
+                  emailLastError: errorMsg.slice(0, 1000),
+                  updatedAt: new Date(),
+                })
+                .where(eq(competitionInvitesTable.id, invite.id))
+            } catch (markErr) {
+              logWarning({
+                message:
+                  "[Invites] Failed to mark invite as failed (non-fatal)",
+                error: markErr,
+                attributes: { inviteId: invite.id },
+              })
+            }
           }
-
-          logEntityCreated({
-            entity: "competition_invite",
-            id: invite.id,
-            parentEntity: "competition",
-            parentId: invite.championshipCompetitionId,
-            attributes: {
-              origin: invite.origin,
-              sendAttempt: invite.sendAttempt,
-              activeMarker: invite.activeMarker,
-            },
-          })
         }
 
         const skipped = issueResult.alreadyActive.filter((r) => !r.isDraft)
+        const sentCount = allToDispatch.length - failed.length
 
         logInfo({
           message: "[Invites] issueInvitesFn dispatched",
           attributes: {
             championshipCompetitionId: data.championshipCompetitionId,
             divisionId: data.championshipDivisionId,
-            sent: allToDispatch.length,
+            sent: sentCount,
+            failed: failed.length,
             skipped: skipped.length,
           },
         })
 
         return {
-          sentCount: allToDispatch.length,
+          sentCount,
           skipped,
+          failed,
         }
       },
     )

@@ -70,13 +70,16 @@ export async function sweepExpiredInvites(
     .where(
       and(
         inArray(competitionInvitesTable.id, ids),
-        // Re-check predicate so a status change that happened between
-        // SELECT and UPDATE (e.g. athlete just claimed) doesn't get
-        // stomped.
+        // Re-check both predicates so concurrent mutations between the
+        // SELECT and the UPDATE don't get stomped — a status flip means
+        // an athlete just claimed/declined, and an `expiresAt` bump
+        // means an organizer extended via `reissueInvite`. Either case,
+        // the row should not be marked expired.
         eq(
           competitionInvitesTable.status,
           COMPETITION_INVITE_STATUS.PENDING,
         ),
+        lt(competitionInvitesTable.expiresAt, now),
       ),
     )
 

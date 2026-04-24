@@ -78,6 +78,7 @@ export function SendInvitesDialog({
   const [result, setResult] = useState<{
     sentCount: number
     skippedCount: number
+    failed: Array<{ email: string; error: string }>
   } | null>(null)
 
   // Reset transient state whenever the dialog closes — covers Cancel,
@@ -95,13 +96,8 @@ export function SendInvitesDialog({
   }, [open])
 
   const onSubmit = async () => {
-    if (!deadline) {
-      setError("Pick an RSVP deadline before sending.")
-      return
-    }
-    const rsvpDeadlineAt = new Date(`${deadline}T23:59:59`)
-    if (Number.isNaN(rsvpDeadlineAt.getTime())) {
-      setError("RSVP deadline isn't a valid date.")
+    if (!deadline || !/^\d{4}-\d{2}-\d{2}$/.test(deadline)) {
+      setError("Pick a valid RSVP deadline before sending.")
       return
     }
     setSubmitting(true)
@@ -112,7 +108,10 @@ export function SendInvitesDialog({
         data: {
           championshipCompetitionId,
           championshipDivisionId,
-          rsvpDeadlineAt,
+          // Pass the raw calendar string. Building a `Date` here would
+          // parse the local-tz instant and then format on Workers (UTC)
+          // would render the wrong day for any organizer west of UTC.
+          rsvpDeadlineDate: deadline,
           subject,
           bodyText: bodyText || undefined,
           recipients,
@@ -121,6 +120,10 @@ export function SendInvitesDialog({
       setResult({
         sentCount: response.sentCount,
         skippedCount: response.skipped.length,
+        failed: (response.failed ?? []).map((f) => ({
+          email: f.email,
+          error: f.error,
+        })),
       })
       onSent?.()
     } catch (err) {
@@ -197,14 +200,34 @@ export function SendInvitesDialog({
             </Alert>
           ) : null}
           {result ? (
-            <Alert>
+            <Alert variant={result.failed.length > 0 ? "destructive" : "default"}>
               <AlertDescription>
-                Queued <strong>{result.sentCount}</strong> invite email
-                {result.sentCount === 1 ? "" : "s"}
-                {result.skippedCount > 0
-                  ? ` · skipped ${result.skippedCount} already-active`
-                  : ""}
-                .
+                <div>
+                  Queued <strong>{result.sentCount}</strong> invite email
+                  {result.sentCount === 1 ? "" : "s"}
+                  {result.skippedCount > 0
+                    ? ` · skipped ${result.skippedCount} already-active`
+                    : ""}
+                  {result.failed.length > 0
+                    ? ` · ${result.failed.length} failed`
+                    : ""}
+                  .
+                </div>
+                {result.failed.length > 0 ? (
+                  <details className="mt-2 text-xs">
+                    <summary className="cursor-pointer">
+                      Failed rows ({result.failed.length}) — re-clicking
+                      Send will retry these.
+                    </summary>
+                    <ul className="mt-2 list-disc pl-5">
+                      {result.failed.map((f) => (
+                        <li key={f.email} className="font-mono">
+                          {f.email}: {f.error}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                ) : null}
               </AlertDescription>
             </Alert>
           ) : null}

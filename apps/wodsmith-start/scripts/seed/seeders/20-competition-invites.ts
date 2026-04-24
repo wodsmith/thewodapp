@@ -356,13 +356,20 @@ export async function seed(client: Connection): Promise<void> {
 		}
 	}
 
+	// Mike's source-derived pending invite (row 1) and the sponsored
+	// athlete's bespoke pending invite (row 6) are the only rows that
+	// keep a live `claim_token_hash` in seed — Ryan's accepted_paid row,
+	// Alex's expired row, Sarah's declined row, and the draft bespoke row
+	// all null the hash on entry. Naming the constants after which row
+	// owns the hash keeps the printed log honest.
 	const SEED_PENDING_TOKEN = "seed-invite-mike-pending-men-rx-phase2"
-	const SEED_EXPIRED_TOKEN = "seed-invite-ryan-expired-men-rx-phase2"
+	const SEED_BESPOKE_SPONSOR_TOKEN =
+		"seed-invite-sponsor-bespoke-women-rx-phase2"
 	const mikeToken = tokenArtifacts(SEED_PENDING_TOKEN)
-	const ryanToken = tokenArtifacts(SEED_EXPIRED_TOKEN)
+	const sponsorToken = tokenArtifacts(SEED_BESPOKE_SPONSOR_TOKEN)
 
 	console.log(
-		`    seed tokens — pending: ${SEED_PENDING_TOKEN} / expired: ${SEED_EXPIRED_TOKEN}`,
+		`    seed tokens — pending (mike): ${SEED_PENDING_TOKEN} / bespoke-sent (sponsor): ${SEED_BESPOKE_SPONSOR_TOKEN}`,
 	)
 
 	await batchInsert(client, "competition_invites", [
@@ -553,8 +560,8 @@ export async function seed(client: Connection): Promise<void> {
 			user_id: null,
 			invitee_first_name: "Sponsored",
 			invitee_last_name: "Athlete",
-			claim_token_hash: ryanToken.hash, // reuse deterministic seed token
-			claim_token_last4: ryanToken.last4,
+			claim_token_hash: sponsorToken.hash, // deterministic seed token for the bespoke-sent row
+			claim_token_last4: sponsorToken.last4,
 			expires_at: futureDatetime(14),
 			send_attempt: 1,
 			status: "pending",

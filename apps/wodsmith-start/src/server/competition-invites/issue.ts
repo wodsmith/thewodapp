@@ -227,10 +227,17 @@ export async function issueInvitesForRecipients(
           // A draft is a bespoke row staged without a token (`pending` +
           // null hash). `accepted_paid` rows also null `claimTokenHash`
           // while keeping `activeMarker = "active"` — the status guard
-          // keeps them out of the draft bucket.
+          // keeps them out of the draft bucket. We also treat rows
+          // whose previous dispatch failed (`emailDeliveryStatus` =
+          // "failed") as draft-like so the organizer's resend can
+          // recover via `reissueInvite` — otherwise a render/queue
+          // error mid-batch would orphan the row in the active index
+          // until the expiry sweep runs.
           isDraft:
-            !existingRow.claimTokenHash &&
-            existingRow.status === COMPETITION_INVITE_STATUS.PENDING,
+            existingRow.status === COMPETITION_INVITE_STATUS.PENDING &&
+            (!existingRow.claimTokenHash ||
+              existingRow.emailDeliveryStatus ===
+                COMPETITION_INVITE_EMAIL_DELIVERY_STATUS.FAILED),
         })
       } else {
         toInsertInputs.push(r)
@@ -391,8 +398,15 @@ export async function reissueInvite(
       ),
     )
 
-  const affected = (updateResult as unknown as { affectedRows?: number })
-    .affectedRows
+  // Read affected count off both driver shapes — mysql2 returns
+  // `[ResultSetHeader, FieldPacket[]]` (look at `[0].affectedRows`),
+  // planetscale-serverless returns `{ rowsAffected }`. Reading
+  // `.affectedRows` on the array yields `undefined`, which silently
+  // bypassed the concurrent-transition guard below.
+  const affected =
+    (updateResult as unknown as { rowsAffected?: number }).rowsAffected ??
+    (updateResult as unknown as [{ affectedRows?: number }])[0]?.affectedRows ??
+    0
   if (affected === 0) {
     const fresh = await db
       .select({ status: competitionInvitesTable.status })
