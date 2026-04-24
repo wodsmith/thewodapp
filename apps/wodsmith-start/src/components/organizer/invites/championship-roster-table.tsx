@@ -37,6 +37,11 @@ interface ChampionshipRosterTableProps {
   selectedKeys?: Set<string>
   onToggleSelection?: (key: string, row: RosterRow) => void
   onToggleAll?: (selectAll: boolean) => void
+  /** Returns true when the row has an active invite (pending/accepted)
+   *  so the table can render the "Invited" status pill and disable the
+   *  row's checkbox. Without this, the row would render as "Not invited"
+   *  and let the organizer tick a box that the parent silently drops. */
+  isRowAlreadyInvited?: (row: RosterRow) => boolean
 }
 
 function RankCell({ placement }: { placement: number | null }) {
@@ -61,8 +66,10 @@ function SourceTag({ row }: { row: RosterRow }) {
   return <Badge variant="outline">{label}</Badge>
 }
 
-function StatusPill() {
-  // Phase 1: everyone is `not_invited`.
+function StatusPill({ alreadyInvited }: { alreadyInvited: boolean }) {
+  if (alreadyInvited) {
+    return <Badge>Invited</Badge>
+  }
   return <Badge variant="secondary">Not invited</Badge>
 }
 
@@ -83,11 +90,15 @@ export function ChampionshipRosterTable({
   selectedKeys,
   onToggleSelection,
   onToggleAll,
+  isRowAlreadyInvited,
 }: ChampionshipRosterTableProps) {
   let cutoffDrawn = false
   const selectionEnabled =
     !!selectedKeys && !!onToggleSelection && !!onToggleAll
-  const selectableRows = rows.filter((r) => !!r.athleteEmail)
+  const isInvited = (r: RosterRow) => !!isRowAlreadyInvited?.(r)
+  const selectableRows = rows.filter(
+    (r) => !!r.athleteEmail && !isInvited(r),
+  )
   const allSelected =
     selectionEnabled &&
     selectableRows.length > 0 &&
@@ -125,7 +136,9 @@ export function ChampionshipRosterTable({
               const showCutoff = row.belowCutoff && !cutoffDrawn
               if (showCutoff) cutoffDrawn = true
               const rowKey = rosterRowKey(row)
-              const rowSelectable = selectionEnabled && !!row.athleteEmail
+              const rowAlreadyInvited = isInvited(row)
+              const rowSelectable =
+                selectionEnabled && !!row.athleteEmail && !rowAlreadyInvited
               return (
                 <Fragment key={rowKey}>
                   {showCutoff ? (
@@ -152,7 +165,9 @@ export function ChampionshipRosterTable({
                           title={
                             rowSelectable
                               ? undefined
-                              : "No email on file for this athlete"
+                              : rowAlreadyInvited
+                                ? "Already invited"
+                                : "No email on file for this athlete"
                           }
                         />
                       </TableCell>
@@ -170,7 +185,7 @@ export function ChampionshipRosterTable({
                       <SourceTag row={row} />
                     </TableCell>
                     <TableCell>
-                      <StatusPill />
+                      <StatusPill alreadyInvited={rowAlreadyInvited} />
                     </TableCell>
                   </TableRow>
                 </Fragment>

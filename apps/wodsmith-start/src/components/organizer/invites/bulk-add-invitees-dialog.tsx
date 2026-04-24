@@ -97,7 +97,7 @@ export function BulkAddInviteesDialog({
           (r) => `Row ${r.rowNumber}: ${r.reason}`,
         ),
         duplicateEmails: result.duplicates.map(
-          (d) => `${d.email} (${d.reason})`,
+          (d) => `Row ${d.rowNumber}: ${d.email} (${d.reason})`,
         ),
       })
       if (result.created.length > 0) {

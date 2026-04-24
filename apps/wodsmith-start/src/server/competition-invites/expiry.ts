@@ -58,7 +58,7 @@ export async function sweepExpiredInvites(
   }
 
   const ids = candidates.map((c) => c.id)
-  await db
+  const updateResult = await db
     .update(competitionInvitesTable)
     .set({
       status: COMPETITION_INVITE_STATUS.EXPIRED,
@@ -80,5 +80,15 @@ export async function sweepExpiredInvites(
       ),
     )
 
-  return { transitioned: ids.length }
+  // Drizzle's mysql2 driver returns `[ResultSetHeader, FieldPacket[]]`,
+  // while the planetscale-serverless driver returns an object with
+  // `rowsAffected`. Read both shapes so the count reflects what actually
+  // transitioned — `ids.length` overstates the count whenever the
+  // re-check predicate filtered some candidates.
+  const transitioned =
+    (updateResult as unknown as { rowsAffected?: number }).rowsAffected ??
+    (updateResult as unknown as [{ affectedRows?: number }])[0]?.affectedRows ??
+    0
+
+  return { transitioned }
 }

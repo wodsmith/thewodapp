@@ -36,14 +36,12 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  COMPETITION_INVITE_ORIGIN,
-  type CompetitionInvite,
-} from "@/db/schemas/competition-invites"
+import { COMPETITION_INVITE_ORIGIN } from "@/db/schemas/competition-invites"
 import { usePostHog } from "@/lib/posthog"
 import type { RosterRow } from "@/server/competition-invites/roster"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import {
+  type ActiveInviteSummary,
   getChampionshipRosterFn,
   listActiveInvitesFn,
   listInviteSourcesFn,
@@ -117,7 +115,7 @@ export const Route = createFileRoute(
               championshipDivisionId: firstDivisionId,
             },
           })
-        : Promise.resolve({ invites: [] as CompetitionInvite[] }),
+        : Promise.resolve({ invites: [] as ActiveInviteSummary[] }),
     ])
 
     return {
@@ -179,7 +177,7 @@ function InvitesPage() {
   )
 
   const activeInviteByEmail = useMemo(() => {
-    const map = new Map<string, CompetitionInvite>()
+    const map = new Map<string, ActiveInviteSummary>()
     for (const inv of activeInvites) {
       if (inv.activeMarker === "active") {
         map.set(`${inv.championshipDivisionId}::${inv.email.toLowerCase()}`, inv)
@@ -195,10 +193,15 @@ function InvitesPage() {
           inv.origin === COMPETITION_INVITE_ORIGIN.BESPOKE &&
           inv.championshipDivisionId === activeDivisionId &&
           inv.activeMarker === "active" &&
-          !inv.claimTokenHash,
+          !inv.hasClaimToken,
       ),
     [activeInvites, activeDivisionId],
   )
+
+  const isRowAlreadyInvited = (r: RosterRow) =>
+    !!activeInviteByEmail.get(
+      `${r.championshipDivisionId}::${(r.athleteEmail ?? "").toLowerCase()}`,
+    )
 
   const sendableRosterRows = useMemo(
     () =>
@@ -206,9 +209,7 @@ function InvitesPage() {
         (r: RosterRow) =>
           !!r.athleteEmail &&
           selectedRosterKeys.has(rosterRowKey(r)) &&
-          !activeInviteByEmail.get(
-            `${r.championshipDivisionId}::${(r.athleteEmail ?? "").toLowerCase()}`,
-          ),
+          !isRowAlreadyInvited(r),
       ),
     [roster.rows, selectedRosterKeys, activeInviteByEmail],
   )
@@ -252,8 +253,14 @@ function InvitesPage() {
     setSelectedRosterKeys(() => {
       if (!selectAll) return new Set()
       const next = new Set<string>()
+      // Exclude rows that already have an active invite — they would be
+      // dropped from `recipients` anyway, and including them in select-all
+      // makes the "Send invites (N)" count silently disagree with the
+      // visible checked-box count.
       for (const r of roster.rows) {
-        if (r.athleteEmail) next.add(rosterRowKey(r))
+        if (r.athleteEmail && !isRowAlreadyInvited(r)) {
+          next.add(rosterRowKey(r))
+        }
       }
       return next
     })
@@ -327,6 +334,7 @@ function InvitesPage() {
             selectedKeys={selectedRosterKeys}
             onToggleSelection={toggleRosterSelection}
             onToggleAll={toggleAllRoster}
+            isRowAlreadyInvited={isRowAlreadyInvited}
           />
 
           <section className="space-y-3">

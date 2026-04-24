@@ -1090,16 +1090,40 @@ export const createBespokeInvitesBulkFn = createServerFn({ method: "POST" })
   })
 
 /**
+ * Organizer-facing projection of an active invite. Drops sensitive token
+ * fields (`claimTokenHash`, `claimTokenLast4`) — the organizer client
+ * only needs identity + classification info to render the bespoke
+ * section and overlay invite state on source roster rows.
+ *
+ * `hasClaimToken` lets the UI distinguish staged drafts (no token yet)
+ * from already-sent invites without exposing the hash itself.
+ */
+export interface ActiveInviteSummary {
+  id: string
+  email: string
+  origin: CompetitionInvite["origin"]
+  status: CompetitionInvite["status"]
+  championshipDivisionId: string
+  activeMarker: CompetitionInvite["activeMarker"]
+  bespokeReason: string | null
+  inviteeFirstName: string | null
+  inviteeLastName: string | null
+  userId: string | null
+  hasClaimToken: boolean
+}
+
+/**
  * List all active invites for a championship+division. Used by the
  * organizer invites route to render the bespoke section + invite state
  * overlays on source roster rows. Phase 2: returns every active row
- * regardless of origin so the UI can classify.
+ * regardless of origin so the UI can classify. Returns a minimal DTO so
+ * the raw token columns never reach the client.
  */
 export const listActiveInvitesFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) =>
     listBespokeInvitesInputSchema.parse(data),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<{ invites: ActiveInviteSummary[] }> => {
     const session = await getSessionFromCookie()
     if (!session?.userId) throw new Error("Not authenticated")
 
@@ -1121,8 +1145,21 @@ export const listActiveInvitesFn = createServerFn({ method: "GET" })
         )
 
         const db = getDb()
-        const invites = await db
-          .select()
+        const rows = await db
+          .select({
+            id: competitionInvitesTable.id,
+            email: competitionInvitesTable.email,
+            origin: competitionInvitesTable.origin,
+            status: competitionInvitesTable.status,
+            championshipDivisionId:
+              competitionInvitesTable.championshipDivisionId,
+            activeMarker: competitionInvitesTable.activeMarker,
+            bespokeReason: competitionInvitesTable.bespokeReason,
+            inviteeFirstName: competitionInvitesTable.inviteeFirstName,
+            inviteeLastName: competitionInvitesTable.inviteeLastName,
+            userId: competitionInvitesTable.userId,
+            claimTokenHash: competitionInvitesTable.claimTokenHash,
+          })
           .from(competitionInvitesTable)
           .where(
             and(
@@ -1141,6 +1178,12 @@ export const listActiveInvitesFn = createServerFn({ method: "GET" })
             ),
           )
 
+        const invites: ActiveInviteSummary[] = rows.map(
+          ({ claimTokenHash, ...rest }) => ({
+            ...rest,
+            hasClaimToken: claimTokenHash !== null,
+          }),
+        )
         return { invites }
       },
     )

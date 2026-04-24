@@ -10,7 +10,7 @@
  */
 
 import { useServerFn } from "@tanstack/react-start"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -79,6 +79,20 @@ export function SendInvitesDialog({
     sentCount: number
     skippedCount: number
   } | null>(null)
+
+  // Reset transient state whenever the dialog closes — covers Cancel,
+  // Close, Escape, click-outside, and any external `open={false}` toggle.
+  // Without this, a reopen flashes the prior "Queued N invite emails"
+  // alert and the footer is stuck in "Close" mode.
+  useEffect(() => {
+    if (open) return
+    setSubject("You're invited")
+    setBodyText("")
+    setDeadline(defaultDeadline())
+    setSubmitting(false)
+    setError(null)
+    setResult(null)
+  }, [open])
 
   const onSubmit = async () => {
     if (!deadline) {

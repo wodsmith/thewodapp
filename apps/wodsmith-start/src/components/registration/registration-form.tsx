@@ -760,11 +760,14 @@ export function RegistrationForm({
 
   // Determine if submit should be disabled. Invite-locked registrations
   // bypass the registration-window check (matching the server fn) so an
-  // invitee can complete checkout before public open / after close.
+  // invitee can complete checkout before public open / after close. The
+  // same bypass is applied to all form inputs below — otherwise the
+  // submit button is enabled but the required fields stay frozen.
   const competitionFull = competitionCapacity?.isFull ?? false
+  const inputsDisabled =
+    isSubmitting || (!registrationOpen && !isInviteLocked)
   const submitDisabled =
-    isSubmitting ||
-    (!registrationOpen && !isInviteLocked) ||
+    inputsDisabled ||
     competitionFull ||
     !hasSelectedDivisions ||
     !affiliateName.trim() ||
@@ -942,7 +945,7 @@ export function RegistrationForm({
                   registeredDivisionIds={registeredDivisionIdSet}
                   removedDivisionIds={removedDivisionIdSet}
                   onToggle={handleDivisionToggle}
-                  disabled={isSubmitting || !registrationOpen || competitionFull}
+                  disabled={inputsDisabled || competitionFull}
                 />
                 {/* Selected divisions shown as badges */}
                 {hasSelectedDivisions && (
@@ -961,7 +964,7 @@ export function RegistrationForm({
                             type="button"
                             onClick={() => handleDivisionToggle(id, false)}
                             className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
-                            disabled={isSubmitting || !registrationOpen}
+                            disabled={inputsDisabled}
                           >
                             <X className="w-3 h-3" />
                           </button>
@@ -996,7 +999,7 @@ export function RegistrationForm({
                 value={affiliateName}
                 onChange={setAffiliateName}
                 placeholder="Search or select affiliate..."
-                disabled={isSubmitting || !registrationOpen}
+                disabled={inputsDisabled}
               />
               <p className="text-xs text-muted-foreground">
                 Your gym or affiliate name will be displayed on leaderboards
@@ -1026,7 +1029,7 @@ export function RegistrationForm({
                       <Select
                         onValueChange={(val) => updateAnswer(question.id, val)}
                         value={answer?.answer || undefined}
-                        disabled={isSubmitting || !registrationOpen}
+                        disabled={inputsDisabled}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select an option" />
@@ -1046,7 +1049,7 @@ export function RegistrationForm({
                         onChange={(e) =>
                           updateAnswer(question.id, e.target.value)
                         }
-                        disabled={isSubmitting || !registrationOpen}
+                        disabled={inputsDisabled}
                       />
                     ) : (
                       <Input
@@ -1054,7 +1057,7 @@ export function RegistrationForm({
                         onChange={(e) =>
                           updateAnswer(question.id, e.target.value)
                         }
-                        disabled={isSubmitting || !registrationOpen}
+                        disabled={inputsDisabled}
                       />
                     )}
                     {question.helpText && (
@@ -1180,7 +1183,7 @@ export function RegistrationForm({
                     onChange={(e) =>
                       updateTeamEntry(division.id, "teamName", e.target.value)
                     }
-                    disabled={isSubmitting || !registrationOpen}
+                    disabled={inputsDisabled}
                   />
                   <p className="text-xs text-muted-foreground">
                     This will be displayed on leaderboards
@@ -1267,7 +1270,7 @@ export function RegistrationForm({
                                 e.target.value,
                               )
                             }
-                            disabled={isSubmitting || !registrationOpen}
+                            disabled={inputsDisabled}
                           />
                         </div>
 
@@ -1285,7 +1288,7 @@ export function RegistrationForm({
                                   e.target.value,
                                 )
                               }
-                              disabled={isSubmitting || !registrationOpen}
+                              disabled={inputsDisabled}
                             />
                           </div>
                           <div className="space-y-2">
@@ -1301,7 +1304,7 @@ export function RegistrationForm({
                                   e.target.value,
                                 )
                               }
-                              disabled={isSubmitting || !registrationOpen}
+                              disabled={inputsDisabled}
                             />
                           </div>
                         </div>
@@ -1319,7 +1322,7 @@ export function RegistrationForm({
                               )
                             }
                             placeholder="Search or enter affiliate..."
-                            disabled={isSubmitting || !registrationOpen}
+                            disabled={inputsDisabled}
                           />
                         </div>
                       </div>
@@ -1373,7 +1376,7 @@ export function RegistrationForm({
                       onCheckedChange={(checked) =>
                         handleWaiverCheckChange(waiver.id, checked === true)
                       }
-                      disabled={isSubmitting || !registrationOpen}
+                      disabled={inputsDisabled}
                     />
                     <Label
                       htmlFor={`waiver-${waiver.id}`}
