@@ -56,7 +56,7 @@ The `activeMarker` column is the correctness pivot: it holds the literal `"activ
 
 Draft bespoke rows (created before any send) use a distinctive shape: `activeMarker = "active"`, `claimTokenHash = NULL`, `expiresAt = NULL`, `emailDeliveryStatus = "skipped"`. The unique-active index blocks duplicate bespoke adds for the same (championship, division, email). Secondary indexes cover the organizer table queries — `(roundId)`, `(sourceId)`, `(origin)`, `(status)`, `(email)`, plus `(championshipCompetitionId)` and `(userId)` for roster-side joins.
 
-Phase 2 uses `roundId = ""` as a sentinel pending the Phase 3 `competition_invite_rounds` table; the column is NOT NULL with a default of `""` so a Phase-3 backfill can rewrite every Phase-2 row to a synthetic "Round 1 — Backfill" without schema gymnastics.
+Phase 3 makes `roundId` a logical FK into `competition_invite_rounds` and nullable. NULL means "draft bespoke not yet picked into a send" — the row sits in the bespoke section of the roster until the organizer issues it as part of a real round. The Phase-2 sentinel default is gone; new invites must always carry a real round id (or NULL, for drafts). [[apps/wodsmith-start/scripts/backfill-invite-rounds.ts]] handles the migration: for every championship with sentinel rows it creates a synthetic "Round 1 — Backfill" row (status=`sent`), re-attributes every issued invite to it, and clears the remaining drafts to `roundId = NULL`. Idempotent on re-run.
 
 ## Token helpers
 
@@ -183,3 +183,47 @@ Running `pnpm db:seed` populates `competition_invite_sources` with a ready-to-de
 Scenario defined by [[apps/wodsmith-start/scripts/seed/seeders/20-competition-invites.ts]]: a championship competition "2026 WODsmith Invitational" (`comp_inv_championship`) receiving invites from three sources — a Regional Qualifier (`comp_inv_qualifier`) with 5 scored Men's RX athletes + allocation 3 that triggers the roster cutoff divider, Boise Throwdown (`comp_mwfc_a`) reusing MWFC series fixtures, and the MWFC series itself to demo the Series card + sub-tabs. The seeder sits after `19-broadcasts` and its tables are cleaned ahead of competitions in [[apps/wodsmith-start/scripts/seed/cleanup.ts]] (`competition_invites` then `competition_invite_sources`).
 
 The same seeder adds six Phase-2 `competition_invites` rows, one per lifecycle state, so the invite-row shapes are inspectable in Drizzle Studio without manual editing: a pending source-derived invite for Mike, an `accepted_paid` invite for Ryan (activeMarker still "active", claim token nulled), an `expired` invite for Alex (activeMarker NULL), a `declined` invite for Sarah, a draft bespoke invite ("active but no token" shape), and a sent bespoke invite. Tokens use deterministic plaintexts (`seed-invite-mike-pending-men-rx-phase2` / `seed-invite-ryan-expired-men-rx-phase2`) that the seeder logs on run — SHA-256 of those strings reproduces the `claim_token_hash` column so a dev can recover a working claim URL without re-running the seed.
+
+## Rounds schema
+
+Each round is a wave of invites with subject/body/deadline metadata and a send-lifecycle status. Defined by [[apps/wodsmith-start/src/db/schemas/competition-invites.ts#competitionInviteRoundsTable]] with ULID primary keys via [[apps/wodsmith-start/src/db/schemas/common.ts#createCompetitionInviteRoundId]] (`crnd_` prefix).
+
+`roundNumber` is dense per championship — the helper assigns `max(roundNumber) + 1` at draft creation and a unique index on `(championshipCompetitionId, roundNumber)` keeps the numbering coherent. The state machine column `status` cycles `draft → sending → sent | failed`; only `draft` rows are mutable. `recipientCount` is set by the send transition and stored so the timeline view can render counts without an aggregate over `competition_invites`. `bodyJson` holds a serialized React Email composition — Phase 3 stores a stub `{ kind: "plaintext", body }` shape; Phase 4 finalizes the schema. `emailTemplateId` stays NULL until templates land in Phase 4.
+
+## Round helpers
+
+State-machine helpers live in [[apps/wodsmith-start/src/server/competition-invites/rounds.ts]]. They use conditional UPDATEs guarded on the prior status — Vitess does not support cross-shard `SELECT ... FOR UPDATE`, so the affected-rows count is the way we tell whether we won the race.
+
+[[apps/wodsmith-start/src/server/competition-invites/rounds.ts#createRoundDraft]] runs in a transaction, snapshots `max(roundNumber)`, and inserts the new row at `nextRoundNumber = max + 1`. Concurrent drafts race here; the loser hits the unique-roundNumber index and the caller can retry.
+
+[[apps/wodsmith-start/src/server/competition-invites/rounds.ts#updateRoundDraft]] pins `status = "draft"` in the WHERE clause so a concurrent send can't be silently overwritten — a 0-row outcome surfaces as [[apps/wodsmith-start/src/server/competition-invites/rounds.ts#RoundStateConflictError]] carrying the observed status, so the UI can refresh and show the timeline view instead.
+
+The send pipeline is split into three transitions so callers can compose them around their own work: [[apps/wodsmith-start/src/server/competition-invites/rounds.ts#beginSendingRound]] flips `draft → sending` (the double-click defense), the caller runs its insert/enqueue logic, and finalization is either [[apps/wodsmith-start/src/server/competition-invites/rounds.ts#finalizeRoundSend]] (`sending → sent`, sets `recipientCount` + `sentAt` + `sentByUserId`) or [[apps/wodsmith-start/src/server/competition-invites/rounds.ts#markRoundFailed]] (`sending → failed`, recoverable retry). We don't move backwards to `draft` from `failed` because partial invite rows may already exist.
+
+[[apps/wodsmith-start/src/server/competition-invites/rounds.ts#revokeActiveInvitesForEmails]] is the pre-send revoke used by R2-supersedes-R1 flows: it transitions every still-pending active invite for a given (championship, division, email-set) to `revoked` (nulls `claimTokenHash` + `activeMarker`) inside the caller's transaction, so the new round's inserts don't collide with the unique-active index. `accepted_paid` rows are left alone — re-inviting a paid athlete is a no-op anyway.
+
+## Round server fns
+
+The organizer endpoints live in [[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts]] alongside the existing source endpoints — same permission gate (`MANAGE_COMPETITIONS` on the championship's organizing team), same `withRequestContext` logging.
+
+[[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#createRoundDraftFn]] and [[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#updateRoundDraftFn]] wrap the helpers; updates also re-fetch the round to verify it belongs to the supplied championship before delegating. State-conflict errors are translated to a user-friendly "this round is no longer editable" message.
+
+[[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#listRoundsFn]] returns rounds in reverse-chronological order plus a per-round `counts` map keyed by invite status (one grouped COUNT query for all rounds in the response). The map drives the timeline progress bar + StatTick rows. [[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#getRoundDetailFn]] returns the round + every invite attached to it for the round detail page.
+
+[[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#issueInvitesFn]] (Phase 3 rewrite of the Phase-2 send button) now creates an implicit draft round per send when no `roundId` is supplied, transitions it to `sending`, performs the insert + enqueue, and finalizes to `sent`. Failures call `markRoundFailed` so the organizer can retry from the same draft once the cause is resolved. Returns the `roundId` so the UI can navigate to the round detail page after a successful send. The label fallback `"Round N"` is computed from the championship's existing rounds when the caller omits `roundLabel`.
+
+[[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#revokeInviteFn]] flips a single pending invite to `revoked`, nulls `claimTokenHash` + `activeMarker`, and rejects when the invite is no longer pending. Used by the roster row action.
+
+## Rounds timeline + detail UI
+
+The "Round History" tab renders [[apps/wodsmith-start/src/components/organizer/invites/rounds-timeline.tsx]] — vertical timeline cards mirroring the Phase-3 mockup, each linking through to a round detail page.
+
+Each card shows a numbered dot, status pill, label + subject header, RSVP + sent dates, a stacked progress bar split by invite status, and a 5-up StatTick row (paid / pending / declined / expired / revoked). Counts come from [[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#listRoundsFn]]'s grouped COUNT result so the timeline doesn't fan out per-round queries.
+
+The round detail route at [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/invites/rounds.$roundId.tsx]] (mounted as `/compete/organizer/$competitionId/invites/rounds/$roundId`) renders the round metadata header plus two grouped recipient tables — one for source-derived invites and one for bespoke. The status pill on each row mirrors the roster table's visual language.
+
+## Revoke row action
+
+[[apps/wodsmith-start/src/components/organizer/invites/championship-roster-table.tsx]] gains optional `getRevokableInviteId(row)` + `onRevoke(row, inviteId)` props that surface a per-row Revoke button only for rows mapped to a pending active invite.
+
+`accepted_paid` invites are not revokable from this UI and waitlist rows have no invite id to revoke. The parent route wires the action to a `window.confirm` prompt + [[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#revokeInviteFn]] + `router.invalidate()` on success. Revoking releases the unique-active index so the same email can be re-invited in a subsequent round without manual cleanup.
