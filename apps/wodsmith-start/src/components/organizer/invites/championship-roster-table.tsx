@@ -15,6 +15,7 @@
 
 import { Fragment } from "react"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   Table,
@@ -42,6 +43,13 @@ interface ChampionshipRosterTableProps {
    *  row's checkbox. Without this, the row would render as "Not invited"
    *  and let the organizer tick a box that the parent silently drops. */
   isRowAlreadyInvited?: (row: RosterRow) => boolean
+  /** Optional row-level invite identity lookup. Returning an `inviteId`
+   *  for a row makes the Revoke action available; returning null hides it.
+   *  Pending-only — accepted_paid invites are not revokable from this UI. */
+  getRevokableInviteId?: (row: RosterRow) => string | null
+  /** Called when the organizer clicks Revoke on a row. The parent owns the
+   *  confirmation flow and the eventual `revokeInviteFn` call. */
+  onRevoke?: (row: RosterRow, inviteId: string) => void
 }
 
 function RankCell({ placement }: { placement: number | null }) {
@@ -91,10 +99,13 @@ export function ChampionshipRosterTable({
   onToggleSelection,
   onToggleAll,
   isRowAlreadyInvited,
+  getRevokableInviteId,
+  onRevoke,
 }: ChampionshipRosterTableProps) {
   let cutoffDrawn = false
   const selectionEnabled =
     !!selectedKeys && !!onToggleSelection && !!onToggleAll
+  const revokeEnabled = !!getRevokableInviteId && !!onRevoke
   const isInvited = (r: RosterRow) => !!isRowAlreadyInvited?.(r)
   const selectableRows = rows.filter(
     (r) => !!r.athleteEmail && !isInvited(r),
@@ -103,7 +114,8 @@ export function ChampionshipRosterTable({
     selectionEnabled &&
     selectableRows.length > 0 &&
     selectableRows.every((r) => selectedKeys?.has(rosterRowKey(r)))
-  const colSpan = selectionEnabled ? 5 : 4
+  const colSpan =
+    (selectionEnabled ? 1 : 0) + (revokeEnabled ? 1 : 0) + 4
 
   return (
     <div className="space-y-4">
@@ -129,6 +141,9 @@ export function ChampionshipRosterTable({
               <TableHead>Athlete</TableHead>
               <TableHead>Qualified via</TableHead>
               <TableHead>Status</TableHead>
+              {revokeEnabled ? (
+                <TableHead className="w-24 text-right">Action</TableHead>
+              ) : null}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -187,6 +202,24 @@ export function ChampionshipRosterTable({
                     <TableCell>
                       <StatusPill alreadyInvited={rowAlreadyInvited} />
                     </TableCell>
+                    {revokeEnabled ? (
+                      <TableCell className="text-right">
+                        {(() => {
+                          const inviteId = getRevokableInviteId?.(row)
+                          if (!inviteId) return null
+                          return (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onRevoke?.(row, inviteId)}
+                              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            >
+                              Revoke
+                            </Button>
+                          )
+                        })()}
+                      </TableCell>
+                    ) : null}
                   </TableRow>
                 </Fragment>
               )

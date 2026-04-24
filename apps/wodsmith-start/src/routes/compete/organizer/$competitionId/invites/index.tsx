@@ -30,13 +30,20 @@ import {
 } from "@/components/organizer/invites/championship-roster-table"
 import { InviteSourcesList } from "@/components/organizer/invites/invite-sources-list"
 import {
+  RoundsTimeline,
+  type RoundTimelineEntry,
+} from "@/components/organizer/invites/rounds-timeline"
+import {
   SendInvitesDialog,
   type SendRecipient,
 } from "@/components/organizer/invites/send-invites-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { COMPETITION_INVITE_ORIGIN } from "@/db/schemas/competition-invites"
+import {
+  COMPETITION_INVITE_ORIGIN,
+  COMPETITION_INVITE_STATUS,
+} from "@/db/schemas/competition-invites"
 import { usePostHog } from "@/lib/posthog"
 import type { RosterRow } from "@/server/competition-invites/roster"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
@@ -45,6 +52,8 @@ import {
   getChampionshipRosterFn,
   listActiveInvitesFn,
   listInviteSourcesFn,
+  listRoundsFn,
+  revokeInviteFn,
 } from "@/server-fns/competition-invite-fns"
 
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
@@ -71,7 +80,7 @@ export const Route = createFileRoute(
     // listInviteSourcesFn enforces MANAGE_COMPETITIONS on the championship
     // team; it throws on missing permission, which the parent route's
     // error boundary handles consistently with the rest of the dashboard.
-    const [sourcesResult, divisionsResult] = await Promise.all([
+    const [sourcesResult, divisionsResult, roundsResult] = await Promise.all([
       listInviteSourcesFn({
         data: { championshipCompetitionId: params.competitionId },
       }),
@@ -80,6 +89,9 @@ export const Route = createFileRoute(
           competitionId: params.competitionId,
           teamId: competition.organizingTeamId,
         },
+      }),
+      listRoundsFn({
+        data: { championshipCompetitionId: params.competitionId },
       }),
     ])
     const {
@@ -127,6 +139,7 @@ export const Route = createFileRoute(
       roster,
       activeDivisionId: firstDivisionId,
       activeInvites: activeInvitesResult.invites,
+      rounds: roundsResult.rounds,
     }
   },
 })
@@ -141,6 +154,7 @@ function InvitesPage() {
     activeDivisionId,
     roster,
     activeInvites,
+    rounds,
   } = Route.useLoaderData()
   const { competition } = parentRoute.useLoaderData()
   const { competitionId } = Route.useParams()
@@ -202,6 +216,37 @@ function InvitesPage() {
     !!activeInviteByEmail.get(
       `${r.championshipDivisionId}::${(r.athleteEmail ?? "").toLowerCase()}`,
     )
+
+  const getRevokableInviteId = (r: RosterRow): string | null => {
+    const inv = activeInviteByEmail.get(
+      `${r.championshipDivisionId}::${(r.athleteEmail ?? "").toLowerCase()}`,
+    )
+    return inv && inv.status === COMPETITION_INVITE_STATUS.PENDING
+      ? inv.id
+      : null
+  }
+
+  const handleRevoke = async (row: RosterRow, inviteId: string) => {
+    const name = row.athleteName || row.athleteEmail || "this invite"
+    if (
+      !window.confirm(
+        `Revoke the pending invite for ${name}? Their claim link will stop working.`,
+      )
+    )
+      return
+    try {
+      await revokeInviteFn({
+        data: {
+          inviteId,
+          championshipCompetitionId: competitionId,
+        },
+      })
+      router.invalidate()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to revoke."
+      window.alert(message)
+    }
+  }
 
   const sendableRosterRows = useMemo(
     () =>
@@ -317,8 +362,13 @@ function InvitesPage() {
         <TabsList>
           <TabsTrigger value="roster">Roster</TabsTrigger>
           <TabsTrigger value="sources">Sources</TabsTrigger>
-          <TabsTrigger value="rounds" disabled>
+          <TabsTrigger value="rounds">
             Round History
+            {rounds.length > 0 ? (
+              <span className="ml-1.5 rounded-full bg-muted px-1.5 text-xs tabular-nums">
+                {rounds.length}
+              </span>
+            ) : null}
           </TabsTrigger>
           <TabsTrigger value="templates" disabled>
             Email Templates
@@ -335,6 +385,8 @@ function InvitesPage() {
             onToggleSelection={toggleRosterSelection}
             onToggleAll={toggleAllRoster}
             isRowAlreadyInvited={isRowAlreadyInvited}
+            getRevokableInviteId={getRevokableInviteId}
+            onRevoke={handleRevoke}
           />
 
           <section className="space-y-3">
@@ -403,9 +455,10 @@ function InvitesPage() {
         </TabsContent>
 
         <TabsContent value="rounds" className="mt-4">
-          <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-            Round history arrives in Phase 3.
-          </div>
+          <RoundsTimeline
+            competitionId={competitionId}
+            rounds={rounds as RoundTimelineEntry[]}
+          />
         </TabsContent>
 
         <TabsContent value="templates" className="mt-4">
