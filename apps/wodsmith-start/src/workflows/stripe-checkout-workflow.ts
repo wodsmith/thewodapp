@@ -45,6 +45,11 @@ import {
   notifyRegistrationConfirmed,
   registerForCompetition,
 } from "@/server/registration"
+import {
+  assertInviteClaimable,
+  findActiveInviteForEmail,
+} from "@/server/competition-invites/claim"
+import { normalizeInviteEmail } from "@/server/competition-invites/issue"
 import { recordRedemption, cleanupStripeCoupon } from "@/server/coupons"
 import {
   recordPaymentCompleted,
@@ -451,6 +456,33 @@ async function createRegistration(
     }
   }
 
+  // If the athlete has an active claimable invite for this division, the
+  // invite is the authorization to register and the public window does not
+  // apply (organizers hand-pick athletes outside the open window). The
+  // pre-checkout server fn lets these purchases through; we need to do the
+  // same lookup here so `registerForCompetition` doesn't re-gate them at
+  // the post-Stripe step.
+  const userRow = await db.query.userTable.findFirst({
+    where: eq(userTable.id, userId),
+    columns: { email: true },
+  })
+  let inviteAuthorized = false
+  if (userRow?.email) {
+    const probe = await findActiveInviteForEmail({
+      championshipCompetitionId: competitionId,
+      championshipDivisionId: divisionId,
+      email: normalizeInviteEmail(userRow.email),
+    })
+    if (probe) {
+      try {
+        assertInviteClaimable(probe)
+        inviteAuthorized = true
+      } catch {
+        // expired/declined/revoked — fall through to public-window gate
+      }
+    }
+  }
+
   // Create the registration
   try {
     const result = await registerForCompetition({
@@ -460,6 +492,7 @@ async function createRegistration(
       teamName: registrationData.teamName,
       affiliateName: registrationData.affiliateName,
       teammates: registrationData.teammates,
+      isOrganizerOverride: inviteAuthorized,
     })
 
     // Update registration with payment info
