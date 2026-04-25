@@ -17,7 +17,8 @@
  */
 
 import { createFileRoute, Link, redirect } from "@tanstack/react-router"
-import { AlertCircle, CheckCircle2, UserX } from "lucide-react"
+import { AlertCircle, CheckCircle2, LogOut, UserX } from "lucide-react"
+import { useState } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -31,6 +32,7 @@ import {
   type InviteClaimableError,
   identityMatch,
 } from "@/server/competition-invites/identity"
+import { logoutFn } from "@/server-fns/auth-fns"
 import { getInviteByTokenFn } from "@/server-fns/competition-invite-fns"
 
 type Branch =
@@ -40,7 +42,12 @@ type Branch =
       divisionLabel: string
       championshipName: string
     }
-  | { kind: "wrong_account"; championshipName: string; inviteEmail: string }
+  | {
+      kind: "wrong_account"
+      championshipName: string
+      inviteEmail: string
+      accountExistsForInviteEmail: boolean
+    }
   | { kind: "invalid"; reason: InviteClaimableError; championshipName?: string }
 
 export const Route = createFileRoute("/compete/$slug/claim/$token")({
@@ -93,6 +100,7 @@ export const Route = createFileRoute("/compete/$slug/claim/$token")({
         kind: "wrong_account",
         championshipName: result.championshipName,
         inviteEmail: result.invite.email,
+        accountExistsForInviteEmail: result.accountExistsForInviteEmail,
       }
     }
 
@@ -127,8 +135,10 @@ function ClaimPage() {
     return (
       <WrongAccount
         slug={slug}
+        token={token}
         championshipName={data.championshipName}
         inviteEmail={data.inviteEmail}
+        accountExistsForInviteEmail={data.accountExistsForInviteEmail}
       />
     )
   }
@@ -200,9 +210,34 @@ function ClaimablePage(props: {
 
 function WrongAccount(props: {
   slug: string
+  token: string
   championshipName: string
   inviteEmail: string
+  accountExistsForInviteEmail: boolean
 }) {
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+
+  // After logout, send the visitor straight to sign-in (or sign-up when no
+  // account exists for the invited email) with the email pre-filled and the
+  // claim URL set as the post-auth redirect — so the post-auth flow re-runs
+  // the claim loader and lands them on the happy path.
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+    try {
+      await logoutFn()
+    } catch (error) {
+      console.error("Logout error:", error)
+    }
+    const authPath = props.accountExistsForInviteEmail ? "/sign-in" : "/sign-up"
+    const claimUrl = `/compete/${props.slug}/claim/${props.token}`
+    const search = new URLSearchParams({
+      redirect: claimUrl,
+      email: props.inviteEmail,
+      invite: props.token,
+    })
+    window.location.href = `${authPath}?${search.toString()}`
+  }
+
   return (
     <div className="mx-auto max-w-xl px-4 py-12">
       <Card>
@@ -220,21 +255,20 @@ function WrongAccount(props: {
         <CardContent className="space-y-4">
           <Alert>
             <AlertDescription>
-              You're signed in as a different email. The invite was sent to{" "}
-              <span className="font-medium">{props.inviteEmail}</span>. Sign out
-              and sign in with that address to continue.
+              You're signed in as a different email. This invite was sent to{" "}
+              <span className="font-medium">{props.inviteEmail}</span>. Log out
+              to continue as that address.
             </AlertDescription>
           </Alert>
-          <Button asChild className="w-full" size="lg" variant="outline">
-            <Link
-              to="/sign-in"
-              search={{
-                redirect: `/compete/${props.slug}/invite-pending`,
-                email: props.inviteEmail,
-              }}
-            >
-              Sign in as {props.inviteEmail}
-            </Link>
+          <Button
+            type="button"
+            className="w-full"
+            size="lg"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            {isLoggingOut ? "Logging out…" : "Log out"}
           </Button>
         </CardContent>
       </Card>

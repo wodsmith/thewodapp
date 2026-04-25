@@ -12,12 +12,15 @@
  */
 
 import { env } from "cloudflare:workers"
+import { encodeHexLowerCase } from "@oslojs/encoding"
 import { createServerFn } from "@tanstack/react-start"
+import { getCookie } from "@tanstack/react-start/server"
 import { eq } from "drizzle-orm"
 import { z } from "zod"
 import {
   EMAIL_VERIFICATION_TOKEN_EXPIRATION_SECONDS,
   PASSWORD_RESET_TOKEN_EXPIRATION_SECONDS,
+  SESSION_COOKIE_NAME,
 } from "@/constants"
 import { getDb } from "@/db"
 import { teamMembershipTable, teamTable, userTable } from "@/db/schema"
@@ -41,7 +44,10 @@ import {
 import {
   canSignUp,
   createAndStoreSession,
+  deleteActiveTeamCookie,
+  deleteSessionTokenCookie,
   getSessionFromCookie,
+  invalidateSession,
 } from "@/utils/auth"
 import {
   createToken,
@@ -441,6 +447,36 @@ export const getSessionFn = createServerFn({ method: "GET" }).handler(
     return await getSessionFromCookie()
   },
 )
+
+/**
+ * Sign out the current session — invalidates the session in KV and clears
+ * the session + active-team cookies. Safe to call when no session exists
+ * (returns success without doing anything).
+ */
+export const logoutFn = createServerFn({ method: "POST" }).handler(async () => {
+  const sessionCookie = getCookie(SESSION_COOKIE_NAME)
+
+  if (sessionCookie) {
+    const parts = sessionCookie.split(":")
+    if (parts.length === 2 && parts[0] && parts[1]) {
+      const userId = parts[0]
+      const token = parts[1]
+
+      const hashBuffer = await crypto.subtle.digest(
+        "SHA-256",
+        new TextEncoder().encode(token),
+      )
+      const sessionId = encodeHexLowerCase(new Uint8Array(hashBuffer))
+
+      await invalidateSession(sessionId, userId)
+    }
+  }
+
+  await deleteSessionTokenCookie()
+  await deleteActiveTeamCookie()
+
+  return { success: true }
+})
 
 /**
  * Validate reset token exists and is not expired
