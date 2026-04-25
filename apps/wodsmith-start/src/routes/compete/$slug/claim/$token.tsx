@@ -52,6 +52,18 @@ export const Route = createFileRoute("/compete/$slug/claim/$token")({
     })
 
     if (result.kind === "not_claimable") {
+      // Already-registered athletes shouldn't see a destructive "error" page —
+      // they're not in an error state, they just landed on the wrong page.
+      // Send them to their registration view. Covers both an invite that was
+      // already consumed (status = accepted_paid) and the cross-check against
+      // an active registration created via any lane.
+      if (result.reason === "already_paid") {
+        throw redirect({
+          to: "/compete/$slug/registered",
+          params: { slug: params.slug },
+          search: { session_id: undefined, registration_id: undefined },
+        })
+      }
       return {
         kind: "invalid",
         reason: result.reason,
@@ -286,13 +298,6 @@ function invalidReasonCopy(reason: InviteClaimableError): {
         headline: "Invite revoked",
         description:
           "The organizer has revoked this invite. If that's a mistake, reach out to them directly.",
-      }
-    case "already_paid":
-      return {
-        title: "You're already registered",
-        headline: "Registration complete",
-        description:
-          "This invite has already been claimed and paid. Head to your competitions dashboard to see the event.",
       }
     default:
       return {

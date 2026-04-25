@@ -92,6 +92,10 @@ The split exists because Vite chokes on `cloudflare:workers` when bundling clien
 
 [[apps/wodsmith-start/src/server/competition-invites/identity.ts#identityMatch]] is the pure email-lock gate. Given `{ email }` from the session (or `null`) plus the invite plus an `accountExistsForInviteEmail` boolean (resolved by the caller against `userTable`), it returns the discriminated result the route loader branches on: `{ ok: true }`, `{ ok: false, reason: "wrong_account" | "needs_sign_in" | "needs_sign_up" }`. Case-insensitive on both sides so `Mike@Example.com` and `mike@example.com` compare equal.
 
+[[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#getInviteByTokenFn]] also cross-checks `competition_registrations` when the visitor is signed in as the invited identity: a non-removed row for `(eventId, userId, divisionId)` short-circuits to `not_claimable` with reason `already_paid`. This is the correct defense because it works regardless of which lane (public, organizer-manual, or prior invite claim) created the registration and regardless of where this invite is in its lifecycle — a still-`pending` invite for an already-registered athlete should not re-enter the payment flow.
+
+The `already_paid` reason is treated as a soft outcome by the route, not an error: the loader `redirect`s to `/compete/$slug/registered` instead of rendering a destructive alert. Already-registered athletes aren't in an error state — they just landed on the wrong page.
+
 ## Claim routes
 
 The athlete-facing surfaces live under `apps/wodsmith-start/src/routes/compete/$slug/claim/`.
