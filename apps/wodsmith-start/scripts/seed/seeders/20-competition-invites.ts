@@ -1,5 +1,13 @@
+import { createHash } from "node:crypto"
 import type { Connection } from "mysql2/promise"
-import { batchInsert, futureDate, now, pastDate } from "../helpers"
+import {
+	batchInsert,
+	futureDate,
+	futureDatetime,
+	now,
+	pastDate,
+	pastDatetime,
+} from "../helpers"
 import {
 	computeSortKey,
 	sortKeyToString,
@@ -326,6 +334,242 @@ export async function seed(client: Connection): Promise<void> {
 		{ sourceDivisionId: "slvl_mwfc_a_mrx", championshipDivisionId: "slvl_inv_champ_mrx" },
 		{ sourceDivisionId: "slvl_mwfc_a_wrx", championshipDivisionId: "slvl_inv_champ_wrx" },
 		{ sourceDivisionId: "slvl_mwfc_a_sc", championshipDivisionId: "slvl_inv_champ_sc" },
+	])
+
+	// ════════════════════════════════════════════════════════════════════
+	// 4. Phase 2 invite rows — one per lifecycle state so dev can inspect
+	//    every row-shape in db:studio without manual edits.
+	//
+	//    Tokens are deterministic so the organizer can actually click a
+	//    claim link. They are clearly marked as seed-only — do not ship
+	//    these to prod.
+	// ════════════════════════════════════════════════════════════════════
+
+	function sha256Hex(value: string): string {
+		return createHash("sha256").update(value).digest("hex")
+	}
+
+	function tokenArtifacts(plaintext: string) {
+		return {
+			hash: sha256Hex(plaintext),
+			last4: plaintext.slice(-4),
+		}
+	}
+
+	const SEED_PENDING_TOKEN = "seed-invite-mike-pending-men-rx-phase2"
+	const SEED_EXPIRED_TOKEN = "seed-invite-ryan-expired-men-rx-phase2"
+	const mikeToken = tokenArtifacts(SEED_PENDING_TOKEN)
+	const ryanToken = tokenArtifacts(SEED_EXPIRED_TOKEN)
+
+	console.log(
+		`    seed tokens — pending: ${SEED_PENDING_TOKEN} / expired: ${SEED_EXPIRED_TOKEN}`,
+	)
+
+	await batchInsert(client, "competition_invites", [
+		// 1. Pending source-derived invite for mike (Men's RX, top 1 from Qualifier).
+		{
+			id: "cinv_seed_pending_mike",
+			championship_competition_id: "comp_inv_championship",
+			round_id: "",
+			origin: "source",
+			source_id: "cisrc_seed_qualifier",
+			source_competition_id: "comp_inv_qualifier",
+			source_placement: 1,
+			source_placement_label: "1st — Regional Qualifier",
+			bespoke_reason: null,
+			championship_division_id: "slvl_inv_champ_mrx",
+			email: "mike@wodsmith.com",
+			user_id: "usr_athlete_mike",
+			invitee_first_name: "Mike",
+			invitee_last_name: null,
+			claim_token_hash: mikeToken.hash,
+			claim_token_last4: mikeToken.last4,
+			expires_at: futureDatetime(14),
+			send_attempt: 1,
+			status: "pending",
+			paid_at: null,
+			declined_at: null,
+			revoked_at: null,
+			revoked_by_user_id: null,
+			claimed_registration_id: null,
+			email_delivery_status: "sent",
+			email_last_error: null,
+			active_marker: "active",
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		// 2. Accepted + paid invite for ryan (Men's RX, top 2 from Qualifier).
+		//    Shows the happy-path terminal state: claimTokenHash nulled,
+		//    paidAt set, claimedRegistrationId linked. activeMarker stays
+		//    "active" so a second claim short-circuits to "already registered".
+		{
+			id: "cinv_seed_accepted_ryan",
+			championship_competition_id: "comp_inv_championship",
+			round_id: "",
+			origin: "source",
+			source_id: "cisrc_seed_qualifier",
+			source_competition_id: "comp_inv_qualifier",
+			source_placement: 2,
+			source_placement_label: "2nd — Regional Qualifier",
+			bespoke_reason: null,
+			championship_division_id: "slvl_inv_champ_mrx",
+			email: "ryan@wodsmith.com",
+			user_id: "usr_athlete_ryan",
+			invitee_first_name: "Ryan",
+			invitee_last_name: null,
+			claim_token_hash: null, // nulled on terminal transition
+			claim_token_last4: null,
+			expires_at: futureDatetime(14),
+			send_attempt: 1,
+			status: "accepted_paid",
+			paid_at: now(),
+			declined_at: null,
+			revoked_at: null,
+			revoked_by_user_id: null,
+			claimed_registration_id: null, // real reg wired up in Phase 2 sub-arc C
+			email_delivery_status: "sent",
+			email_last_error: null,
+			active_marker: "active", // stays active for paid
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		// 3. Expired invite for a third Men's RX athlete. activeMarker nulled
+		//    so the slot can be re-invited without colliding on the unique index.
+		{
+			id: "cinv_seed_expired_alex",
+			championship_competition_id: "comp_inv_championship",
+			round_id: "",
+			origin: "source",
+			source_id: "cisrc_seed_qualifier",
+			source_competition_id: "comp_inv_qualifier",
+			source_placement: 3,
+			source_placement_label: "3rd — Regional Qualifier",
+			bespoke_reason: null,
+			championship_division_id: "slvl_inv_champ_mrx",
+			email: "alex@wodsmith.com",
+			user_id: "usr_athlete_alex",
+			invitee_first_name: "Alex",
+			invitee_last_name: null,
+			claim_token_hash: null,
+			claim_token_last4: null,
+			expires_at: pastDatetime(2),
+			send_attempt: 1,
+			status: "expired",
+			paid_at: null,
+			declined_at: null,
+			revoked_at: null,
+			revoked_by_user_id: null,
+			claimed_registration_id: null,
+			email_delivery_status: "sent",
+			email_last_error: null,
+			active_marker: null, // nulled on terminal transition
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		// 4. Declined invite for sarah (Women's RX top 1).
+		{
+			id: "cinv_seed_declined_sarah",
+			championship_competition_id: "comp_inv_championship",
+			round_id: "",
+			origin: "source",
+			source_id: "cisrc_seed_qualifier",
+			source_competition_id: "comp_inv_qualifier",
+			source_placement: 1,
+			source_placement_label: "1st — Regional Qualifier",
+			bespoke_reason: null,
+			championship_division_id: "slvl_inv_champ_wrx",
+			email: "sarah@wodsmith.com",
+			user_id: "usr_athlete_sarah",
+			invitee_first_name: "Sarah",
+			invitee_last_name: null,
+			claim_token_hash: null,
+			claim_token_last4: null,
+			expires_at: futureDatetime(14),
+			send_attempt: 1,
+			status: "declined",
+			paid_at: null,
+			declined_at: now(),
+			revoked_at: null,
+			revoked_by_user_id: null,
+			claimed_registration_id: null,
+			email_delivery_status: "sent",
+			email_last_error: null,
+			active_marker: null,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		// 5. Draft bespoke invite — organizer staged but hasn't sent yet.
+		//    activeMarker = "active" so the unique-active index blocks
+		//    duplicate staging; claim token is still NULL.
+		{
+			id: "cinv_seed_bespoke_draft_champion",
+			championship_competition_id: "comp_inv_championship",
+			round_id: "",
+			origin: "bespoke",
+			source_id: null,
+			source_competition_id: null,
+			source_placement: null,
+			source_placement_label: null,
+			bespoke_reason: "Past champion",
+			championship_division_id: "slvl_inv_champ_mrx",
+			email: "returning-champ@example.com",
+			user_id: null,
+			invitee_first_name: "Returning",
+			invitee_last_name: "Champion",
+			claim_token_hash: null,
+			claim_token_last4: null,
+			expires_at: null,
+			send_attempt: 0,
+			status: "pending",
+			paid_at: null,
+			declined_at: null,
+			revoked_at: null,
+			revoked_by_user_id: null,
+			claimed_registration_id: null,
+			email_delivery_status: "skipped",
+			email_last_error: null,
+			active_marker: "active",
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		// 6. Bespoke invite already sent to a sponsored athlete (pending).
+		{
+			id: "cinv_seed_bespoke_sent_sponsor",
+			championship_competition_id: "comp_inv_championship",
+			round_id: "",
+			origin: "bespoke",
+			source_id: null,
+			source_competition_id: null,
+			source_placement: null,
+			source_placement_label: null,
+			bespoke_reason: "Sponsored athlete",
+			championship_division_id: "slvl_inv_champ_wrx",
+			email: "sponsor-athlete@example.com",
+			user_id: null,
+			invitee_first_name: "Sponsored",
+			invitee_last_name: "Athlete",
+			claim_token_hash: ryanToken.hash, // reuse deterministic seed token
+			claim_token_last4: ryanToken.last4,
+			expires_at: futureDatetime(14),
+			send_attempt: 1,
+			status: "pending",
+			paid_at: null,
+			declined_at: null,
+			revoked_at: null,
+			revoked_by_user_id: null,
+			claimed_registration_id: null,
+			email_delivery_status: "sent",
+			email_last_error: null,
+			active_marker: "active",
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
 	])
 
 	await batchInsert(client, "competition_invite_sources", [

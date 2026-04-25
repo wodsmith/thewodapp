@@ -4,6 +4,8 @@ ADR-0011 ships a qualification-source → roster → invite-round system for cha
 
 Phase 1 is read-only: declarative sources, a roster table that joins source leaderboards with invite-state columns set to null, and the organizer route shell. Schema lives in [[apps/wodsmith-start/src/db/schemas/competition-invites.ts]]. ADR reference: `docs/adr/0011-competition-invites.md`.
 
+Phase 2 (in progress) lays the data + logic groundwork for email-locked single-send invites: per-athlete invite rows in `competition_invites`, SHA-256-hashed claim tokens, server-side issue + reissue helpers, and bespoke staging. Routes, Stripe workflow wiring, email queue, and the organizer UI follow in the remaining sub-arcs.
+
 ## Sources schema
 
 A qualification source attached to a championship competition. Each row references either a single competition or a series (never both); allocation and division-mapping columns describe how many invitees the source contributes.
@@ -46,8 +48,44 @@ Both the sidebar link and the route page are gated on the PostHog feature flag `
 
 Pattern mirrors the existing `competition-global-leaderboard` gate in [[apps/wodsmith-start/src/routes/compete/organizer/series/$groupId/leaderboard.tsx]] — `posthog.isFeatureEnabled()` seeds state, `posthog.onFeatureFlags()` subscribes to flag updates. The gate only compares `=== true` / `=== false` so the `undefined` pre-load state neither shows the link nor triggers a redirect, avoiding flicker.
 
+## Invites schema
+
+Each invite is a per-athlete row in [[apps/wodsmith-start/src/db/schemas/competition-invites.ts#competitionInvitesTable]] carrying the email-locked claim token, status, and origin attribution. ULID primary keys via [[apps/wodsmith-start/src/db/schemas/common.ts#createCompetitionInviteId]].
+
+The `activeMarker` column is the correctness pivot: it holds the literal `"active"` while `status IN (pending, accepted_paid)` and is NULL on every terminal state. Combined with the unique index `(championshipCompetitionId, email, championshipDivisionId, activeMarker)` this enforces "at most one active invite per (championship, division, email)" while letting declined/expired/revoked rows accumulate (MySQL treats multiple NULLs as distinct). The unique index on `claimTokenHash` exploits the same semantics — terminal transitions null the hash so historical rows coexist. `sendAttempt` (default 0) is the re-send counter that drives the Resend `Idempotency-Key` suffix; reusing `invite.id` across re-issues stays safe because the suffix rotates.
+
+Draft bespoke rows (created before any send) use a distinctive shape: `activeMarker = "active"`, `claimTokenHash = NULL`, `expiresAt = NULL`, `emailDeliveryStatus = "skipped"`. The unique-active index blocks duplicate bespoke adds for the same (championship, division, email). Secondary indexes cover the organizer table queries — `(roundId)`, `(sourceId)`, `(origin)`, `(status)`, `(email)`, plus `(championshipCompetitionId)` and `(userId)` for roster-side joins.
+
+Phase 2 uses `roundId = ""` as a sentinel pending the Phase 3 `competition_invite_rounds` table; the column is NOT NULL with a default of `""` so a Phase-3 backfill can rewrite every Phase-2 row to a synthetic "Round 1 — Backfill" without schema gymnastics.
+
+## Token helpers
+
+Claim tokens are 32-byte URL-safe random strings, hashed with SHA-256 before they touch the DB. Helpers live in [[apps/wodsmith-start/src/lib/competition-invites/tokens.ts]].
+
+[[apps/wodsmith-start/src/lib/competition-invites/tokens.ts#generateInviteClaimTokenPlaintext]] uses `crypto.getRandomValues` + base64url-no-padding (via `@oslojs/encoding`) so every character carries entropy and the result is safe in a URL path; [[apps/wodsmith-start/src/lib/competition-invites/tokens.ts#hashInviteClaimToken]] returns lowercase hex that matches the `varchar(64)` column exactly; [[apps/wodsmith-start/src/lib/competition-invites/tokens.ts#inviteClaimTokenLast4]] exposes the support-facing display suffix. The one-shot [[apps/wodsmith-start/src/lib/competition-invites/tokens.ts#generateInviteClaimToken]] returns `{ token, hash, last4 }` so all three artifacts derive from the same plaintext and the plaintext never has a chance to escape the email path. Pure functions — safe to call from server functions, workflows, queue consumers, and tests.
+
+## Issue helpers
+
+The DB-side-only layer that writes invite rows lives in [[apps/wodsmith-start/src/server/competition-invites/issue.ts]]. It never renders HTML and never enqueues — that belongs to the `issueInvitesFn` server fn in a later sub-arc.
+
+[[apps/wodsmith-start/src/server/competition-invites/issue.ts#issueInvitesForRecipients]] runs in a single transaction: it snapshots existing active invites for the recipient emails, treats matches as `alreadyActive` (annotated with `isDraft` when the row has no `claimTokenHash` yet so the caller can choose to reissue instead of skip), and inserts fresh rows for the rest. Each new row carries a freshly generated token hash, `activeMarker = "active"`, `status = "pending"`, and `sendAttempt = 0`. The return shape `{ inserted, alreadyActive }` hands the caller the *plaintext* tokens for the just-inserted rows — the only moment the plaintext exists in process memory before it's templated into an outgoing email.
+
+[[apps/wodsmith-start/src/server/competition-invites/issue.ts#reissueInvite]] rotates the token on an existing row in place, increments `sendAttempt`, bumps `expiresAt`, restores `activeMarker = "active"`, and flips `expired` rows back to `pending`. It covers both the "extend an expired invite" path and the "activate a draft bespoke invite" path (draft rows have `claimTokenHash = NULL`; reissue installs the first token). Preserving `invite.id` across rotations keeps Stripe metadata, webhook correlation, and audit queries stable. Both helpers reject via [[apps/wodsmith-start/src/server/competition-invites/issue.ts#FreeCompetitionNotEligibleError]] when the target division resolves to a $0 registration fee — free competitions are scope-trimmed out of invites in the MVP (ADR-0011 "Capacity Math → Free competitions").
+
+[[apps/wodsmith-start/src/server/competition-invites/issue.ts#normalizeInviteEmail]] (trim + lowercase) is the canonical normalizer — applied at every write, every lookup, and every identity match so the email lock compares apples to apples.
+
+## Bespoke helpers
+
+Bespoke staging lives in [[apps/wodsmith-start/src/server/competition-invites/bespoke.ts]]. A draft bespoke invite stages a row the organizer can later include in a send; it has the distinctive "active but no token" shape described in "Invites schema".
+
+[[apps/wodsmith-start/src/server/competition-invites/bespoke.ts#createBespokeInvite]] validates the email format, rejects free divisions, checks the unique-active invariant, and inserts a draft row. [[apps/wodsmith-start/src/server/competition-invites/bespoke.ts#createBespokeInvitesBulk]] accepts a paste body — CSV, TSV (Google Sheets paste), or one-email-per-line — parses rows via [[apps/wodsmith-start/src/server/competition-invites/bespoke.ts#parseBespokePaste]], normalizes emails, dedups within-batch, checks cross-batch against existing active invites, and inserts the survivors. Duplicates and invalid rows come back as `BulkDuplicateRow[]` / `BulkInvalidRow[]` — structured results, not exceptions — so the organizer UI can render row-level inline feedback. The paste is capped at `BESPOKE_BULK_MAX_ROWS` (500, per ADR-0011 OQ#8).
+
+The line parser auto-detects delimiter per line — tab wins when present so a Google Sheets column paste keeps comma-containing fields intact — and skips literal header rows whose first column is `email` (case-insensitive). A division-hint column is accepted for copy-paste compatibility but ignored in Phase 2 (the caller always passes `championshipDivisionId` explicitly).
+
 ## Seed data
 
 Running `pnpm db:seed` populates `competition_invite_sources` with a ready-to-demo scenario so the organizer `/invites` route renders non-empty. Phase 1 has no source-creation UI, so seeding is the only path to exercise the live tabs.
 
-Scenario defined by [[apps/wodsmith-start/scripts/seed/seeders/20-competition-invites.ts]]: a championship competition "2026 WODsmith Invitational" (`comp_inv_championship`) receiving invites from three sources — a Regional Qualifier (`comp_inv_qualifier`) with 5 scored Men's RX athletes + allocation 3 that triggers the roster cutoff divider, Boise Throwdown (`comp_mwfc_a`) reusing MWFC series fixtures, and the MWFC series itself to demo the Series card + sub-tabs. The seeder sits after `19-broadcasts` and its table is cleaned ahead of competitions in [[apps/wodsmith-start/scripts/seed/cleanup.ts]].
+Scenario defined by [[apps/wodsmith-start/scripts/seed/seeders/20-competition-invites.ts]]: a championship competition "2026 WODsmith Invitational" (`comp_inv_championship`) receiving invites from three sources — a Regional Qualifier (`comp_inv_qualifier`) with 5 scored Men's RX athletes + allocation 3 that triggers the roster cutoff divider, Boise Throwdown (`comp_mwfc_a`) reusing MWFC series fixtures, and the MWFC series itself to demo the Series card + sub-tabs. The seeder sits after `19-broadcasts` and its tables are cleaned ahead of competitions in [[apps/wodsmith-start/scripts/seed/cleanup.ts]] (`competition_invites` then `competition_invite_sources`).
+
+The same seeder adds six Phase-2 `competition_invites` rows, one per lifecycle state, so the invite-row shapes are inspectable in Drizzle Studio without manual editing: a pending source-derived invite for Mike, an `accepted_paid` invite for Ryan (activeMarker still "active", claim token nulled), an `expired` invite for Alex (activeMarker NULL), a `declined` invite for Sarah, a draft bespoke invite ("active but no token" shape), and a sent bespoke invite. Tokens use deterministic plaintexts (`seed-invite-mike-pending-men-rx-phase2` / `seed-invite-ryan-expired-men-rx-phase2`) that the seeder logs on run — SHA-256 of those strings reproduces the `claim_token_hash` column so a dev can recover a working claim URL without re-running the seed.
