@@ -636,6 +636,10 @@ export const declineInviteFn = createServerFn({ method: "POST" })
       )
     }
 
+    if (!session.user.emailVerified) {
+      throw new Error("Email not verified")
+    }
+
     return withRequestContext(
       {
         userId: session.userId,

@@ -56,6 +56,7 @@ export interface RegistrationFormProps {
 
 interface PublicProps extends RegistrationFormProps {
   registrationOpen: boolean
+  inviteToken?: string
 }
 
 interface InviteProps extends RegistrationFormProps {
@@ -199,12 +200,14 @@ export function InviteRegistrationForm(props: InviteProps) {
   // already registered, removed), fall back to the public flow so the
   // athlete can pick a different division rather than seeing nothing.
   if (!r.invitedDivision) {
-    const {
-      initialDivisionId: _ignored,
-      inviteToken: __ignored,
-      ...rest
-    } = props
-    return <PublicRegistrationForm {...rest} registrationOpen={true} />
+    const { initialDivisionId: _ignored, inviteToken, ...rest } = props
+    return (
+      <PublicRegistrationForm
+        {...rest}
+        registrationOpen={true}
+        inviteToken={inviteToken}
+      />
+    )
   }
 
   const submitDisabled =

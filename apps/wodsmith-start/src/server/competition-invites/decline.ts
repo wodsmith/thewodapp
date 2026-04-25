@@ -54,9 +54,7 @@ export async function declineInvite(params: {
   // terminal transitions are idempotent from the route's perspective, so
   // we fail loud only if the row disappeared entirely.
   const affected =
-    (result as unknown as { rowsAffected?: number }).rowsAffected ??
-    (result as unknown as [{ affectedRows?: number }])[0]?.affectedRows ??
-    0
+    (result as unknown as { affectedRows?: number }).affectedRows ?? 0
 
   if (affected === 0) {
     // Double-check — if the row exists but is already terminal, treat as

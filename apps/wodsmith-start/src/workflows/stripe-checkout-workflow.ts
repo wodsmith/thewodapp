@@ -48,6 +48,7 @@ import {
 import {
   assertInviteClaimable,
   findActiveInviteForEmail,
+  InviteNotClaimableError,
 } from "@/server/competition-invites/claim"
 import { normalizeInviteEmail } from "@/server/competition-invites/issue"
 import { recordRedemption, cleanupStripeCoupon } from "@/server/coupons"
@@ -477,7 +478,15 @@ async function createRegistration(
       try {
         assertInviteClaimable(probe)
         inviteAuthorized = true
-      } catch {
+      } catch (err) {
+        if (!(err instanceof InviteNotClaimableError)) {
+          logWarning({
+            message:
+              "[Workflow] Unexpected error from assertInviteClaimable; falling back to public-window gate",
+            error: err,
+            attributes: { purchaseId, competitionId, divisionId, userId },
+          })
+        }
         // expired/declined/revoked — fall through to public-window gate
       }
     }

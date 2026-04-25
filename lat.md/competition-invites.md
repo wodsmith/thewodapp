@@ -96,7 +96,7 @@ The split exists because Vite chokes on `cloudflare:workers` when bundling clien
 
 The athlete-facing surfaces live under `apps/wodsmith-start/src/routes/compete/$slug/claim/`.
 
-Phase 2 sub-arc B wires three pages: `$token.tsx` (claim landing), `$token/decline.tsx` (explicit decline), and a sibling `invite-pending.tsx` page for wrong-account recovery.
+Phase 2 sub-arc B wires three pages: [[apps/wodsmith-start/src/routes/compete/$slug/claim/$token.tsx|$token.tsx]] (claim landing), [[apps/wodsmith-start/src/routes/compete/$slug/claim/$token/decline.tsx|$token/decline.tsx]] (explicit decline), and a sibling [[apps/wodsmith-start/src/routes/compete/$slug/invite-pending.tsx|invite-pending.tsx]] page for wrong-account recovery.
 
 `$token.tsx` is the entry point clicked from the email. The loader calls [[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#getInviteByTokenFn]] — a public (session-free) server fn that resolves the token, confirms the invite's championship slug matches the URL (anti-typo guard), and returns either `{ kind: "not_claimable", reason }` or `{ kind: "claimable", invite, championshipName, divisionLabel, accountExistsForInviteEmail }`. The loader then runs `identityMatch` against `context.session`. The four-way branch is: happy-path → render pre-attached registration CTA; `wrong_account` → render "this invite is for a different account" page; `needs_sign_in` / `needs_sign_up` → `redirect` into `/sign-in?redirect=…&email=<invite.email>&invite=<token>` (or sign-up equivalent) so post-auth re-entry lands back on the claim page with a session that matches.
 

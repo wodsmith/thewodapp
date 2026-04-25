@@ -1,7 +1,7 @@
 import { Sparkles, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-type Props = {
+interface Props {
   championshipName: string
   divisionLabel: string
   teamSize: number
