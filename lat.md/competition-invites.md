@@ -227,3 +227,19 @@ The round detail route at [[apps/wodsmith-start/src/routes/compete/organizer/$co
 [[apps/wodsmith-start/src/components/organizer/invites/championship-roster-table.tsx]] gains optional `getRevokableInviteId(row)` + `onRevoke(row, inviteId)` props that surface a per-row Revoke button only for rows mapped to a pending active invite.
 
 `accepted_paid` invites are not revokable from this UI and waitlist rows have no invite id to revoke. The parent route wires the action to a `window.confirm` prompt + [[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#revokeInviteFn]] + `router.invalidate()` on success. Revoking releases the unique-active index so the same email can be re-invited in a subsequent round without manual cleanup.
+
+## Smart-select helpers
+
+Pure-function selectors live in [[apps/wodsmith-start/src/lib/competition-invites/smart-select.ts]] so the round-builder can compute "next N on leaderboard", "all draft bespoke", and "re-invite non-responders" client-side from the loader data the route already has.
+
+[[apps/wodsmith-start/src/lib/competition-invites/smart-select.ts#selectReinviteNonResponderEmails]] reads from the most recent `sent` round (resolved via [[apps/wodsmith-start/src/lib/competition-invites/smart-select.ts#pickMostRecentSentRound]]) and returns lower-cased emails for invites still in pending/expired/revoked. [[apps/wodsmith-start/src/lib/competition-invites/smart-select.ts#selectNextOnLeaderboard]] walks roster rows in order, picks the next N below-cutoff rows that have an email and aren't covered by the active-invites index. [[apps/wodsmith-start/src/lib/competition-invites/smart-select.ts#selectAllDraftBespoke]] returns every active bespoke invite without a token (the "draft" shape from "Invites schema"). [[apps/wodsmith-start/src/lib/competition-invites/smart-select.ts#indexActiveInvitesByDivisionEmail]] builds the `${divisionId}::${email}` lookup the next-N selector consumes.
+
+Living in `src/lib` means the round-builder Sheet can import them without dragging `cloudflare:workers` (server-only) into the client bundle. Multi-round flow coverage in [[apps/wodsmith-start/test/lib/competition-invites/round-flow.test.ts]] simulates a full R1 → R2 hand-off with mixed source + bespoke recipients, accepted_paid + declined + expired + pending statuses, and post-R1 staged drafts.
+
+## Round builder Sheet
+
+[[apps/wodsmith-start/src/components/organizer/invites/round-builder-sheet.tsx]] is the right-rail composer for a draft round, mirroring `docs/mockups/competition-invites/project/invites/round-builder.jsx` minus the email composer body (Phase 4 replaces the textarea with the structured composer).
+
+Layout: Quick Add 2x2 button grid (Next 5, Next 10, All draft bespoke, Re-invite non-responders), recipients chips grouped by origin (sources / bespoke), round details form (label, email subject, RSVP deadline, optional custom body), sticky footer with Cancel + Send. The "Re-invite non-responders" button fetches the most-recent-sent round's invites via [[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#getRoundDetailFn]] and hands the non-responder email list back to the parent route, which folds them into both the roster selection and the draft-bespoke selection. Submits through [[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#issueInvitesFn]] with `roundLabel` + `recipients`; the server creates the round, transitions it through `draft → sending → sent`, and returns the `roundId` for client-side navigation hooks.
+
+The "Compose round" button on the invites page header opens the Sheet alongside the existing simpler "Send invites" dialog so both flows coexist — quick send for ad-hoc rounds, builder for richer composition with quick-add helpers.

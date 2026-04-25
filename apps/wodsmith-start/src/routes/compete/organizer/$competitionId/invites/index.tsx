@@ -20,7 +20,7 @@ import {
   useNavigate,
   useRouter,
 } from "@tanstack/react-router"
-import { MailPlus, Upload, UserPlus } from "lucide-react"
+import { MailPlus, PencilLine, Upload, UserPlus } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { AddBespokeInviteeDialog } from "@/components/organizer/invites/add-bespoke-invitee-dialog"
 import { BulkAddInviteesDialog } from "@/components/organizer/invites/bulk-add-invitees-dialog"
@@ -29,6 +29,7 @@ import {
   rosterRowKey,
 } from "@/components/organizer/invites/championship-roster-table"
 import { InviteSourcesList } from "@/components/organizer/invites/invite-sources-list"
+import { RoundBuilderSheet } from "@/components/organizer/invites/round-builder-sheet"
 import {
   RoundsTimeline,
   type RoundTimelineEntry,
@@ -37,6 +38,14 @@ import {
   SendInvitesDialog,
   type SendRecipient,
 } from "@/components/organizer/invites/send-invites-dialog"
+import {
+  indexActiveInvitesByDivisionEmail,
+  pickMostRecentSentRound,
+  selectAllDraftBespoke,
+  selectNextOnLeaderboard,
+  type SmartSelectInviteSummary,
+  type SmartSelectRoundEntry,
+} from "@/lib/competition-invites/smart-select"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -183,6 +192,7 @@ function InvitesPage() {
   const [addSingleOpen, setAddSingleOpen] = useState(false)
   const [bulkOpen, setBulkOpen] = useState(false)
   const [sendOpen, setSendOpen] = useState(false)
+  const [builderOpen, setBuilderOpen] = useState(false)
   const [selectedRosterKeys, setSelectedRosterKeys] = useState<Set<string>>(
     () => new Set(),
   )
@@ -319,6 +329,72 @@ function InvitesPage() {
     })
   }
 
+  // Smart-select inputs: cast the loader-shape `activeInvites` and
+  // `rounds` to the helper-narrower types so the lib functions stay
+  // decoupled from the loader/server shapes.
+  const smartSelectInvites = activeInvites as SmartSelectInviteSummary[]
+  const smartSelectRounds = rounds as SmartSelectRoundEntry[]
+  const inviteIndexByEmail = useMemo(
+    () => indexActiveInvitesByDivisionEmail(smartSelectInvites),
+    [smartSelectInvites],
+  )
+  const mostRecentSentRoundId =
+    pickMostRecentSentRound(smartSelectRounds)?.round.id ?? null
+  const nextRoundNumber = (rounds[0]?.round.roundNumber ?? 0) + 1
+
+  const handleSelectNextN = (n: number) => {
+    if (!activeDivisionId) return
+    const next = selectNextOnLeaderboard({
+      rows: roster.rows,
+      invitesByDivisionEmail: inviteIndexByEmail,
+      count: n,
+    })
+    setSelectedRosterKeys((prev) => {
+      const merged = new Set(prev)
+      for (const r of next) merged.add(rosterRowKey(r as RosterRow))
+      return merged
+    })
+  }
+
+  const handleSelectAllDraftBespoke = () => {
+    const drafts = selectAllDraftBespoke(smartSelectInvites)
+    setSelectedDraftIds((prev) => {
+      const merged = new Set(prev)
+      for (const d of drafts) {
+        if (d.championshipDivisionId === activeDivisionId) merged.add(d.id)
+      }
+      return merged
+    })
+  }
+
+  const handleSelectReinviteNonResponders = (emails: string[]) => {
+    if (emails.length === 0) return
+    const emailSet = new Set(emails.map((e) => e.toLowerCase()))
+    setSelectedRosterKeys((prev) => {
+      const merged = new Set(prev)
+      for (const r of roster.rows) {
+        if (
+          r.athleteEmail &&
+          emailSet.has(r.athleteEmail.toLowerCase()) &&
+          !isRowAlreadyInvited(r)
+        ) {
+          merged.add(rosterRowKey(r))
+        }
+      }
+      return merged
+    })
+    // Bespoke recipients in the prior round are still tracked by their
+    // invite id on this side. Match by email against the current draft
+    // bespoke set so re-invite picks them up too.
+    setSelectedDraftIds((prev) => {
+      const merged = new Set(prev)
+      for (const d of draftBespokeInvites) {
+        if (emailSet.has(d.email.toLowerCase())) merged.add(d.id)
+      }
+      return merged
+    })
+  }
+
   if (flagEnabled === false) return null
 
   return (
@@ -347,6 +423,15 @@ function InvitesPage() {
           >
             <Upload className="mr-1 h-4 w-4" />
             Bulk add
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setBuilderOpen(true)}
+            disabled={!activeDivisionId}
+            title="Compose a full round with smart-select quick actions"
+          >
+            <PencilLine className="mr-1 h-4 w-4" />
+            Compose round
           </Button>
           <Button
             onClick={() => setSendOpen(true)}
@@ -498,6 +583,23 @@ function InvitesPage() {
             championshipCompetitionId={competitionId}
             championshipDivisionId={activeDivisionId}
             recipients={recipients}
+            onSent={() => {
+              setSelectedRosterKeys(new Set())
+              setSelectedDraftIds(new Set())
+              router.invalidate()
+            }}
+          />
+          <RoundBuilderSheet
+            open={builderOpen}
+            onOpenChange={setBuilderOpen}
+            championshipCompetitionId={competitionId}
+            championshipDivisionId={activeDivisionId}
+            recipients={recipients}
+            mostRecentSentRoundId={mostRecentSentRoundId}
+            defaultRoundNumber={nextRoundNumber}
+            onSelectNextN={handleSelectNextN}
+            onSelectAllDraftBespoke={handleSelectAllDraftBespoke}
+            onSelectReinviteNonResponders={handleSelectReinviteNonResponders}
             onSent={() => {
               setSelectedRosterKeys(new Set())
               setSelectedDraftIds(new Set())
