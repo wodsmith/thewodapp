@@ -28,13 +28,18 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import {
-  identityMatch,
   type InviteClaimableError,
+  identityMatch,
 } from "@/server/competition-invites/identity"
 import { getInviteByTokenFn } from "@/server-fns/competition-invite-fns"
 
 type Branch =
-  | { kind: "claimable"; divisionId: string; divisionLabel: string; championshipName: string }
+  | {
+      kind: "claimable"
+      divisionId: string
+      divisionLabel: string
+      championshipName: string
+    }
   | { kind: "wrong_account"; championshipName: string; inviteEmail: string }
   | { kind: "invalid"; reason: InviteClaimableError; championshipName?: string }
 
@@ -94,11 +99,16 @@ export const Route = createFileRoute("/compete/$slug/claim/$token")({
 })
 
 function ClaimPage() {
-  const { slug } = Route.useParams()
+  const { slug, token } = Route.useParams()
   const data = Route.useLoaderData()
 
   if (data.kind === "invalid") {
-    return <InvalidInvite reason={data.reason} championshipName={data.championshipName} />
+    return (
+      <InvalidInvite
+        reason={data.reason}
+        championshipName={data.championshipName}
+      />
+    )
   }
 
   if (data.kind === "wrong_account") {
@@ -114,6 +124,7 @@ function ClaimPage() {
   return (
     <ClaimablePage
       slug={slug}
+      token={token}
       divisionId={data.divisionId}
       divisionLabel={data.divisionLabel}
       championshipName={data.championshipName}
@@ -127,6 +138,7 @@ function ClaimPage() {
 
 function ClaimablePage(props: {
   slug: string
+  token: string
   divisionId: string
   divisionLabel: string
   championshipName: string
@@ -147,9 +159,8 @@ function ClaimablePage(props: {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Continue to registration and payment to claim your spot. This
-            invite is locked to your email — only this account can complete
-            the claim.
+            Continue to registration and payment to claim your spot. This invite
+            is locked to your email — only this account can complete the claim.
           </p>
           <Button asChild className="w-full" size="lg">
             <Link
@@ -158,11 +169,12 @@ function ClaimablePage(props: {
               search={{
                 canceled: undefined,
                 // Forward the invited division id so the registration form
-                // pre-selects (and pins) the right division — invites are
-                // locked to a single division at issue time. Phase 2D adds
-                // `invite=<token>` to this same hop so the paid registration
-                // can flip the invite to accepted_paid.
+                // pre-selects (and pins) the right division. The token lets
+                // the server bypass the public registration window and (in
+                // Phase 2D) settle the invite to accepted_paid via Stripe
+                // metadata.
                 divisionId: props.divisionId,
+                invite: props.token,
               }}
             >
               Continue to registration
@@ -186,7 +198,9 @@ function WrongAccount(props: {
           <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10">
             <UserX className="h-7 w-7 text-amber-600" />
           </div>
-          <CardTitle className="text-center">This invite is for a different account</CardTitle>
+          <CardTitle className="text-center">
+            This invite is for a different account
+          </CardTitle>
           <CardDescription className="text-center">
             {props.championshipName}
           </CardDescription>
@@ -195,8 +209,8 @@ function WrongAccount(props: {
           <Alert>
             <AlertDescription>
               You're signed in as a different email. The invite was sent to{" "}
-              <span className="font-medium">{props.inviteEmail}</span>. Sign
-              out and sign in with that address to continue.
+              <span className="font-medium">{props.inviteEmail}</span>. Sign out
+              and sign in with that address to continue.
             </AlertDescription>
           </Alert>
           <Button asChild className="w-full" size="lg" variant="outline">
