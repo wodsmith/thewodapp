@@ -232,7 +232,7 @@ The round detail route at [[apps/wodsmith-start/src/routes/compete/organizer/$co
 
 ## Smart-select helpers
 
-Pure-function selectors live in [[apps/wodsmith-start/src/lib/competition-invites/smart-select.ts]] so the round-builder can compute "next N on leaderboard", "all draft bespoke", and "re-invite non-responders" client-side from the loader data the route already has.
+Pure-function selectors live in [[apps/wodsmith-start/src/lib/competition-invites/smart-select.ts]] so the round-builder can compute "next N on leaderboard" and "all draft bespoke" from loader data the route already has; "re-invite non-responders" still fetches the prior round's invites on demand via [[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#getRoundDetailFn]].
 
 [[apps/wodsmith-start/src/lib/competition-invites/smart-select.ts#selectReinviteNonResponderEmails]] reads from the most recent `sent` round (resolved via [[apps/wodsmith-start/src/lib/competition-invites/smart-select.ts#pickMostRecentSentRound]]) and returns lower-cased emails for invites still in pending/expired/revoked. [[apps/wodsmith-start/src/lib/competition-invites/smart-select.ts#selectNextOnLeaderboard]] walks roster rows in order, picks the next N below-cutoff rows that have an email and aren't covered by the active-invites index. [[apps/wodsmith-start/src/lib/competition-invites/smart-select.ts#selectAllDraftBespoke]] returns every active bespoke invite without a token (the "draft" shape from "Invites schema"). [[apps/wodsmith-start/src/lib/competition-invites/smart-select.ts#indexActiveInvitesByDivisionEmail]] builds the `${divisionId}::${email}` lookup the next-N selector consumes.
 
