@@ -10,7 +10,10 @@ import { createFileRoute, notFound, redirect } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
 import { and, eq, inArray, isNotNull } from "drizzle-orm"
 import { z } from "zod"
-import { RegistrationForm } from "@/components/registration/registration-form"
+import {
+  InviteRegistrationForm,
+  PublicRegistrationForm,
+} from "@/components/registration/registration-form"
 import {
   competitionRegistrationAnswersTable,
   competitionRegistrationsTable,
@@ -32,6 +35,13 @@ import { getLocalDateKey } from "@/utils/date-utils"
 // Search params validation
 const registerSearchSchema = z.object({
   canceled: z.enum(["true", "false"]).optional().catch(undefined),
+  // Set when arriving from a competition-invite claim. The token is
+  // forwarded into `initiateRegistrationPaymentFn` so the paid registration
+  // flips the invite to `accepted_paid`. The invited division id is also
+  // passed through so the form pre-selects (and pins) the right division
+  // — invites are locked to the division they were issued for.
+  invite: z.string().min(1).optional().catch(undefined),
+  divisionId: z.string().min(1).optional().catch(undefined),
 })
 
 // Server function to get ALL user registrations for a competition
@@ -305,15 +315,17 @@ export const Route = createFileRoute("/compete/$slug/register")({
 
     // 6. Get scaling group and levels for divisions (via server function)
     // Also get public divisions for capacity info
-    const [{ scalingGroup }, { divisions: publicDivisions, competitionCapacity }] =
-      await Promise.all([
-        getScalingGroupWithLevelsFn({
-          data: { scalingGroupId: settings.divisions.scalingGroupId },
-        }),
-        getPublicCompetitionDivisionsFn({
-          data: { competitionId: competition.id },
-        }),
-      ])
+    const [
+      { scalingGroup },
+      { divisions: publicDivisions, competitionCapacity },
+    ] = await Promise.all([
+      getScalingGroupWithLevelsFn({
+        data: { scalingGroupId: settings.divisions.scalingGroupId },
+      }),
+      getPublicCompetitionDivisionsFn({
+        data: { competitionId: competition.id },
+      }),
+    ])
 
     if (
       !scalingGroup ||
@@ -388,7 +400,11 @@ function RegisterPage() {
     signedWaiverIds,
   } = Route.useLoaderData()
 
-  const { canceled } = Route.useSearch()
+  const {
+    canceled,
+    divisionId: initialDivisionId,
+    invite: inviteToken,
+  } = Route.useSearch()
 
   // Show error if divisions are not configured
   if (!divisionsConfigured || !scalingGroup) {
@@ -408,29 +424,47 @@ function RegisterPage() {
     )
   }
 
+  // Variant dispatch: presence of `?divisionId=...` (the only producer is the
+  // claim CTA) routes the athlete into the invite-aware variant. The server
+  // is the actual authority — it looks up the active pending invite for
+  // (session email, competition, division) and bypasses the public window if
+  // one exists, regardless of whether the URL also carried `?invite=<token>`.
+  // The token is decoration; the database invite row is the source of truth.
+  const sharedProps = {
+    competition,
+    scalingGroup,
+    publicDivisions,
+    competitionCapacity,
+    userId,
+    registrationOpensAt,
+    registrationClosesAt,
+    paymentCanceled: canceled === "true",
+    defaultAffiliateName,
+    waivers,
+    questions,
+    userFirstName,
+    userLastName,
+    userEmail,
+    registeredDivisionIds,
+    removedDivisionIds,
+    previousAnswers,
+    signedWaiverIds,
+  }
+
   return (
     <div className="mx-auto max-w-2xl">
-      <RegistrationForm
-        competition={competition}
-        scalingGroup={scalingGroup}
-        publicDivisions={publicDivisions}
-        competitionCapacity={competitionCapacity}
-        userId={userId}
-        registrationOpen={registrationOpen}
-        registrationOpensAt={registrationOpensAt}
-        registrationClosesAt={registrationClosesAt}
-        paymentCanceled={canceled === "true"}
-        defaultAffiliateName={defaultAffiliateName}
-        waivers={waivers}
-        questions={questions}
-        userFirstName={userFirstName}
-        userLastName={userLastName}
-        userEmail={userEmail}
-        registeredDivisionIds={registeredDivisionIds}
-        removedDivisionIds={removedDivisionIds}
-        previousAnswers={previousAnswers}
-        signedWaiverIds={signedWaiverIds}
-      />
+      {initialDivisionId ? (
+        <InviteRegistrationForm
+          {...sharedProps}
+          initialDivisionId={initialDivisionId}
+          inviteToken={inviteToken}
+        />
+      ) : (
+        <PublicRegistrationForm
+          {...sharedProps}
+          registrationOpen={registrationOpen}
+        />
+      )}
     </div>
   )
 }

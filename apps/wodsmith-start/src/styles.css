@@ -65,6 +65,10 @@
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
   --animate-card-enter: card-enter 0.4s ease-out backwards;
+  --animate-invite-rise: invite-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  --animate-invite-glow: invite-glow 6s ease-in-out infinite;
+  --animate-invite-shimmer: invite-shimmer 2.4s linear infinite;
+  --animate-invite-spark: invite-spark 3.2s ease-in-out infinite;
 }
 
 @keyframes accordion-down {
@@ -96,10 +100,80 @@
   }
 }
 
+@keyframes invite-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes invite-glow {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.015);
+  }
+}
+
+@keyframes invite-shimmer {
+  0% {
+    transform: translateX(-120%) skewX(-12deg);
+  }
+  100% {
+    transform: translateX(220%) skewX(-12deg);
+  }
+}
+
+@keyframes invite-spark {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: rotate(8deg) scale(1.12);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   @keyframes card-enter {
     from {
       opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes invite-rise {
+    from {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes invite-glow {
+    0%,
+    100% {
+      opacity: 0.6;
+      transform: none;
+    }
+  }
+  @keyframes invite-shimmer {
+    0%,
+    100% {
+      transform: translateX(-120%) skewX(-12deg);
+    }
+  }
+  @keyframes invite-spark {
+    0%,
+    100% {
+      opacity: 0.6;
       transform: none;
     }
   }

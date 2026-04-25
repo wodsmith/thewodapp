@@ -16,21 +16,38 @@
 // @lat: [[competition-invites#Source server fns]]
 
 import { createServerFn } from "@tanstack/react-start"
-import { eq, inArray, sql } from "drizzle-orm"
+import { and, eq, inArray, ne, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
-import { COMPETITION_INVITE_SOURCE_KIND } from "@/db/schemas/competition-invites"
+import {
+  COMPETITION_INVITE_SOURCE_KIND,
+  COMPETITION_INVITE_STATUS,
+} from "@/db/schemas/competition-invites"
 import {
   competitionGroupsTable,
+  competitionRegistrationsTable,
   competitionsTable,
+  REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
+import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { userTable } from "@/db/schemas/users"
 import {
   logEntityCreated,
   logEntityDeleted,
   logEntityUpdated,
+  logInfo,
+  logWarning,
   withRequestContext,
 } from "@/lib/logging"
+import {
+  assertInviteClaimable,
+  type InviteClaimableError,
+  InviteNotClaimableError,
+  resolveInviteByToken,
+} from "@/server/competition-invites/claim"
+import { declineInvite } from "@/server/competition-invites/decline"
+import { normalizeInviteEmail } from "@/server/competition-invites/issue"
 import { getChampionshipRoster } from "@/server/competition-invites/roster"
 import {
   createSource,
@@ -99,6 +116,16 @@ const getChampionshipRosterInputSchema = z.object({
       statuses: z.array(z.string()).optional(),
     })
     .optional(),
+})
+
+const getInviteByTokenInputSchema = z.object({
+  token: z.string().min(1),
+  slug: z.string().min(1),
+})
+
+const declineInviteInputSchema = z.object({
+  token: z.string().min(1),
+  slug: z.string().min(1),
 })
 
 // ============================================================================
@@ -480,6 +507,239 @@ export const getChampionshipRosterFn = createServerFn({ method: "GET" })
           filters: data.filters,
         })
         return { rows }
+      },
+    )
+  })
+
+// ============================================================================
+// Athlete-facing: resolve an invite by its plaintext token
+// ============================================================================
+
+/**
+ * Public (unauthenticated) lookup of an invite by its URL-bound claim token.
+ *
+ * Called from the claim route loader — not a server fn a logged-in user
+ * invokes via UI. The handler intentionally does *no* session check: the
+ * invite's own email-lock + identity-match (run in the loader against
+ * `context.session`) is the authorization boundary for this feature.
+ *
+ * The response is a discriminated union so the loader can switch once and
+ * render the right page without a cascade of optional fields.
+ */
+export const getInviteByTokenFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => getInviteByTokenInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    return withRequestContext(
+      {
+        serverFn: "getInviteByTokenFn",
+        attributes: { slug: data.slug, tokenLast4: data.token.slice(-4) },
+      },
+      async () => {
+        const invite = await resolveInviteByToken(data.token)
+        if (!invite) {
+          logInfo({
+            message: "[Invites] Claim token did not resolve",
+            attributes: { slug: data.slug, tokenLast4: data.token.slice(-4) },
+          })
+          return { kind: "not_claimable" as const, reason: "not_found" as InviteClaimableError }
+        }
+
+        const db = getDb()
+
+        // Verify the token's invite belongs to the competition in the URL.
+        // Anti-typo guard: if a user mis-pastes a link they'd otherwise get
+        // a confusing "right competition, wrong invite" experience.
+        const [champ] = await db
+          .select({
+            id: competitionsTable.id,
+            slug: competitionsTable.slug,
+            name: competitionsTable.name,
+          })
+          .from(competitionsTable)
+          .where(eq(competitionsTable.id, invite.championshipCompetitionId))
+          .limit(1)
+
+        if (!champ || champ.slug !== data.slug) {
+          logWarning({
+            message: "[Invites] Token slug mismatch",
+            attributes: {
+              slug: data.slug,
+              tokenLast4: data.token.slice(-4),
+              inviteChampionshipId: invite.championshipCompetitionId,
+            },
+          })
+          return { kind: "not_claimable" as const, reason: "not_found" as InviteClaimableError }
+        }
+
+        try {
+          assertInviteClaimable(invite)
+        } catch (err) {
+          if (err instanceof InviteNotClaimableError) {
+            return {
+              kind: "not_claimable" as const,
+              reason: err.reason,
+              championshipName: champ.name,
+            }
+          }
+          throw err
+        }
+
+        const [division, account, session] = await Promise.all([
+          db
+            .select({
+              id: scalingLevelsTable.id,
+              label: scalingLevelsTable.label,
+            })
+            .from(scalingLevelsTable)
+            .where(eq(scalingLevelsTable.id, invite.championshipDivisionId))
+            .limit(1)
+            .then((rows) => rows[0] ?? null),
+          db
+            .select({ id: userTable.id })
+            .from(userTable)
+            .where(eq(userTable.email, normalizeInviteEmail(invite.email)))
+            .limit(1)
+            .then((rows) => rows[0] ?? null),
+          getSessionFromCookie(),
+        ])
+
+        // Cross-check: if the visitor is signed in as the invited identity and
+        // already has an active registration for this (competition, division),
+        // short-circuit to "already_paid" regardless of which lane (public,
+        // organizer-manual, prior invite claim) created that registration.
+        const sessionEmail = session?.user?.email
+        if (
+          sessionEmail &&
+          normalizeInviteEmail(sessionEmail) ===
+            normalizeInviteEmail(invite.email)
+        ) {
+          const [existingReg] = await db
+            .select({ id: competitionRegistrationsTable.id })
+            .from(competitionRegistrationsTable)
+            .where(
+              and(
+                eq(
+                  competitionRegistrationsTable.eventId,
+                  invite.championshipCompetitionId,
+                ),
+                eq(competitionRegistrationsTable.userId, session.userId),
+                eq(
+                  competitionRegistrationsTable.divisionId,
+                  invite.championshipDivisionId,
+                ),
+                ne(
+                  competitionRegistrationsTable.status,
+                  REGISTRATION_STATUS.REMOVED,
+                ),
+              ),
+            )
+            .limit(1)
+          if (existingReg) {
+            return {
+              kind: "not_claimable" as const,
+              reason: "already_paid" as InviteClaimableError,
+              championshipName: champ.name,
+            }
+          }
+        }
+
+        return {
+          kind: "claimable" as const,
+          invite,
+          championshipName: champ.name,
+          championshipSlug: champ.slug,
+          divisionLabel: division?.label ?? "",
+          accountExistsForInviteEmail: !!account,
+        }
+      },
+    )
+  })
+
+// ============================================================================
+// Athlete-facing: decline an invite
+// ============================================================================
+
+/**
+ * Decline an invite via the `/compete/$slug/claim/$token/decline` route.
+ *
+ * Requires the visitor to be signed in as the invited email — this is the
+ * identity-match gate so a stolen link can't be used to silently decline
+ * someone else's invite. We re-run the resolve + match here rather than
+ * trusting the route loader, because a server fn may be called directly
+ * and the client is never the source of authority.
+ */
+export const declineInviteFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => declineInviteInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    const sessionEmail = session?.user?.email
+    if (!sessionEmail) {
+      throw new Error(
+        "You must be signed in to decline an invite.",
+      )
+    }
+
+    if (!session.user.emailVerified) {
+      throw new Error("Email not verified")
+    }
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "declineInviteFn",
+        attributes: { slug: data.slug, tokenLast4: data.token.slice(-4) },
+      },
+      async () => {
+        const invite = await resolveInviteByToken(data.token)
+        if (!invite) {
+          logInfo({
+            message: "[Invites] Decline: token did not resolve",
+            attributes: { tokenLast4: data.token.slice(-4) },
+          })
+          return { ok: false as const, reason: "not_found" as InviteClaimableError }
+        }
+
+        try {
+          assertInviteClaimable(invite)
+        } catch (err) {
+          if (err instanceof InviteNotClaimableError) {
+            return { ok: false as const, reason: err.reason }
+          }
+          throw err
+        }
+
+        const normalizedSessionEmail = normalizeInviteEmail(sessionEmail)
+        if (normalizedSessionEmail !== normalizeInviteEmail(invite.email)) {
+          logWarning({
+            message: "[Invites] Decline: identity mismatch",
+            attributes: {
+              inviteId: invite.id,
+              tokenLast4: data.token.slice(-4),
+            },
+          })
+          throw new Error(
+            "This invite is for a different account. Sign in with the invited email to decline it.",
+          )
+        }
+
+        // Also verify the invite belongs to the competition in the URL.
+        const [champ] = await getDb()
+          .select({ slug: competitionsTable.slug })
+          .from(competitionsTable)
+          .where(eq(competitionsTable.id, invite.championshipCompetitionId))
+          .limit(1)
+        if (!champ || champ.slug !== data.slug) {
+          return { ok: false as const, reason: "not_found" as InviteClaimableError }
+        }
+
+        await declineInvite({ inviteId: invite.id })
+        logEntityUpdated({
+          entity: "competition_invite",
+          id: invite.id,
+          attributes: { status: COMPETITION_INVITE_STATUS.DECLINED },
+        })
+
+        return { ok: true as const }
       },
     )
   })

@@ -280,6 +280,7 @@ describe('StripeCheckoutWorkflow', () => {
         teamName: undefined,
         affiliateName: undefined,
         teammates: undefined,
+        isOrganizerOverride: false,
       })
     })
 
