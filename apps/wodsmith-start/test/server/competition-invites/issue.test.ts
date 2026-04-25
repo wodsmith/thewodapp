@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from "vitest"
-import { COMPETITION_INVITE_ORIGIN } from "@/db/schemas/competition-invites"
+import {
+  COMPETITION_INVITE_ORIGIN,
+  COMPETITION_INVITE_STATUS,
+  type CompetitionInvite,
+} from "@/db/schemas/competition-invites"
 import {
   assertRecipientOriginValid,
+  classifyExistingInvite,
   FreeCompetitionNotEligibleError,
   InviteIssueValidationError,
   issueInvitesForRecipients,
@@ -25,6 +30,62 @@ describe("normalizeInviteEmail", () => {
     expect(normalizeInviteEmail("  CAROL@Example.com\t")).toBe(
       "carol@example.com",
     )
+  })
+})
+
+describe("classifyExistingInvite", () => {
+  function existing(
+    partial: Partial<
+      Pick<CompetitionInvite, "id" | "status" | "claimTokenHash">
+    >,
+  ): Pick<CompetitionInvite, "id" | "status" | "claimTokenHash"> {
+    return {
+      id: "cinv_existing",
+      status: COMPETITION_INVITE_STATUS.PENDING,
+      claimTokenHash: "a".repeat(64),
+      ...partial,
+    }
+  }
+
+  it("classifies a draft (pending, no token) as reissue-draft", () => {
+    const action = classifyExistingInvite(
+      existing({ claimTokenHash: null }),
+      true,
+    )
+    expect(action.kind).toBe("reissue-draft")
+    expect(action.existingInviteId).toBe("cinv_existing")
+  })
+
+  it("classifies accepted_paid as skip regardless of supersede flag", () => {
+    expect(
+      classifyExistingInvite(
+        existing({
+          status: COMPETITION_INVITE_STATUS.ACCEPTED_PAID,
+          claimTokenHash: null,
+        }),
+        true,
+      ).kind,
+    ).toBe("skip-already-active")
+    expect(
+      classifyExistingInvite(
+        existing({
+          status: COMPETITION_INVITE_STATUS.ACCEPTED_PAID,
+          claimTokenHash: null,
+        }),
+        false,
+      ).kind,
+    ).toBe("skip-already-active")
+  })
+
+  it("classifies pending+token as supersede-then-insert when supersede=true", () => {
+    const action = classifyExistingInvite(existing({}), true)
+    expect(action.kind).toBe("supersede-then-insert")
+    expect(action.existingInviteId).toBe("cinv_existing")
+  })
+
+  it("classifies pending+token as skip-already-active when supersede=false", () => {
+    const action = classifyExistingInvite(existing({}), false)
+    expect(action.kind).toBe("skip-already-active")
   })
 })
 
@@ -91,7 +152,11 @@ describe("issueInvitesForRecipients", () => {
       roundId: "crnd_test",
       recipients: [],
     })
-    expect(result).toEqual({ inserted: [], alreadyActive: [] })
+    expect(result).toEqual({
+      inserted: [],
+      alreadyActive: [],
+      supersededInviteIds: [],
+    })
   })
 
   it("rejects when the target division has a $0 registration fee", async () => {

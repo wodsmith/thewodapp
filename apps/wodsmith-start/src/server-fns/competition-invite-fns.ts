@@ -1019,6 +1019,14 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
             rsvpDeadlineAt: data.rsvpDeadlineAt,
             roundId: round.id,
             recipients,
+            // R2 supersedes R1: any active pending invite for the same
+            // (championship, division, email) gets atomically revoked
+            // inside the same transaction as the new insert. Per
+            // ADR-0011 Phase 3, "each athlete has at most one active
+            // invite per division, regardless of origin" — bypassing
+            // this would leave R1 tokens live alongside R2.
+            supersedeActivePendingInvites: true,
+            superseededByUserId: session.userId,
           })
         } catch (err) {
           // Send transition fully rolls back: mark the round failed so the
@@ -1125,6 +1133,17 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
           throw err
         }
 
+        for (const supersededId of issueResult.supersededInviteIds) {
+          logEntityUpdated({
+            entity: "competition_invite",
+            id: supersededId,
+            attributes: {
+              status: COMPETITION_INVITE_STATUS.REVOKED,
+              supersededByRoundId: round.id,
+            },
+          })
+        }
+
         logInfo({
           message: "[Invites] issueInvitesFn dispatched",
           attributes: {
@@ -1132,6 +1151,7 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
             divisionId: data.championshipDivisionId,
             roundId: round.id,
             sent: allToDispatch.length,
+            superseded: issueResult.supersededInviteIds.length,
             skipped: skipped.length,
           },
         })
@@ -1139,6 +1159,7 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
         return {
           sentCount: allToDispatch.length,
           roundId: round.id,
+          supersededCount: issueResult.supersededInviteIds.length,
           skipped,
         }
       },

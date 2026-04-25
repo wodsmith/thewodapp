@@ -67,6 +67,27 @@ export interface IssueInvitesInput {
    */
   roundId: string
   recipients: IssueInviteRecipient[]
+  /**
+   * When true, recipients whose email already holds an *active pending*
+   * invite with a token (an undelivered or unresponded R1 invite) get
+   * that prior invite atomically transitioned to `revoked` inside the
+   * same transaction as the new R2 insert. Per ADR-0011 Phase 3, this
+   * is what "Sending an R2 to athletes who already have a pending R1
+   * invite revokes the R1 token before issuing R2" looks like at the
+   * data layer — each athlete keeps at most one active invite per
+   * (championship, division). Drafts (`activeMarker = active` but no
+   * token) still go through the reissue path on the caller side, and
+   * `accepted_paid` rows are left alone (the athlete is registered).
+   *
+   * `userId` of the organizer is captured into `revokedByUserId` so the
+   * supersede event has audit attribution. Default true — the round
+   * builder + roster Send button always supersede; ad-hoc tools that
+   * want the old "skip" semantics can pass false explicitly.
+   */
+  supersedeActivePendingInvites?: boolean
+  /** Captured into `revokedByUserId` on superseded rows. Required when
+   *  {@link IssueInvitesInput.supersedeActivePendingInvites} is true. */
+  superseededByUserId?: string | null
 }
 
 export interface IssuedInvite {
@@ -85,6 +106,11 @@ export interface AlreadyActiveInvite {
 export interface IssueInvitesResult {
   inserted: IssuedInvite[]
   alreadyActive: AlreadyActiveInvite[]
+  /** Invite ids transitioned from `pending → revoked` in the same
+   *  transaction so the caller (and audit log) can correlate the
+   *  supersede with the new round's invites. Empty when
+   *  `supersedeActivePendingInvites` was false. */
+  supersededInviteIds: string[]
 }
 
 export class InviteIssueValidationError extends Error {
@@ -155,6 +181,63 @@ async function assertDivisionIsPaid(params: {
 }
 
 // ============================================================================
+// Existing-invite classification (pure, unit-tested)
+// ============================================================================
+
+export type ExistingInviteAction =
+  | { kind: "skip-already-active"; existingInviteId: string; isDraft: false }
+  | { kind: "reissue-draft"; existingInviteId: string; isDraft: true }
+  | { kind: "supersede-then-insert"; existingInviteId: string }
+
+/**
+ * Decide what to do with an existing active invite when its email is in
+ * the new round's recipient list. Pure — easily unit-tested without a DB.
+ *
+ * Branches:
+ * - draft (pending, no token) → caller reissues in place.
+ * - accepted_paid → skip; the athlete is already registered.
+ * - pending with token + supersede=true → revoke prior, insert fresh
+ *   (the R2-supersedes-R1 atomic-revoke flow).
+ * - pending with token + supersede=false → skip; caller surfaces it.
+ */
+export function classifyExistingInvite(
+  existing: Pick<
+    CompetitionInvite,
+    "id" | "status" | "claimTokenHash"
+  >,
+  supersede: boolean,
+): ExistingInviteAction {
+  const isDraft =
+    !existing.claimTokenHash &&
+    existing.status === COMPETITION_INVITE_STATUS.PENDING
+  if (isDraft) {
+    return {
+      kind: "reissue-draft",
+      existingInviteId: existing.id,
+      isDraft: true,
+    }
+  }
+  if (existing.status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID) {
+    return {
+      kind: "skip-already-active",
+      existingInviteId: existing.id,
+      isDraft: false,
+    }
+  }
+  if (
+    supersede &&
+    existing.status === COMPETITION_INVITE_STATUS.PENDING
+  ) {
+    return { kind: "supersede-then-insert", existingInviteId: existing.id }
+  }
+  return {
+    kind: "skip-already-active",
+    existingInviteId: existing.id,
+    isDraft: false,
+  }
+}
+
+// ============================================================================
 // Issue (new inserts)
 // ============================================================================
 
@@ -173,7 +256,7 @@ export async function issueInvitesForRecipients(
   input: IssueInvitesInput,
 ): Promise<IssueInvitesResult> {
   if (input.recipients.length === 0) {
-    return { inserted: [], alreadyActive: [] }
+    return { inserted: [], alreadyActive: [], supersededInviteIds: [] }
   }
 
   await assertDivisionIsPaid({
@@ -216,33 +299,61 @@ export async function issueInvitesForRecipients(
       )
 
     const existingByEmail = new Map(existing.map((e) => [e.email, e]))
+    const supersede = input.supersedeActivePendingInvites !== false
 
     const alreadyActive: AlreadyActiveInvite[] = []
     const toInsertInputs: IssueInviteRecipient[] = []
+    const supersededInviteIds: string[] = []
     const seenEmails = new Set<string>()
     for (const r of normalized) {
       if (seenEmails.has(r.email)) continue
       seenEmails.add(r.email)
       const existingRow = existingByEmail.get(r.email)
-      if (existingRow) {
-        alreadyActive.push({
-          email: r.email,
-          existingInviteId: existingRow.id,
-          // A draft is a bespoke row staged without a token (`pending` +
-          // null hash). `accepted_paid` rows also null `claimTokenHash`
-          // while keeping `activeMarker = "active"` — the status guard
-          // keeps them out of the draft bucket.
-          isDraft:
-            !existingRow.claimTokenHash &&
-            existingRow.status === COMPETITION_INVITE_STATUS.PENDING,
-        })
-      } else {
+      if (!existingRow) {
         toInsertInputs.push(r)
+        continue
+      }
+
+      const action = classifyExistingInvite(existingRow, supersede)
+      switch (action.kind) {
+        case "reissue-draft":
+          alreadyActive.push({
+            email: r.email,
+            existingInviteId: action.existingInviteId,
+            isDraft: true,
+          })
+          break
+        case "skip-already-active":
+          alreadyActive.push({
+            email: r.email,
+            existingInviteId: action.existingInviteId,
+            isDraft: false,
+          })
+          break
+        case "supersede-then-insert":
+          supersededInviteIds.push(action.existingInviteId)
+          toInsertInputs.push(r)
+          break
       }
     }
 
+    if (supersededInviteIds.length > 0) {
+      const now = new Date()
+      await tx
+        .update(competitionInvitesTable)
+        .set({
+          status: COMPETITION_INVITE_STATUS.REVOKED,
+          revokedAt: now,
+          revokedByUserId: input.superseededByUserId ?? null,
+          claimTokenHash: null,
+          activeMarker: null,
+          updatedAt: now,
+        })
+        .where(inArray(competitionInvitesTable.id, supersededInviteIds))
+    }
+
     if (toInsertInputs.length === 0) {
-      return { inserted: [], alreadyActive }
+      return { inserted: [], alreadyActive, supersededInviteIds }
     }
 
     const inserted: IssuedInvite[] = []
@@ -300,7 +411,7 @@ export async function issueInvitesForRecipients(
 
     await tx.insert(competitionInvitesTable).values(rowsToInsert)
 
-    return { inserted, alreadyActive }
+    return { inserted, alreadyActive, supersededInviteIds }
   })
 }
 
