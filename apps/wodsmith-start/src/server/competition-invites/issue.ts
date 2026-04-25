@@ -391,8 +391,9 @@ export async function reissueInvite(
       ),
     )
 
-  const affected = (updateResult as unknown as { affectedRows?: number })
-    .affectedRows
+  const affected =
+    (updateResult as unknown as [{ affectedRows?: number }])[0]?.affectedRows ??
+    0
   if (affected === 0) {
     const fresh = await db
       .select({ status: competitionInvitesTable.status })

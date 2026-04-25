@@ -6,7 +6,7 @@
  * - hashes the plaintext and looks up the `competition_invites` row
  *   ({@link resolveInviteByToken}),
  * - asserts the row is still claimable — active status, token still
- *   present, expiry in the future, competition accepting invites
+ *   present, and expiry in the future
  *   ({@link assertInviteClaimable}),
  * - and compares the invite's locked email against a session's email,
  *   returning a discriminated result the route loader branches on
