@@ -349,9 +349,11 @@ export type CompetitionInviteRoundStatus =
  * `competition_invite_email_templates.id` once Phase 4 lands; Phase 3
  * leaves it null.
  *
- * State machine: `draft → sending → sent | failed`. The `sendRound` helper
- * acquires `SELECT ... FOR UPDATE` on the round row and rejects any
- * transition out of `draft`, which is the double-click defense.
+ * State machine: `draft → sending → sent | failed`. Each transition is
+ * a conditional `UPDATE ... WHERE status = <prior>` keyed on the prior
+ * state — the affected-rows count is the double-click defense, since
+ * Vitess doesn't support cross-shard `SELECT ... FOR UPDATE`. See
+ * `src/server/competition-invites/rounds.ts` for the helpers.
  *
  * `roundNumber` is dense per championship and assigned at draft creation
  * (max(roundNumber)+1 within the championship). It's a display value, not

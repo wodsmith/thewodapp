@@ -243,7 +243,9 @@ export async function updateRoundDraft(
     )
 
   const affected = (result as unknown as { affectedRows?: number }).affectedRows
-  if (affected === 0) {
+  // Treat undefined as a miss — a future driver bump that drops the
+  // `affectedRows` field shouldn't silently skip the conflict guard.
+  if (affected == null || affected === 0) {
     const fresh = await getRoundById(input.id)
     throw new RoundStateConflictError(input.id, fresh?.status ?? null)
   }
@@ -294,7 +296,9 @@ export async function beginSendingRound(params: {
     )
 
   const affected = (result as unknown as { affectedRows?: number }).affectedRows
-  if (affected === 0) {
+  // Treat undefined as a miss — a future driver bump that drops the
+  // `affectedRows` field shouldn't silently skip the conflict guard.
+  if (affected == null || affected === 0) {
     const fresh = await getRoundById(params.roundId)
     throw new RoundStateConflictError(
       params.roundId,
@@ -343,7 +347,9 @@ export async function finalizeRoundSend(params: {
     )
 
   const affected = (result as unknown as { affectedRows?: number }).affectedRows
-  if (affected === 0) {
+  // Treat undefined as a miss — a future driver bump that drops the
+  // `affectedRows` field shouldn't silently skip the conflict guard.
+  if (affected == null || affected === 0) {
     const fresh = await getRoundById(params.roundId)
     throw new RoundStateConflictError(
       params.roundId,

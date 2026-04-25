@@ -399,7 +399,9 @@ export async function reissueInvite(
 
   const affected = (updateResult as unknown as { affectedRows?: number })
     .affectedRows
-  if (affected === 0) {
+  // Treat undefined as a miss — a driver bump that drops the
+  // `affectedRows` field shouldn't silently skip the conflict guard.
+  if (affected == null || affected === 0) {
     const fresh = await db
       .select({ status: competitionInvitesTable.status })
       .from(competitionInvitesTable)

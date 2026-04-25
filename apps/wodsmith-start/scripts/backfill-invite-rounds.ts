@@ -118,8 +118,15 @@ for (const { championshipCompetitionId } of championshipsToBackfill) {
 
   const issuedCount = Number(issued[0]?.count ?? 0)
   const draftCount = Number(drafts[0]?.count ?? 0)
-  const expiryFloor =
-    (issued[0]?.maxExpiry ?? issued[0]?.minExpiry ?? null) ??
+  // The synthetic Round 1's `rsvpDeadlineAt` should cover every invite
+  // we are about to attribute to it, so we pick the *latest* per-invite
+  // expiry. If none of the affected rows have an expiry (paid invites
+  // can have null), fall back to 30 days out so the column constraint
+  // is satisfied — backfilled rounds are sent rather than draft, so the
+  // deadline is informational at this point.
+  const synthDeadline =
+    issued[0]?.maxExpiry ??
+    issued[0]?.minExpiry ??
     new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
 
   console.log(
@@ -159,7 +166,7 @@ for (const { championshipCompetitionId } of championshipsToBackfill) {
         subject: "Backfilled invitations",
         bodyJson: null,
         replyTo: null,
-        rsvpDeadlineAt: expiryFloor,
+        rsvpDeadlineAt: synthDeadline,
         status: COMPETITION_INVITE_ROUND_STATUS.SENT,
         sentAt: now,
         sentByUserId: null,

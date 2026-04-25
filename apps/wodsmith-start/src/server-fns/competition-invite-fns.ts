@@ -929,7 +929,12 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
                 const rounds = await listRoundsForChampionship(
                   data.championshipCompetitionId,
                 )
-                const next = rounds.length === 0 ? 1 : rounds[0]!.roundNumber
+                // `rounds[0]` is the latest by `roundNumber DESC`. The
+                // round we are *about* to insert lands at max + 1, which
+                // is what the label needs to reflect.
+                const currentMax =
+                  rounds.length === 0 ? 0 : rounds[0]!.roundNumber
+                const next = currentMax + 1
                 return createRoundDraft({
                   championshipCompetitionId: data.championshipCompetitionId,
                   label: `Round ${next}`,
@@ -1656,7 +1661,9 @@ export const revokeInviteFn = createServerFn({ method: "POST" })
 
         const affected = (result as unknown as { affectedRows?: number })
           .affectedRows
-        if (affected === 0) {
+        // `undefined` falls into the same bucket as 0 — a driver bump
+        // that drops the field shouldn't silently report success.
+        if (affected == null || affected === 0) {
           throw new Error(
             "This invite is no longer pending and cannot be revoked.",
           )
