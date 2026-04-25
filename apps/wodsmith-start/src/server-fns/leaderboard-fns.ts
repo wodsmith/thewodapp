@@ -20,6 +20,7 @@ import {
   trackWorkoutsTable,
 } from "@/db/schemas/programming"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { getEvlog } from "@/lib/evlog"
 import {
   addRequestContextAttribute,
   logInfo,
@@ -94,6 +95,15 @@ export const getCompetitionLeaderboardFn = createServerFn({ method: "GET" })
     }
     addRequestContextAttribute("leaderboardPreview", data.preview === true)
 
+    getEvlog()?.set({
+      action: "view_competition_leaderboard",
+      leaderboard: {
+        competitionId: data.competitionId,
+        divisionId: data.divisionId ?? null,
+        isPreview: data.preview === true,
+      },
+    })
+
     logInfo({
       message: "[Leaderboard] Fetch requested",
       attributes: {
@@ -161,6 +171,18 @@ export const getCompetitionLeaderboardFn = createServerFn({ method: "GET" })
       hasAnyScore: e.eventResults.some((er) => er.rawScore !== null),
     }))
 
+    getEvlog()?.set({
+      leaderboard: {
+        competitionId: data.competitionId,
+        divisionId: data.divisionId ?? null,
+        isPreview: data.preview === true,
+        entryCount: result.entries.length,
+        scoredEntryCount: scoredEntries,
+        eventCount: result.events.length,
+        scoringAlgorithm: result.scoringConfig.algorithm,
+      },
+    })
+
     logInfo({
       message: "[Leaderboard] Fetch complete",
       attributes: {
@@ -187,6 +209,15 @@ export const getCompetitionLeaderboardFn = createServerFn({ method: "GET" })
 export const getEventLeaderboardFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => getEventLeaderboardInputSchema.parse(data))
   .handler(async ({ data }) => {
+    getEvlog()?.set({
+      action: "view_event_leaderboard",
+      leaderboard: {
+        competitionId: data.competitionId,
+        trackWorkoutId: data.trackWorkoutId,
+        divisionId: data.divisionId ?? null,
+      },
+    })
+
     return getEventLeaderboard({
       competitionId: data.competitionId,
       trackWorkoutId: data.trackWorkoutId,
@@ -226,6 +257,14 @@ export const getLeaderboardDataFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => getLeaderboardDataInputSchema.parse(data))
   .handler(async ({ data }) => {
     const db = getDb()
+
+    getEvlog()?.set({
+      action: "view_legacy_leaderboard",
+      leaderboard: {
+        competitionId: data.competitionId,
+        divisionId: data.divisionId ?? null,
+      },
+    })
 
     // Verify competition exists
     const competition = await db.query.competitionsTable.findFirst({
@@ -290,6 +329,15 @@ export const getLeaderboardDataFn = createServerFn({ method: "GET" })
         completedAt: reg.registeredAt,
         isTimeCapped: false,
       }
+    })
+
+    getEvlog()?.set({
+      leaderboard: {
+        competitionId: data.competitionId,
+        divisionId: data.divisionId ?? null,
+        entryCount: leaderboard.length,
+        workoutCount: trackWorkoutsWithWorkouts.length,
+      },
     })
 
     return {

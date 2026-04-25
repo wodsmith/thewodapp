@@ -12,7 +12,11 @@ vi.mock('@/db', () => ({
 vi.mock('@/lib/logging', () => ({
   logInfo: vi.fn(),
   logWarning: vi.fn(),
+  logError: vi.fn(),
   logEntityCreated: vi.fn(),
+  logEntityUpdated: vi.fn(),
+  logEntityDeleted: vi.fn(),
+  logExternalCall: vi.fn(),
   addRequestContextAttribute: vi.fn(),
   updateRequestContext: vi.fn(),
 }))

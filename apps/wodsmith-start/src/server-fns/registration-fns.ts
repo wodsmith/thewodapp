@@ -58,6 +58,9 @@ import { getEvlog } from "@/lib/evlog"
 import {
   addRequestContextAttribute,
   logEntityCreated,
+  logEntityDeleted,
+  logEntityUpdated,
+  logExternalCall,
   logInfo,
   logWarning,
   updateRequestContext,
@@ -608,6 +611,20 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
         }),
       })
 
+      logEntityCreated({
+        entity: "commerce_purchase",
+        id: purchaseId,
+        parentEntity: "competition",
+        parentId: input.competitionId,
+        attributes: {
+          divisionId: item.divisionId,
+          status: COMMERCE_PURCHASE_STATUS.PENDING,
+          totalCents: feeBreakdown.totalChargeCents,
+          teammateCount: item.teammates?.length ?? 0,
+          hasCoupon: !!validatedCoupon,
+        },
+      })
+
       totalChargeCents += feeBreakdown.totalChargeCents
       totalOrganizerNetCents += feeBreakdown.organizerNetCents
 
@@ -680,14 +697,46 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
     // Create transient Stripe coupon and attach to session if applicable
     if (validatedCoupon && couponDiscount > 0) {
       const stripeCouponId = `wod-${validatedCoupon.id}-${purchaseIds[0]}`
-      await getStripe().coupons.create({
-        id: stripeCouponId,
-        amount_off: couponDiscount,
-        currency: "usd",
-        duration: "once",
-        max_redemptions: 1,
-        metadata: { couponId: validatedCoupon.id, purchaseId: purchaseIds[0] },
-      })
+      const couponStartMs = Date.now()
+      try {
+        await getStripe().coupons.create({
+          id: stripeCouponId,
+          amount_off: couponDiscount,
+          currency: "usd",
+          duration: "once",
+          max_redemptions: 1,
+          metadata: {
+            couponId: validatedCoupon.id,
+            purchaseId: purchaseIds[0],
+          },
+        })
+        logExternalCall({
+          service: "stripe",
+          operation: "coupons.create",
+          durationMs: Date.now() - couponStartMs,
+          success: true,
+          attributes: {
+            stripeCouponId,
+            couponId: validatedCoupon.id,
+            purchaseId: purchaseIds[0],
+            amountOffCents: couponDiscount,
+          },
+        })
+      } catch (err) {
+        logExternalCall({
+          service: "stripe",
+          operation: "coupons.create",
+          durationMs: Date.now() - couponStartMs,
+          success: false,
+          error: err,
+          attributes: {
+            stripeCouponId,
+            couponId: validatedCoupon.id,
+            purchaseId: purchaseIds[0],
+          },
+        })
+        throw err
+      }
       sessionParams.discounts = [{ coupon: stripeCouponId }]
       sessionParams.metadata = {
         ...sessionParams.metadata,
@@ -698,8 +747,40 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
       }
     }
 
-    const checkoutSession =
-      await getStripe().checkout.sessions.create(sessionParams)
+    const checkoutStartMs = Date.now()
+    let checkoutSession: Stripe.Checkout.Session
+    try {
+      checkoutSession = await getStripe().checkout.sessions.create(sessionParams)
+      logExternalCall({
+        service: "stripe",
+        operation: "checkout.sessions.create",
+        durationMs: Date.now() - checkoutStartMs,
+        success: true,
+        attributes: {
+          sessionId: checkoutSession.id,
+          competitionId: input.competitionId,
+          purchaseIds: purchaseIds.join(","),
+          lineItemCount: lineItems.length,
+          totalCents: totalChargeCents,
+          hasConnectedAccount: !!organizingTeam?.stripeConnectedAccountId,
+        },
+      })
+    } catch (err) {
+      logExternalCall({
+        service: "stripe",
+        operation: "checkout.sessions.create",
+        durationMs: Date.now() - checkoutStartMs,
+        success: false,
+        error: err,
+        attributes: {
+          competitionId: input.competitionId,
+          purchaseIds: purchaseIds.join(","),
+          lineItemCount: lineItems.length,
+          totalCents: totalChargeCents,
+        },
+      })
+      throw err
+    }
 
     // 11. Update all purchases with Checkout Session ID
     for (const purchaseId of purchaseIds) {
@@ -1013,6 +1094,16 @@ export const updateRegistrationAffiliateFn = createServerFn({ method: "POST" })
           .values({ name: trimmedAffiliate })
           .onDuplicateKeyUpdate({ set: { name: sql`name` } })
       }
+    })
+
+    logEntityUpdated({
+      entity: "registration",
+      id: input.registrationId,
+      fields: ["metadata"],
+      attributes: {
+        affiliateUpdated: true,
+        cleared: !input.affiliateName,
+      },
     })
 
     return { success: true }
@@ -1429,7 +1520,7 @@ export const cancelPendingPurchaseFn = createServerFn({ method: "POST" })
     const db = getDb()
 
     // Cancel any PENDING purchases for this user/competition
-    await db
+    const cancelResult = await db
       .update(commercePurchaseTable)
       .set({ status: COMMERCE_PURCHASE_STATUS.CANCELLED })
       .where(
@@ -1440,12 +1531,29 @@ export const cancelPendingPurchaseFn = createServerFn({ method: "POST" })
         ),
       )
 
+    const cancelledCount = cancelResult[0]?.affectedRows ?? 0
+
     logInfo({
       message: "[Registration] Pending purchase cancelled",
       attributes: {
         competitionId: data.competitionId,
+        cancelledCount: String(cancelledCount),
       },
     })
+
+    if (cancelledCount > 0) {
+      logEntityUpdated({
+        entity: "commerce_purchase",
+        id: `bulk-${data.userId}-${data.competitionId}`,
+        fields: ["status"],
+        attributes: {
+          competitionId: data.competitionId,
+          newStatus: COMMERCE_PURCHASE_STATUS.CANCELLED,
+          cancelledCount: String(cancelledCount),
+          bulk: true,
+        },
+      })
+    }
 
     return { success: true }
   })
@@ -1626,6 +1734,17 @@ export const removeRegistrationFn = createServerFn({ method: "POST" })
       },
     })
 
+    logEntityDeleted({
+      entity: "registration",
+      id: input.registrationId,
+      attributes: {
+        competitionId: input.competitionId,
+        divisionId: registration.divisionId ?? "none",
+        athleteTeamId: registration.athleteTeamId ?? "none",
+        softDelete: true,
+      },
+    })
+
     return { success: true }
   })
 
@@ -1662,6 +1781,14 @@ export const transferRegistrationDivisionFn = createServerFn({
     addRequestContextAttribute("competitionId", input.competitionId)
     addRequestContextAttribute("registrationId", input.registrationId)
     addRequestContextAttribute("targetDivisionId", input.targetDivisionId)
+    getEvlog()?.set({
+      action: "transfer_registration",
+      registration: {
+        id: input.registrationId,
+        competitionId: input.competitionId,
+        divisionId: input.targetDivisionId,
+      },
+    })
 
     // 1. Get competition to verify ownership
     const competition = await db.query.competitionsTable.findFirst({
@@ -1794,6 +1921,18 @@ export const transferRegistrationDivisionFn = createServerFn({
       attributes: {
         registrationId: input.registrationId,
         competitionId: input.competitionId,
+        toDivisionId: input.targetDivisionId,
+        removedHeatAssignments: String(removedHeatAssignments),
+      },
+    })
+
+    logEntityUpdated({
+      entity: "registration",
+      id: input.registrationId,
+      fields: ["divisionId"],
+      attributes: {
+        competitionId: input.competitionId,
+        fromDivisionId: registration.divisionId ?? "none",
         toDivisionId: input.targetDivisionId,
         removedHeatAssignments: String(removedHeatAssignments),
       },
@@ -1933,7 +2072,6 @@ export const createManualRegistrationFn = createServerFn({ method: "POST" })
         entity: "user",
         id: userId,
         attributes: {
-          email: athleteEmail,
           isPlaceholder: true,
           createdByManualRegistration: true,
         },
@@ -2047,10 +2185,11 @@ export const createManualRegistrationFn = createServerFn({ method: "POST" })
       attributes: {
         registrationId: result.registrationId,
         competitionId: input.competitionId,
-        athleteEmail,
+        athleteUserId: athleteUser.id,
         divisionId: input.divisionId,
         paymentStatus: finalPaymentStatus,
         isNewAthlete: String(isNewAthlete),
+        teammateCount: input.teammates?.length ?? 0,
       },
     })
 
@@ -2082,6 +2221,15 @@ export const refreshCompetitionTeamInviteFn = createServerFn({
   .handler(async ({ data }) => {
     const session = await requireVerifiedEmail()
     const db = getDb()
+
+    updateRequestContext({ userId: session.userId })
+    addRequestContextAttribute("registrationId", data.registrationId)
+    addRequestContextAttribute("invitationId", data.invitationId)
+    getEvlog()?.set({
+      action: "refresh_team_invite",
+      registration: { id: data.registrationId },
+      invitation: { id: data.invitationId },
+    })
 
     // Verify the registration exists and the caller is the captain
     const registration =
@@ -2144,6 +2292,16 @@ export const refreshCompetitionTeamInviteFn = createServerFn({
         updatedAt: new Date(),
       })
       .where(eq(teamInvitationTable.id, invitation.id))
+
+    logEntityUpdated({
+      entity: "team_invitation",
+      id: invitation.id,
+      fields: ["token", "expiresAt"],
+      attributes: {
+        registrationId: data.registrationId,
+        teamId: registration.athleteTeamId ?? "none",
+      },
+    })
 
     // Resend the invite email
     const competition = Array.isArray(registration.competition)

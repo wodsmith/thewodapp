@@ -16,6 +16,7 @@ import {
   competitionsTable,
 } from "@/db/schemas/competitions"
 import { teamTable } from "@/db/schemas/teams"
+import { logEntityCreated, logEntityDeleted, logError } from "@/lib/logging"
 import { generateSlug } from "@/utils/slugify"
 
 /* -------------------------------------------------------------------------- */
@@ -262,6 +263,17 @@ export async function createCompetition(params: {
     creditBalance: 0,
   })
 
+  logEntityCreated({
+    entity: "team",
+    id: competitionTeamId,
+    parentId: params.organizingTeamId,
+    parentEntity: "team",
+    attributes: {
+      teamType: "competition_event",
+      slug: teamSlug,
+    },
+  })
+
   // Step 2: Insert competition record
   const competitionId = `comp_${createId()}`
   try {
@@ -285,9 +297,26 @@ export async function createCompetition(params: {
     // Compensating cleanup: delete the competition team created in Step 1
     try {
       await db.delete(teamTable).where(eq(teamTable.id, competitionTeamId))
+      logEntityDeleted({
+        entity: "team",
+        id: competitionTeamId,
+        attributes: {
+          reason: "compensatingCleanupAfterCompetitionCreateFailure",
+          organizingTeamId: params.organizingTeamId,
+        },
+      })
     } catch (cleanupError) {
       // Log cleanup error but still throw original error
-      console.error("Failed to clean up competition team:", cleanupError)
+      logError({
+        message:
+          "[Competition] cleanup failed: could not delete competition team after competition insert error",
+        error: cleanupError,
+        attributes: {
+          competitionTeamId,
+          competitionId,
+          organizingTeamId: params.organizingTeamId,
+        },
+      })
     }
 
     throw new Error(

@@ -21,6 +21,14 @@ import {
   trackWorkoutsTable,
 } from "@/db/schema"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { getEvlog } from "@/lib/evlog"
+import {
+  logEntityCreated,
+  logEntityUpdated,
+  logError,
+  logInfo,
+  logWarning,
+} from "@/lib/logging"
 import { requireTeamPermission } from "@/utils/team-auth"
 
 // ============================================================================
@@ -137,23 +145,23 @@ async function materializeRotations(
   // unique constraint violations if rotations overlap on the same heat+judge
   const seen = new Set<string>()
 
+  // Aggregate skip reasons rather than logging per-iteration to avoid log spam
+  let missingHeatCount = 0
+  let duplicateCount = 0
+
   for (const rotation of rotations) {
     for (let i = 0; i < rotation.heatsCount; i++) {
       const heatNumber = rotation.startingHeat + i
       const heatId = heatMap.get(heatNumber)
 
       if (!heatId) {
-        console.warn(
-          `Heat ${heatNumber} not found for rotation ${rotation.id}, skipping`,
-        )
+        missingHeatCount += 1
         continue
       }
 
       const key = `${heatId}:${rotation.membershipId}`
       if (seen.has(key)) {
-        console.warn(
-          `Duplicate assignment for heat ${heatNumber}, judge ${rotation.membershipId} from rotation ${rotation.id}, skipping`,
-        )
+        duplicateCount += 1
         continue
       }
       seen.add(key)
@@ -175,6 +183,36 @@ async function materializeRotations(
     }
   }
 
+  const skippedCount = missingHeatCount + duplicateCount
+  const totalRotations = rotations.length
+
+  logInfo({
+    message: "[Judge] Materialize summary",
+    attributes: {
+      trackWorkoutId,
+      totalRotations,
+      assignmentsCreated: assignments.length,
+      skippedCount,
+      skipReasons: {
+        missingHeat: missingHeatCount,
+        duplicate: duplicateCount,
+      },
+    },
+  })
+
+  getEvlog()?.set({
+    materialize: {
+      trackWorkoutId,
+      totalRotations,
+      assignmentsCreated: assignments.length,
+      skippedCount,
+      skipReasons: {
+        missingHeat: missingHeatCount,
+        duplicate: duplicateCount,
+      },
+    },
+  })
+
   return assignments
 }
 
@@ -189,15 +227,36 @@ async function materializeRotations(
 export const getActiveVersionFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => getActiveVersionSchema.parse(data))
   .handler(async ({ data }): Promise<JudgeAssignmentVersion | null> => {
-    const db = getDb()
-    const version = await db.query.judgeAssignmentVersionsTable.findFirst({
-      where: and(
-        eq(judgeAssignmentVersionsTable.trackWorkoutId, data.trackWorkoutId),
-        eq(judgeAssignmentVersionsTable.isActive, true),
-      ),
+    getEvlog()?.set({
+      action: "get_active_judge_version",
+      version: { trackWorkoutId: data.trackWorkoutId },
     })
 
-    return version ?? null
+    const db = getDb()
+    try {
+      const version = await db.query.judgeAssignmentVersionsTable.findFirst({
+        where: and(
+          eq(judgeAssignmentVersionsTable.trackWorkoutId, data.trackWorkoutId),
+          eq(judgeAssignmentVersionsTable.isActive, true),
+        ),
+      })
+
+      getEvlog()?.set({
+        version: {
+          trackWorkoutId: data.trackWorkoutId,
+          activeVersionId: version?.id ?? null,
+        },
+      })
+
+      return version ?? null
+    } catch (error) {
+      logError({
+        message: "[Judge] Failed to load active version",
+        error,
+        attributes: { trackWorkoutId: data.trackWorkoutId },
+      })
+      throw error
+    }
   })
 
 /**
@@ -322,6 +381,15 @@ export const publishRotationsFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
     )
 
+    getEvlog()?.set({
+      action: "publish_judge_rotations",
+      version: {
+        trackWorkoutId: data.trackWorkoutId,
+        publishedBy: data.publishedBy,
+      },
+      teamId: data.teamId,
+    })
+
     const db = getDb()
 
     // Get event info to find maxLanes - using manual join to get competition venues
@@ -346,8 +414,17 @@ export const publishRotationsFn = createServerFn({ method: "POST" })
       .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
 
     if (result.length === 0) {
+      logWarning({
+        message: "[Judge] Publish denied — event or competition not found",
+        attributes: {
+          trackWorkoutId: data.trackWorkoutId,
+          teamId: data.teamId,
+        },
+      })
       throw new Error("Event or competition not found")
     }
+
+    const competitionId = result[0]?.competitionId ?? null
 
     // Find max lanes from venues
     const maxLanes = result.reduce(
@@ -421,6 +498,29 @@ export const publishRotationsFn = createServerFn({ method: "POST" })
       return version
     })
 
+    getEvlog()?.set({
+      version: {
+        id: newVersion.id,
+        trackWorkoutId: data.trackWorkoutId,
+        version: newVersion.version,
+        assignmentsCreated: materializedAssignments.length,
+        competitionId,
+      },
+    })
+
+    logEntityCreated({
+      entity: "judgeAssignmentVersion",
+      id: newVersion.id,
+      parentEntity: "competition",
+      parentId: competitionId ?? data.trackWorkoutId,
+      attributes: {
+        trackWorkoutId: data.trackWorkoutId,
+        version: newVersion.version,
+        publishedBy: data.publishedBy,
+        assignmentsCreated: materializedAssignments.length,
+      },
+    })
+
     return newVersion
   })
 
@@ -430,6 +530,12 @@ export const publishRotationsFn = createServerFn({ method: "POST" })
 export const rollbackToVersionFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => rollbackToVersionSchema.parse(data))
   .handler(async ({ data }): Promise<JudgeAssignmentVersion> => {
+    getEvlog()?.set({
+      action: "rollback_judge_rotations",
+      version: { id: data.versionId },
+      teamId: data.teamId,
+    })
+
     const db = getDb()
 
     // Get the version to rollback to
@@ -440,6 +546,10 @@ export const rollbackToVersionFn = createServerFn({ method: "POST" })
     )
 
     if (!targetVersion) {
+      logWarning({
+        message: "[Judge] Rollback denied — version not found",
+        attributes: { versionId: data.versionId, teamId: data.teamId },
+      })
       throw new Error("Version not found")
     }
 
@@ -448,6 +558,14 @@ export const rollbackToVersionFn = createServerFn({ method: "POST" })
       data.teamId,
       TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
     )
+
+    getEvlog()?.set({
+      version: {
+        id: targetVersion.id,
+        trackWorkoutId: targetVersion.trackWorkoutId,
+        version: targetVersion.version,
+      },
+    })
 
     // Use transaction for atomic version switch
     const updatedVersion = await db.transaction(async (tx) => {
@@ -477,6 +595,17 @@ export const rollbackToVersionFn = createServerFn({ method: "POST" })
       }
 
       return version
+    })
+
+    logEntityUpdated({
+      entity: "judgeAssignmentVersion",
+      id: updatedVersion.id,
+      fields: ["isActive"],
+      attributes: {
+        trackWorkoutId: updatedVersion.trackWorkoutId,
+        version: updatedVersion.version,
+        teamId: data.teamId,
+      },
     })
 
     return updatedVersion

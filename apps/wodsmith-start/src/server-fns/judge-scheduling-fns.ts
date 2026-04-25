@@ -31,6 +31,13 @@ import type {
   VolunteerAvailability,
   VolunteerMembershipMetadata,
 } from "@/db/schemas/volunteers"
+import { getEvlog } from "@/lib/evlog"
+import {
+  logEntityCreated,
+  logEntityDeleted,
+  logEntityUpdated,
+  logInfo,
+} from "@/lib/logging"
 import { requireTeamPermission } from "@/utils/team-auth"
 
 // ============================================================================
@@ -504,6 +511,17 @@ export const assignJudgeToHeatFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
     )
 
+    getEvlog()?.set({
+      action: "assign_judge_to_heat",
+      assignment: {
+        heatId: data.heatId,
+        competitionId: data.competitionId,
+        membershipId: data.membershipId,
+        laneNumber: data.laneNumber,
+      },
+      teamId: data.organizingTeamId,
+    })
+
     const db = getDb()
     const assignmentId = createHeatVolunteerId()
     await db.insert(judgeHeatAssignmentsTable).values({
@@ -524,6 +542,19 @@ export const assignJudgeToHeatFn = createServerFn({ method: "POST" })
     if (!assignment) {
       throw new Error("Failed to assign judge to heat")
     }
+
+    logEntityCreated({
+      entity: "judgeHeatAssignment",
+      id: assignment.id,
+      parentEntity: "competition",
+      parentId: data.competitionId,
+      attributes: {
+        heatId: data.heatId,
+        membershipId: data.membershipId,
+        laneNumber: data.laneNumber,
+        position: data.position ?? null,
+      },
+    })
 
     return { success: true, data: assignment }
   })
@@ -555,6 +586,16 @@ export const bulkAssignJudgesToHeatFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
     )
 
+    getEvlog()?.set({
+      action: "bulk_assign_judges_to_heat",
+      assignment: {
+        heatId: data.heatId,
+        competitionId: data.competitionId,
+        count: data.assignments.length,
+      },
+      teamId: data.organizingTeamId,
+    })
+
     if (data.assignments.length === 0) {
       return { success: true, data: [] }
     }
@@ -584,6 +625,23 @@ export const bulkAssignJudgesToHeatFn = createServerFn({ method: "POST" })
       .from(judgeHeatAssignmentsTable)
       .where(inArray(judgeHeatAssignmentsTable.id, insertedIds))
 
+    getEvlog()?.set({
+      assignment: {
+        heatId: data.heatId,
+        createdCount: results.length,
+        createdIds: insertedIds,
+      },
+    })
+
+    logInfo({
+      message: "[Judge] Bulk judge assignments created",
+      attributes: {
+        heatId: data.heatId,
+        competitionId: data.competitionId,
+        assignmentCount: results.length,
+      },
+    })
+
     return { success: true, data: results }
   })
 
@@ -606,10 +664,27 @@ export const removeJudgeFromHeatFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
     )
 
+    getEvlog()?.set({
+      action: "remove_judge_from_heat",
+      assignment: {
+        id: data.assignmentId,
+        competitionId: data.competitionId,
+      },
+      teamId: data.organizingTeamId,
+    })
+
     const db = getDb()
     await db
       .delete(judgeHeatAssignmentsTable)
       .where(eq(judgeHeatAssignmentsTable.id, data.assignmentId))
+
+    logEntityDeleted({
+      entity: "judgeHeatAssignment",
+      id: data.assignmentId,
+      attributes: {
+        competitionId: data.competitionId,
+      },
+    })
 
     return { success: true }
   })
@@ -635,6 +710,17 @@ export const moveJudgeAssignmentFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
     )
 
+    getEvlog()?.set({
+      action: "move_judge_assignment",
+      assignment: {
+        id: data.assignmentId,
+        competitionId: data.competitionId,
+        targetHeatId: data.targetHeatId,
+        targetLaneNumber: data.targetLaneNumber,
+      },
+      teamId: data.organizingTeamId,
+    })
+
     const db = getDb()
     await db
       .update(judgeHeatAssignmentsTable)
@@ -644,6 +730,17 @@ export const moveJudgeAssignmentFn = createServerFn({ method: "POST" })
         updatedAt: new Date(),
       })
       .where(eq(judgeHeatAssignmentsTable.id, data.assignmentId))
+
+    logEntityUpdated({
+      entity: "judgeHeatAssignment",
+      id: data.assignmentId,
+      fields: ["heatId", "laneNumber"],
+      attributes: {
+        competitionId: data.competitionId,
+        targetHeatId: data.targetHeatId,
+        targetLaneNumber: data.targetLaneNumber,
+      },
+    })
 
     return { success: true }
   })
@@ -667,6 +764,16 @@ export const copyJudgeAssignmentsToHeatFn = createServerFn({ method: "POST" })
       data.organizingTeamId,
       TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
     )
+
+    getEvlog()?.set({
+      action: "copy_judge_assignments_to_heat",
+      assignment: {
+        sourceHeatId: data.sourceHeatId,
+        targetHeatId: data.targetHeatId,
+        competitionId: data.competitionId,
+      },
+      teamId: data.organizingTeamId,
+    })
 
     const db = getDb()
 
@@ -703,6 +810,24 @@ export const copyJudgeAssignmentsToHeatFn = createServerFn({ method: "POST" })
       .from(judgeHeatAssignmentsTable)
       .where(inArray(judgeHeatAssignmentsTable.id, insertedIds))
 
+    getEvlog()?.set({
+      assignment: {
+        sourceHeatId: data.sourceHeatId,
+        targetHeatId: data.targetHeatId,
+        copiedCount: results.length,
+      },
+    })
+
+    logInfo({
+      message: "[Judge] Copied judge assignments to heat",
+      attributes: {
+        sourceHeatId: data.sourceHeatId,
+        targetHeatId: data.targetHeatId,
+        competitionId: data.competitionId,
+        copiedCount: results.length,
+      },
+    })
+
     return { success: true, data: results }
   })
 
@@ -727,6 +852,16 @@ export const copyJudgeAssignmentsToRemainingHeatsFn = createServerFn({
       data.organizingTeamId,
       TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
     )
+
+    getEvlog()?.set({
+      action: "copy_judge_assignments_to_remaining_heats",
+      assignment: {
+        sourceHeatId: data.sourceHeatId,
+        trackWorkoutId: data.trackWorkoutId,
+        competitionId: data.competitionId,
+      },
+      teamId: data.organizingTeamId,
+    })
 
     const db = getDb()
 
@@ -800,6 +935,31 @@ export const copyJudgeAssignmentsToRemainingHeatsFn = createServerFn({
       }),
     )
 
+    const totalCopied = results.reduce(
+      (sum, r) => sum + r.assignments.length,
+      0,
+    )
+
+    getEvlog()?.set({
+      assignment: {
+        sourceHeatId: data.sourceHeatId,
+        trackWorkoutId: data.trackWorkoutId,
+        targetHeatCount: results.length,
+        totalCopied,
+      },
+    })
+
+    logInfo({
+      message: "[Judge] Copied judge assignments to remaining heats",
+      attributes: {
+        sourceHeatId: data.sourceHeatId,
+        trackWorkoutId: data.trackWorkoutId,
+        competitionId: data.competitionId,
+        targetHeatCount: results.length,
+        totalCopied,
+      },
+    })
+
     return { success: true, data: results }
   })
 
@@ -822,10 +982,27 @@ export const clearHeatJudgeAssignmentsFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
     )
 
+    getEvlog()?.set({
+      action: "clear_heat_judge_assignments",
+      assignment: {
+        heatId: data.heatId,
+        competitionId: data.competitionId,
+      },
+      teamId: data.organizingTeamId,
+    })
+
     const db = getDb()
     await db
       .delete(judgeHeatAssignmentsTable)
       .where(eq(judgeHeatAssignmentsTable.heatId, data.heatId))
+
+    logInfo({
+      message: "[Judge] Cleared all judge assignments from heat",
+      attributes: {
+        heatId: data.heatId,
+        competitionId: data.competitionId,
+      },
+    })
 
     return { success: true }
   })

@@ -23,7 +23,16 @@ import {
   workouts,
 } from "@/db/schema"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { getEvlog } from "@/lib/evlog"
 import { expandRotationToAssignments } from "@/lib/judge-rotation-utils"
+import {
+  logEntityCreated,
+  logEntityDeleted,
+  logEntityUpdated,
+  logError,
+  logInfo,
+  logWarning,
+} from "@/lib/logging"
 import { requireTeamPermission } from "@/utils/team-auth"
 
 // ============================================================================
@@ -524,8 +533,32 @@ async function createRotationInternal(params: {
   })
 
   if (!rotation) {
+    logError({
+      message: "[Judge] Failed to fetch newly created rotation",
+      attributes: {
+        rotationId: id,
+        competitionId: params.competitionId,
+        trackWorkoutId: params.trackWorkoutId,
+        membershipId: params.membershipId,
+      },
+    })
     throw new Error("Failed to create judge rotation")
   }
+
+  logEntityCreated({
+    entity: "judge_rotation",
+    id: rotation.id,
+    parentEntity: "competition",
+    parentId: params.competitionId,
+    attributes: {
+      trackWorkoutId: params.trackWorkoutId,
+      membershipId: params.membershipId,
+      startingHeat: params.startingHeat,
+      startingLane: params.startingLane,
+      heatsCount: params.heatsCount,
+      laneShiftPattern,
+    },
+  })
 
   return rotation
 }
@@ -546,6 +579,11 @@ async function deleteRotationInternal(
   // Permission check
   await requireTeamPermission(teamId, TEAM_PERMISSIONS.MANAGE_COMPETITIONS)
 
+  // Look up parent IDs for the audit log before deleting
+  const existing = await db.query.competitionJudgeRotationsTable.findFirst({
+    where: eq(competitionJudgeRotationsTable.id, rotationId),
+  })
+
   // Clear rotationId references in judge_heat_assignments before deleting
   // (the DB FK lacks ON DELETE SET NULL due to migration 0060)
   await db
@@ -556,6 +594,16 @@ async function deleteRotationInternal(
   await db
     .delete(competitionJudgeRotationsTable)
     .where(eq(competitionJudgeRotationsTable.id, rotationId))
+
+  logEntityDeleted({
+    entity: "judge_rotation",
+    id: rotationId,
+    attributes: {
+      competitionId: existing?.competitionId,
+      trackWorkoutId: existing?.trackWorkoutId,
+      membershipId: existing?.membershipId,
+    },
+  })
 }
 
 // ============================================================================
@@ -617,15 +665,17 @@ export const getJudgeRotationsFn = createServerFn({ method: "GET" })
       )
 
     // Debug logging
-    if (rotations.length === 0) {
-      console.log(
-        `[getJudgeRotationsFn] No rotations found for membershipId=${data.membershipId}, competitionId=${data.competitionId}`,
-      )
-    } else {
-      console.log(
-        `[getJudgeRotationsFn] Found ${rotations.length} rotation(s) for membershipId=${data.membershipId}, competitionId=${data.competitionId}`,
-      )
-    }
+    logInfo({
+      message:
+        rotations.length === 0
+          ? "[Judge] No rotations found for judge in competition"
+          : "[Judge] Rotations found for judge in competition",
+      attributes: {
+        membershipId: data.membershipId,
+        competitionId: data.competitionId,
+        rotationCount: rotations.length,
+      },
+    })
 
     return rotations
   })
@@ -652,6 +702,11 @@ export const getEnrichedJudgeRotationsFn = createServerFn({ method: "GET" })
       )
 
     const enriched: EnrichedJudgeRotation[] = []
+    let missingTrackWorkoutCount = 0
+    let missingWorkoutCount = 0
+    let missingHeatsCount = 0
+    let heatsWithoutScheduleCount = 0
+    let skippedUnpublishedCount = 0
 
     for (const rotation of rotations) {
       const diagnostics = {
@@ -668,10 +723,8 @@ export const getEnrichedJudgeRotationsFn = createServerFn({ method: "GET" })
         .where(eq(trackWorkoutsTable.id, rotation.trackWorkoutId))
 
       if (!trackWorkout) {
-        console.error(
-          `[getEnrichedJudgeRotationsFn] Missing trackWorkout for rotation ${rotation.id}, trackWorkoutId=${rotation.trackWorkoutId}`,
-        )
         diagnostics.missingTrackWorkout = true
+        missingTrackWorkoutCount++
       }
 
       // Skip if filtering unpublished and event is not published
@@ -679,9 +732,7 @@ export const getEnrichedJudgeRotationsFn = createServerFn({ method: "GET" })
         !data.includeUnpublished &&
         trackWorkout?.eventStatus !== "published"
       ) {
-        console.log(
-          `[getEnrichedJudgeRotationsFn] Skipping rotation ${rotation.id} - eventStatus=${trackWorkout?.eventStatus} (not published)`,
-        )
+        skippedUnpublishedCount++
         continue
       }
 
@@ -694,18 +745,14 @@ export const getEnrichedJudgeRotationsFn = createServerFn({ method: "GET" })
           .where(eq(workouts.id, trackWorkout.workoutId))
 
         if (!workoutResult) {
-          console.error(
-            `[getEnrichedJudgeRotationsFn] Missing workout for rotation ${rotation.id}, workoutId=${trackWorkout.workoutId}`,
-          )
           diagnostics.missingWorkout = true
+          missingWorkoutCount++
         } else {
           workout = workoutResult
         }
       } else if (trackWorkout) {
-        console.error(
-          `[getEnrichedJudgeRotationsFn] TrackWorkout ${trackWorkout.id} has no workoutId`,
-        )
         diagnostics.missingWorkout = true
+        missingWorkoutCount++
       }
 
       // Fetch heats for this trackWorkout
@@ -723,20 +770,16 @@ export const getEnrichedJudgeRotationsFn = createServerFn({ method: "GET" })
         : []
 
       if (heats.length === 0) {
-        console.error(
-          `[getEnrichedJudgeRotationsFn] No heats found for rotation ${rotation.id}, trackWorkoutId=${rotation.trackWorkoutId}`,
-        )
         diagnostics.missingHeats = true
+        missingHeatsCount++
       } else {
         // Check for heats missing schedule data
         const unscheduled = heats.filter(
           (h) => !h.scheduledTime || !h.durationMinutes,
         )
         if (unscheduled.length > 0) {
-          console.warn(
-            `[getEnrichedJudgeRotationsFn] ${unscheduled.length}/${heats.length} heats for rotation ${rotation.id} lack scheduledTime or durationMinutes`,
-          )
           diagnostics.heatsWithoutSchedule = unscheduled.length
+          heatsWithoutScheduleCount++
         }
       }
 
@@ -749,19 +792,47 @@ export const getEnrichedJudgeRotationsFn = createServerFn({ method: "GET" })
       })
     }
 
-    // Summary logging
-    const withIssues = enriched.filter(
+    // Summary logging — aggregated diagnostics across all rotations in this request
+    const rotationsWithIssues = enriched.filter(
       (r) =>
         r.diagnostics.missingTrackWorkout ||
         r.diagnostics.missingWorkout ||
         r.diagnostics.missingHeats ||
         r.diagnostics.heatsWithoutSchedule > 0,
-    )
+    ).length
 
-    if (withIssues.length > 0) {
-      console.warn(
-        `[getEnrichedJudgeRotationsFn] ${withIssues.length}/${enriched.length} rotation(s) have data issues`,
-      )
+    if (
+      rotationsWithIssues > 0 ||
+      missingTrackWorkoutCount > 0 ||
+      missingWorkoutCount > 0 ||
+      missingHeatsCount > 0
+    ) {
+      logWarning({
+        message: "[Judge] Enriched rotations have data issues",
+        attributes: {
+          membershipId: data.membershipId,
+          competitionId: data.competitionId,
+          totalRotations: rotations.length,
+          enrichedRotations: enriched.length,
+          rotationsWithIssues,
+          missingTrackWorkoutCount,
+          missingWorkoutCount,
+          missingHeatsCount,
+          heatsWithoutScheduleCount,
+          skippedUnpublishedCount,
+        },
+      })
+    } else {
+      logInfo({
+        message: "[Judge] Enriched rotations",
+        attributes: {
+          membershipId: data.membershipId,
+          competitionId: data.competitionId,
+          totalRotations: rotations.length,
+          enrichedRotations: enriched.length,
+          skippedUnpublishedCount,
+        },
+      })
     }
 
     return enriched
@@ -796,6 +867,16 @@ export const validateRotationFn = createServerFn({ method: "GET" })
 export const createJudgeRotationFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => createRotationSchema.parse(data))
   .handler(async ({ data }) => {
+    getEvlog()?.set({
+      action: "create_judge_rotation",
+      rotation: {
+        competitionId: data.competitionId,
+        trackWorkoutId: data.trackWorkoutId,
+        membershipId: data.membershipId,
+      },
+      teamId: data.teamId,
+    })
+
     // Validate rotation before creating
     const validation = await validateRotationConflictsInternal({
       trackWorkoutId: data.trackWorkoutId,
@@ -807,12 +888,30 @@ export const createJudgeRotationFn = createServerFn({ method: "POST" })
     })
 
     if (validation.conflicts.length > 0) {
+      logWarning({
+        message: "[Judge] Rotation create rejected due to conflicts",
+        attributes: {
+          competitionId: data.competitionId,
+          trackWorkoutId: data.trackWorkoutId,
+          membershipId: data.membershipId,
+          conflictCount: validation.conflicts.length,
+          conflictTypes: validation.conflicts.map((c) => c.conflictType),
+        },
+      })
       throw new Error(
         `Rotation has conflicts: ${validation.conflicts.map((c) => c.message).join(", ")}`,
       )
     }
 
     const rotation = await createRotationInternal(data)
+    getEvlog()?.set({
+      rotation: {
+        id: rotation.id,
+        competitionId: rotation.competitionId,
+        trackWorkoutId: rotation.trackWorkoutId,
+        membershipId: rotation.membershipId,
+      },
+    })
     return { success: true, data: rotation }
   })
 
@@ -823,6 +922,12 @@ export const updateJudgeRotationFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => updateRotationSchema.parse(data))
   .handler(async ({ data }) => {
     const db = getDb()
+
+    getEvlog()?.set({
+      action: "update_judge_rotation",
+      rotation: { id: data.rotationId },
+      teamId: data.teamId,
+    })
 
     // Permission check
     await requireTeamPermission(
@@ -836,8 +941,21 @@ export const updateJudgeRotationFn = createServerFn({ method: "POST" })
     })
 
     if (!existing) {
+      logWarning({
+        message: "[Judge] Update rejected — rotation not found",
+        attributes: { rotationId: data.rotationId, teamId: data.teamId },
+      })
       throw new Error("Rotation not found")
     }
+
+    getEvlog()?.set({
+      rotation: {
+        id: existing.id,
+        competitionId: existing.competitionId,
+        trackWorkoutId: existing.trackWorkoutId,
+        membershipId: existing.membershipId,
+      },
+    })
 
     // Validate with merged data
     const validation = await validateRotationConflictsInternal({
@@ -851,6 +969,17 @@ export const updateJudgeRotationFn = createServerFn({ method: "POST" })
     })
 
     if (validation.conflicts.length > 0) {
+      logWarning({
+        message: "[Judge] Rotation update rejected due to conflicts",
+        attributes: {
+          rotationId: data.rotationId,
+          competitionId: existing.competitionId,
+          trackWorkoutId: existing.trackWorkoutId,
+          membershipId: existing.membershipId,
+          conflictCount: validation.conflicts.length,
+          conflictTypes: validation.conflicts.map((c) => c.conflictType),
+        },
+      })
       throw new Error(
         `Rotation has conflicts: ${validation.conflicts.map((c) => c.message).join(", ")}`,
       )
@@ -859,21 +988,27 @@ export const updateJudgeRotationFn = createServerFn({ method: "POST" })
     const updateData: Partial<CompetitionJudgeRotation> = {
       updatedAt: new Date(),
     }
+    const updatedFields: string[] = []
 
     if (data.startingHeat !== undefined) {
       updateData.startingHeat = data.startingHeat
+      updatedFields.push("startingHeat")
     }
     if (data.startingLane !== undefined) {
       updateData.startingLane = data.startingLane
+      updatedFields.push("startingLane")
     }
     if (data.heatsCount !== undefined) {
       updateData.heatsCount = data.heatsCount
+      updatedFields.push("heatsCount")
     }
     if (data.laneShiftPattern !== undefined) {
       updateData.laneShiftPattern = data.laneShiftPattern
+      updatedFields.push("laneShiftPattern")
     }
     if (data.notes !== undefined) {
       updateData.notes = data.notes
+      updatedFields.push("notes")
     }
 
     // Update without returning
@@ -888,8 +1023,26 @@ export const updateJudgeRotationFn = createServerFn({ method: "POST" })
     })
 
     if (!updated) {
+      logError({
+        message: "[Judge] Rotation update succeeded but follow-up read failed",
+        attributes: {
+          rotationId: data.rotationId,
+          competitionId: existing.competitionId,
+        },
+      })
       throw new Error("Rotation not found or update failed")
     }
+
+    logEntityUpdated({
+      entity: "judge_rotation",
+      id: updated.id,
+      fields: updatedFields,
+      attributes: {
+        competitionId: updated.competitionId,
+        trackWorkoutId: updated.trackWorkoutId,
+        membershipId: updated.membershipId,
+      },
+    })
 
     return { success: true, data: updated }
   })
@@ -900,6 +1053,11 @@ export const updateJudgeRotationFn = createServerFn({ method: "POST" })
 export const deleteJudgeRotationFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => deleteRotationSchema.parse(data))
   .handler(async ({ data }) => {
+    getEvlog()?.set({
+      action: "delete_judge_rotation",
+      rotation: { id: data.rotationId },
+      teamId: data.teamId,
+    })
     await deleteRotationInternal(data.rotationId, data.teamId)
     return { success: true }
   })
@@ -911,6 +1069,15 @@ export const updateEventDefaultsFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => updateEventDefaultsSchema.parse(data))
   .handler(async ({ data }) => {
     const db = getDb()
+
+    getEvlog()?.set({
+      action: "update_event_judge_defaults",
+      trackWorkout: {
+        id: data.trackWorkoutId,
+        competitionId: data.competitionId,
+      },
+      teamId: data.teamId,
+    })
 
     // Permission check
     await requireTeamPermission(
@@ -926,21 +1093,34 @@ export const updateEventDefaultsFn = createServerFn({ method: "POST" })
     } = {
       updatedAt: new Date(),
     }
+    const updatedFields: string[] = []
 
     if (data.defaultHeatsCount !== undefined) {
       updateData.defaultHeatsCount = data.defaultHeatsCount
+      updatedFields.push("defaultHeatsCount")
     }
     if (data.defaultLaneShiftPattern !== undefined) {
       updateData.defaultLaneShiftPattern = data.defaultLaneShiftPattern
+      updatedFields.push("defaultLaneShiftPattern")
     }
     if (data.minHeatBuffer !== undefined) {
       updateData.minHeatBuffer = data.minHeatBuffer
+      updatedFields.push("minHeatBuffer")
     }
 
     await db
       .update(trackWorkoutsTable)
       .set(updateData)
       .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
+
+    logEntityUpdated({
+      entity: "track_workout_judge_defaults",
+      id: data.trackWorkoutId,
+      fields: updatedFields,
+      attributes: {
+        competitionId: data.competitionId,
+      },
+    })
 
     return { success: true }
   })
@@ -953,6 +1133,17 @@ export const batchCreateRotationsFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => batchCreateRotationsSchema.parse(data))
   .handler(async ({ data }) => {
     const db = getDb()
+
+    getEvlog()?.set({
+      action: "batch_create_judge_rotations",
+      rotation: {
+        competitionId: data.competitionId,
+        trackWorkoutId: data.trackWorkoutId,
+        membershipId: data.membershipId,
+        rotationCount: data.rotations.length,
+      },
+      teamId: data.teamId,
+    })
 
     // Validate that all foreign keys exist
     const [trackWorkout, membership, competition] = await Promise.all([
@@ -968,12 +1159,35 @@ export const batchCreateRotationsFn = createServerFn({ method: "POST" })
     ])
 
     if (!trackWorkout) {
+      logWarning({
+        message: "[Judge] Batch create rejected — event not found",
+        attributes: {
+          trackWorkoutId: data.trackWorkoutId,
+          competitionId: data.competitionId,
+          teamId: data.teamId,
+        },
+      })
       throw new Error("Event not found")
     }
     if (!membership) {
+      logWarning({
+        message: "[Judge] Batch create rejected — judge membership not found",
+        attributes: {
+          membershipId: data.membershipId,
+          competitionId: data.competitionId,
+          teamId: data.teamId,
+        },
+      })
       throw new Error("Judge membership not found")
     }
     if (!competition) {
+      logWarning({
+        message: "[Judge] Batch create rejected — competition not found",
+        attributes: {
+          competitionId: data.competitionId,
+          teamId: data.teamId,
+        },
+      })
       throw new Error("Competition not found")
     }
 
@@ -995,6 +1209,16 @@ export const batchCreateRotationsFn = createServerFn({ method: "POST" })
     const allConflicts = validationResults.flatMap((result) => result.conflicts)
 
     if (allConflicts.length > 0) {
+      logWarning({
+        message: "[Judge] Batch create rejected due to conflicts",
+        attributes: {
+          competitionId: data.competitionId,
+          trackWorkoutId: data.trackWorkoutId,
+          membershipId: data.membershipId,
+          conflictCount: allConflicts.length,
+          conflictTypes: allConflicts.map((c) => c.conflictType),
+        },
+      })
       throw new Error(
         `Rotations have conflicts: ${allConflicts.map((c) => c.message).join(", ")}`,
       )
@@ -1013,6 +1237,16 @@ export const batchCreateRotationsFn = createServerFn({ method: "POST" })
         const rot2End = rot2.startingHeat + rot2.heatsCount - 1
 
         if (!(rot1End < rot2.startingHeat || rot2End < rot1.startingHeat)) {
+          logWarning({
+            message: "[Judge] Batch create rejected — overlapping heat ranges",
+            attributes: {
+              competitionId: data.competitionId,
+              trackWorkoutId: data.trackWorkoutId,
+              membershipId: data.membershipId,
+              firstIndex: i,
+              secondIndex: j,
+            },
+          })
           throw new Error(
             `Rotations ${i + 1} and ${j + 1} have overlapping heat ranges and may conflict`,
           )
@@ -1039,6 +1273,27 @@ export const batchCreateRotationsFn = createServerFn({ method: "POST" })
       createdRotations.push(created)
     }
 
+    getEvlog()?.set({
+      rotation: {
+        competitionId: data.competitionId,
+        trackWorkoutId: data.trackWorkoutId,
+        membershipId: data.membershipId,
+        createdIds: createdRotations.map((r) => r.id),
+        createdCount: createdRotations.length,
+      },
+    })
+
+    logInfo({
+      message: "[Judge] Batch judge rotations created",
+      attributes: {
+        competitionId: data.competitionId,
+        trackWorkoutId: data.trackWorkoutId,
+        membershipId: data.membershipId,
+        createdCount: createdRotations.length,
+        rotationIds: createdRotations.map((r) => r.id),
+      },
+    })
+
     return {
       success: true,
       data: {
@@ -1061,6 +1316,17 @@ export const batchUpdateVolunteerRotationsFn = createServerFn({
   .handler(async ({ data }) => {
     const db = getDb()
 
+    getEvlog()?.set({
+      action: "batch_update_volunteer_judge_rotations",
+      rotation: {
+        competitionId: data.competitionId,
+        trackWorkoutId: data.trackWorkoutId,
+        membershipId: data.membershipId,
+        rotationCount: data.rotations.length,
+      },
+      teamId: data.teamId,
+    })
+
     // Validate that all foreign keys exist
     const [trackWorkout, membership, competition] = await Promise.all([
       db.query.trackWorkoutsTable.findFirst({
@@ -1075,12 +1341,35 @@ export const batchUpdateVolunteerRotationsFn = createServerFn({
     ])
 
     if (!trackWorkout) {
+      logWarning({
+        message: "[Judge] Batch update rejected — event not found",
+        attributes: {
+          trackWorkoutId: data.trackWorkoutId,
+          competitionId: data.competitionId,
+          teamId: data.teamId,
+        },
+      })
       throw new Error("Event not found")
     }
     if (!membership) {
+      logWarning({
+        message: "[Judge] Batch update rejected — judge membership not found",
+        attributes: {
+          membershipId: data.membershipId,
+          competitionId: data.competitionId,
+          teamId: data.teamId,
+        },
+      })
       throw new Error("Judge membership not found")
     }
     if (!competition) {
+      logWarning({
+        message: "[Judge] Batch update rejected — competition not found",
+        attributes: {
+          competitionId: data.competitionId,
+          teamId: data.teamId,
+        },
+      })
       throw new Error("Competition not found")
     }
 
@@ -1115,6 +1404,16 @@ export const batchUpdateVolunteerRotationsFn = createServerFn({
         const rot2End = rot2.startingHeat + rot2.heatsCount - 1
 
         if (!(rot1End < rot2.startingHeat || rot2End < rot1.startingHeat)) {
+          logWarning({
+            message: "[Judge] Batch update rejected — overlapping heat ranges",
+            attributes: {
+              competitionId: data.competitionId,
+              trackWorkoutId: data.trackWorkoutId,
+              membershipId: data.membershipId,
+              firstIndex: i,
+              secondIndex: j,
+            },
+          })
           throw new Error(
             `Rotations ${i + 1} and ${j + 1} have overlapping heat ranges and may conflict`,
           )
@@ -1126,6 +1425,16 @@ export const batchUpdateVolunteerRotationsFn = createServerFn({
     const allConflicts = validationResults.flatMap((result) => result.conflicts)
 
     if (allConflicts.length > 0) {
+      logWarning({
+        message: "[Judge] Batch update rejected due to conflicts",
+        attributes: {
+          competitionId: data.competitionId,
+          trackWorkoutId: data.trackWorkoutId,
+          membershipId: data.membershipId,
+          conflictCount: allConflicts.length,
+          conflictTypes: allConflicts.map((c) => c.conflictType),
+        },
+      })
       throw new Error(
         `Rotations have conflicts: ${allConflicts.map((c) => c.message).join(", ")}`,
       )
@@ -1157,6 +1466,19 @@ export const batchUpdateVolunteerRotationsFn = createServerFn({
           .delete(competitionJudgeRotationsTable)
           .where(inArray(competitionJudgeRotationsTable.id, existingIds))
       })
+
+      for (const oldId of existingIds) {
+        logEntityDeleted({
+          entity: "judge_rotation",
+          id: oldId,
+          attributes: {
+            competitionId: data.competitionId,
+            trackWorkoutId: data.trackWorkoutId,
+            membershipId: data.membershipId,
+            reason: "batch_replace",
+          },
+        })
+      }
     }
 
     // Create new rotations in sequence
@@ -1178,6 +1500,28 @@ export const batchUpdateVolunteerRotationsFn = createServerFn({
       createdRotations.push(created)
     }
 
+    getEvlog()?.set({
+      rotation: {
+        competitionId: data.competitionId,
+        trackWorkoutId: data.trackWorkoutId,
+        membershipId: data.membershipId,
+        createdIds: createdRotations.map((r) => r.id),
+        createdCount: createdRotations.length,
+        deletedCount: existingRotations.length,
+      },
+    })
+
+    logInfo({
+      message: "[Judge] Volunteer rotations replaced",
+      attributes: {
+        competitionId: data.competitionId,
+        trackWorkoutId: data.trackWorkoutId,
+        membershipId: data.membershipId,
+        createdCount: createdRotations.length,
+        deletedCount: existingRotations.length,
+      },
+    })
+
     return {
       success: true,
       data: {
@@ -1195,6 +1539,15 @@ export const deleteVolunteerRotationsFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const db = getDb()
 
+    getEvlog()?.set({
+      action: "delete_volunteer_judge_rotations",
+      rotation: {
+        trackWorkoutId: data.trackWorkoutId,
+        membershipId: data.membershipId,
+      },
+      teamId: data.teamId,
+    })
+
     // Permission check
     await requireTeamPermission(
       data.teamId,
@@ -1203,7 +1556,10 @@ export const deleteVolunteerRotationsFn = createServerFn({ method: "POST" })
 
     // Find rotations to delete
     const rotationsToDelete = await db
-      .select({ id: competitionJudgeRotationsTable.id })
+      .select({
+        id: competitionJudgeRotationsTable.id,
+        competitionId: competitionJudgeRotationsTable.competitionId,
+      })
       .from(competitionJudgeRotationsTable)
       .where(
         and(
@@ -1229,7 +1585,37 @@ export const deleteVolunteerRotationsFn = createServerFn({ method: "POST" })
           .delete(competitionJudgeRotationsTable)
           .where(inArray(competitionJudgeRotationsTable.id, rotationIds))
       })
+
+      for (const r of rotationsToDelete) {
+        logEntityDeleted({
+          entity: "judge_rotation",
+          id: r.id,
+          attributes: {
+            competitionId: r.competitionId,
+            trackWorkoutId: data.trackWorkoutId,
+            membershipId: data.membershipId,
+          },
+        })
+      }
     }
+
+    getEvlog()?.set({
+      rotation: {
+        trackWorkoutId: data.trackWorkoutId,
+        membershipId: data.membershipId,
+        deletedCount: rotationsToDelete.length,
+        deletedIds: rotationsToDelete.map((r) => r.id),
+      },
+    })
+
+    logInfo({
+      message: "[Judge] Volunteer rotations deleted",
+      attributes: {
+        trackWorkoutId: data.trackWorkoutId,
+        membershipId: data.membershipId,
+        deletedCount: rotationsToDelete.length,
+      },
+    })
 
     return {
       success: true,
@@ -1245,6 +1631,16 @@ export const batchDeleteRotationsFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const db = getDb()
 
+    getEvlog()?.set({
+      action: "batch_delete_judge_rotations",
+      rotation: {
+        competitionId: data.competitionId,
+        rotationIds: data.rotationIds,
+        rotationCount: data.rotationIds.length,
+      },
+      teamId: data.teamId,
+    })
+
     // Permission check
     await requireTeamPermission(
       data.teamId,
@@ -1258,6 +1654,16 @@ export const batchDeleteRotationsFn = createServerFn({ method: "POST" })
 
     for (const rotation of rotations) {
       if (rotation.competitionId !== data.competitionId) {
+        logWarning({
+          message: "[Judge] Permission denied — rotation access",
+          attributes: {
+            rotationId: rotation.id,
+            attemptedCompetitionId: data.competitionId,
+            actualCompetitionId: rotation.competitionId,
+            teamId: data.teamId,
+          },
+        })
+        getEvlog()?.error(new Error("permission_denied_rotation"))
         throw new Error("Rotation does not belong to this competition")
       }
     }
@@ -1272,6 +1678,27 @@ export const batchDeleteRotationsFn = createServerFn({ method: "POST" })
       await tx
         .delete(competitionJudgeRotationsTable)
         .where(inArray(competitionJudgeRotationsTable.id, data.rotationIds))
+    })
+
+    for (const rotation of rotations) {
+      logEntityDeleted({
+        entity: "judge_rotation",
+        id: rotation.id,
+        attributes: {
+          competitionId: rotation.competitionId,
+          trackWorkoutId: rotation.trackWorkoutId,
+          membershipId: rotation.membershipId,
+        },
+      })
+    }
+
+    logInfo({
+      message: "[Judge] Batch rotations deleted",
+      attributes: {
+        competitionId: data.competitionId,
+        deletedCount: data.rotationIds.length,
+        rotationIds: data.rotationIds,
+      },
     })
 
     return {
@@ -1292,6 +1719,17 @@ export const adjustRotationsForOccupiedLanesFn = createServerFn({
   )
   .handler(async ({ data }) => {
     const db = getDb()
+
+    getEvlog()?.set({
+      action: "adjust_judge_rotations_for_occupied_lanes",
+      rotation: {
+        competitionId: data.competitionId,
+        trackWorkoutId: data.trackWorkoutId,
+        rotationIds: data.rotationIds,
+        rotationCount: data.rotationIds.length,
+      },
+      teamId: data.teamId,
+    })
 
     // Permission check
     await requireTeamPermission(
@@ -1340,6 +1778,18 @@ export const adjustRotationsForOccupiedLanesFn = createServerFn({
         rotation.trackWorkoutId !== data.trackWorkoutId ||
         rotation.competitionId !== data.competitionId
       ) {
+        logWarning({
+          message: "[Judge] Permission denied — rotation access",
+          attributes: {
+            rotationId: rotation.id,
+            attemptedCompetitionId: data.competitionId,
+            attemptedTrackWorkoutId: data.trackWorkoutId,
+            actualCompetitionId: rotation.competitionId,
+            actualTrackWorkoutId: rotation.trackWorkoutId,
+            teamId: data.teamId,
+          },
+        })
+        getEvlog()?.error(new Error("permission_denied_rotation"))
         throw new Error("Rotation does not belong to this event")
       }
 
@@ -1427,6 +1877,27 @@ export const adjustRotationsForOccupiedLanesFn = createServerFn({
       await deleteRotationInternal(rotationId, data.teamId)
       deletedCount++
     }
+
+    getEvlog()?.set({
+      rotation: {
+        competitionId: data.competitionId,
+        trackWorkoutId: data.trackWorkoutId,
+        deletedCount,
+        createdCount,
+        unchangedCount,
+      },
+    })
+
+    logInfo({
+      message: "[Judge] Rotations adjusted for occupied lanes",
+      attributes: {
+        competitionId: data.competitionId,
+        trackWorkoutId: data.trackWorkoutId,
+        deletedCount,
+        createdCount,
+        unchangedCount,
+      },
+    })
 
     return {
       success: true,
