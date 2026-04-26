@@ -16,7 +16,16 @@ vi.mock("@tanstack/react-start", () => ({
         (ctx: { data: unknown }) =>
           fn({ data: parser(ctx.data) }),
     }),
+    // Some fns skip `inputValidator` and call `.handler` directly.
+    handler:
+      (fn: (...args: unknown[]) => Promise<unknown>) =>
+      (...args: unknown[]) =>
+        fn(...args),
   }),
+  // `createServerOnlyFn` wraps a zero-arg function and returns it as-is on
+  // the server. Tests run in a node env without the TanStack runtime, so
+  // this stub just returns the factory unchanged.
+  createServerOnlyFn: <T>(fn: T): T => fn,
 }))
 
 // Ordered list of organizing-team lookup responses. Each call to

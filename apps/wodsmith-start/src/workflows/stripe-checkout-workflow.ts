@@ -24,8 +24,10 @@ import { getDb } from "@/db"
 import {
   COMMERCE_PAYMENT_STATUS,
   COMMERCE_PURCHASE_STATUS,
+  COMPETITION_INVITE_STATUS,
   commercePurchaseTable,
   competitionDivisionsTable,
+  competitionInvitesTable,
   competitionRegistrationAnswersTable,
   competitionRegistrationsTable,
   competitionsTable,
@@ -93,6 +95,13 @@ interface RegistrationStepResult {
   competitionStartDate: string | Date | null
   userEmail: string | null
   userFirstName: string | null
+  /**
+   * ADR-0011 Phase 2: if the purchase metadata carried an `inviteId`,
+   * the registration-creating step hands it off so a downstream step can
+   * flip the invite's status to `accepted_paid`. Null when this was a
+   * non-invite registration.
+   */
+  inviteId: string | null
 }
 
 // =========================================================================
@@ -193,6 +202,7 @@ async function createRegistration(
       questionId: string
       answer: string
     }>
+    inviteId?: string | null
   } = {}
 
   if (existingPurchase.metadata) {
@@ -451,6 +461,15 @@ async function createRegistration(
     }
   }
 
+  // If the athlete has an active claimable invite for this division, the
+  // invite is the authorization to register and the public window does not
+  // apply. `initiateRegistrationPaymentFn` already validated the invite at
+  // payment time and persisted its id into purchase metadata — trust that
+  // signal here instead of re-probing. Re-probing introduces a race: an
+  // organizer revoking an invite between Stripe checkout and webhook
+  // delivery would deny registration to an athlete who already paid.
+  const inviteAuthorized = !!registrationData.inviteId
+
   // Create the registration
   try {
     const result = await registerForCompetition({
@@ -460,6 +479,7 @@ async function createRegistration(
       teamName: registrationData.teamName,
       affiliateName: registrationData.affiliateName,
       teammates: registrationData.teammates,
+      isOrganizerOverride: inviteAuthorized,
     })
 
     // Update registration with payment info
@@ -571,6 +591,7 @@ async function createRegistration(
       competitionStartDate: competition.startDate,
       userEmail: user?.email ?? null,
       userFirstName: user?.firstName ?? null,
+      inviteId: registrationData.inviteId ?? null,
     }
   } catch (err) {
     logError({
@@ -585,6 +606,70 @@ async function createRegistration(
     // Re-throw to trigger step retry
     throw err
   }
+}
+
+/**
+ * Flip the competition invite to `accepted_paid` after the Stripe webhook
+ * confirms payment and the registration row exists.
+ *
+ * Idempotent: guarded by status=pending so a duplicate workflow run
+ * won't trip the transition twice. Safe to retry. A zero-affected-rows
+ * outcome just logs — the invite may already have been paid or revoked.
+ */
+async function updateCompetitionInviteStatus(
+  result: RegistrationStepResult,
+): Promise<void> {
+  if (!result.inviteId) return
+
+  const db = getDb()
+  const now = new Date()
+
+  const updateResult = await db
+    .update(competitionInvitesTable)
+    .set({
+      status: COMPETITION_INVITE_STATUS.ACCEPTED_PAID,
+      paidAt: now,
+      claimedRegistrationId: result.registrationId,
+      // Null the token so a replay of the old email link short-circuits.
+      claimTokenHash: null,
+      claimTokenLast4: null,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(competitionInvitesTable.id, result.inviteId),
+        eq(
+          competitionInvitesTable.status,
+          COMPETITION_INVITE_STATUS.PENDING,
+        ),
+      ),
+    )
+
+  const affected =
+    (updateResult as unknown as { rowsAffected?: number }).rowsAffected ??
+    (updateResult as unknown as [{ affectedRows?: number }])[0]?.affectedRows ??
+    0
+
+  if (affected === 0) {
+    logInfo({
+      message:
+        "[Workflow] Invite status flip skipped (already terminal or missing)",
+      attributes: {
+        inviteId: result.inviteId,
+        registrationId: result.registrationId,
+      },
+    })
+    return
+  }
+
+  logInfo({
+    message: "[Workflow] Competition invite flipped to accepted_paid",
+    attributes: {
+      inviteId: result.inviteId,
+      registrationId: result.registrationId,
+      competitionId: result.competitionId,
+    },
+  })
 }
 
 async function sendConfirmationEmail(
@@ -694,6 +779,24 @@ class StripeCheckoutWorkflowBase extends WorkflowEntrypoint<
       return
     }
 
+    // Step 2a: Flip competition invite status to `accepted_paid` when the
+    // purchase originated from an invite. Critical for invite-backed
+    // purchases — silently continuing on failure would strand the invite
+    // in `pending` forever, because Cloudflare Workflows cache successful
+    // step outputs and a re-running workflow would skip step 1 (already
+    // succeeded) without re-attempting this step. Surface the failure so
+    // the workflow itself fails and gets retried by Stripe's webhook
+    // delivery, or alerts on a permanent fault.
+    await step.do(
+      "update-competition-invite-status",
+      {
+        retries: { limit: 3, delay: "1 second", backoff: "exponential" },
+      },
+      async () => {
+        await updateCompetitionInviteStatus(registrationResult)
+      },
+    )
+
     // Step 2: Send confirmation email (non-critical, retries independently)
     // Wrapped in try-catch so email failure doesn't block Slack notification
     try {
@@ -765,6 +868,19 @@ export async function processCheckoutInline(
 
   if (!registrationResult) {
     return
+  }
+
+  try {
+    await updateCompetitionInviteStatus(registrationResult)
+  } catch (err) {
+    logWarning({
+      message: "[Inline Checkout] Invite status flip failed, continuing",
+      error: err,
+      attributes: {
+        purchaseId: registrationResult.purchaseId,
+        inviteId: registrationResult.inviteId ?? null,
+      },
+    })
   }
 
   try {
