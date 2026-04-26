@@ -13,8 +13,11 @@
  * `title="No email on file"`.
  */
 
+import { Copy } from "lucide-react"
 import { Fragment } from "react"
+import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   Table,
@@ -42,6 +45,21 @@ interface ChampionshipRosterTableProps {
    *  row's checkbox. Without this, the row would render as "Not invited"
    *  and let the organizer tick a box that the parent silently drops. */
   isRowAlreadyInvited?: (row: RosterRow) => boolean
+  /** When provided the table renders an Actions column with a "Copy
+   *  invite link" affordance. Returns the claim URL for the row, or
+   *  null when the row has no live token (draft / not-yet-sent /
+   *  terminal). */
+  getInviteUrlForRow?: (row: RosterRow) => string | null
+}
+
+async function copyInviteLink(url: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(url)
+    toast.success("Invite link copied")
+  } catch {
+    console.warn("Failed to copy invite link:", url)
+    toast.error("Couldn't copy — link is in the console")
+  }
 }
 
 function RankCell({ placement }: { placement: number | null }) {
@@ -68,20 +86,16 @@ function SourceTag({ row }: { row: RosterRow }) {
 
 function StatusPill({ alreadyInvited }: { alreadyInvited: boolean }) {
   if (alreadyInvited) {
-    return <Badge>Invited</Badge>
+    return (
+      <Badge className="border-transparent bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/20">
+        Invited
+      </Badge>
+    )
   }
-  return <Badge variant="secondary">Not invited</Badge>
-}
-
-function FilterChips() {
   return (
-    <div className="flex flex-wrap gap-2">
-      <Badge variant="outline">All</Badge>
-      <Badge variant="outline">Not invited</Badge>
-      <Badge variant="outline">Pending</Badge>
-      <Badge variant="outline">Accepted</Badge>
-      <Badge variant="outline">Declined</Badge>
-    </div>
+    <Badge variant="outline" className="text-muted-foreground">
+      Not invited
+    </Badge>
   )
 }
 
@@ -91,10 +105,12 @@ export function ChampionshipRosterTable({
   onToggleSelection,
   onToggleAll,
   isRowAlreadyInvited,
+  getInviteUrlForRow,
 }: ChampionshipRosterTableProps) {
   let cutoffDrawn = false
   const selectionEnabled =
     !!selectedKeys && !!onToggleSelection && !!onToggleAll
+  const actionsEnabled = !!getInviteUrlForRow
   const isInvited = (r: RosterRow) => !!isRowAlreadyInvited?.(r)
   const selectableRows = rows.filter(
     (r) => !!r.athleteEmail && !isInvited(r),
@@ -103,19 +119,19 @@ export function ChampionshipRosterTable({
     selectionEnabled &&
     selectableRows.length > 0 &&
     selectableRows.every((r) => selectedKeys?.has(rosterRowKey(r)))
-  const colSpan = selectionEnabled ? 5 : 4
+  const colSpan =
+    (selectionEnabled ? 1 : 0) + 4 + (actionsEnabled ? 1 : 0)
 
   return (
-    <div className="space-y-4">
-      <FilterChips />
+    <div className="overflow-hidden rounded-lg border bg-card">
       {rows.length === 0 ? (
-        <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
+        <div className="p-10 text-center text-sm text-muted-foreground">
           No qualifying rows yet — add a source to build the roster.
         </div>
       ) : (
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="border-b bg-muted/30 hover:bg-muted/30">
               {selectionEnabled ? (
                 <TableHead className="w-12">
                   <Checkbox
@@ -125,10 +141,23 @@ export function ChampionshipRosterTable({
                   />
                 </TableHead>
               ) : null}
-              <TableHead className="w-16">Rank</TableHead>
-              <TableHead>Athlete</TableHead>
-              <TableHead>Qualified via</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead className="w-20 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Rank
+              </TableHead>
+              <TableHead className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Athlete
+              </TableHead>
+              <TableHead className="w-48 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Qualified via
+              </TableHead>
+              <TableHead className="w-32 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Status
+              </TableHead>
+              {actionsEnabled ? (
+                <TableHead className="w-16 text-right">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
+              ) : null}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -178,7 +207,14 @@ export function ChampionshipRosterTable({
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <AthleteAvatar name={row.athleteName} />
-                        <span>{row.athleteName}</span>
+                        <div className="flex flex-col leading-tight">
+                          <span>{row.athleteName}</span>
+                          {row.athleteEmail ? (
+                            <span className="text-xs text-muted-foreground">
+                              {row.athleteEmail}
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -187,6 +223,25 @@ export function ChampionshipRosterTable({
                     <TableCell>
                       <StatusPill alreadyInvited={rowAlreadyInvited} />
                     </TableCell>
+                    {actionsEnabled ? (
+                      <TableCell className="text-right">
+                        {(() => {
+                          const url = getInviteUrlForRow?.(row) ?? null
+                          if (!url) return null
+                          return (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Copy invite link"
+                              className="text-muted-foreground hover:text-foreground"
+                              onClick={() => copyInviteLink(url)}
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          )
+                        })()}
+                      </TableCell>
+                    ) : null}
                   </TableRow>
                 </Fragment>
               )

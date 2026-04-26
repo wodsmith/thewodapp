@@ -20,8 +20,9 @@ import {
   useNavigate,
   useRouter,
 } from "@tanstack/react-router"
-import { MailPlus, Upload, UserPlus } from "lucide-react"
+import { Copy, MailPlus, Upload, UserPlus } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
+import { toast } from "sonner"
 import { AddBespokeInviteeDialog } from "@/components/organizer/invites/add-bespoke-invitee-dialog"
 import { BulkAddInviteesDialog } from "@/components/organizer/invites/bulk-add-invitees-dialog"
 import {
@@ -35,6 +36,15 @@ import {
 } from "@/components/organizer/invites/send-invites-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { COMPETITION_INVITE_ORIGIN } from "@/db/schemas/competition-invites"
 import { usePostHog } from "@/lib/posthog"
@@ -180,28 +190,71 @@ function InvitesPage() {
     const map = new Map<string, ActiveInviteSummary>()
     for (const inv of activeInvites) {
       if (inv.activeMarker === "active") {
-        map.set(`${inv.championshipDivisionId}::${inv.email.toLowerCase()}`, inv)
+        map.set(
+          `${inv.championshipDivisionId}::${inv.email.toLowerCase()}`,
+          inv,
+        )
       }
     }
     return map
   }, [activeInvites])
 
-  const draftBespokeInvites = useMemo(
+  const activeInviteByUserId = useMemo(() => {
+    const map = new Map<string, ActiveInviteSummary>()
+    for (const inv of activeInvites) {
+      if (inv.activeMarker === "active" && inv.userId) {
+        map.set(`${inv.championshipDivisionId}::${inv.userId}`, inv)
+      }
+    }
+    return map
+  }, [activeInvites])
+
+  const lookupInviteForRow = (r: RosterRow): ActiveInviteSummary | null => {
+    if (r.userId) {
+      const byUser = activeInviteByUserId.get(
+        `${r.championshipDivisionId}::${r.userId}`,
+      )
+      if (byUser) return byUser
+    }
+    if (r.athleteEmail) {
+      const byEmail = activeInviteByEmail.get(
+        `${r.championshipDivisionId}::${r.athleteEmail.toLowerCase()}`,
+      )
+      if (byEmail) return byEmail
+    }
+    return null
+  }
+
+  const bespokeInvites = useMemo(
     () =>
       activeInvites.filter(
         (inv) =>
           inv.origin === COMPETITION_INVITE_ORIGIN.BESPOKE &&
           inv.championshipDivisionId === activeDivisionId &&
-          inv.activeMarker === "active" &&
-          !inv.hasClaimToken,
+          inv.activeMarker === "active",
       ),
     [activeInvites, activeDivisionId],
   )
+  const draftBespokeInvites = useMemo(
+    () => bespokeInvites.filter((inv) => inv.claimUrl === null),
+    [bespokeInvites],
+  )
+  const sentBespokeCount = bespokeInvites.length - draftBespokeInvites.length
 
-  const isRowAlreadyInvited = (r: RosterRow) =>
-    !!activeInviteByEmail.get(
-      `${r.championshipDivisionId}::${(r.athleteEmail ?? "").toLowerCase()}`,
-    )
+  const isRowAlreadyInvited = (r: RosterRow) => !!lookupInviteForRow(r)
+
+  const getInviteUrlForRow = (r: RosterRow): string | null =>
+    lookupInviteForRow(r)?.claimUrl ?? null
+
+  const copyInviteLink = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url)
+      toast.success("Invite link copied")
+    } catch {
+      console.warn("Failed to copy invite link:", url)
+      toast.error("Couldn't copy — link is in the console")
+    }
+  }
 
   const sendableRosterRows = useMemo(
     () =>
@@ -335,59 +388,168 @@ function InvitesPage() {
             onToggleSelection={toggleRosterSelection}
             onToggleAll={toggleAllRoster}
             isRowAlreadyInvited={isRowAlreadyInvited}
+            getInviteUrlForRow={getInviteUrlForRow}
           />
 
           <section className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-baseline gap-3">
               <h2 className="text-sm font-semibold tracking-tight">
                 Bespoke / direct invites
               </h2>
-              <Badge variant="outline">
+              <span className="text-xs text-muted-foreground">
                 {draftBespokeInvites.length} draft
                 {draftBespokeInvites.length === 1 ? "" : "s"}
-              </Badge>
+                {sentBespokeCount > 0 ? ` · ${sentBespokeCount} sent` : ""}
+              </span>
             </div>
-            {draftBespokeInvites.length === 0 ? (
-              <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-                No draft bespoke invitees yet. Use{" "}
-                <strong>Add invitee</strong> or <strong>Bulk add</strong> to
-                stage rows.
+            {bespokeInvites.length === 0 ? (
+              <div className="rounded-lg border border-dashed bg-card p-8 text-center text-sm text-muted-foreground">
+                No bespoke invitees yet. Use <strong>Add invitee</strong> or{" "}
+                <strong>Bulk add</strong> to stage rows.
               </div>
             ) : (
-              <div className="rounded-md border">
-                <ul className="divide-y">
-                  {draftBespokeInvites.map((inv) => {
+              <div className="overflow-hidden rounded-lg border bg-card">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-b bg-muted/30 hover:bg-muted/30">
+                      <TableHead className="w-12">
+                        <Checkbox
+                          checked={
+                            draftBespokeInvites.length > 0 &&
+                            draftBespokeInvites.every((inv) =>
+                              selectedDraftIds.has(inv.id),
+                            )
+                          }
+                          disabled={draftBespokeInvites.length === 0}
+                          onCheckedChange={(v) => {
+                            setSelectedDraftIds(
+                              v === true
+                                ? new Set(
+                                    draftBespokeInvites.map((inv) => inv.id),
+                                  )
+                                : new Set(),
+                            )
+                          }}
+                          aria-label="Select all draft invitees"
+                        />
+                      </TableHead>
+                      <TableHead className="w-20 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        Rank
+                      </TableHead>
+                      <TableHead className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        Athlete
+                      </TableHead>
+                      <TableHead className="w-48 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        Qualified via
+                      </TableHead>
+                      <TableHead className="w-32 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        Status
+                      </TableHead>
+                      <TableHead className="w-16 text-right">
+                        <span className="sr-only">Actions</span>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                <TableBody>
+                  {bespokeInvites.map((inv) => {
                     const name =
                       [inv.inviteeFirstName, inv.inviteeLastName]
                         .filter(Boolean)
                         .join(" ") || inv.email
-                    const checked = selectedDraftIds.has(inv.id)
+                    const initial = name.charAt(0).toUpperCase()
+                    const isDraft = inv.claimUrl === null
+                    const statusLabel =
+                      inv.status === "accepted_paid"
+                        ? "Accepted"
+                        : inv.status === "declined"
+                          ? "Declined"
+                          : inv.status === "expired"
+                            ? "Expired"
+                            : inv.status === "revoked"
+                              ? "Revoked"
+                              : isDraft
+                                ? "Not invited"
+                                : "Invited"
+                    const statusBadgeClass =
+                      inv.status === "accepted_paid"
+                        ? "border-transparent bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/20"
+                        : inv.status === "declined"
+                          ? "border-transparent bg-rose-500/15 text-rose-400 hover:bg-rose-500/20"
+                          : inv.status === "expired" ||
+                              inv.status === "revoked"
+                            ? "border-transparent bg-muted text-muted-foreground"
+                            : isDraft
+                              ? "border-dashed text-muted-foreground"
+                              : "border-transparent bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/20"
                     return (
-                      <li
-                        key={inv.id}
-                        className="flex items-center gap-3 px-3 py-2 text-sm"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggleDraftSelection(inv.id)}
-                          className="h-4 w-4"
-                          aria-label={`Select ${inv.email}`}
-                        />
-                        <div className="flex-1 truncate">
-                          <div className="font-medium">{name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {inv.email}
-                            {inv.bespokeReason
-                              ? ` · ${inv.bespokeReason}`
-                              : ""}
+                      <TableRow key={inv.id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={
+                              isDraft && selectedDraftIds.has(inv.id)
+                            }
+                            disabled={!isDraft}
+                            onCheckedChange={() =>
+                              isDraft && toggleDraftSelection(inv.id)
+                            }
+                            aria-label={
+                              isDraft
+                                ? `Select ${inv.email}`
+                                : `${inv.email} already sent`
+                            }
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <span className="tabular-nums font-medium">—</span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-semibold">
+                              {initial}
+                            </div>
+                            <div className="flex flex-col leading-tight">
+                              <span>{name}</span>
+                              {name !== inv.email ? (
+                                <span className="text-xs text-muted-foreground">
+                                  {inv.email}
+                                </span>
+                              ) : null}
+                            </div>
                           </div>
-                        </div>
-                        <Badge variant="secondary">Draft</Badge>
-                      </li>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {inv.bespokeReason ?? "Direct invite"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={isDraft ? "outline" : "default"}
+                            className={statusBadgeClass}
+                          >
+                            {statusLabel}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {inv.claimUrl !== null ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Copy invite link"
+                              className="text-muted-foreground hover:text-foreground"
+                              onClick={() =>
+                                inv.claimUrl && copyInviteLink(inv.claimUrl)
+                              }
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          ) : null}
+                        </TableCell>
+                      </TableRow>
                     )
                   })}
-                </ul>
+                </TableBody>
+              </Table>
               </div>
             )}
           </section>
@@ -444,6 +606,10 @@ function InvitesPage() {
             onOpenChange={setSendOpen}
             championshipCompetitionId={competitionId}
             championshipDivisionId={activeDivisionId}
+            championshipName={competition.name}
+            divisionLabel={
+              divisions.find((d) => d.id === activeDivisionId)?.label ?? ""
+            }
             recipients={recipients}
             onSent={() => {
               setSelectedRosterKeys(new Set())
