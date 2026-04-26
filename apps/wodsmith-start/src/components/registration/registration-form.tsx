@@ -220,16 +220,16 @@ export function InviteRegistrationForm(props: InviteProps) {
     <div className="space-y-6">
       <PageHeader competition={props.competition} />
       <CapacityBanners capacity={props.competitionCapacity} />
-      <CompetitionDetailsCard
-        competition={props.competition}
-        registrationOpensAt={props.registrationOpensAt}
-        registrationClosesAt={props.registrationClosesAt}
-      />
       <InviteDivisionHero
         championshipName={props.competition.name}
         divisionLabel={r.invitedDivision.label}
         teamSize={r.invitedDivision.teamSize ?? 1}
         imageUrl={props.competition.profileImageUrl}
+      />
+      <CompetitionDetailsCard
+        competition={props.competition}
+        registrationOpensAt={props.registrationOpensAt}
+        registrationClosesAt={props.registrationClosesAt}
       />
 
       <form onSubmit={r.onSubmit} className="space-y-6">

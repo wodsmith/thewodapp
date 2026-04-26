@@ -60,13 +60,34 @@ export function InviteDivisionHero({
         )}
 
         <div className="relative">
+          {/* Powered-by badge */}
+          <div className="flex justify-center">
+            <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-br from-zinc-900 to-zinc-800 px-3 py-1.5 dark:from-zinc-800 dark:to-zinc-900">
+              <span className="text-xs text-zinc-400">Powered by</span>
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white">
+                <img
+                  src="/wodsmith-logo-no-text.png"
+                  alt=""
+                  aria-hidden
+                  width={14}
+                  height={14}
+                  loading="lazy"
+                  decoding="async"
+                />
+              </span>
+              <span className="text-xs text-white">
+                <span className="font-black">WOD</span>smith
+              </span>
+            </div>
+          </div>
+
           {/* Eyebrow */}
-          <div className="flex items-center gap-2 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-primary">
+          <div className="mt-6 flex items-center gap-2 text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-primary">
             <Sparkles
               aria-hidden
               className="h-3.5 w-3.5 animate-[invite-spark_3.2s_ease-in-out_infinite]"
             />
-            <span>Invitation Reserved</span>
+            <span>Invitation</span>
             <span
               aria-hidden
               className="ml-2 h-px flex-1 bg-gradient-to-r from-primary/60 via-primary/20 to-transparent"
