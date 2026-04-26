@@ -213,10 +213,13 @@ export const Route = createFileRoute("/compete/$slug/register")({
   component: RegisterPage,
   validateSearch: registerSearchSchema,
   staleTime: 10_000, // Cache for 10 seconds
-  loaderDeps: ({ search }) => ({ canceled: search.canceled }),
+  loaderDeps: ({ search }) => ({
+    canceled: search.canceled,
+    divisionId: search.divisionId,
+  }),
   loader: async ({ params, context, deps, parentMatchPromise }) => {
     const { slug } = params
-    const { canceled } = deps
+    const { canceled, divisionId: invitedDivisionId } = deps
 
     // 1. Get competition from parent (parent already validated it's non-null)
     const parentMatch = await parentMatchPromise
@@ -273,7 +276,25 @@ export const Route = createFileRoute("/compete/$slug/register")({
       }),
     ])
 
-    // No longer redirect if registered - allow registration for additional divisions
+    // Invite-flow short-circuit: if the URL specifies a division (the claim
+    // CTA always does) and the athlete already has an active registration in
+    // that division, send them to the registered confirmation page instead
+    // of stranding them on the registration form. Mirrors the claim route's
+    // `already_paid` redirect — covers the post-Stripe-success bounce-back
+    // and any later return visit to the original claim/register URL.
+    if (
+      invitedDivisionId &&
+      registeredDivisionIds.includes(invitedDivisionId)
+    ) {
+      throw redirect({
+        to: "/compete/$slug/registered",
+        params: { slug },
+        search: { session_id: undefined, registration_id: undefined },
+      })
+    }
+
+    // For public flow we deliberately do NOT redirect when registered —
+    // allow registration for additional divisions.
 
     // 4. Check registration window (dates are now YYYY-MM-DD strings)
     const now = new Date()
