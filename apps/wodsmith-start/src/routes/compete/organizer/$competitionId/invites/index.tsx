@@ -39,6 +39,15 @@ import {
 } from "@/components/organizer/invites/send-invites-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   COMPETITION_INVITE_ORIGIN,
@@ -200,17 +209,21 @@ function InvitesPage() {
     return map
   }, [activeInvites])
 
-  const draftBespokeInvites = useMemo(
+  const bespokeInvites = useMemo(
     () =>
       activeInvites.filter(
         (inv) =>
           inv.origin === COMPETITION_INVITE_ORIGIN.BESPOKE &&
           inv.championshipDivisionId === activeDivisionId &&
-          inv.activeMarker === "active" &&
-          !inv.hasClaimToken,
+          inv.activeMarker === "active",
       ),
     [activeInvites, activeDivisionId],
   )
+  const draftBespokeInvites = useMemo(
+    () => bespokeInvites.filter((inv) => !inv.hasClaimToken),
+    [bespokeInvites],
+  )
+  const sentBespokeCount = bespokeInvites.length - draftBespokeInvites.length
 
   const isRowAlreadyInvited = (r: RosterRow) =>
     !!activeInviteByEmail.get(
@@ -390,56 +403,143 @@ function InvitesPage() {
           />
 
           <section className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-baseline gap-3">
               <h2 className="text-sm font-semibold tracking-tight">
                 Bespoke / direct invites
               </h2>
-              <Badge variant="outline">
+              <span className="text-xs text-muted-foreground">
                 {draftBespokeInvites.length} draft
                 {draftBespokeInvites.length === 1 ? "" : "s"}
-              </Badge>
+                {sentBespokeCount > 0 ? ` · ${sentBespokeCount} sent` : ""}
+              </span>
             </div>
-            {draftBespokeInvites.length === 0 ? (
-              <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-                No draft bespoke invitees yet. Use{" "}
-                <strong>Add invitee</strong> or <strong>Bulk add</strong> to
-                stage rows.
+            {bespokeInvites.length === 0 ? (
+              <div className="rounded-lg border border-dashed bg-card p-8 text-center text-sm text-muted-foreground">
+                No bespoke invitees yet. Use <strong>Add invitee</strong> or{" "}
+                <strong>Bulk add</strong> to stage rows.
               </div>
             ) : (
-              <div className="rounded-md border">
-                <ul className="divide-y">
-                  {draftBespokeInvites.map((inv) => {
-                    const name =
-                      [inv.inviteeFirstName, inv.inviteeLastName]
-                        .filter(Boolean)
-                        .join(" ") || inv.email
-                    const checked = selectedDraftIds.has(inv.id)
-                    return (
-                      <li
-                        key={inv.id}
-                        className="flex items-center gap-3 px-3 py-2 text-sm"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggleDraftSelection(inv.id)}
-                          className="h-4 w-4"
-                          aria-label={`Select ${inv.email}`}
+              <div className="overflow-hidden rounded-lg border bg-card">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-b bg-muted/30 hover:bg-muted/30">
+                      <TableHead className="w-12">
+                        <Checkbox
+                          checked={
+                            draftBespokeInvites.length > 0 &&
+                            draftBespokeInvites.every((inv) =>
+                              selectedDraftIds.has(inv.id),
+                            )
+                          }
+                          disabled={draftBespokeInvites.length === 0}
+                          onCheckedChange={(v) => {
+                            setSelectedDraftIds(
+                              v === true
+                                ? new Set(
+                                    draftBespokeInvites.map((inv) => inv.id),
+                                  )
+                                : new Set(),
+                            )
+                          }}
+                          aria-label="Select all draft invitees"
                         />
-                        <div className="flex-1 truncate">
-                          <div className="font-medium">{name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {inv.email}
-                            {inv.bespokeReason
-                              ? ` · ${inv.bespokeReason}`
-                              : ""}
-                          </div>
-                        </div>
-                        <Badge variant="secondary">Draft</Badge>
-                      </li>
-                    )
-                  })}
-                </ul>
+                      </TableHead>
+                      <TableHead className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        Athlete
+                      </TableHead>
+                      <TableHead className="w-48 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        Qualified via
+                      </TableHead>
+                      <TableHead className="w-32 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        Status
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {bespokeInvites.map((inv) => {
+                      const name =
+                        [inv.inviteeFirstName, inv.inviteeLastName]
+                          .filter(Boolean)
+                          .join(" ") || inv.email
+                      const initial = name.charAt(0).toUpperCase()
+                      const isDraft = !inv.hasClaimToken
+                      const statusLabel =
+                        inv.status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID
+                          ? "Accepted"
+                          : inv.status === COMPETITION_INVITE_STATUS.DECLINED
+                            ? "Declined"
+                            : inv.status === COMPETITION_INVITE_STATUS.EXPIRED
+                              ? "Expired"
+                              : inv.status ===
+                                  COMPETITION_INVITE_STATUS.REVOKED
+                                ? "Revoked"
+                                : isDraft
+                                  ? "Not invited"
+                                  : "Invited"
+                      const statusBadgeClass =
+                        inv.status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID
+                          ? "border-transparent bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/20"
+                          : inv.status === COMPETITION_INVITE_STATUS.DECLINED
+                            ? "border-transparent bg-rose-500/15 text-rose-400 hover:bg-rose-500/20"
+                            : inv.status ===
+                                  COMPETITION_INVITE_STATUS.EXPIRED ||
+                                inv.status ===
+                                  COMPETITION_INVITE_STATUS.REVOKED
+                              ? "border-transparent bg-muted text-muted-foreground"
+                              : isDraft
+                                ? "border-dashed text-muted-foreground"
+                                : "border-transparent bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/20"
+                      return (
+                        <TableRow key={inv.id}>
+                          <TableCell>
+                            <Checkbox
+                              checked={
+                                isDraft && selectedDraftIds.has(inv.id)
+                              }
+                              disabled={!isDraft}
+                              onCheckedChange={() =>
+                                isDraft && toggleDraftSelection(inv.id)
+                              }
+                              aria-label={
+                                isDraft
+                                  ? `Select ${inv.email}`
+                                  : `${inv.email} already sent`
+                              }
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-semibold">
+                                {initial}
+                              </div>
+                              <div className="flex flex-col leading-tight">
+                                <span>{name}</span>
+                                {name !== inv.email ? (
+                                  <span className="text-xs text-muted-foreground">
+                                    {inv.email}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {inv.bespokeReason ?? "Direct invite"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={isDraft ? "outline" : "default"}
+                              className={statusBadgeClass}
+                            >
+                              {statusLabel}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
               </div>
             )}
           </section>
