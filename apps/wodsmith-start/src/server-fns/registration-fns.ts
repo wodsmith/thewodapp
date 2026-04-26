@@ -15,7 +15,9 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, eq, inArray, isNull, ne, or, sql } from "drizzle-orm"
 import type Stripe from "stripe"
 import { z } from "zod"
+import { CLAIM_TOKEN_EXPIRATION_SECONDS } from "@/constants"
 import { getDb } from "@/db"
+import type { ProductCoupon } from "@/db/schema"
 import {
   affiliatesTable,
   COMMERCE_PAYMENT_STATUS,
@@ -52,7 +54,6 @@ import {
   getRegistrationFee,
   type TeamFeeOverrides,
 } from "@/lib/commerce-stubs"
-import { CLAIM_TOKEN_EXPIRATION_SECONDS } from "@/constants"
 import { getAppUrl } from "@/lib/env"
 import { getEvlog } from "@/lib/evlog"
 import {
@@ -73,12 +74,11 @@ import {
 } from "@/db/schemas/competition-invites"
 import {
   assertInviteClaimable,
-  InviteNotClaimableError,
-  resolveInviteByToken,
+  findActiveInviteForEmail,
+  resolveInviteForClaim,
 } from "@/server/competition-invites/claim"
 import { normalizeInviteEmail } from "@/server/competition-invites/issue"
-import { validateCoupon, recordRedemption } from "@/server/coupons"
-import type { ProductCoupon } from "@/db/schema"
+import { recordRedemption, validateCoupon } from "@/server/coupons"
 import { requireVerifiedEmail } from "@/utils/auth"
 import { createToken, getClaimTokenKey } from "@/utils/auth-utils"
 import {
@@ -87,8 +87,8 @@ import {
   isDeadlinePassedInTimezone,
 } from "@/utils/timezone-utils"
 import {
-	getDivisionSpotsAvailableFn,
-	getCompetitionSpotsAvailableFn,
+  getCompetitionSpotsAvailableFn,
+  getDivisionSpotsAvailableFn,
 } from "./competition-divisions-fns"
 
 // ============================================================================
@@ -265,7 +265,10 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
     updateRequestContext({ userId })
     addRequestContextAttribute("competitionId", input.competitionId)
     addRequestContextAttribute("divisionCount", input.items.length.toString())
-    getEvlog()?.set({ action: "register_for_competition", registration: { competitionId: input.competitionId } })
+    getEvlog()?.set({
+      action: "register_for_competition",
+      registration: { competitionId: input.competitionId },
+    })
 
     logInfo({
       message: "[Registration] Payment initiation started",
@@ -289,55 +292,64 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
       throw new Error("Competition not found")
     }
 
-    // 1a. Invite-aware registration. If a claim token was supplied, resolve
-    // and identity-check it against the session email before any window
-    // validation. A matching invite lets the user bypass the registration
-    // window and carries the invite id through to Stripe purchase metadata
-    // so the webhook workflow can flip the invite to `accepted_paid`.
+    // 2. Invite-aware registration. The invite has its own lifecycle
+    // (pending / expired / declined / revoked / accepted_paid) and is
+    // independent of the public registration window: an organizer can
+    // issue a last-minute invite after public registration has closed and
+    // the invitee should still be able to register. A matching invite both
+    // bypasses the window check and carries the `inviteId` through to
+    // Stripe purchase metadata so the webhook workflow can flip the invite
+    // to `accepted_paid`.
+    //
+    // Resolution order: explicit token first, then a per-item identity
+    // probe so an athlete who navigates straight to /register (skipping
+    // the claim CTA) still benefits if they have an active invite on file.
+    const sessionEmail = normalizeInviteEmail(session.user.email ?? "")
+    let inviteAuthorized = false
     let inviteIdForPurchase: string | null = null
     let inviteDivisionIdForPurchase: string | null = null
     if (input.inviteToken) {
-      const invite = await resolveInviteByToken(input.inviteToken)
-      if (!invite) {
-        throw new Error("Invite link is invalid or expired")
-      }
-      try {
-        assertInviteClaimable(invite)
-      } catch (err) {
-        if (err instanceof InviteNotClaimableError) {
-          throw new Error(`Invite link is not usable: ${err.reason}`)
-        }
-        throw err
+      const { invite } = await resolveInviteForClaim(input.inviteToken)
+      if (sessionEmail !== normalizeInviteEmail(invite.email)) {
+        throw new Error("Invitation does not match this account")
       }
       if (invite.championshipCompetitionId !== input.competitionId) {
-        throw new Error("Invite does not match this competition")
+        throw new Error("Invitation is for a different competition")
       }
-      // Invites are pinned to a single division — reject both wrong-division
-      // and "invited division plus extras" submissions. The UI hides the
-      // multi-select when arriving from a claim link; this is the server-side
-      // backstop.
-      if (
-        input.items.length !== 1 ||
-        input.items[0].divisionId !== invite.championshipDivisionId
-      ) {
+      if (input.items.length !== 1) {
         throw new Error(
-          "Invite is locked to a single division — register only for the invited division",
+          "Invite-based registrations must be for a single division",
         )
       }
-      const sessionEmail = normalizeInviteEmail(session.user.email ?? "")
-      if (sessionEmail !== normalizeInviteEmail(invite.email)) {
-        throw new Error(
-          "Invite is locked to a different email — sign in as that address to claim it",
-        )
+      if (input.items[0].divisionId !== invite.championshipDivisionId) {
+        throw new Error("Invitation is for a different division")
       }
+      inviteAuthorized = true
       inviteIdForPurchase = invite.id
       inviteDivisionIdForPurchase = invite.championshipDivisionId
+    } else if (sessionEmail && input.items.length === 1) {
+      // No token — probe by identity. Active AND claimable
+      // (assertInviteClaimable throws on expired etc.).
+      const probe = await findActiveInviteForEmail({
+        championshipCompetitionId: input.competitionId,
+        championshipDivisionId: input.items[0].divisionId,
+        email: sessionEmail,
+      })
+      if (probe) {
+        try {
+          assertInviteClaimable(probe)
+          inviteAuthorized = true
+          inviteIdForPurchase = probe.id
+          inviteDivisionIdForPurchase = probe.championshipDivisionId
+        } catch {
+          // expired / declined / revoked etc — fall through to public-window
+          // gating; the public flow will give the right error.
+        }
+      }
     }
 
-    // 2. Validate registration window (using competition's timezone) —
-    // unless an invite bypasses it.
     const competitionTimezone = competition.timezone || DEFAULT_TIMEZONE
-    if (!inviteIdForPurchase) {
+    if (!inviteAuthorized) {
       if (
         !hasDateStartedInTimezone(
           competition.registrationOpensAt,
@@ -575,7 +587,6 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
           attributes: {
             inviteId: inviteIdForPurchase,
             registrationId: firstRegistrationId,
-            competitionId: input.competitionId,
           },
         })
       }
@@ -1044,7 +1055,10 @@ export const updateRegistrationAffiliateFn = createServerFn({ method: "POST" })
     if (input.userId !== session.user.id) {
       throw new Error("You can only update your own affiliate")
     }
-    getEvlog()?.set({ action: "update_registration", registration: { id: input.registrationId } })
+    getEvlog()?.set({
+      action: "update_registration",
+      registration: { id: input.registrationId },
+    })
 
     const db = getDb()
 
@@ -1118,7 +1132,10 @@ export const updateRegistrationAffiliateFn = createServerFn({ method: "POST" })
         })
         .where(eq(competitionRegistrationsTable.id, input.registrationId))
 
-      if (trimmedAffiliate && trimmedAffiliate.toLowerCase() !== "independent") {
+      if (
+        trimmedAffiliate &&
+        trimmedAffiliate.toLowerCase() !== "independent"
+      ) {
         await tx
           .insert(affiliatesTable)
           .values({ name: trimmedAffiliate })
@@ -1523,7 +1540,10 @@ export const cancelPendingPurchaseFn = createServerFn({ method: "POST" })
     // Update request context
     updateRequestContext({ userId: session.user.id })
     addRequestContextAttribute("competitionId", data.competitionId)
-    getEvlog()?.set({ action: "cancel_registration", registration: { competitionId: data.competitionId } })
+    getEvlog()?.set({
+      action: "cancel_registration",
+      registration: { competitionId: data.competitionId },
+    })
 
     // Ensure user can only cancel their own pending purchases
     if (data.userId !== session.user.id) {
@@ -1588,7 +1608,13 @@ export const removeRegistrationFn = createServerFn({ method: "POST" })
     updateRequestContext({ userId: session.userId })
     addRequestContextAttribute("competitionId", input.competitionId)
     addRequestContextAttribute("registrationId", input.registrationId)
-    getEvlog()?.set({ action: "remove_registration", registration: { id: input.registrationId, competitionId: input.competitionId } })
+    getEvlog()?.set({
+      action: "remove_registration",
+      registration: {
+        id: input.registrationId,
+        competitionId: input.competitionId,
+      },
+    })
 
     // 1. Get competition to verify ownership and get organizing team
     const competition = await db.query.competitionsTable.findFirst({
@@ -1964,7 +1990,10 @@ export const createManualRegistrationFn = createServerFn({ method: "POST" })
 
     updateRequestContext({ userId: session.userId })
     addRequestContextAttribute("competitionId", input.competitionId)
-    getEvlog()?.set({ action: "manual_register", registration: { competitionId: input.competitionId } })
+    getEvlog()?.set({
+      action: "manual_register",
+      registration: { competitionId: input.competitionId },
+    })
 
     // 1. Get competition to verify ownership and get organizing team
     const competition = await db.query.competitionsTable.findFirst({
@@ -2195,8 +2224,8 @@ export const refreshCompetitionTeamInviteFn = createServerFn({
     const db = getDb()
 
     // Verify the registration exists and the caller is the captain
-    const registration =
-      await db.query.competitionRegistrationsTable.findFirst({
+    const registration = await db.query.competitionRegistrationsTable.findFirst(
+      {
         where: eq(competitionRegistrationsTable.id, data.registrationId),
         with: {
           competition: {
@@ -2206,7 +2235,8 @@ export const refreshCompetitionTeamInviteFn = createServerFn({
             columns: { id: true, label: true },
           },
         },
-      })
+      },
+    )
 
     if (!registration) {
       throw new Error("Registration not found")
@@ -2221,10 +2251,7 @@ export const refreshCompetitionTeamInviteFn = createServerFn({
     const invitation = await db.query.teamInvitationTable.findFirst({
       where: and(
         eq(teamInvitationTable.id, data.invitationId),
-        eq(
-          teamInvitationTable.teamId,
-          registration.athleteTeamId ?? "",
-        ),
+        eq(teamInvitationTable.teamId, registration.athleteTeamId ?? ""),
         eq(teamInvitationTable.status, INVITATION_STATUS.PENDING),
       ),
     })

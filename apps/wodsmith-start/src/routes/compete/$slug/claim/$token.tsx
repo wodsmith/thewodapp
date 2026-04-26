@@ -17,7 +17,8 @@
  */
 
 import { createFileRoute, Link, redirect } from "@tanstack/react-router"
-import { AlertCircle, CheckCircle2, UserX } from "lucide-react"
+import { AlertCircle, CheckCircle2, LogOut, Ticket, UserX } from "lucide-react"
+import { useState } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -28,25 +29,74 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import {
-  identityMatch,
   type InviteClaimableError,
+  identityMatch,
 } from "@/server/competition-invites/identity"
+import { logoutFn } from "@/server-fns/auth-fns"
 import { getInviteByTokenFn } from "@/server-fns/competition-invite-fns"
 
 type Branch =
-  | { kind: "claimable"; divisionId: string; divisionLabel: string; championshipName: string }
-  | { kind: "wrong_account"; championshipName: string; inviteEmail: string }
+  | {
+      kind: "claimable"
+      divisionId: string
+      divisionLabel: string
+      championshipName: string
+    }
+  | {
+      kind: "wrong_account"
+      championshipName: string
+      inviteEmail: string
+      accountExistsForInviteEmail: boolean
+    }
+  | {
+      kind: "already_claimed"
+      championshipName: string
+      registrationId: string
+    }
   | { kind: "invalid"; reason: InviteClaimableError; championshipName?: string }
 
 export const Route = createFileRoute("/compete/$slug/claim/$token")({
   component: ClaimPage,
   staleTime: 0,
-  loader: async ({ params, context }): Promise<Branch> => {
+  loader: async ({ params, context, parentMatchPromise }): Promise<Branch> => {
     const result = await getInviteByTokenFn({
       data: { slug: params.slug, token: params.token },
     })
 
     if (result.kind === "not_claimable") {
+      // Already-registered athletes shouldn't see a destructive "error" page —
+      // they're not in an error state, they just landed on the wrong page.
+      // Send them to their registration view. Covers both an invite that was
+      // already consumed (status = accepted_paid) and the cross-check against
+      // an active registration created via any lane.
+      if (result.reason === "already_paid") {
+        throw redirect({
+          to: "/compete/$slug/registered",
+          params: { slug: params.slug },
+          search: { session_id: undefined, registration_id: undefined },
+        })
+      }
+
+      // `not_found` happens both when the link is bogus AND when the original
+      // invite has been consumed and the token hash nulled (replay-safe). To
+      // tell them apart, peek at the parent route's `userRegistrations`: if
+      // the signed-in visitor already has an active registration in this
+      // competition, render the friendly "already claimed" page instead of
+      // the generic invalid-link error.
+      if (result.reason === "not_found" && context.session) {
+        const parentMatch = await parentMatchPromise
+        const userRegistrations = parentMatch.loaderData?.userRegistrations
+        const competition = parentMatch.loaderData?.competition
+        const firstRegistration = userRegistrations?.[0]
+        if (competition && firstRegistration) {
+          return {
+            kind: "already_claimed",
+            championshipName: competition.name,
+            registrationId: firstRegistration.id,
+          }
+        }
+      }
+
       return {
         kind: "invalid",
         reason: result.reason,
@@ -76,6 +126,7 @@ export const Route = createFileRoute("/compete/$slug/claim/$token")({
         kind: "wrong_account",
         championshipName: result.championshipName,
         inviteEmail: result.invite.email,
+        accountExistsForInviteEmail: result.accountExistsForInviteEmail,
       }
     }
 
@@ -98,15 +149,32 @@ function ClaimPage() {
   const data = Route.useLoaderData()
 
   if (data.kind === "invalid") {
-    return <InvalidInvite reason={data.reason} championshipName={data.championshipName} />
+    return (
+      <InvalidInvite
+        reason={data.reason}
+        championshipName={data.championshipName}
+      />
+    )
   }
 
   if (data.kind === "wrong_account") {
     return (
       <WrongAccount
         slug={slug}
+        token={token}
         championshipName={data.championshipName}
         inviteEmail={data.inviteEmail}
+        accountExistsForInviteEmail={data.accountExistsForInviteEmail}
+      />
+    )
+  }
+
+  if (data.kind === "already_claimed") {
+    return (
+      <AlreadyClaimed
+        slug={slug}
+        championshipName={data.championshipName}
+        registrationId={data.registrationId}
       />
     )
   }
@@ -149,9 +217,8 @@ function ClaimablePage(props: {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Continue to registration and payment to claim your spot. This
-            invite is locked to your email — only this account can complete
-            the claim.
+            Continue to registration and payment to claim your spot. This invite
+            is locked to your email — only this account can complete the claim.
           </p>
           <Button asChild className="w-full" size="lg">
             <Link
@@ -159,13 +226,13 @@ function ClaimablePage(props: {
               params={{ slug: props.slug }}
               search={{
                 canceled: undefined,
-                // Forward the invite token so the paid registration can
-                // flip the invite to accepted_paid via Stripe webhook.
-                invite: props.token,
                 // Forward the invited division id so the registration form
-                // pre-selects (and pins) the right division — invites are
-                // locked to a single division at issue time.
+                // pre-selects (and pins) the right division. The token lets
+                // the server bypass the public registration window and (in
+                // Phase 2D) settle the invite to accepted_paid via Stripe
+                // metadata.
                 divisionId: props.divisionId,
+                invite: props.token,
               }}
             >
               Continue to registration
@@ -179,9 +246,38 @@ function ClaimablePage(props: {
 
 function WrongAccount(props: {
   slug: string
+  token: string
   championshipName: string
   inviteEmail: string
+  accountExistsForInviteEmail: boolean
 }) {
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+
+  // After logout, send the visitor straight to sign-in (or sign-up when no
+  // account exists for the invited email) with the email pre-filled and the
+  // claim URL set as the post-auth redirect — so the post-auth flow re-runs
+  // the claim loader and lands them on the happy path.
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+    try {
+      await logoutFn()
+    } catch (error) {
+      // Bouncing the user to /sign-in while their session is still live
+      // would just send them back here — surface the error and let them retry.
+      console.error("Logout error:", error)
+      setIsLoggingOut(false)
+      return
+    }
+    const authPath = props.accountExistsForInviteEmail ? "/sign-in" : "/sign-up"
+    const claimUrl = `/compete/${props.slug}/claim/${props.token}`
+    const search = new URLSearchParams({
+      redirect: claimUrl,
+      email: props.inviteEmail,
+      invite: props.token,
+    })
+    window.location.href = `${authPath}?${search.toString()}`
+  }
+
   return (
     <div className="mx-auto max-w-xl px-4 py-12">
       <Card>
@@ -189,7 +285,9 @@ function WrongAccount(props: {
           <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10">
             <UserX className="h-7 w-7 text-amber-600" />
           </div>
-          <CardTitle className="text-center">This invite is for a different account</CardTitle>
+          <CardTitle className="text-center">
+            This invite is for a different account
+          </CardTitle>
           <CardDescription className="text-center">
             {props.championshipName}
           </CardDescription>
@@ -197,20 +295,60 @@ function WrongAccount(props: {
         <CardContent className="space-y-4">
           <Alert>
             <AlertDescription>
-              You're signed in as a different email. The invite was sent to{" "}
-              <span className="font-medium">{props.inviteEmail}</span>. Sign
-              out and sign in with that address to continue.
+              You're signed in as a different email. This invite was sent to{" "}
+              <span className="font-medium">{props.inviteEmail}</span>. Log out
+              to continue as that address.
             </AlertDescription>
           </Alert>
-          <Button asChild className="w-full" size="lg" variant="outline">
+          <Button
+            type="button"
+            className="w-full"
+            size="lg"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            {isLoggingOut ? "Logging out…" : "Log out"}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+function AlreadyClaimed(props: {
+  slug: string
+  championshipName: string
+  registrationId: string
+}) {
+  return (
+    <div className="mx-auto max-w-xl px-4 py-12">
+      <Card>
+        <CardHeader>
+          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+            <Ticket className="h-7 w-7 text-primary" />
+          </div>
+          <CardTitle className="text-center">
+            You've already claimed this invitation
+          </CardTitle>
+          <CardDescription className="text-center">
+            {props.championshipName}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground text-center">
+            Your spot is locked in. Head to your registration to review your
+            details or manage your team.
+          </p>
+          <Button asChild className="w-full" size="lg">
             <Link
-              to="/sign-in"
-              search={{
-                redirect: `/compete/${props.slug}/invite-pending`,
-                email: props.inviteEmail,
+              to="/compete/$slug/teams/$registrationId"
+              params={{
+                slug: props.slug,
+                registrationId: props.registrationId,
               }}
             >
-              Sign in as {props.inviteEmail}
+              View your registration
             </Link>
           </Button>
         </CardContent>
@@ -275,13 +413,6 @@ function invalidReasonCopy(reason: InviteClaimableError): {
         headline: "Invite revoked",
         description:
           "The organizer has revoked this invite. If that's a mistake, reach out to them directly.",
-      }
-    case "already_paid":
-      return {
-        title: "You're already registered",
-        headline: "Registration complete",
-        description:
-          "This invite has already been claimed and paid. Head to your competitions dashboard to see the event.",
       }
     default:
       return {

@@ -50,6 +50,7 @@ function inviteFixture(
   }
 }
 
+// @lat: [[competition-invites#Claim resolution]]
 describe("assertInviteClaimable", () => {
   const before = new Date("2026-04-15T00:00:00Z")
   const afterExpiry = new Date("2026-05-02T00:00:00Z")
@@ -147,10 +148,11 @@ describe("assertInviteClaimable", () => {
         inviteFixture({ activeMarker: null }),
         before,
       ),
-    ).toThrow()
+    ).toThrow(expect.objectContaining({ reason: "not_found" }))
   })
 })
 
+// @lat: [[competition-invites#Claim resolution]]
 describe("identityMatch", () => {
   const invite = inviteFixture({ email: "mike@example.com" })
 

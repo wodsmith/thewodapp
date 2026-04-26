@@ -18,7 +18,7 @@
 import { render } from "@react-email/render"
 import { createServerFn } from "@tanstack/react-start"
 import { env } from "cloudflare:workers"
-import { and, eq, inArray, sql } from "drizzle-orm"
+import { and, eq, inArray, ne, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -32,7 +32,9 @@ import {
 } from "@/db/schemas/competition-invites"
 import {
   competitionGroupsTable,
+  competitionRegistrationsTable,
   competitionsTable,
+  REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { TEAM_PERMISSIONS, teamTable } from "@/db/schemas/teams"
@@ -658,7 +660,7 @@ export const getInviteByTokenFn = createServerFn({ method: "GET" })
           throw err
         }
 
-        const [division, account] = await Promise.all([
+        const [division, account, session] = await Promise.all([
           db
             .select({
               id: scalingLevelsTable.id,
@@ -674,7 +676,48 @@ export const getInviteByTokenFn = createServerFn({ method: "GET" })
             .where(eq(userTable.email, normalizeInviteEmail(invite.email)))
             .limit(1)
             .then((rows) => rows[0] ?? null),
+          getSessionFromCookie(),
         ])
+
+        // Cross-check: if the visitor is signed in as the invited identity and
+        // already has an active registration for this (competition, division),
+        // short-circuit to "already_paid" regardless of which lane (public,
+        // organizer-manual, prior invite claim) created that registration.
+        const sessionEmail = session?.user?.email
+        if (
+          sessionEmail &&
+          normalizeInviteEmail(sessionEmail) ===
+            normalizeInviteEmail(invite.email)
+        ) {
+          const [existingReg] = await db
+            .select({ id: competitionRegistrationsTable.id })
+            .from(competitionRegistrationsTable)
+            .where(
+              and(
+                eq(
+                  competitionRegistrationsTable.eventId,
+                  invite.championshipCompetitionId,
+                ),
+                eq(competitionRegistrationsTable.userId, session.userId),
+                eq(
+                  competitionRegistrationsTable.divisionId,
+                  invite.championshipDivisionId,
+                ),
+                ne(
+                  competitionRegistrationsTable.status,
+                  REGISTRATION_STATUS.REMOVED,
+                ),
+              ),
+            )
+            .limit(1)
+          if (existingReg) {
+            return {
+              kind: "not_claimable" as const,
+              reason: "already_paid" as InviteClaimableError,
+              championshipName: champ.name,
+            }
+          }
+        }
 
         return {
           kind: "claimable" as const,

@@ -461,6 +461,15 @@ async function createRegistration(
     }
   }
 
+  // If the athlete has an active claimable invite for this division, the
+  // invite is the authorization to register and the public window does not
+  // apply. `initiateRegistrationPaymentFn` already validated the invite at
+  // payment time and persisted its id into purchase metadata — trust that
+  // signal here instead of re-probing. Re-probing introduces a race: an
+  // organizer revoking an invite between Stripe checkout and webhook
+  // delivery would deny registration to an athlete who already paid.
+  const inviteAuthorized = !!registrationData.inviteId
+
   // Create the registration
   try {
     const result = await registerForCompetition({
@@ -470,6 +479,7 @@ async function createRegistration(
       teamName: registrationData.teamName,
       affiliateName: registrationData.affiliateName,
       teammates: registrationData.teammates,
+      isOrganizerOverride: inviteAuthorized,
     })
 
     // Update registration with payment info
