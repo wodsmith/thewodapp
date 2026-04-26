@@ -9,14 +9,16 @@
  * Two primary helpers:
  * - {@link issueInvitesForRecipients} — insert new pending invite rows for
  *   source-derived and fresh bespoke recipients. Returns the inserted rows
- *   together with their *plaintext* claim tokens (the only place the
- *   plaintext exists). Conflicts against an already-active invite surface
- *   as `alreadyActive` with the existing invite id so the caller can
- *   decide to reissue.
- * - {@link reissueInvite} — rotate token + last4, bump `sendAttempt`,
- *   bump `expiresAt`, restore `activeMarker = "active"`, and flip
- *   `expired`/draft-no-token rows back to `pending`. Covers both
- *   extend-expired-invite and activate-draft-bespoke paths.
+ *   together with their plaintext claim tokens for the email render.
+ *   The plaintext also lives in `claimToken` on the row (mirroring the
+ *   `team_invitations.token` pattern) so the organizer UI can build a
+ *   copy-link. Conflicts against an already-active invite surface as
+ *   `alreadyActive` with the existing invite id so the caller can decide
+ *   to reissue.
+ * - {@link reissueInvite} — rotate token, bump `sendAttempt`, bump
+ *   `expiresAt`, restore `activeMarker = "active"`, and flip `expired` /
+ *   draft-no-token rows back to `pending`. Covers both extend-expired
+ *   and activate-draft-bespoke paths.
  *
  * Both paths reject at the target division's registration fee of $0 —
  * free competitions are not eligible for invites in the MVP (ADR-0011
@@ -36,7 +38,7 @@ import {
   type CompetitionInviteOrigin,
   competitionInvitesTable,
 } from "@/db/schemas/competition-invites"
-import { generateInviteClaimToken } from "@/lib/competition-invites/tokens"
+import { generateInviteClaimTokenPlaintext } from "@/lib/competition-invites/tokens"
 import { getRegistrationFee } from "@/server/commerce/fee-calculator"
 
 // ============================================================================
@@ -67,7 +69,10 @@ export interface IssueInvitesInput {
 
 export interface IssuedInvite {
   invite: CompetitionInvite
-  /** Plaintext claim token. Put this only in an outgoing email. */
+  /**
+   * Plaintext claim token. Mirrors `invite.claimToken` so callers don't
+   * have to reach into the row when rendering the email URL.
+   */
   plaintextToken: string
 }
 
@@ -225,17 +230,17 @@ export async function issueInvitesForRecipients(
           email: r.email,
           existingInviteId: existingRow.id,
           // A draft is a bespoke row staged without a token (`pending` +
-          // null hash). `accepted_paid` rows also null `claimTokenHash`
-          // while keeping `activeMarker = "active"` — the status guard
-          // keeps them out of the draft bucket. We also treat rows
-          // whose previous dispatch failed (`emailDeliveryStatus` =
-          // "failed") as draft-like so the organizer's resend can
-          // recover via `reissueInvite` — otherwise a render/queue
-          // error mid-batch would orphan the row in the active index
-          // until the expiry sweep runs.
+          // null `claimToken`). `accepted_paid` rows also null
+          // `claimToken` while keeping `activeMarker = "active"` — the
+          // status guard keeps them out of the draft bucket. We also
+          // treat rows whose previous dispatch failed
+          // (`emailDeliveryStatus` = "failed") as draft-like so the
+          // organizer's resend can recover via `reissueInvite` —
+          // otherwise a render/queue error mid-batch would orphan the
+          // row in the active index until the expiry sweep runs.
           isDraft:
             existingRow.status === COMPETITION_INVITE_STATUS.PENDING &&
-            (!existingRow.claimTokenHash ||
+            (!existingRow.claimToken ||
               existingRow.emailDeliveryStatus ===
                 COMPETITION_INVITE_EMAIL_DELIVERY_STATUS.FAILED),
         })
@@ -251,7 +256,7 @@ export async function issueInvitesForRecipients(
     const inserted: IssuedInvite[] = []
     const rowsToInsert: CompetitionInvite[] = []
     for (const r of toInsertInputs) {
-      const artifacts = await generateInviteClaimToken()
+      const plaintextToken = generateInviteClaimTokenPlaintext()
       const id = createCompetitionInviteId()
       const now = new Date()
       const row: CompetitionInvite = {
@@ -280,8 +285,7 @@ export async function issueInvitesForRecipients(
         userId: r.userId ?? null,
         inviteeFirstName: r.inviteeFirstName ?? null,
         inviteeLastName: r.inviteeLastName ?? null,
-        claimTokenHash: artifacts.hash,
-        claimTokenLast4: artifacts.last4,
+        claimToken: plaintextToken,
         expiresAt: input.rsvpDeadlineAt,
         sendAttempt: 0,
         status: COMPETITION_INVITE_STATUS.PENDING,
@@ -298,7 +302,7 @@ export async function issueInvitesForRecipients(
         updateCounter: 0,
       }
       rowsToInsert.push(row)
-      inserted.push({ invite: row, plaintextToken: artifacts.token })
+      inserted.push({ invite: row, plaintextToken })
     }
 
     await tx.insert(competitionInvitesTable).values(rowsToInsert)
@@ -323,7 +327,7 @@ export interface ReissueInviteInput {
 
 /**
  * Rotate the token on an existing invite. Covers two cases:
- * 1. Activate a draft bespoke invite (no `claimTokenHash` yet).
+ * 1. Activate a draft bespoke invite (no `claimToken` yet).
  * 2. Extend/re-send a `pending` (near-expiry) or `expired` invite.
  *
  * Preserves `invite.id` so Stripe metadata, webhooks, and audit queries
@@ -370,15 +374,14 @@ export async function reissueInvite(
     divisionId: existing.championshipDivisionId,
   })
 
-  const artifacts = await generateInviteClaimToken()
+  const plaintextToken = generateInviteClaimTokenPlaintext()
   const nextSendAttempt = existing.sendAttempt + 1
   const now = new Date()
 
   const updateResult = await db
     .update(competitionInvitesTable)
     .set({
-      claimTokenHash: artifacts.hash,
-      claimTokenLast4: artifacts.last4,
+      claimToken: plaintextToken,
       expiresAt: input.newExpiresAt,
       sendAttempt: nextSendAttempt,
       status: COMPETITION_INVITE_STATUS.PENDING,
@@ -421,8 +424,7 @@ export async function reissueInvite(
 
   const rotated: CompetitionInvite = {
     ...existing,
-    claimTokenHash: artifacts.hash,
-    claimTokenLast4: artifacts.last4,
+    claimToken: plaintextToken,
     expiresAt: input.newExpiresAt,
     sendAttempt: nextSendAttempt,
     status: COMPETITION_INVITE_STATUS.PENDING,
@@ -433,5 +435,5 @@ export async function reissueInvite(
     updatedAt: now,
   }
 
-  return { invite: rotated, plaintextToken: artifacts.token }
+  return { invite: rotated, plaintextToken }
 }

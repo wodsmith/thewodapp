@@ -2,7 +2,7 @@
  * Competition invite expiry sweep.
  *
  * Paginates `status = "pending" AND expiresAt < now` and transitions
- * matching rows to `expired`. Nulls `claimTokenHash` + `activeMarker` so
+ * matching rows to `expired`. Nulls `claimToken` + `activeMarker` so
  * the link dies immediately and a future re-invite for the same
  * (championship, email, division) is unblocked by the unique-active index.
  *
@@ -62,8 +62,7 @@ export async function sweepExpiredInvites(
     .update(competitionInvitesTable)
     .set({
       status: COMPETITION_INVITE_STATUS.EXPIRED,
-      claimTokenHash: null,
-      claimTokenLast4: null,
+      claimToken: null,
       activeMarker: null,
       updatedAt: now,
     })

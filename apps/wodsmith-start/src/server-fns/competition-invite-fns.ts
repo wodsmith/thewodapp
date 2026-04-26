@@ -823,9 +823,13 @@ export const declineInviteFn = createServerFn({ method: "POST" })
 /**
  * Render the competition invite email HTML for one invite row.
  *
- * The claim URL embeds the plaintext token — this is the *only* place the
- * plaintext escapes process memory. The decline URL is included as a
- * secondary CTA in the email body.
+ * The claim URL embeds the plaintext token. Mirrors the
+ * `team_invitations.token` pattern — the plaintext also lives in
+ * `competition_invites.claimToken` so the organizer UI can offer a
+ * copy-link affordance. Email-locked claim (`identityMatch`) remains the
+ * actual auth gate; the token is an unguessable identifier, not a bearer
+ * password. The decline URL is included as a secondary CTA in the email
+ * body.
  */
 async function renderInviteEmailHtml(params: {
   invite: CompetitionInvite
@@ -1078,7 +1082,7 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
             })
             // Flip the row so resend treats it as redeliverable. The
             // `failed` status is a hint for the consumer/UX layer; the
-            // row's `claimTokenHash` stays valid so a future re-send
+            // row's `claimToken` stays valid so a future re-send
             // can redeliver the same token rather than rotating it.
             try {
               const db = getDb()
@@ -1219,13 +1223,16 @@ export const createBespokeInvitesBulkFn = createServerFn({ method: "POST" })
   })
 
 /**
- * Organizer-facing projection of an active invite. Drops sensitive token
- * fields (`claimTokenHash`, `claimTokenLast4`) — the organizer client
- * only needs identity + classification info to render the bespoke
- * section and overlay invite state on source roster rows.
+ * Organizer-facing projection of an active invite. Carries `claimUrl`
+ * pre-built on the server so the client never has to know the app URL or
+ * how to interpolate the slug — the UI just renders / copies what we
+ * give it.
  *
- * `hasClaimToken` lets the UI distinguish staged drafts (no token yet)
- * from already-sent invites without exposing the hash itself.
+ * `claimUrl` is `null` for staged-bespoke drafts (no token yet) and for
+ * already-terminal-but-still-active rows (e.g. `accepted_paid` rows
+ * which keep `activeMarker = "active"` but null `claimToken`). The UI
+ * uses this to distinguish drafts from sent invites without exposing
+ * raw token columns.
  */
 export interface ActiveInviteSummary {
   id: string
@@ -1238,7 +1245,12 @@ export interface ActiveInviteSummary {
   inviteeFirstName: string | null
   inviteeLastName: string | null
   userId: string | null
-  hasClaimToken: boolean
+  /**
+   * Pre-built `${appUrl}/compete/${slug}/claim/${claimToken}` URL when
+   * the row has a live token, else `null`. Mirrors the
+   * `team_invitations`-style copy-link affordance.
+   */
+  claimUrl: string | null
 }
 
 /**
@@ -1274,6 +1286,12 @@ export const listActiveInvitesFn = createServerFn({ method: "GET" })
         )
 
         const db = getDb()
+        // Single query: join the championship row so we can build
+        // `claimUrl` per invite without a follow-up roundtrip per row.
+        // The championship is the same for every row in the result, but
+        // joining keeps the projection self-contained and lets us
+        // surface a useful error if the championship ever vanished
+        // mid-flight.
         const rows = await db
           .select({
             id: competitionInvitesTable.id,
@@ -1287,9 +1305,17 @@ export const listActiveInvitesFn = createServerFn({ method: "GET" })
             inviteeFirstName: competitionInvitesTable.inviteeFirstName,
             inviteeLastName: competitionInvitesTable.inviteeLastName,
             userId: competitionInvitesTable.userId,
-            claimTokenHash: competitionInvitesTable.claimTokenHash,
+            claimToken: competitionInvitesTable.claimToken,
+            championshipSlug: competitionsTable.slug,
           })
           .from(competitionInvitesTable)
+          .innerJoin(
+            competitionsTable,
+            eq(
+              competitionsTable.id,
+              competitionInvitesTable.championshipCompetitionId,
+            ),
+          )
           .where(
             and(
               eq(
@@ -1307,10 +1333,13 @@ export const listActiveInvitesFn = createServerFn({ method: "GET" })
             ),
           )
 
+        const appUrl = getAppUrl()
         const invites: ActiveInviteSummary[] = rows.map(
-          ({ claimTokenHash, ...rest }) => ({
+          ({ claimToken, championshipSlug, ...rest }) => ({
             ...rest,
-            hasClaimToken: claimTokenHash !== null,
+            claimUrl: claimToken
+              ? `${appUrl}/compete/${championshipSlug}/claim/${claimToken}`
+              : null,
           }),
         )
         return { invites }

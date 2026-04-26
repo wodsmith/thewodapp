@@ -2,7 +2,7 @@
  * Decline an invite.
  *
  * Called from the `/compete/$slug/claim/$token/decline` route. Transitions
- * a pending invite to `declined` — nulls `activeMarker` and `claimTokenHash`
+ * a pending invite to `declined` — nulls `activeMarker` and `claimToken`
  * so the unique-active index unblocks a future re-invite and the link
  * dies immediately.
  *
@@ -37,8 +37,7 @@ export async function declineInvite(params: {
     .set({
       status: COMPETITION_INVITE_STATUS.DECLINED,
       declinedAt: now,
-      claimTokenHash: null,
-      claimTokenLast4: null,
+      claimToken: null,
       activeMarker: null,
       updatedAt: now,
     })

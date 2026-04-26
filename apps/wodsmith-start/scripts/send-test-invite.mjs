@@ -34,16 +34,10 @@ function base64urlNoPadding(bytes) {
 	return Buffer.from(bytes).toString("base64url")
 }
 
-async function generateToken() {
+function generateToken() {
 	const bytes = new Uint8Array(32)
 	webcrypto.getRandomValues(bytes)
-	const token = base64urlNoPadding(bytes)
-	const digest = await webcrypto.subtle.digest(
-		"SHA-256",
-		new TextEncoder().encode(token),
-	)
-	const hash = Buffer.from(digest).toString("hex")
-	return { token, hash, last4: token.slice(-4) }
+	return base64urlNoPadding(bytes)
 }
 
 // ---------------------------------------------------------------------------
@@ -113,7 +107,7 @@ try {
 	await db.query(
 		`UPDATE competition_invites
 		 SET status='revoked', revoked_at=NOW(), active_marker=NULL,
-		     claim_token_hash=NULL, updated_at=NOW()
+		     claim_token=NULL, updated_at=NOW()
 		 WHERE championship_competition_id = ?
 		   AND email = ?
 		   AND championship_division_id = ?
@@ -121,7 +115,7 @@ try {
 		[CHAMPIONSHIP_ID, TARGET_EMAIL.toLowerCase(), DIVISION_ID],
 	)
 
-	const { token, hash, last4 } = await generateToken()
+	const token = generateToken()
 	const inviteId = makeInviteId()
 	const claimUrl = `${APP_URL}/compete/${CHAMPIONSHIP_SLUG}/claim/${token}`
 	const declineUrl = `${claimUrl}/decline`
@@ -133,7 +127,7 @@ try {
 			source_id, source_competition_id, source_placement, source_placement_label,
 			bespoke_reason, championship_division_id, email, user_id,
 			invitee_first_name, invitee_last_name,
-			claim_token_hash, claim_token_last4, expires_at,
+			claim_token, expires_at,
 			send_attempt, status, email_delivery_status, active_marker
 		) VALUES (
 			NOW(), NOW(), ?,
@@ -141,7 +135,7 @@ try {
 			NULL, NULL, NULL, 'Phase 2C send-pipeline test',
 			'Phase 2C smoke test', ?, ?, NULL,
 			?, ?,
-			?, ?, DATE_ADD(NOW(), INTERVAL 14 DAY),
+			?, DATE_ADD(NOW(), INTERVAL 14 DAY),
 			1, 'pending', 'queued', 'active'
 		)`,
 		[
@@ -151,12 +145,11 @@ try {
 			TARGET_EMAIL.toLowerCase(),
 			TARGET_FIRST,
 			TARGET_LAST,
-			hash,
-			last4,
+			token,
 		],
 	)
 
-	console.log(`Inserted invite ${inviteId} (last4=${last4})`)
+	console.log(`Inserted invite ${inviteId} (last4=${token.slice(-4)})`)
 
 	const { subject, html } = renderEmail({
 		claimUrl,

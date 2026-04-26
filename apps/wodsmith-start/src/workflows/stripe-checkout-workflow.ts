@@ -631,8 +631,7 @@ async function updateCompetitionInviteStatus(
       paidAt: now,
       claimedRegistrationId: result.registrationId,
       // Null the token so a replay of the old email link short-circuits.
-      claimTokenHash: null,
-      claimTokenLast4: null,
+      claimToken: null,
       updatedAt: now,
     })
     .where(

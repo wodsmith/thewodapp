@@ -569,8 +569,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
             status: COMPETITION_INVITE_STATUS.ACCEPTED_PAID,
             paidAt: now,
             claimedRegistrationId: firstRegistrationId,
-            claimTokenHash: null,
-            claimTokenLast4: null,
+            claimToken: null,
             updatedAt: now,
           })
           .where(
