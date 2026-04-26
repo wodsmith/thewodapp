@@ -17,7 +17,7 @@
  */
 
 import { createFileRoute, Link, redirect } from "@tanstack/react-router"
-import { AlertCircle, CheckCircle2, LogOut, UserX } from "lucide-react"
+import { AlertCircle, CheckCircle2, LogOut, Ticket, UserX } from "lucide-react"
 import { useState } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -48,12 +48,13 @@ type Branch =
       inviteEmail: string
       accountExistsForInviteEmail: boolean
     }
+  | { kind: "already_claimed"; championshipName: string }
   | { kind: "invalid"; reason: InviteClaimableError; championshipName?: string }
 
 export const Route = createFileRoute("/compete/$slug/claim/$token")({
   component: ClaimPage,
   staleTime: 0,
-  loader: async ({ params, context }): Promise<Branch> => {
+  loader: async ({ params, context, parentMatchPromise }): Promise<Branch> => {
     const result = await getInviteByTokenFn({
       data: { slug: params.slug, token: params.token },
     })
@@ -71,6 +72,29 @@ export const Route = createFileRoute("/compete/$slug/claim/$token")({
           search: { session_id: undefined, registration_id: undefined },
         })
       }
+
+      // `not_found` happens both when the link is bogus AND when the original
+      // invite has been consumed and the token hash nulled (replay-safe). To
+      // tell them apart, peek at the parent route's `userRegistrations`: if
+      // the signed-in visitor already has an active registration in this
+      // competition, render the friendly "already claimed" page instead of
+      // the generic invalid-link error.
+      if (result.reason === "not_found" && context.session) {
+        const parentMatch = await parentMatchPromise
+        const userRegistrations = parentMatch.loaderData?.userRegistrations
+        const competition = parentMatch.loaderData?.competition
+        if (
+          competition &&
+          userRegistrations &&
+          userRegistrations.length > 0
+        ) {
+          return {
+            kind: "already_claimed",
+            championshipName: competition.name,
+          }
+        }
+      }
+
       return {
         kind: "invalid",
         reason: result.reason,
@@ -139,6 +163,15 @@ function ClaimPage() {
         championshipName={data.championshipName}
         inviteEmail={data.inviteEmail}
         accountExistsForInviteEmail={data.accountExistsForInviteEmail}
+      />
+    )
+  }
+
+  if (data.kind === "already_claimed") {
+    return (
+      <AlreadyClaimed
+        slug={slug}
+        championshipName={data.championshipName}
       />
     )
   }
@@ -269,6 +302,41 @@ function WrongAccount(props: {
           >
             <LogOut className="mr-2 h-4 w-4" />
             {isLoggingOut ? "Logging out…" : "Log out"}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+function AlreadyClaimed(props: { slug: string; championshipName: string }) {
+  return (
+    <div className="mx-auto max-w-xl px-4 py-12">
+      <Card>
+        <CardHeader>
+          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+            <Ticket className="h-7 w-7 text-primary" />
+          </div>
+          <CardTitle className="text-center">
+            You've already claimed this invitation
+          </CardTitle>
+          <CardDescription className="text-center">
+            {props.championshipName}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground text-center">
+            Your spot is locked in. Head to your registration to review your
+            details or share the event.
+          </p>
+          <Button asChild className="w-full" size="lg">
+            <Link
+              to="/compete/$slug/registered"
+              params={{ slug: props.slug }}
+              search={{ session_id: undefined, registration_id: undefined }}
+            >
+              View your registration
+            </Link>
           </Button>
         </CardContent>
       </Card>
