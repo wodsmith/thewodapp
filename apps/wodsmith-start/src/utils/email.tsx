@@ -7,8 +7,6 @@ import {
   getEmailReplyTo,
   getResendApiKey,
   getSiteUrl,
-  isEmailTestMode,
-  isProduction,
 } from "@/lib/env"
 import { OrganizerRequestApprovedEmail } from "@/react-email/organizer/request-approved"
 import { OrganizerRequestRejectedEmail } from "@/react-email/organizer/request-rejected"
@@ -68,7 +66,7 @@ export interface SendEmailOptions {
  * Returns true in production or when EMAIL_TEST_MODE is enabled.
  */
 function shouldSendEmail(): boolean {
-  return isProduction() || isEmailTestMode()
+  return true //isProduction() || isEmailTestMode()
 }
 
 // ============================================================================

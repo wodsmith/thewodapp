@@ -30,8 +30,7 @@ function inviteFixture(
     userId: "usr_m",
     inviteeFirstName: "Mike",
     inviteeLastName: null,
-    claimTokenHash: "a".repeat(64),
-    claimTokenLast4: "abcd",
+    claimToken: "tok_abcdefghij",
     expiresAt: new Date("2026-05-01T00:00:00Z"),
     sendAttempt: 1,
     status: COMPETITION_INVITE_STATUS.PENDING,
@@ -64,7 +63,7 @@ describe("assertInviteClaimable", () => {
       assertInviteClaimable(
         inviteFixture({
           status: COMPETITION_INVITE_STATUS.ACCEPTED_PAID,
-          claimTokenHash: null,
+          claimToken: null,
         }),
         before,
       )
@@ -81,7 +80,7 @@ describe("assertInviteClaimable", () => {
         inviteFixture({
           status: COMPETITION_INVITE_STATUS.DECLINED,
           activeMarker: null,
-          claimTokenHash: null,
+          claimToken: null,
         }),
         before,
       ),
@@ -99,7 +98,7 @@ describe("assertInviteClaimable", () => {
         inviteFixture({
           status: COMPETITION_INVITE_STATUS.REVOKED,
           activeMarker: null,
-          claimTokenHash: null,
+          claimToken: null,
         }),
         before,
       ),
@@ -114,7 +113,7 @@ describe("assertInviteClaimable", () => {
         inviteFixture({
           status: COMPETITION_INVITE_STATUS.EXPIRED,
           activeMarker: null,
-          claimTokenHash: null,
+          claimToken: null,
         }),
         before,
       ),
@@ -131,10 +130,10 @@ describe("assertInviteClaimable", () => {
     )
   })
 
-  it("rejects when the token hash was nulled (double-claim defense)", () => {
+  it("rejects when the token was nulled (double-claim defense)", () => {
     expect(() =>
       assertInviteClaimable(
-        inviteFixture({ claimTokenHash: null }),
+        inviteFixture({ claimToken: null }),
         before,
       ),
     ).toThrow(

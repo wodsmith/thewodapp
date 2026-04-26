@@ -121,7 +121,7 @@ This is the largest phase. It splits into four sub-arcs (schema + tokens, issue 
 ### Sub-arc A: Schema + Tokens + Issue
 
 #### 2.1 `feat(invites): add competition_invites schema`
-- **Scope:** Extend `src/db/schemas/competition-invites.ts` with `competitionInvitesTable`. All columns per ADR "Database Schema" section including `activeMarker`, `claimTokenHash`, `claimTokenLast4`, `origin`, `bespokeReason`. Unique indexes: `(championshipCompetitionId, email, championshipDivisionId, activeMarker)`, `claimTokenHash`; secondary `(roundId)`, `(sourceId)`, `(origin)`, `(status)`, `(email)`. Note: `roundId` is `varchar(255) NOT NULL` with a placeholder default that Phase 3 rewrites to FK-style.
+- **Scope:** Extend `src/db/schemas/competition-invites.ts` with `competitionInvitesTable`. All columns per ADR "Database Schema" section including `activeMarker`, `claimTokenHash`, `claimTokenLast4`, `sendAttempt` (int not null default 0), `origin`, `bespokeReason`. Status enum is `pending | accepted_paid | declined | expired | revoked` — no `accepted` state, no `acceptedAt` column. Unique indexes: `(championshipCompetitionId, email, championshipDivisionId, activeMarker)`, `claimTokenHash`; secondary `(roundId)`, `(sourceId)`, `(origin)`, `(status)`, `(email)`. Note: `roundId` is `varchar(255) NOT NULL` with a placeholder default that Phase 3 rewrites to FK-style.
 - **DB action:** apply DDL (create table + indexes) to the `competition-invites` PlanetScale branch via the MCP. Re-verify index shape on-branch — the active-marker unique index is the critical correctness guarantee for this feature.
 - **Tests:** none.
 
@@ -130,8 +130,8 @@ This is the largest phase. It splits into four sub-arcs (schema + tokens, issue 
 - **Tests:** `test/lib/competition-invites/tokens.test.ts` — determinism of hash, collision-resistance sanity (1000-generation uniqueness check), last4 format.
 
 #### 2.3 `feat(invites): add invite issue helpers`
-- **Scope:** `src/server/competition-invites/issue.ts` — `issueInvitesForRecipients({ championshipId, divisionId, recipients, roundLabel, subject, bodyJson, rsvpDeadlineAt })`. Implements the transactional flow: `INSERT ... ON DUPLICATE KEY UPDATE` keyed on the active-marker unique index, returns `{ inserted, alreadyActive }`. Does **not** enqueue email (that's 2.11). Email normalization (`email.trim().toLowerCase()`) applied at write.
-- **Tests:** `test/server/competition-invites/issue.test.ts` — token hashing, idempotency (second call with same recipients = no-ops), division pre-attach, source vs bespoke origin tagging, email normalization.
+- **Scope:** `src/server/competition-invites/issue.ts` — `issueInvitesForRecipients({ championshipId, divisionId, recipients, roundLabel, subject, bodyJson, rsvpDeadlineAt })` and `reissueInvite({ inviteId, newExpiresAt })`. Issue: transactional flow via `INSERT ... ON DUPLICATE KEY UPDATE` keyed on the active-marker unique index, returns `{ inserted, alreadyActive }`. Re-issue: rotates `claimTokenHash`/`claimTokenLast4`, increments `sendAttempt`, bumps `expiresAt`, flips `status` back to `"pending"` (and restores `activeMarker = "active"`) if it had expired. Both paths **reject when the target division's resolved registration fee is $0** — free comps are not eligible for invites in the MVP. Neither path enqueues email (that's 2.11). Email normalization (`email.trim().toLowerCase()`) applied at write.
+- **Tests:** `test/server/competition-invites/issue.test.ts` — token hashing, idempotency (second call with same recipients = no-ops), division pre-attach, source vs bespoke origin tagging, email normalization, re-issue rotates token + increments `sendAttempt` + preserves `invite.id`, free-comp rejection.
 - **Depends on:** 2.1, 2.2.
 
 #### 2.4 `feat(invites): add bespoke invite staging helpers`
@@ -164,7 +164,7 @@ This is the largest phase. It splits into four sub-arcs (schema + tokens, issue 
 ### Sub-arc C: Registration + Stripe Workflow + Queue
 
 #### 2.9 `feat(invites): extend initiateRegistrationPaymentFn with inviteToken`
-- **Scope:** `src/server-fns/registration-fns.ts` — `initiateRegistrationPaymentFn` gains optional `inviteToken` Zod param. When present: (a) re-validates invite + email match, (b) skips registration-window check, (c) runs invite-aware capacity rule (pending invites don't consume, `accepted_paid` does), (d) tags the `commercePurchase` with `inviteId` in Stripe metadata. Free-comp path sets invite to `accepted_paid` synchronously.
+- **Scope:** `src/server-fns/registration-fns.ts` — `initiateRegistrationPaymentFn` gains optional `inviteToken` Zod param. When present: (a) re-validates invite + email match, (b) skips registration-window check, (c) runs invite-aware capacity rule (pending invites don't consume, `accepted_paid` does), (d) tags the `commercePurchase` with `inviteId` in Stripe metadata. No invite status transition happens here — the row stays `pending` until the webhook confirms payment. Free-comp path is **rejected upstream at `issueInvitesFn`** (target division fee = $0 is a hard error), so no synchronous-flip path exists.
 - **Tests:** unit tests for the four branches; integration test deferred to 2.18.
 - **Depends on:** 2.5.
 
@@ -174,7 +174,7 @@ This is the largest phase. It splits into four sub-arcs (schema + tokens, issue 
 - **Depends on:** 2.9.
 
 #### 2.11 `feat(invites): extend email queue consumer for invite discriminator`
-- **Scope:** `src/workers/email-queue-consumer.ts` — add a `kind: "competition-invite"` handler that calls Resend with `Idempotency-Key: invite-${inviteId}` and updates `emailDeliveryStatus` on `queued → sent | failed`. Reuses existing Resend client + DLQ plumbing from broadcasts.
+- **Scope:** `src/workers/email-queue-consumer.ts` — add a `kind: "competition-invite"` handler that calls Resend with `Idempotency-Key: invite-${inviteId}-${sendAttempt}` (the `sendAttempt` suffix is what lets a re-send with the same `inviteId` actually dispatch) and updates `emailDeliveryStatus` on `queued → sent | failed`. Reuses existing Resend client + DLQ plumbing from broadcasts.
 - **Tests:** unit test for the message-shape parse + `Idempotency-Key` header assertion; queue-consumer integration test extended.
 - **Depends on:** 2.1.
 
@@ -447,7 +447,7 @@ A single `competition_invites_enabled` entitlement on the organizing team gates 
 
 Every server function emits:
 - `logEntityCreated` on invite/round/source/template creation.
-- `logEntityUpdated` on status transitions (`pending → accepted`, `accepted → accepted_paid`, `* → revoked/expired/declined`).
+- `logEntityUpdated` on status transitions (`pending → accepted_paid`, `* → revoked/expired/declined`, `expired → pending` on re-send with `sendAttempt` increment).
 - `logInfo` with the `inviteId` / `roundId` / `tokenLast4` as request-context attributes.
 - `logError` on claim-resolution failures and send-transaction rollbacks — the error object includes the attempted `email` (lowercased) and `championshipId` for debugging.
 
@@ -466,7 +466,7 @@ See `logging` skill for correlation-id patterns.
 | Risk | Detected where | Mitigation |
 |---|---|---|
 | Token-hash collision or reuse after status transition | 2.2, 2.3 | `claimTokenHash` unique; MySQL allows multiple NULLs so terminal transitions null the column safely. Secondary: the `activeMarker` index ensures only one active row per (championship, email, division). |
-| Race: 12 athletes claim 10 spots at once | 2.9, 2.10 | Capacity check at `accepted_paid` (Stripe webhook) time, not at `accepted`. Organizer UI surfaces "Accepted — not paid (division full)" with one-click extra-slot. Documented in ADR Capacity Math section. |
+| Race: 12 athletes claim 10 spots at once | 2.9, 2.10 | Capacity check fires inside the Stripe webhook / registration-creation step. Losers hit the existing "division just filled" refund path; invite stays `pending` so the organizer can extend later. No intermediate `accepted` state. Documented in ADR Capacity Math section. |
 | Partial send crashes mid-round | 2.13, 3.2 | Round stays `draft` on transactional rollback. `INSERT ... ON DUPLICATE KEY UPDATE` keyed on active-marker index makes retry idempotent. Consumer retries use `Idempotency-Key`. |
 | Cross-org source fishing | 1.3 | `createInviteSourceFn` requires `MANAGE_COMPETITIONS` on *both* championship and source orgs. Unit-tested in 1.3. |
 | Wrong-account claim bypass | 2.5, 2.7 | Identity-match is server-side in the claim loader; sign-in/sign-up routes lock the email field when `?claim=` is present. Redirect after auth re-runs the loader, which re-validates. |

@@ -9,7 +9,7 @@
  *   - `activeMarker = "active"` — enforces the unique-active index so the
  *     organizer cannot add the same (email, division) twice.
  *   - `roundId = ""` (Phase 2 sentinel)
- *   - `claimTokenHash = NULL` — no token issued until the row is picked
+ *   - `claimToken = NULL` — no token issued until the row is picked
  *     into a send.
  *
  * Two entry points:
@@ -139,8 +139,7 @@ export async function createBespokeInvite(
       userId: null,
       inviteeFirstName: input.inviteeFirstName ?? null,
       inviteeLastName: input.inviteeLastName ?? null,
-      claimTokenHash: null,
-      claimTokenLast4: null,
+      claimToken: null,
       expiresAt: null,
       sendAttempt: 0,
       status: COMPETITION_INVITE_STATUS.PENDING,
@@ -394,8 +393,7 @@ export async function createBespokeInvitesBulk(
     userId: null,
     inviteeFirstName: r.inviteeFirstName ?? null,
     inviteeLastName: r.inviteeLastName ?? null,
-    claimTokenHash: null,
-    claimTokenLast4: null,
+    claimToken: null,
     expiresAt: null,
     sendAttempt: 0,
     status: COMPETITION_INVITE_STATUS.PENDING,

@@ -15,13 +15,14 @@
  */
 // @lat: [[competition-invites#Roster computation]]
 
-import { and, eq } from "drizzle-orm"
+import { and, eq, inArray } from "drizzle-orm"
 import { getDb } from "@/db"
 import type {
   CompetitionInviteSource,
   CompetitionInviteSourceKind,
 } from "@/db/schemas/competition-invites"
 import { seriesDivisionMappingsTable } from "@/db/schemas/series"
+import { userTable } from "@/db/schemas/users"
 import { getCompetitionLeaderboard } from "@/server/competition-leaderboard"
 import { getSeriesLeaderboard } from "@/server/series-leaderboard"
 import type { DivisionMapping } from "./sources"
@@ -46,6 +47,11 @@ export interface RosterRow {
    *  leaderboard lacks one (rare); `athleteName` is always present. */
   userId: string | null
   athleteName: string
+  /** Email address for the athlete, resolved from `userTable` by `userId`.
+   *  Null when the source leaderboard surfaced no user id (rare) or the
+   *  user has no email on file. Populated post-aggregate in
+   *  `getChampionshipRoster`. Phase 2 uses this to issue invites. */
+  athleteEmail: string | null
   /** Mapped championship division for this row. */
   championshipDivisionId: string
   /** Invite-state columns — always null in Phase 1. */
@@ -209,6 +215,7 @@ async function loadSingleCompetitionRows(
     sourceCompetitionId: source.sourceCompetitionId ?? null,
     userId: e.userId,
     athleteName: e.athleteName,
+    athleteEmail: null,
     championshipDivisionId,
     inviteId: null,
     inviteStatus: null,
@@ -278,6 +285,7 @@ async function loadSeriesDirectRows(
         sourceCompetitionId: competitionId,
         userId: e.userId,
         athleteName: e.athleteName,
+        athleteEmail: null,
         championshipDivisionId,
         inviteId: null,
         inviteStatus: null,
@@ -314,6 +322,7 @@ async function loadSeriesGlobalRows(
     sourceCompetitionId: e.competitionId,
     userId: e.userId,
     athleteName: e.athleteName,
+    athleteEmail: null,
     championshipDivisionId,
     inviteId: null,
     inviteStatus: null,
@@ -378,5 +387,26 @@ export async function getChampionshipRoster(
     perSource.push({ source, rows, cutoff })
   }
   const rows = aggregateQualifyingRows(perSource)
+
+  // Hydrate athlete emails in a single bulk lookup. Rows with no userId
+  // keep `athleteEmail = null`; the organizer UI disables the row for
+  // sending and shows a hint.
+  const userIds = Array.from(
+    new Set(rows.map((r) => r.userId).filter((v): v is string => !!v)),
+  )
+  if (userIds.length > 0) {
+    const db = getDb()
+    const users = await db
+      .select({ id: userTable.id, email: userTable.email })
+      .from(userTable)
+      .where(inArray(userTable.id, userIds))
+    const byId = new Map(users.map((u) => [u.id, u.email]))
+    for (const row of rows) {
+      if (row.userId) {
+        row.athleteEmail = byId.get(row.userId) ?? null
+      }
+    }
+  }
+
   return { rows }
 }

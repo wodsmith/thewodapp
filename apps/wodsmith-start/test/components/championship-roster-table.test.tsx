@@ -12,6 +12,7 @@ const row = (overrides: Partial<RosterRow>): RosterRow => ({
   sourceCompetitionId: "comp_src",
   userId: "usr_a",
   athleteName: "Ada Lovelace",
+  athleteEmail: null,
   championshipDivisionId: "div_rxm",
   inviteId: null,
   inviteStatus: null,

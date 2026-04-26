@@ -2,7 +2,7 @@
  * Decline an invite.
  *
  * Called from the `/compete/$slug/claim/$token/decline` route. Transitions
- * a pending invite to `declined` — nulls `activeMarker` and `claimTokenHash`
+ * a pending invite to `declined` — nulls `activeMarker` and `claimToken`
  * so the unique-active index unblocks a future re-invite and the link
  * dies immediately.
  *
@@ -37,8 +37,7 @@ export async function declineInvite(params: {
     .set({
       status: COMPETITION_INVITE_STATUS.DECLINED,
       declinedAt: now,
-      claimTokenHash: null,
-      claimTokenLast4: null,
+      claimToken: null,
       activeMarker: null,
       updatedAt: now,
     })
@@ -49,13 +48,14 @@ export async function declineInvite(params: {
       ),
     )
 
-  // mysql2's `.update()` returns `[ResultSetHeader, FieldPacket[]]`, so
-  // `affectedRows` lives at `result[0]`. A zero here means the row either
-  // doesn't exist or isn't in `pending` anymore — terminal transitions
-  // are idempotent from the route's perspective, so we fail loud only
-  // if the row disappeared entirely.
+  // MySQL's `.update()` returns affectedRows in the result. A zero here
+  // means the row either doesn't exist or isn't in `pending` anymore —
+  // terminal transitions are idempotent from the route's perspective, so
+  // we fail loud only if the row disappeared entirely.
   const affected =
-    (result as unknown as [{ affectedRows?: number }])[0]?.affectedRows ?? 0
+    (result as unknown as { rowsAffected?: number }).rowsAffected ??
+    (result as unknown as [{ affectedRows?: number }])[0]?.affectedRows ??
+    0
 
   if (affected === 0) {
     // Double-check — if the row exists but is already terminal, treat as

@@ -22,9 +22,12 @@ import { and, eq, inArray, ne, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
+  COMPETITION_INVITE_ACTIVE_MARKER,
+  COMPETITION_INVITE_EMAIL_DELIVERY_STATUS,
   COMPETITION_INVITE_ORIGIN,
   COMPETITION_INVITE_SOURCE_KIND,
   COMPETITION_INVITE_STATUS,
+  competitionInvitesTable,
   type CompetitionInvite,
 } from "@/db/schemas/competition-invites"
 import {
@@ -162,10 +165,32 @@ const issueInvitesRecipientSchema = z.object({
   userId: z.string().min(1).nullable().optional(),
 })
 
+// YYYY-MM-DD calendar string. We pass the date as a string (rather than
+// a `Date`) so the email-label calendar day always matches what the
+// organizer typed in the picker. Sending a `Date` and formatting it on
+// Workers (TZ=UTC) used to render "one day later" for any organizer
+// west of UTC because `new Date("YYYY-MM-DDTHH:MM:SS")` parses as the
+// browser's local time and then crosses the UTC boundary.
+const calendarDayRegex = /^\d{4}-\d{2}-\d{2}$/
+
 const issueInvitesInputSchema = z.object({
   championshipCompetitionId: z.string().min(1),
   championshipDivisionId: z.string().min(1),
-  rsvpDeadlineAt: z.coerce.date(),
+  rsvpDeadlineDate: z
+    .string()
+    .regex(calendarDayRegex, "Expected YYYY-MM-DD calendar date")
+    .refine((value) => {
+      const [yearStr, monthStr, dayStr] = value.split("-")
+      const year = Number(yearStr)
+      const month = Number(monthStr)
+      const day = Number(dayStr)
+      const d = new Date(Date.UTC(year, month - 1, day))
+      return (
+        d.getUTCFullYear() === year &&
+        d.getUTCMonth() === month - 1 &&
+        d.getUTCDate() === day
+      )
+    }, "Invalid calendar date"),
   subject: z.string().min(1).max(255),
   bodyText: z.string().max(10_000).optional(),
   recipients: z.array(issueInvitesRecipientSchema).min(1).max(500),
@@ -178,6 +203,11 @@ const bespokeInviteInputSchema = z.object({
   inviteeFirstName: z.string().max(255).nullable().optional(),
   inviteeLastName: z.string().max(255).nullable().optional(),
   bespokeReason: z.string().max(255).nullable().optional(),
+})
+
+const listBespokeInvitesInputSchema = z.object({
+  championshipCompetitionId: z.string().min(1),
+  championshipDivisionId: z.string().min(1),
 })
 
 const bespokeBulkInviteInputSchema = z.object({
@@ -737,10 +767,6 @@ export const declineInviteFn = createServerFn({ method: "POST" })
       )
     }
 
-    if (!session.user.emailVerified) {
-      throw new Error("Email not verified")
-    }
-
     return withRequestContext(
       {
         userId: session.userId,
@@ -809,9 +835,13 @@ export const declineInviteFn = createServerFn({ method: "POST" })
 /**
  * Render the competition invite email HTML for one invite row.
  *
- * The claim URL embeds the plaintext token — this is the *only* place the
- * plaintext escapes process memory. The decline URL is included as a
- * secondary CTA in the email body.
+ * The claim URL embeds the plaintext token. Mirrors the
+ * `team_invitations.token` pattern — the plaintext also lives in
+ * `competition_invites.claimToken` so the organizer UI can offer a
+ * copy-link affordance. Email-locked claim (`identityMatch`) remains the
+ * actual auth gate; the token is an unguessable identifier, not a bearer
+ * password. The decline URL is included as a secondary CTA in the email
+ * body.
  */
 async function renderInviteEmailHtml(params: {
   invite: CompetitionInvite
@@ -927,12 +957,43 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
           userId: r.userId ?? null,
         }))
 
+        // Build expiresAt as the UTC end-of-day of the picked calendar
+        // date. The label is formatted from the same y/m/d ints we just
+        // parsed, so the email body always shows the calendar day the
+        // organizer typed regardless of the worker's TZ.
+        const [yearStr, monthStr, dayStr] =
+          data.rsvpDeadlineDate.split("-")
+        const yearN = Number(yearStr)
+        const monthN = Number(monthStr)
+        const dayN = Number(dayStr)
+        const rsvpDeadlineAt = new Date(
+          Date.UTC(yearN, monthN - 1, dayN, 23, 59, 59),
+        )
+        if (Number.isNaN(rsvpDeadlineAt.getTime())) {
+          throw new Error("Invalid RSVP deadline")
+        }
+        const monthNames = [
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
+        ]
+        const rsvpDeadlineLabel = `${monthNames[monthN - 1]} ${dayN}, ${yearN}`
+
         let issueResult: IssueInvitesResult
         try {
           issueResult = await issueInvitesForRecipients({
             championshipCompetitionId: data.championshipCompetitionId,
             championshipDivisionId: data.championshipDivisionId,
-            rsvpDeadlineAt: data.rsvpDeadlineAt,
+            rsvpDeadlineAt,
             recipients,
           })
         } catch (err) {
@@ -951,7 +1012,7 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
           if (!prior.isDraft) continue
           const rotated = await reissueInvite({
             inviteId: prior.existingInviteId,
-            newExpiresAt: data.rsvpDeadlineAt,
+            newExpiresAt: rsvpDeadlineAt,
           })
           activated.push({
             invite: rotated.invite,
@@ -961,76 +1022,120 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
 
         const allToDispatch = [...issueResult.inserted, ...activated]
 
-        const rsvpDeadlineLabel = data.rsvpDeadlineAt.toLocaleDateString(
-          "en-US",
-          { month: "long", day: "numeric", year: "numeric" },
-        )
-
         // Render + enqueue per invite. Render is intentionally sequential
         // to keep memory bounded when a round targets hundreds of recipients.
+        // Each iteration is wrapped in try/catch so a single throw in the
+        // middle of a large batch (render exception, queue.send blip,
+        // Workers CPU/memory cap) doesn't abort the whole loop and leave
+        // the un-dispatched rows in `queued` limbo with no recovery
+        // path. On failure we flip `emailDeliveryStatus` to `failed` on
+        // the row so a follow-up Send picks it up via the
+        // `alreadyActive` re-issue branch.
         const queue = (env as unknown as Record<string, unknown>)
           .BROADCAST_EMAIL_QUEUE as Queue<QueueEmailMessage> | undefined
 
+        const failed: Array<{ inviteId: string; email: string; error: string }> = []
+
         for (const { invite, plaintextToken } of allToDispatch) {
-          const bodyHtml = await renderInviteEmailHtml({
-            invite,
-            plaintextToken,
-            championshipSlug: championship.slug,
-            championshipName: championship.name,
-            divisionLabel: division.label,
-            organizerTeamName: organizingTeam?.name ?? "Organizer",
-            subject: data.subject,
-            bodyText: data.bodyText,
-            rsvpDeadlineLabel,
-          })
+          try {
+            const bodyHtml = await renderInviteEmailHtml({
+              invite,
+              plaintextToken,
+              championshipSlug: championship.slug,
+              championshipName: championship.name,
+              divisionLabel: division.label,
+              organizerTeamName: organizingTeam?.name ?? "Organizer",
+              subject: data.subject,
+              bodyText: data.bodyText,
+              rsvpDeadlineLabel,
+            })
 
-          const message: InviteEmailMessage = {
-            kind: "competition-invite",
-            inviteId: invite.id,
-            sendAttempt: invite.sendAttempt,
-            competitionId: invite.championshipCompetitionId,
-            email: invite.email,
-            subject: data.subject,
-            bodyHtml,
-          }
+            const message: InviteEmailMessage = {
+              kind: "competition-invite",
+              inviteId: invite.id,
+              sendAttempt: invite.sendAttempt,
+              competitionId: invite.championshipCompetitionId,
+              email: invite.email,
+              subject: data.subject,
+              bodyHtml,
+            }
 
-          if (queue) {
-            await queue.send(message)
-          } else {
-            logInfo({
-              message: "[Invites] No queue binding — logging invite email",
+            if (queue) {
+              await queue.send(message)
+            } else {
+              logInfo({
+                message: "[Invites] No queue binding — logging invite email",
+                attributes: { inviteId: invite.id, email: invite.email },
+              })
+            }
+
+            logEntityCreated({
+              entity: "competition_invite",
+              id: invite.id,
+              parentEntity: "competition",
+              parentId: invite.championshipCompetitionId,
+              attributes: {
+                origin: invite.origin,
+                sendAttempt: invite.sendAttempt,
+                activeMarker: invite.activeMarker,
+              },
+            })
+          } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : String(err)
+            failed.push({
+              inviteId: invite.id,
+              email: invite.email,
+              error: errorMsg,
+            })
+            logWarning({
+              message: "[Invites] Dispatch failed mid-batch",
+              error: err,
               attributes: { inviteId: invite.id, email: invite.email },
             })
+            // Flip the row so resend treats it as redeliverable. The
+            // `failed` status is a hint for the consumer/UX layer; the
+            // row's `claimToken` stays valid so a future re-send
+            // can redeliver the same token rather than rotating it.
+            try {
+              const db = getDb()
+              await db
+                .update(competitionInvitesTable)
+                .set({
+                  emailDeliveryStatus:
+                    COMPETITION_INVITE_EMAIL_DELIVERY_STATUS.FAILED,
+                  emailLastError: errorMsg.slice(0, 1000),
+                  updatedAt: new Date(),
+                })
+                .where(eq(competitionInvitesTable.id, invite.id))
+            } catch (markErr) {
+              logWarning({
+                message:
+                  "[Invites] Failed to mark invite as failed (non-fatal)",
+                error: markErr,
+                attributes: { inviteId: invite.id },
+              })
+            }
           }
-
-          logEntityCreated({
-            entity: "competition_invite",
-            id: invite.id,
-            parentEntity: "competition",
-            parentId: invite.championshipCompetitionId,
-            attributes: {
-              origin: invite.origin,
-              sendAttempt: invite.sendAttempt,
-              activeMarker: invite.activeMarker,
-            },
-          })
         }
 
         const skipped = issueResult.alreadyActive.filter((r) => !r.isDraft)
+        const sentCount = allToDispatch.length - failed.length
 
         logInfo({
           message: "[Invites] issueInvitesFn dispatched",
           attributes: {
             championshipCompetitionId: data.championshipCompetitionId,
             divisionId: data.championshipDivisionId,
-            sent: allToDispatch.length,
+            sent: sentCount,
+            failed: failed.length,
             skipped: skipped.length,
           },
         })
 
         return {
-          sentCount: allToDispatch.length,
+          sentCount,
           skipped,
+          failed,
         }
       },
     )
@@ -1125,6 +1230,131 @@ export const createBespokeInvitesBulkFn = createServerFn({ method: "POST" })
         })
 
         return result
+      },
+    )
+  })
+
+/**
+ * Organizer-facing projection of an active invite. Carries `claimUrl`
+ * pre-built on the server so the client never has to know the app URL or
+ * how to interpolate the slug — the UI just renders / copies what we
+ * give it.
+ *
+ * `claimUrl` is `null` for staged-bespoke drafts (no token yet) and for
+ * already-terminal-but-still-active rows (e.g. `accepted_paid` rows
+ * which keep `activeMarker = "active"` but null `claimToken`). The UI
+ * uses this to distinguish drafts from sent invites without exposing
+ * raw token columns.
+ */
+export interface ActiveInviteSummary {
+  id: string
+  email: string
+  origin: CompetitionInvite["origin"]
+  status: CompetitionInvite["status"]
+  championshipDivisionId: string
+  activeMarker: CompetitionInvite["activeMarker"]
+  bespokeReason: string | null
+  inviteeFirstName: string | null
+  inviteeLastName: string | null
+  userId: string | null
+  /**
+   * Pre-built `${appUrl}/compete/${slug}/claim/${claimToken}` URL when
+   * the row has a live token, else `null`. Mirrors the
+   * `team_invitations`-style copy-link affordance.
+   */
+  claimUrl: string | null
+}
+
+/**
+ * List all active invites for a championship+division. Used by the
+ * organizer invites route to render the bespoke section + invite state
+ * overlays on source roster rows. Phase 2: returns every active row
+ * regardless of origin so the UI can classify. Returns a minimal DTO so
+ * the raw token columns never reach the client.
+ */
+export const listActiveInvitesFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    listBespokeInvitesInputSchema.parse(data),
+  )
+  .handler(async ({ data }): Promise<{ invites: ActiveInviteSummary[] }> => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "listActiveInvitesFn",
+        attributes: {
+          championshipCompetitionId: data.championshipCompetitionId,
+        },
+      },
+      async () => {
+        const championshipTeamId = await getCompetitionOrganizingTeamId(
+          data.championshipCompetitionId,
+        )
+        await requireTeamPermission(
+          championshipTeamId,
+          TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+        )
+
+        const db = getDb()
+        // Single query: join the championship row so we can build
+        // `claimUrl` per invite without a follow-up roundtrip per row.
+        // The championship is the same for every row in the result, but
+        // joining keeps the projection self-contained and lets us
+        // surface a useful error if the championship ever vanished
+        // mid-flight.
+        const rows = await db
+          .select({
+            id: competitionInvitesTable.id,
+            email: competitionInvitesTable.email,
+            origin: competitionInvitesTable.origin,
+            status: competitionInvitesTable.status,
+            championshipDivisionId:
+              competitionInvitesTable.championshipDivisionId,
+            activeMarker: competitionInvitesTable.activeMarker,
+            bespokeReason: competitionInvitesTable.bespokeReason,
+            inviteeFirstName: competitionInvitesTable.inviteeFirstName,
+            inviteeLastName: competitionInvitesTable.inviteeLastName,
+            userId: competitionInvitesTable.userId,
+            claimToken: competitionInvitesTable.claimToken,
+            championshipSlug: competitionsTable.slug,
+          })
+          .from(competitionInvitesTable)
+          .innerJoin(
+            competitionsTable,
+            eq(
+              competitionsTable.id,
+              competitionInvitesTable.championshipCompetitionId,
+            ),
+          )
+          .where(
+            and(
+              eq(
+                competitionInvitesTable.championshipCompetitionId,
+                data.championshipCompetitionId,
+              ),
+              eq(
+                competitionInvitesTable.championshipDivisionId,
+                data.championshipDivisionId,
+              ),
+              eq(
+                competitionInvitesTable.activeMarker,
+                COMPETITION_INVITE_ACTIVE_MARKER,
+              ),
+            ),
+          )
+
+        const appUrl = getAppUrl()
+        const invites: ActiveInviteSummary[] = rows.map(
+          ({ claimToken, championshipSlug, ...rest }) => ({
+            ...rest,
+            claimUrl: claimToken
+              ? `${appUrl}/compete/${championshipSlug}/claim/${claimToken}`
+              : null,
+          }),
+        )
+        return { invites }
       },
     )
   })

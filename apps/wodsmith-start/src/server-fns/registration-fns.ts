@@ -69,6 +69,10 @@ import {
 } from "@/lib/registration-stubs"
 import { getStripe } from "@/lib/stripe"
 import {
+  COMPETITION_INVITE_STATUS,
+  competitionInvitesTable,
+} from "@/db/schemas/competition-invites"
+import {
   assertInviteClaimable,
   findActiveInviteForEmail,
   resolveInviteForClaim,
@@ -549,6 +553,42 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
           divisionCount: input.items.length,
         },
       })
+
+      // Mirror the Stripe-workflow invite flip when an invite-locked
+      // checkout zeroes out (e.g. 100% coupon). The paid path tags
+      // purchase metadata with `inviteId` and the workflow flips the
+      // invite to `accepted_paid` post-webhook, but the free branch
+      // skips Stripe entirely — so we have to flip inline or the invite
+      // stays `pending` indefinitely. Guarded by status=pending so a
+      // racing claim/decline doesn't get stomped.
+      if (inviteIdForPurchase && firstRegistrationId) {
+        const now = new Date()
+        await db
+          .update(competitionInvitesTable)
+          .set({
+            status: COMPETITION_INVITE_STATUS.ACCEPTED_PAID,
+            paidAt: now,
+            claimedRegistrationId: firstRegistrationId,
+            claimToken: null,
+            updatedAt: now,
+          })
+          .where(
+            and(
+              eq(competitionInvitesTable.id, inviteIdForPurchase),
+              eq(
+                competitionInvitesTable.status,
+                COMPETITION_INVITE_STATUS.PENDING,
+              ),
+            ),
+          )
+        logInfo({
+          message: "[Registration] Free-checkout invite flipped to accepted_paid",
+          attributes: {
+            inviteId: inviteIdForPurchase,
+            registrationId: firstRegistrationId,
+          },
+        })
+      }
 
       // Record coupon redemption if a coupon covered the full amount
       if (validatedCoupon && couponDiscount > 0) {
