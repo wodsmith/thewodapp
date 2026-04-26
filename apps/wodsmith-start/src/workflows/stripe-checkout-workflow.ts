@@ -47,12 +47,6 @@ import {
   notifyRegistrationConfirmed,
   registerForCompetition,
 } from "@/server/registration"
-import {
-  assertInviteClaimable,
-  findActiveInviteForEmail,
-  InviteNotClaimableError,
-} from "@/server/competition-invites/claim"
-import { normalizeInviteEmail } from "@/server/competition-invites/issue"
 import { recordRedemption, cleanupStripeCoupon } from "@/server/coupons"
 import {
   recordPaymentCompleted,
@@ -469,38 +463,12 @@ async function createRegistration(
 
   // If the athlete has an active claimable invite for this division, the
   // invite is the authorization to register and the public window does not
-  // apply (organizers hand-pick athletes outside the open window). The
-  // pre-checkout server fn lets these purchases through; we need to do the
-  // same lookup here so `registerForCompetition` doesn't re-gate them at
-  // the post-Stripe step.
-  const userRow = await db.query.userTable.findFirst({
-    where: eq(userTable.id, userId),
-    columns: { email: true },
-  })
-  let inviteAuthorized = false
-  if (userRow?.email) {
-    const probe = await findActiveInviteForEmail({
-      championshipCompetitionId: competitionId,
-      championshipDivisionId: divisionId,
-      email: normalizeInviteEmail(userRow.email),
-    })
-    if (probe) {
-      try {
-        assertInviteClaimable(probe)
-        inviteAuthorized = true
-      } catch (err) {
-        if (!(err instanceof InviteNotClaimableError)) {
-          logWarning({
-            message:
-              "[Workflow] Unexpected error from assertInviteClaimable; falling back to public-window gate",
-            error: err,
-            attributes: { purchaseId, competitionId, divisionId, userId },
-          })
-        }
-        // expired/declined/revoked — fall through to public-window gate
-      }
-    }
-  }
+  // apply. `initiateRegistrationPaymentFn` already validated the invite at
+  // payment time and persisted its id into purchase metadata — trust that
+  // signal here instead of re-probing. Re-probing introduces a race: an
+  // organizer revoking an invite between Stripe checkout and webhook
+  // delivery would deny registration to an athlete who already paid.
+  const inviteAuthorized = !!registrationData.inviteId
 
   // Create the registration
   try {

@@ -312,10 +312,12 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
       if (invite.championshipCompetitionId !== input.competitionId) {
         throw new Error("Invitation is for a different competition")
       }
-      if (
-        input.items.length !== 1 ||
-        input.items[0].divisionId !== invite.championshipDivisionId
-      ) {
+      if (input.items.length !== 1) {
+        throw new Error(
+          "Invite-based registrations must be for a single division",
+        )
+      }
+      if (input.items[0].divisionId !== invite.championshipDivisionId) {
         throw new Error("Invitation is for a different division")
       }
       inviteAuthorized = true

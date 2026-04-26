@@ -262,7 +262,11 @@ function WrongAccount(props: {
     try {
       await logoutFn()
     } catch (error) {
+      // Bouncing the user to /sign-in while their session is still live
+      // would just send them back here — surface the error and let them retry.
       console.error("Logout error:", error)
+      setIsLoggingOut(false)
+      return
     }
     const authPath = props.accountExistsForInviteEmail ? "/sign-in" : "/sign-up"
     const claimUrl = `/compete/${props.slug}/claim/${props.token}`

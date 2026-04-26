@@ -390,6 +390,10 @@ async function handleInviteMessage(params: {
 		},
 	})
 
+	// Track whether the email was actually delivered so a post-send DB blip
+	// (PlanetScale hiccup, etc.) doesn't get reported as a failed send and
+	// trick organizers into re-issuing a duplicate invite.
+	let sendSucceeded = false
 	try {
 		const response = await fetch("https://api.resend.com/emails", {
 			method: "POST",
@@ -427,14 +431,28 @@ async function handleInviteMessage(params: {
 				})
 				.where(eq(competitionInvitesTable.id, body.inviteId))
 		} else {
-			await db
-				.update(competitionInvitesTable)
-				.set({
-					emailDeliveryStatus:
-						COMPETITION_INVITE_EMAIL_DELIVERY_STATUS.SENT,
-					emailLastError: null,
+			sendSucceeded = true
+			try {
+				await db
+					.update(competitionInvitesTable)
+					.set({
+						emailDeliveryStatus:
+							COMPETITION_INVITE_EMAIL_DELIVERY_STATUS.SENT,
+						emailLastError: null,
+					})
+					.where(eq(competitionInvitesTable.id, body.inviteId))
+			} catch (dbErr) {
+				// Send already happened — log loudly but DON'T flip status to FAILED
+				// in the outer catch. Operator UI will show stale PENDING until a
+				// later retry/reconciliation, which is strictly better than lying
+				// about delivery and prompting a duplicate dispatch.
+				logError({
+					message:
+						"[InviteQueue] DB update failed after successful Resend send",
+					error: dbErr,
+					attributes: { inviteId: body.inviteId },
 				})
-				.where(eq(competitionInvitesTable.id, body.inviteId))
+			}
 		}
 
 		await delay(SEND_DELAY_MS)
@@ -443,16 +461,18 @@ async function handleInviteMessage(params: {
 		logError({
 			message: "[InviteQueue] Email send failed",
 			error: err,
-			attributes: { inviteId: body.inviteId },
+			attributes: { inviteId: body.inviteId, sendSucceeded },
 		})
-		await db
-			.update(competitionInvitesTable)
-			.set({
-				emailDeliveryStatus:
-					COMPETITION_INVITE_EMAIL_DELIVERY_STATUS.FAILED,
-				emailLastError: err instanceof Error ? err.message : String(err),
-			})
-			.where(eq(competitionInvitesTable.id, body.inviteId))
+		if (!sendSucceeded) {
+			await db
+				.update(competitionInvitesTable)
+				.set({
+					emailDeliveryStatus:
+						COMPETITION_INVITE_EMAIL_DELIVERY_STATUS.FAILED,
+					emailLastError: err instanceof Error ? err.message : String(err),
+				})
+				.where(eq(competitionInvitesTable.id, body.inviteId))
+		}
 		message.ack()
 	}
 }

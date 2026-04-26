@@ -479,6 +479,7 @@ function RegisterPage() {
           {...sharedProps}
           initialDivisionId={initialDivisionId}
           inviteToken={inviteToken}
+          publicRegistrationOpen={registrationOpen}
         />
       ) : (
         <PublicRegistrationForm

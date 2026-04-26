@@ -468,7 +468,21 @@ export const logoutFn = createServerFn({ method: "POST" }).handler(async () => {
       )
       const sessionId = encodeHexLowerCase(new Uint8Array(hashBuffer))
 
-      await invalidateSession(sessionId, userId)
+      try {
+        await invalidateSession(sessionId, userId)
+      } catch (error) {
+        // KV blip shouldn't block cookie clearing — otherwise the user is
+        // stuck "logged in" client-side and can't retry. The stale KV
+        // record will TTL out, and a fresh sign-in mints a new sessionId.
+        logWarning({
+          message:
+            "[Auth] Logout session invalidation failed; clearing cookies anyway",
+          attributes: {
+            userId,
+            error: error instanceof Error ? error.message : String(error),
+          },
+        })
+      }
     }
   }
 

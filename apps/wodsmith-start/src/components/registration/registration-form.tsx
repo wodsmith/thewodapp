@@ -62,6 +62,11 @@ interface PublicProps extends RegistrationFormProps {
 interface InviteProps extends RegistrationFormProps {
   initialDivisionId: string
   inviteToken?: string
+  // Real public-window state, propagated from the route, so the
+  // ineligible-invite-division fallback to PublicRegistrationForm doesn't
+  // silently flip registration open and submit a request that the server
+  // will reject for a closed window.
+  publicRegistrationOpen: boolean
 }
 
 // ─── Public variant ─────────────────────────────────────────────────────────
@@ -200,11 +205,16 @@ export function InviteRegistrationForm(props: InviteProps) {
   // already registered, removed), fall back to the public flow so the
   // athlete can pick a different division rather than seeing nothing.
   if (!r.invitedDivision) {
-    const { initialDivisionId: _ignored, inviteToken, ...rest } = props
+    const {
+      initialDivisionId: _ignored,
+      inviteToken,
+      publicRegistrationOpen,
+      ...rest
+    } = props
     return (
       <PublicRegistrationForm
         {...rest}
-        registrationOpen={true}
+        registrationOpen={publicRegistrationOpen}
         inviteToken={inviteToken}
       />
     )
