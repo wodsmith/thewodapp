@@ -258,12 +258,12 @@ function InvitesPage() {
 
   const sendableRosterRows = useMemo(
     () =>
-      roster.rows.filter(
-        (r: RosterRow) =>
-          !!r.athleteEmail &&
-          selectedRosterKeys.has(rosterRowKey(r)) &&
-          !isRowAlreadyInvited(r),
-      ),
+      roster.rows.filter((r: RosterRow) => {
+        if (!r.athleteEmail) return false
+        if (!selectedRosterKeys.has(rosterRowKey(r))) return false
+        const key = `${r.championshipDivisionId}::${r.athleteEmail.toLowerCase()}`
+        return !activeInviteByEmail.has(key)
+      }),
     [roster.rows, selectedRosterKeys, activeInviteByEmail],
   )
 

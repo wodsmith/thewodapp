@@ -49,7 +49,7 @@ export const CompetitionInviteEmail = ({
 
 					<Section style={bodySection}>
 						<Text style={bodyTextStyle}>
-							Hi {athleteName},
+							Hey {athleteName},
 						</Text>
 						<Text style={bodyTextStyle}>
 							{bodyText ??

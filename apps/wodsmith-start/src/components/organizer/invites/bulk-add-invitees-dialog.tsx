@@ -1,15 +1,8 @@
 "use client"
 
-/**
- * Bulk paste dialog for bespoke invitees.
- *
- * Accepts CSV, TSV (Google Sheets paste), or one-email-per-line. The
- * server splits and stages draft rows; duplicates and invalid lines are
- * surfaced inline with row numbers so the organizer can fix and re-paste.
- */
-
 import { useServerFn } from "@tanstack/react-start"
 import { useEffect, useState } from "react"
+import { toast } from "sonner"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -51,79 +44,56 @@ export function BulkAddInviteesDialog({
   const [divisionId, setDivisionId] = useState(defaultDivisionId)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [summary, setSummary] = useState<{
-    created: number
-    duplicates: number
-    invalid: number
-    invalidLines: string[]
-    duplicateEmails: string[]
-  } | null>(null)
 
-  const reset = () => {
-    setPasteText("")
-    setDivisionId(defaultDivisionId)
-    setError(null)
-    setSummary(null)
-  }
-
-  // Reset whenever the dialog closes — covers Cancel, Close, Escape,
-  // click-outside, and any external `open={false}` toggle. Inlined so
-  // biome's useExhaustiveDependencies stays happy without pinning `reset`.
   useEffect(() => {
     if (open) return
     setPasteText("")
     setDivisionId(defaultDivisionId)
     setError(null)
-    setSummary(null)
   }, [open, defaultDivisionId])
 
   const onSubmit = async () => {
     setSubmitting(true)
     setError(null)
-    setSummary(null)
     try {
+      const normalized = pasteText
+        .split(/[\n,]+/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .join("\n")
       const result = await createBulk({
         data: {
           championshipCompetitionId,
           championshipDivisionId: divisionId,
-          pasteText,
+          pasteText: normalized,
         },
       })
-      setSummary({
-        created: result.created.length,
-        duplicates: result.duplicates.length,
-        invalid: result.invalid.length,
-        invalidLines: result.invalid.map(
-          (r) => `Row ${r.rowNumber}: ${r.reason}`,
-        ),
-        duplicateEmails: result.duplicates.map(
-          (d) => `Row ${d.rowNumber}: ${d.email} (${d.reason})`,
-        ),
-      })
-      if (result.created.length > 0) {
-        onCreated?.()
+      const { created, duplicates, invalid } = result
+      const parts = [`${created.length} invited`]
+      if (duplicates.length > 0) parts.push(`${duplicates.length} duplicate`)
+      if (invalid.length > 0) parts.push(`${invalid.length} invalid`)
+      const message = parts.join(" · ")
+      if (invalid.length > 0 || duplicates.length > 0) {
+        toast.warning(message)
+      } else {
+        toast.success(message)
       }
+      if (created.length > 0) onCreated?.()
+      onOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Bulk upload failed")
+      setError(err instanceof Error ? err.message : "Bulk invite failed")
     } finally {
       setSubmitting(false)
     }
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) reset()
-        onOpenChange(next)
-      }}
-    >
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Bulk add invitees</DialogTitle>
           <DialogDescription>
-            Paste emails — CSV (`email,firstName,lastName,division,reason`),
-            TSV (Google Sheets), or one email per line. 500-row cap per
+            Paste emails — one per line or comma-separated. 500-row cap per
             submission.
           </DialogDescription>
         </DialogHeader>
@@ -152,49 +122,12 @@ export function BulkAddInviteesDialog({
               value={pasteText}
               onChange={(e) => setPasteText(e.target.value)}
               disabled={submitting}
-              placeholder={`jane@example.com\nbob@example.com,Bob,Smith,,Sponsor\n…`}
+              placeholder={`jane@example.com\nbob@example.com\nor: jane@example.com, bob@example.com`}
             />
           </div>
           {error ? (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          ) : null}
-          {summary ? (
-            <Alert>
-              <AlertDescription>
-                <div className="space-y-1">
-                  <div>
-                    <strong>{summary.created}</strong> staged as drafts ·{" "}
-                    <strong>{summary.duplicates}</strong> duplicates ·{" "}
-                    <strong>{summary.invalid}</strong> invalid
-                  </div>
-                  {summary.duplicateEmails.length > 0 ? (
-                    <details>
-                      <summary className="cursor-pointer">
-                        Duplicate rows ({summary.duplicateEmails.length})
-                      </summary>
-                      <ul className="mt-2 list-disc pl-5 text-xs">
-                        {summary.duplicateEmails.map((d) => (
-                          <li key={d}>{d}</li>
-                        ))}
-                      </ul>
-                    </details>
-                  ) : null}
-                  {summary.invalidLines.length > 0 ? (
-                    <details>
-                      <summary className="cursor-pointer">
-                        Invalid rows ({summary.invalidLines.length})
-                      </summary>
-                      <ul className="mt-2 list-disc pl-5 text-xs">
-                        {summary.invalidLines.map((l) => (
-                          <li key={l}>{l}</li>
-                        ))}
-                      </ul>
-                    </details>
-                  ) : null}
-                </div>
-              </AlertDescription>
             </Alert>
           ) : null}
         </div>
@@ -204,13 +137,13 @@ export function BulkAddInviteesDialog({
             onClick={() => onOpenChange(false)}
             disabled={submitting}
           >
-            Close
+            Cancel
           </Button>
           <Button
             onClick={onSubmit}
             disabled={submitting || pasteText.trim().length === 0}
           >
-            {submitting ? "Uploading…" : "Upload"}
+            {submitting ? "Inviting…" : "Invite"}
           </Button>
         </DialogFooter>
       </DialogContent>

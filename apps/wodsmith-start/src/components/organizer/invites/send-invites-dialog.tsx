@@ -45,8 +45,18 @@ interface SendInvitesDialogProps {
   onOpenChange: (open: boolean) => void
   championshipCompetitionId: string
   championshipDivisionId: string
+  championshipName: string
+  divisionLabel: string
   recipients: SendRecipient[]
   onSent?: () => void
+}
+
+function defaultSubject(championshipName: string, divisionLabel: string): string {
+  return `You're invited to ${championshipName} - ${divisionLabel}`
+}
+
+function defaultBody(championshipName: string): string {
+  return `You've earned a spot at ${championshipName}. This invitation is locked to your email — only you can claim it. Continue below to confirm your spot and complete registration.`
 }
 
 function defaultDeadline(): string {
@@ -66,12 +76,16 @@ export function SendInvitesDialog({
   onOpenChange,
   championshipCompetitionId,
   championshipDivisionId,
+  championshipName,
+  divisionLabel,
   recipients,
   onSent,
 }: SendInvitesDialogProps) {
   const issueInvites = useServerFn(issueInvitesFn)
-  const [subject, setSubject] = useState("You're invited")
-  const [bodyText, setBodyText] = useState("")
+  const [subject, setSubject] = useState(() =>
+    defaultSubject(championshipName, divisionLabel),
+  )
+  const [bodyText, setBodyText] = useState(() => defaultBody(championshipName))
   const [deadline, setDeadline] = useState(defaultDeadline)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -87,13 +101,13 @@ export function SendInvitesDialog({
   // alert and the footer is stuck in "Close" mode.
   useEffect(() => {
     if (open) return
-    setSubject("You're invited")
-    setBodyText("")
+    setSubject(defaultSubject(championshipName, divisionLabel))
+    setBodyText(defaultBody(championshipName))
     setDeadline(defaultDeadline())
     setSubmitting(false)
     setError(null)
     setResult(null)
-  }, [open])
+  }, [open, championshipName, divisionLabel])
 
   const onSubmit = async () => {
     if (!deadline || !/^\d{4}-\d{2}-\d{2}$/.test(deadline)) {

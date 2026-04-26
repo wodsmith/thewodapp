@@ -178,7 +178,19 @@ const issueInvitesInputSchema = z.object({
   championshipDivisionId: z.string().min(1),
   rsvpDeadlineDate: z
     .string()
-    .regex(calendarDayRegex, "Expected YYYY-MM-DD calendar date"),
+    .regex(calendarDayRegex, "Expected YYYY-MM-DD calendar date")
+    .refine((value) => {
+      const [yearStr, monthStr, dayStr] = value.split("-")
+      const year = Number(yearStr)
+      const month = Number(monthStr)
+      const day = Number(dayStr)
+      const d = new Date(Date.UTC(year, month - 1, day))
+      return (
+        d.getUTCFullYear() === year &&
+        d.getUTCMonth() === month - 1 &&
+        d.getUTCDate() === day
+      )
+    }, "Invalid calendar date"),
   subject: z.string().min(1).max(255),
   bodyText: z.string().max(10_000).optional(),
   recipients: z.array(issueInvitesRecipientSchema).min(1).max(500),
