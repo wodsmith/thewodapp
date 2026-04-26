@@ -68,7 +68,7 @@ function normalizeEmail(email: string): string {
 /**
  * Throws {@link InviteNotClaimableError} unless the invite is:
  * - status = `pending`,
- * - has a live `claimTokenHash` and `expiresAt` in the future.
+ * - has a live `claimToken` and `expiresAt` in the future.
  *
  * `accepted_paid`, `declined`, `expired`, and `revoked` each map to a
  * distinct `reason` so the route can render a tailored message (and so
@@ -93,10 +93,10 @@ export function assertInviteClaimable(
       throw new InviteNotClaimableError("not_found")
   }
 
-  // Token must be live. The lookup already required a non-null hash, but
-  // guard against a race (e.g. webhook nulled the hash between resolve and
-  // assert) so we never claim a just-terminated invite.
-  if (!invite.claimTokenHash) {
+  // Token must be live. The lookup already required a non-null token,
+  // but guard against a race (e.g. webhook nulled the token between
+  // resolve and assert) so we never claim a just-terminated invite.
+  if (!invite.claimToken) {
     throw new InviteNotClaimableError("not_found")
   }
 

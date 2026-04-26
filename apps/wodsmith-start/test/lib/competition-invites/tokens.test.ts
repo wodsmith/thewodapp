@@ -1,35 +1,5 @@
 import { describe, expect, it } from "vitest"
-import {
-  generateInviteClaimToken,
-  generateInviteClaimTokenPlaintext,
-  hashInviteClaimToken,
-  inviteClaimTokenLast4,
-} from "@/lib/competition-invites/tokens"
-
-describe("hashInviteClaimToken", () => {
-  it("is deterministic — same input yields same hash", async () => {
-    const a = await hashInviteClaimToken("abc123")
-    const b = await hashInviteClaimToken("abc123")
-    expect(a).toBe(b)
-  })
-
-  it("differs for different inputs", async () => {
-    const a = await hashInviteClaimToken("abc123")
-    const b = await hashInviteClaimToken("abc124")
-    expect(a).not.toBe(b)
-  })
-
-  it("returns 64 lowercase hex chars (SHA-256)", async () => {
-    const hash = await hashInviteClaimToken("hello")
-    expect(hash).toMatch(/^[0-9a-f]{64}$/)
-  })
-
-  it("matches a known SHA-256 of 'hello'", async () => {
-    expect(await hashInviteClaimToken("hello")).toBe(
-      "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
-    )
-  })
-})
+import { generateInviteClaimTokenPlaintext } from "@/lib/competition-invites/tokens"
 
 describe("generateInviteClaimTokenPlaintext", () => {
   it("emits URL-safe characters only (unpadded base64url)", () => {
@@ -50,23 +20,5 @@ describe("generateInviteClaimTokenPlaintext", () => {
       seen.add(generateInviteClaimTokenPlaintext())
     }
     expect(seen.size).toBe(1000)
-  })
-})
-
-describe("inviteClaimTokenLast4", () => {
-  it("returns the last 4 characters", () => {
-    expect(inviteClaimTokenLast4("abcdefg")).toBe("defg")
-  })
-
-  it("is idempotent for short tokens", () => {
-    expect(inviteClaimTokenLast4("ab")).toBe("ab")
-  })
-})
-
-describe("generateInviteClaimToken", () => {
-  it("returns plaintext + hash + last4 derived from the same token", async () => {
-    const { token, hash, last4 } = await generateInviteClaimToken()
-    expect(last4).toBe(token.slice(-4))
-    expect(hash).toBe(await hashInviteClaimToken(token))
   })
 })

@@ -242,10 +242,19 @@ export async function updateRoundDraft(
       ),
     )
 
-  const affected = (result as unknown as { affectedRows?: number }).affectedRows
-  // Treat undefined as a miss — a future driver bump that drops the
-  // `affectedRows` field shouldn't silently skip the conflict guard.
-  if (affected == null || affected === 0) {
+  // Read affected count off both driver shapes — mysql2 returns
+  // `[ResultSetHeader, FieldPacket[]]` (look at `[0].affectedRows`),
+  // planetscale-serverless returns `{ rowsAffected }`. Reading
+  // `.affectedRows` on the array yields `undefined`, which silently
+  // bypassed the concurrent-transition guard below — and crucially, the
+  // UPDATE *did* execute, so a false-miss leaves the row in the new
+  // state with no exception path to roll it back.
+  const affected =
+    (result as unknown as { rowsAffected?: number }).rowsAffected ??
+    (result as unknown as [{ affectedRows?: number }])[0]?.affectedRows ??
+    (result as unknown as { affectedRows?: number }).affectedRows ??
+    0
+  if (affected === 0) {
     const fresh = await getRoundById(input.id)
     throw new RoundStateConflictError(input.id, fresh?.status ?? null)
   }
@@ -266,14 +275,16 @@ export interface BeginSendingResult {
 }
 
 /**
- * Atomically transition a round from `draft → sending`. Required first step
- * of a send: callers may then run their insert/enqueue work and finalize
- * with {@link finalizeRoundSend} (`sending → sent`) on success or
+ * Atomically transition a round into `sending`. Required first step of a
+ * send: callers may then run their insert/enqueue work and finalize with
+ * {@link finalizeRoundSend} (`sending → sent`) on success or
  * {@link markRoundFailed} (`sending → failed`) on failure.
  *
- * The conditional UPDATE keyed on `status = "draft"` is the double-click
- * defense — a second click hits a row that is no longer `draft` and the
- * affected-rows guard raises {@link RoundStateConflictError}.
+ * Accepts both `draft` and `failed` as prior states — a `failed` round is
+ * the recoverable outcome of a crashed send, and the organizer retrying
+ * from the same row should be supported. Concurrent double-clicks still
+ * surface as {@link RoundStateConflictError} because once one transition
+ * lands the prior state is `sending`, which the WHERE clause rejects.
  */
 export async function beginSendingRound(params: {
   roundId: string
@@ -288,17 +299,26 @@ export async function beginSendingRound(params: {
     .where(
       and(
         eq(competitionInviteRoundsTable.id, params.roundId),
-        eq(
-          competitionInviteRoundsTable.status,
+        inArray(competitionInviteRoundsTable.status, [
           COMPETITION_INVITE_ROUND_STATUS.DRAFT,
-        ),
+          COMPETITION_INVITE_ROUND_STATUS.FAILED,
+        ]),
       ),
     )
 
-  const affected = (result as unknown as { affectedRows?: number }).affectedRows
-  // Treat undefined as a miss — a future driver bump that drops the
-  // `affectedRows` field shouldn't silently skip the conflict guard.
-  if (affected == null || affected === 0) {
+  // Read affected count off both driver shapes — mysql2 returns
+  // `[ResultSetHeader, FieldPacket[]]` (look at `[0].affectedRows`),
+  // planetscale-serverless returns `{ rowsAffected }`. Reading
+  // `.affectedRows` on the array yields `undefined`, which silently
+  // bypassed the concurrent-transition guard below — and crucially, the
+  // UPDATE *did* execute, so a false-miss leaves the row in the new
+  // state with no exception path to roll it back.
+  const affected =
+    (result as unknown as { rowsAffected?: number }).rowsAffected ??
+    (result as unknown as [{ affectedRows?: number }])[0]?.affectedRows ??
+    (result as unknown as { affectedRows?: number }).affectedRows ??
+    0
+  if (affected === 0) {
     const fresh = await getRoundById(params.roundId)
     throw new RoundStateConflictError(
       params.roundId,
@@ -346,10 +366,19 @@ export async function finalizeRoundSend(params: {
       ),
     )
 
-  const affected = (result as unknown as { affectedRows?: number }).affectedRows
-  // Treat undefined as a miss — a future driver bump that drops the
-  // `affectedRows` field shouldn't silently skip the conflict guard.
-  if (affected == null || affected === 0) {
+  // Read affected count off both driver shapes — mysql2 returns
+  // `[ResultSetHeader, FieldPacket[]]` (look at `[0].affectedRows`),
+  // planetscale-serverless returns `{ rowsAffected }`. Reading
+  // `.affectedRows` on the array yields `undefined`, which silently
+  // bypassed the concurrent-transition guard below — and crucially, the
+  // UPDATE *did* execute, so a false-miss leaves the row in the new
+  // state with no exception path to roll it back.
+  const affected =
+    (result as unknown as { rowsAffected?: number }).rowsAffected ??
+    (result as unknown as [{ affectedRows?: number }])[0]?.affectedRows ??
+    (result as unknown as { affectedRows?: number }).affectedRows ??
+    0
+  if (affected === 0) {
     const fresh = await getRoundById(params.roundId)
     throw new RoundStateConflictError(
       params.roundId,
@@ -455,7 +484,7 @@ export async function revokeActiveInvitesForEmails(
       status: COMPETITION_INVITE_STATUS.REVOKED,
       revokedAt: now,
       revokedByUserId: params.revokedByUserId,
-      claimTokenHash: null,
+      claimToken: null,
       activeMarker: null,
       updatedAt: now,
     })

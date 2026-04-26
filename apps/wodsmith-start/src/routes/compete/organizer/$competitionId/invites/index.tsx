@@ -497,6 +497,10 @@ function InvitesPage() {
             onOpenChange={setSendOpen}
             championshipCompetitionId={competitionId}
             championshipDivisionId={activeDivisionId}
+            championshipName={competition.name}
+            divisionLabel={
+              divisions.find((d) => d.id === activeDivisionId)?.label ?? ""
+            }
             recipients={recipients}
             onSent={() => {
               setSelectedRosterKeys(new Set())

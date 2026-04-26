@@ -101,6 +101,7 @@ function DeclinePage() {
         championshipName={data.championshipName}
         inviteEmail={data.inviteEmail}
         slug={slug}
+        token={token}
       />
     )
   }
@@ -132,7 +133,7 @@ function DeclinePage() {
       if (result.ok) {
         setDone(true)
       } else {
-        setError(`Unable to decline this invite: ${result.reason}`)
+        setError(declineErrorCopy(result.reason))
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to decline")
@@ -194,6 +195,7 @@ function WrongAccountPage(props: {
   championshipName: string
   inviteEmail: string
   slug: string
+  token: string
 }) {
   return (
     <div className="mx-auto max-w-xl px-4 py-12">
@@ -222,8 +224,9 @@ function WrongAccountPage(props: {
             <Link
               to="/sign-in"
               search={{
-                redirect: `/compete/${props.slug}/invite-pending`,
+                redirect: `/compete/${props.slug}/claim/${props.token}/decline`,
                 email: props.inviteEmail,
+                invite: props.token,
               }}
             >
               Sign in as {props.inviteEmail}
@@ -233,6 +236,23 @@ function WrongAccountPage(props: {
       </Card>
     </div>
   )
+}
+
+function declineErrorCopy(reason: string): string {
+  switch (reason) {
+    case "not_found":
+      return "This invite link is no longer valid."
+    case "expired":
+      return "This invite has expired — contact the organizer to re-issue."
+    case "declined":
+      return "This invite has already been declined."
+    case "revoked":
+      return "This invite was revoked by the organizer."
+    case "already_paid":
+      return "You've already registered for this competition."
+    default:
+      return "Unable to decline this invite. Try again or contact the organizer."
+  }
 }
 
 function InvalidPage(props: { reason: string }) {
@@ -250,8 +270,7 @@ function InvalidPage(props: { reason: string }) {
         <CardContent>
           <Alert variant="destructive">
             <AlertDescription>
-              Reason: {props.reason}. If that's unexpected, contact the
-              organizer.
+              {declineErrorCopy(props.reason)}
             </AlertDescription>
           </Alert>
         </CardContent>

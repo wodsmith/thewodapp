@@ -2,7 +2,7 @@
  * Competition invite expiry sweep.
  *
  * Paginates `status = "pending" AND expiresAt < now` and transitions
- * matching rows to `expired`. Nulls `claimTokenHash` + `activeMarker` so
+ * matching rows to `expired`. Nulls `claimToken` + `activeMarker` so
  * the link dies immediately and a future re-invite for the same
  * (championship, email, division) is unblocked by the unique-active index.
  *
@@ -62,21 +62,23 @@ export async function sweepExpiredInvites(
     .update(competitionInvitesTable)
     .set({
       status: COMPETITION_INVITE_STATUS.EXPIRED,
-      claimTokenHash: null,
-      claimTokenLast4: null,
+      claimToken: null,
       activeMarker: null,
       updatedAt: now,
     })
     .where(
       and(
         inArray(competitionInvitesTable.id, ids),
-        // Re-check predicate so a status change that happened between
-        // SELECT and UPDATE (e.g. athlete just claimed) doesn't get
-        // stomped.
+        // Re-check both predicates so concurrent mutations between the
+        // SELECT and the UPDATE don't get stomped — a status flip means
+        // an athlete just claimed/declined, and an `expiresAt` bump
+        // means an organizer extended via `reissueInvite`. Either case,
+        // the row should not be marked expired.
         eq(
           competitionInvitesTable.status,
           COMPETITION_INVITE_STATUS.PENDING,
         ),
+        lt(competitionInvitesTable.expiresAt, now),
       ),
     )
 

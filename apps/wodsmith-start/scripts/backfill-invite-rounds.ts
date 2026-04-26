@@ -11,10 +11,10 @@
  *      status `sent`, with sensible deadlines copied from the earliest
  *      affected invite's `expiresAt`) — but only if no round already exists.
  *   2. Re-attributes every empty-string-roundId invite that had a token
- *      issued (`claimTokenHash IS NOT NULL` OR status != pending) to the
+ *      issued (`claimToken IS NOT NULL` OR status != pending) to the
  *      synthetic round.
  *   3. Sets `roundId = NULL` on the remaining draft bespoke rows
- *      (`roundId = ""` AND status = pending AND claimTokenHash IS NULL).
+ *      (`roundId = ""` AND status = pending AND claimToken IS NULL).
  *
  * Idempotent on re-run: already-backfilled championships are skipped, and
  * empty-string rows that no longer exist are no-ops.
@@ -97,7 +97,7 @@ for (const { championshipCompetitionId } of championshipsToBackfill) {
           championshipCompetitionId,
         ),
         eq(competitionInvitesTable.roundId, ""),
-        sql`(${competitionInvitesTable.claimTokenHash} IS NOT NULL OR ${competitionInvitesTable.status} != ${COMPETITION_INVITE_STATUS.PENDING})`,
+        sql`(${competitionInvitesTable.claimToken} IS NOT NULL OR ${competitionInvitesTable.status} != ${COMPETITION_INVITE_STATUS.PENDING})`,
       ),
     )
 
@@ -112,7 +112,7 @@ for (const { championshipCompetitionId } of championshipsToBackfill) {
         ),
         eq(competitionInvitesTable.roundId, ""),
         eq(competitionInvitesTable.status, COMPETITION_INVITE_STATUS.PENDING),
-        isNull(competitionInvitesTable.claimTokenHash),
+        isNull(competitionInvitesTable.claimToken),
       ),
     )
 
@@ -204,7 +204,7 @@ for (const { championshipCompetitionId } of championshipsToBackfill) {
               championshipCompetitionId,
             ),
             eq(competitionInvitesTable.roundId, ""),
-            sql`(${competitionInvitesTable.claimTokenHash} IS NOT NULL OR ${competitionInvitesTable.status} != ${COMPETITION_INVITE_STATUS.PENDING})`,
+            sql`(${competitionInvitesTable.claimToken} IS NOT NULL OR ${competitionInvitesTable.status} != ${COMPETITION_INVITE_STATUS.PENDING})`,
           ),
         )
       totalReattributed += issuedCount
@@ -230,7 +230,7 @@ for (const { championshipCompetitionId } of championshipsToBackfill) {
               competitionInvitesTable.status,
               COMPETITION_INVITE_STATUS.PENDING,
             ),
-            isNull(competitionInvitesTable.claimTokenHash),
+            isNull(competitionInvitesTable.claimToken),
           ),
         )
       totalDraftsCleared += draftCount

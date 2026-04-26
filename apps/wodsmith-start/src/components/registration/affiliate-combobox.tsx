@@ -187,9 +187,7 @@ export function AffiliateCombobox({
                 <Check
                   className={cn(
                     "mr-2 h-4 w-4",
-                    value === INDEPENDENT_OPTION
-                      ? "opacity-100"
-                      : "opacity-0",
+                    value === INDEPENDENT_OPTION ? "opacity-100" : "opacity-0",
                   )}
                 />
                 <span className="flex-1 text-left">{INDEPENDENT_OPTION}</span>

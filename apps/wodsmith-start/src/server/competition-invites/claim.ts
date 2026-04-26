@@ -3,8 +3,9 @@
  *
  * Read-side logic for the invite claim flow. Given a URL-bound plaintext
  * token, this module:
- * - hashes the plaintext and looks up the `competition_invites` row
- *   ({@link resolveInviteByToken}),
+ * - looks up the `competition_invites` row by plaintext `claimToken`
+ *   ({@link resolveInviteByToken}) — mirrors the `team_invitations.token`
+ *   pattern,
  * - asserts the row is still claimable — active status, token still
  *   present, expiry in the future, competition accepting invites
  *   ({@link assertInviteClaimable}),
@@ -31,7 +32,6 @@ import {
   type CompetitionInvite,
   competitionInvitesTable,
 } from "@/db/schemas/competition-invites"
-import { hashInviteClaimToken } from "@/lib/competition-invites/tokens"
 import {
   assertInviteClaimable,
   InviteNotClaimableError,
@@ -54,29 +54,30 @@ export {
 // ============================================================================
 
 /**
- * Hash the plaintext token and look up the invite row. Returns `null` when
- * no row exists — callers render the generic "invite link is invalid or
- * expired" page without leaking whether the token ever existed.
+ * Look up the invite row by plaintext `claimToken`. Mirrors the
+ * `team_invitations.token` pattern (`eq(token, ...)` direct lookup).
+ * Returns `null` when no row exists — callers render the generic
+ * "invite link is invalid or expired" page without leaking whether the
+ * token ever existed.
  *
  * The `activeMarker = "active"` filter deliberately excludes
- * declined/expired/revoked rows: those have had their `claimTokenHash`
+ * declined/expired/revoked rows: those have had their `claimToken`
  * nulled, but we belt-and-suspenders the query so a stale token that
- * somehow survived never resolves. Paid rows also have their hash nulled,
- * so the happy path "you already claimed" short-circuit is handled by
- * {@link assertInviteClaimable} on the live re-read, not here.
+ * somehow survived never resolves. Paid rows also have their token
+ * nulled, so the happy path "you already claimed" short-circuit is
+ * handled by {@link assertInviteClaimable} on the live re-read, not here.
  */
 export async function resolveInviteByToken(
   tokenPlaintext: string,
 ): Promise<CompetitionInvite | null> {
   if (!tokenPlaintext) return null
-  const hash = await hashInviteClaimToken(tokenPlaintext)
   const db = getDb()
   const rows = await db
     .select()
     .from(competitionInvitesTable)
     .where(
       and(
-        eq(competitionInvitesTable.claimTokenHash, hash),
+        eq(competitionInvitesTable.claimToken, tokenPlaintext),
         eq(
           competitionInvitesTable.activeMarker,
           COMPETITION_INVITE_ACTIVE_MARKER,

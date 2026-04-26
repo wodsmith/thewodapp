@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto"
 import type { Connection } from "mysql2/promise"
 import {
 	batchInsert,
@@ -345,21 +344,8 @@ export async function seed(client: Connection): Promise<void> {
 	//    these to prod.
 	// ════════════════════════════════════════════════════════════════════
 
-	function sha256Hex(value: string): string {
-		return createHash("sha256").update(value).digest("hex")
-	}
-
-	function tokenArtifacts(plaintext: string) {
-		return {
-			hash: sha256Hex(plaintext),
-			last4: plaintext.slice(-4),
-		}
-	}
-
 	const SEED_PENDING_TOKEN = "seed-invite-mike-pending-men-rx-phase2"
 	const SEED_EXPIRED_TOKEN = "seed-invite-ryan-expired-men-rx-phase2"
-	const mikeToken = tokenArtifacts(SEED_PENDING_TOKEN)
-	const ryanToken = tokenArtifacts(SEED_EXPIRED_TOKEN)
 
 	console.log(
 		`    seed tokens — pending: ${SEED_PENDING_TOKEN} / expired: ${SEED_EXPIRED_TOKEN}`,
@@ -382,8 +368,7 @@ export async function seed(client: Connection): Promise<void> {
 			user_id: "usr_athlete_mike",
 			invitee_first_name: "Mike",
 			invitee_last_name: null,
-			claim_token_hash: mikeToken.hash,
-			claim_token_last4: mikeToken.last4,
+			claim_token: SEED_PENDING_TOKEN,
 			expires_at: futureDatetime(14),
 			send_attempt: 1,
 			status: "pending",
@@ -400,7 +385,7 @@ export async function seed(client: Connection): Promise<void> {
 			update_counter: 0,
 		},
 		// 2. Accepted + paid invite for ryan (Men's RX, top 2 from Qualifier).
-		//    Shows the happy-path terminal state: claimTokenHash nulled,
+		//    Shows the happy-path terminal state: claim_token nulled,
 		//    paidAt set, claimedRegistrationId linked. activeMarker stays
 		//    "active" so a second claim short-circuits to "already registered".
 		{
@@ -418,8 +403,7 @@ export async function seed(client: Connection): Promise<void> {
 			user_id: "usr_athlete_ryan",
 			invitee_first_name: "Ryan",
 			invitee_last_name: null,
-			claim_token_hash: null, // nulled on terminal transition
-			claim_token_last4: null,
+			claim_token: null, // nulled on terminal transition
 			expires_at: futureDatetime(14),
 			send_attempt: 1,
 			status: "accepted_paid",
@@ -452,8 +436,7 @@ export async function seed(client: Connection): Promise<void> {
 			user_id: "usr_athlete_alex",
 			invitee_first_name: "Alex",
 			invitee_last_name: null,
-			claim_token_hash: null,
-			claim_token_last4: null,
+			claim_token: null,
 			expires_at: pastDatetime(2),
 			send_attempt: 1,
 			status: "expired",
@@ -485,8 +468,7 @@ export async function seed(client: Connection): Promise<void> {
 			user_id: "usr_athlete_sarah",
 			invitee_first_name: "Sarah",
 			invitee_last_name: null,
-			claim_token_hash: null,
-			claim_token_last4: null,
+			claim_token: null,
 			expires_at: futureDatetime(14),
 			send_attempt: 1,
 			status: "declined",
@@ -520,8 +502,7 @@ export async function seed(client: Connection): Promise<void> {
 			user_id: null,
 			invitee_first_name: "Returning",
 			invitee_last_name: "Champion",
-			claim_token_hash: null,
-			claim_token_last4: null,
+			claim_token: null,
 			expires_at: null,
 			send_attempt: 0,
 			status: "pending",
@@ -553,8 +534,7 @@ export async function seed(client: Connection): Promise<void> {
 			user_id: null,
 			invitee_first_name: "Sponsored",
 			invitee_last_name: "Athlete",
-			claim_token_hash: ryanToken.hash, // reuse deterministic seed token
-			claim_token_last4: ryanToken.last4,
+			claim_token: SEED_EXPIRED_TOKEN, // reuse deterministic seed token
 			expires_at: futureDatetime(14),
 			send_attempt: 1,
 			status: "pending",

@@ -169,7 +169,7 @@ export const COMPETITION_INVITE_ACTIVE_MARKER = "active" as const
 // ============================================================================
 
 /**
- * A per-athlete invite. Carries the email-locked claim token (hashed),
+ * A per-athlete invite. Carries the email-locked claim token (plaintext),
  * status, origin attribution (source vs bespoke), and round attribution.
  *
  * Phase 2: `roundId` is `varchar(255) NOT NULL` with an empty-string
@@ -177,11 +177,16 @@ export const COMPETITION_INVITE_ACTIVE_MARKER = "active" as const
  * that rewrites every Phase-2 row to a synthetic "Round 1 — Backfill".
  *
  * Token model:
- * - Only the SHA-256 hash of the URL-safe plaintext token lives here.
- * - `claimTokenLast4` is support-facing ("did this athlete click the right
- *   link?") and is rotated alongside the hash on every re-send.
+ * - The URL-safe plaintext token lives in `claimToken`, mirroring the
+ *   `team_invitations.token` pattern. Lookups go through
+ *   `eq(claimToken, ...)` directly — no hash.
+ * - The token is an unguessable identifier, not a bearer password. The
+ *   email-locked claim (`identityMatch`) remains the actual auth gate;
+ *   the token is what the athlete clicks (and what the organizer can
+ *   copy from the invites table) but it can't be used to hijack a
+ *   different account.
  * - Terminal transitions (`declined`, `expired`, `revoked`, `accepted_paid`)
- *   set `claimTokenHash = NULL`. The unique index on the hash permits
+ *   set `claimToken = NULL`. The unique index on the column permits
  *   multiple NULLs (MySQL semantics) so this is safe.
  * - The `sendAttempt` counter is included in the Resend `Idempotency-Key`
  *   so a reused `invite.id` does not get silently deduplicated when the
@@ -241,12 +246,13 @@ export const competitionInvitesTable = mysqlTable(
     // Denormalized for email salutation; falls back to `email` if NULL.
     inviteeFirstName: varchar({ length: 255 }),
     inviteeLastName: varchar({ length: 255 }),
-    // SHA-256 of the URL-safe plaintext token. Rotated on each re-send.
-    // NULLed on terminal transitions.
-    claimTokenHash: varchar({ length: 64 }),
-    // Last 4 chars of the plaintext token for organizer support queries.
-    // Rotated alongside `claimTokenHash`.
-    claimTokenLast4: varchar({ length: 8 }),
+    // URL-safe plaintext claim token. Mirrors `team_invitations.token` —
+    // stored plaintext, looked up directly, with a unique index. Rotated on
+    // each re-send. NULLed on terminal transitions (`accepted_paid`,
+    // `declined`, `revoked`, `expired`) so the same link can't replay.
+    // Email-locked claim (`identityMatch`) remains the primary defense; the
+    // token is an unguessable identifier, not a bearer password.
+    claimToken: varchar({ length: 255 }),
     // Hard expiry. Mirrors round.rsvpDeadlineAt at send time, but stored
     // per-invite so per-invite extensions work.
     expiresAt: datetime(),
@@ -289,9 +295,7 @@ export const competitionInvitesTable = mysqlTable(
     ),
     // Tokens are globally unique while live. Multiple NULLs coexist so
     // historical terminal rows can accumulate.
-    uniqueIndex("competition_invites_claim_token_hash_idx").on(
-      table.claimTokenHash,
-    ),
+    uniqueIndex("competition_invites_claim_token_idx").on(table.claimToken),
     index("competition_invites_round_idx").on(table.roundId),
     index("competition_invites_source_idx").on(table.sourceId),
     index("competition_invites_origin_idx").on(table.origin),

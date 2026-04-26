@@ -41,6 +41,7 @@ import {
   logEntityCreated,
   logEntityDeleted,
   logEntityUpdated,
+  logError,
   logInfo,
   logWarning,
   withRequestContext,
@@ -960,59 +961,70 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
         } catch (err) {
           if (err instanceof RoundStateConflictError) {
             throw new Error(
-              `Round ${round.id} is no longer a draft (status=${err.observedStatus ?? "missing"}); refresh and try again.`,
+              `Round ${round.id} is not in a sendable state (status=${err.observedStatus ?? "missing"}); refresh and try again.`,
             )
           }
           throw err
         }
 
-        const db = getDb()
-        const [championship, division, organizingTeam] = await Promise.all([
-          db
-            .select({
-              id: competitionsTable.id,
-              slug: competitionsTable.slug,
-              name: competitionsTable.name,
-            })
-            .from(competitionsTable)
-            .where(eq(competitionsTable.id, data.championshipCompetitionId))
-            .limit(1)
-            .then((rows) => rows[0] ?? null),
-          db
-            .select({
-              id: scalingLevelsTable.id,
-              label: scalingLevelsTable.label,
-            })
-            .from(scalingLevelsTable)
-            .where(eq(scalingLevelsTable.id, data.championshipDivisionId))
-            .limit(1)
-            .then((rows) => rows[0] ?? null),
-          db
-            .select({ id: teamTable.id, name: teamTable.name })
-            .from(teamTable)
-            .where(eq(teamTable.id, championshipTeamId))
-            .limit(1)
-            .then((rows) => rows[0] ?? null),
-        ])
-
-        if (!championship) throw new Error("Championship not found")
-        if (!division) throw new Error("Division not found")
-
-        const recipients: IssueInviteRecipient[] = data.recipients.map((r) => ({
-          email: r.email,
-          origin: r.origin,
-          sourceId: r.sourceId ?? null,
-          sourceCompetitionId: r.sourceCompetitionId ?? null,
-          sourcePlacement: r.sourcePlacement ?? null,
-          sourcePlacementLabel: r.sourcePlacementLabel ?? null,
-          bespokeReason: r.bespokeReason ?? null,
-          inviteeFirstName: r.inviteeFirstName ?? null,
-          inviteeLastName: r.inviteeLastName ?? null,
-          userId: r.userId ?? null,
-        }))
-
+        // Everything between `beginSendingRound` and `finalizeRoundSend` runs
+        // under a single failure guard so any throw — lookup miss, render
+        // error, queue.send rejection — flips the round to `failed` instead
+        // of leaking a `sending` row. `beginSendingRound` accepts both
+        // `draft` and `failed` so the organizer can retry from the same
+        // round after fixing the underlying cause.
         let issueResult: IssueInvitesResult
+        let allToDispatch: Array<{
+          invite: CompetitionInvite
+          plaintextToken: string
+        }>
+        let skipped: IssueInvitesResult["alreadyActive"]
         try {
+          const db = getDb()
+          const [championship, division, organizingTeam] = await Promise.all([
+            db
+              .select({
+                id: competitionsTable.id,
+                slug: competitionsTable.slug,
+                name: competitionsTable.name,
+              })
+              .from(competitionsTable)
+              .where(eq(competitionsTable.id, data.championshipCompetitionId))
+              .limit(1)
+              .then((rows) => rows[0] ?? null),
+            db
+              .select({
+                id: scalingLevelsTable.id,
+                label: scalingLevelsTable.label,
+              })
+              .from(scalingLevelsTable)
+              .where(eq(scalingLevelsTable.id, data.championshipDivisionId))
+              .limit(1)
+              .then((rows) => rows[0] ?? null),
+            db
+              .select({ id: teamTable.id, name: teamTable.name })
+              .from(teamTable)
+              .where(eq(teamTable.id, championshipTeamId))
+              .limit(1)
+              .then((rows) => rows[0] ?? null),
+          ])
+
+          if (!championship) throw new Error("Championship not found")
+          if (!division) throw new Error("Division not found")
+
+          const recipients: IssueInviteRecipient[] = data.recipients.map((r) => ({
+            email: r.email,
+            origin: r.origin,
+            sourceId: r.sourceId ?? null,
+            sourceCompetitionId: r.sourceCompetitionId ?? null,
+            sourcePlacement: r.sourcePlacement ?? null,
+            sourcePlacementLabel: r.sourcePlacementLabel ?? null,
+            bespokeReason: r.bespokeReason ?? null,
+            inviteeFirstName: r.inviteeFirstName ?? null,
+            inviteeLastName: r.inviteeLastName ?? null,
+            userId: r.userId ?? null,
+          }))
+
           issueResult = await issueInvitesForRecipients({
             championshipCompetitionId: data.championshipCompetitionId,
             championshipDivisionId: data.championshipDivisionId,
@@ -1020,108 +1032,112 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
             roundId: round.id,
             recipients,
           })
-        } catch (err) {
-          // Send transition fully rolls back: mark the round failed so the
-          // organizer can retry from the same draft after the cause is
-          // addressed (free-comp, capacity, etc.).
-          await markRoundFailed({ roundId: round.id }).catch(() => {})
-          if (err instanceof FreeCompetitionNotEligibleError) {
-            throw new Error(err.message)
-          }
-          throw err
-        }
 
-        // Activate draft bespoke rows that came back as alreadyActive+isDraft.
-        // Re-attribute them to *this* round so the timeline shows them in the
-        // wave that picked them up rather than the historical send.
-        const activated: Array<{
-          invite: CompetitionInvite
-          plaintextToken: string
-        }> = []
-        for (const prior of issueResult.alreadyActive) {
-          if (!prior.isDraft) continue
-          const rotated = await reissueInvite({
-            inviteId: prior.existingInviteId,
-            newExpiresAt: data.rsvpDeadlineAt,
-            roundId: round.id,
-          })
-          activated.push({
-            invite: rotated.invite,
-            plaintextToken: rotated.plaintextToken,
-          })
-        }
-
-        const allToDispatch = [...issueResult.inserted, ...activated]
-
-        const rsvpDeadlineLabel = data.rsvpDeadlineAt.toLocaleDateString(
-          "en-US",
-          { month: "long", day: "numeric", year: "numeric" },
-        )
-
-        // Render + enqueue per invite. Render is intentionally sequential
-        // to keep memory bounded when a round targets hundreds of recipients.
-        const queue = (env as unknown as Record<string, unknown>)
-          .BROADCAST_EMAIL_QUEUE as Queue<QueueEmailMessage> | undefined
-
-        for (const { invite, plaintextToken } of allToDispatch) {
-          const bodyHtml = await renderInviteEmailHtml({
-            invite,
-            plaintextToken,
-            championshipSlug: championship.slug,
-            championshipName: championship.name,
-            divisionLabel: division.label,
-            organizerTeamName: organizingTeam?.name ?? "Organizer",
-            subject: data.subject,
-            bodyText: data.bodyText,
-            rsvpDeadlineLabel,
-          })
-
-          const message: InviteEmailMessage = {
-            kind: "competition-invite",
-            inviteId: invite.id,
-            sendAttempt: invite.sendAttempt,
-            competitionId: invite.championshipCompetitionId,
-            email: invite.email,
-            subject: data.subject,
-            bodyHtml,
-          }
-
-          if (queue) {
-            await queue.send(message)
-          } else {
-            logInfo({
-              message: "[Invites] No queue binding — logging invite email",
-              attributes: { inviteId: invite.id, email: invite.email },
+          // Activate draft bespoke rows that came back as alreadyActive+isDraft.
+          // Re-attribute them to *this* round so the timeline shows them in the
+          // wave that picked them up rather than the historical send.
+          const activated: Array<{
+            invite: CompetitionInvite
+            plaintextToken: string
+          }> = []
+          for (const prior of issueResult.alreadyActive) {
+            if (!prior.isDraft) continue
+            const rotated = await reissueInvite({
+              inviteId: prior.existingInviteId,
+              newExpiresAt: data.rsvpDeadlineAt,
+              roundId: round.id,
+            })
+            activated.push({
+              invite: rotated.invite,
+              plaintextToken: rotated.plaintextToken,
             })
           }
 
-          logEntityCreated({
-            entity: "competition_invite",
-            id: invite.id,
-            parentEntity: "competition",
-            parentId: invite.championshipCompetitionId,
-            attributes: {
-              origin: invite.origin,
+          allToDispatch = [...issueResult.inserted, ...activated]
+
+          const rsvpDeadlineLabel = data.rsvpDeadlineAt.toLocaleDateString(
+            "en-US",
+            { month: "long", day: "numeric", year: "numeric" },
+          )
+
+          // Render + enqueue per invite. Render is intentionally sequential
+          // to keep memory bounded when a round targets hundreds of recipients.
+          const queue = (env as unknown as Record<string, unknown>)
+            .BROADCAST_EMAIL_QUEUE as Queue<QueueEmailMessage> | undefined
+
+          for (const { invite, plaintextToken } of allToDispatch) {
+            const bodyHtml = await renderInviteEmailHtml({
+              invite,
+              plaintextToken,
+              championshipSlug: championship.slug,
+              championshipName: championship.name,
+              divisionLabel: division.label,
+              organizerTeamName: organizingTeam?.name ?? "Organizer",
+              subject: data.subject,
+              bodyText: data.bodyText,
+              rsvpDeadlineLabel,
+            })
+
+            const message: InviteEmailMessage = {
+              kind: "competition-invite",
+              inviteId: invite.id,
               sendAttempt: invite.sendAttempt,
-              activeMarker: invite.activeMarker,
-            },
-          })
-        }
+              competitionId: invite.championshipCompetitionId,
+              email: invite.email,
+              subject: data.subject,
+              bodyHtml,
+            }
 
-        const skipped = issueResult.alreadyActive.filter((r) => !r.isDraft)
+            if (queue) {
+              await queue.send(message)
+            } else {
+              logInfo({
+                message: "[Invites] No queue binding — logging invite email",
+                attributes: { inviteId: invite.id, email: invite.email },
+              })
+            }
 
-        // Finalize the round once every recipient was inserted + enqueued.
-        // A failure here leaves the row `sending`; a follow-up retry sees
-        // the same draft is now `sending` and the conflict guard surfaces
-        // a clean error to the organizer rather than re-issuing.
-        try {
+            logEntityCreated({
+              entity: "competition_invite",
+              id: invite.id,
+              parentEntity: "competition",
+              parentId: invite.championshipCompetitionId,
+              attributes: {
+                origin: invite.origin,
+                sendAttempt: invite.sendAttempt,
+                activeMarker: invite.activeMarker,
+              },
+            })
+          }
+
+          skipped = issueResult.alreadyActive.filter((r) => !r.isDraft)
+
           await finalizeRoundSend({
             roundId: round.id,
             recipientCount: allToDispatch.length,
             sentByUserId: session.userId,
           })
         } catch (err) {
-          await markRoundFailed({ roundId: round.id }).catch(() => {})
+          logError({
+            message: "[Invites] Round send crashed; marking failed",
+            error: err,
+            attributes: {
+              roundId: round.id,
+              championshipCompetitionId: data.championshipCompetitionId,
+              divisionId: data.championshipDivisionId,
+              recipientCount: data.recipients.length,
+            },
+          })
+          await markRoundFailed({ roundId: round.id }).catch((markErr) => {
+            logError({
+              message: "[Invites] markRoundFailed itself failed",
+              error: markErr,
+              attributes: { roundId: round.id },
+            })
+          })
+          if (err instanceof FreeCompetitionNotEligibleError) {
+            throw new Error(err.message)
+          }
           throw err
         }
 
@@ -1239,13 +1255,15 @@ export const createBespokeInvitesBulkFn = createServerFn({ method: "POST" })
   })
 
 /**
- * Organizer-facing projection of an active invite. Drops sensitive token
- * fields (`claimTokenHash`, `claimTokenLast4`) — the organizer client
- * only needs identity + classification info to render the bespoke
- * section and overlay invite state on source roster rows.
+ * Organizer-facing projection of an active invite. Drops the raw
+ * `claimToken` from the wire — the organizer client only needs identity
+ * + classification info to render the bespoke section and overlay invite
+ * state on source roster rows. The full plaintext token is fetched on
+ * demand via a separate server fn when the organizer asks for a
+ * copy-link.
  *
  * `hasClaimToken` lets the UI distinguish staged drafts (no token yet)
- * from already-sent invites without exposing the hash itself.
+ * from already-sent invites without exposing the token itself.
  */
 export interface ActiveInviteSummary {
   id: string
@@ -1307,7 +1325,7 @@ export const listActiveInvitesFn = createServerFn({ method: "GET" })
             inviteeFirstName: competitionInvitesTable.inviteeFirstName,
             inviteeLastName: competitionInvitesTable.inviteeLastName,
             userId: competitionInvitesTable.userId,
-            claimTokenHash: competitionInvitesTable.claimTokenHash,
+            claimToken: competitionInvitesTable.claimToken,
           })
           .from(competitionInvitesTable)
           .where(
@@ -1328,9 +1346,9 @@ export const listActiveInvitesFn = createServerFn({ method: "GET" })
           )
 
         const invites: ActiveInviteSummary[] = rows.map(
-          ({ claimTokenHash, ...rest }) => ({
+          ({ claimToken, ...rest }) => ({
             ...rest,
-            hasClaimToken: claimTokenHash !== null,
+            hasClaimToken: claimToken !== null,
           }),
         )
         return { invites }
@@ -1641,7 +1659,7 @@ export const revokeInviteFn = createServerFn({ method: "POST" })
             status: COMPETITION_INVITE_STATUS.REVOKED,
             revokedAt: now,
             revokedByUserId: session.userId,
-            claimTokenHash: null,
+            claimToken: null,
             activeMarker: null,
             updatedAt: now,
           })
