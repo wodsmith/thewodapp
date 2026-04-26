@@ -48,7 +48,11 @@ type Branch =
       inviteEmail: string
       accountExistsForInviteEmail: boolean
     }
-  | { kind: "already_claimed"; championshipName: string }
+  | {
+      kind: "already_claimed"
+      championshipName: string
+      registrationId: string
+    }
   | { kind: "invalid"; reason: InviteClaimableError; championshipName?: string }
 
 export const Route = createFileRoute("/compete/$slug/claim/$token")({
@@ -83,14 +87,12 @@ export const Route = createFileRoute("/compete/$slug/claim/$token")({
         const parentMatch = await parentMatchPromise
         const userRegistrations = parentMatch.loaderData?.userRegistrations
         const competition = parentMatch.loaderData?.competition
-        if (
-          competition &&
-          userRegistrations &&
-          userRegistrations.length > 0
-        ) {
+        const firstRegistration = userRegistrations?.[0]
+        if (competition && firstRegistration) {
           return {
             kind: "already_claimed",
             championshipName: competition.name,
+            registrationId: firstRegistration.id,
           }
         }
       }
@@ -172,6 +174,7 @@ function ClaimPage() {
       <AlreadyClaimed
         slug={slug}
         championshipName={data.championshipName}
+        registrationId={data.registrationId}
       />
     )
   }
@@ -309,7 +312,11 @@ function WrongAccount(props: {
   )
 }
 
-function AlreadyClaimed(props: { slug: string; championshipName: string }) {
+function AlreadyClaimed(props: {
+  slug: string
+  championshipName: string
+  registrationId: string
+}) {
   return (
     <div className="mx-auto max-w-xl px-4 py-12">
       <Card>
@@ -327,13 +334,15 @@ function AlreadyClaimed(props: { slug: string; championshipName: string }) {
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground text-center">
             Your spot is locked in. Head to your registration to review your
-            details or share the event.
+            details or manage your team.
           </p>
           <Button asChild className="w-full" size="lg">
             <Link
-              to="/compete/$slug/registered"
-              params={{ slug: props.slug }}
-              search={{ session_id: undefined, registration_id: undefined }}
+              to="/compete/$slug/teams/$registrationId"
+              params={{
+                slug: props.slug,
+                registrationId: props.registrationId,
+              }}
             >
               View your registration
             </Link>
