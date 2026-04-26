@@ -21,7 +21,7 @@ import {
   useRouter,
 } from "@tanstack/react-router"
 import { MailPlus, Upload, UserPlus } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { AddBespokeInviteeDialog } from "@/components/organizer/invites/add-bespoke-invitee-dialog"
 import { BulkAddInviteesDialog } from "@/components/organizer/invites/bulk-add-invitees-dialog"
 import {
@@ -225,10 +225,13 @@ function InvitesPage() {
   )
   const sentBespokeCount = bespokeInvites.length - draftBespokeInvites.length
 
-  const isRowAlreadyInvited = (r: RosterRow) =>
-    !!activeInviteByEmail.get(
-      `${r.championshipDivisionId}::${(r.athleteEmail ?? "").toLowerCase()}`,
-    )
+  const isRowAlreadyInvited = useCallback(
+    (r: RosterRow) =>
+      !!activeInviteByEmail.get(
+        `${r.championshipDivisionId}::${(r.athleteEmail ?? "").toLowerCase()}`,
+      ),
+    [activeInviteByEmail],
+  )
 
   const getRevokableInviteId = (r: RosterRow): string | null => {
     const inv = activeInviteByEmail.get(
@@ -269,7 +272,7 @@ function InvitesPage() {
           selectedRosterKeys.has(rosterRowKey(r)) &&
           !isRowAlreadyInvited(r),
       ),
-    [roster.rows, selectedRosterKeys, activeInviteByEmail],
+    [roster.rows, selectedRosterKeys, isRowAlreadyInvited],
   )
 
   const recipients = useMemo<SendRecipient[]>(() => {

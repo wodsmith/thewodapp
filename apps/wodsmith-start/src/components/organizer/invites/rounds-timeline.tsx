@@ -70,6 +70,7 @@ function StackedBar({
         return (
           <div
             key={key}
+            role="img"
             className={STATUS_TINT[key] ?? "bg-zinc-300"}
             style={{ width: `${pct}%` }}
             aria-label={`${key}: ${value}`}

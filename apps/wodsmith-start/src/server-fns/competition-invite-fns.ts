@@ -28,6 +28,7 @@ import {
   COMPETITION_INVITE_STATUS,
   competitionInvitesTable,
   type CompetitionInvite,
+  type CompetitionInviteRound,
 } from "@/db/schemas/competition-invites"
 import {
   competitionGroupsTable,
@@ -901,7 +902,7 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
         // every Phase-3 send is attributed to a real round row even when
         // the call originates from the simple "Send invites" button on the
         // roster page (which doesn't expose round metadata directly).
-        let round
+        let round: CompetitionInviteRound
         if (data.roundId) {
           const existing = await getRoundById(data.roundId)
           if (
@@ -1454,7 +1455,7 @@ export const updateRoundDraftFn = createServerFn({ method: "POST" })
           throw new Error("Round not found")
         }
 
-        let round
+        let round: CompetitionInviteRound
         try {
           round = await updateRoundDraft({
             id: data.id,
