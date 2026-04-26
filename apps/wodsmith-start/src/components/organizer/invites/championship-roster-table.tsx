@@ -57,8 +57,8 @@ async function copyInviteLink(url: string): Promise<void> {
     await navigator.clipboard.writeText(url)
     toast.success("Invite link copied")
   } catch {
-    console.warn("Failed to copy invite link:", url)
-    toast.error("Couldn't copy — link is in the console")
+    console.warn("Failed to copy invite link")
+    toast.error("Couldn't copy invite link")
   }
 }
 
