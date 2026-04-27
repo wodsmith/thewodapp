@@ -101,9 +101,14 @@ function DivisionCell({ row }: { row: RosterRow }) {
 }
 
 function StatusPill({ alreadyInvited }: { alreadyInvited: boolean }) {
+  // `variant="outline"` for both — the default variant's `dark:bg-primary`
+  // would otherwise paint over the emerald tint in dark mode.
   if (alreadyInvited) {
     return (
-      <Badge className="border-transparent bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/20">
+      <Badge
+        variant="outline"
+        className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50"
+      >
         Invited
       </Badge>
     )
@@ -152,9 +157,6 @@ export function ChampionshipRosterTable({
                   />
                 </TableHead>
               ) : null}
-              <TableHead className="w-16 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Rank
-              </TableHead>
               <TableHead className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Athlete
               </TableHead>
@@ -163,6 +165,9 @@ export function ChampionshipRosterTable({
               </TableHead>
               <TableHead className="w-40 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Division
+              </TableHead>
+              <TableHead className="w-16 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Rank
               </TableHead>
               <TableHead className="w-28 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Status
@@ -202,9 +207,6 @@ export function ChampionshipRosterTable({
                     </TableCell>
                   ) : null}
                   <TableCell>
-                    <RankCell placement={row.sourcePlacement} />
-                  </TableCell>
-                  <TableCell>
                     <div className="flex items-center gap-2">
                       <AthleteAvatar name={row.athleteName} />
                       <div className="flex flex-col leading-tight">
@@ -222,6 +224,9 @@ export function ChampionshipRosterTable({
                   </TableCell>
                   <TableCell>
                     <DivisionCell row={row} />
+                  </TableCell>
+                  <TableCell>
+                    <RankCell placement={row.sourcePlacement} />
                   </TableCell>
                   <TableCell>
                     <StatusPill alreadyInvited={rowAlreadyInvited} />
