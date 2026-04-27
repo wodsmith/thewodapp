@@ -67,6 +67,13 @@ interface InviteProps extends RegistrationFormProps {
   // silently flip registration open and submit a request that the server
   // will reject for a closed window.
   publicRegistrationOpen: boolean
+  prefillTeammates?: Array<{
+    email: string
+    firstName: string
+    lastName: string
+    affiliateName: string
+  }>
+  prefillTeamName?: string
 }
 
 // ─── Public variant ─────────────────────────────────────────────────────────
@@ -209,6 +216,8 @@ export function InviteRegistrationForm(props: InviteProps) {
       initialDivisionId: _ignored,
       inviteToken,
       publicRegistrationOpen,
+      prefillTeammates: _prefillTeammates,
+      prefillTeamName: _prefillTeamName,
       ...rest
     } = props
     return (
