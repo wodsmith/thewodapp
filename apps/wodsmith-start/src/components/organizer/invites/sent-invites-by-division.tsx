@@ -39,6 +39,7 @@ import {
 import {
   COMPETITION_INVITE_ORIGIN,
   COMPETITION_INVITE_STATUS,
+  type CompetitionInviteSource,
 } from "@/db/schemas/competition-invites"
 import type { AuditInviteSummary } from "@/server-fns/competition-invite-fns"
 
@@ -65,6 +66,70 @@ interface SentInvitesByDivisionProps {
      *  is uncapped) — render the indicator as "X accepted" instead of a ratio. */
     maxSpots?: number | null
   }>
+  /** Qualification sources feeding the championship. Used to break down
+   *  "X/Y accepted" per source under each division card so the organizer
+   *  can track who still owes invites to which source. Optional so older
+   *  callers (and the unit tests) can omit it. */
+  sources?: CompetitionInviteSource[]
+  /** Competition-name lookup for source-name resolution (kind: "competition"). */
+  competitionNamesById?: Record<string, string>
+  /** Series-name lookup for source-name resolution (kind: "series"). */
+  seriesNamesById?: Record<string, string>
+}
+
+/** Parsed shape of `competitionInviteSourcesTable.divisionMappings` JSON. */
+interface DivisionMappingEntry {
+  sourceDivisionId: string
+  championshipDivisionId: string
+  spots?: number | null
+}
+
+/**
+ * Per-source allocation against a single championship division.
+ * Sums every `spots` entry in the source's `divisionMappings` JSON
+ * targeting this `championshipDivisionId` (multiple source divisions can
+ * map onto the same championship division — e.g. RX Men + Open Men both
+ * feeding "Open Men" — and we want their pool to add).
+ */
+function allocationFor(
+  source: CompetitionInviteSource,
+  championshipDivisionId: string,
+): number {
+  if (!source.divisionMappings) return 0
+  let parsed: DivisionMappingEntry[]
+  try {
+    parsed = JSON.parse(source.divisionMappings) as DivisionMappingEntry[]
+  } catch {
+    return 0
+  }
+  if (!Array.isArray(parsed)) return 0
+  let total = 0
+  for (const m of parsed) {
+    if (m.championshipDivisionId !== championshipDivisionId) continue
+    if (typeof m.spots === "number" && m.spots > 0) total += m.spots
+  }
+  return total
+}
+
+/** Sentinel key for invites with no source (bespoke origin). Module-scoped
+ *  so it stays referentially stable across renders — important for the
+ *  exhaustive-deps lint rule on the memo that uses it. */
+const BESPOKE_BUCKET = "__bespoke__" as const
+
+function sourceName(
+  source: CompetitionInviteSource,
+  competitionNamesById: Record<string, string>,
+  seriesNamesById: Record<string, string>,
+): string {
+  if (source.kind === "series") {
+    return source.sourceGroupId
+      ? (seriesNamesById[source.sourceGroupId] ?? "Unknown series")
+      : "Unknown series"
+  }
+  return source.sourceCompetitionId
+    ? (competitionNamesById[source.sourceCompetitionId] ??
+        "Unknown competition")
+    : "Unknown competition"
 }
 
 /**
@@ -160,6 +225,9 @@ async function copyToClipboard(text: string) {
 export function SentInvitesByDivision({
   invites,
   divisions,
+  sources = [],
+  competitionNamesById = {},
+  seriesNamesById = {},
 }: SentInvitesByDivisionProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [originFilter, setOriginFilter] = useState<OriginFilter>("all")
@@ -197,6 +265,27 @@ export function SentInvitesByDivision({
     }
     return map
   }, [filteredInvites])
+
+  // Accepted-invite counts grouped by `(divisionId, sourceId)` — built
+  // from the unfiltered set so the per-source breakdown reflects truth,
+  // not "what's currently visible". Bespoke invites land under the
+  // sentinel `BESPOKE_BUCKET` so the renderer can show them as a
+  // separate row without mistaking a `null` source-id for a missing
+  // source row.
+  const acceptedBySourceByDivision = useMemo(() => {
+    const map = new Map<string, Map<string, number>>()
+    for (const inv of invites) {
+      if (inv.status !== COMPETITION_INVITE_STATUS.ACCEPTED_PAID) continue
+      const divisionMap = map.get(inv.championshipDivisionId) ?? new Map()
+      const bucket =
+        inv.origin === COMPETITION_INVITE_ORIGIN.BESPOKE
+          ? BESPOKE_BUCKET
+          : (inv.sourceId ?? BESPOKE_BUCKET)
+      divisionMap.set(bucket, (divisionMap.get(bucket) ?? 0) + 1)
+      map.set(inv.championshipDivisionId, divisionMap)
+    }
+    return map
+  }, [invites])
 
   const countersByDivision = useMemo(() => {
     const map = new Map<string, Record<StatusKey, number>>()
@@ -284,6 +373,36 @@ export function SentInvitesByDivision({
             maxSpots !== null
               ? `${acceptedCount}/${maxSpots} spots filled`
               : `${acceptedCount} accepted`
+
+          // Per-source breakdown: every source that allocates spots to
+          // this division gets a chip "<source>: accepted/allocated".
+          // Bespoke invites are tracked separately (no allocation, so
+          // shown as "Bespoke: N" with em-dash for the denominator).
+          const acceptedBySource =
+            acceptedBySourceByDivision.get(division.id) ?? new Map()
+          const sourceBreakdown = sources
+            .map((src) => {
+              const allocated = allocationFor(src, division.id)
+              const accepted = acceptedBySource.get(src.id) ?? 0
+              if (allocated === 0 && accepted === 0) return null
+              return {
+                key: src.id,
+                label: sourceName(src, competitionNamesById, seriesNamesById),
+                accepted,
+                allocated,
+              }
+            })
+            .filter((x): x is NonNullable<typeof x> => x !== null)
+          const bespokeAccepted = acceptedBySource.get(BESPOKE_BUCKET) ?? 0
+          if (bespokeAccepted > 0) {
+            sourceBreakdown.push({
+              key: BESPOKE_BUCKET,
+              label: "Bespoke",
+              accepted: bespokeAccepted,
+              allocated: 0,
+            })
+          }
+
           return (
             <Card key={division.id}>
               <CardHeader className="space-y-2 pb-3">
@@ -295,6 +414,28 @@ export function SentInvitesByDivision({
                     <span className="text-xs text-muted-foreground tabular-nums">
                       {spotsFilledLabel}
                     </span>
+                    {sourceBreakdown.length > 0 ? (
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {sourceBreakdown.map((b) => (
+                          <span
+                            key={b.key}
+                            className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground"
+                            title={`${b.label}: ${b.accepted} accepted${
+                              b.allocated > 0
+                                ? ` of ${b.allocated} allocated spots`
+                                : ""
+                            }`}
+                          >
+                            <span className="font-medium text-foreground">
+                              {b.label}
+                            </span>
+                            <span className="tabular-nums">
+                              {b.accepted}/{b.allocated > 0 ? b.allocated : "—"}
+                            </span>
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                   <span className="text-xs text-muted-foreground">
                     {rows.length} of{" "}

@@ -1301,6 +1301,10 @@ export interface AuditInviteSummary extends ActiveInviteSummary {
   divisionLabel: string
   lastUpdatedAt: Date | null
   sourcePlacementLabel: string | null
+  /** `competition_invite_sources.id` for source-origin invites; `null` for
+   *  bespoke. Used by the Sent tab to group accepted invites under each
+   *  qualification source. */
+  sourceId: string | null
 }
 
 /**
@@ -1449,6 +1453,7 @@ export const listAllInvitesFn = createServerFn({ method: "GET" })
             activeMarker: competitionInvitesTable.activeMarker,
             bespokeReason: competitionInvitesTable.bespokeReason,
             sourcePlacementLabel: competitionInvitesTable.sourcePlacementLabel,
+            sourceId: competitionInvitesTable.sourceId,
             inviteeFirstName: competitionInvitesTable.inviteeFirstName,
             inviteeLastName: competitionInvitesTable.inviteeLastName,
             userId: competitionInvitesTable.userId,

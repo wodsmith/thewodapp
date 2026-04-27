@@ -21,6 +21,7 @@ const baseInvite = (
   claimUrl: "https://example.com/compete/champ/claim/tok_1",
   divisionLabel: "RX Men",
   lastUpdatedAt: new Date("2026-04-20T12:00:00Z"),
+  sourceId: "cisrc_qualifier",
   ...overrides,
 })
 
@@ -195,6 +196,133 @@ describe("SentInvitesByDivision", () => {
     expect(screen.getByText("2/10 spots filled")).toBeInTheDocument()
     // RX Women: 0 accepted out of 8 spots.
     expect(screen.getByText("0/8 spots filled")).toBeInTheDocument()
+  })
+
+  it("renders per-source accepted/allocated breakdown chips under each division", () => {
+    const sources = [
+      {
+        id: "cisrc_qualifier",
+        championshipCompetitionId: "comp_champ",
+        kind: "competition" as const,
+        sourceCompetitionId: "comp_qualifier",
+        sourceGroupId: null,
+        directSpotsPerComp: null,
+        globalSpots: 5,
+        divisionMappings: JSON.stringify([
+          {
+            sourceDivisionId: "div_q_rxm",
+            championshipDivisionId: "div_rxm",
+            spots: 3,
+          },
+          {
+            sourceDivisionId: "div_q_rxw",
+            championshipDivisionId: "div_rxw",
+            spots: 2,
+          },
+        ]),
+        sortOrder: 0,
+        notes: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        updateCounter: 0,
+      },
+      {
+        id: "cisrc_throwdown",
+        championshipCompetitionId: "comp_champ",
+        kind: "competition" as const,
+        sourceCompetitionId: "comp_throwdown",
+        sourceGroupId: null,
+        directSpotsPerComp: null,
+        globalSpots: 4,
+        divisionMappings: JSON.stringify([
+          {
+            sourceDivisionId: "div_t_rxm",
+            championshipDivisionId: "div_rxm",
+            spots: 4,
+          },
+        ]),
+        sortOrder: 1,
+        notes: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        updateCounter: 0,
+      },
+    ]
+
+    render(
+      <SentInvitesByDivision
+        invites={[
+          // Two accepted from the qualifier in RX Men.
+          baseInvite({
+            id: "inv_q1",
+            email: "q1@example.com",
+            status: "accepted_paid",
+            championshipDivisionId: "div_rxm",
+            sourceId: "cisrc_qualifier",
+          }),
+          baseInvite({
+            id: "inv_q2",
+            email: "q2@example.com",
+            status: "accepted_paid",
+            championshipDivisionId: "div_rxm",
+            sourceId: "cisrc_qualifier",
+          }),
+          // One accepted from the throwdown in RX Men.
+          baseInvite({
+            id: "inv_t1",
+            email: "t1@example.com",
+            status: "accepted_paid",
+            championshipDivisionId: "div_rxm",
+            sourceId: "cisrc_throwdown",
+          }),
+          // One bespoke accepted in RX Men.
+          baseInvite({
+            id: "inv_b1",
+            email: "b1@example.com",
+            status: "accepted_paid",
+            championshipDivisionId: "div_rxm",
+            origin: "bespoke",
+            sourceId: null,
+            bespokeReason: "Sponsor",
+          }),
+          // Pending invite shouldn't count.
+          baseInvite({
+            id: "inv_pending",
+            email: "p@example.com",
+            status: "pending",
+            championshipDivisionId: "div_rxm",
+            sourceId: "cisrc_qualifier",
+          }),
+        ]}
+        divisions={[
+          { id: "div_rxm", label: "RX Men", maxSpots: 10 },
+          { id: "div_rxw", label: "RX Women", maxSpots: 8 },
+        ]}
+        sources={sources}
+        competitionNamesById={{
+          comp_qualifier: "Regional Qualifier",
+          comp_throwdown: "Boise Throwdown",
+        }}
+        seriesNamesById={{}}
+      />,
+    )
+
+    // RX Men breakdown chips: qualifier 2/3, throwdown 1/4, bespoke 1/—.
+    expect(screen.getByText("2/3")).toBeInTheDocument()
+    expect(screen.getByText("1/4")).toBeInTheDocument()
+    expect(screen.getByText("1/—")).toBeInTheDocument()
+    // Qualifier appears in both RX Men (with 2/3) and RX Women (with 0/2).
+    expect(screen.getAllByText("Regional Qualifier")).toHaveLength(2)
+    // Throwdown only allocates to RX Men, so single appearance.
+    expect(screen.getByText("Boise Throwdown")).toBeInTheDocument()
+    // "Bespoke" matches both the toolbar origin chip (button) and the
+    // breakdown chip (span). Scope to the span via the chip's title attr.
+    expect(
+      screen.getByTitle(/^Bespoke: 1 accepted$/),
+    ).toBeInTheDocument()
+
+    // RX Women only has the qualifier allocation (2 spots) with 0 accepted.
+    expect(screen.getByText("0/2")).toBeInTheDocument()
   })
 
   it("falls back to plain accepted count when a division has no maxSpots cap", () => {

@@ -937,6 +937,9 @@ function InvitesPage() {
           <SentInvitesByDivision
             invites={allInvites}
             divisions={championshipDivisions}
+            sources={sources}
+            competitionNamesById={competitionNamesById}
+            seriesNamesById={seriesNamesById}
           />
         </TabsContent>
 
