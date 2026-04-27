@@ -379,6 +379,22 @@ function InvitesPage() {
     return Array.from(seen.entries()).map(([id, label]) => ({ id, label }))
   }, [roster.rows, search.source])
 
+  // When the candidates table is filtered to a single source division,
+  // resolve the championship division whose label matches so the Send
+  // dialog can open already pointed at it. Source and championship
+  // divisions are distinct entities (different ids) but typically share
+  // labels (e.g. "Rx Men"); a label match is the best signal we have
+  // without traversing per-source divisionMappings.
+  const filteredChampionshipDivisionId = useMemo<string | undefined>(() => {
+    if (!search.div || search.div === ALL_FILTER) return undefined
+    const sourceLabel = rosterDivisions.find((d) => d.id === search.div)?.label
+    if (!sourceLabel) return undefined
+    const normalized = sourceLabel.trim().toLowerCase()
+    return championshipDivisions.find(
+      (d) => d.label.trim().toLowerCase() === normalized,
+    )?.id
+  }, [search.div, rosterDivisions, championshipDivisions])
+
   const filteredRosterRows = useMemo(() => {
     return roster.rows.filter((r) => {
       if (
@@ -985,6 +1001,7 @@ function InvitesPage() {
             onOpenChange={setSendOpen}
             championshipCompetitionId={competitionId}
             championshipDivisions={championshipDivisions}
+            defaultDivisionId={filteredChampionshipDivisionId}
             championshipName={competition.name}
             recipients={recipients}
             onSent={() => {

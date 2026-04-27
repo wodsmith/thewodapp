@@ -55,6 +55,11 @@ interface SendInvitesDialogProps {
    *  shows a <Select> so the organizer picks which division this batch of
    *  invites lands in — it's no longer assumed by the parent route. */
   championshipDivisions: Array<{ id: string; label: string }>
+  /** Preferred default championship division id. The parent passes this
+   *  when the candidates table is filtered to a single division so the
+   *  dialog opens already pointed at the matching championship division.
+   *  Falls back to `championshipDivisions[0]` when missing or unmatched. */
+  defaultDivisionId?: string
   championshipName: string
   recipients: SendRecipient[]
   onSent?: () => void
@@ -88,19 +93,26 @@ export function SendInvitesDialog({
   onOpenChange,
   championshipCompetitionId,
   championshipDivisions,
+  defaultDivisionId,
   championshipName,
   recipients,
   onSent,
 }: SendInvitesDialogProps) {
   const issueInvites = useServerFn(issueInvitesFn)
-  const [targetDivisionId, setTargetDivisionId] = useState<string>(
-    () => championshipDivisions[0]?.id ?? "",
-  )
+  const initialDivisionId =
+    (defaultDivisionId &&
+      championshipDivisions.find((d) => d.id === defaultDivisionId)?.id) ||
+    championshipDivisions[0]?.id ||
+    ""
+  const [targetDivisionId, setTargetDivisionId] =
+    useState<string>(initialDivisionId)
   const targetDivision = championshipDivisions.find(
     (d) => d.id === targetDivisionId,
   )
+  const initialDivisionLabel =
+    championshipDivisions.find((d) => d.id === initialDivisionId)?.label ?? ""
   const [subject, setSubject] = useState(() =>
-    defaultSubject(championshipName, targetDivision?.label ?? ""),
+    defaultSubject(championshipName, initialDivisionLabel),
   )
   const [bodyText, setBodyText] = useState(() => defaultBody(championshipName))
   const [deadline, setDeadline] = useState(defaultDeadline)
@@ -118,16 +130,21 @@ export function SendInvitesDialog({
   // alert and the footer is stuck in "Close" mode.
   useEffect(() => {
     if (open) return
-    setTargetDivisionId(championshipDivisions[0]?.id ?? "")
-    setSubject(
-      defaultSubject(championshipName, championshipDivisions[0]?.label ?? ""),
-    )
+    const resetDivisionId =
+      (defaultDivisionId &&
+        championshipDivisions.find((d) => d.id === defaultDivisionId)?.id) ||
+      championshipDivisions[0]?.id ||
+      ""
+    const resetDivisionLabel =
+      championshipDivisions.find((d) => d.id === resetDivisionId)?.label ?? ""
+    setTargetDivisionId(resetDivisionId)
+    setSubject(defaultSubject(championshipName, resetDivisionLabel))
     setBodyText(defaultBody(championshipName))
     setDeadline(defaultDeadline())
     setSubmitting(false)
     setError(null)
     setResult(null)
-  }, [open, championshipName, championshipDivisions])
+  }, [open, championshipName, championshipDivisions, defaultDivisionId])
 
   // Keep the default subject in sync with the division the organizer
   // picks — the suffix is the division label and changing the division
