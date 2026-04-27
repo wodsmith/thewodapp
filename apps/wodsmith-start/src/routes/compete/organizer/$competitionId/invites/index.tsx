@@ -45,6 +45,7 @@ import {
   SendInvitesDialog,
   type SendRecipient,
 } from "@/components/organizer/invites/send-invites-dialog"
+import { SentInvitesByDivision } from "@/components/organizer/invites/sent-invites-by-division"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -79,6 +80,7 @@ import {
   type ActiveInviteSummary,
   getChampionshipRosterFn,
   listActiveInvitesFn,
+  listAllInvitesFn,
   listInviteSourcesFn,
 } from "@/server-fns/competition-invite-fns"
 
@@ -129,6 +131,7 @@ export const Route = createFileRoute(
       organizerGroupsResult,
       rosterResult,
       activeInvitesResult,
+      allInvitesResult,
     ] = await Promise.all([
       listInviteSourcesFn({
         data: { championshipCompetitionId: params.competitionId },
@@ -156,6 +159,14 @@ export const Route = createFileRoute(
       // not "invited to this specific division." The send dialog enforces
       // per-division uniqueness server-side at issue time.
       listActiveInvitesFn({
+        data: { championshipCompetitionId: params.competitionId },
+      }),
+      // All invites (active + terminal) for the Sent audit tab. Kept as
+      // a separate fetch from `listActiveInvitesFn` because the
+      // Candidates tab's bespoke-draft list relies on the active filter
+      // to keep terminal history out — see the rationale in
+      // `listAllInvitesFn`'s docstring.
+      listAllInvitesFn({
         data: { championshipCompetitionId: params.competitionId },
       }),
     ])
@@ -189,6 +200,7 @@ export const Route = createFileRoute(
       championshipDivisions,
       roster: rosterResult,
       activeInvites: activeInvitesResult.invites,
+      allInvites: allInvitesResult.invites,
     }
   },
 })
@@ -221,6 +233,7 @@ function InvitesPage() {
     championshipDivisions,
     roster,
     activeInvites,
+    allInvites,
   } = Route.useLoaderData()
   const { competition } = parentRoute.useLoaderData()
   const { competitionId } = Route.useParams()
@@ -566,6 +579,7 @@ function InvitesPage() {
         <TabsList>
           <TabsTrigger value="candidates">Candidates</TabsTrigger>
           <TabsTrigger value="sources">Sources</TabsTrigger>
+          <TabsTrigger value="sent">Sent</TabsTrigger>
           <TabsTrigger value="rounds" disabled>
             Round History
           </TabsTrigger>
@@ -912,6 +926,13 @@ function InvitesPage() {
               setSourceDialogOpen(true)
             }}
             onDelete={(source) => setDeletingSource(source)}
+          />
+        </TabsContent>
+
+        <TabsContent value="sent" className="mt-4">
+          <SentInvitesByDivision
+            invites={allInvites}
+            divisions={championshipDivisions}
           />
         </TabsContent>
 
