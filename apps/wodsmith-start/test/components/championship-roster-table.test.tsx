@@ -6,19 +6,19 @@ import type { RosterRow } from "@/server/competition-invites/roster"
 
 const row = (overrides: Partial<RosterRow>): RosterRow => ({
   sourcePlacement: 1,
-  sourcePlacementLabel: "1st — SLC Throwdown",
   sourceId: "cisrc_1",
   sourceKind: "competition",
   sourceCompetitionId: "comp_src",
+  sourceCompetitionName: "SLC Throwdown",
+  sourceDivisionId: "div_rxm",
+  sourceDivisionLabel: "RX Men",
   userId: "usr_a",
   athleteName: "Ada Lovelace",
   athleteEmail: null,
-  championshipDivisionId: "div_rxm",
   inviteId: null,
   inviteStatus: null,
   roundId: null,
   roundNumber: null,
-  belowCutoff: false,
   ...overrides,
 })
 
@@ -28,7 +28,7 @@ describe("ChampionshipRosterTable", () => {
     expect(screen.getByText(/no qualifying rows/i)).toBeInTheDocument()
   })
 
-  it("renders rows with athlete names and source tags", () => {
+  it("renders rows with athlete names and source columns", () => {
     render(
       <ChampionshipRosterTable
         rows={[
@@ -43,23 +43,7 @@ describe("ChampionshipRosterTable", () => {
     )
     expect(screen.getByText("Ada Lovelace")).toBeInTheDocument()
     expect(screen.getByText("Grace Hopper")).toBeInTheDocument()
-    expect(screen.getAllByText(/SLC Throwdown/)).toHaveLength(2)
-  })
-
-  it("inserts a cutoff separator row before the first waitlist row", () => {
-    render(
-      <ChampionshipRosterTable
-        rows={[
-          row({ athleteName: "A", sourcePlacement: 1, belowCutoff: false }),
-          row({
-            athleteName: "B",
-            sourcePlacement: 2,
-            belowCutoff: true,
-            userId: "usr_b",
-          }),
-        ]}
-      />,
-    )
-    expect(screen.getByText(/cutoff · waitlist begins/i)).toBeInTheDocument()
+    expect(screen.getAllByText("SLC Throwdown")).toHaveLength(2)
+    expect(screen.getAllByText("RX Men")).toHaveLength(2)
   })
 })

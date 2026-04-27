@@ -3,18 +3,18 @@
 /**
  * Championship Roster Table.
  *
- * Renders rank + athlete + source + status columns for each row, with
- * filter chips above and a dashed cutoff separator between qualified and
- * waitlist rows.
+ * Renders rank + athlete + source + status columns for the leaderboard of
+ * the currently-filtered (sourceCompetitionId, sourceDivisionId). The
+ * organizer ticks rows to stage them as recipients; the parent route
+ * routes those into the Send Invites dialog where the championship
+ * division is chosen at submit time.
  *
- * Phase 2 adds optional per-row selection checkboxes for the Send Invites
- * flow. Rows without an email (no userId resolved from `userTable`) are
- * marked non-selectable — the organizer sees a tooltip-hint via
- * `title="No email on file"`.
+ * Rows without an email (no userId resolved from `userTable`) are marked
+ * non-selectable — the organizer sees a tooltip-hint via `title="No
+ * email on file"`.
  */
 
 import { Copy } from "lucide-react"
-import { Fragment } from "react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -30,7 +30,13 @@ import {
 import type { RosterRow } from "@/server/competition-invites/roster"
 
 export function rosterRowKey(row: RosterRow): string {
-  return `${row.sourceId}-${row.userId ?? row.athleteName}`
+  // Include sourceCompetitionId + sourceDivisionId in the key so series
+  // sources — where the same `sourceId` produces rows across multiple
+  // (comp, division) leaderboards — generate one unique key per row.
+  // Without this, the same athlete placing in multiple stops collides
+  // on the same key, triggering React key warnings and making the
+  // selection set tick every duplicate at once.
+  return `${row.sourceId}-${row.sourceCompetitionId}-${row.sourceDivisionId}-${row.userId ?? row.athleteName}`
 }
 
 interface ChampionshipRosterTableProps {
@@ -79,9 +85,19 @@ function AthleteAvatar({ name }: { name: string }) {
   )
 }
 
-function SourceTag({ row }: { row: RosterRow }) {
-  const label = row.sourcePlacementLabel ?? row.sourceKind
-  return <Badge variant="outline">{label}</Badge>
+function CompetitionCell({ row }: { row: RosterRow }) {
+  return (
+    <div className="flex flex-col leading-tight">
+      <span className="text-sm">{row.sourceCompetitionName}</span>
+      <span className="text-xs uppercase tracking-wide text-muted-foreground">
+        {row.sourceKind === "series" ? "Series" : "Single comp"}
+      </span>
+    </div>
+  )
+}
+
+function DivisionCell({ row }: { row: RosterRow }) {
+  return <Badge variant="outline">{row.sourceDivisionLabel}</Badge>
 }
 
 function StatusPill({ alreadyInvited }: { alreadyInvited: boolean }) {
@@ -107,20 +123,15 @@ export function ChampionshipRosterTable({
   isRowAlreadyInvited,
   getInviteUrlForRow,
 }: ChampionshipRosterTableProps) {
-  let cutoffDrawn = false
   const selectionEnabled =
     !!selectedKeys && !!onToggleSelection && !!onToggleAll
   const actionsEnabled = !!getInviteUrlForRow
   const isInvited = (r: RosterRow) => !!isRowAlreadyInvited?.(r)
-  const selectableRows = rows.filter(
-    (r) => !!r.athleteEmail && !isInvited(r),
-  )
+  const selectableRows = rows.filter((r) => !!r.athleteEmail && !isInvited(r))
   const allSelected =
     selectionEnabled &&
     selectableRows.length > 0 &&
     selectableRows.every((r) => selectedKeys?.has(rosterRowKey(r)))
-  const colSpan =
-    (selectionEnabled ? 1 : 0) + 4 + (actionsEnabled ? 1 : 0)
 
   return (
     <div className="overflow-hidden rounded-lg border bg-card">
@@ -141,16 +152,19 @@ export function ChampionshipRosterTable({
                   />
                 </TableHead>
               ) : null}
-              <TableHead className="w-20 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <TableHead className="w-16 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Rank
               </TableHead>
               <TableHead className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Athlete
               </TableHead>
-              <TableHead className="w-48 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Qualified via
+              <TableHead className="w-56 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Competition
               </TableHead>
-              <TableHead className="w-32 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <TableHead className="w-40 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Division
+              </TableHead>
+              <TableHead className="w-28 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Status
               </TableHead>
               {actionsEnabled ? (
@@ -162,88 +176,76 @@ export function ChampionshipRosterTable({
           </TableHeader>
           <TableBody>
             {rows.map((row) => {
-              const showCutoff = row.belowCutoff && !cutoffDrawn
-              if (showCutoff) cutoffDrawn = true
               const rowKey = rosterRowKey(row)
               const rowAlreadyInvited = isInvited(row)
               const rowSelectable =
                 selectionEnabled && !!row.athleteEmail && !rowAlreadyInvited
               return (
-                <Fragment key={rowKey}>
-                  {showCutoff ? (
-                    <TableRow className="border-t-2 border-dashed">
-                      <TableCell
-                        colSpan={colSpan}
-                        className="py-2 text-center text-xs uppercase text-muted-foreground"
-                      >
-                        Cutoff · waitlist begins
-                      </TableCell>
-                    </TableRow>
+                <TableRow key={rowKey}>
+                  {selectionEnabled ? (
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedKeys?.has(rowKey) ?? false}
+                        disabled={!rowSelectable}
+                        onCheckedChange={() =>
+                          rowSelectable && onToggleSelection?.(rowKey, row)
+                        }
+                        aria-label={`Select ${row.athleteName}`}
+                        title={
+                          rowSelectable
+                            ? undefined
+                            : rowAlreadyInvited
+                              ? "Already invited"
+                              : "No email on file for this athlete"
+                        }
+                      />
+                    </TableCell>
                   ) : null}
-                  <TableRow>
-                    {selectionEnabled ? (
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedKeys?.has(rowKey) ?? false}
-                          disabled={!rowSelectable}
-                          onCheckedChange={() =>
-                            rowSelectable &&
-                            onToggleSelection?.(rowKey, row)
-                          }
-                          aria-label={`Select ${row.athleteName}`}
-                          title={
-                            rowSelectable
-                              ? undefined
-                              : rowAlreadyInvited
-                                ? "Already invited"
-                                : "No email on file for this athlete"
-                          }
-                        />
-                      </TableCell>
-                    ) : null}
-                    <TableCell>
-                      <RankCell placement={row.sourcePlacement} />
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <AthleteAvatar name={row.athleteName} />
-                        <div className="flex flex-col leading-tight">
-                          <span>{row.athleteName}</span>
-                          {row.athleteEmail ? (
-                            <span className="text-xs text-muted-foreground">
-                              {row.athleteEmail}
-                            </span>
-                          ) : null}
-                        </div>
+                  <TableCell>
+                    <RankCell placement={row.sourcePlacement} />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <AthleteAvatar name={row.athleteName} />
+                      <div className="flex flex-col leading-tight">
+                        <span>{row.athleteName}</span>
+                        {row.athleteEmail ? (
+                          <span className="text-xs text-muted-foreground">
+                            {row.athleteEmail}
+                          </span>
+                        ) : null}
                       </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <CompetitionCell row={row} />
+                  </TableCell>
+                  <TableCell>
+                    <DivisionCell row={row} />
+                  </TableCell>
+                  <TableCell>
+                    <StatusPill alreadyInvited={rowAlreadyInvited} />
+                  </TableCell>
+                  {actionsEnabled ? (
+                    <TableCell className="text-right">
+                      {(() => {
+                        const url = getInviteUrlForRow?.(row) ?? null
+                        if (!url) return null
+                        return (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Copy invite link"
+                            className="text-muted-foreground hover:text-foreground"
+                            onClick={() => copyInviteLink(url)}
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        )
+                      })()}
                     </TableCell>
-                    <TableCell>
-                      <SourceTag row={row} />
-                    </TableCell>
-                    <TableCell>
-                      <StatusPill alreadyInvited={rowAlreadyInvited} />
-                    </TableCell>
-                    {actionsEnabled ? (
-                      <TableCell className="text-right">
-                        {(() => {
-                          const url = getInviteUrlForRow?.(row) ?? null
-                          if (!url) return null
-                          return (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label="Copy invite link"
-                              className="text-muted-foreground hover:text-foreground"
-                              onClick={() => copyInviteLink(url)}
-                            >
-                              <Copy className="h-4 w-4" />
-                            </Button>
-                          )
-                        })()}
-                      </TableCell>
-                    ) : null}
-                  </TableRow>
-                </Fragment>
+                  ) : null}
+                </TableRow>
               )
             })}
           </TableBody>
