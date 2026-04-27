@@ -134,12 +134,7 @@ function getCompetitionStatus(
     registrationClosesAt >= today
   )
     return "registration-open"
-  if (
-    startDate > today &&
-    registrationOpensAt &&
-    registrationClosesAt &&
-    registrationClosesAt < today
-  )
+  if (startDate > today && registrationClosesAt && registrationClosesAt < today)
     return "registration-closed"
   return "coming-soon"
 }
@@ -310,7 +305,7 @@ function CompetePage() {
       active: 0,
       "registration-open": 1,
       "coming-soon": 2,
-      "registration-closed": 3,
+      "registration-closed": 2,
       past: 4,
     }
     return [...list].sort((a, b) => {
