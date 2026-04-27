@@ -8,6 +8,7 @@ export async function cleanup(client: Connection): Promise<void> {
 	const tables = [
 		// Competition invites (before competitions)
 		"competition_invites",
+		"competition_invite_source_division_allocations",
 		"competition_invite_sources",
 		// Broadcasts (before competitions)
 		"competition_broadcast_recipients",

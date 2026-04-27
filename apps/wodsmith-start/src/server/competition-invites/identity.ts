@@ -25,6 +25,17 @@ export type InviteClaimableError =
   | "declined"
   | "revoked"
   | "already_paid"
+  | "over_allocated"
+
+/**
+ * Result of the per-(source, championship-division) claim-time allocation
+ * guardrail. Pure check — see {@link assertInviteWithinAllocation} for the
+ * decision rules. The DB inputs (allocation row + accepted-paid count) are
+ * resolved by the caller in [[./claim.ts]].
+ */
+export type InviteAllocationCheck =
+  | { ok: true }
+  | { ok: false; reason: "over_allocated" }
 
 export type IdentityMatchResult =
   | { ok: true }
@@ -143,4 +154,47 @@ export function identityMatch(
     return { ok: false, reason: "needs_sign_in" }
   }
   return { ok: false, reason: "needs_sign_up" }
+}
+
+// ============================================================================
+// Allocation guardrail (ADR-0012 Phase 5)
+// ============================================================================
+
+/**
+ * Pure check: given the invite plus the resolved allocation for its
+ * `(sourceId, championshipDivisionId)` and the current accepted-paid count
+ * for that bucket, is there room for one more claim?
+ *
+ * Bespoke invites (`sourceId === null`) bypass — return `{ ok: true }`.
+ *
+ * `allocation` is the resolved spot count (already accounts for default
+ * vs. override). `acceptedCount` is the current count of
+ * `competition_invites` rows with `status === 'accepted_paid'` matching
+ * `(sourceId, championshipDivisionId)`.
+ *
+ * `allocation === 0` is treated as "no cap configured" rather than
+ * "cap is zero" — the organizer hasn't allocated this division to this
+ * source, but they issued an invite anyway. Over-issue at issue time is
+ * allowed per ADR-0012; matching that intent at claim time means we let
+ * the athlete through. This mirrors how the Sent tab falls back to a
+ * raw "X accepted" string when no denominator is set.
+ *
+ * Returns `{ ok: false, reason: "over_allocated" }` when:
+ * - `invite.sourceId !== null` AND
+ * - `allocation > 0` AND
+ * - `acceptedCount >= allocation`.
+ *
+ * Otherwise returns `{ ok: true }`.
+ */
+export function assertInviteWithinAllocation(args: {
+  invite: { sourceId: string | null }
+  allocation: number
+  acceptedCount: number
+}): InviteAllocationCheck {
+  if (args.invite.sourceId === null) return { ok: true }
+  if (args.allocation <= 0) return { ok: true }
+  if (args.acceptedCount >= args.allocation) {
+    return { ok: false, reason: "over_allocated" }
+  }
+  return { ok: true }
 }

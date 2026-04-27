@@ -133,11 +133,85 @@ The roster computation calls this once per source and sums the resulting maps. T
 - The Sent tab's ratio for an already-shipped championship matches today's behavior on the day of deploy: with no allocation rows present, the resolved denominator equals `globalSpots` (or the series formula) per division — which, for organizers who haven't differentiated by division, is the answer they want.
 - Bespoke invites are unaffected.
 
+### Route Updates
+
+The organizer-facing tree under `apps/wodsmith-start/src/routes/compete/organizer/$competitionId/invites/` today is a single file (`index.tsx`) hosting six tabs. Each tab — and the new details route — needs allocation-aware logic. The athlete-facing `compete/$slug/claim/$token.tsx` route picks up the new `over_allocated` reason from the loader.
+
+#### `invites/index.tsx` — loader
+
+Today the loader runs `Promise.all` against sources, divisions, the first division's roster, the active-invites projection, and the audit projection. Add a sixth parallel call: `listInviteSourceAllocationsFn({ championshipCompetitionId })` returning `Record<sourceId, Record<championshipDivisionId, number>>` — the resolved map, with defaults already applied. Children consume the map directly; nothing in the route does default-vs-override branching at render time.
+
+The loader also exposes a `divisionAllocationTotals: Record<championshipDivisionId, number>` derived from summing the resolved map across sources. The Sent tab and Candidates tab both read from this single denominator.
+
+#### Candidates tab
+
+Today the Candidates tab renders `ChampionshipRosterTable` for the selected division, using `directSpotsPerComp` / `globalSpots` for the cutoff line. Update:
+
+- The cutoff line for each source's per-comp / global block uses the source's resolved allocation for the *selected* championship division, not the source-level default.
+- Smart-select buttons ("select to fill division") use `divisionAllocationTotals[selectedDivisionId]` minus already-issued (active) invites in that division as the target count.
+- Bespoke drafts continue to ignore allocation — they're outside the source model.
+- The "Send invites" dialog (`SendInvitesDialog`) gets a per-recipient breakdown showing `${sourceName} → ${divisionLabel}: spot N of M` so the organizer can see whether a send would over-issue. A red badge appears when issuing the selected list would push any (source, division) bucket over its allocation; the Send button stays enabled (over-issue is allowed by `issueInvitesFn`, see below) but the warning is surfaced inline.
+
+#### Sources tab
+
+`InviteSourcesList` keeps its summary card. Each source card's "Contributes N qualifying spots" line becomes a sum of the resolved map for that source. The `renderSourceExtras` slot the component already accepts is the natural place to show a one-line "Per-division: Rx 3 · Scaled 2 · Masters default (5)" preview. The "Edit" button navigates to the new details route instead of opening the modal; the modal stays for **Add source** (no overrides at create time, so the modal is appropriate).
+
+#### Sources details page (new) — `invites/sources/$sourceId.tsx`
+
+New nested route. Loader: source row + championship divisions + the source's allocation rows + roster preview for one division. Page layout:
+
+1. **Source meta** — same fields the modal had (kind, source comp/series, default spots, notes).
+2. **Per-division allocation table** — one row per championship division. Each row shows the championship division label, a "Use default" toggle (on by default), and a numeric input shown when toggled off. Inline preview of the resolved value: bold when overridden, muted when defaulted.
+3. **Save** persists via a single server fn `saveInviteSourceAllocationsFn({ sourceId, allocations: Array<{ championshipDivisionId, spots: number | null }> })` — `null` deletes the row (revert to default), a number upserts. Permission gate: same `MANAGE_COMPETITIONS` as the existing source endpoints.
+4. **Delete source** lives at the bottom (existing `DeleteInviteSourceDialog`), and the delete helper also removes the source's allocation rows in the same transaction.
+
+#### Sent tab
+
+`SentInvitesByDivision` is the surface that already renders allocation-shaped metadata: a per-division `${accepted}/${maxSpots} spots filled` headline plus a row of per-source chips `${sourceName}: ${accepted}/${allocated}` (with `—` denominator for Bespoke). Three concrete updates:
+
+1. **Division headline denominator.** `divisions[].maxSpots` is loader-supplied. Today the loader populates it from `competition_divisions.maxSpots` (championship registration cap). Switch it to `divisionAllocationTotals[divisionId]` — sum of resolved per-source allocations for that championship division. Fallback ("X accepted" with no denominator) fires when the resolved total is `0` *and* the source defaults sum to `0`.
+2. **Per-source chip denominator.** The component's local `allocationFor(source, championshipDivisionId)` helper today parses `competitionInviteSourcesTable.divisionMappings` JSON to compute the chip's `allocated`. That helper is **deleted**. Replace with a new prop `allocationsBySourceByDivision: Record<sourceId, Record<championshipDivisionId, number>>` — the same resolved map the loader already computes for the rest of the route. The chip filter ("show source X if allocated > 0 or accepted > 0") and Bespoke handling (no allocation, em-dash denominator, only shown when accepted > 0) stay as-is.
+3. **Prop surface.** `sources`, `competitionNamesById`, `seriesNamesById` props stay (still needed for source-name resolution). Remove the JSON-parsing branch from the component — allocation is now derived data passed in, not parsed at render. Update the test fixtures in `test/components/sent-invites-by-division.test.tsx` to feed the new prop instead of writing `divisionMappings` JSON onto fake source rows.
+
+The `// @lat: [[competition-invites#Sent invites tab]]` reference at the top of the component stays valid — the corresponding lat.md section needs a one-paragraph addendum explaining the new prop and the deleted JSON-parse path.
+
+#### Round History / Email Templates / Series Global tabs
+
+Placeholders today; no allocation work in this ADR. When Phase 3 of ADR-0011 lands the round builder, the per-(source, division) cap is read from the same loader map, so no further plumbing is needed at that point.
+
+### Claim-time Allocation Guardrail
+
+The user requirement: an athlete cannot claim an invite if accepting it would push the source's allocation for the championship division over its cap.
+
+#### Where the check lives
+
+The check fires inside `getInviteByTokenFn` after `assertInviteClaimable` passes and before identity match — same place the existing `already_paid` cross-check sits. A new helper `assertInviteWithinAllocation(invite, allocations, currentAcceptedCounts)` returns the discriminated `over_allocated` reason on miss. The route loader at `compete/$slug/claim/$token.tsx` branches on `reason === "over_allocated"` and renders dedicated copy: "This division has filled its spots from this qualifier. The organizer has been notified." with a contact-organizer CTA, similar to how `already_paid` redirects to `/registered`.
+
+#### What "currentAccepted" means
+
+Authoritative consumption of an allocation slot is `competition_invites.status = "accepted_paid"`. Counting only `accepted_paid` keeps the math consistent with ADR-0011's existing capacity model (Stripe-in-flight stays `pending`). The query is one indexed lookup: `count(*) where sourceId = $sid and championshipDivisionId = $did and status = 'accepted_paid'`.
+
+#### Race window
+
+The window between two athletes hitting the same last spot through Stripe is the same race ADR-0011 already handles for division registration capacity: the **authoritative** gate is at payment confirmation in the Stripe workflow, where the increment is wrapped in a transaction with a re-check of the count under lock. The claim-time check is **best-effort UX** — it stops the obvious case ("the spot was filled an hour ago") from getting through to Stripe Checkout, but it doesn't pretend to prevent the genuine race.
+
+The Stripe workflow's `pending → accepted_paid` step is updated to add: if `count(accepted_paid for (sourceId, championshipDivisionId)) >= allocation`, refund-and-fail the registration with an organizer-visible error rather than committing the row. This is the same pattern division capacity uses today; the new dimension is per-(source, division) instead of per-division.
+
+#### Bespoke invites
+
+Bespoke invites have `sourceId IS NULL` and are outside the allocation model — the guardrail short-circuits to "ok" when `invite.sourceId` is null. The organizer chose to invite this person directly; allocation caps don't apply.
+
+#### Organizer override
+
+The send dialog can still issue more invites than the allocation allows (organizers may intentionally over-invite expecting some to decline — Round 1 logic). The guardrail only fires on **claim**, not on **issue**. A surfaced "would exceed allocation" warning at issue time (see Candidates tab above) lets the organizer make that call deliberately.
+
 ## Implementation Phases
 
 1. **Schema + helper.** Add the table, write `resolveSourceAllocations`, unit-test against ADR-0011's existing roster fixtures. No UI changes.
-2. **Sent tab denominator switch.** Swap `competition_divisions.maxSpots` for the resolved-allocation sum in `sent-invites-by-division`. Keep the "X accepted" fallback for divisions with no allocation.
-3. **Source details page.** New route + loader + form. Add per-division table with default-or-override toggle. Keep the create modal.
-4. **Roster computation.** Update `getChampionshipRoster` to use per-division allocations when emitting cutoff lines.
+2. **Loader + Sent tab denominator switch.** Add `listInviteSourceAllocationsFn` and `divisionAllocationTotals` to the route loader. Swap the Sent tab's `divisions[].maxSpots` source from `competition_divisions.maxSpots` to the resolved-allocation total. No new UI.
+3. **Source details page.** New `sources/$sourceId.tsx` route + loader + form + `saveInviteSourceAllocationsFn`. Wire the "Edit" button to navigate. Add the per-division override table.
+4. **Candidates tab cutoff + send-dialog warning.** Use per-division allocations for the roster cutoff lines and surface an over-issue warning in `SendInvitesDialog`.
+5. **Claim guardrail.** Add `assertInviteWithinAllocation` + the `over_allocated` reason and route copy. Wire the Stripe workflow's authoritative re-check.
+6. **Roster computation.** Update `getChampionshipRoster` to use per-division allocations when emitting cutoff lines (catches the in-loader compute paths the route doesn't directly own).
 
-Each phase is independently shippable. Phases 1 and 2 are invisible to the organizer; phase 3 unlocks the override UI; phase 4 closes the loop on the roster cutoff display.
+Phases 1–2 are invisible to the organizer. Phase 3 unlocks the override UI. Phase 4 surfaces the warning organizers need to use the override responsibly. Phase 5 closes the athlete-side loop. Phase 6 is the cleanup pass.

@@ -208,18 +208,7 @@ describe("SentInvitesByDivision", () => {
         sourceGroupId: null,
         directSpotsPerComp: null,
         globalSpots: 5,
-        divisionMappings: JSON.stringify([
-          {
-            sourceDivisionId: "div_q_rxm",
-            championshipDivisionId: "div_rxm",
-            spots: 3,
-          },
-          {
-            sourceDivisionId: "div_q_rxw",
-            championshipDivisionId: "div_rxw",
-            spots: 2,
-          },
-        ]),
+        divisionMappings: null,
         sortOrder: 0,
         notes: null,
         createdAt: new Date(),
@@ -234,13 +223,7 @@ describe("SentInvitesByDivision", () => {
         sourceGroupId: null,
         directSpotsPerComp: null,
         globalSpots: 4,
-        divisionMappings: JSON.stringify([
-          {
-            sourceDivisionId: "div_t_rxm",
-            championshipDivisionId: "div_rxm",
-            spots: 4,
-          },
-        ]),
+        divisionMappings: null,
         sortOrder: 1,
         notes: null,
         createdAt: new Date(),
@@ -248,6 +231,13 @@ describe("SentInvitesByDivision", () => {
         updateCounter: 0,
       },
     ]
+    // ADR-0012 Phase 2: allocations now arrive as a resolved map from the
+    // route loader (`listInviteSourceAllocationsFn`) rather than being
+    // parsed out of `divisionMappings` JSON.
+    const allocationsBySourceByDivision = {
+      cisrc_qualifier: { div_rxm: 3, div_rxw: 2 },
+      cisrc_throwdown: { div_rxm: 4 },
+    }
 
     render(
       <SentInvitesByDivision
@@ -304,6 +294,7 @@ describe("SentInvitesByDivision", () => {
           comp_throwdown: "Boise Throwdown",
         }}
         seriesNamesById={{}}
+        allocationsBySourceByDivision={allocationsBySourceByDivision}
       />,
     )
 

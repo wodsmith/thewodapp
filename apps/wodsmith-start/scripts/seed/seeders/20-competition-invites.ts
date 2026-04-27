@@ -981,4 +981,109 @@ export async function seed(client: Connection): Promise<void> {
 			update_counter: 0,
 		},
 	])
+
+	// ════════════════════════════════════════════════════════════════════
+	// 5. Per-(source, championship division) allocation overrides (ADR-0012)
+	//
+	//    Authoritative allocation lives here, keyed by championship
+	//    division. The qualifier and Boise sources each carry an explicit
+	//    row per championship division (mirrors the per-division `spots`
+	//    that previously lived only in `division_mappings` JSON). The
+	//    series source stays sparse — one override on Men's RX so the
+	//    details page demos a mix of "Use default" and explicit overrides
+	//    without us having to click through the UI to set it up.
+	//
+	//    Absence of a row is the signal for "use the source default" — do
+	//    NOT seed `spots: 0` to mean "no override"; that would be a hard
+	//    cap of zero. Per ADR §"Allocation Resolution".
+	// ════════════════════════════════════════════════════════════════════
+	await batchInsert(client, "competition_invite_source_division_allocations", [
+		// Qualifier source — explicit allocation for every championship division.
+		{
+			id: "cisda_seed_qualifier_mrx",
+			source_id: "cisrc_seed_qualifier",
+			championship_division_id: "slvl_inv_champ_mrx",
+			spots: 3,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		{
+			id: "cisda_seed_qualifier_wrx",
+			source_id: "cisrc_seed_qualifier",
+			championship_division_id: "slvl_inv_champ_wrx",
+			spots: 2,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		{
+			id: "cisda_seed_qualifier_sc",
+			source_id: "cisrc_seed_qualifier",
+			championship_division_id: "slvl_inv_champ_sc",
+			spots: 2,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		{
+			id: "cisda_seed_qualifier_team_rx",
+			source_id: "cisrc_seed_qualifier",
+			championship_division_id: "slvl_inv_champ_team_rx",
+			spots: 2,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		{
+			id: "cisda_seed_qualifier_team_sc",
+			source_id: "cisrc_seed_qualifier",
+			championship_division_id: "slvl_inv_champ_team_sc",
+			spots: 1,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		// Boise source — explicit allocation for the three indy divisions.
+		{
+			id: "cisda_seed_boise_mrx",
+			source_id: "cisrc_seed_boise",
+			championship_division_id: "slvl_inv_champ_mrx",
+			spots: 2,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		{
+			id: "cisda_seed_boise_wrx",
+			source_id: "cisrc_seed_boise",
+			championship_division_id: "slvl_inv_champ_wrx",
+			spots: 2,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		{
+			id: "cisda_seed_boise_sc",
+			source_id: "cisrc_seed_boise",
+			championship_division_id: "slvl_inv_champ_sc",
+			spots: 2,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		// MWFC series — single override on Men's RX (4 instead of the
+		// default `directSpotsPerComp(1) * compCount(1) + globalSpots(5) = 6`).
+		// Other championship divisions intentionally have no row, so the
+		// details page demos the default-vs-override toggle mix.
+		{
+			id: "cisda_seed_mwfc_mrx",
+			source_id: "cisrc_seed_mwfc_series",
+			championship_division_id: "slvl_inv_champ_mrx",
+			spots: 4,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+	])
 }

@@ -10,7 +10,7 @@
  */
 
 import { useServerFn } from "@tanstack/react-start"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -63,6 +63,36 @@ interface SendInvitesDialogProps {
   championshipName: string
   recipients: SendRecipient[]
   onSent?: () => void
+  /** ADR-0012 Phase 4: resolved per-(source, championship-division)
+   *  allocation map. Used to compute the over-issue warning. Optional:
+   *  callers that don't pass it skip the warning + per-recipient
+   *  breakdown entirely. */
+  allocationsBySourceByDivision?: Record<string, Record<string, number>>
+  /** ADR-0012 Phase 4: count of currently active (pending OR
+   *  accepted_paid) invites grouped by (sourceId, championshipDivisionId)
+   *  in the championship. Combined with the incoming recipient bucket
+   *  count to detect over-issue against `allocationsBySourceByDivision`.
+   *  Bespoke (sourceId === null) recipients bypass the check entirely. */
+  existingActiveCountsBySourceByDivision?: Record<
+    string,
+    Record<string, number>
+  >
+  /** ADR-0012 Phase 4: human-readable source label keyed by `sourceId`.
+   *  Used by the over-issue warning + per-recipient breakdown so the
+   *  organizer sees "RX (Throwdown A): 5 of 3 allocated" instead of a
+   *  raw source id. Optional — falls back to the source id. */
+  sourceLabelsById?: Record<string, string>
+}
+
+interface BucketSummary {
+  sourceId: string
+  divisionId: string
+  divisionLabel: string
+  sourceLabel: string
+  existing: number
+  incoming: number
+  allocation: number
+  wouldExceed: boolean
 }
 
 function defaultSubject(
@@ -97,6 +127,9 @@ export function SendInvitesDialog({
   championshipName,
   recipients,
   onSent,
+  allocationsBySourceByDivision,
+  existingActiveCountsBySourceByDivision,
+  sourceLabelsById,
 }: SendInvitesDialogProps) {
   const issueInvites = useServerFn(issueInvitesFn)
   const initialDivisionId =
@@ -116,6 +149,55 @@ export function SendInvitesDialog({
   )
   const [bodyText, setBodyText] = useState(() => defaultBody(championshipName))
   const [deadline, setDeadline] = useState(defaultDeadline)
+  // ADR-0012 Phase 4: bucket recipients by (sourceId, championshipDivisionId)
+  // for over-issue detection + per-recipient breakdown. The dialog issues
+  // the entire batch into `targetDivisionId`, so the championship-division
+  // dimension collapses to a single value here. Bespoke (sourceId == null)
+  // recipients bypass the allocation model entirely (ADR-0012: bespoke
+  // invites have no source attribution and are unbounded by allocation).
+  const allocationCheckEnabled =
+    !!allocationsBySourceByDivision && !!existingActiveCountsBySourceByDivision
+  const buckets = useMemo<BucketSummary[]>(() => {
+    if (!allocationCheckEnabled || !targetDivisionId) return []
+    const grouped = new Map<string, number>()
+    for (const r of recipients) {
+      if (!r.sourceId) continue
+      grouped.set(r.sourceId, (grouped.get(r.sourceId) ?? 0) + 1)
+    }
+    const out: BucketSummary[] = []
+    for (const [sourceId, incoming] of grouped) {
+      const allocation =
+        allocationsBySourceByDivision?.[sourceId]?.[targetDivisionId] ?? 0
+      const existing =
+        existingActiveCountsBySourceByDivision?.[sourceId]?.[
+          targetDivisionId
+        ] ?? 0
+      out.push({
+        sourceId,
+        divisionId: targetDivisionId,
+        divisionLabel: targetDivision?.label ?? "",
+        // Source-name resolution is owned by the parent (it has the
+        // competition + series name maps); the dialog falls back to
+        // the source id so the warning is still actionable.
+        sourceLabel: sourceLabelsById?.[sourceId] ?? sourceId,
+        existing,
+        incoming,
+        allocation,
+        wouldExceed: allocation > 0 && existing + incoming > allocation,
+      })
+    }
+    return out
+  }, [
+    recipients,
+    targetDivisionId,
+    targetDivision?.label,
+    allocationCheckEnabled,
+    allocationsBySourceByDivision,
+    existingActiveCountsBySourceByDivision,
+    sourceLabelsById,
+  ])
+  const exceedingBuckets = buckets.filter((b) => b.wouldExceed)
+
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<{
@@ -289,6 +371,59 @@ export function SendInvitesDialog({
               ) : null}
             </div>
           </div>
+          {allocationCheckEnabled && buckets.length > 0 ? (
+            <div className="rounded-md border bg-muted/30 p-3 text-xs">
+              <div className="font-medium mb-1">
+                Allocation per source → {targetDivision?.label}:
+              </div>
+              <ul className="space-y-0.5">
+                {buckets.map((b) => {
+                  const newTotal = b.existing + b.incoming
+                  const denom = b.allocation > 0 ? `${b.allocation}` : "—"
+                  return (
+                    <li
+                      key={b.sourceId}
+                      className={
+                        b.wouldExceed
+                          ? "text-amber-400 tabular-nums"
+                          : "text-muted-foreground tabular-nums"
+                      }
+                    >
+                      <span className="font-medium text-foreground">
+                        {b.sourceLabel}
+                      </span>{" "}
+                      → {b.divisionLabel}: spot{" "}
+                      {b.existing > 0
+                        ? `${b.existing + 1}-${newTotal}`
+                        : `${newTotal}`}{" "}
+                      of {denom}
+                      {b.existing > 0 ? (
+                        <span className="ml-1">
+                          (existing {b.existing} + incoming {b.incoming})
+                        </span>
+                      ) : null}
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          ) : null}
+          {exceedingBuckets.length > 0 ? (
+            <Alert className="border-amber-500/40 bg-amber-500/10 text-amber-200">
+              <AlertDescription>
+                This send will exceed allocation in {exceedingBuckets.length}{" "}
+                source/division bucket
+                {exceedingBuckets.length === 1 ? "" : "s"}:{" "}
+                {exceedingBuckets
+                  .map(
+                    (b) =>
+                      `${b.sourceLabel} (${b.divisionLabel}): ${b.existing + b.incoming} of ${b.allocation} allocated`,
+                  )
+                  .join(", ")}
+                . Sending is allowed — Round 1 over-invites are expected.
+              </AlertDescription>
+            </Alert>
+          ) : null}
           {error ? (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>

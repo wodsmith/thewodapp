@@ -26,6 +26,16 @@ interface InviteSourcesListProps {
   /** Number of competitions per series groupId, used to scale
    *  `directSpotsPerComp` into a total allocation. */
   seriesCompCountsById?: Record<string, number>
+  /** ADR-0012: resolved per-(source, championshipDivision) allocation
+   *  map, summed per source. When supplied, each card's "qualifying
+   *  spots" line uses the authoritative resolved total instead of the
+   *  source-level scalar math. Optional so older callers (and tests)
+   *  keep working with the local fallback. */
+  allocationsBySourceByDivision?: Record<string, Record<string, number>>
+  /** Championship divisions in display order — used to render the
+   *  per-division preview row under each source card. Optional; the
+   *  preview is hidden when omitted. */
+  championshipDivisions?: ReadonlyArray<{ id: string; label: string }>
   onEdit?: (source: CompetitionInviteSource) => void
   onDelete?: (source: CompetitionInviteSource) => void
   onAdd?: () => void
@@ -54,13 +64,26 @@ export function InviteSourcesList({
   competitionNamesById,
   seriesNamesById,
   seriesCompCountsById = {},
+  allocationsBySourceByDivision,
+  championshipDivisions,
   onEdit,
   onDelete,
   onAdd,
   renderSourceExtras,
 }: InviteSourcesListProps) {
+  // Authoritative resolved total per source. Falls back to the local
+  // scalar math when the loader hasn't supplied the resolved map (older
+  // callers + unit tests).
+  const resolvedTotalFor = (source: CompetitionInviteSource): number => {
+    const map = allocationsBySourceByDivision?.[source.id]
+    if (map) {
+      return Object.values(map).reduce((a, b) => a + b, 0)
+    }
+    return allocatedSpotsFor(source, seriesCompCountsById)
+  }
+
   const totalAllocated = sources.reduce(
-    (acc, s) => acc + allocatedSpotsFor(s, seriesCompCountsById),
+    (acc, s) => acc + resolvedTotalFor(s),
     0,
   )
 
@@ -93,7 +116,17 @@ export function InviteSourcesList({
             : (source.sourceCompetitionId
                 ? competitionNamesById[source.sourceCompetitionId]
                 : undefined) ?? "Unknown competition"
-          const allocated = allocatedSpotsFor(source, seriesCompCountsById)
+          const allocated = resolvedTotalFor(source)
+          const perDivisionMap = allocationsBySourceByDivision?.[source.id]
+          const previewItems =
+            perDivisionMap && championshipDivisions
+              ? championshipDivisions
+                  .map((d) => ({
+                    label: d.label,
+                    spots: perDivisionMap[d.id] ?? 0,
+                  }))
+                  .filter((item) => item.spots > 0)
+              : []
           return (
             <Card key={source.id}>
               <CardHeader className="flex flex-row items-start gap-4">
@@ -111,6 +144,13 @@ export function InviteSourcesList({
                     Contributes <span className="font-semibold">{allocated}</span>{" "}
                     qualifying spots to the championship.
                   </CardDescription>
+                  {previewItems.length > 0 ? (
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {previewItems
+                        .map((item) => `${item.label} ${item.spots}`)
+                        .join(" · ")}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="flex gap-2">
                   {onEdit ? (

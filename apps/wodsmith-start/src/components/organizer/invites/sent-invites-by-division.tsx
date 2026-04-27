@@ -61,9 +61,11 @@ interface SentInvitesByDivisionProps {
   divisions: ReadonlyArray<{
     id: string
     label: string
-    /** Configured cap from `competition_divisions.maxSpots`. `null` when the
-     *  division has no per-division cap set (uses the competition default or
-     *  is uncapped) — render the indicator as "X accepted" instead of a ratio. */
+    /** Resolved invite-allocation total across sources for this championship
+     *  division (sum of `allocationsBySourceByDivision[sourceId][divisionId]`
+     *  for every source feeding this championship). `null` when the resolved
+     *  total is `0` so the component falls back to the "X accepted" rendering
+     *  for divisions with no allocation. */
     maxSpots?: number | null
   }>
   /** Qualification sources feeding the championship. Used to break down
@@ -75,40 +77,12 @@ interface SentInvitesByDivisionProps {
   competitionNamesById?: Record<string, string>
   /** Series-name lookup for source-name resolution (kind: "series"). */
   seriesNamesById?: Record<string, string>
-}
-
-/** Parsed shape of `competitionInviteSourcesTable.divisionMappings` JSON. */
-interface DivisionMappingEntry {
-  sourceDivisionId: string
-  championshipDivisionId: string
-  spots?: number | null
-}
-
-/**
- * Per-source allocation against a single championship division.
- * Sums every `spots` entry in the source's `divisionMappings` JSON
- * targeting this `championshipDivisionId` (multiple source divisions can
- * map onto the same championship division — e.g. RX Men + Open Men both
- * feeding "Open Men" — and we want their pool to add).
- */
-function allocationFor(
-  source: CompetitionInviteSource,
-  championshipDivisionId: string,
-): number {
-  if (!source.divisionMappings) return 0
-  let parsed: DivisionMappingEntry[]
-  try {
-    parsed = JSON.parse(source.divisionMappings) as DivisionMappingEntry[]
-  } catch {
-    return 0
-  }
-  if (!Array.isArray(parsed)) return 0
-  let total = 0
-  for (const m of parsed) {
-    if (m.championshipDivisionId !== championshipDivisionId) continue
-    if (typeof m.spots === "number" && m.spots > 0) total += m.spots
-  }
-  return total
+  /** Resolved per-(source, championship-division) allocation map from the
+   *  loader (`listInviteSourceAllocationsFn`). The chip's `allocated` value
+   *  is read directly from this map — the component no longer parses
+   *  `competitionInviteSourcesTable.divisionMappings` JSON. Optional so
+   *  older callers / tests can omit; missing entries default to 0. */
+  allocationsBySourceByDivision?: Record<string, Record<string, number>>
 }
 
 /** Sentinel key for invites with no source (bespoke origin). Module-scoped
@@ -228,6 +202,7 @@ export function SentInvitesByDivision({
   sources = [],
   competitionNamesById = {},
   seriesNamesById = {},
+  allocationsBySourceByDivision = {},
 }: SentInvitesByDivisionProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [originFilter, setOriginFilter] = useState<OriginFilter>("all")
@@ -382,7 +357,8 @@ export function SentInvitesByDivision({
             acceptedBySourceByDivision.get(division.id) ?? new Map()
           const sourceBreakdown = sources
             .map((src) => {
-              const allocated = allocationFor(src, division.id)
+              const allocated =
+                allocationsBySourceByDivision[src.id]?.[division.id] ?? 0
               const accepted = acceptedBySource.get(src.id) ?? 0
               if (allocated === 0 && accepted === 0) return null
               return {

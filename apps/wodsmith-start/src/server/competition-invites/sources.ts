@@ -19,6 +19,7 @@ import {
   COMPETITION_INVITE_SOURCE_KIND,
   type CompetitionInviteSource,
   type CompetitionInviteSourceKind,
+  competitionInviteSourceDivisionAllocationsTable,
   competitionInviteSourcesTable,
 } from "@/db/schemas/competition-invites"
 
@@ -244,15 +245,26 @@ export async function deleteSource(input: {
   championshipCompetitionId: string
 }): Promise<void> {
   const db = getDb()
-  await db
-    .delete(competitionInviteSourcesTable)
-    .where(
-      and(
-        eq(competitionInviteSourcesTable.id, input.id),
-        eq(
-          competitionInviteSourcesTable.championshipCompetitionId,
-          input.championshipCompetitionId,
+  // Cascade delete the source's per-division allocation rows in the same
+  // transaction (no FKs per PlanetScale convention — the cascade lives
+  // here). Tx is the same primitive division capacity uses; PlanetScale
+  // supports it.
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(competitionInviteSourceDivisionAllocationsTable)
+      .where(
+        eq(competitionInviteSourceDivisionAllocationsTable.sourceId, input.id),
+      )
+    await tx
+      .delete(competitionInviteSourcesTable)
+      .where(
+        and(
+          eq(competitionInviteSourcesTable.id, input.id),
+          eq(
+            competitionInviteSourcesTable.championshipCompetitionId,
+            input.championshipCompetitionId,
+          ),
         ),
-      ),
-    )
+      )
+  })
 }

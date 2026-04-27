@@ -56,6 +56,55 @@ interface ChampionshipRosterTableProps {
    *  null when the row has no live token (draft / not-yet-sent /
    *  terminal). */
   getInviteUrlForRow?: (row: RosterRow) => string | null
+  /** ADR-0012 Phase 4: resolved per-(source, championship-division)
+   *  allocation map. When supplied alongside `championshipDivisions`,
+   *  the table renders a small "Allocates N to {Division}" banner per
+   *  unique `(sourceId, sourceDivisionLabel)` group present in the rows.
+   *  Optional so unit tests and other consumers can omit. */
+  allocationsBySourceByDivision?: Record<string, Record<string, number>>
+  /** Championship divisions used to map a source-division label to the
+   *  championship division that receives its allocation. Required for
+   *  the allocation banner; without it the banner is suppressed. */
+  championshipDivisions?: ReadonlyArray<{ id: string; label: string }>
+}
+
+interface AllocationSummaryEntry {
+  sourceId: string
+  sourceCompetitionName: string
+  sourceDivisionLabel: string
+  championshipDivisionLabel: string | null
+  allocation: number
+}
+
+function buildAllocationSummary(
+  rows: RosterRow[],
+  allocationsBySourceByDivision: Record<string, Record<string, number>>,
+  championshipDivisions: ReadonlyArray<{ id: string; label: string }>,
+): AllocationSummaryEntry[] {
+  // Group rows by `(sourceId, sourceDivisionLabel)` since label is what
+  // we use to reach the championship-division id (source-division and
+  // championship-division ids live in different scaling groups). Same
+  // matching strategy the parent route uses for `defaultDivisionId`.
+  const seen = new Map<string, AllocationSummaryEntry>()
+  for (const row of rows) {
+    const key = `${row.sourceId}::${row.sourceDivisionLabel}`
+    if (seen.has(key)) continue
+    const normalized = row.sourceDivisionLabel.trim().toLowerCase()
+    const champDiv = championshipDivisions.find(
+      (d) => d.label.trim().toLowerCase() === normalized,
+    )
+    const allocation = champDiv
+      ? (allocationsBySourceByDivision[row.sourceId]?.[champDiv.id] ?? 0)
+      : 0
+    seen.set(key, {
+      sourceId: row.sourceId,
+      sourceCompetitionName: row.sourceCompetitionName,
+      sourceDivisionLabel: row.sourceDivisionLabel,
+      championshipDivisionLabel: champDiv?.label ?? null,
+      allocation,
+    })
+  }
+  return Array.from(seen.values())
 }
 
 async function copyInviteLink(url: string): Promise<void> {
@@ -127,6 +176,8 @@ export function ChampionshipRosterTable({
   onToggleAll,
   isRowAlreadyInvited,
   getInviteUrlForRow,
+  allocationsBySourceByDivision,
+  championshipDivisions,
 }: ChampionshipRosterTableProps) {
   const selectionEnabled =
     !!selectedKeys && !!onToggleSelection && !!onToggleAll
@@ -138,8 +189,50 @@ export function ChampionshipRosterTable({
     selectableRows.length > 0 &&
     selectableRows.every((r) => selectedKeys?.has(rosterRowKey(r)))
 
+  const allocationSummary =
+    allocationsBySourceByDivision && championshipDivisions
+      ? buildAllocationSummary(
+          rows,
+          allocationsBySourceByDivision,
+          championshipDivisions,
+        )
+      : []
+
   return (
-    <div className="overflow-hidden rounded-lg border bg-card">
+    <div className="space-y-2">
+      {allocationSummary.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5 rounded-md border bg-muted/20 px-2.5 py-1.5 text-xs">
+          {allocationSummary.map((entry) => {
+            // ADR-0012: "Top N qualifies" header. When no championship
+            // division matches by label OR the resolved allocation is 0,
+            // surface "No allocation" so the organizer sees the absence
+            // rather than a misleading "Top 0 qualifies".
+            const hasChampDivision = entry.championshipDivisionLabel !== null
+            const label =
+              hasChampDivision && entry.allocation > 0
+                ? `Top ${entry.allocation} qualifies`
+                : "No allocation"
+            const target =
+              entry.championshipDivisionLabel ?? entry.sourceDivisionLabel
+            return (
+              <span
+                key={`${entry.sourceId}::${entry.sourceDivisionLabel}`}
+                className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-0.5 text-muted-foreground"
+                title={`${entry.sourceCompetitionName} · ${entry.sourceDivisionLabel} → ${target}`}
+              >
+                <span className="font-medium text-foreground">
+                  {entry.sourceDivisionLabel}
+                </span>
+                <span className="text-muted-foreground">→</span>
+                <span className="text-foreground">{target}</span>
+                <span className="tabular-nums">·</span>
+                <span className="font-medium text-foreground">{label}</span>
+              </span>
+            )
+          })}
+        </div>
+      ) : null}
+      <div className="overflow-hidden rounded-lg border bg-card">
       {rows.length === 0 ? (
         <div className="p-10 text-center text-sm text-muted-foreground">
           No qualifying rows yet — add a source to build the roster.
@@ -256,6 +349,7 @@ export function ChampionshipRosterTable({
           </TableBody>
         </Table>
       )}
+      </div>
     </div>
   )
 }
