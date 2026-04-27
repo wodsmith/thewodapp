@@ -2,8 +2,9 @@
  * Competition Invites — organizer route shell
  *
  * Phase 1 of ADR-0011. Tabs:
- *   - Roster (placeholder until 1.7)
+ *   - Candidates (live)
  *   - Sources (live)
+ *   - Sent (live)
  *   - Round History / Email Templates / Series Global (placeholders)
  *
  * Loader enforces MANAGE_COMPETITIONS on the championship's organizing
@@ -245,7 +246,7 @@ function InvitesPage() {
       })
     }
   }, [flagEnabled, competitionId, navigate])
-  const [tab, setTab] = useState("roster")
+  const [tab, setTab] = useState("candidates")
   const [addSingleOpen, setAddSingleOpen] = useState(false)
   const [bulkOpen, setBulkOpen] = useState(false)
   const [sendOpen, setSendOpen] = useState(false)
@@ -563,7 +564,7 @@ function InvitesPage() {
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
-          <TabsTrigger value="roster">Roster</TabsTrigger>
+          <TabsTrigger value="candidates">Candidates</TabsTrigger>
           <TabsTrigger value="sources">Sources</TabsTrigger>
           <TabsTrigger value="rounds" disabled>
             Round History
@@ -576,7 +577,7 @@ function InvitesPage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="roster" className="mt-4 space-y-6">
+        <TabsContent value="candidates" className="mt-4 space-y-6">
           {rosterCompetitions.length === 0 ? (
             <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
               Add a qualification source on the <strong>Sources</strong> tab to
