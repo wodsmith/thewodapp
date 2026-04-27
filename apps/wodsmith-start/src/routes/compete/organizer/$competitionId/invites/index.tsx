@@ -88,8 +88,10 @@ const inviteSearchSchema = z.object({
   source: z.string().optional(),
   /** Source division filter (client-side). Empty string means "all". */
   div: z.string().optional(),
-  /** 1-indexed roster page. Omitted = page 1. */
-  page: z.number().int().positive().optional(),
+  /** 1-indexed roster page. Omitted = page 1. `coerce` so manual deep
+   *  links (`?page=2`) survive — URL params arrive as strings and a
+   *  raw `z.number()` would throw at the validator. */
+  page: z.coerce.number().int().positive().optional(),
 })
 
 const ROSTER_PAGE_SIZE = 50

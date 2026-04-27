@@ -30,7 +30,13 @@ import {
 import type { RosterRow } from "@/server/competition-invites/roster"
 
 export function rosterRowKey(row: RosterRow): string {
-  return `${row.sourceId}-${row.userId ?? row.athleteName}`
+  // Include sourceCompetitionId + sourceDivisionId in the key so series
+  // sources — where the same `sourceId` produces rows across multiple
+  // (comp, division) leaderboards — generate one unique key per row.
+  // Without this, the same athlete placing in multiple stops collides
+  // on the same key, triggering React key warnings and making the
+  // selection set tick every duplicate at once.
+  return `${row.sourceId}-${row.sourceCompetitionId}-${row.sourceDivisionId}-${row.userId ?? row.athleteName}`
 }
 
 interface ChampionshipRosterTableProps {
