@@ -5,7 +5,6 @@
  *   - Candidates (live)
  *   - Sources (live)
  *   - Sent (live)
- *   - Round History / Email Templates / Series Global (placeholders)
  *
  * Loader enforces MANAGE_COMPETITIONS on the championship's organizing
  * team via `listInviteSourcesFn`, which performs the same check
@@ -666,15 +665,6 @@ function InvitesPage() {
           <TabsTrigger value="candidates">Candidates</TabsTrigger>
           <TabsTrigger value="sources">Sources</TabsTrigger>
           <TabsTrigger value="sent">Sent</TabsTrigger>
-          <TabsTrigger value="rounds" disabled>
-            Round History
-          </TabsTrigger>
-          <TabsTrigger value="templates" disabled>
-            Email Templates
-          </TabsTrigger>
-          <TabsTrigger value="series-global" disabled>
-            Series Global
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="candidates" className="mt-4 space-y-6">
@@ -1032,23 +1022,6 @@ function InvitesPage() {
           />
         </TabsContent>
 
-        <TabsContent value="rounds" className="mt-4">
-          <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-            Round history arrives in Phase 3.
-          </div>
-        </TabsContent>
-
-        <TabsContent value="templates" className="mt-4">
-          <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-            Email templates arrive in Phase 4.
-          </div>
-        </TabsContent>
-
-        <TabsContent value="series-global" className="mt-4">
-          <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-            Series global integration arrives in Phase 5.
-          </div>
-        </TabsContent>
       </Tabs>
 
       {championshipDivisions[0] ? (
