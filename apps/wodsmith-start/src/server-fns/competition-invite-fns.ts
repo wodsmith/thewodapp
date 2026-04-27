@@ -15,9 +15,9 @@
  */
 // @lat: [[competition-invites#Source server fns]]
 
+import { env } from "cloudflare:workers"
 import { render } from "@react-email/render"
 import { createServerFn } from "@tanstack/react-start"
-import { env } from "cloudflare:workers"
 import { and, eq, inArray, ne, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
@@ -27,8 +27,8 @@ import {
   COMPETITION_INVITE_ORIGIN,
   COMPETITION_INVITE_SOURCE_KIND,
   COMPETITION_INVITE_STATUS,
-  competitionInvitesTable,
   type CompetitionInvite,
+  competitionInvitesTable,
 } from "@/db/schemas/competition-invites"
 import {
   competitionGroupsTable,
@@ -49,10 +49,14 @@ import {
   withRequestContext,
 } from "@/lib/logging"
 import { CompetitionInviteEmail } from "@/react-email/competition-invites/invite-email"
-import {
-  type InviteEmailMessage,
-  type QueueEmailMessage,
+import type {
+  InviteEmailMessage,
+  QueueEmailMessage,
 } from "@/server/broadcast-queue-consumer"
+import {
+  createBespokeInvite as createBespokeInviteHelper,
+  createBespokeInvitesBulk as createBespokeInvitesBulkHelper,
+} from "@/server/competition-invites/bespoke"
 import {
   assertInviteClaimable,
   type InviteClaimableError,
@@ -61,14 +65,10 @@ import {
 } from "@/server/competition-invites/claim"
 import { declineInvite } from "@/server/competition-invites/decline"
 import {
-  createBespokeInvite as createBespokeInviteHelper,
-  createBespokeInvitesBulk as createBespokeInvitesBulkHelper,
-} from "@/server/competition-invites/bespoke"
-import {
   FreeCompetitionNotEligibleError,
-  issueInvitesForRecipients,
   type IssueInviteRecipient,
   type IssueInvitesResult,
+  issueInvitesForRecipients,
   normalizeInviteEmail,
   reissueInvite,
 } from "@/server/competition-invites/issue"
@@ -134,12 +134,6 @@ const deleteInviteSourceInputSchema = z.object({
 
 const getChampionshipRosterInputSchema = z.object({
   championshipCompetitionId: z.string().min(1),
-  divisionId: z.string().min(1),
-  filters: z
-    .object({
-      statuses: z.array(z.string()).optional(),
-    })
-    .optional(),
 })
 
 const getInviteByTokenInputSchema = z.object({
@@ -154,7 +148,10 @@ const declineInviteInputSchema = z.object({
 
 const issueInvitesRecipientSchema = z.object({
   email: z.string().email().max(255),
-  origin: z.enum([COMPETITION_INVITE_ORIGIN.SOURCE, COMPETITION_INVITE_ORIGIN.BESPOKE]),
+  origin: z.enum([
+    COMPETITION_INVITE_ORIGIN.SOURCE,
+    COMPETITION_INVITE_ORIGIN.BESPOKE,
+  ]),
   sourceId: z.string().min(1).nullable().optional(),
   sourceCompetitionId: z.string().min(1).nullable().optional(),
   sourcePlacement: z.number().int().positive().nullable().optional(),
@@ -207,7 +204,11 @@ const bespokeInviteInputSchema = z.object({
 
 const listBespokeInvitesInputSchema = z.object({
   championshipCompetitionId: z.string().min(1),
-  championshipDivisionId: z.string().min(1),
+  /** Optional. When omitted, returns active invites across every division of
+   *  the championship (used by the roster page where the organizer hasn't
+   *  picked a target championship division yet — the choice is deferred to
+   *  send time). */
+  championshipDivisionId: z.string().min(1).optional(),
 })
 
 const bespokeBulkInviteInputSchema = z.object({
@@ -280,9 +281,7 @@ async function requireSourcePermissions(params: {
   let sourceTeamId: string | null = null
   if (params.kind === COMPETITION_INVITE_SOURCE_KIND.COMPETITION) {
     if (!params.sourceCompetitionId) {
-      throw new Error(
-        'kind "competition" requires sourceCompetitionId',
-      )
+      throw new Error('kind "competition" requires sourceCompetitionId')
     }
     sourceTeamId = await getCompetitionOrganizingTeamId(
       params.sourceCompetitionId,
@@ -324,7 +323,9 @@ export const listInviteSourcesFn = createServerFn({ method: "GET" })
       {
         userId: session.userId,
         serverFn: "listInviteSourcesFn",
-        attributes: { championshipCompetitionId: data.championshipCompetitionId },
+        attributes: {
+          championshipCompetitionId: data.championshipCompetitionId,
+        },
       },
       async () => {
         const championshipTeamId = await getCompetitionOrganizingTeamId(
@@ -347,45 +348,44 @@ export const listInviteSourcesFn = createServerFn({ method: "GET" })
         )
         const groupIds = Array.from(
           new Set(
-            sources
-              .map((s) => s.sourceGroupId)
-              .filter((v): v is string => !!v),
+            sources.map((s) => s.sourceGroupId).filter((v): v is string => !!v),
           ),
         )
 
         const db = getDb()
-        const [compNameRows, groupRows, seriesCompCountRows] = await Promise.all([
-          competitionIds.length > 0
-            ? db
-                .select({
-                  id: competitionsTable.id,
-                  name: competitionsTable.name,
-                })
-                .from(competitionsTable)
-                .where(inArray(competitionsTable.id, competitionIds))
-            : Promise.resolve<Array<{ id: string; name: string }>>([]),
-          groupIds.length > 0
-            ? db
-                .select({
-                  id: competitionGroupsTable.id,
-                  name: competitionGroupsTable.name,
-                })
-                .from(competitionGroupsTable)
-                .where(inArray(competitionGroupsTable.id, groupIds))
-            : Promise.resolve<Array<{ id: string; name: string }>>([]),
-          groupIds.length > 0
-            ? db
-                .select({
-                  groupId: competitionsTable.groupId,
-                  count: sql<number>`count(*)`,
-                })
-                .from(competitionsTable)
-                .where(inArray(competitionsTable.groupId, groupIds))
-                .groupBy(competitionsTable.groupId)
-            : Promise.resolve<Array<{ groupId: string | null; count: number }>>(
-                [],
-              ),
-        ])
+        const [compNameRows, groupRows, seriesCompCountRows] =
+          await Promise.all([
+            competitionIds.length > 0
+              ? db
+                  .select({
+                    id: competitionsTable.id,
+                    name: competitionsTable.name,
+                  })
+                  .from(competitionsTable)
+                  .where(inArray(competitionsTable.id, competitionIds))
+              : Promise.resolve<Array<{ id: string; name: string }>>([]),
+            groupIds.length > 0
+              ? db
+                  .select({
+                    id: competitionGroupsTable.id,
+                    name: competitionGroupsTable.name,
+                  })
+                  .from(competitionGroupsTable)
+                  .where(inArray(competitionGroupsTable.id, groupIds))
+              : Promise.resolve<Array<{ id: string; name: string }>>([]),
+            groupIds.length > 0
+              ? db
+                  .select({
+                    groupId: competitionsTable.groupId,
+                    count: sql<number>`count(*)`,
+                  })
+                  .from(competitionsTable)
+                  .where(inArray(competitionsTable.groupId, groupIds))
+                  .groupBy(competitionsTable.groupId)
+              : Promise.resolve<
+                  Array<{ groupId: string | null; count: number }>
+                >([]),
+          ])
 
         const competitionNamesById: Record<string, string> = Object.fromEntries(
           compNameRows.map((r) => [r.id, r.name]),
@@ -393,12 +393,11 @@ export const listInviteSourcesFn = createServerFn({ method: "GET" })
         const seriesNamesById: Record<string, string> = Object.fromEntries(
           groupRows.map((r) => [r.id, r.name]),
         )
-        const seriesCompCountsById: Record<string, number> =
-          Object.fromEntries(
-            seriesCompCountRows
-              .filter((r): r is { groupId: string; count: number } => !!r.groupId)
-              .map((r) => [r.groupId, Number(r.count)]),
-          )
+        const seriesCompCountsById: Record<string, number> = Object.fromEntries(
+          seriesCompCountRows
+            .filter((r): r is { groupId: string; count: number } => !!r.groupId)
+            .map((r) => [r.groupId, Number(r.count)]),
+        )
 
         return {
           sources,
@@ -420,7 +419,9 @@ export const createInviteSourceFn = createServerFn({ method: "POST" })
       {
         userId: session.userId,
         serverFn: "createInviteSourceFn",
-        attributes: { championshipCompetitionId: data.championshipCompetitionId },
+        attributes: {
+          championshipCompetitionId: data.championshipCompetitionId,
+        },
       },
       async () => {
         await requireSourcePermissions({
@@ -578,7 +579,6 @@ export const getChampionshipRosterFn = createServerFn({ method: "GET" })
         serverFn: "getChampionshipRosterFn",
         attributes: {
           championshipCompetitionId: data.championshipCompetitionId,
-          divisionId: data.divisionId,
         },
       },
       async () => {
@@ -591,8 +591,6 @@ export const getChampionshipRosterFn = createServerFn({ method: "GET" })
         )
         const { rows } = await getChampionshipRoster({
           championshipId: data.championshipCompetitionId,
-          divisionId: data.divisionId,
-          filters: data.filters,
         })
         return { rows }
       },
@@ -629,7 +627,10 @@ export const getInviteByTokenFn = createServerFn({ method: "GET" })
             message: "[Invites] Claim token did not resolve",
             attributes: { slug: data.slug, tokenLast4: data.token.slice(-4) },
           })
-          return { kind: "not_claimable" as const, reason: "not_found" as InviteClaimableError }
+          return {
+            kind: "not_claimable" as const,
+            reason: "not_found" as InviteClaimableError,
+          }
         }
 
         const db = getDb()
@@ -656,7 +657,10 @@ export const getInviteByTokenFn = createServerFn({ method: "GET" })
               inviteChampionshipId: invite.championshipCompetitionId,
             },
           })
-          return { kind: "not_claimable" as const, reason: "not_found" as InviteClaimableError }
+          return {
+            kind: "not_claimable" as const,
+            reason: "not_found" as InviteClaimableError,
+          }
         }
 
         try {
@@ -762,9 +766,7 @@ export const declineInviteFn = createServerFn({ method: "POST" })
     const session = await getSessionFromCookie()
     const sessionEmail = session?.user?.email
     if (!sessionEmail) {
-      throw new Error(
-        "You must be signed in to decline an invite.",
-      )
+      throw new Error("You must be signed in to decline an invite.")
     }
 
     return withRequestContext(
@@ -780,7 +782,10 @@ export const declineInviteFn = createServerFn({ method: "POST" })
             message: "[Invites] Decline: token did not resolve",
             attributes: { tokenLast4: data.token.slice(-4) },
           })
-          return { ok: false as const, reason: "not_found" as InviteClaimableError }
+          return {
+            ok: false as const,
+            reason: "not_found" as InviteClaimableError,
+          }
         }
 
         try {
@@ -813,7 +818,10 @@ export const declineInviteFn = createServerFn({ method: "POST" })
           .where(eq(competitionsTable.id, invite.championshipCompetitionId))
           .limit(1)
         if (!champ || champ.slug !== data.slug) {
-          return { ok: false as const, reason: "not_found" as InviteClaimableError }
+          return {
+            ok: false as const,
+            reason: "not_found" as InviteClaimableError,
+          }
         }
 
         await declineInvite({ inviteId: invite.id })
@@ -961,8 +969,7 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
         // date. The label is formatted from the same y/m/d ints we just
         // parsed, so the email body always shows the calendar day the
         // organizer typed regardless of the worker's TZ.
-        const [yearStr, monthStr, dayStr] =
-          data.rsvpDeadlineDate.split("-")
+        const [yearStr, monthStr, dayStr] = data.rsvpDeadlineDate.split("-")
         const yearN = Number(yearStr)
         const monthN = Number(monthStr)
         const dayN = Number(dayStr)
@@ -1034,7 +1041,11 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
         const queue = (env as unknown as Record<string, unknown>)
           .BROADCAST_EMAIL_QUEUE as Queue<QueueEmailMessage> | undefined
 
-        const failed: Array<{ inviteId: string; email: string; error: string }> = []
+        const failed: Array<{
+          inviteId: string
+          email: string
+          error: string
+        }> = []
 
         for (const { invite, plaintextToken } of allToDispatch) {
           try {
@@ -1182,7 +1193,10 @@ export const createBespokeInviteFn = createServerFn({ method: "POST" })
           id: invite.id,
           parentEntity: "competition",
           parentId: data.championshipCompetitionId,
-          attributes: { origin: COMPETITION_INVITE_ORIGIN.BESPOKE, draft: true },
+          attributes: {
+            origin: COMPETITION_INVITE_ORIGIN.BESPOKE,
+            draft: true,
+          },
         })
 
         return { invite }
@@ -1273,9 +1287,7 @@ export interface ActiveInviteSummary {
  * the raw token columns never reach the client.
  */
 export const listActiveInvitesFn = createServerFn({ method: "GET" })
-  .inputValidator((data: unknown) =>
-    listBespokeInvitesInputSchema.parse(data),
-  )
+  .inputValidator((data: unknown) => listBespokeInvitesInputSchema.parse(data))
   .handler(async ({ data }): Promise<{ invites: ActiveInviteSummary[] }> => {
     const session = await getSessionFromCookie()
     if (!session?.userId) throw new Error("Not authenticated")
@@ -1334,10 +1346,12 @@ export const listActiveInvitesFn = createServerFn({ method: "GET" })
                 competitionInvitesTable.championshipCompetitionId,
                 data.championshipCompetitionId,
               ),
-              eq(
-                competitionInvitesTable.championshipDivisionId,
-                data.championshipDivisionId,
-              ),
+              data.championshipDivisionId
+                ? eq(
+                    competitionInvitesTable.championshipDivisionId,
+                    data.championshipDivisionId,
+                  )
+                : undefined,
               eq(
                 competitionInvitesTable.activeMarker,
                 COMPETITION_INVITE_ACTIVE_MARKER,

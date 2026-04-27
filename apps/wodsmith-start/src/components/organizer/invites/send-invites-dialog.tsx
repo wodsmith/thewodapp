@@ -23,6 +23,13 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import type { CompetitionInviteOrigin } from "@/db/schemas/competition-invites"
 import { issueInvitesFn } from "@/server-fns/competition-invite-fns"
@@ -44,14 +51,19 @@ interface SendInvitesDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   championshipCompetitionId: string
-  championshipDivisionId: string
+  /** All championship divisions the organizer can target. The dialog
+   *  shows a <Select> so the organizer picks which division this batch of
+   *  invites lands in — it's no longer assumed by the parent route. */
+  championshipDivisions: Array<{ id: string; label: string }>
   championshipName: string
-  divisionLabel: string
   recipients: SendRecipient[]
   onSent?: () => void
 }
 
-function defaultSubject(championshipName: string, divisionLabel: string): string {
+function defaultSubject(
+  championshipName: string,
+  divisionLabel: string,
+): string {
   return `You're invited to ${championshipName} - ${divisionLabel}`
 }
 
@@ -75,15 +87,20 @@ export function SendInvitesDialog({
   open,
   onOpenChange,
   championshipCompetitionId,
-  championshipDivisionId,
+  championshipDivisions,
   championshipName,
-  divisionLabel,
   recipients,
   onSent,
 }: SendInvitesDialogProps) {
   const issueInvites = useServerFn(issueInvitesFn)
+  const [targetDivisionId, setTargetDivisionId] = useState<string>(
+    () => championshipDivisions[0]?.id ?? "",
+  )
+  const targetDivision = championshipDivisions.find(
+    (d) => d.id === targetDivisionId,
+  )
   const [subject, setSubject] = useState(() =>
-    defaultSubject(championshipName, divisionLabel),
+    defaultSubject(championshipName, targetDivision?.label ?? ""),
   )
   const [bodyText, setBodyText] = useState(() => defaultBody(championshipName))
   const [deadline, setDeadline] = useState(defaultDeadline)
@@ -101,15 +118,41 @@ export function SendInvitesDialog({
   // alert and the footer is stuck in "Close" mode.
   useEffect(() => {
     if (open) return
-    setSubject(defaultSubject(championshipName, divisionLabel))
+    setTargetDivisionId(championshipDivisions[0]?.id ?? "")
+    setSubject(
+      defaultSubject(championshipName, championshipDivisions[0]?.label ?? ""),
+    )
     setBodyText(defaultBody(championshipName))
     setDeadline(defaultDeadline())
     setSubmitting(false)
     setError(null)
     setResult(null)
-  }, [open, championshipName, divisionLabel])
+  }, [open, championshipName, championshipDivisions])
+
+  // Keep the default subject in sync with the division the organizer
+  // picks — the suffix is the division label and changing the division
+  // should retitle the email unless the user has typed a custom subject.
+  // We refresh as long as the current value matches a previously-default
+  // pattern so user-edited subjects are preserved.
+  useEffect(() => {
+    setSubject((prev) => {
+      const candidates = championshipDivisions.map((d) =>
+        defaultSubject(championshipName, d.label),
+      )
+      return candidates.includes(prev)
+        ? defaultSubject(championshipName, targetDivision?.label ?? "")
+        : prev
+    })
+    // `targetDivision` is the only state-derived dep here — its reference
+    // changes whenever `targetDivisionId` resolves to a different element,
+    // so listing it covers the division-change trigger.
+  }, [championshipName, championshipDivisions, targetDivision])
 
   const onSubmit = async () => {
+    if (!targetDivisionId) {
+      setError("Pick a championship division before sending.")
+      return
+    }
     if (!deadline || !/^\d{4}-\d{2}-\d{2}$/.test(deadline)) {
       setError("Pick a valid RSVP deadline before sending.")
       return
@@ -121,7 +164,7 @@ export function SendInvitesDialog({
       const response = await issueInvites({
         data: {
           championshipCompetitionId,
-          championshipDivisionId,
+          championshipDivisionId: targetDivisionId,
           // Pass the raw calendar string. Building a `Date` here would
           // parse the local-tz instant and then format on Workers (UTC)
           // would render the wrong day for any organizer west of UTC.
@@ -158,6 +201,27 @@ export function SendInvitesDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
+          <div>
+            <Label htmlFor="send-target-division">
+              Championship division *
+            </Label>
+            <Select
+              value={targetDivisionId}
+              onValueChange={setTargetDivisionId}
+              disabled={submitting || championshipDivisions.length === 0}
+            >
+              <SelectTrigger id="send-target-division">
+                <SelectValue placeholder="Pick a division" />
+              </SelectTrigger>
+              <SelectContent>
+                {championshipDivisions.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div>
             <Label htmlFor="send-subject">Subject *</Label>
             <Input
@@ -214,7 +278,9 @@ export function SendInvitesDialog({
             </Alert>
           ) : null}
           {result ? (
-            <Alert variant={result.failed.length > 0 ? "destructive" : "default"}>
+            <Alert
+              variant={result.failed.length > 0 ? "destructive" : "default"}
+            >
               <AlertDescription>
                 <div>
                   Queued <strong>{result.sentCount}</strong> invite email
@@ -230,8 +296,8 @@ export function SendInvitesDialog({
                 {result.failed.length > 0 ? (
                   <details className="mt-2 text-xs">
                     <summary className="cursor-pointer">
-                      Failed rows ({result.failed.length}) — re-clicking
-                      Send will retry these.
+                      Failed rows ({result.failed.length}) — re-clicking Send
+                      will retry these.
                     </summary>
                     <ul className="mt-2 list-disc pl-5">
                       {result.failed.map((f) => (
@@ -258,13 +324,12 @@ export function SendInvitesDialog({
             <Button
               onClick={onSubmit}
               disabled={
-                submitting ||
-                recipients.length === 0 ||
-                !subject ||
-                !deadline
+                submitting || recipients.length === 0 || !subject || !deadline
               }
             >
-              {submitting ? "Sending…" : `Send ${recipients.length} invite${recipients.length === 1 ? "" : "s"}`}
+              {submitting
+                ? "Sending…"
+                : `Send ${recipients.length} invite${recipients.length === 1 ? "" : "s"}`}
             </Button>
           ) : null}
         </DialogFooter>
