@@ -1280,6 +1280,30 @@ export interface ActiveInviteSummary {
 }
 
 /**
+ * Audit-view projection of every invite (active OR terminal) for a
+ * championship. Extends `ActiveInviteSummary` with two columns the Sent
+ * tab needs:
+ *
+ * - `divisionLabel` — sourced via the same `scalingLevels` join so the
+ *   audit table doesn't have to do a per-row lookup against the
+ *   championshipDivisions map.
+ * - `lastUpdatedAt` — the row's `updatedAt` (bumped on issue / reissue
+ *   / dispatch / status flip). The `competition_invites` table has no
+ *   dedicated `lastSentAt` column today; `updatedAt` is the closest
+ *   approximation of "last activity" and the audit view is the right
+ *   place to surface it. Renamed on the DTO so the column header reads
+ *   correctly without implying a send-only semantic.
+ * - `sourcePlacementLabel` — denormalized "1st — Comp · Div" for
+ *   source-origin rows so the audit table can show attribution
+ *   alongside `bespokeReason` for bespoke rows.
+ */
+export interface AuditInviteSummary extends ActiveInviteSummary {
+  divisionLabel: string
+  lastUpdatedAt: Date | null
+  sourcePlacementLabel: string | null
+}
+
+/**
  * List all active invites for a championship+division. Used by the
  * organizer invites route to render the bespoke section + invite state
  * overlays on source roster rows. Phase 2: returns every active row
@@ -1363,6 +1387,103 @@ export const listActiveInvitesFn = createServerFn({ method: "GET" })
         const invites: ActiveInviteSummary[] = rows.map(
           ({ claimToken, championshipSlug, ...rest }) => ({
             ...rest,
+            claimUrl: claimToken
+              ? `${appUrl}/compete/${championshipSlug}/claim/${claimToken}`
+              : null,
+          }),
+        )
+        return { invites }
+      },
+    )
+  })
+
+const listAllInvitesInputSchema = z.object({
+  championshipCompetitionId: z.string().min(1),
+})
+
+/**
+ * List every invite (active OR terminal) for a championship. Powers the
+ * organizer "Sent" audit tab — grouped by division, filterable by
+ * status / origin / search. Distinct from `listActiveInvitesFn` which
+ * only returns active rows so the Candidates tab's bespoke-draft list
+ * never bleeds in declined/expired/revoked history.
+ *
+ * Joins `scalingLevels` to surface `divisionLabel` per row so the
+ * client doesn't need a per-row map lookup, and selects `updatedAt`
+ * as `lastUpdatedAt` (the table has no dedicated `lastSentAt` column —
+ * `updatedAt` is bumped on every issue / reissue / dispatch and is the
+ * closest available signal of "last activity").
+ */
+export const listAllInvitesFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => listAllInvitesInputSchema.parse(data))
+  .handler(async ({ data }): Promise<{ invites: AuditInviteSummary[] }> => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "listAllInvitesFn",
+        attributes: {
+          championshipCompetitionId: data.championshipCompetitionId,
+        },
+      },
+      async () => {
+        const championshipTeamId = await getCompetitionOrganizingTeamId(
+          data.championshipCompetitionId,
+        )
+        await requireTeamPermission(
+          championshipTeamId,
+          TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+        )
+
+        const db = getDb()
+        const rows = await db
+          .select({
+            id: competitionInvitesTable.id,
+            email: competitionInvitesTable.email,
+            origin: competitionInvitesTable.origin,
+            status: competitionInvitesTable.status,
+            championshipDivisionId:
+              competitionInvitesTable.championshipDivisionId,
+            activeMarker: competitionInvitesTable.activeMarker,
+            bespokeReason: competitionInvitesTable.bespokeReason,
+            sourcePlacementLabel: competitionInvitesTable.sourcePlacementLabel,
+            inviteeFirstName: competitionInvitesTable.inviteeFirstName,
+            inviteeLastName: competitionInvitesTable.inviteeLastName,
+            userId: competitionInvitesTable.userId,
+            claimToken: competitionInvitesTable.claimToken,
+            lastUpdatedAt: competitionInvitesTable.updatedAt,
+            championshipSlug: competitionsTable.slug,
+            divisionLabel: scalingLevelsTable.label,
+          })
+          .from(competitionInvitesTable)
+          .innerJoin(
+            competitionsTable,
+            eq(
+              competitionsTable.id,
+              competitionInvitesTable.championshipCompetitionId,
+            ),
+          )
+          .leftJoin(
+            scalingLevelsTable,
+            eq(
+              scalingLevelsTable.id,
+              competitionInvitesTable.championshipDivisionId,
+            ),
+          )
+          .where(
+            eq(
+              competitionInvitesTable.championshipCompetitionId,
+              data.championshipCompetitionId,
+            ),
+          )
+
+        const appUrl = getAppUrl()
+        const invites: AuditInviteSummary[] = rows.map(
+          ({ claimToken, championshipSlug, divisionLabel, ...rest }) => ({
+            ...rest,
+            divisionLabel: divisionLabel ?? "",
             claimUrl: claimToken
               ? `${appUrl}/compete/${championshipSlug}/claim/${claimToken}`
               : null,
