@@ -161,6 +161,59 @@ describe("SentInvitesByDivision", () => {
     expect(screen.getByText("Grace Hopper")).toBeInTheDocument()
   })
 
+  it("renders accepted/maxSpots ratio under each division title", () => {
+    render(
+      <SentInvitesByDivision
+        invites={[
+          baseInvite({
+            id: "inv_a",
+            email: "a@example.com",
+            status: "accepted_paid",
+            championshipDivisionId: "div_rxm",
+          }),
+          baseInvite({
+            id: "inv_b",
+            email: "b@example.com",
+            status: "accepted_paid",
+            championshipDivisionId: "div_rxm",
+          }),
+          baseInvite({
+            id: "inv_c",
+            email: "c@example.com",
+            status: "pending",
+            championshipDivisionId: "div_rxm",
+          }),
+        ]}
+        divisions={[
+          { id: "div_rxm", label: "RX Men", maxSpots: 10 },
+          { id: "div_rxw", label: "RX Women", maxSpots: 8 },
+        ]}
+      />,
+    )
+
+    // RX Men: 2 accepted out of 10 spots.
+    expect(screen.getByText("2/10 spots filled")).toBeInTheDocument()
+    // RX Women: 0 accepted out of 8 spots.
+    expect(screen.getByText("0/8 spots filled")).toBeInTheDocument()
+  })
+
+  it("falls back to plain accepted count when a division has no maxSpots cap", () => {
+    render(
+      <SentInvitesByDivision
+        invites={[
+          baseInvite({
+            id: "inv_a",
+            email: "a@example.com",
+            status: "accepted_paid",
+            championshipDivisionId: "div_rxm",
+          }),
+        ]}
+        divisions={[{ id: "div_rxm", label: "RX Men", maxSpots: null }]}
+      />,
+    )
+    expect(screen.getByText("1 accepted")).toBeInTheDocument()
+  })
+
   it("counter chip in the card header reflects unfiltered totals", () => {
     render(
       <SentInvitesByDivision

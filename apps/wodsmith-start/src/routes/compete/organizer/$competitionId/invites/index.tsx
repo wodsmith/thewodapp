@@ -178,7 +178,11 @@ export const Route = createFileRoute(
     } = sourcesResult
 
     const championshipDivisions = (divisionsResult.divisions ?? []).map(
-      (d: { id: string; label: string }) => ({ id: d.id, label: d.label }),
+      (d: { id: string; label: string; maxSpots: number | null }) => ({
+        id: d.id,
+        label: d.label,
+        maxSpots: d.maxSpots,
+      }),
     )
 
     // Source pickers in the EditInviteSourceDialog exclude the championship

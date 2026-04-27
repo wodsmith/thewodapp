@@ -57,7 +57,14 @@ const STATUS_KEYS: StatusKey[] = [
 
 interface SentInvitesByDivisionProps {
   invites: AuditInviteSummary[]
-  divisions: ReadonlyArray<{ id: string; label: string }>
+  divisions: ReadonlyArray<{
+    id: string
+    label: string
+    /** Configured cap from `competition_divisions.maxSpots`. `null` when the
+     *  division has no per-division cap set (uses the competition default or
+     *  is uncapped) — render the indicator as "X accepted" instead of a ratio. */
+    maxSpots?: number | null
+  }>
 }
 
 /**
@@ -97,23 +104,22 @@ function statusLabel(key: StatusKey): string {
   }
 }
 
-/**
- * Status badge styling. Mirrors the colour mapping the Candidates tab
- * uses for bespoke status pills so the two surfaces stay in sync. The
- * specific Tailwind classes match the `accepted_paid` / `declined` /
- * terminal patterns established in the route page today.
- */
+// Status palette — each state gets its own hue so the row scans at a
+// glance: emerald = accepted, amber = pending/in-flight, rose =
+// declined, zinc = terminal (expired/revoked). Pair with
+// `variant="outline"` on the Badge — the default variant ships
+// `dark:bg-primary` which would override these tints in dark mode.
 function statusBadgeClass(key: StatusKey): string {
   switch (key) {
     case "accepted":
-      return "border-transparent bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/20"
+      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50"
     case "pending":
-      return "border-transparent bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/20"
+      return "border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:border-amber-500/50"
     case "declined":
-      return "border-transparent bg-rose-500/15 text-rose-400 hover:bg-rose-500/20"
+      return "border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 hover:border-rose-500/50"
     case "expired":
     case "revoked":
-      return "border-transparent bg-muted text-muted-foreground"
+      return "border-zinc-500/30 bg-zinc-500/10 text-zinc-400 hover:bg-zinc-500/20"
   }
 }
 
@@ -272,13 +278,24 @@ export function SentInvitesByDivision({
               expired: 0,
               revoked: 0,
             } as Record<StatusKey, number>)
+          const acceptedCount = counters.accepted
+          const maxSpots = division.maxSpots ?? null
+          const spotsFilledLabel =
+            maxSpots !== null
+              ? `${acceptedCount}/${maxSpots} spots filled`
+              : `${acceptedCount} accepted`
           return (
             <Card key={division.id}>
               <CardHeader className="space-y-2 pb-3">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <CardTitle className="text-base font-semibold tracking-tight">
-                    {division.label}
-                  </CardTitle>
+                  <div className="flex flex-col gap-0.5">
+                    <CardTitle className="text-base font-semibold tracking-tight">
+                      {division.label}
+                    </CardTitle>
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {spotsFilledLabel}
+                    </span>
+                  </div>
                   <span className="text-xs text-muted-foreground">
                     {rows.length} of{" "}
                     {STATUS_KEYS.reduce((sum, k) => sum + counters[k], 0)}{" "}
@@ -372,7 +389,7 @@ export function SentInvitesByDivision({
                               </TableCell>
                               <TableCell>
                                 <Badge
-                                  variant="default"
+                                  variant="outline"
                                   className={statusBadgeClass(sKey)}
                                 >
                                   {statusLabel(sKey)}
