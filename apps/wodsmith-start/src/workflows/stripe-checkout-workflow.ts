@@ -55,6 +55,11 @@ import {
 import { PENDING_PURCHASE_MAX_AGE_MINUTES } from "@/server-fns/competition-divisions-fns"
 import { calculateDivisionCapacity } from "@/utils/division-capacity"
 import { calculateCompetitionCapacity } from "@/utils/competition-capacity"
+import {
+  getAcceptedPaidCountForBucket,
+  resolveAllocationForInvite,
+} from "@/server/competition-invites/claim"
+import { assertInviteWithinAllocation } from "@/server/competition-invites/identity"
 
 export interface CheckoutCompletedParams {
   stripeEventId: string
@@ -469,6 +474,112 @@ async function createRegistration(
   // organizer revoking an invite between Stripe checkout and webhook
   // delivery would deny registration to an athlete who already paid.
   const inviteAuthorized = !!registrationData.inviteId
+
+  // ADR-0012 Phase 5: per-(source, division) allocation guardrail —
+  // authoritative re-check at payment confirmation. The claim-time gate
+  // is best-effort UX; the genuine race (two athletes paying for the
+  // last spot concurrently) is closed here. Pattern matches the existing
+  // division-capacity-overflow handling above: mark purchase failed,
+  // refund-and-fail. Bespoke invites (no sourceId) bypass.
+  if (registrationData.inviteId) {
+    const inviteRow = await db.query.competitionInvitesTable.findFirst({
+      where: eq(competitionInvitesTable.id, registrationData.inviteId),
+    })
+    if (inviteRow?.sourceId) {
+      const [allocation, acceptedCount] = await Promise.all([
+        resolveAllocationForInvite({ invite: inviteRow }),
+        getAcceptedPaidCountForBucket({
+          sourceId: inviteRow.sourceId,
+          championshipDivisionId: inviteRow.championshipDivisionId,
+        }),
+      ])
+      const allocationCheck = assertInviteWithinAllocation({
+        invite: { sourceId: inviteRow.sourceId },
+        allocation: allocation ?? 0,
+        acceptedCount,
+      })
+      if (!allocationCheck.ok) {
+        logError({
+          message:
+            "[Workflow] Invite allocation filled during payment - refund needed",
+          attributes: {
+            purchaseId,
+            competitionId,
+            divisionId,
+            userId,
+            inviteId: registrationData.inviteId,
+            sourceId: inviteRow.sourceId,
+            allocation,
+            acceptedCount,
+          },
+        })
+
+        // Mark purchase as failed
+        await db
+          .update(commercePurchaseTable)
+          .set({
+            status: COMMERCE_PURCHASE_STATUS.FAILED,
+            completedAt: new Date(),
+          })
+          .where(eq(commercePurchaseTable.id, purchaseId))
+
+        // Trigger automatic refund — same pattern as the
+        // division-full / competition-full branches above.
+        if (session.payment_intent) {
+          try {
+            const stripe = getStripe()
+            const refund = await stripe.refunds.create({
+              payment_intent: session.payment_intent,
+              reason: "requested_by_customer",
+            })
+            logInfo({
+              message:
+                "[Workflow] Refund issued for invite-allocation-full scenario",
+              attributes: {
+                purchaseId,
+                paymentIntentId: session.payment_intent,
+                refundId: refund.id,
+              },
+            })
+
+            try {
+              await recordRefundCompleted({
+                purchaseId,
+                teamId: competition.organizingTeamId,
+                amountCents: existingPurchase.totalCents,
+                stripePaymentIntentId: session.payment_intent,
+                stripeRefundId: refund.id,
+                reason:
+                  "Invite source allocation filled during payment - automatic refund",
+              })
+            } catch (eventErr) {
+              logWarning({
+                message:
+                  "[Workflow] Failed to record refund event (non-fatal)",
+                error: eventErr,
+                attributes: { purchaseId },
+              })
+            }
+          } catch (refundError) {
+            logError({
+              message:
+                "[Workflow] Failed to issue automatic refund (allocation-full)",
+              error:
+                refundError instanceof Error
+                  ? refundError
+                  : new Error(String(refundError)),
+              attributes: {
+                purchaseId,
+                paymentIntentId: session.payment_intent,
+              },
+            })
+          }
+        }
+
+        return null
+      }
+    }
+  }
 
   // Create the registration
   try {

@@ -2,9 +2,9 @@
  * Competition Invites — organizer route shell
  *
  * Phase 1 of ADR-0011. Tabs:
- *   - Roster (placeholder until 1.7)
+ *   - Candidates (live)
  *   - Sources (live)
- *   - Round History / Email Templates / Series Global (placeholders)
+ *   - Sent (live)
  *
  * Loader enforces MANAGE_COMPETITIONS on the championship's organizing
  * team via `listInviteSourcesFn`, which performs the same check
@@ -44,6 +44,7 @@ import {
   SendInvitesDialog,
   type SendRecipient,
 } from "@/components/organizer/invites/send-invites-dialog"
+import { SentInvitesByDivision } from "@/components/organizer/invites/sent-invites-by-division"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -78,6 +79,8 @@ import {
   type ActiveInviteSummary,
   getChampionshipRosterFn,
   listActiveInvitesFn,
+  listAllInvitesFn,
+  listInviteSourceAllocationsFn,
   listInviteSourcesFn,
 } from "@/server-fns/competition-invite-fns"
 
@@ -128,6 +131,8 @@ export const Route = createFileRoute(
       organizerGroupsResult,
       rosterResult,
       activeInvitesResult,
+      allInvitesResult,
+      allocationsResult,
     ] = await Promise.all([
       listInviteSourcesFn({
         data: { championshipCompetitionId: params.competitionId },
@@ -157,6 +162,23 @@ export const Route = createFileRoute(
       listActiveInvitesFn({
         data: { championshipCompetitionId: params.competitionId },
       }),
+      // All invites (active + terminal) for the Sent audit tab. Kept as
+      // a separate fetch from `listActiveInvitesFn` because the
+      // Candidates tab's bespoke-draft list relies on the active filter
+      // to keep terminal history out — see the rationale in
+      // `listAllInvitesFn`'s docstring.
+      listAllInvitesFn({
+        data: { championshipCompetitionId: params.competitionId },
+      }),
+      // ADR-0012: per-(source, division) allocation map + summed-by-
+      // division totals. The Sent tab's chip denominators read from
+      // `allocationsBySourceByDivision`, and the division headline
+      // denominator (`maxSpots` below) reads from
+      // `divisionAllocationTotals` instead of `competition_divisions
+      // .maxSpots` (registration capacity).
+      listInviteSourceAllocationsFn({
+        data: { championshipCompetitionId: params.competitionId },
+      }),
     ])
     const {
       sources,
@@ -165,8 +187,25 @@ export const Route = createFileRoute(
       seriesCompCountsById,
     } = sourcesResult
 
+    const { allocationsBySourceByDivision, divisionAllocationTotals } =
+      allocationsResult
+
+    // ADR-0012 Phase 2: the Sent tab's per-division headline denominator
+    // switches from `competition_divisions.maxSpots` (registration
+    // capacity) to `divisionAllocationTotals[divisionId]` — the resolved
+    // sum of per-source allocations for that championship division. A
+    // total of `0` collapses to `null` so the component renders "X
+    // accepted" with no denominator (matches the existing optional-field
+    // signal for "no per-division cap set").
     const championshipDivisions = (divisionsResult.divisions ?? []).map(
-      (d: { id: string; label: string }) => ({ id: d.id, label: d.label }),
+      (d: { id: string; label: string; maxSpots: number | null }) => {
+        const total = divisionAllocationTotals[d.id] ?? 0
+        return {
+          id: d.id,
+          label: d.label,
+          maxSpots: total > 0 ? total : null,
+        }
+      },
     )
 
     // Source pickers in the EditInviteSourceDialog exclude the championship
@@ -188,6 +227,9 @@ export const Route = createFileRoute(
       championshipDivisions,
       roster: rosterResult,
       activeInvites: activeInvitesResult.invites,
+      allInvites: allInvitesResult.invites,
+      allocationsBySourceByDivision,
+      divisionAllocationTotals,
     }
   },
 })
@@ -220,6 +262,8 @@ function InvitesPage() {
     championshipDivisions,
     roster,
     activeInvites,
+    allInvites,
+    allocationsBySourceByDivision,
   } = Route.useLoaderData()
   const { competition } = parentRoute.useLoaderData()
   const { competitionId } = Route.useParams()
@@ -245,7 +289,7 @@ function InvitesPage() {
       })
     }
   }, [flagEnabled, competitionId, navigate])
-  const [tab, setTab] = useState("roster")
+  const [tab, setTab] = useState("candidates")
   const [addSingleOpen, setAddSingleOpen] = useState(false)
   const [bulkOpen, setBulkOpen] = useState(false)
   const [sendOpen, setSendOpen] = useState(false)
@@ -360,6 +404,22 @@ function InvitesPage() {
     }
     return Array.from(seen.entries()).map(([id, label]) => ({ id, label }))
   }, [roster.rows, search.source])
+
+  // When the candidates table is filtered to a single source division,
+  // resolve the championship division whose label matches so the Send
+  // dialog can open already pointed at it. Source and championship
+  // divisions are distinct entities (different ids) but typically share
+  // labels (e.g. "Rx Men"); a label match is the best signal we have
+  // without traversing per-source divisionMappings.
+  const filteredChampionshipDivisionId = useMemo<string | undefined>(() => {
+    if (!search.div || search.div === ALL_FILTER) return undefined
+    const sourceLabel = rosterDivisions.find((d) => d.id === search.div)?.label
+    if (!sourceLabel) return undefined
+    const normalized = sourceLabel.trim().toLowerCase()
+    return championshipDivisions.find(
+      (d) => d.label.trim().toLowerCase() === normalized,
+    )?.id
+  }, [search.div, rosterDivisions, championshipDivisions])
 
   const filteredRosterRows = useMemo(() => {
     return roster.rows.filter((r) => {
@@ -487,6 +547,45 @@ function InvitesPage() {
   const hiddenSelectedCount =
     totalRosterSelectedCount - visibleRosterSelectedCount
 
+  // ADR-0012 Phase 4: count of currently active (pending OR accepted_paid)
+  // invites grouped by `(sourceId, championshipDivisionId)`. Sourced from
+  // the audit projection — `activeMarker === "active"` filters the same
+  // pending-or-accepted_paid window the loader already exposes. Bespoke
+  // rows have null `sourceId` and are skipped (the dialog ignores bespoke
+  // recipients in its allocation check anyway).
+  const existingActiveCountsBySourceByDivision = useMemo<
+    Record<string, Record<string, number>>
+  >(() => {
+    const map: Record<string, Record<string, number>> = {}
+    for (const inv of allInvites) {
+      if (inv.activeMarker !== "active") continue
+      if (inv.origin !== COMPETITION_INVITE_ORIGIN.SOURCE) continue
+      if (!inv.sourceId) continue
+      if (!map[inv.sourceId]) map[inv.sourceId] = {}
+      const div = map[inv.sourceId]
+      div[inv.championshipDivisionId] =
+        (div[inv.championshipDivisionId] ?? 0) + 1
+    }
+    return map
+  }, [allInvites])
+
+  // ADR-0012 Phase 4: human-readable source label for the over-issue
+  // warning. The dialog has no access to competition / series name maps
+  // directly; reuse the route-level `resolveSourceLabel` helper here so
+  // both the warning row and the per-recipient breakdown speak the same
+  // names organizers see on the Sources tab.
+  const sourceLabelsById = useMemo<Record<string, string>>(() => {
+    const out: Record<string, string> = {}
+    for (const src of sources) {
+      out[src.id] = resolveSourceLabel(
+        src,
+        competitionNamesById,
+        seriesNamesById,
+      )
+    }
+    return out
+  }, [sources, competitionNamesById, seriesNamesById])
+
   const toggleRosterSelection = (key: string) => {
     setSelectedRosterKeys((prev) => {
       const next = new Set(prev)
@@ -563,20 +662,12 @@ function InvitesPage() {
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
-          <TabsTrigger value="roster">Roster</TabsTrigger>
+          <TabsTrigger value="candidates">Candidates</TabsTrigger>
           <TabsTrigger value="sources">Sources</TabsTrigger>
-          <TabsTrigger value="rounds" disabled>
-            Round History
-          </TabsTrigger>
-          <TabsTrigger value="templates" disabled>
-            Email Templates
-          </TabsTrigger>
-          <TabsTrigger value="series-global" disabled>
-            Series Global
-          </TabsTrigger>
+          <TabsTrigger value="sent">Sent</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="roster" className="mt-4 space-y-6">
+        <TabsContent value="candidates" className="mt-4 space-y-6">
           {rosterCompetitions.length === 0 ? (
             <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
               Add a qualification source on the <strong>Sources</strong> tab to
@@ -703,6 +794,8 @@ function InvitesPage() {
                 onToggleAll={toggleAllRoster}
                 isRowAlreadyInvited={isRowAlreadyInvited}
                 getInviteUrlForRow={getInviteUrlForRow}
+                allocationsBySourceByDivision={allocationsBySourceByDivision}
+                championshipDivisions={championshipDivisions}
               />
               <div className="flex items-center justify-between gap-3">
                 <div className="text-xs text-muted-foreground">
@@ -902,35 +995,33 @@ function InvitesPage() {
             competitionNamesById={competitionNamesById}
             seriesNamesById={seriesNamesById}
             seriesCompCountsById={seriesCompCountsById}
+            allocationsBySourceByDivision={allocationsBySourceByDivision}
+            championshipDivisions={championshipDivisions}
             onAdd={() => {
               setEditingSource(undefined)
               setSourceDialogOpen(true)
             }}
-            onEdit={(source) => {
-              setEditingSource(source)
-              setSourceDialogOpen(true)
-            }}
+            onEdit={(source) =>
+              navigate({
+                to: "/compete/organizer/$competitionId/invites/sources/$sourceId",
+                params: { competitionId, sourceId: source.id },
+              })
+            }
             onDelete={(source) => setDeletingSource(source)}
           />
         </TabsContent>
 
-        <TabsContent value="rounds" className="mt-4">
-          <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-            Round history arrives in Phase 3.
-          </div>
+        <TabsContent value="sent" className="mt-4">
+          <SentInvitesByDivision
+            invites={allInvites}
+            divisions={championshipDivisions}
+            sources={sources}
+            competitionNamesById={competitionNamesById}
+            seriesNamesById={seriesNamesById}
+            allocationsBySourceByDivision={allocationsBySourceByDivision}
+          />
         </TabsContent>
 
-        <TabsContent value="templates" className="mt-4">
-          <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-            Email templates arrive in Phase 4.
-          </div>
-        </TabsContent>
-
-        <TabsContent value="series-global" className="mt-4">
-          <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-            Series global integration arrives in Phase 5.
-          </div>
-        </TabsContent>
       </Tabs>
 
       {championshipDivisions[0] ? (
@@ -956,8 +1047,14 @@ function InvitesPage() {
             onOpenChange={setSendOpen}
             championshipCompetitionId={competitionId}
             championshipDivisions={championshipDivisions}
+            defaultDivisionId={filteredChampionshipDivisionId}
             championshipName={competition.name}
             recipients={recipients}
+            allocationsBySourceByDivision={allocationsBySourceByDivision}
+            existingActiveCountsBySourceByDivision={
+              existingActiveCountsBySourceByDivision
+            }
+            sourceLabelsById={sourceLabelsById}
             onSent={() => {
               setSelectedRosterKeys(new Set())
               setSelectedDraftIds(new Set())

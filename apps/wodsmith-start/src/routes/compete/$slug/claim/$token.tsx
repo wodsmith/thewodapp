@@ -53,6 +53,10 @@ type Branch =
       championshipName: string
       registrationId: string
     }
+  | {
+      kind: "over_allocated"
+      championshipName?: string
+    }
   | { kind: "invalid"; reason: InviteClaimableError; championshipName?: string }
 
 export const Route = createFileRoute("/compete/$slug/claim/$token")({
@@ -75,6 +79,18 @@ export const Route = createFileRoute("/compete/$slug/claim/$token")({
           params: { slug: params.slug },
           search: { session_id: undefined, registration_id: undefined },
         })
+      }
+
+      // ADR-0012 Phase 5: source-attributed allocation filled. Render a
+      // soft (info-style) page rather than a destructive error — the
+      // athlete isn't at fault, the spot just isn't available from this
+      // source for this division.
+      if (result.reason === "over_allocated") {
+        return {
+          kind: "over_allocated",
+          championshipName:
+            "championshipName" in result ? result.championshipName : undefined,
+        }
       }
 
       // `not_found` happens both when the link is bogus AND when the original
@@ -177,6 +193,10 @@ function ClaimPage() {
         registrationId={data.registrationId}
       />
     )
+  }
+
+  if (data.kind === "over_allocated") {
+    return <OverAllocated championshipName={data.championshipName} />
   }
 
   return (
@@ -357,6 +377,36 @@ function AlreadyClaimed(props: {
   )
 }
 
+function OverAllocated(props: { championshipName?: string }) {
+  return (
+    <div className="mx-auto max-w-xl px-4 py-12">
+      <Card>
+        <CardHeader>
+          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10">
+            <AlertCircle className="h-7 w-7 text-amber-600" />
+          </div>
+          <CardTitle className="text-center">
+            This division has filled its spots from this qualifier
+          </CardTitle>
+          {props.championshipName ? (
+            <CardDescription className="text-center">
+              {props.championshipName}
+            </CardDescription>
+          ) : null}
+        </CardHeader>
+        <CardContent>
+          <Alert>
+            <AlertDescription>
+              The organizer has been notified — please contact them if you
+              believe this is in error.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
 function InvalidInvite(props: {
   reason: InviteClaimableError
   championshipName?: string
@@ -413,6 +463,13 @@ function invalidReasonCopy(reason: InviteClaimableError): {
         headline: "Invite revoked",
         description:
           "The organizer has revoked this invite. If that's a mistake, reach out to them directly.",
+      }
+    case "over_allocated":
+      return {
+        title: "This division has filled its spots from this qualifier",
+        headline: "Allocation filled",
+        description:
+          "The organizer has been notified — please contact them if you believe this is in error.",
       }
     default:
       return {
