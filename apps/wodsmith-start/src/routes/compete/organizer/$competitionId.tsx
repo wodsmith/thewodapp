@@ -116,6 +116,7 @@ function CompetitionLayout() {
   return (
     <CompetitionSidebar
       competitionId={competition.id}
+      competitionSlug={competition.slug}
       competitionType={competition.competitionType}
     >
       {entitlements.isPendingApproval && (

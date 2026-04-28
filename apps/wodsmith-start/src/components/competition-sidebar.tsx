@@ -13,6 +13,7 @@ import {
   BarChart3,
   Calculator,
   Calendar,
+  ClipboardCheck,
   ClipboardSignature,
   Clock,
   DollarSign,
@@ -54,6 +55,7 @@ import { cn } from "@/utils/cn"
 
 interface CompetitionSidebarProps {
   competitionId: string
+  competitionSlug?: string
   competitionType?: "in-person" | "online"
   children: React.ReactNode
 }
@@ -63,6 +65,9 @@ interface NavItem {
   href: string
   icon: React.ComponentType<{ className?: string }>
   variant?: "default" | "destructive"
+  // Open in a new tab — used for the volunteer-facing check-in kiosk so
+  // organizers don't lose their dashboard tab when running the kiosk.
+  external?: boolean
 }
 
 interface NavGroup {
@@ -73,6 +78,7 @@ interface NavGroup {
 const getNavigation = (
   basePath: string,
   competitionType?: "in-person" | "online",
+  competitionSlug?: string,
 ): { overview: NavItem; groups: NavGroup[] } => ({
   overview: {
     label: "Overview",
@@ -121,6 +127,18 @@ const getNavigation = (
                 label: "Schedule",
                 href: `${basePath}/schedule`,
                 icon: Calendar,
+              },
+            ]
+          : []),
+        // Check-In kiosk only for in-person competitions; opens the
+        // volunteer-facing kiosk in a new tab.
+        ...(competitionType !== "online" && competitionSlug
+          ? [
+              {
+                label: "Check-In Kiosk",
+                href: `/compete/${competitionSlug}/check-in`,
+                icon: ClipboardCheck,
+                external: true,
               },
             ]
           : []),
@@ -193,12 +211,26 @@ function NavMenuItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
           isDestructive && isActive && "bg-destructive/10 text-destructive",
         )}
       >
-        <Link to={item.href} onClick={() => setOpenMobile(false)}>
-          <Icon
-            className={cn("h-4 w-4", isDestructive && "text-destructive")}
-          />
-          <span>{item.label}</span>
-        </Link>
+        {item.external ? (
+          <a
+            href={item.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setOpenMobile(false)}
+          >
+            <Icon
+              className={cn("h-4 w-4", isDestructive && "text-destructive")}
+            />
+            <span>{item.label}</span>
+          </a>
+        ) : (
+          <Link to={item.href} onClick={() => setOpenMobile(false)}>
+            <Icon
+              className={cn("h-4 w-4", isDestructive && "text-destructive")}
+            />
+            <span>{item.label}</span>
+          </Link>
+        )}
       </SidebarMenuButton>
     </SidebarMenuItem>
   )
@@ -257,13 +289,14 @@ function CompetitionSidebarFooter() {
 
 export function CompetitionSidebar({
   competitionId,
+  competitionSlug,
   competitionType,
   children,
 }: CompetitionSidebarProps) {
   const router = useRouterState()
   const pathname = router.location.pathname
   const basePath = `/compete/organizer/${competitionId}`
-  const navigation = getNavigation(basePath, competitionType)
+  const navigation = getNavigation(basePath, competitionType, competitionSlug)
 
   const isActive = (href: string) => {
     if (href === basePath) {

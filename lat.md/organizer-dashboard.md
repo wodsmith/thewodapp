@@ -70,6 +70,7 @@ Uses `getOrganizerRegistrationsFn` for the full registration list with detailed 
 - Registration questions editor (custom questions athletes answer during signup)
 - Pending teammate invitations tab for team divisions
 - Per-athlete deep link to the [[organizer-dashboard#Registrations (Athletes)#Athlete Detail Page]] via the "View Details" item in the row's captain-scoped actions dropdown (the athlete name itself is plain text — not a link — to keep the row visually calm)
+- For in-person competitions only, a "Checked In" column shows the `checkedInAt` timestamp on the captain's row (see [[registration#Day-of Check-In]]). The CSV export and mobile card view include the same column under the same gate.
 
 ### Athlete Detail Page
 
@@ -117,6 +118,12 @@ Publish state lives in `competitionsTable.settings.divisionResults[trackWorkoutI
 2. Video visibility: the `isEventDivisionPublished` helper returns `false` for unpublished pairs so their videos don't leak.
 
 Defaults: when `divisionResults` is absent entirely, online competitions treat everything as hidden (opt-in publishing) while in-person competitions show everything (backwards compat for gyms that never opted into the gate). Organizers can bulk-publish all divisions for an event from `QuickActionsDivisionResults`.
+
+## Check-In Kiosk
+
+For in-person competitions only, the "Run Competition" sidebar exposes a "Check-In Kiosk" link that opens the volunteer-facing check-in page in a new tab.
+
+The link is rendered from [[apps/wodsmith-start/src/components/competition-sidebar.tsx]] using the new `external` flag on `NavItem` (an `<a target="_blank">` rather than a TanStack `<Link>`) so organizers don't lose their dashboard tab when running the kiosk. Online competitions hide the link. The destination — `/compete/{slug}/check-in` — is the same page volunteers use; permission gating (`MANAGE_COMPETITIONS` or volunteer role on the competition team) lives on the kiosk route's loader and on every check-in server function. See [[registration#Day-of Check-In]] for the kiosk's behavior and data model.
 
 ## Leaderboard Preview
 

@@ -95,3 +95,29 @@ Cascading cleanup: deactivates team memberships (captain in event team + all mem
 Organizers can move a registration between divisions via `transferRegistrationDivisionFn`.
 
 Validates same team size between source and target divisions (individual-to-team blocked). Updates the registration's `divisionId`, removes heat assignments (division-specific), and updates the commerce purchase record. Does not enforce capacity (organizer decision).
+
+## Day-of Check-In
+
+In-person competitions can mark teams as physically arrived via the volunteer-facing kiosk at `/compete/{slug}/check-in`.
+
+Check-in is **per-registration** (the whole team checks in together), tracked by `checkedInAt` and `checkedInBy` on `competitionRegistrationsTable`. Per-athlete waiver status is read separately from `waiverSignaturesTable`. Access is granted to organizers (`MANAGE_COMPETITIONS`) and to anyone with the `volunteer` role on the competition team — see [[apps/wodsmith-start/src/server-fns/check-in-fns.ts#requireCheckInAccess]]. Online competitions have no check-in UI.
+
+The kiosk page ([[apps/wodsmith-start/src/routes/compete/$slug/check-in.tsx]]) gates on `competitionType === "in-person"`, redirecting online competitions to the public detail page. It loads the competition's waivers and renders [[apps/wodsmith-start/src/routes/compete/$slug/check-in/-components/check-in-kiosk.tsx#CheckInKiosk]] for search, list, and detail UI.
+
+### Searching Registrations
+
+[[apps/wodsmith-start/src/server-fns/check-in-fns.ts#searchCompetitionRegistrationsFn]] returns up to 50 active registrations, optionally filtered by a substring query.
+
+The query matches team name, member first/last name, member email, or pending-teammate email. Results are sorted with not-yet-checked-in registrations first. Each result includes every member with a per-waiver `signedWaivers` map so the UI can show which athletes still need waivers.
+
+### Toggling Check-In
+
+[[apps/wodsmith-start/src/server-fns/check-in-fns.ts#checkInRegistrationFn]] sets or clears `checkedInAt` and `checkedInBy` on a registration.
+
+The handler refuses to operate on online competitions and validates the registration belongs to the given competition. Volunteers and organizers can both check teams in and undo a check-in.
+
+### Signing Waivers at Check-In
+
+When a teammate hasn't signed a required waiver, the volunteer hands the iPad to the athlete and opens the waiver dialog for that specific athlete + waiver pair.
+
+The dialog ([[apps/wodsmith-start/src/routes/compete/$slug/check-in/-components/check-in-waiver-dialog.tsx#CheckInWaiverDialog]]) displays the waiver in the standard `WaiverViewer` with an agreement checkbox and Accept button. [[apps/wodsmith-start/src/server-fns/check-in-fns.ts#signWaiverAtCheckInFn]] records the signature with `userId = athleteUserId` (so the legal record reflects who agreed), validates the athlete is part of the registration, and is idempotent if the waiver was already signed.
