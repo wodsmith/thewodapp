@@ -340,7 +340,7 @@ export async function sendVolunteerDirectInviteEmail({
 /**
  * Sends a cohost invitation email.
  * Used when an organizer invites a co-host to help manage a competition.
- * Routes to /compete/cohost-invite?token=... for the acceptance flow.
+ * Routes to /compete/cohost-invite/:token for the acceptance flow.
  */
 export async function sendCohostInviteEmail({
   email,
@@ -354,7 +354,7 @@ export async function sendCohostInviteEmail({
   inviterName: string
 }): Promise<void> {
   const siteUrl = getSiteUrl()
-  const inviteUrl = `${siteUrl}/compete/cohost-invite?token=${encodeURIComponent(invitationToken)}`
+  const inviteUrl = `${siteUrl}/compete/cohost-invite/${encodeURIComponent(invitationToken)}`
 
   // In dev mode, console.warn shows the URL for easy testing
   if (!shouldSendEmail()) {
