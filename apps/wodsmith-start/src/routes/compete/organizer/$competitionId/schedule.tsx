@@ -64,8 +64,10 @@ export const Route = createFileRoute(
 
     return {
       venues: venuesResult.venues,
-      // Only top-level events (standalone + parents) — sub-events are not scheduled independently
+      // Top-level events (standalone + parents) — sub-events are not scheduled independently
       events: eventsResult.workouts.filter((e) => !e.parentEventId),
+      // Full event list including sub-events; needed by exports that traverse heat → event
+      allEvents: eventsResult.workouts,
       heats: heatsResult.heats,
       divisions: divisionsResult.divisions,
       registrations: registrationsResult.registrations,
@@ -74,7 +76,7 @@ export const Route = createFileRoute(
 })
 
 function SchedulePage() {
-  const { venues, events, heats, divisions, registrations } =
+  const { venues, events, allEvents, heats, divisions, registrations } =
     Route.useLoaderData()
   const { competitionId } = Route.useParams()
 
@@ -85,9 +87,12 @@ function SchedulePage() {
     <SchedulePageClient
       competitionId={competitionId}
       organizingTeamId={competition.organizingTeamId}
+      competitionSlug={competition.slug}
+      competitionName={competition.name}
       competitionStartDate={competition.startDate}
       initialVenues={venues}
       events={events}
+      allEvents={allEvents}
       initialHeats={heats}
       divisions={divisions}
       registrations={registrations}

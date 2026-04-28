@@ -4,6 +4,7 @@ import { useState } from "react"
 import type { CompetitionVenue } from "@/db/schemas/competitions"
 import type { HeatWithAssignments } from "@/server-fns/competition-heats-fns"
 import type { CompetitionWorkout } from "@/server-fns/competition-workouts-fns"
+import { ExportHeatScheduleButton } from "./export-heat-schedule-button"
 import { HeatScheduleManager } from "./heat-schedule-manager"
 import { VenuesSummary } from "./venues-summary"
 
@@ -34,9 +35,16 @@ interface Registration {
 interface SchedulePageClientProps {
   competitionId: string
   organizingTeamId: string
+  competitionSlug: string
+  competitionName: string
   competitionStartDate: string | null // YYYY-MM-DD format
   initialVenues: CompetitionVenue[]
   events: CompetitionWorkout[]
+  /**
+   * Full event list including sub-events, used by exports that walk
+   * heats → trackWorkoutId → event regardless of UI filtering.
+   */
+  allEvents: CompetitionWorkout[]
   initialHeats: HeatWithAssignments[]
   divisions: Division[]
   registrations: Registration[]
@@ -48,9 +56,12 @@ interface SchedulePageClientProps {
 export function SchedulePageClient({
   competitionId,
   organizingTeamId,
+  competitionSlug,
+  competitionName,
   competitionStartDate,
   initialVenues,
   events,
+  allEvents,
   initialHeats,
   divisions,
   registrations,
@@ -69,7 +80,15 @@ export function SchedulePageClient({
 
       {/* Heat Schedule Manager */}
       <section>
-        <h2 className="text-lg font-semibold mb-4">Heat Schedule</h2>
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <h2 className="text-lg font-semibold">Heat Schedule</h2>
+          <ExportHeatScheduleButton
+            competitionSlug={competitionSlug}
+            competitionName={competitionName}
+            heats={heats}
+            allEvents={allEvents}
+          />
+        </div>
         <HeatScheduleManager
           competitionId={competitionId}
           organizingTeamId={organizingTeamId}

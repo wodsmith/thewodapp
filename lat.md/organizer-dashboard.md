@@ -50,6 +50,18 @@ The schedule page manages heats — time blocks where groups of athletes perform
 
 Fetches venues, events, heats, divisions, and registrations in parallel. Uses `SchedulePageClient` which contains `VenueManager` and `HeatScheduleManager` components. Heats have start times, lane counts, division/venue assignments, and athlete assignments. Only available for in-person competitions.
 
+### Heat schedule export
+
+Organizers (and cohosts with `schedule` permission) can download the entire heat schedule as CSV or PDF from the Heat Schedule section header.
+
+Unlike the in-page editor — which filters to one event at a time — the export always includes every heat across every event in the competition, including unpublished/draft heats.
+
+Data is shaped client-side by [[apps/wodsmith-start/src/lib/heat-schedule-export.ts#groupHeatsByEvent]], which mirrors the leaderboard's parent → sub-event grouping (see [[apps/wodsmith-start/src/components/competition-leaderboard-table.tsx]]): consecutive sub-events of the same parent collapse into one group whose label is the parent's name, with each sub-event nested as a member event. Standalone events form single-member groups. Heats sort by `heatNumber`; assignments sort by `laneNumber`. Empty heats still appear (PDF: "No assignments" row; CSV: a single row with blank athlete columns) so the schedule is complete.
+
+CSV is generated via shared utils [[apps/wodsmith-start/src/utils/csv.ts#buildCsv]] and [[apps/wodsmith-start/src/utils/csv.ts#downloadCsv]], with formula-injection sanitization in [[apps/wodsmith-start/src/utils/csv.ts#sanitizeCsvCell]]. PDF rendering uses `@react-pdf/renderer` in [[apps/wodsmith-start/src/components/organizer/schedule/heat-schedule-pdf.tsx#HeatSchedulePdf]] (dynamically imported to keep the renderer out of the SSR bundle). The dropdown trigger lives in [[apps/wodsmith-start/src/components/organizer/schedule/export-heat-schedule-button.tsx#ExportHeatScheduleButton]].
+
+The schedule loaders ([[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/schedule.tsx]] and the cohost mirror) now expose two event lists: `events` (top-level only, fed to `HeatScheduleManager`) and `allEvents` (full list including sub-events, fed to the export button) so heats whose `trackWorkoutId` references a sub-event can still resolve their event name.
+
 ## Locations (Venues)
 
 CRUD management of physical venues where competition events take place.
