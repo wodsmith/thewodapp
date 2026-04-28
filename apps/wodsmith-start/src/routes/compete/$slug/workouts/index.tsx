@@ -22,8 +22,8 @@ import {
 } from "@/components/ui/select"
 import { getUserCompetitionRegistrationFn } from "@/server-fns/competition-detail-fns"
 import {
+  getBatchVenuesForTrackWorkoutsFn,
   getPublicScheduleDataFn,
-  getVenueForTrackWorkoutFn,
   type PublicScheduleEvent,
 } from "@/server-fns/competition-heats-fns"
 import {
@@ -134,30 +134,26 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
       Object.assign(divisionDescriptionsMap, batchResult.descriptionsByWorkout)
     }
 
-    // Fetch venue data for each workout
+    // Fetch venue data for all workouts in a single batch call
     if (workouts.length > 0) {
-      const venuePromises = workouts.map(async (event) => {
-        const result = await getVenueForTrackWorkoutFn({
-          data: { trackWorkoutId: event.id },
-        })
-        return { trackWorkoutId: event.id, venueData: result }
+      const batchVenues = await getBatchVenuesForTrackWorkoutsFn({
+        data: { trackWorkoutIds: workouts.map((event) => event.id) },
       })
 
-      const venueResults = await Promise.all(venuePromises)
-      for (const { trackWorkoutId, venueData } of venueResults) {
-        if (venueData.venue) {
-          // Transform database address to simplified format
+      for (const [trackWorkoutId, venue] of Object.entries(
+        batchVenues.venuesByTrackWorkout,
+      )) {
+        if (venue) {
           venueMap[trackWorkoutId] = {
-            id: venueData.venue.id,
-            name: venueData.venue.name,
-            address: venueData.venue.address
+            id: venue.id,
+            name: venue.name,
+            address: venue.address
               ? {
-                  streetLine1: venueData.venue.address.streetLine1 ?? undefined,
-                  city: venueData.venue.address.city ?? undefined,
-                  stateProvince:
-                    venueData.venue.address.stateProvince ?? undefined,
-                  postalCode: venueData.venue.address.postalCode ?? undefined,
-                  countryCode: venueData.venue.address.countryCode ?? undefined,
+                  streetLine1: venue.address.streetLine1 ?? undefined,
+                  city: venue.address.city ?? undefined,
+                  stateProvince: venue.address.stateProvince ?? undefined,
+                  postalCode: venue.address.postalCode ?? undefined,
+                  countryCode: venue.address.countryCode ?? undefined,
                 }
               : null,
           }

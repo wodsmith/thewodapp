@@ -225,6 +225,10 @@ const getVenueForTrackWorkoutInputSchema = z.object({
   trackWorkoutId: z.string().min(1, "Track workout ID is required"),
 })
 
+const getBatchVenuesForTrackWorkoutsInputSchema = z.object({
+  trackWorkoutIds: z.array(z.string().min(1)),
+})
+
 const getVenueForTrackWorkoutByDivisionInputSchema = z.object({
   trackWorkoutId: z.string().min(1, "Track workout ID is required"),
   divisionId: z.string().optional(),
@@ -1814,6 +1818,88 @@ export const getVenueForTrackWorkoutFn = createServerFn({ method: "GET" })
         address: venueWithAddress.address,
       },
     }
+  })
+
+/**
+ * Get venue information for a batch of track workouts in two queries.
+ * Picks the first heat (lowest heatNumber) per workout, then fetches all
+ * referenced venues with addresses. Replaces N round-trips with 2.
+ */
+export const getBatchVenuesForTrackWorkoutsFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    getBatchVenuesForTrackWorkoutsInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    type BatchVenue = {
+      id: string
+      name: string
+      address: typeof addressesTable.$inferSelect | null
+    }
+
+    if (data.trackWorkoutIds.length === 0) {
+      return { venuesByTrackWorkout: {} as Record<string, BatchVenue | null> }
+    }
+
+    const db = getDb()
+
+    const heats = await db
+      .select({
+        trackWorkoutId: competitionHeatsTable.trackWorkoutId,
+        venueId: competitionHeatsTable.venueId,
+      })
+      .from(competitionHeatsTable)
+      .where(
+        inArray(competitionHeatsTable.trackWorkoutId, data.trackWorkoutIds),
+      )
+      .orderBy(asc(competitionHeatsTable.heatNumber))
+
+    const firstVenueIdByWorkout = new Map<string, string | null>()
+    for (const heat of heats) {
+      if (!firstVenueIdByWorkout.has(heat.trackWorkoutId)) {
+        firstVenueIdByWorkout.set(heat.trackWorkoutId, heat.venueId)
+      }
+    }
+
+    const venueIds = Array.from(
+      new Set(
+        Array.from(firstVenueIdByWorkout.values()).filter(
+          (id): id is string => id !== null,
+        ),
+      ),
+    )
+
+    const venuesById = new Map<string, BatchVenue>()
+    if (venueIds.length > 0) {
+      const venuesWithAddress = await db
+        .select({
+          venue: competitionVenuesTable,
+          address: addressesTable,
+        })
+        .from(competitionVenuesTable)
+        .leftJoin(
+          addressesTable,
+          eq(competitionVenuesTable.addressId, addressesTable.id),
+        )
+        .where(inArray(competitionVenuesTable.id, venueIds))
+
+      for (const row of venuesWithAddress) {
+        venuesById.set(row.venue.id, {
+          id: row.venue.id,
+          name: row.venue.name,
+          address: row.address,
+        })
+      }
+    }
+
+    const venuesByTrackWorkout: Record<string, BatchVenue | null> = {}
+    for (const trackWorkoutId of data.trackWorkoutIds) {
+      const venueId = firstVenueIdByWorkout.get(trackWorkoutId)
+      venuesByTrackWorkout[trackWorkoutId] = venueId
+        ? (venuesById.get(venueId) ?? null)
+        : null
+    }
+
+    return { venuesByTrackWorkout }
   })
 
 /**
