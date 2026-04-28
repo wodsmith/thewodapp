@@ -18,14 +18,18 @@ import {
  *
  * Creates:
  *   - A championship competition ("2026 WODsmith Invitational", future-dated)
- *     with its own 3-division scaling group. This is the target of all
- *     qualification sources.
- *   - A Regional Qualifier competition (past-dated) with scores in Men's RX,
- *     Women's RX, and Scaled. Men's RX has 5 athletes so a source allocating
- *     3 spots triggers the roster cutoff divider.
+ *     with a 5-division scaling group: Men's RX, Women's RX, Scaled, plus
+ *     two team-of-2 divisions (Team RX and Team Scaled) used to test
+ *     captain-claim flows that lead into team-registration forms.
+ *   - A Regional Qualifier competition (past-dated) with scores in all
+ *     five divisions. Men's RX has 5 athletes so a source allocating 3
+ *     spots triggers the roster cutoff divider; Team RX has 3 pairs with
+ *     2 spots so the team roster also shows a cutoff.
  *   - Three `competition_invite_sources` rows on the championship:
  *       1. Regional Qualifier (single-comp, global_spots=3) — drives the
- *          cutoff visual in the roster tab.
+ *          cutoff visual in the roster tab. Division mappings cover both
+ *          indy and team divisions, so the roster aggregates team-captain
+ *          rows alongside indy athletes.
  *       2. Boise Throwdown from the MWFC series (single-comp, global_spots=2)
  *          — second source, exercises the multi-source aggregator plus the
  *          "skip already qualified" dedupe (mike is in both).
@@ -34,6 +38,10 @@ import {
  *          placeholder. Roster rows depend on series_division_mappings
  *          existing, which this seeder does not set up — the card itself
  *          still renders.
+ *   - `competition_invites` rows covering every lifecycle state for both
+ *     individual divisions (rows 1–6) and team divisions (rows 7–11):
+ *     pending source-derived, accepted_paid, expired, declined, draft
+ *     bespoke, sent bespoke — applied to indy captains AND team captains.
  *
  * Depends on seed `14-series-leaderboard.ts` (MWFC group + Boise comp) and
  * `03-users.ts` (athlete users).
@@ -65,6 +73,9 @@ export async function seed(client: Connection): Promise<void> {
 		{ id: "slvl_inv_champ_mrx", scaling_group_id: "sgrp_inv_champ", label: "Men's RX", position: 0, team_size: 1, created_at: ts, updated_at: ts, update_counter: 0 },
 		{ id: "slvl_inv_champ_wrx", scaling_group_id: "sgrp_inv_champ", label: "Women's RX", position: 1, team_size: 1, created_at: ts, updated_at: ts, update_counter: 0 },
 		{ id: "slvl_inv_champ_sc", scaling_group_id: "sgrp_inv_champ", label: "Scaled", position: 2, team_size: 1, created_at: ts, updated_at: ts, update_counter: 0 },
+		// Team divisions — captain claims invite, registration form collects teammate.
+		{ id: "slvl_inv_champ_team_rx", scaling_group_id: "sgrp_inv_champ", label: "Team RX (Pairs)", position: 3, team_size: 2, created_at: ts, updated_at: ts, update_counter: 0 },
+		{ id: "slvl_inv_champ_team_sc", scaling_group_id: "sgrp_inv_champ", label: "Team Scaled (Pairs)", position: 4, team_size: 2, created_at: ts, updated_at: ts, update_counter: 0 },
 	])
 
 	await batchInsert(client, "teams", [
@@ -130,6 +141,9 @@ export async function seed(client: Connection): Promise<void> {
 		{ id: "slvl_inv_qual_mrx", scaling_group_id: "sgrp_inv_qual", label: "Men's RX", position: 0, team_size: 1, created_at: ts, updated_at: ts, update_counter: 0 },
 		{ id: "slvl_inv_qual_wrx", scaling_group_id: "sgrp_inv_qual", label: "Women's RX", position: 1, team_size: 1, created_at: ts, updated_at: ts, update_counter: 0 },
 		{ id: "slvl_inv_qual_sc", scaling_group_id: "sgrp_inv_qual", label: "Scaled", position: 2, team_size: 1, created_at: ts, updated_at: ts, update_counter: 0 },
+		// Team divisions on the qualifier — feed the team-of-2 championship divisions.
+		{ id: "slvl_inv_qual_team_rx", scaling_group_id: "sgrp_inv_qual", label: "Team RX (Pairs)", position: 3, team_size: 2, created_at: ts, updated_at: ts, update_counter: 0 },
+		{ id: "slvl_inv_qual_team_sc", scaling_group_id: "sgrp_inv_qual", label: "Team Scaled (Pairs)", position: 4, team_size: 2, created_at: ts, updated_at: ts, update_counter: 0 },
 	])
 
 	await batchInsert(client, "teams", [
@@ -308,6 +322,187 @@ export async function seed(client: Connection): Promise<void> {
 	)
 
 	// ════════════════════════════════════════════════════════════════════
+	// 2b. Qualifier team registrations
+	//
+	// Three pairs in Team RX (so a global_spots=2 mapping triggers the
+	// roster cutoff divider, mirroring the indy Men's RX shape) and two
+	// pairs in Team Scaled. Each team is its own `competition_team` with
+	// owner=captain, member=teammate. Captains hold the score; teammates
+	// register but score nothing (mirrors how partner divisions actually
+	// flow — one shared team result per registration pair).
+	//
+	// Captains intentionally use athletes that are NOT in the indy
+	// qualifier roster above, so the leaderboard doesn't double-count
+	// the same email on two divisions. The unique index on
+	// (event_id, user_id, division_id) would technically allow it, but
+	// keeping divisions disjoint makes the seed easier to reason about.
+	// ════════════════════════════════════════════════════════════════════
+
+	type QualTeam = {
+		slug: string
+		name: string
+		division: "team_rx" | "team_sc"
+		captain: { name: string; userId: string; email: string }
+		teammate: { name: string; userId: string }
+		timeMs: number
+	}
+
+	const qualTeams: QualTeam[] = [
+		{
+			slug: "thunder",
+			name: "Team Thunder",
+			division: "team_rx",
+			captain: { name: "tyler", userId: "usr_athlete_tyler", email: "tyler.brooks@athlete.com" },
+			teammate: { name: "nathan", userId: "usr_athlete_nathan" },
+			timeMs: 215000,
+		},
+		{
+			slug: "storm",
+			name: "Team Storm",
+			division: "team_rx",
+			captain: { name: "derek", userId: "usr_athlete_derek", email: "derek.foster@athlete.com" },
+			teammate: { name: "brandon", userId: "usr_athlete_brandon" },
+			timeMs: 228000,
+		},
+		{
+			slug: "havoc",
+			name: "Team Havoc",
+			division: "team_rx",
+			captain: { name: "chris", userId: "usr_athlete_chris", email: "chris@athlete.com" },
+			teammate: { name: "demo3", userId: "usr_demo3member" },
+			timeMs: 245000,
+		},
+		{
+			slug: "grit",
+			name: "Team Grit",
+			division: "team_sc",
+			captain: { name: "ashley", userId: "usr_athlete_ashley", email: "ashley.morgan@athlete.com" },
+			teammate: { name: "brittany", userId: "usr_athlete_brittany" },
+			timeMs: 320000,
+		},
+		{
+			slug: "pulse",
+			name: "Team Pulse",
+			division: "team_sc",
+			captain: { name: "stephanie", userId: "usr_athlete_stephanie", email: "stephanie.clark@athlete.com" },
+			teammate: { name: "amanda", userId: "usr_athlete_amanda" },
+			timeMs: 345000,
+		},
+	]
+
+	await batchInsert(
+		client,
+		"teams",
+		qualTeams.map((t) => ({
+			id: `team_inv_qual_${t.slug}`,
+			name: t.name,
+			slug: `inv-qual-${t.slug}`,
+			type: "competition_team",
+			description: `Qualifier ${t.division === "team_rx" ? "Team RX" : "Team Scaled"} entry`,
+			is_personal_team: 0,
+			personal_team_owner_id: null,
+			current_plan_id: null,
+			parent_organization_id: null,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		})),
+	)
+
+	// Captain (owner) + teammate (member) memberships per team.
+	const teamMemberships = qualTeams.flatMap((t) => [
+		{
+			id: `tmem_inv_qual_${t.slug}_${t.captain.name}`,
+			team_id: `team_inv_qual_${t.slug}`,
+			user_id: t.captain.userId,
+			role_id: "owner",
+			is_system_role: 1,
+			joined_at: ts,
+			is_active: 1,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		{
+			id: `tmem_inv_qual_${t.slug}_${t.teammate.name}`,
+			team_id: `team_inv_qual_${t.slug}`,
+			user_id: t.teammate.userId,
+			role_id: "member",
+			is_system_role: 1,
+			joined_at: ts,
+			is_active: 1,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+	])
+	await batchInsert(client, "team_memberships", teamMemberships)
+
+	// Two competition_registrations per team — one for the captain, one for
+	// the teammate — both pointing at the same athlete_team_id and team_name.
+	const teamRegistrations = qualTeams.flatMap((t) => [
+		{
+			id: `reg_inv_qual_team_${t.slug}_captain`,
+			event_id: "comp_inv_qualifier",
+			user_id: t.captain.userId,
+			team_member_id: `tmem_inv_qual_${t.slug}_${t.captain.name}`,
+			division_id: `slvl_inv_qual_${t.division}`,
+			team_name: t.name,
+			captain_user_id: t.captain.userId,
+			athlete_team_id: `team_inv_qual_${t.slug}`,
+			registered_at: ts,
+			status: "active",
+			payment_status: "FREE",
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		{
+			id: `reg_inv_qual_team_${t.slug}_teammate`,
+			event_id: "comp_inv_qualifier",
+			user_id: t.teammate.userId,
+			team_member_id: `tmem_inv_qual_${t.slug}_${t.teammate.name}`,
+			division_id: `slvl_inv_qual_${t.division}`,
+			team_name: t.name,
+			captain_user_id: t.captain.userId,
+			athlete_team_id: `team_inv_qual_${t.slug}`,
+			registered_at: ts,
+			status: "active",
+			payment_status: "FREE",
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+	])
+	await batchInsert(client, "competition_registrations", teamRegistrations)
+
+	// One score per team — recorded under the captain's userId. Teammates
+	// have no score row, mirroring partner-division convention.
+	await batchInsert(
+		client,
+		"scores",
+		qualTeams.map((t) => ({
+			id: `scr_inv_qual_team_${t.slug}_e1`,
+			user_id: t.captain.userId,
+			team_id: ORGANIZING_TEAM,
+			workout_id: "wod_inv_qual_e1",
+			competition_event_id: "tw_inv_qual_e1",
+			scheme: "time",
+			score_type: "min",
+			score_value: t.timeMs,
+			status: "scored",
+			status_order: 0,
+			sort_key: sk(t.timeMs),
+			as_rx: 1,
+			scaling_level_id: `slvl_inv_qual_${t.division}`,
+			recorded_at: ts,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		})),
+	)
+
+	// ════════════════════════════════════════════════════════════════════
 	// 3. Invite sources on the championship
 	// ════════════════════════════════════════════════════════════════════
 
@@ -317,6 +512,10 @@ export async function seed(client: Connection): Promise<void> {
 		{ sourceDivisionId: "slvl_inv_qual_mrx", championshipDivisionId: "slvl_inv_champ_mrx", spots: 3 },
 		{ sourceDivisionId: "slvl_inv_qual_wrx", championshipDivisionId: "slvl_inv_champ_wrx", spots: 2 },
 		{ sourceDivisionId: "slvl_inv_qual_sc", championshipDivisionId: "slvl_inv_champ_sc", spots: 2 },
+		// Team divisions: top 2 of 3 Team RX pairs (cutoff after Team Storm),
+		// top 1 of 2 Team Scaled pairs (cutoff after Team Grit).
+		{ sourceDivisionId: "slvl_inv_qual_team_rx", championshipDivisionId: "slvl_inv_champ_team_rx", spots: 2 },
+		{ sourceDivisionId: "slvl_inv_qual_team_sc", championshipDivisionId: "slvl_inv_champ_team_sc", spots: 1 },
 	])
 
 	const boiseDivisionMappings = JSON.stringify([
@@ -558,6 +757,180 @@ export async function seed(client: Connection): Promise<void> {
 			updated_at: ts,
 			update_counter: 0,
 		},
+		// ────────────────────────────────────────────────────────────────
+		// Team-division invites — captains placed at the qualifier in the
+		// team_rx / team_sc divisions. Claiming will land the captain on
+		// the championship's Team RX / Team Scaled division registration
+		// form, which collects the teammate row.
+		//
+		// Team RX (qualifier) ranks: Tyler 1st, Derek 2nd, Chris 3rd
+		// (cutoff after Derek). Team Scaled ranks: Ashley 1st, Stephanie
+		// 2nd (cutoff after Ashley). Chris's pair is intentionally not
+		// invited so the roster shows the cutoff divider for Team RX.
+		// ────────────────────────────────────────────────────────────────
+		// 7. Pending team-rx invite for Tyler (Team Thunder, 1st).
+		{
+			id: "cinv_seed_team_pending_tyler",
+			championship_competition_id: "comp_inv_championship",
+			round_id: "",
+			origin: "source",
+			source_id: "cisrc_seed_qualifier",
+			source_competition_id: "comp_inv_qualifier",
+			source_placement: 1,
+			source_placement_label: "1st — Team Thunder · Regional Qualifier",
+			bespoke_reason: null,
+			championship_division_id: "slvl_inv_champ_team_rx",
+			email: "tyler.brooks@athlete.com",
+			user_id: "usr_athlete_tyler",
+			invitee_first_name: "Tyler",
+			invitee_last_name: "Brooks",
+			claim_token: "seed-invite-tyler-pending-team-rx-phase2",
+			expires_at: futureDatetime(14),
+			send_attempt: 1,
+			status: "pending",
+			paid_at: null,
+			declined_at: null,
+			revoked_at: null,
+			revoked_by_user_id: null,
+			claimed_registration_id: null,
+			email_delivery_status: "sent",
+			email_last_error: null,
+			active_marker: "active",
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		// 8. Accepted+paid team-rx invite for Derek (Team Storm, 2nd).
+		{
+			id: "cinv_seed_team_accepted_derek",
+			championship_competition_id: "comp_inv_championship",
+			round_id: "",
+			origin: "source",
+			source_id: "cisrc_seed_qualifier",
+			source_competition_id: "comp_inv_qualifier",
+			source_placement: 2,
+			source_placement_label: "2nd — Team Storm · Regional Qualifier",
+			bespoke_reason: null,
+			championship_division_id: "slvl_inv_champ_team_rx",
+			email: "derek.foster@athlete.com",
+			user_id: "usr_athlete_derek",
+			invitee_first_name: "Derek",
+			invitee_last_name: "Foster",
+			claim_token: null,
+			expires_at: futureDatetime(14),
+			send_attempt: 1,
+			status: "accepted_paid",
+			paid_at: now(),
+			declined_at: null,
+			revoked_at: null,
+			revoked_by_user_id: null,
+			claimed_registration_id: null,
+			email_delivery_status: "sent",
+			email_last_error: null,
+			active_marker: "active",
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		// 9. Pending team-sc invite for Ashley (Team Grit, 1st).
+		{
+			id: "cinv_seed_team_pending_ashley",
+			championship_competition_id: "comp_inv_championship",
+			round_id: "",
+			origin: "source",
+			source_id: "cisrc_seed_qualifier",
+			source_competition_id: "comp_inv_qualifier",
+			source_placement: 1,
+			source_placement_label: "1st — Team Grit · Regional Qualifier",
+			bespoke_reason: null,
+			championship_division_id: "slvl_inv_champ_team_sc",
+			email: "ashley.morgan@athlete.com",
+			user_id: "usr_athlete_ashley",
+			invitee_first_name: "Ashley",
+			invitee_last_name: "Morgan",
+			claim_token: "seed-invite-ashley-pending-team-sc-phase2",
+			expires_at: futureDatetime(14),
+			send_attempt: 1,
+			status: "pending",
+			paid_at: null,
+			declined_at: null,
+			revoked_at: null,
+			revoked_by_user_id: null,
+			claimed_registration_id: null,
+			email_delivery_status: "sent",
+			email_last_error: null,
+			active_marker: "active",
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		// 10. Declined team-sc invite for Stephanie (Team Pulse, 2nd) —
+		//     above the global_spots=1 cutoff but invited as a wave-2
+		//     fallback that the captain turned down.
+		{
+			id: "cinv_seed_team_declined_stephanie",
+			championship_competition_id: "comp_inv_championship",
+			round_id: "",
+			origin: "source",
+			source_id: "cisrc_seed_qualifier",
+			source_competition_id: "comp_inv_qualifier",
+			source_placement: 2,
+			source_placement_label: "2nd — Team Pulse · Regional Qualifier",
+			bespoke_reason: null,
+			championship_division_id: "slvl_inv_champ_team_sc",
+			email: "stephanie.clark@athlete.com",
+			user_id: "usr_athlete_stephanie",
+			invitee_first_name: "Stephanie",
+			invitee_last_name: "Clark",
+			claim_token: null,
+			expires_at: futureDatetime(14),
+			send_attempt: 1,
+			status: "declined",
+			paid_at: null,
+			declined_at: now(),
+			revoked_at: null,
+			revoked_by_user_id: null,
+			claimed_registration_id: null,
+			email_delivery_status: "sent",
+			email_last_error: null,
+			active_marker: null,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		// 11. Bespoke team-rx invite for a sponsored team captain —
+		//     mirrors row 6 but targets a team division.
+		{
+			id: "cinv_seed_team_bespoke_sponsor",
+			championship_competition_id: "comp_inv_championship",
+			round_id: "",
+			origin: "bespoke",
+			source_id: null,
+			source_competition_id: null,
+			source_placement: null,
+			source_placement_label: null,
+			bespoke_reason: "Sponsored team",
+			championship_division_id: "slvl_inv_champ_team_rx",
+			email: "sponsor-team-captain@example.com",
+			user_id: null,
+			invitee_first_name: "Sponsored",
+			invitee_last_name: "Captain",
+			claim_token: "seed-invite-sponsor-bespoke-team-rx-phase2",
+			expires_at: futureDatetime(14),
+			send_attempt: 1,
+			status: "pending",
+			paid_at: null,
+			declined_at: null,
+			revoked_at: null,
+			revoked_by_user_id: null,
+			claimed_registration_id: null,
+			email_delivery_status: "sent",
+			email_last_error: null,
+			active_marker: "active",
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
 	])
 
 	await batchInsert(client, "competition_invite_sources", [
@@ -603,6 +976,111 @@ export async function seed(client: Connection): Promise<void> {
 			sort_order: 2,
 			notes:
 				"Mountain West series — top 1 of each throwdown auto-qualifies, plus top 5 on the global series leaderboard.",
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+	])
+
+	// ════════════════════════════════════════════════════════════════════
+	// 5. Per-(source, championship division) allocation overrides (ADR-0012)
+	//
+	//    Authoritative allocation lives here, keyed by championship
+	//    division. The qualifier and Boise sources each carry an explicit
+	//    row per championship division (mirrors the per-division `spots`
+	//    that previously lived only in `division_mappings` JSON). The
+	//    series source stays sparse — one override on Men's RX so the
+	//    details page demos a mix of "Use default" and explicit overrides
+	//    without us having to click through the UI to set it up.
+	//
+	//    Absence of a row is the signal for "use the source default" — do
+	//    NOT seed `spots: 0` to mean "no override"; that would be a hard
+	//    cap of zero. Per ADR §"Allocation Resolution".
+	// ════════════════════════════════════════════════════════════════════
+	await batchInsert(client, "competition_invite_source_division_allocations", [
+		// Qualifier source — explicit allocation for every championship division.
+		{
+			id: "cisda_seed_qualifier_mrx",
+			source_id: "cisrc_seed_qualifier",
+			championship_division_id: "slvl_inv_champ_mrx",
+			spots: 3,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		{
+			id: "cisda_seed_qualifier_wrx",
+			source_id: "cisrc_seed_qualifier",
+			championship_division_id: "slvl_inv_champ_wrx",
+			spots: 2,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		{
+			id: "cisda_seed_qualifier_sc",
+			source_id: "cisrc_seed_qualifier",
+			championship_division_id: "slvl_inv_champ_sc",
+			spots: 2,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		{
+			id: "cisda_seed_qualifier_team_rx",
+			source_id: "cisrc_seed_qualifier",
+			championship_division_id: "slvl_inv_champ_team_rx",
+			spots: 2,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		{
+			id: "cisda_seed_qualifier_team_sc",
+			source_id: "cisrc_seed_qualifier",
+			championship_division_id: "slvl_inv_champ_team_sc",
+			spots: 1,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		// Boise source — explicit allocation for the three indy divisions.
+		{
+			id: "cisda_seed_boise_mrx",
+			source_id: "cisrc_seed_boise",
+			championship_division_id: "slvl_inv_champ_mrx",
+			spots: 2,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		{
+			id: "cisda_seed_boise_wrx",
+			source_id: "cisrc_seed_boise",
+			championship_division_id: "slvl_inv_champ_wrx",
+			spots: 2,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		{
+			id: "cisda_seed_boise_sc",
+			source_id: "cisrc_seed_boise",
+			championship_division_id: "slvl_inv_champ_sc",
+			spots: 2,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		// MWFC series — single override on Men's RX (4 instead of the
+		// default `directSpotsPerComp(1) * compCount(1) + globalSpots(5) = 6`).
+		// Other championship divisions intentionally have no row, so the
+		// details page demos the default-vs-override toggle mix.
+		{
+			id: "cisda_seed_mwfc_mrx",
+			source_id: "cisrc_seed_mwfc_series",
+			championship_division_id: "slvl_inv_champ_mrx",
+			spots: 4,
 			created_at: ts,
 			updated_at: ts,
 			update_counter: 0,

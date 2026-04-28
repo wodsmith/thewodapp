@@ -1,84 +1,121 @@
 /**
  * Championship Roster Computation
  *
- * `getChampionshipRoster` returns the unified roster view for a
- * championship + division: ordered rows derived from each qualification
- * source's leaderboard, cut at the source's spot allocation, with
- * invite-state columns set to null for now (Phase 2 attaches real
- * state).
+ * `getChampionshipRoster` returns the union of every (sourceComp ×
+ * sourceDivision) leaderboard for the championship's configured sources,
+ * with each row tagged by the originating competition + division and the
+ * athlete's email hydrated. The roster page renders this as a single
+ * table with Competition + Division columns; client-side filters narrow
+ * the view without round-tripping.
  *
- * The function is intentionally split into (a) pure aggregation helpers
- * that are unit-tested directly, and (b) thin adapters over
- * `getCompetitionLeaderboard` / `getSeriesLeaderboard` that fetch rows.
- * This keeps the gnarly ordering + cutoff logic testable without
- * mocking the leaderboard stack.
+ * Fan-out: a championship with K sources, each resolving to N
+ * competitions × M divisions per competition, costs roughly K·N·M
+ * leaderboard reads, fired in parallel. MVP organizers have 1–3 sources
+ * with similarly small N/M, so the worst case is bounded under typical
+ * usage. Leaderboards are cached on the public-facing render path.
+ *
+ * ADR-0012 Phase 6: per-(source, championshipDivision) cutoffs are
+ * applied after leaderboards are fetched. The resolved allocation map
+ * (`resolveSourceAllocations`) supplies the truncation N for each
+ * `(sourceId, championshipDivisionId)`. Source-side `globalSpots` /
+ * `directSpotsPerComp` act as defaults when no override row exists for
+ * the championship division. See ADR-0012 "Allocation Resolution".
  */
 // @lat: [[competition-invites#Roster computation]]
 
-import { and, eq, inArray } from "drizzle-orm"
+import { inArray } from "drizzle-orm"
 import { getDb } from "@/db"
-import type {
-  CompetitionInviteSource,
-  CompetitionInviteSourceKind,
+import {
+  COMPETITION_INVITE_SOURCE_KIND,
+  type CompetitionInviteSource,
+  type CompetitionInviteSourceKind,
 } from "@/db/schemas/competition-invites"
-import { seriesDivisionMappingsTable } from "@/db/schemas/series"
+import { competitionsTable } from "@/db/schemas/competitions"
+import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { userTable } from "@/db/schemas/users"
 import { getCompetitionLeaderboard } from "@/server/competition-leaderboard"
-import { getSeriesLeaderboard } from "@/server/series-leaderboard"
-import type { DivisionMapping } from "./sources"
-import { listSourcesForChampionship } from "./sources"
+import { parseCompetitionSettings } from "@/server-fns/competition-divisions-fns"
+import {
+  listAllocationsForChampionship,
+  resolveSourceAllocations,
+  type ResolvedSourceAllocations,
+} from "./allocations"
+import { type DivisionMapping, listSourcesForChampionship } from "./sources"
 
 // ============================================================================
 // Types
 // ============================================================================
 
 export interface RosterRow {
-  /** 1-based rank within the row's source. */
+  /** 1-based rank within the source competition's division leaderboard. */
   sourcePlacement: number | null
-  /** Human label for the source placement, e.g. "1st — SLC Throwdown". */
-  sourcePlacementLabel: string | null
-  /** Source id that qualified this athlete. */
+  /** Source id that produced this row. */
   sourceId: string
   /** Source kind snapshot for UI tagging. */
   sourceKind: CompetitionInviteSourceKind
-  /** Comp the athlete qualified at (single-comp or specific series comp). */
-  sourceCompetitionId: string | null
-  /** Stable athlete identity. `userId` may be null for series rows if the
-   *  leaderboard lacks one (rare); `athleteName` is always present. */
+  /** Comp the athlete placed at. */
+  sourceCompetitionId: string
+  /** Display name of the source competition. */
+  sourceCompetitionName: string
+  /** Division id on the source competition. */
+  sourceDivisionId: string
+  /** Display label of the source division (e.g. "RX Men"). */
+  sourceDivisionLabel: string
+  /** Stable athlete identity. `userId` may be null if the leaderboard
+   *  surfaced no user id (rare); `athleteName` is always present. */
   userId: string | null
   athleteName: string
   /** Email address for the athlete, resolved from `userTable` by `userId`.
-   *  Null when the source leaderboard surfaced no user id (rare) or the
-   *  user has no email on file. Populated post-aggregate in
-   *  `getChampionshipRoster`. Phase 2 uses this to issue invites. */
+   *  Null when the leaderboard surfaced no user id (rare) or the user
+   *  has no email on file. */
   athleteEmail: string | null
-  /** Mapped championship division for this row. */
-  championshipDivisionId: string
-  /** Invite-state columns — always null in Phase 1. */
+  /** Invite-state columns — always null at this layer; the route attaches
+   *  invite status via `listActiveInvitesFn` keyed by email. */
   inviteId: null
   inviteStatus: null
   roundId: null
   roundNumber: null
-  /** True when the row is below the source's cutoff (a "next N" waitlist
-   *  candidate, not a qualified row). */
-  belowCutoff: boolean
 }
 
 export interface GetChampionshipRosterInput {
   championshipId: string
-  divisionId: string
-  /** Optional filter hooks; Phase 1 only consumes `statuses` as a stub. */
-  filters?: {
-    statuses?: string[]
-  }
 }
 
 // ============================================================================
-// Pure helpers (unit-tested)
+// Internal helpers
 // ============================================================================
 
-/** Parse the stored divisionMappings JSON. Returns [] if malformed/empty. */
-export function parseDivisionMappings(
+interface SourceCompetitionRef {
+  sourceId: string
+  sourceKind: CompetitionInviteSourceKind
+  competitionId: string
+  competitionName: string
+}
+
+interface DivisionRef {
+  competitionId: string
+  competitionName: string
+  divisionId: string
+  divisionLabel: string
+  sourceId: string
+  sourceKind: CompetitionInviteSourceKind
+}
+
+interface ChampionshipDivisionInfo {
+  id: string
+  label: string
+}
+
+/**
+ * Parse a source's `divisionMappings` JSON column into a typed array.
+ *
+ * The column is `text` storing
+ * `[{ sourceDivisionId, championshipDivisionId, spots? }]`. Returns an
+ * empty array on null / malformed JSON — the caller falls back to label
+ * matching, which is the common case for organizers who haven't filled
+ * in mappings yet.
+ */
+function parseDivisionMappings(
   raw: string | null | undefined,
 ): DivisionMapping[] {
   if (!raw) return []
@@ -86,11 +123,13 @@ export function parseDivisionMappings(
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
     return parsed.filter(
-      (v): v is DivisionMapping =>
-        !!v &&
-        typeof v === "object" &&
-        typeof (v as DivisionMapping).sourceDivisionId === "string" &&
-        typeof (v as DivisionMapping).championshipDivisionId === "string",
+      (m): m is DivisionMapping =>
+        typeof m === "object" &&
+        m !== null &&
+        typeof (m as { sourceDivisionId?: unknown }).sourceDivisionId ===
+          "string" &&
+        typeof (m as { championshipDivisionId?: unknown })
+          .championshipDivisionId === "string",
     )
   } catch {
     return []
@@ -98,243 +137,304 @@ export function parseDivisionMappings(
 }
 
 /**
- * Resolve the source-side division id (on the source competition or
- * series template) that maps to the given championship division. Returns
- * null when no mapping exists — caller decides whether to fall back to
- * the unmapped leaderboard (we currently skip the source).
+ * Map a source-side division id to its championship-division counterpart.
+ *
+ * Resolution order:
+ *   1. Explicit row in the source's `divisionMappings` JSON.
+ *   2. Label match against the championship's divisions
+ *      (case-insensitive, trimmed) — covers the common case where the
+ *      source comp uses the same division labels as the championship.
+ *
+ * Returns `null` when no mapping can be inferred. Callers use that as
+ * the signal to skip the cutoff (i.e. include all leaderboard rows) so
+ * mis-mapped divisions don't silently drop qualifying athletes.
  */
-export function resolveSourceDivisionId(
-  mappings: DivisionMapping[],
-  championshipDivisionId: string,
-): string | null {
-  const hit = mappings.find(
-    (m) => m.championshipDivisionId === championshipDivisionId,
+function mapSourceDivisionToChampionship(args: {
+  sourceDivisionId: string
+  sourceDivisionLabel: string
+  divisionMappings: DivisionMapping[]
+  championshipDivisions: ReadonlyArray<ChampionshipDivisionInfo>
+}): string | null {
+  const explicit = args.divisionMappings.find(
+    (m) => m.sourceDivisionId === args.sourceDivisionId,
   )
-  return hit ? hit.sourceDivisionId : null
-}
+  if (explicit) return explicit.championshipDivisionId
 
-/** Spots a source contributes to a given championship division. Falls
- *  back to the source's global allocation when the mapping omits it. */
-export function resolveSpotsForDivision(params: {
-  source: CompetitionInviteSource
-  mappings: DivisionMapping[]
-  championshipDivisionId: string
-}): number {
-  const hit = params.mappings.find(
-    (m) => m.championshipDivisionId === params.championshipDivisionId,
+  const normalized = args.sourceDivisionLabel.trim().toLowerCase()
+  const matched = args.championshipDivisions.find(
+    (d) => d.label.trim().toLowerCase() === normalized,
   )
-  if (hit?.spots) return hit.spots
-  if (params.source.kind === "series") {
-    // Series pre-cutoff: direct-per-comp is applied per-comp by the caller,
-    // so this helper reports only the globalSpots count for the
-    // global-candidate tier.
-    return params.source.globalSpots ?? 0
-  }
-  return params.source.globalSpots ?? 0
+  return matched ? matched.id : null
 }
 
 /**
- * Aggregate qualifying rows across multiple sources, honoring each
- * source's spot allocation and skipping athletes already qualified by a
- * higher-priority source (series "direct-qualified skip-already").
+ * Resolve the (competitionId, name) tuples each source contributes:
+ * single-comp source → 1 row; series source → every comp in the group.
  *
- * "Already qualified" means fully qualified somewhere higher — being on a
- * prior source's waitlist does NOT suppress the same athlete from
- * qualifying in a later source. Waitlist rows are deduped separately so
- * an athlete appears at most once across waitlists, and any waitlist row
- * is dropped if the same athlete qualifies anywhere else.
+ * Returns a deduped list keyed by `competitionId` so a comp referenced
+ * by both a direct source AND a series source only fetches once. The
+ * first-encountered source wins for tagging.
  */
-export function aggregateQualifyingRows(
-  rowsBySource: Array<{
-    source: CompetitionInviteSource
-    rows: Array<Omit<RosterRow, "belowCutoff">>
-    cutoff: number
-  }>,
-): RosterRow[] {
-  const qualifiedKeys = new Set<string>()
-  const waitlistKeys = new Set<string>()
-  const out: RosterRow[] = []
-  const sorted = [...rowsBySource].sort(
-    (a, b) => a.source.sortOrder - b.source.sortOrder,
-  )
-  for (const { rows, cutoff } of sorted) {
-    let qualifiedCount = 0
-    for (const row of rows) {
-      const key = row.userId ?? `name:${row.athleteName}`
-      if (qualifiedKeys.has(key)) continue // skip-already-qualified
-      const belowCutoff = qualifiedCount >= cutoff
-      if (belowCutoff) {
-        if (waitlistKeys.has(key)) continue
-        waitlistKeys.add(key)
-        out.push({ ...row, belowCutoff: true })
-      } else {
-        qualifiedKeys.add(key)
-        // Drop any earlier waitlist row for this athlete — a later
-        // qualifier supersedes a higher-priority waitlist placement.
-        const idx = out.findIndex(
-          (r) =>
-            r.belowCutoff &&
-            (r.userId ?? `name:${r.athleteName}`) === key,
-        )
-        if (idx !== -1) out.splice(idx, 1)
-        waitlistKeys.delete(key)
-        out.push({ ...row, belowCutoff: false })
+async function resolveSourceCompetitions(
+  championshipId: string,
+): Promise<{
+  sources: CompetitionInviteSource[]
+  refs: SourceCompetitionRef[]
+  seriesCompCountBySourceId: Map<string, number>
+}> {
+  const sources = await listSourcesForChampionship(championshipId)
+  if (sources.length === 0) {
+    return { sources: [], refs: [], seriesCompCountBySourceId: new Map() }
+  }
+
+  const db = getDb()
+
+  // Collect all comp ids we need to look up.
+  const directIds = sources
+    .filter(
+      (s): s is typeof s & { sourceCompetitionId: string } =>
+        s.kind === "competition" && !!s.sourceCompetitionId,
+    )
+    .map((s) => s.sourceCompetitionId)
+  const groupIds = sources
+    .filter(
+      (s): s is typeof s & { sourceGroupId: string } =>
+        s.kind === "series" && !!s.sourceGroupId,
+    )
+    .map((s) => s.sourceGroupId)
+
+  // One query per category; each can be empty.
+  const [directComps, seriesComps] = await Promise.all([
+    directIds.length > 0
+      ? db
+          .select({
+            id: competitionsTable.id,
+            name: competitionsTable.name,
+            groupId: competitionsTable.groupId,
+          })
+          .from(competitionsTable)
+          .where(inArray(competitionsTable.id, directIds))
+      : Promise.resolve(
+          [] as Array<{ id: string; name: string; groupId: string | null }>,
+        ),
+    groupIds.length > 0
+      ? db
+          .select({
+            id: competitionsTable.id,
+            name: competitionsTable.name,
+            groupId: competitionsTable.groupId,
+          })
+          .from(competitionsTable)
+          .where(inArray(competitionsTable.groupId, groupIds))
+      : Promise.resolve(
+          [] as Array<{ id: string; name: string; groupId: string | null }>,
+        ),
+  ])
+
+  const refs: SourceCompetitionRef[] = []
+  const seen = new Set<string>()
+  const seriesCompCountBySourceId = new Map<string, number>()
+
+  for (const source of sources) {
+    if (source.kind === "competition" && source.sourceCompetitionId) {
+      if (seen.has(source.sourceCompetitionId)) continue
+      const row = directComps.find((c) => c.id === source.sourceCompetitionId)
+      if (!row) continue
+      seen.add(source.sourceCompetitionId)
+      refs.push({
+        sourceId: source.id,
+        sourceKind: source.kind,
+        competitionId: row.id,
+        competitionName: row.name,
+      })
+    } else if (source.kind === "series" && source.sourceGroupId) {
+      const matchingComps = seriesComps.filter(
+        (c) => c.groupId === source.sourceGroupId,
+      )
+      seriesCompCountBySourceId.set(source.id, matchingComps.length)
+      for (const c of matchingComps) {
+        if (seen.has(c.id)) continue
+        seen.add(c.id)
+        refs.push({
+          sourceId: source.id,
+          sourceKind: source.kind,
+          competitionId: c.id,
+          competitionName: c.name,
+        })
       }
-      qualifiedCount += 1
+    }
+  }
+  return { sources, refs, seriesCompCountBySourceId }
+}
+
+/**
+ * Resolve every (competition, division) pair to fetch a leaderboard
+ * for. Reads `competitionsTable.settings` to find each comp's scaling
+ * group, then resolves levels in one batched query.
+ */
+async function resolveDivisionRefs(
+  comps: SourceCompetitionRef[],
+): Promise<DivisionRef[]> {
+  if (comps.length === 0) return []
+
+  const db = getDb()
+  const compSettings = await db
+    .select({ id: competitionsTable.id, settings: competitionsTable.settings })
+    .from(competitionsTable)
+    .where(
+      inArray(
+        competitionsTable.id,
+        comps.map((c) => c.competitionId),
+      ),
+    )
+
+  const scalingGroupByComp = new Map<string, string>()
+  for (const row of compSettings) {
+    const settings = parseCompetitionSettings(row.settings)
+    const sgid = settings?.divisions?.scalingGroupId
+    if (sgid) scalingGroupByComp.set(row.id, sgid)
+  }
+
+  const allGroupIds = Array.from(new Set(scalingGroupByComp.values()))
+  if (allGroupIds.length === 0) return []
+
+  const levels = await db
+    .select({
+      id: scalingLevelsTable.id,
+      label: scalingLevelsTable.label,
+      scalingGroupId: scalingLevelsTable.scalingGroupId,
+      position: scalingLevelsTable.position,
+    })
+    .from(scalingLevelsTable)
+    .where(inArray(scalingLevelsTable.scalingGroupId, allGroupIds))
+
+  const levelsByGroup = new Map<
+    string,
+    Array<{ id: string; label: string; position: number }>
+  >()
+  for (const lvl of levels) {
+    const arr = levelsByGroup.get(lvl.scalingGroupId) ?? []
+    arr.push({ id: lvl.id, label: lvl.label, position: lvl.position })
+    levelsByGroup.set(lvl.scalingGroupId, arr)
+  }
+  for (const arr of levelsByGroup.values()) {
+    arr.sort((a, b) => a.position - b.position)
+  }
+
+  const out: DivisionRef[] = []
+  for (const comp of comps) {
+    const sgid = scalingGroupByComp.get(comp.competitionId)
+    if (!sgid) continue
+    const compLevels = levelsByGroup.get(sgid) ?? []
+    for (const lvl of compLevels) {
+      out.push({
+        competitionId: comp.competitionId,
+        competitionName: comp.competitionName,
+        divisionId: lvl.id,
+        divisionLabel: lvl.label,
+        sourceId: comp.sourceId,
+        sourceKind: comp.sourceKind,
+      })
     }
   }
   return out
 }
 
-// ============================================================================
-// Row loaders
-// ============================================================================
+/**
+ * Resolve the championship's own divisions (scaling levels of its
+ * scaling group). These are the keys used by `resolveSourceAllocations`
+ * — the cutoff math compares each leaderboard's source-side division
+ * against this championship-side list to decide which allocation row
+ * applies.
+ */
+async function resolveChampionshipDivisions(
+  championshipId: string,
+): Promise<ChampionshipDivisionInfo[]> {
+  const db = getDb()
+  const [championship] = await db
+    .select({ settings: competitionsTable.settings })
+    .from(competitionsTable)
+    .where(inArray(competitionsTable.id, [championshipId]))
+    .limit(1)
+  if (!championship) return []
+  const settings = parseCompetitionSettings(championship.settings)
+  const sgid = settings?.divisions?.scalingGroupId
+  if (!sgid) return []
 
-async function loadSingleCompetitionRows(
-  source: CompetitionInviteSource,
-  championshipDivisionId: string,
-): Promise<Array<Omit<RosterRow, "belowCutoff">>> {
-  if (!source.sourceCompetitionId) return []
-  const mappings = parseDivisionMappings(source.divisionMappings)
-  const sourceDivisionId = resolveSourceDivisionId(
-    mappings,
-    championshipDivisionId,
-  )
-  if (!sourceDivisionId) return []
+  const levels = await db
+    .select({
+      id: scalingLevelsTable.id,
+      label: scalingLevelsTable.label,
+      position: scalingLevelsTable.position,
+    })
+    .from(scalingLevelsTable)
+    .where(inArray(scalingLevelsTable.scalingGroupId, [sgid]))
 
-  const lb = await getCompetitionLeaderboard({
-    competitionId: source.sourceCompetitionId,
-    divisionId: sourceDivisionId,
-  })
-
-  return lb.entries.map((e, idx) => ({
-    sourcePlacement: idx + 1,
-    sourcePlacementLabel: `${ordinal(idx + 1)} — source comp`,
-    sourceId: source.id,
-    sourceKind: source.kind,
-    sourceCompetitionId: source.sourceCompetitionId ?? null,
-    userId: e.userId,
-    athleteName: e.athleteName,
-    athleteEmail: null,
-    championshipDivisionId,
-    inviteId: null,
-    inviteStatus: null,
-    roundId: null,
-    roundNumber: null,
-  }))
+  return levels
+    .sort((a, b) => a.position - b.position)
+    .map((l) => ({ id: l.id, label: l.label }))
 }
 
 /**
- * Per-comp direct qualifiers for a series source: top `directSpotsPerComp`
- * finishers of each comp (in its mapped division) qualify directly. Uses
- * `seriesDivisionMappingsTable` to resolve each comp's division that maps
- * to the series template division, then calls
- * `getCompetitionLeaderboard` for that comp.
+ * Compute the cutoff (max number of qualifying placements) for a
+ * leaderboard fetched for `(source, sourceCompetitionId, sourceDivisionId)`.
+ *
+ * Single-comp source: the cutoff is the resolved per-(source,
+ * championshipDivision) value. Override present → uses override; absent
+ * → uses the source's `globalSpots` default (applied per division).
+ *
+ * Series source: today the leaderboard fan-out yields one entry per
+ * (seriesComp × division). The per-comp "direct" line uses
+ * `directSpotsPerComp` as the default; when an override exists for the
+ * championship division the override is the *total* number of direct
+ * qualifiers for that division across the *whole series* — not per
+ * comp. We can't faithfully redistribute that across comps without
+ * series-leaderboard context (which row from comp A vs comp B counts
+ * toward the global pool), so series with overrides keeps the current
+ * full-leaderboard behavior and lets downstream UI / the
+ * `divisionAllocationTotals` denominator surface the discrepancy.
+ *
+ * TODO(ADR-0012 Phase 6): split direct vs. global tiers cleanly for
+ * series sources with division-level overrides; today the override is
+ * honored on the per-division *denominator* (Sent tab) but not on the
+ * per-comp leaderboard truncation here. See ADR-0012 "Allocation
+ * Resolution" — the global block is still the safe fallback because it
+ * never *adds* invalid qualifying rows; it can only over-include rows
+ * the organizer must filter manually.
+ *
+ * Returns `null` when no cutoff applies (i.e. include every row).
  */
-async function loadSeriesDirectRows(
-  source: CompetitionInviteSource,
-  championshipDivisionId: string,
-): Promise<Array<Omit<RosterRow, "belowCutoff">>> {
-  if (
-    !source.sourceGroupId ||
-    !source.directSpotsPerComp ||
-    source.directSpotsPerComp <= 0
-  ) {
-    return []
+function computeCutoffForLeaderboard(args: {
+  source: CompetitionInviteSource
+  sourceDivisionId: string
+  sourceDivisionLabel: string
+  championshipDivisions: ReadonlyArray<ChampionshipDivisionInfo>
+  resolved: ResolvedSourceAllocations
+  divisionMappings: DivisionMapping[]
+}): number | null {
+  if (args.source.kind === COMPETITION_INVITE_SOURCE_KIND.SERIES) {
+    // Series fallback: keep all rows. Per-comp direct truncation is a
+    // future improvement (TODO above) — until the (direct, global)
+    // tiers are split, returning the full leaderboard is the safer
+    // path because it can only over-include candidate rows the
+    // organizer manually filters, never silently drop a qualifier.
+    return null
   }
-  const directSpotsPerComp = source.directSpotsPerComp
-  const mappings = parseDivisionMappings(source.divisionMappings)
-  const seriesDivisionId = resolveSourceDivisionId(
-    mappings,
-    championshipDivisionId,
-  )
-  if (!seriesDivisionId) return []
 
-  const db = getDb()
-  const perComp = await db
-    .select({
-      competitionId: seriesDivisionMappingsTable.competitionId,
-      competitionDivisionId: seriesDivisionMappingsTable.competitionDivisionId,
-    })
-    .from(seriesDivisionMappingsTable)
-    .where(
-      and(
-        eq(seriesDivisionMappingsTable.groupId, source.sourceGroupId),
-        eq(seriesDivisionMappingsTable.seriesDivisionId, seriesDivisionId),
-      ),
-    )
-  if (perComp.length === 0) return []
-
-  const leaderboards = await Promise.all(
-    perComp.map(({ competitionId, competitionDivisionId }) =>
-      getCompetitionLeaderboard({
-        competitionId,
-        divisionId: competitionDivisionId,
-      }).then((lb) => ({ competitionId, entries: lb.entries })),
-    ),
-  )
-
-  const out: Array<Omit<RosterRow, "belowCutoff">> = []
-  for (const { competitionId, entries } of leaderboards) {
-    entries.slice(0, directSpotsPerComp).forEach((e, idx) => {
-      out.push({
-        sourcePlacement: idx + 1,
-        sourcePlacementLabel: `${ordinal(idx + 1)} — series comp direct`,
-        sourceId: source.id,
-        sourceKind: source.kind,
-        sourceCompetitionId: competitionId,
-        userId: e.userId,
-        athleteName: e.athleteName,
-        athleteEmail: null,
-        championshipDivisionId,
-        inviteId: null,
-        inviteStatus: null,
-        roundId: null,
-        roundNumber: null,
-      })
-    })
-  }
-  return out
-}
-
-async function loadSeriesGlobalRows(
-  source: CompetitionInviteSource,
-  championshipDivisionId: string,
-): Promise<Array<Omit<RosterRow, "belowCutoff">>> {
-  if (!source.sourceGroupId) return []
-  const mappings = parseDivisionMappings(source.divisionMappings)
-  const sourceDivisionId = resolveSourceDivisionId(
-    mappings,
-    championshipDivisionId,
-  )
-  if (!sourceDivisionId) return []
-
-  const lb = await getSeriesLeaderboard({
-    groupId: source.sourceGroupId,
-    divisionId: sourceDivisionId,
+  // Single-comp source: cutoff is the resolved spots for the mapped
+  // championship division. If we can't infer the championship division,
+  // fall back to no truncation so we don't accidentally drop qualifying
+  // athletes — the downstream UI still surfaces the correct denominator.
+  const championshipDivisionId = mapSourceDivisionToChampionship({
+    sourceDivisionId: args.sourceDivisionId,
+    sourceDivisionLabel: args.sourceDivisionLabel,
+    divisionMappings: args.divisionMappings,
+    championshipDivisions: args.championshipDivisions,
   })
-
-  return lb.entries.map((e, idx) => ({
-    sourcePlacement: null,
-    sourcePlacementLabel: `Series GLB · ${ordinal(idx + 1)}`,
-    sourceId: source.id,
-    sourceKind: source.kind,
-    sourceCompetitionId: e.competitionId,
-    userId: e.userId,
-    athleteName: e.athleteName,
-    athleteEmail: null,
-    championshipDivisionId,
-    inviteId: null,
-    inviteStatus: null,
-    roundId: null,
-    roundNumber: null,
-  }))
-}
-
-function ordinal(n: number): string {
-  const s = ["th", "st", "nd", "rd"]
-  const v = n % 100
-  return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`
+  if (championshipDivisionId === null) return null
+  const spots = args.resolved.byDivision[championshipDivisionId]
+  if (spots === undefined) return null
+  return spots
 }
 
 // ============================================================================
@@ -344,49 +444,94 @@ function ordinal(n: number): string {
 export async function getChampionshipRoster(
   input: GetChampionshipRosterInput,
 ): Promise<{ rows: RosterRow[] }> {
-  const sources = await listSourcesForChampionship(input.championshipId)
-  const perSource: Array<{
-    source: CompetitionInviteSource
-    rows: Array<Omit<RosterRow, "belowCutoff">>
-    cutoff: number
-  }> = []
+  const { sources, refs: comps, seriesCompCountBySourceId } =
+    await resolveSourceCompetitions(input.championshipId)
+  if (comps.length === 0) return { rows: [] }
+
+  const divisionRefs = await resolveDivisionRefs(comps)
+  if (divisionRefs.length === 0) return { rows: [] }
+
+  // ADR-0012: load championship divisions + allocation rows once at the
+  // top, then resolve per-source allocation maps that feed the cutoff
+  // helper. Both reads are bounded by championship size (small).
+  const [championshipDivisions, allocations] = await Promise.all([
+    resolveChampionshipDivisions(input.championshipId),
+    listAllocationsForChampionship({
+      championshipCompetitionId: input.championshipId,
+    }),
+  ])
+
+  const sourceById = new Map(sources.map((s) => [s.id, s]))
+  const resolvedBySourceId = new Map<string, ResolvedSourceAllocations>()
+  const divisionMappingsBySourceId = new Map<string, DivisionMapping[]>()
   for (const source of sources) {
-    const mappings = parseDivisionMappings(source.divisionMappings)
-    let rows: Array<Omit<RosterRow, "belowCutoff">>
-    let cutoff: number
-    if (source.kind === "series") {
-      // Series sources qualify athletes two ways: top-N direct from each
-      // comp + top-N from the series-global leaderboard. Direct qualifiers
-      // are listed first; globals are appended with direct-athletes
-      // filtered out. The source's cutoff expands to cover both tiers.
-      const [direct, global] = await Promise.all([
-        loadSeriesDirectRows(source, input.divisionId),
-        loadSeriesGlobalRows(source, input.divisionId),
-      ])
-      const directKeys = new Set(
-        direct.map((r) => r.userId ?? `name:${r.athleteName}`),
-      )
-      const globalFiltered = global.filter(
-        (r) => !directKeys.has(r.userId ?? `name:${r.athleteName}`),
-      )
-      rows = [...direct, ...globalFiltered]
-      const globalCutoff = resolveSpotsForDivision({
+    divisionMappingsBySourceId.set(
+      source.id,
+      parseDivisionMappings(source.divisionMappings),
+    )
+    resolvedBySourceId.set(
+      source.id,
+      resolveSourceAllocations({
         source,
-        mappings,
-        championshipDivisionId: input.divisionId,
-      })
-      cutoff = direct.length + globalCutoff
-    } else {
-      rows = await loadSingleCompetitionRows(source, input.divisionId)
-      cutoff = resolveSpotsForDivision({
+        championshipDivisions,
+        allocations: allocations.filter((a) => a.sourceId === source.id),
+        seriesCompCount: seriesCompCountBySourceId.get(source.id),
+      }),
+    )
+  }
+
+  // Fan out leaderboard fetches in parallel. Each call hits a cache on
+  // the public render path; bounded by championship source count × per-
+  // comp division count.
+  const leaderboards = await Promise.all(
+    divisionRefs.map((ref) =>
+      getCompetitionLeaderboard({
+        competitionId: ref.competitionId,
+        divisionId: ref.divisionId,
+      }).then((lb) => ({ ref, entries: lb.entries })),
+    ),
+  )
+
+  const rows: RosterRow[] = []
+  for (const { ref, entries } of leaderboards) {
+    const source = sourceById.get(ref.sourceId)
+    const resolved = resolvedBySourceId.get(ref.sourceId)
+    const divisionMappings =
+      divisionMappingsBySourceId.get(ref.sourceId) ?? []
+
+    let cutoff: number | null = null
+    if (source && resolved && championshipDivisions.length > 0) {
+      cutoff = computeCutoffForLeaderboard({
         source,
-        mappings,
-        championshipDivisionId: input.divisionId,
+        sourceDivisionId: ref.divisionId,
+        sourceDivisionLabel: ref.divisionLabel,
+        championshipDivisions,
+        resolved,
+        divisionMappings,
       })
     }
-    perSource.push({ source, rows, cutoff })
+    const truncated =
+      cutoff !== null && cutoff >= 0 ? entries.slice(0, cutoff) : entries
+
+    truncated.forEach((e, idx) => {
+      rows.push({
+        sourcePlacement: idx + 1,
+        sourceId: ref.sourceId,
+        sourceKind: ref.sourceKind,
+        sourceCompetitionId: ref.competitionId,
+        sourceCompetitionName: ref.competitionName,
+        sourceDivisionId: ref.divisionId,
+        sourceDivisionLabel: ref.divisionLabel,
+        userId: e.userId,
+        athleteName: e.athleteName,
+        athleteEmail: null,
+        inviteId: null,
+        inviteStatus: null,
+        roundId: null,
+        roundNumber: null,
+      })
+    })
   }
-  const rows = aggregateQualifyingRows(perSource)
 
   // Hydrate athlete emails in a single bulk lookup. Rows with no userId
   // keep `athleteEmail = null`; the organizer UI disables the row for
@@ -409,4 +554,19 @@ export async function getChampionshipRoster(
   }
 
   return { rows }
+}
+
+// ============================================================================
+// Test-only exports
+// ============================================================================
+
+/**
+ * Internals exposed for unit tests in
+ * `test/server/competition-invites/roster-allocations.test.ts`. Not
+ * part of the production API surface.
+ */
+export const __test__ = {
+  parseDivisionMappings,
+  mapSourceDivisionToChampionship,
+  computeCutoffForLeaderboard,
 }

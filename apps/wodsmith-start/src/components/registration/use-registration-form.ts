@@ -51,6 +51,16 @@ export interface UseRegistrationFormInput {
    * the matching invite (Phase 2C/D).
    */
   inviteToken?: string
+  /**
+   * Other members of the team the invitee was on in the qualifying source
+   * competition. Used to pre-seed teammate slots on the invited team
+   * division. Slots remain editable — the invitee can swap people. Empty
+   * (or absent) when the invite is bespoke or the prior registration was
+   * individual.
+   */
+  prefillTeammates?: Teammate[]
+  /** Prior team name from the source competition; pre-fills `teamName`. */
+  prefillTeamName?: string
 }
 
 export function useRegistrationForm(input: UseRegistrationFormInput) {
@@ -68,6 +78,8 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
     paymentCanceled,
     initialDivisionId,
     inviteToken,
+    prefillTeammates = [],
+    prefillTeamName = "",
   } = input
 
   const navigate = useNavigate()
@@ -103,15 +115,27 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
     const next = new Map<string, TeamEntry>()
     if (invitedDivision && invitedDivision.teamSize > 1) {
       const teammatesNeeded = invitedDivision.teamSize - 1
+      // Prior-team prefill (when arriving via an invite from a qualifying
+      // source competition): hydrate the first N slots with the prior
+      // teammates' email/name/affiliate so the invitee doesn't retype them.
+      // Truncates to `teammatesNeeded` if the prior team was larger; pads
+      // with empty rows if it was smaller.
+      const teammates: Teammate[] = Array.from(
+        { length: teammatesNeeded },
+        (_, i) => {
+          const seed = prefillTeammates[i]
+          return {
+            email: seed?.email ?? "",
+            firstName: seed?.firstName ?? "",
+            lastName: seed?.lastName ?? "",
+            affiliateName: seed?.affiliateName ?? "",
+          }
+        },
+      )
       next.set(invitedDivision.id, {
         divisionId: invitedDivision.id,
-        teamName: "",
-        teammates: Array.from({ length: teammatesNeeded }, () => ({
-          email: "",
-          firstName: "",
-          lastName: "",
-          affiliateName: "",
-        })),
+        teamName: prefillTeamName,
+        teammates,
       })
     }
     return next

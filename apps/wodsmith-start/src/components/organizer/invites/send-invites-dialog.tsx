@@ -10,7 +10,7 @@
  */
 
 import { useServerFn } from "@tanstack/react-start"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -23,6 +23,13 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import type { CompetitionInviteOrigin } from "@/db/schemas/competition-invites"
 import { issueInvitesFn } from "@/server-fns/competition-invite-fns"
@@ -44,14 +51,54 @@ interface SendInvitesDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   championshipCompetitionId: string
-  championshipDivisionId: string
+  /** All championship divisions the organizer can target. The dialog
+   *  shows a <Select> so the organizer picks which division this batch of
+   *  invites lands in — it's no longer assumed by the parent route. */
+  championshipDivisions: Array<{ id: string; label: string }>
+  /** Preferred default championship division id. The parent passes this
+   *  when the candidates table is filtered to a single division so the
+   *  dialog opens already pointed at the matching championship division.
+   *  Falls back to `championshipDivisions[0]` when missing or unmatched. */
+  defaultDivisionId?: string
   championshipName: string
-  divisionLabel: string
   recipients: SendRecipient[]
   onSent?: () => void
+  /** ADR-0012 Phase 4: resolved per-(source, championship-division)
+   *  allocation map. Used to compute the over-issue warning. Optional:
+   *  callers that don't pass it skip the warning + per-recipient
+   *  breakdown entirely. */
+  allocationsBySourceByDivision?: Record<string, Record<string, number>>
+  /** ADR-0012 Phase 4: count of currently active (pending OR
+   *  accepted_paid) invites grouped by (sourceId, championshipDivisionId)
+   *  in the championship. Combined with the incoming recipient bucket
+   *  count to detect over-issue against `allocationsBySourceByDivision`.
+   *  Bespoke (sourceId === null) recipients bypass the check entirely. */
+  existingActiveCountsBySourceByDivision?: Record<
+    string,
+    Record<string, number>
+  >
+  /** ADR-0012 Phase 4: human-readable source label keyed by `sourceId`.
+   *  Used by the over-issue warning + per-recipient breakdown so the
+   *  organizer sees "RX (Throwdown A): 5 of 3 allocated" instead of a
+   *  raw source id. Optional — falls back to the source id. */
+  sourceLabelsById?: Record<string, string>
 }
 
-function defaultSubject(championshipName: string, divisionLabel: string): string {
+interface BucketSummary {
+  sourceId: string
+  divisionId: string
+  divisionLabel: string
+  sourceLabel: string
+  existing: number
+  incoming: number
+  allocation: number
+  wouldExceed: boolean
+}
+
+function defaultSubject(
+  championshipName: string,
+  divisionLabel: string,
+): string {
   return `You're invited to ${championshipName} - ${divisionLabel}`
 }
 
@@ -75,18 +122,82 @@ export function SendInvitesDialog({
   open,
   onOpenChange,
   championshipCompetitionId,
-  championshipDivisionId,
+  championshipDivisions,
+  defaultDivisionId,
   championshipName,
-  divisionLabel,
   recipients,
   onSent,
+  allocationsBySourceByDivision,
+  existingActiveCountsBySourceByDivision,
+  sourceLabelsById,
 }: SendInvitesDialogProps) {
   const issueInvites = useServerFn(issueInvitesFn)
+  const initialDivisionId =
+    (defaultDivisionId &&
+      championshipDivisions.find((d) => d.id === defaultDivisionId)?.id) ||
+    championshipDivisions[0]?.id ||
+    ""
+  const [targetDivisionId, setTargetDivisionId] =
+    useState<string>(initialDivisionId)
+  const targetDivision = championshipDivisions.find(
+    (d) => d.id === targetDivisionId,
+  )
+  const initialDivisionLabel =
+    championshipDivisions.find((d) => d.id === initialDivisionId)?.label ?? ""
   const [subject, setSubject] = useState(() =>
-    defaultSubject(championshipName, divisionLabel),
+    defaultSubject(championshipName, initialDivisionLabel),
   )
   const [bodyText, setBodyText] = useState(() => defaultBody(championshipName))
   const [deadline, setDeadline] = useState(defaultDeadline)
+  // ADR-0012 Phase 4: bucket recipients by (sourceId, championshipDivisionId)
+  // for over-issue detection + per-recipient breakdown. The dialog issues
+  // the entire batch into `targetDivisionId`, so the championship-division
+  // dimension collapses to a single value here. Bespoke (sourceId == null)
+  // recipients bypass the allocation model entirely (ADR-0012: bespoke
+  // invites have no source attribution and are unbounded by allocation).
+  const allocationCheckEnabled =
+    !!allocationsBySourceByDivision && !!existingActiveCountsBySourceByDivision
+  const buckets = useMemo<BucketSummary[]>(() => {
+    if (!allocationCheckEnabled || !targetDivisionId) return []
+    const grouped = new Map<string, number>()
+    for (const r of recipients) {
+      if (!r.sourceId) continue
+      grouped.set(r.sourceId, (grouped.get(r.sourceId) ?? 0) + 1)
+    }
+    const out: BucketSummary[] = []
+    for (const [sourceId, incoming] of grouped) {
+      const allocation =
+        allocationsBySourceByDivision?.[sourceId]?.[targetDivisionId] ?? 0
+      const existing =
+        existingActiveCountsBySourceByDivision?.[sourceId]?.[
+          targetDivisionId
+        ] ?? 0
+      out.push({
+        sourceId,
+        divisionId: targetDivisionId,
+        divisionLabel: targetDivision?.label ?? "",
+        // Source-name resolution is owned by the parent (it has the
+        // competition + series name maps); the dialog falls back to
+        // the source id so the warning is still actionable.
+        sourceLabel: sourceLabelsById?.[sourceId] ?? sourceId,
+        existing,
+        incoming,
+        allocation,
+        wouldExceed: allocation > 0 && existing + incoming > allocation,
+      })
+    }
+    return out
+  }, [
+    recipients,
+    targetDivisionId,
+    targetDivision?.label,
+    allocationCheckEnabled,
+    allocationsBySourceByDivision,
+    existingActiveCountsBySourceByDivision,
+    sourceLabelsById,
+  ])
+  const exceedingBuckets = buckets.filter((b) => b.wouldExceed)
+
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<{
@@ -101,15 +212,46 @@ export function SendInvitesDialog({
   // alert and the footer is stuck in "Close" mode.
   useEffect(() => {
     if (open) return
-    setSubject(defaultSubject(championshipName, divisionLabel))
+    const resetDivisionId =
+      (defaultDivisionId &&
+        championshipDivisions.find((d) => d.id === defaultDivisionId)?.id) ||
+      championshipDivisions[0]?.id ||
+      ""
+    const resetDivisionLabel =
+      championshipDivisions.find((d) => d.id === resetDivisionId)?.label ?? ""
+    setTargetDivisionId(resetDivisionId)
+    setSubject(defaultSubject(championshipName, resetDivisionLabel))
     setBodyText(defaultBody(championshipName))
     setDeadline(defaultDeadline())
     setSubmitting(false)
     setError(null)
     setResult(null)
-  }, [open, championshipName, divisionLabel])
+  }, [open, championshipName, championshipDivisions, defaultDivisionId])
+
+  // Keep the default subject in sync with the division the organizer
+  // picks — the suffix is the division label and changing the division
+  // should retitle the email unless the user has typed a custom subject.
+  // We refresh as long as the current value matches a previously-default
+  // pattern so user-edited subjects are preserved.
+  useEffect(() => {
+    setSubject((prev) => {
+      const candidates = championshipDivisions.map((d) =>
+        defaultSubject(championshipName, d.label),
+      )
+      return candidates.includes(prev)
+        ? defaultSubject(championshipName, targetDivision?.label ?? "")
+        : prev
+    })
+    // `targetDivision` is the only state-derived dep here — its reference
+    // changes whenever `targetDivisionId` resolves to a different element,
+    // so listing it covers the division-change trigger.
+  }, [championshipName, championshipDivisions, targetDivision])
 
   const onSubmit = async () => {
+    if (!targetDivisionId) {
+      setError("Pick a championship division before sending.")
+      return
+    }
     if (!deadline || !/^\d{4}-\d{2}-\d{2}$/.test(deadline)) {
       setError("Pick a valid RSVP deadline before sending.")
       return
@@ -121,7 +263,7 @@ export function SendInvitesDialog({
       const response = await issueInvites({
         data: {
           championshipCompetitionId,
-          championshipDivisionId,
+          championshipDivisionId: targetDivisionId,
           // Pass the raw calendar string. Building a `Date` here would
           // parse the local-tz instant and then format on Workers (UTC)
           // would render the wrong day for any organizer west of UTC.
@@ -158,6 +300,27 @@ export function SendInvitesDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
+          <div>
+            <Label htmlFor="send-target-division">
+              Championship division *
+            </Label>
+            <Select
+              value={targetDivisionId}
+              onValueChange={setTargetDivisionId}
+              disabled={submitting || championshipDivisions.length === 0}
+            >
+              <SelectTrigger id="send-target-division">
+                <SelectValue placeholder="Pick a division" />
+              </SelectTrigger>
+              <SelectContent>
+                {championshipDivisions.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div>
             <Label htmlFor="send-subject">Subject *</Label>
             <Input
@@ -208,13 +371,68 @@ export function SendInvitesDialog({
               ) : null}
             </div>
           </div>
+          {allocationCheckEnabled && buckets.length > 0 ? (
+            <div className="rounded-md border bg-muted/30 p-3 text-xs">
+              <div className="font-medium mb-1">
+                Allocation per source → {targetDivision?.label}:
+              </div>
+              <ul className="space-y-0.5">
+                {buckets.map((b) => {
+                  const newTotal = b.existing + b.incoming
+                  const denom = b.allocation > 0 ? `${b.allocation}` : "—"
+                  return (
+                    <li
+                      key={b.sourceId}
+                      className={
+                        b.wouldExceed
+                          ? "text-amber-400 tabular-nums"
+                          : "text-muted-foreground tabular-nums"
+                      }
+                    >
+                      <span className="font-medium text-foreground">
+                        {b.sourceLabel}
+                      </span>{" "}
+                      → {b.divisionLabel}: spot{" "}
+                      {b.existing > 0
+                        ? `${b.existing + 1}-${newTotal}`
+                        : `${newTotal}`}{" "}
+                      of {denom}
+                      {b.existing > 0 ? (
+                        <span className="ml-1">
+                          (existing {b.existing} + incoming {b.incoming})
+                        </span>
+                      ) : null}
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          ) : null}
+          {exceedingBuckets.length > 0 ? (
+            <Alert className="border-amber-500/40 bg-amber-500/10 text-amber-200">
+              <AlertDescription>
+                This send will exceed allocation in {exceedingBuckets.length}{" "}
+                source/division bucket
+                {exceedingBuckets.length === 1 ? "" : "s"}:{" "}
+                {exceedingBuckets
+                  .map(
+                    (b) =>
+                      `${b.sourceLabel} (${b.divisionLabel}): ${b.existing + b.incoming} of ${b.allocation} allocated`,
+                  )
+                  .join(", ")}
+                . Sending is allowed — Round 1 over-invites are expected.
+              </AlertDescription>
+            </Alert>
+          ) : null}
           {error ? (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           ) : null}
           {result ? (
-            <Alert variant={result.failed.length > 0 ? "destructive" : "default"}>
+            <Alert
+              variant={result.failed.length > 0 ? "destructive" : "default"}
+            >
               <AlertDescription>
                 <div>
                   Queued <strong>{result.sentCount}</strong> invite email
@@ -230,8 +448,8 @@ export function SendInvitesDialog({
                 {result.failed.length > 0 ? (
                   <details className="mt-2 text-xs">
                     <summary className="cursor-pointer">
-                      Failed rows ({result.failed.length}) — re-clicking
-                      Send will retry these.
+                      Failed rows ({result.failed.length}) — re-clicking Send
+                      will retry these.
                     </summary>
                     <ul className="mt-2 list-disc pl-5">
                       {result.failed.map((f) => (
@@ -258,13 +476,12 @@ export function SendInvitesDialog({
             <Button
               onClick={onSubmit}
               disabled={
-                submitting ||
-                recipients.length === 0 ||
-                !subject ||
-                !deadline
+                submitting || recipients.length === 0 || !subject || !deadline
               }
             >
-              {submitting ? "Sending…" : `Send ${recipients.length} invite${recipients.length === 1 ? "" : "s"}`}
+              {submitting
+                ? "Sending…"
+                : `Send ${recipients.length} invite${recipients.length === 1 ? "" : "s"}`}
             </Button>
           ) : null}
         </DialogFooter>

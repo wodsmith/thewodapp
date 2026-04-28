@@ -183,6 +183,59 @@ const getScalingGroupWithLevelsFn = createServerFn({ method: "GET" })
     return { scalingGroup }
   })
 
+// Server function to resolve a claim token into prefill data for the
+// registration form: the team the invitee was on in the qualifying source
+// competition. Returns null when the token is bogus, the invite doesn't
+// belong to this competition, the invite is bespoke (no source comp), or
+// the prior registration was individual.
+const getInvitePrefillFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    z.object({ slug: z.string(), token: z.string().min(1) }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { resolveInviteByToken } = await import(
+      "@/server/competition-invites/claim"
+    )
+    const { getPriorTeamForInvite } = await import(
+      "@/server/competition-invites/prior-team"
+    )
+    const { normalizeInviteEmail } = await import(
+      "@/server/competition-invites/issue"
+    )
+    const { getSessionFromCookie } = await import("@/utils/auth")
+
+    const invite = await resolveInviteByToken(data.token)
+    if (!invite) return { priorTeam: null as null }
+
+    // Authorize: the prior-team payload exposes other people's emails and
+    // names, which is more sensitive than the public invite metadata
+    // returned by getInviteByTokenFn. The token alone is not enough — gate
+    // on the session user being the invited identity.
+    const session = await getSessionFromCookie()
+    const sessionEmail = session?.user?.email
+    if (
+      !sessionEmail ||
+      normalizeInviteEmail(sessionEmail) !== normalizeInviteEmail(invite.email)
+    ) {
+      return { priorTeam: null as null }
+    }
+
+    // Slug check matches getInviteByTokenFn — anti-typo guard. We compare
+    // through competitionsTable since the invite stores the championship id.
+    const { getDb } = await import("@/db")
+    const { competitionsTable } = await import("@/db/schemas/competitions")
+    const db = getDb()
+    const [champ] = await db
+      .select({ slug: competitionsTable.slug })
+      .from(competitionsTable)
+      .where(eq(competitionsTable.id, invite.championshipCompetitionId))
+      .limit(1)
+    if (!champ || champ.slug !== data.slug) return { priorTeam: null as null }
+
+    const priorTeam = await getPriorTeamForInvite({ invite })
+    return { priorTeam }
+  })
+
 // Server function to get user's profile info for registration
 const getUserProfileFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) =>
@@ -216,10 +269,15 @@ export const Route = createFileRoute("/compete/$slug/register")({
   loaderDeps: ({ search }) => ({
     canceled: search.canceled,
     divisionId: search.divisionId,
+    invite: search.invite,
   }),
   loader: async ({ params, context, deps, parentMatchPromise }) => {
     const { slug } = params
-    const { canceled, divisionId: invitedDivisionId } = deps
+    const {
+      canceled,
+      divisionId: invitedDivisionId,
+      invite: inviteToken,
+    } = deps
 
     // 1. Get competition from parent (parent already validated it's non-null)
     const parentMatch = await parentMatchPromise
@@ -231,9 +289,17 @@ export const Route = createFileRoute("/compete/$slug/register")({
     // 2. Check authentication
     const session = context.session ?? null
     if (!session) {
+      // Preserve invite + divisionId so post-auth return lands back on the
+      // invite-locked URL (keeps prefill + closed-window bypass intact).
+      const params = new URLSearchParams()
+      if (inviteToken) params.set("invite", inviteToken)
+      if (invitedDivisionId) params.set("divisionId", invitedDivisionId)
+      const qs = params.toString()
       throw redirect({
         to: "/sign-in",
-        search: { redirect: `/compete/${slug}/register` },
+        search: {
+          redirect: `/compete/${slug}/register${qs ? `?${qs}` : ""}`,
+        },
       })
     }
 
@@ -247,7 +313,9 @@ export const Route = createFileRoute("/compete/$slug/register")({
       })
     }
 
-    // 3. Parallel fetch: existing registrations, affiliate name, waivers, and questions
+    // 3. Parallel fetch: existing registrations, affiliate name, waivers,
+    //    questions, and (when arriving via an invite for a team division)
+    //    the invitee's prior team to pre-fill teammate slots.
     const [
       {
         registeredDivisionIds,
@@ -258,6 +326,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
       userProfile,
       { waivers },
       { questions },
+      invitePrefill,
     ] = await Promise.all([
       getUserCompetitionRegistrationsFn({
         data: {
@@ -274,6 +343,9 @@ export const Route = createFileRoute("/compete/$slug/register")({
       getCompetitionQuestionsFn({
         data: { competitionId: competition.id },
       }),
+      inviteToken
+        ? getInvitePrefillFn({ data: { slug, token: inviteToken } })
+        : Promise.resolve({ priorTeam: null as null }),
     ])
 
     // Invite-flow short-circuit: if the URL specifies a division (the claim
@@ -331,6 +403,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
         removedDivisionIds: [],
         previousAnswers: [],
         signedWaiverIds: [],
+        invitePriorTeam: null,
       }
     }
 
@@ -371,6 +444,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
         removedDivisionIds: [],
         previousAnswers: [],
         signedWaiverIds: [],
+        invitePriorTeam: null,
       }
     }
 
@@ -394,6 +468,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
       removedDivisionIds,
       previousAnswers,
       signedWaiverIds,
+      invitePriorTeam: invitePrefill.priorTeam,
     }
   },
 })
@@ -419,6 +494,7 @@ function RegisterPage() {
     removedDivisionIds,
     previousAnswers,
     signedWaiverIds,
+    invitePriorTeam,
   } = Route.useLoaderData()
 
   const {
@@ -480,6 +556,8 @@ function RegisterPage() {
           initialDivisionId={initialDivisionId}
           inviteToken={inviteToken}
           publicRegistrationOpen={registrationOpen}
+          prefillTeammates={invitePriorTeam?.teammates ?? []}
+          prefillTeamName={invitePriorTeam?.teamName ?? ""}
         />
       ) : (
         <PublicRegistrationForm

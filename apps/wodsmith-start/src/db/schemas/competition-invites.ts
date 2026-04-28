@@ -24,6 +24,7 @@ import {
 import {
   commonColumns,
   createCompetitionInviteId,
+  createCompetitionInviteSourceDivisionAllocationId,
   createCompetitionInviteSourceId,
 } from "./common"
 
@@ -98,6 +99,53 @@ export const competitionInviteSourcesTable = mysqlTable(
 
 export type CompetitionInviteSource = InferSelectModel<
   typeof competitionInviteSourcesTable
+>
+
+// ============================================================================
+// Source × Division Allocations
+// ============================================================================
+
+/**
+ * Per-(source, championship-division) override of the invite-spot allocation.
+ *
+ * Per ADR-0012: the source row's `globalSpots` / `directSpotsPerComp` are the
+ * defaults; a row in this table means "this championship division differs
+ * from the default for this source." A `spots` of `0` is meaningful — it
+ * pins the division to zero from this source. Absence of the row means
+ * "use the source default."
+ *
+ * Cascading delete on the source row is handled in
+ * `apps/wodsmith-start/src/server/competition-invites/sources.ts`
+ * (`deleteSource`) — no FKs per PlanetScale convention.
+ */
+export const competitionInviteSourceDivisionAllocationsTable = mysqlTable(
+  "competition_invite_source_division_allocations",
+  {
+    ...commonColumns,
+    id: varchar({ length: 255 })
+      .primaryKey()
+      .$defaultFn(() => createCompetitionInviteSourceDivisionAllocationId())
+      .notNull(),
+    // Refs `competition_invite_sources.id` (no FK; cascade in helper).
+    sourceId: varchar({ length: 255 }).notNull(),
+    // Refs `competition_divisions.id` (scaling level id) of the championship.
+    championshipDivisionId: varchar({ length: 255 }).notNull(),
+    // Override allocation count. 0 means "this division gets none from this
+    // source"; absence of the row means "use the source default."
+    spots: int().notNull(),
+  },
+  (table) => [
+    uniqueIndex(
+      "competition_invite_source_division_allocations_source_div_unique",
+    ).on(table.sourceId, table.championshipDivisionId),
+    index("competition_invite_source_division_allocations_div_idx").on(
+      table.championshipDivisionId,
+    ),
+  ],
+)
+
+export type CompetitionInviteSourceDivisionAllocation = InferSelectModel<
+  typeof competitionInviteSourceDivisionAllocationsTable
 >
 
 // ============================================================================

@@ -206,6 +206,14 @@ This is the largest phase. It splits into four sub-arcs (schema + tokens, issue 
 - **Tests:** component tests for selection state + send-dialog submission.
 - **Depends on:** 2.13, 2.15.
 
+##### 2.16.1 Tab UX evolution: Candidates + Sent
+
+Follow-up to 2.16 (no schema changes, behind the same `competition-invites` flag). See `docs/plans/0011-invites-candidates-and-sent-tabs.md` for the full plan.
+
+- The "Roster" tab in the organizer route shell is renamed to **Candidates**. Pairs cleanly with the Sources tab; the underlying server-side helpers (`getChampionshipRoster`, `RosterRow`, `championship-roster-table.tsx`) keep their names since they describe a join across source-competition leaderboards, not a registered list.
+- A new **Sent** tab is added between Sources and the disabled Round History placeholder. It groups every issued invite (active + terminal) by championship division using a new `listAllInvitesFn` server fn, with status counters per card and page-level filters (status / origin / free-text search). Per-row action is read-only "copy live claim link" — revoke / reissue / resend stay in the round builder (Phase 3 / sub-arc D).
+- The new server fn returns an `AuditInviteSummary` DTO that extends `ActiveInviteSummary` with `divisionLabel` (joined from `scalingLevels`), `sourcePlacementLabel`, and `lastUpdatedAt` (mapped from the row's `updatedAt` — the table has no dedicated `lastSentAt` column today and `updatedAt` is the closest available signal of "last activity").
+
 #### 2.17 `feat(invites): add invite-expiry cron sweep`
 - **Scope:** `src/workflows/invite-expiry-workflow.ts` (or plain handler). Paginates `status = "pending" AND expiresAt < now`, transitions them to `"expired"`, nulls `claimTokenHash` + `activeMarker`. Wire as hourly Cron Trigger in `alchemy.run.ts`.
 - **Tests:** `test/workflows/invite-expiry.test.ts` — sweep correctness, idempotency, pagination.
