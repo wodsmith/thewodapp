@@ -250,13 +250,15 @@ export async function deleteSource(input: {
   // here). Tx is the same primitive division capacity uses; PlanetScale
   // supports it.
   await db.transaction(async (tx) => {
-    await tx
-      .delete(competitionInviteSourceDivisionAllocationsTable)
-      .where(
-        eq(competitionInviteSourceDivisionAllocationsTable.sourceId, input.id),
-      )
-    await tx
-      .delete(competitionInviteSourcesTable)
+    // Verify the source belongs to the named championship before any
+    // delete fires. Otherwise a caller authorized for championship A
+    // could pass a sourceId from championship B and wipe its
+    // allocation rows cross-tenant — the source-row delete below is
+    // championship-scoped, but the allocations delete is keyed only by
+    // sourceId.
+    const [existing] = await tx
+      .select({ id: competitionInviteSourcesTable.id })
+      .from(competitionInviteSourcesTable)
       .where(
         and(
           eq(competitionInviteSourcesTable.id, input.id),
@@ -266,5 +268,16 @@ export async function deleteSource(input: {
           ),
         ),
       )
+      .limit(1)
+    if (!existing) return
+
+    await tx
+      .delete(competitionInviteSourceDivisionAllocationsTable)
+      .where(
+        eq(competitionInviteSourceDivisionAllocationsTable.sourceId, input.id),
+      )
+    await tx
+      .delete(competitionInviteSourcesTable)
+      .where(eq(competitionInviteSourcesTable.id, input.id))
   })
 }

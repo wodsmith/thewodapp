@@ -199,8 +199,26 @@ const getInvitePrefillFn = createServerFn({ method: "GET" })
     const { getPriorTeamForInvite } = await import(
       "@/server/competition-invites/prior-team"
     )
+    const { normalizeInviteEmail } = await import(
+      "@/server/competition-invites/issue"
+    )
+    const { getSessionFromCookie } = await import("@/utils/auth")
+
     const invite = await resolveInviteByToken(data.token)
     if (!invite) return { priorTeam: null as null }
+
+    // Authorize: the prior-team payload exposes other people's emails and
+    // names, which is more sensitive than the public invite metadata
+    // returned by getInviteByTokenFn. The token alone is not enough — gate
+    // on the session user being the invited identity.
+    const session = await getSessionFromCookie()
+    const sessionEmail = session?.user?.email
+    if (
+      !sessionEmail ||
+      normalizeInviteEmail(sessionEmail) !== normalizeInviteEmail(invite.email)
+    ) {
+      return { priorTeam: null as null }
+    }
 
     // Slug check matches getInviteByTokenFn — anti-typo guard. We compare
     // through competitionsTable since the invite stores the championship id.
