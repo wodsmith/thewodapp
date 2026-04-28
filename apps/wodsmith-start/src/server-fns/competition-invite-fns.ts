@@ -64,7 +64,7 @@ import {
 } from "@/server/competition-invites/bespoke"
 import {
   assertInviteClaimable,
-  getAcceptedPaidCountForBucket,
+  getBucketUsageWithHolds,
   type InviteClaimableError,
   InviteNotClaimableError,
   resolveAllocationForInvite,
@@ -791,20 +791,31 @@ export const getInviteByTokenFn = createServerFn({ method: "GET" })
 
         // ADR-0012 Phase 5: per-(source, division) allocation guardrail.
         // Best-effort UX gate — the authoritative re-check lives in the
-        // Stripe workflow at payment confirmation. Bespoke invites
-        // (sourceId IS NULL) bypass.
+        // Stripe workflow at payment confirmation, and a stricter
+        // payment-init gate fires inside `initiateRegistrationPaymentFn`.
+        // Bespoke invites (sourceId IS NULL) bypass.
+        //
+        // We use `getBucketUsageWithHolds` so the claim page reflects
+        // sibling Stripe-in-flight sessions: if every spot is currently
+        // held by another invitee mid-checkout, this invitee sees the
+        // soft `over_allocated` page rather than clicking through to a
+        // payment-init error. Excludes this invite's own purchase so a
+        // page refresh during a pending session doesn't tip the count
+        // over its own cap.
         if (invite.sourceId) {
-          const [allocation, acceptedCount] = await Promise.all([
+          const [allocation, usage] = await Promise.all([
             resolveAllocationForInvite({ invite }),
-            getAcceptedPaidCountForBucket({
+            getBucketUsageWithHolds({
               sourceId: invite.sourceId,
+              championshipCompetitionId: invite.championshipCompetitionId,
               championshipDivisionId: invite.championshipDivisionId,
+              excludeInviteId: invite.id,
             }),
           ])
           const allocationCheck = assertInviteWithinAllocation({
             invite: { sourceId: invite.sourceId },
             allocation: allocation ?? 0,
-            acceptedCount,
+            acceptedCount: usage.total,
           })
           if (!allocationCheck.ok) {
             logInfo({
@@ -814,7 +825,8 @@ export const getInviteByTokenFn = createServerFn({ method: "GET" })
                 sourceId: invite.sourceId,
                 championshipDivisionId: invite.championshipDivisionId,
                 allocation: allocation ?? 0,
-                acceptedCount,
+                acceptedCount: usage.acceptedCount,
+                pendingCount: usage.pendingCount,
               },
             })
             return {

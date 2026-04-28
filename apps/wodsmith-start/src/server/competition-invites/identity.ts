@@ -161,6 +161,46 @@ export function identityMatch(
 // ============================================================================
 
 /**
+ * Pure: extract the candidate `inviteId`s from a list of pending
+ * `commerce_purchases` metadata blobs. Used by the in-flight allocation
+ * counter to bridge the JSON-text `metadata.inviteId` link to a clean
+ * `inArray()` query.
+ *
+ * - Returns one entry per parsed `inviteId`. **Duplicates are preserved**
+ *   by design — the caller's downstream invite query enforces "at most
+ *   one row per inviteId" via the unique index, so a duplicate purchase
+ *   metadata pointing at the same invite still resolves to one match.
+ *   Counting purchases (not invites) here would over-count when the same
+ *   invitee retries Pay within the 35-min window.
+ * - Drops rows with no metadata, malformed JSON, or no `inviteId` —
+ *   non-invite purchases (public registrations) live in the same table
+ *   and must be skipped.
+ * - Drops the `excludeInviteId` so the current invitee's own in-flight
+ *   purchase doesn't count against itself when probing the bucket.
+ */
+// @lat: [[competition-invites#Claim allocation guardrail]]
+export function extractInviteIdsFromPurchaseMetadata(args: {
+  purchases: Array<{ metadata: string | null }>
+  excludeInviteId?: string
+}): string[] {
+  const ids: string[] = []
+  for (const p of args.purchases) {
+    if (!p.metadata) continue
+    let inviteId: string | null = null
+    try {
+      const parsed = JSON.parse(p.metadata) as { inviteId?: string | null }
+      inviteId = parsed.inviteId ?? null
+    } catch {
+      continue
+    }
+    if (!inviteId) continue
+    if (args.excludeInviteId && inviteId === args.excludeInviteId) continue
+    ids.push(inviteId)
+  }
+  return ids
+}
+
+/**
  * Pure check: given the invite plus the resolved allocation for its
  * `(sourceId, championshipDivisionId)` and the current accepted-paid count
  * for that bucket, is there room for one more claim?

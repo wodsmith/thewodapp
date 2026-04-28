@@ -48,6 +48,10 @@ import {
   userTable,
 } from "@/db/schema"
 import {
+  COMPETITION_INVITE_STATUS,
+  competitionInvitesTable,
+} from "@/db/schemas/competition-invites"
+import {
   buildFeeConfig,
   calculateCompetitionFees,
   type FeeBreakdown,
@@ -69,14 +73,13 @@ import {
 } from "@/lib/registration-stubs"
 import { getStripe } from "@/lib/stripe"
 import {
-  COMPETITION_INVITE_STATUS,
-  competitionInvitesTable,
-} from "@/db/schemas/competition-invites"
-import {
   assertInviteClaimable,
   findActiveInviteForEmail,
+  getBucketUsageWithHolds,
+  resolveAllocationForInvite,
   resolveInviteForClaim,
 } from "@/server/competition-invites/claim"
+import { assertInviteWithinAllocation } from "@/server/competition-invites/identity"
 import { normalizeInviteEmail } from "@/server/competition-invites/issue"
 import { recordRedemption, validateCoupon } from "@/server/coupons"
 import { requireVerifiedEmail } from "@/utils/auth"
@@ -425,6 +428,64 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
       )
     }
 
+    // 3.65. Per-(source, division) invite allocation guardrail.
+    //
+    // Organizers intentionally over-issue invites for under-selling
+    // divisions, so we expect more pending invites than allocated spots
+    // for a given (sourceId, championshipDivisionId). The race we have
+    // to close: two invitees clicking "Pay" within the same 30-min
+    // window, division capacity has room, but the source's allocation
+    // bucket is already full of in-flight Stripe sessions for OTHER
+    // invites — without this gate both reach Checkout and the loser is
+    // charged-then-refunded by the workflow re-check.
+    //
+    // Mirrors the division-spot reservation pattern: a recent
+    // PENDING `commerce_purchase` linked (via metadata.inviteId) to an
+    // active sibling invite holds a bucket slot until the session
+    // expires. `getBucketUsageWithHolds` counts both finalized
+    // (`accepted_paid`) and in-flight slots.
+    //
+    // Bespoke invites (sourceId IS NULL) and unconfigured allocations
+    // (allocation === 0) bypass — `assertInviteWithinAllocation` does
+    // the gating, this code just feeds it the right inputs.
+    if (inviteIdForPurchase) {
+      const inviteRow = await db.query.competitionInvitesTable.findFirst({
+        where: eq(competitionInvitesTable.id, inviteIdForPurchase),
+      })
+      if (inviteRow?.sourceId) {
+        const [allocation, usage] = await Promise.all([
+          resolveAllocationForInvite({ invite: inviteRow }),
+          getBucketUsageWithHolds({
+            sourceId: inviteRow.sourceId,
+            championshipCompetitionId: inviteRow.championshipCompetitionId,
+            championshipDivisionId: inviteRow.championshipDivisionId,
+            excludeInviteId: inviteRow.id,
+          }),
+        ])
+        const allocationCheck = assertInviteWithinAllocation({
+          invite: { sourceId: inviteRow.sourceId },
+          allocation: allocation ?? 0,
+          acceptedCount: usage.total,
+        })
+        if (!allocationCheck.ok) {
+          logInfo({
+            message: "[Registration] Invite allocation full at payment init",
+            attributes: {
+              inviteId: inviteRow.id,
+              sourceId: inviteRow.sourceId,
+              championshipDivisionId: inviteRow.championshipDivisionId,
+              allocation: allocation ?? 0,
+              acceptedCount: usage.acceptedCount,
+              pendingCount: usage.pendingCount,
+            },
+          })
+          throw new Error(
+            "Spots from this qualifier are no longer available — another invitee is in checkout. Please try again in a few minutes if their session expires.",
+          )
+        }
+      }
+    }
+
     // 3.7. Validate required questions have answers
     await validateRequiredQuestions(input.competitionId, input.answers)
 
@@ -582,7 +643,8 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
             ),
           )
         logInfo({
-          message: "[Registration] Free-checkout invite flipped to accepted_paid",
+          message:
+            "[Registration] Free-checkout invite flipped to accepted_paid",
           attributes: {
             inviteId: inviteIdForPurchase,
             registrationId: firstRegistrationId,

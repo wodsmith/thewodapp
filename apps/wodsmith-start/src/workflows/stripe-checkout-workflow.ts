@@ -44,22 +44,22 @@ import { getSentryOptions } from "@/lib/sentry/server"
 import { notifyCompetitionRegistration } from "@/lib/slack"
 import { getStripe } from "@/lib/stripe"
 import {
-  notifyRegistrationConfirmed,
-  registerForCompetition,
-} from "@/server/registration"
-import { recordRedemption, cleanupStripeCoupon } from "@/server/coupons"
-import {
   recordPaymentCompleted,
   recordRefundCompleted,
 } from "@/server/commerce/financial-events"
-import { PENDING_PURCHASE_MAX_AGE_MINUTES } from "@/server-fns/competition-divisions-fns"
-import { calculateDivisionCapacity } from "@/utils/division-capacity"
-import { calculateCompetitionCapacity } from "@/utils/competition-capacity"
 import {
-  getAcceptedPaidCountForBucket,
+  getBucketUsageWithHolds,
   resolveAllocationForInvite,
 } from "@/server/competition-invites/claim"
 import { assertInviteWithinAllocation } from "@/server/competition-invites/identity"
+import { cleanupStripeCoupon, recordRedemption } from "@/server/coupons"
+import {
+  notifyRegistrationConfirmed,
+  registerForCompetition,
+} from "@/server/registration"
+import { PENDING_PURCHASE_MAX_AGE_MINUTES } from "@/server-fns/competition-divisions-fns"
+import { calculateCompetitionCapacity } from "@/utils/competition-capacity"
+import { calculateDivisionCapacity } from "@/utils/division-capacity"
 
 export interface CheckoutCompletedParams {
   stripeEventId: string
@@ -265,7 +265,10 @@ async function createRegistration(
           eq(commercePurchaseTable.competitionId, competitionId),
           eq(commercePurchaseTable.divisionId, divisionId),
           eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
-          gt(commercePurchaseTable.createdAt, new Date(Date.now() - PENDING_PURCHASE_MAX_AGE_MINUTES * 60 * 1000)),
+          gt(
+            commercePurchaseTable.createdAt,
+            new Date(Date.now() - PENDING_PURCHASE_MAX_AGE_MINUTES * 60 * 1000),
+          ),
           sql`${commercePurchaseTable.id} != ${purchaseId}`,
         ),
       ),
@@ -327,13 +330,11 @@ async function createRegistration(
             amountCents: existingPurchase.totalCents,
             stripePaymentIntentId: session.payment_intent,
             stripeRefundId: refund.id,
-            reason:
-              "Division filled during payment - automatic refund",
+            reason: "Division filled during payment - automatic refund",
           })
         } catch (eventErr) {
           logWarning({
-            message:
-              "[Workflow] Failed to record refund event (non-fatal)",
+            message: "[Workflow] Failed to record refund event (non-fatal)",
             error: eventErr,
             attributes: { purchaseId },
           })
@@ -378,7 +379,12 @@ async function createRegistration(
           and(
             eq(commercePurchaseTable.competitionId, competitionId),
             eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
-            gt(commercePurchaseTable.createdAt, new Date(Date.now() - PENDING_PURCHASE_MAX_AGE_MINUTES * 60 * 1000)),
+            gt(
+              commercePurchaseTable.createdAt,
+              new Date(
+                Date.now() - PENDING_PURCHASE_MAX_AGE_MINUTES * 60 * 1000,
+              ),
+            ),
             sql`${commercePurchaseTable.id} != ${purchaseId}`,
           ),
         ),
@@ -392,8 +398,7 @@ async function createRegistration(
 
     if (compCapacity.isFull) {
       logError({
-        message:
-          "[Workflow] Competition filled during payment - refund needed",
+        message: "[Workflow] Competition filled during payment - refund needed",
         attributes: {
           purchaseId,
           competitionId,
@@ -419,8 +424,7 @@ async function createRegistration(
             reason: "requested_by_customer",
           })
           logInfo({
-            message:
-              "[Workflow] Refund issued for competition-full scenario",
+            message: "[Workflow] Refund issued for competition-full scenario",
             attributes: {
               purchaseId,
               paymentIntentId: session.payment_intent,
@@ -436,13 +440,11 @@ async function createRegistration(
               amountCents: existingPurchase.totalCents,
               stripePaymentIntentId: session.payment_intent,
               stripeRefundId: refund.id,
-              reason:
-                "Competition filled during payment - automatic refund",
+              reason: "Competition filled during payment - automatic refund",
             })
           } catch (eventErr) {
             logWarning({
-              message:
-                "[Workflow] Failed to record refund event (non-fatal)",
+              message: "[Workflow] Failed to record refund event (non-fatal)",
               error: eventErr,
               attributes: { purchaseId },
             })
@@ -476,27 +478,37 @@ async function createRegistration(
   const inviteAuthorized = !!registrationData.inviteId
 
   // ADR-0012 Phase 5: per-(source, division) allocation guardrail —
-  // authoritative re-check at payment confirmation. The claim-time gate
-  // is best-effort UX; the genuine race (two athletes paying for the
-  // last spot concurrently) is closed here. Pattern matches the existing
-  // division-capacity-overflow handling above: mark purchase failed,
-  // refund-and-fail. Bespoke invites (no sourceId) bypass.
+  // authoritative re-check at payment confirmation. The claim-time and
+  // payment-init gates close the common races; this final check covers
+  // the remaining edge case where two webhooks arrive nearly
+  // simultaneously and the Stripe queue ordering decides who gets
+  // refunded. Same fail-and-refund pattern as the division-capacity
+  // overflow above. Bespoke invites (no sourceId) bypass.
+  //
+  // We use `getBucketUsageWithHolds` so a sibling pending purchase that
+  // raced ahead in the queue counts against the allocation here too —
+  // matching how `initiateRegistrationPaymentFn` gates the next "Pay"
+  // click. The current purchase is excluded so we don't refund
+  // ourselves.
   if (registrationData.inviteId) {
     const inviteRow = await db.query.competitionInvitesTable.findFirst({
       where: eq(competitionInvitesTable.id, registrationData.inviteId),
     })
     if (inviteRow?.sourceId) {
-      const [allocation, acceptedCount] = await Promise.all([
+      const [allocation, usage] = await Promise.all([
         resolveAllocationForInvite({ invite: inviteRow }),
-        getAcceptedPaidCountForBucket({
+        getBucketUsageWithHolds({
           sourceId: inviteRow.sourceId,
+          championshipCompetitionId: inviteRow.championshipCompetitionId,
           championshipDivisionId: inviteRow.championshipDivisionId,
+          excludePurchaseId: purchaseId,
+          excludeInviteId: inviteRow.id,
         }),
       ])
       const allocationCheck = assertInviteWithinAllocation({
         invite: { sourceId: inviteRow.sourceId },
         allocation: allocation ?? 0,
-        acceptedCount,
+        acceptedCount: usage.total,
       })
       if (!allocationCheck.ok) {
         logError({
@@ -510,7 +522,9 @@ async function createRegistration(
             inviteId: registrationData.inviteId,
             sourceId: inviteRow.sourceId,
             allocation,
-            acceptedCount,
+            acceptedCount: usage.acceptedCount,
+            pendingCount: usage.pendingCount,
+            totalUsage: usage.total,
           },
         })
 
@@ -554,8 +568,7 @@ async function createRegistration(
               })
             } catch (eventErr) {
               logWarning({
-                message:
-                  "[Workflow] Failed to record refund event (non-fatal)",
+                message: "[Workflow] Failed to record refund event (non-fatal)",
                 error: eventErr,
                 attributes: { purchaseId },
               })
@@ -638,8 +651,7 @@ async function createRegistration(
       })
     } catch (eventErr) {
       logWarning({
-        message:
-          "[Workflow] Failed to record payment event (non-fatal)",
+        message: "[Workflow] Failed to record payment event (non-fatal)",
         error: eventErr,
         attributes: { purchaseId },
       })
@@ -748,10 +760,7 @@ async function updateCompetitionInviteStatus(
     .where(
       and(
         eq(competitionInvitesTable.id, result.inviteId),
-        eq(
-          competitionInvitesTable.status,
-          COMPETITION_INVITE_STATUS.PENDING,
-        ),
+        eq(competitionInvitesTable.status, COMPETITION_INVITE_STATUS.PENDING),
       ),
     )
 

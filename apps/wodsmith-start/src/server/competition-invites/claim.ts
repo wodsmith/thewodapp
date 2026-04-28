@@ -25,8 +25,12 @@
  */
 // @lat: [[competition-invites#Claim resolution]]
 
-import { and, eq, sql } from "drizzle-orm"
+import { and, eq, gt, inArray, ne, sql } from "drizzle-orm"
 import { getDb } from "@/db"
+import {
+  COMMERCE_PURCHASE_STATUS,
+  commercePurchaseTable,
+} from "@/db/schemas/commerce"
 import {
   COMPETITION_INVITE_ACTIVE_MARKER,
   COMPETITION_INVITE_STATUS,
@@ -34,11 +38,16 @@ import {
   competitionInvitesTable,
 } from "@/db/schemas/competition-invites"
 import { competitionsTable } from "@/db/schemas/competitions"
+import { PENDING_PURCHASE_MAX_AGE_MINUTES } from "@/server-fns/competition-divisions-fns"
 import {
   listAllocationsForChampionship,
   resolveSourceAllocations,
 } from "./allocations"
-import { assertInviteClaimable, InviteNotClaimableError } from "./identity"
+import {
+  assertInviteClaimable,
+  extractInviteIdsFromPurchaseMetadata,
+  InviteNotClaimableError,
+} from "./identity"
 import { getSourceById } from "./sources"
 
 // Re-export the pure helpers/types so existing imports of this module keep
@@ -130,7 +139,7 @@ export async function resolveInviteForClaim(
  * `Number()` wraps the count because the PlanetScale driver can return a
  * string for COUNT(*) — matches the pattern used elsewhere in this module.
  */
-// @lat: [[competition-invites#Claim resolution]]
+// @lat: [[competition-invites#Claim allocation guardrail]]
 export async function getAcceptedPaidCountForBucket(args: {
   sourceId: string
   championshipDivisionId: string
@@ -153,6 +162,136 @@ export async function getAcceptedPaidCountForBucket(args: {
       ),
     )
   return Number(rows[0]?.count ?? 0)
+}
+
+/**
+ * Count Stripe-in-flight pending purchases that are *holding* a slot in a
+ * `(sourceId, championshipDivisionId)` allocation bucket. Mirrors the way
+ * `getDivisionSpotsAvailableFn` counts pending purchases against division
+ * capacity: a checkout session that has not yet completed (or expired) is a
+ * temporary reservation, and over-issued buckets must respect those
+ * reservations or two invitees can race to pay for the same last spot.
+ *
+ * Bucket members are *active* `competition_invites` rows (status `pending`
+ * or `accepted_paid`) sharing `(sourceId, championshipDivisionId)` —
+ * `accepted_paid` rows are excluded from the **pending-purchase** count
+ * (their slot is consumed via {@link getAcceptedPaidCountForBucket}); we
+ * only count rows still in `pending` whose linked `commerce_purchase`
+ * row is `PENDING` and was created within {@link PENDING_PURCHASE_MAX_AGE_MINUTES}.
+ *
+ * The link from purchase → invite lives in `commerce_purchases.metadata`
+ * JSON (`metadata.inviteId`) — the same field
+ * `initiateRegistrationPaymentFn` writes when stamping the purchase. We
+ * fetch the candidate purchases (cheap: filtered by competition + division
+ * + status + recent createdAt, all indexed columns) and join in JS rather
+ * than rely on JSON-text matching, which has uneven cross-driver support
+ * on PlanetScale + Hyperdrive.
+ *
+ * `excludePurchaseId` is the workflow's own purchase: at webhook-time the
+ * caller's PENDING row is about to flip to COMPLETED, so it must not
+ * count against itself or the re-check refunds the very payment that
+ * just succeeded.
+ *
+ * `excludeInviteId` is the *current invite*'s own in-flight purchase: the
+ * payment-init guard counts how many *other* invitees in the bucket are
+ * holding a slot. Without this exclusion, a second click of "Pay" by the
+ * same invitee (after their own session expired/cancelled but before the
+ * 35-min window closed) would count itself out of the bucket.
+ */
+// @lat: [[competition-invites#Claim allocation guardrail]]
+export async function getInFlightAllocationCountForBucket(args: {
+  sourceId: string
+  championshipCompetitionId: string
+  championshipDivisionId: string
+  excludePurchaseId?: string
+  excludeInviteId?: string
+}): Promise<number> {
+  const db = getDb()
+
+  const cutoff = new Date(
+    Date.now() - PENDING_PURCHASE_MAX_AGE_MINUTES * 60 * 1000,
+  )
+
+  const purchases = await db
+    .select({
+      id: commercePurchaseTable.id,
+      metadata: commercePurchaseTable.metadata,
+    })
+    .from(commercePurchaseTable)
+    .where(
+      and(
+        eq(commercePurchaseTable.competitionId, args.championshipCompetitionId),
+        eq(commercePurchaseTable.divisionId, args.championshipDivisionId),
+        eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
+        gt(commercePurchaseTable.createdAt, cutoff),
+        args.excludePurchaseId
+          ? ne(commercePurchaseTable.id, args.excludePurchaseId)
+          : undefined,
+      ),
+    )
+
+  if (purchases.length === 0) return 0
+
+  const candidateInviteIds = extractInviteIdsFromPurchaseMetadata({
+    purchases,
+    excludeInviteId: args.excludeInviteId,
+  })
+
+  if (candidateInviteIds.length === 0) return 0
+
+  const matchingInvites = await db
+    .select({ id: competitionInvitesTable.id })
+    .from(competitionInvitesTable)
+    .where(
+      and(
+        inArray(competitionInvitesTable.id, candidateInviteIds),
+        eq(competitionInvitesTable.sourceId, args.sourceId),
+        eq(
+          competitionInvitesTable.championshipDivisionId,
+          args.championshipDivisionId,
+        ),
+        eq(competitionInvitesTable.status, COMPETITION_INVITE_STATUS.PENDING),
+      ),
+    )
+
+  return matchingInvites.length
+}
+
+/**
+ * The full bucket usage that gates a new claim — accepted-paid claims plus
+ * Stripe-in-flight holds. Wrappers that just need the headline count call
+ * this so the two pieces stay in lock-step; callers that need to log the
+ * components separately can still call the underlying helpers.
+ *
+ * The two underlying queries are independent — kicking them off in
+ * parallel keeps the payment-init path responsive on the hot click path.
+ */
+// @lat: [[competition-invites#Claim allocation guardrail]]
+export async function getBucketUsageWithHolds(args: {
+  sourceId: string
+  championshipCompetitionId: string
+  championshipDivisionId: string
+  excludePurchaseId?: string
+  excludeInviteId?: string
+}): Promise<{ acceptedCount: number; pendingCount: number; total: number }> {
+  const [acceptedCount, pendingCount] = await Promise.all([
+    getAcceptedPaidCountForBucket({
+      sourceId: args.sourceId,
+      championshipDivisionId: args.championshipDivisionId,
+    }),
+    getInFlightAllocationCountForBucket({
+      sourceId: args.sourceId,
+      championshipCompetitionId: args.championshipCompetitionId,
+      championshipDivisionId: args.championshipDivisionId,
+      excludePurchaseId: args.excludePurchaseId,
+      excludeInviteId: args.excludeInviteId,
+    }),
+  ])
+  return {
+    acceptedCount,
+    pendingCount,
+    total: acceptedCount + pendingCount,
+  }
 }
 
 /**
