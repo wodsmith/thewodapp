@@ -289,9 +289,17 @@ export const Route = createFileRoute("/compete/$slug/register")({
     // 2. Check authentication
     const session = context.session ?? null
     if (!session) {
+      // Preserve invite + divisionId so post-auth return lands back on the
+      // invite-locked URL (keeps prefill + closed-window bypass intact).
+      const params = new URLSearchParams()
+      if (inviteToken) params.set("invite", inviteToken)
+      if (invitedDivisionId) params.set("divisionId", invitedDivisionId)
+      const qs = params.toString()
       throw redirect({
         to: "/sign-in",
-        search: { redirect: `/compete/${slug}/register` },
+        search: {
+          redirect: `/compete/${slug}/register${qs ? `?${qs}` : ""}`,
+        },
       })
     }
 

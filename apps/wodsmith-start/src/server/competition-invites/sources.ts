@@ -243,13 +243,13 @@ export async function updateSource(
 export async function deleteSource(input: {
   id: string
   championshipCompetitionId: string
-}): Promise<void> {
+}): Promise<boolean> {
   const db = getDb()
   // Cascade delete the source's per-division allocation rows in the same
   // transaction (no FKs per PlanetScale convention — the cascade lives
   // here). Tx is the same primitive division capacity uses; PlanetScale
   // supports it.
-  await db.transaction(async (tx) => {
+  return await db.transaction(async (tx) => {
     // Verify the source belongs to the named championship before any
     // delete fires. Otherwise a caller authorized for championship A
     // could pass a sourceId from championship B and wipe its
@@ -269,7 +269,7 @@ export async function deleteSource(input: {
         ),
       )
       .limit(1)
-    if (!existing) return
+    if (!existing) return false
 
     await tx
       .delete(competitionInviteSourceDivisionAllocationsTable)
@@ -279,5 +279,6 @@ export async function deleteSource(input: {
     await tx
       .delete(competitionInviteSourcesTable)
       .where(eq(competitionInviteSourcesTable.id, input.id))
+    return true
   })
 }

@@ -559,18 +559,20 @@ export const deleteInviteSourceFn = createServerFn({ method: "POST" })
           championshipTeamId,
           TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
         )
-        await deleteSource({
+        const deleted = await deleteSource({
           id: data.id,
           championshipCompetitionId: data.championshipCompetitionId,
         })
 
-        logEntityDeleted({
-          entity: "competition_invite_source",
-          id: data.id,
-          attributes: {
-            championshipCompetitionId: data.championshipCompetitionId,
-          },
-        })
+        if (deleted) {
+          logEntityDeleted({
+            entity: "competition_invite_source",
+            id: data.id,
+            attributes: {
+              championshipCompetitionId: data.championshipCompetitionId,
+            },
+          })
+        }
 
         return { ok: true as const }
       },
