@@ -301,6 +301,13 @@ function CompetePage() {
       )
     }
 
+    if (activeStatus === "all") {
+      return [...list].sort(
+        (a, b) =>
+          new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
+      )
+    }
+
     const priority: Record<CompetitionStatus, number> = {
       active: 0,
       "registration-open": 1,
