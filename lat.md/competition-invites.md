@@ -54,6 +54,8 @@ Two write surfaces. Source meta (kind, source comp/series, default spots, notes)
 
 Loader gates on `MANAGE_COMPETITIONS` via [[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#getInviteSourceByIdFn]] — a new single-source read that resolves the championship organizing team from the source row — and runs `Promise.all` for the source row, championship divisions, the championship-wide allocation map, and the source pickers. Discard restores the loader's seed values; Save invalidates the route on success.
 
+The per-division allocation card surfaces the **default-spots formula** inline so the resolved number is never a black box: for series sources it renders `defaultPerDivision = directSpotsPerComp × seriesCompCount + globalSpots` (e.g. `5 = 2 direct × 2 comps + 1 global`), and for single-comp sources it renders `defaultPerDivision = top globalSpots qualifies, applied to every division`. The series comp count is loaded server-side by `getInviteSourceByIdFn` (one extra count query when `source.sourceGroupId` is set) and threaded through the loader so the formula always matches the resolver's math — no client-side inference from the resolved allocation map.
+
 ## Roster computation
 
 `getChampionshipRoster({ championshipId, divisionId })` in [[apps/wodsmith-start/src/server/competition-invites/roster.ts]] returns an ordered `RosterRow[]` for a championship + division. Invite-state columns are `null` in Phase 1.
@@ -73,6 +75,14 @@ The organizer route is [[apps/wodsmith-start/src/routes/compete/organizer/$compe
 The loader loads sources, divisions, the first division's roster, the active-invites projection, and the audit-view all-invites projection in parallel via `Promise.all` and passes them to child components. The sidebar ([[apps/wodsmith-start/src/components/competition-sidebar.tsx]]) gains an "Invites" entry under the Athletes section. Series sources within the Sources tab render per-comp tabs plus a series-global tab via [[apps/wodsmith-start/src/components/organizer/invites/series-source-sub-tabs.tsx]] — Phase 1 is read-only, so the component receives data from the loader rather than fetching its own, and invite pills are deliberately omitted until Phase 2.
 
 The original "Roster" tab was renamed to **Candidates** because the surface is a candidate-picking view (athletes pulled from sources plus bespoke drafts), not a registered roster. Internal helpers (`getChampionshipRoster`, `RosterRow`, `championship-roster-table.tsx`) keep their names — they describe the server-side join across source-competition leaderboards, which is still correct.
+
+## Division allocation summary
+
+Top-of-page card on the organizer invites route — [[apps/wodsmith-start/src/components/organizer/invites/division-allocation-summary.tsx#DivisionAllocationSummary]] — answering "how many spots are allocated per division, and where do they come from?" with a click-to-expand per-source breakdown.
+
+Renders one collapsible row per championship division; expanding shows one row per source contributing > 0 spots, scoped to that division. Reads `allocationsBySourceByDivision` from [[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#listInviteSourceAllocationsFn]] — the same resolved map the Sources / Sent tabs consume, so no parallel math. The card is mounted above the tabs in [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/invites/index.tsx]] so it's visible regardless of which tab is active. Divisions with zero contributing sources still render but the trigger button is disabled (no breakdown to expand) — the empty row is intentional so the organizer can see the unallocated division at a glance and decide whether that's expected.
+
+Per-source rows scope match runtime enforcement: each source's quota is enforced independently in [[apps/wodsmith-start/src/server/competition-invites/claim.ts#getAcceptedPaidCountForBucket]] (claim-time guardrail) and the Stripe re-check in [[apps/wodsmith-start/src/workflows/stripe-checkout-workflow.ts]], so an organizer who reads "Series: 5, Competition: 3" in the breakdown can trust that one source's accepted invites never consume the other's spots.
 
 ## Sent invites tab
 
