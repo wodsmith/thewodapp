@@ -8,12 +8,13 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq } from "drizzle-orm"
+import { and, eq, ne } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
   competitionRegistrationsTable,
   competitionsTable,
+  REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
 import {
   programmingTracksTable,
@@ -254,15 +255,27 @@ export const getLeaderboardDataFn = createServerFn({ method: "GET" })
         })
       : []
 
-    // Get registrations for this competition
+    // Get registrations for this competition.
+    // Exclude REMOVED registrations so athletes removed from the competition
+    // don't appear on the leaderboard.
     const registrations = await db.query.competitionRegistrationsTable.findMany(
       {
         where: data.divisionId
           ? and(
               eq(competitionRegistrationsTable.eventId, data.competitionId),
               eq(competitionRegistrationsTable.divisionId, data.divisionId),
+              ne(
+                competitionRegistrationsTable.status,
+                REGISTRATION_STATUS.REMOVED,
+              ),
             )
-          : eq(competitionRegistrationsTable.eventId, data.competitionId),
+          : and(
+              eq(competitionRegistrationsTable.eventId, data.competitionId),
+              ne(
+                competitionRegistrationsTable.status,
+                REGISTRATION_STATUS.REMOVED,
+              ),
+            ),
         with: {
           user: true,
           division: true,
