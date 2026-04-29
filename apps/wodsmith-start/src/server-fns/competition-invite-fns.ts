@@ -1622,9 +1622,13 @@ const saveInviteSourceAllocationsInputSchema = z.object({
     .array(
       z.object({
         championshipDivisionId: z.string().min(1),
-        // `null` = revert to source default (delete the row).
-        // Number ≥ 0 = upsert override. `0` is a valid pinned value.
+        // Absolute total override. `null` = no total override (defer to
+        // globalSpots / source default). `0` pins the division to zero.
         spots: z.number().int().min(0).nullable(),
+        // Series-only per-division global-leaderboard override. `null` =
+        // no override; `0` pins the global tier to zero for this division.
+        // Ignored at resolve time when `spots` is non-null.
+        globalSpots: z.number().int().min(0).nullable().optional(),
       }),
     )
     .max(200),
@@ -1735,10 +1739,17 @@ export const listInviteSourceAllocationsFn = createServerFn({ method: "GET" })
         const divisionAllocationTotals: Record<string, number> = {}
         // Raw override rows grouped by source — lets the source details
         // page distinguish "override present" from "default applied"
-        // when seeding the per-division toggle state.
+        // when seeding the per-division toggle state. `spots` and
+        // `globalSpots` surface independently so the per-division total
+        // and per-division global-spots sections can both hydrate without
+        // a second round-trip.
         const rawAllocationsBySource: Record<
           string,
-          Array<{ championshipDivisionId: string; spots: number }>
+          Array<{
+            championshipDivisionId: string
+            spots: number | null
+            globalSpots: number | null
+          }>
         > = {}
         for (const division of championshipDivisions) {
           divisionAllocationTotals[division.id] = 0
@@ -1761,6 +1772,7 @@ export const listInviteSourceAllocationsFn = createServerFn({ method: "GET" })
           rawAllocationsBySource[source.id] = sourceRows.map((r) => ({
             championshipDivisionId: r.championshipDivisionId,
             spots: r.spots,
+            globalSpots: r.globalSpots,
           }))
           for (const [divisionId, spots] of Object.entries(
             resolved.byDivision,
@@ -1821,7 +1833,12 @@ export const saveInviteSourceAllocationsFn = createServerFn({ method: "POST" })
         const db = getDb()
         await db.transaction(async (tx) => {
           for (const entry of data.allocations) {
-            if (entry.spots === null) {
+            const nextSpots = entry.spots
+            const nextGlobalSpots = entry.globalSpots ?? null
+            // Both null → no override on either axis; delete any existing
+            // row so the (source, division) pair reverts to the source
+            // default cleanly.
+            if (nextSpots === null && nextGlobalSpots === null) {
               await tx
                 .delete(competitionInviteSourceDivisionAllocationsTable)
                 .where(
@@ -1842,11 +1859,13 @@ export const saveInviteSourceAllocationsFn = createServerFn({ method: "POST" })
                 .values({
                   sourceId: data.sourceId,
                   championshipDivisionId: entry.championshipDivisionId,
-                  spots: entry.spots,
+                  spots: nextSpots,
+                  globalSpots: nextGlobalSpots,
                 })
                 .onDuplicateKeyUpdate({
                   set: {
-                    spots: entry.spots,
+                    spots: nextSpots,
+                    globalSpots: nextGlobalSpots,
                     updatedAt: new Date(),
                   },
                 })

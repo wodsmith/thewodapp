@@ -153,6 +153,11 @@ interface OverrideState {
   spots: string
 }
 
+interface GlobalSpotsOverrideState {
+  useDefault: boolean
+  globalSpots: string
+}
+
 function InviteSourceDetailsPage() {
   const {
     source,
@@ -172,6 +177,10 @@ function InviteSourceDetailsPage() {
   const [metaError, setMetaError] = useState<string | null>(null)
   const [allocationError, setAllocationError] = useState<string | null>(null)
   const [savingAllocations, setSavingAllocations] = useState(false)
+  const [globalSpotsError, setGlobalSpotsError] = useState<string | null>(null)
+  const [savingGlobalSpots, setSavingGlobalSpots] = useState(false)
+
+  const isSeriesSource = source.kind === "series"
 
   // Source default applied per-division when no override row exists.
   // Mirrors `sourceDefaultPerDivision` in the server-side allocations
@@ -193,15 +202,31 @@ function InviteSourceDetailsPage() {
     return source.globalSpots ?? 0
   }, [source, allocationsBySourceByDivision])
 
-  // Seed the per-division override map from the raw allocation rows.
-  // Presence of a row in `rawAllocationsForSource` means "override is
-  // active for this division" (toggle off, spots = row.spots). Absence
-  // means "uses source default" (toggle on, spots = source default for
-  // display only).
-  const overridesByDivisionId = useMemo(() => {
+  // Source-level globalSpots default for series sources. The per-division
+  // global-spots overrides table seeds its "Use default" rows from this
+  // value so the organizer always sees the number that would apply if
+  // they turned off the override.
+  const sourceGlobalSpotsDefault = source.globalSpots ?? 0
+
+  // Seed the per-division override maps from the raw allocation rows.
+  // A row may carry an override on either axis (spots / globalSpots) or
+  // both — we filter each map by axis so the two cards are independent.
+  const totalOverridesByDivisionId = useMemo(() => {
     const map = new Map<string, number>()
     for (const row of rawAllocationsForSource) {
-      map.set(row.championshipDivisionId, row.spots)
+      if (row.spots !== null) {
+        map.set(row.championshipDivisionId, row.spots)
+      }
+    }
+    return map
+  }, [rawAllocationsForSource])
+
+  const globalSpotsOverridesByDivisionId = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const row of rawAllocationsForSource) {
+      if (row.globalSpots !== null) {
+        map.set(row.championshipDivisionId, row.globalSpots)
+      }
     }
     return map
   }, [rawAllocationsForSource])
@@ -209,7 +234,7 @@ function InviteSourceDetailsPage() {
   const initialOverrides = useMemo<Record<string, OverrideState>>(() => {
     const out: Record<string, OverrideState> = {}
     for (const division of championshipDivisions) {
-      const overrideSpots = overridesByDivisionId.get(division.id)
+      const overrideSpots = totalOverridesByDivisionId.get(division.id)
       if (overrideSpots !== undefined) {
         out[division.id] = {
           useDefault: false,
@@ -223,16 +248,121 @@ function InviteSourceDetailsPage() {
       }
     }
     return out
-  }, [championshipDivisions, overridesByDivisionId, sourceDefaultPerDivision])
+  }, [championshipDivisions, totalOverridesByDivisionId, sourceDefaultPerDivision])
+
+  const initialGlobalSpotsOverrides = useMemo<
+    Record<string, GlobalSpotsOverrideState>
+  >(() => {
+    const out: Record<string, GlobalSpotsOverrideState> = {}
+    for (const division of championshipDivisions) {
+      const overrideGlobal = globalSpotsOverridesByDivisionId.get(division.id)
+      if (overrideGlobal !== undefined) {
+        out[division.id] = {
+          useDefault: false,
+          globalSpots: String(overrideGlobal),
+        }
+      } else {
+        out[division.id] = {
+          useDefault: true,
+          globalSpots: String(sourceGlobalSpotsDefault),
+        }
+      }
+    }
+    return out
+  }, [
+    championshipDivisions,
+    globalSpotsOverridesByDivisionId,
+    sourceGlobalSpotsDefault,
+  ])
 
   const [overrides, setOverrides] =
     useState<Record<string, OverrideState>>(initialOverrides)
+
+  const [globalSpotsOverrides, setGlobalSpotsOverrides] = useState<
+    Record<string, GlobalSpotsOverrideState>
+  >(initialGlobalSpotsOverrides)
 
   const setRow = (divisionId: string, patch: Partial<OverrideState>) => {
     setOverrides((prev) => ({
       ...prev,
       [divisionId]: { ...prev[divisionId], ...patch },
     }))
+  }
+
+  const setGlobalSpotsRow = (
+    divisionId: string,
+    patch: Partial<GlobalSpotsOverrideState>,
+  ) => {
+    setGlobalSpotsOverrides((prev) => ({
+      ...prev,
+      [divisionId]: { ...prev[divisionId], ...patch },
+    }))
+  }
+
+  // Build the merged payload for `saveInviteSourceAllocationsFn`. Both
+  // axes are persisted on the same row keyed by (sourceId, divisionId);
+  // each save (whether triggered from the totals card or the global-spots
+  // card) sends the current local state of both axes so the row's other
+  // axis isn't accidentally cleared.
+  const buildAllocationPayload = (): {
+    payload: Array<{
+      championshipDivisionId: string
+      spots: number | null
+      globalSpots: number | null
+    }>
+    error: string | null
+  } => {
+    const payload: Array<{
+      championshipDivisionId: string
+      spots: number | null
+      globalSpots: number | null
+    }> = []
+    for (const division of championshipDivisions) {
+      const totalRow = overrides[division.id]
+      const globalRow = globalSpotsOverrides[division.id]
+
+      let spotsValue: number | null = null
+      if (totalRow && !totalRow.useDefault) {
+        const trimmed = totalRow.spots.trim()
+        if (trimmed === "") {
+          return {
+            payload: [],
+            error: `Enter a number for ${division.label} or toggle "Use default" in per-division allocation.`,
+          }
+        }
+        const parsed = Number(trimmed)
+        if (!Number.isFinite(parsed) || parsed < 0 || !Number.isInteger(parsed)) {
+          return { payload: [], error: "Spots must be 0 or greater." }
+        }
+        spotsValue = parsed
+      }
+
+      let globalSpotsValue: number | null = null
+      if (isSeriesSource && globalRow && !globalRow.useDefault) {
+        const trimmed = globalRow.globalSpots.trim()
+        if (trimmed === "") {
+          return {
+            payload: [],
+            error: `Enter a number for ${division.label} or toggle "Use default" in per-division global spots.`,
+          }
+        }
+        const parsed = Number(trimmed)
+        if (!Number.isFinite(parsed) || parsed < 0 || !Number.isInteger(parsed)) {
+          return {
+            payload: [],
+            error: "Global spots must be 0 or greater.",
+          }
+        }
+        globalSpotsValue = parsed
+      }
+
+      payload.push({
+        championshipDivisionId: division.id,
+        spots: spotsValue,
+        globalSpots: globalSpotsValue,
+      })
+    }
+    return { payload, error: null }
   }
 
   const onMetaSubmit = async (values: InviteSourceFormValues) => {
@@ -264,42 +394,17 @@ function InviteSourceDetailsPage() {
 
   const onSaveAllocations = async () => {
     setAllocationError(null)
-    // Build the allocation payload. `useDefault === true` → null (delete
-    // override). `useDefault === false` → numeric value, clamped ≥ 0.
-    const allocations: Array<{
-      championshipDivisionId: string
-      spots: number | null
-    }> = []
-    for (const division of championshipDivisions) {
-      const row = overrides[division.id]
-      if (!row) continue
-      if (row.useDefault) {
-        allocations.push({
-          championshipDivisionId: division.id,
-          spots: null,
-        })
-      } else {
-        const trimmed = row.spots.trim()
-        if (trimmed === "") {
-          setAllocationError(
-            `Enter a number for ${division.label} or toggle "Use default".`,
-          )
-          return
-        }
-        const parsed = Number(trimmed)
-        if (!Number.isFinite(parsed) || parsed < 0 || !Number.isInteger(parsed)) {
-          setAllocationError("Spots must be 0 or greater.")
-          return
-        }
-        allocations.push({
-          championshipDivisionId: division.id,
-          spots: parsed,
-        })
-      }
+    setGlobalSpotsError(null)
+    const { payload, error } = buildAllocationPayload()
+    if (error) {
+      setAllocationError(error)
+      return
     }
     setSavingAllocations(true)
     try {
-      await saveAllocations({ data: { sourceId: source.id, allocations } })
+      await saveAllocations({
+        data: { sourceId: source.id, allocations: payload },
+      })
       toast.success("Per-division allocations saved")
       router.invalidate()
     } catch (err) {
@@ -311,9 +416,38 @@ function InviteSourceDetailsPage() {
     }
   }
 
+  const onSaveGlobalSpots = async () => {
+    setGlobalSpotsError(null)
+    setAllocationError(null)
+    const { payload, error } = buildAllocationPayload()
+    if (error) {
+      setGlobalSpotsError(error)
+      return
+    }
+    setSavingGlobalSpots(true)
+    try {
+      await saveAllocations({
+        data: { sourceId: source.id, allocations: payload },
+      })
+      toast.success("Per-division global spots saved")
+      router.invalidate()
+    } catch (err) {
+      setGlobalSpotsError(
+        err instanceof Error ? err.message : "Failed to save global spots",
+      )
+    } finally {
+      setSavingGlobalSpots(false)
+    }
+  }
+
   const onDiscard = () => {
     setOverrides(initialOverrides)
     setAllocationError(null)
+  }
+
+  const onDiscardGlobalSpots = () => {
+    setGlobalSpotsOverrides(initialGlobalSpotsOverrides)
+    setGlobalSpotsError(null)
   }
 
   const sourceLabel =
@@ -390,6 +524,131 @@ function InviteSourceDetailsPage() {
           ) : null}
         </CardContent>
       </Card>
+
+      {isSeriesSource ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Per-division global spots</CardTitle>
+            <CardDescription>
+              Override how many global-leaderboard qualifiers this series
+              contributes per championship division. Replaces the source's{" "}
+              <span className="font-semibold">global spots</span> default
+              (currently{" "}
+              <span className="font-semibold">{sourceGlobalSpotsDefault}</span>
+              ) for the rows you toggle off. The per-comp direct tier
+              (directSpotsPerComp × series comps) is unchanged.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {championshipDivisions.length === 0 ? (
+              <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+                This championship has no divisions yet.
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Division</TableHead>
+                    <TableHead className="w-32">Global spots</TableHead>
+                    <TableHead className="w-40">Use default</TableHead>
+                    <TableHead className="w-40">Override globals</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {championshipDivisions.map((division) => {
+                    const row = globalSpotsOverrides[division.id]
+                    if (!row) return null
+                    const resolvedDisplay = row.useDefault
+                      ? sourceGlobalSpotsDefault
+                      : (() => {
+                          const n = Number(row.globalSpots)
+                          return Number.isFinite(n) ? n : 0
+                        })()
+                    return (
+                      <TableRow key={division.id}>
+                        <TableCell className="font-medium">
+                          {division.label}
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={
+                              row.useDefault
+                                ? "text-muted-foreground"
+                                : "font-semibold"
+                            }
+                          >
+                            {resolvedDisplay}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2 text-sm">
+                            <Checkbox
+                              id={`use-default-globals-${division.id}`}
+                              checked={row.useDefault}
+                              onCheckedChange={(v) =>
+                                setGlobalSpotsRow(division.id, {
+                                  useDefault: v === true,
+                                  globalSpots: row.globalSpots,
+                                })
+                              }
+                              aria-label={`Use default global spots for ${division.label}`}
+                            />
+                            <label
+                              htmlFor={`use-default-globals-${division.id}`}
+                              className="text-muted-foreground"
+                            >
+                              Default ({sourceGlobalSpotsDefault})
+                            </label>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min={0}
+                            step={1}
+                            disabled={row.useDefault}
+                            value={row.globalSpots}
+                            onChange={(e) =>
+                              setGlobalSpotsRow(division.id, {
+                                globalSpots: e.target.value,
+                              })
+                            }
+                            aria-label={`Override global spots for ${division.label}`}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            )}
+            {globalSpotsError ? (
+              <Alert variant="destructive">
+                <AlertDescription>{globalSpotsError}</AlertDescription>
+              </Alert>
+            ) : null}
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onDiscardGlobalSpots}
+                disabled={savingGlobalSpots}
+              >
+                Discard
+              </Button>
+              <Button
+                type="button"
+                onClick={onSaveGlobalSpots}
+                disabled={
+                  savingGlobalSpots || championshipDivisions.length === 0
+                }
+              >
+                {savingGlobalSpots ? "Saving..." : "Save changes"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>

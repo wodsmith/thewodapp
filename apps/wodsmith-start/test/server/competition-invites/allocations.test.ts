@@ -29,11 +29,13 @@ function sourceFixture(
 
 function allocationFixture(
   overrides: Partial<CompetitionInviteSourceDivisionAllocation> &
-    Pick<CompetitionInviteSourceDivisionAllocation, "championshipDivisionId" | "spots">,
+    Pick<CompetitionInviteSourceDivisionAllocation, "championshipDivisionId">,
 ): CompetitionInviteSourceDivisionAllocation {
   return {
     id: `cisda_${overrides.championshipDivisionId}`,
     sourceId: "cisrc_test",
+    spots: null,
+    globalSpots: null,
     createdAt: new Date("2026-04-01T00:00:00Z"),
     updatedAt: new Date("2026-04-01T00:00:00Z"),
     updateCounter: 0,
@@ -166,5 +168,116 @@ describe("resolveSourceAllocations", () => {
 
     expect(result.byDivision.div_rx).toBe(5)
     expect(result.total).toBe(15)
+  })
+
+  it("applies a series per-division globalSpots override on top of directSpotsPerComp", () => {
+    // Series source with `direct=3 × comps=4 + globals=2 = 14` per division.
+    // RX overrides globals to 5 → 3*4 + 5 = 17. Scaled overrides globals to
+    // 1 → 3*4 + 1 = 13. Masters has no row → falls back to default 14.
+    const result = resolveSourceAllocations({
+      source: sourceFixture({
+        kind: COMPETITION_INVITE_SOURCE_KIND.SERIES,
+        sourceCompetitionId: null,
+        sourceGroupId: "cgrp_series",
+        directSpotsPerComp: 3,
+        globalSpots: 2,
+      }),
+      championshipDivisions: divisions,
+      allocations: [
+        allocationFixture({ championshipDivisionId: "div_rx", globalSpots: 5 }),
+        allocationFixture({
+          championshipDivisionId: "div_scaled",
+          globalSpots: 1,
+        }),
+      ],
+      seriesCompCount: 4,
+    })
+
+    expect(result.byDivision).toEqual({
+      div_rx: 17,
+      div_scaled: 13,
+      div_masters: 14,
+    })
+    expect(result.total).toBe(44)
+  })
+
+  it("treats a series globalSpots override of 0 as zero global qualifiers (not the default)", () => {
+    const result = resolveSourceAllocations({
+      source: sourceFixture({
+        kind: COMPETITION_INVITE_SOURCE_KIND.SERIES,
+        sourceCompetitionId: null,
+        sourceGroupId: "cgrp_series",
+        directSpotsPerComp: 3,
+        globalSpots: 2,
+      }),
+      championshipDivisions: divisions,
+      allocations: [
+        allocationFixture({
+          championshipDivisionId: "div_scaled",
+          globalSpots: 0,
+        }),
+      ],
+      seriesCompCount: 4,
+    })
+
+    // Scaled: direct only → 3 * 4 + 0 = 12. Others: full default 14.
+    expect(result.byDivision).toEqual({
+      div_rx: 14,
+      div_scaled: 12,
+      div_masters: 14,
+    })
+    expect(result.total).toBe(40)
+  })
+
+  it("prefers the absolute spots override over the per-division globalSpots override on the same row", () => {
+    // The row carries both axes. The resolver should treat `spots` as the
+    // total override and ignore globalSpots — series sources can carry
+    // both axes during transitional state, but spots wins when present.
+    const result = resolveSourceAllocations({
+      source: sourceFixture({
+        kind: COMPETITION_INVITE_SOURCE_KIND.SERIES,
+        sourceCompetitionId: null,
+        sourceGroupId: "cgrp_series",
+        directSpotsPerComp: 3,
+        globalSpots: 2,
+      }),
+      championshipDivisions: divisions,
+      allocations: [
+        allocationFixture({
+          championshipDivisionId: "div_rx",
+          spots: 7,
+          globalSpots: 99,
+        }),
+      ],
+      seriesCompCount: 4,
+    })
+
+    expect(result.byDivision.div_rx).toBe(7)
+    expect(result.byDivision.div_scaled).toBe(14)
+  })
+
+  it("falls back to the source default when a series row has neither spots nor globalSpots set", () => {
+    // A row with both axes null behaves as if the row were absent — the
+    // resolver should not crash and should return the source default for
+    // every division. (`saveInviteSourceAllocationsFn` deletes such rows
+    // on its own, but the resolver must remain robust.)
+    const result = resolveSourceAllocations({
+      source: sourceFixture({
+        kind: COMPETITION_INVITE_SOURCE_KIND.SERIES,
+        sourceCompetitionId: null,
+        sourceGroupId: "cgrp_series",
+        directSpotsPerComp: 3,
+        globalSpots: 2,
+      }),
+      championshipDivisions: divisions,
+      allocations: [allocationFixture({ championshipDivisionId: "div_rx" })],
+      seriesCompCount: 4,
+    })
+
+    expect(result.byDivision).toEqual({
+      div_rx: 14,
+      div_scaled: 14,
+      div_masters: 14,
+    })
   })
 })

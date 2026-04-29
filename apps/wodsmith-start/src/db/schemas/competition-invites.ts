@@ -114,6 +114,16 @@ export type CompetitionInviteSource = InferSelectModel<
  * pins the division to zero from this source. Absence of the row means
  * "use the source default."
  *
+ * Two orthogonal axes per row (at least one must be non-null):
+ * - `spots`: absolute total override. When set, the resolver returns this
+ *   number directly (preserves the original ADR-0012 Phase 1 behavior).
+ * - `globalSpots` (series sources only): overrides the source-level
+ *   `globalSpots` default in the series formula. When `spots` is null and
+ *   `globalSpots` is set, the resolver returns
+ *   `directSpotsPerComp * seriesCompCount + globalSpots`. Lets organizers
+ *   tune the global-leaderboard contribution per division (e.g. 3 RX, 2
+ *   Scaled) without disturbing the per-comp direct tier.
+ *
  * Cascading delete on the source row is handled in
  * `apps/wodsmith-start/src/server/competition-invites/sources.ts`
  * (`deleteSource`) — no FKs per PlanetScale convention.
@@ -130,9 +140,15 @@ export const competitionInviteSourceDivisionAllocationsTable = mysqlTable(
     sourceId: varchar({ length: 255 }).notNull(),
     // Refs `competition_divisions.id` (scaling level id) of the championship.
     championshipDivisionId: varchar({ length: 255 }).notNull(),
-    // Override allocation count. 0 means "this division gets none from this
-    // source"; absence of the row means "use the source default."
-    spots: int().notNull(),
+    // Absolute total override. 0 means "this division gets none from this
+    // source"; null means "no total override — fall through to globalSpots
+    // override (if any) or the source default."
+    spots: int(),
+    // Series-only per-division override of the global-leaderboard portion.
+    // Replaces the source's `globalSpots` in the series formula
+    // `directSpotsPerComp * seriesCompCount + globalSpots`. Null means
+    // "no global-spots override — use the source default."
+    globalSpots: int(),
   },
   (table) => [
     uniqueIndex(
