@@ -92,8 +92,18 @@ export const cohostGetCompetitionWaiversFn = createServerFn({ method: "GET" })
     getCompetitionWaiversInputSchema.parse(data),
   )
   .handler(async ({ data }): Promise<{ waivers: Waiver[] }> => {
-    await requireCohostPermission(data.competitionTeamId, "waivers")
-    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+    // Read access also opens to viewRegistrations/editRegistrations so the
+    // athletes table can show waiver titles + signed status. Mutations below
+    // remain gated on the dedicated `waivers` permission.
+    await requireCohostPermission(data.competitionTeamId, [
+      "waivers",
+      "viewRegistrations",
+      "editRegistrations",
+    ])
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      data.competitionId,
+    )
 
     const db = getDb()
 
@@ -125,8 +135,18 @@ export const cohostGetCompetitionWaiverSignaturesFn = createServerFn({
         signedAt: Date
       }>
     }> => {
-      await requireCohostPermission(data.competitionTeamId, "waivers")
-      await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+      // Same read-access policy as cohostGetCompetitionWaiversFn — viewers
+      // need signatures to see whether athletes signed in the registrations
+      // table.
+      await requireCohostPermission(data.competitionTeamId, [
+        "waivers",
+        "viewRegistrations",
+        "editRegistrations",
+      ])
+      await requireCohostCompetitionOwnership(
+        data.competitionTeamId,
+        data.competitionId,
+      )
 
       const db = getDb()
 
@@ -161,7 +181,10 @@ export const cohostCreateWaiverFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => createWaiverInputSchema.parse(data))
   .handler(async ({ data }): Promise<{ success: true; waiver: Waiver }> => {
     await requireCohostPermission(data.competitionTeamId, "waivers")
-    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      data.competitionId,
+    )
 
     const db = getDb()
 
@@ -202,7 +225,10 @@ export const cohostUpdateWaiverFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => updateWaiverInputSchema.parse(data))
   .handler(async ({ data }): Promise<{ success: true; waiver: Waiver }> => {
     await requireCohostPermission(data.competitionTeamId, "waivers")
-    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      data.competitionId,
+    )
 
     const db = getDb()
 
@@ -257,7 +283,10 @@ export const cohostDeleteWaiverFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => deleteWaiverInputSchema.parse(data))
   .handler(async ({ data }): Promise<{ success: true }> => {
     await requireCohostPermission(data.competitionTeamId, "waivers")
-    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      data.competitionId,
+    )
 
     const db = getDb()
 
@@ -280,7 +309,10 @@ export const cohostReorderWaiversFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => reorderWaiversInputSchema.parse(data))
   .handler(async ({ data }): Promise<{ success: true }> => {
     await requireCohostPermission(data.competitionTeamId, "waivers")
-    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      data.competitionId,
+    )
 
     const db = getDb()
 
