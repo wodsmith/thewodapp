@@ -919,10 +919,13 @@ function CohostAthletesPage() {
       <Tabs value={tab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="athletes">Athletes</TabsTrigger>
-          <TabsTrigger value="registration-rules">
-            Registration Rules
-          </TabsTrigger>
+          {canEditRegistrations && (
+            <TabsTrigger value="registration-rules">
+              Registration Rules
+            </TabsTrigger>
+          )}
         </TabsList>
+        {canEditRegistrations && (
         <TabsContent value="registration-rules" className="flex flex-col gap-6">
           {/* Inherited Series Questions (read-only) */}
           {questions.some((q) => q.source === "series") && (
@@ -990,6 +993,7 @@ function CohostAthletesPage() {
             overrides={questionOverrides}
           />
         </TabsContent>
+        )}
 
         <TabsContent value="athletes" className="flex flex-col gap-6">
           {/* Athletes Section */}

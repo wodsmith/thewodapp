@@ -111,7 +111,9 @@ export const cohostCreateQuestionFn = createServerFn({ method: "POST" })
     cohostCreateQuestionInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "editRegistrations")
+    const requiredPermission =
+      data.questionTarget === "volunteer" ? "volunteers" : "editRegistrations"
+    await requireCohostPermission(data.competitionTeamId, requiredPermission)
     await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
@@ -184,7 +186,6 @@ export const cohostUpdateQuestionFn = createServerFn({ method: "POST" })
     cohostUpdateQuestionInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "editRegistrations")
     const db = getDb()
 
     // Get question
@@ -196,6 +197,10 @@ export const cohostUpdateQuestionFn = createServerFn({ method: "POST" })
     if (!question) {
       throw new Error("Question not found")
     }
+
+    const requiredPermission =
+      question.questionTarget === "volunteer" ? "volunteers" : "editRegistrations"
+    await requireCohostPermission(data.competitionTeamId, requiredPermission)
 
     // Only allow editing competition-level questions (not series-level)
     if (!question.competitionId) {
@@ -252,7 +257,6 @@ export const cohostDeleteQuestionFn = createServerFn({ method: "POST" })
     cohostDeleteQuestionInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "editRegistrations")
     const db = getDb()
 
     // Get question
@@ -264,6 +268,10 @@ export const cohostDeleteQuestionFn = createServerFn({ method: "POST" })
     if (!question) {
       throw new Error("Question not found")
     }
+
+    const requiredPermission =
+      question.questionTarget === "volunteer" ? "volunteers" : "editRegistrations"
+    await requireCohostPermission(data.competitionTeamId, requiredPermission)
 
     // Only allow deleting competition-level questions
     if (!question.competitionId) {
@@ -287,7 +295,10 @@ export const cohostReorderQuestionsFn = createServerFn({ method: "POST" })
     cohostReorderQuestionsInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "editRegistrations")
+    await requireCohostPermission(data.competitionTeamId, [
+      "editRegistrations",
+      "volunteers",
+    ])
     await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
