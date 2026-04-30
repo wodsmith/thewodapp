@@ -748,20 +748,16 @@ describe("issueInvitesFn", () => {
     expect(issue.issueInvitesForRecipients).not.toHaveBeenCalled()
   })
 
-  it("REGRESSION GUARD — activation loop should not abort the batch when reissueInvite throws mid-loop", async () => {
-    // Reported behavior to lock in: the dispatch loop below is wrapped
-    // in try/catch and explicitly justified in a comment ("a single throw
-    // in the middle of a large batch ... doesn't abort the whole loop and
-    // leave the un-dispatched rows in `queued` limbo"). The activation
-    // loop above it currently does NOT have the same protection — a
-    // reissueInvite failure on the Nth draft propagates up before any
-    // already-inserted rows get email-dispatched, even though the first
-    // N-1 drafts have already rotated tokens (live state) and the
-    // inserted rows have already been transactionally written.
-    //
-    // This test asserts the observed behavior. If we later add try/catch
-    // parity (failed-activation rows reported via `failed` like the
-    // dispatch loop), update this test to match — that's the right fix.
+  it("isolates a reissueInvite failure: continues the loop, dispatches the rest, reports the bad row in failed[]", async () => {
+    // The dispatch loop below is wrapped in try/catch with the comment
+    // "a single throw in the middle of a large batch (render exception,
+    // queue.send blip, Workers CPU/memory cap) doesn't abort the whole
+    // loop and leave the un-dispatched rows in `queued` limbo with no
+    // recovery path." The activation loop above it must follow the same
+    // contract — a transient failure rotating one draft's token should
+    // not strand the inserted rows or other drafts. This test pins the
+    // contract: failed activation reports via `failed[]` and the rest
+    // of the batch still goes out.
     const { auth, issue } = await getMocks()
     vi.mocked(auth.getSessionFromCookie).mockResolvedValue(
       sessionStub as unknown as Awaited<
@@ -787,67 +783,91 @@ describe("issueInvitesFn", () => {
           existingInviteId: "ci_d2",
           isDraft: true,
         },
+        {
+          email: "draft3@example.com",
+          existingInviteId: "ci_d3",
+          isDraft: true,
+        },
       ],
     })
 
-    // First reissue succeeds; second blows up before reaching dispatch.
+    // d1 → ok, d2 → reissue throws (transient blip), d3 → ok.
+    // The handler must continue past d2 and still rotate d3.
     vi.mocked(issue.reissueInvite)
       .mockResolvedValueOnce({
-        invite: makeInvite({
-          id: "ci_d1",
-          email: "draft1@example.com",
-        }),
+        invite: makeInvite({ id: "ci_d1", email: "draft1@example.com" }),
         plaintextToken: "tok_d1",
       })
       .mockRejectedValueOnce(new Error("reissue blip"))
+      .mockResolvedValueOnce({
+        invite: makeInvite({ id: "ci_d3", email: "draft3@example.com" }),
+        plaintextToken: "tok_d3",
+      })
 
     const { issueInvitesFn } = await import(
       "@/server-fns/competition-invite-fns"
     )
 
-    await expect(
-      (
-        issueInvitesFn as unknown as (ctx: {
-          data: unknown
-        }) => Promise<unknown>
-      )({
-        data: {
-          championshipCompetitionId: "comp_champ",
-          championshipDivisionId: "div_rx",
-          rsvpDeadlineDate: "2099-12-31",
-          subject: "Welcome",
-          recipients: [
-            { ...validRecipient, email: "fresh@example.com" },
-            {
-              ...validRecipient,
-              origin: COMPETITION_INVITE_ORIGIN.BESPOKE,
-              sourceId: undefined,
-              sourceCompetitionId: undefined,
-              sourcePlacement: undefined,
-              email: "draft1@example.com",
-            },
-            {
-              ...validRecipient,
-              origin: COMPETITION_INVITE_ORIGIN.BESPOKE,
-              sourceId: undefined,
-              sourceCompetitionId: undefined,
-              sourcePlacement: undefined,
-              email: "draft2@example.com",
-            },
-          ],
-        },
-      }),
-    ).rejects.toThrow(/reissue blip/)
+    const result = await (
+      issueInvitesFn as unknown as (ctx: {
+        data: unknown
+      }) => Promise<{
+        sentCount: number
+        skipped: unknown[]
+        failed: Array<{ inviteId: string; email: string; error: string }>
+      }>
+    )({
+      data: {
+        championshipCompetitionId: "comp_champ",
+        championshipDivisionId: "div_rx",
+        rsvpDeadlineDate: "2099-12-31",
+        subject: "Welcome",
+        recipients: [
+          { ...validRecipient, email: "fresh@example.com" },
+          {
+            ...validRecipient,
+            origin: COMPETITION_INVITE_ORIGIN.BESPOKE,
+            sourceId: undefined,
+            sourceCompetitionId: undefined,
+            sourcePlacement: undefined,
+            email: "draft1@example.com",
+          },
+          {
+            ...validRecipient,
+            origin: COMPETITION_INVITE_ORIGIN.BESPOKE,
+            sourceId: undefined,
+            sourceCompetitionId: undefined,
+            sourcePlacement: undefined,
+            email: "draft2@example.com",
+          },
+          {
+            ...validRecipient,
+            origin: COMPETITION_INVITE_ORIGIN.BESPOKE,
+            sourceId: undefined,
+            sourceCompetitionId: undefined,
+            sourcePlacement: undefined,
+            email: "draft3@example.com",
+          },
+        ],
+      },
+    })
 
-    // Confirms the leak: render & queue.send were never called for
-    // the inserted invite or the first activated draft, even though
-    // those rows are already in a live state in the DB.
-    expect(renderMock).not.toHaveBeenCalled()
-    expect(queueStub.send).not.toHaveBeenCalled()
-    // First reissue ran and rotated the token, so `ci_d1` is now a
-    // live invite that the recipient will never get an email about
-    // unless an organizer manually intervenes.
-    expect(issue.reissueInvite).toHaveBeenCalledTimes(2)
+    // All three drafts attempted (the failure didn't stop the loop).
+    expect(issue.reissueInvite).toHaveBeenCalledTimes(3)
+
+    // 3 emails dispatched: inserted + d1 + d3. d2 is the failure.
+    expect(queueStub.send).toHaveBeenCalledTimes(3)
+    expect(result.sentCount).toBe(3)
+
+    // d2 surfaces in `failed[]` with the error message — same shape as
+    // the dispatch-loop failures, so the organizer UI can render it
+    // alongside render/enqueue errors without special-casing.
+    expect(result.failed).toHaveLength(1)
+    expect(result.failed[0]).toMatchObject({
+      inviteId: "ci_d2",
+      email: "draft2@example.com",
+    })
+    expect(result.failed[0].error).toMatch(/reissue blip/)
   })
 
   it("uses the same calendar day in the email regardless of TZ (no off-by-one)", async () => {
