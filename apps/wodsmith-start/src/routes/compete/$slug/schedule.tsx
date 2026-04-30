@@ -10,6 +10,7 @@ const parentRoute = getRouteApi("/compete/$slug")
 
 export const Route = createFileRoute("/compete/$slug/schedule")({
   component: CompetitionSchedulePage,
+  staleTime: 30_000,
   loader: async ({ parentMatchPromise }) => {
     const parentMatch = await parentMatchPromise
     const competition = parentMatch.loaderData?.competition
