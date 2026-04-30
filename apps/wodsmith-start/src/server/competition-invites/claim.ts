@@ -179,13 +179,16 @@ export async function resolveAllocationForInvite(args: {
     championshipCompetitionId: args.invite.championshipCompetitionId,
   })
 
-  // Fast path: explicit override row for this (source, division).
+  // Fast path: explicit absolute-spots override for this (source, division).
+  // A row may exist with `spots = null` and `globalSpots` set (per-division
+  // global-leaderboard override) — in that case we must fall through to
+  // the resolver path so the direct + global formula is applied.
   const override = allocations.find(
     (a) =>
       a.sourceId === args.invite.sourceId &&
       a.championshipDivisionId === args.invite.championshipDivisionId,
   )
-  if (override) return override.spots
+  if (override?.spots != null) return override.spots
 
   // Fallback: load the source row + (if series) its comp count, then run
   // the same default math the loader uses.

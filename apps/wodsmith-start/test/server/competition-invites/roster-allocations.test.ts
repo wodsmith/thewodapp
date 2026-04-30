@@ -36,14 +36,13 @@ function sourceFixture(
 
 function allocationFixture(
   overrides: Partial<CompetitionInviteSourceDivisionAllocation> &
-    Pick<
-      CompetitionInviteSourceDivisionAllocation,
-      "championshipDivisionId" | "spots"
-    >,
+    Pick<CompetitionInviteSourceDivisionAllocation, "championshipDivisionId">,
 ): CompetitionInviteSourceDivisionAllocation {
   return {
     id: `cisda_${overrides.championshipDivisionId}`,
     sourceId: "cisrc_qual",
+    spots: null,
+    globalSpots: null,
     createdAt: new Date("2026-04-01T00:00:00Z"),
     updatedAt: new Date("2026-04-01T00:00:00Z"),
     updateCounter: 0,

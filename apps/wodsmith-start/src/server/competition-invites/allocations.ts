@@ -55,12 +55,18 @@ export interface ResolvedSourceAllocations {
  *   applied per division. This preserves ADR-0011's series math while
  *   distributing it equally per division by default — when the organizer
  *   wants different per-division counts they create override rows.
+ *
+ * `globalSpotsOverride` (series-only) replaces the source-level `globalSpots`
+ * in the series formula when present, letting organizers set per-division
+ * global-leaderboard contributions (e.g. 3 RX globals, 2 Scaled globals)
+ * without affecting the per-comp direct tier.
  */
 function sourceDefaultPerDivision(
   source: CompetitionInviteSource,
   seriesCompCount: number | undefined,
+  globalSpotsOverride: number | null,
 ): number {
-  const globalSpots = source.globalSpots ?? 0
+  const globalSpots = globalSpotsOverride ?? source.globalSpots ?? 0
   if (source.kind === COMPETITION_INVITE_SOURCE_KIND.SERIES) {
     const direct = source.directSpotsPerComp ?? 0
     const compCount = seriesCompCount ?? 0
@@ -73,6 +79,12 @@ function sourceDefaultPerDivision(
  * Resolve per-championship-division allocations for one source, applying
  * the default-plus-override pattern. Returns the per-division map plus the
  * total contributed by this source across the championship.
+ *
+ * Per-row precedence (per ADR-0012 + per-division globalSpots extension):
+ * 1. `spots` non-null → absolute total override; resolver returns it as-is.
+ * 2. `globalSpots` non-null (series only) → resolver returns
+ *    `directSpotsPerComp * seriesCompCount + globalSpots-from-row`.
+ * 3. Otherwise → source default applied per division.
  *
  * `allocations` should already be filtered to rows for `source.id` (the
  * helper does not re-filter — passing rows for other sources is a caller
@@ -87,22 +99,32 @@ export function resolveSourceAllocations(args: {
    *  scales). Ignored for single-comp sources. */
   seriesCompCount?: number
 }): ResolvedSourceAllocations {
-  const overrideByDivisionId = new Map<string, number>()
+  const rowByDivisionId = new Map<
+    string,
+    Pick<CompetitionInviteSourceDivisionAllocation, "spots" | "globalSpots">
+  >()
   for (const allocation of args.allocations) {
     if (allocation.sourceId !== args.source.id) continue
-    overrideByDivisionId.set(allocation.championshipDivisionId, allocation.spots)
+    rowByDivisionId.set(allocation.championshipDivisionId, {
+      spots: allocation.spots,
+      globalSpots: allocation.globalSpots,
+    })
   }
-
-  const defaultSpots = sourceDefaultPerDivision(
-    args.source,
-    args.seriesCompCount,
-  )
 
   const byDivision: Record<string, number> = {}
   let total = 0
   for (const division of args.championshipDivisions) {
-    const override = overrideByDivisionId.get(division.id)
-    const spots = override !== undefined ? override : defaultSpots
+    const row = rowByDivisionId.get(division.id)
+    let spots: number
+    if (row?.spots != null) {
+      spots = row.spots
+    } else {
+      spots = sourceDefaultPerDivision(
+        args.source,
+        args.seriesCompCount,
+        row?.globalSpots ?? null,
+      )
+    }
     byDivision[division.id] = spots
     total += spots
   }
