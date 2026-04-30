@@ -5,21 +5,13 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
 import type { SessionValidationResult } from "@/types"
 import { getSessionFromCookie } from "@/utils/auth"
+import {
+  computeOrganizerEntitlements,
+  type OrganizerEntitlementState,
+} from "@/utils/organizer-entitlements"
 import { getActiveTeamId } from "@/utils/team-auth"
 
-/**
- * Organizer Entitlement State for the active organizing team
- * Three possible states:
- * 1. No entitlement - redirect to /compete/organizer/onboard
- * 2. Pending - has HOST_COMPETITIONS but limit=0 (show banner, allow drafts)
- * 3. Approved - has HOST_COMPETITIONS and limit=-1 (full access)
- */
-export interface OrganizerEntitlementState {
-  hasHostCompetitions: boolean
-  isPendingApproval: boolean
-  isApproved: boolean
-  activeOrganizingTeamId: string | null
-}
+export type { OrganizerEntitlementState }
 
 interface OrganizerBootstrap {
   session: SessionValidationResult | null
@@ -40,60 +32,11 @@ interface OrganizerBootstrap {
 const getOrganizerBootstrapFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<OrganizerBootstrap> => {
     const session = await getSessionFromCookie()
-
-    if (!session?.teams?.length) {
-      return {
-        session,
-        entitlements: {
-          hasHostCompetitions: false,
-          isPendingApproval: false,
-          isApproved: false,
-          activeOrganizingTeamId: null,
-        },
-      }
-    }
-
-    // Get the active team from cookie
-    const cookieTeamId = await getActiveTeamId()
-
-    // Find all teams that have HOST_COMPETITIONS using session data
-    const teamsWithHostCompetitions = session.teams
-      .filter((team) => team.plan?.features.includes("host_competitions"))
-      .map((t) => t.id)
-
-    const firstHostingTeam = teamsWithHostCompetitions[0]
-    if (!firstHostingTeam) {
-      return {
-        session,
-        entitlements: {
-          hasHostCompetitions: false,
-          isPendingApproval: false,
-          isApproved: false,
-          activeOrganizingTeamId: null,
-        },
-      }
-    }
-
-    const activeOrganizingTeamId =
-      cookieTeamId && teamsWithHostCompetitions.includes(cookieTeamId)
-        ? cookieTeamId
-        : firstHostingTeam
-
-    const activeTeam = session.teams.find(
-      (t) => t.id === activeOrganizingTeamId,
-    )
-    const limit = activeTeam?.plan?.limits.max_published_competitions ?? 0
-    const isPendingApproval = limit === 0
-    const isApproved = limit === -1 || limit > 0
+    const cookieTeamId = session?.teams?.length ? await getActiveTeamId() : null
 
     return {
       session,
-      entitlements: {
-        hasHostCompetitions: true,
-        isPendingApproval,
-        isApproved,
-        activeOrganizingTeamId,
-      },
+      entitlements: computeOrganizerEntitlements(session, cookieTeamId),
     }
   },
 )
