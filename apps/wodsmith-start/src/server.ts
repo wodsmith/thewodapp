@@ -30,6 +30,7 @@ import {
   withRequestContext,
 } from "./lib/logging"
 import { getSentryOptions } from "./lib/sentry/server"
+import { withSessionCache } from "./utils/auth"
 
 // Sensitive field names to redact as a safety net in the drain.
 // This catches any PII that accidentally leaks through log.set().
@@ -172,60 +173,62 @@ async function fetchWithLogging(
       path: requestInfo.path,
     },
     () =>
-      withEvlog(log, async () => {
-        try {
-          const response = await startEntry.fetch(request)
-          const durationMs = Date.now() - startTime
+      withEvlog(log, () =>
+        withSessionCache(async () => {
+          try {
+            const response = await startEntry.fetch(request)
+            const durationMs = Date.now() - startTime
 
-          // Only log errors or slow requests
-          if (response.status >= 400) {
-            logWarning({
-              message: `[HTTP] ${requestInfo.method} ${requestInfo.path} -> ${response.status}`,
+            // Only log errors or slow requests
+            if (response.status >= 400) {
+              logWarning({
+                message: `[HTTP] ${requestInfo.method} ${requestInfo.path} -> ${response.status}`,
+                attributes: {
+                  httpMethod: requestInfo.method,
+                  httpPath: requestInfo.path,
+                  status: response.status,
+                  durationMs,
+                },
+              })
+            } else if (durationMs >= SLOW_REQUEST_THRESHOLD_MS) {
+              logWarning({
+                message: `[HTTP] Slow request: ${requestInfo.method} ${requestInfo.path}`,
+                attributes: {
+                  httpMethod: requestInfo.method,
+                  httpPath: requestInfo.path,
+                  status: response.status,
+                  durationMs,
+                },
+              })
+            }
+
+            // Emit the wide event with accumulated context
+            log.emit({ status: response.status })
+
+            return response
+          } catch (error) {
+            const durationMs = Date.now() - startTime
+
+            logError({
+              message: `[HTTP] ${requestInfo.method} ${requestInfo.path} -> Error`,
+              error,
               attributes: {
                 httpMethod: requestInfo.method,
                 httpPath: requestInfo.path,
-                status: response.status,
                 durationMs,
               },
             })
-          } else if (durationMs >= SLOW_REQUEST_THRESHOLD_MS) {
-            logWarning({
-              message: `[HTTP] Slow request: ${requestInfo.method} ${requestInfo.path}`,
-              attributes: {
-                httpMethod: requestInfo.method,
-                httpPath: requestInfo.path,
-                status: response.status,
-                durationMs,
-              },
-            })
+
+            // Emit the wide event with error context
+            log.error(
+              error instanceof Error ? error : new Error(String(error)),
+            )
+            log.emit({ status: 500 })
+
+            throw error
           }
-
-          // Emit the wide event with accumulated context
-          log.emit({ status: response.status })
-
-          return response
-        } catch (error) {
-          const durationMs = Date.now() - startTime
-
-          logError({
-            message: `[HTTP] ${requestInfo.method} ${requestInfo.path} -> Error`,
-            error,
-            attributes: {
-              httpMethod: requestInfo.method,
-              httpPath: requestInfo.path,
-              durationMs,
-            },
-          })
-
-          // Emit the wide event with error context
-          log.error(
-            error instanceof Error ? error : new Error(String(error)),
-          )
-          log.emit({ status: 500 })
-
-          throw error
-        }
-      }),
+        }),
+      ),
   )
 }
 
