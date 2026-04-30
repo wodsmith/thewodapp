@@ -22,6 +22,7 @@ import {
   teamInvitationTable,
 } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
+import { getCohostPermissions } from "@/server/cohost"
 import { getSessionFromCookie } from "@/utils/auth"
 
 // ============================================================================
@@ -1048,10 +1049,33 @@ export const getVolunteerAnswersFn = createServerFn({ method: "GET" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    await requireTeamPermission(
-      data.organizingTeamId,
-      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-    )
+    // Allow organizers (MANAGE_COMPETITIONS) or cohosts (volunteers permission)
+    const session = await getSessionFromCookie()
+    if (!session?.userId) {
+      throw new Error("Unauthorized")
+    }
+
+    if (session.user?.role !== ROLES_ENUM.ADMIN) {
+      const hasOrganizerPerm = await hasTeamPermission(
+        data.organizingTeamId,
+        TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+      )
+
+      let hasCohostPerm = false
+      if (!hasOrganizerPerm) {
+        const cohostPerms = await getCohostPermissions(
+          session,
+          data.competitionTeamId,
+        )
+        hasCohostPerm = cohostPerms?.volunteers === true
+      }
+
+      if (!hasOrganizerPerm && !hasCohostPerm) {
+        throw new Error(
+          "Missing required permission: manage_competitions or cohost volunteers",
+        )
+      }
+    }
 
     const db = getDb()
 
