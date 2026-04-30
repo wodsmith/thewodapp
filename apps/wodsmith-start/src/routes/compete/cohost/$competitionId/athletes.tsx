@@ -36,12 +36,6 @@ import {
   type RegistrationQuestionsOverrides,
 } from "@/components/competition-settings/registration-questions-editor"
 import {
-  cohostCreateQuestionFn,
-  cohostDeleteQuestionFn,
-  cohostReorderQuestionsFn,
-  cohostUpdateQuestionFn,
-} from "@/server-fns/cohost/cohost-registration-questions-fns"
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -84,18 +78,24 @@ import {
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { INVITATION_STATUS } from "@/db/schemas/teams"
-import {
-  cohostGetOrganizerRegistrationsFn,
-  cohostRemoveRegistrationFn,
-  cohostGetRegistrationQuestionsFn,
-  cohostGetCompetitionRegistrationAnswersFn,
-  cohostCreateManualRegistrationFn,
-  cohostTransferRegistrationDivisionFn,
-} from "@/server-fns/cohost/cohost-registration-fns"
 import { cohostGetDivisionsWithCountsFn } from "@/server-fns/cohost/cohost-division-fns"
 import {
-  cohostGetCompetitionWaiversFn,
+  cohostCreateManualRegistrationFn,
+  cohostGetCompetitionRegistrationAnswersFn,
+  cohostGetOrganizerRegistrationsFn,
+  cohostGetRegistrationQuestionsFn,
+  cohostRemoveRegistrationFn,
+  cohostTransferRegistrationDivisionFn,
+} from "@/server-fns/cohost/cohost-registration-fns"
+import {
+  cohostCreateQuestionFn,
+  cohostDeleteQuestionFn,
+  cohostReorderQuestionsFn,
+  cohostUpdateQuestionFn,
+} from "@/server-fns/cohost/cohost-registration-questions-fns"
+import {
   cohostGetCompetitionWaiverSignaturesFn,
+  cohostGetCompetitionWaiversFn,
 } from "@/server-fns/cohost/cohost-waiver-fns"
 import {
   getPendingTeammateInvitationsFn,
@@ -105,8 +105,14 @@ import {
   cancelPurchaseTransferFn,
   getPendingTransfersForCompetitionFn,
 } from "@/server-fns/purchase-transfer-fns"
-import { ManualRegistrationDialog, type ManualRegistrationData } from "../../organizer/$competitionId/-components/manual-registration-dialog"
-import { TransferDivisionDialog, type TransferDivisionData } from "../../organizer/$competitionId/-components/transfer-division-dialog"
+import {
+  type ManualRegistrationData,
+  ManualRegistrationDialog,
+} from "../../organizer/$competitionId/-components/manual-registration-dialog"
+import {
+  type TransferDivisionData,
+  TransferDivisionDialog,
+} from "../../organizer/$competitionId/-components/transfer-division-dialog"
 import { TransferRegistrationDialog } from "../../organizer/$competitionId/-components/transfer-registration-dialog"
 
 const parentRoute = getRouteApi("/compete/cohost/$competitionId")
@@ -137,106 +143,106 @@ const athletesSearchSchema = z.object({
   sortDir: z.enum(["asc", "desc"]).optional(),
 })
 
-export const Route = createFileRoute(
-  "/compete/cohost/$competitionId/athletes",
-)({
-  staleTime: 10_000,
-  component: CohostAthletesPage,
-  validateSearch: athletesSearchSchema,
-  loaderDeps: ({ search }) => ({
-    division: search?.division,
-    questionFilters: search?.questionFilters,
-    waiverFilters: search?.waiverFilters,
-    sortBy: search?.sortBy,
-    sortDir: search?.sortDir,
-  }),
-  loader: async ({ params, deps, parentMatchPromise }) => {
-    const { competitionId } = params
-    const divisionFilter = deps?.division
+export const Route = createFileRoute("/compete/cohost/$competitionId/athletes")(
+  {
+    staleTime: 10_000,
+    component: CohostAthletesPage,
+    validateSearch: athletesSearchSchema,
+    loaderDeps: ({ search }) => ({
+      division: search?.division,
+      questionFilters: search?.questionFilters,
+      waiverFilters: search?.waiverFilters,
+      sortBy: search?.sortBy,
+      sortDir: search?.sortDir,
+    }),
+    loader: async ({ params, deps, parentMatchPromise }) => {
+      const { competitionId } = params
+      const divisionFilter = deps?.division
 
-    const parentMatch = await parentMatchPromise
-    const { competition } = parentMatch.loaderData!
+      const parentMatch = await parentMatchPromise
+      const { competition } = parentMatch.loaderData!
 
-    const competitionTeamId = competition.competitionTeamId!
+      const competitionTeamId = competition.competitionTeamId!
 
-    // Parallel fetch: registrations, divisions, questions, answers, waivers, signatures, pending invites, and pending transfers
-    const [
-      registrationsResult,
-      divisionsResult,
-      questionsResult,
-      answersResult,
-      waiversResult,
-      signaturesResult,
-      pendingInvitesResult,
-      pendingTransfersResult,
-    ] = await Promise.all([
-      cohostGetOrganizerRegistrationsFn({
-        data: { competitionId, competitionTeamId, divisionFilter },
-      }),
-      cohostGetDivisionsWithCountsFn({
-        data: { competitionId, competitionTeamId },
-      }),
-      cohostGetRegistrationQuestionsFn({
-        data: { competitionId, competitionTeamId },
-      }),
-      cohostGetCompetitionRegistrationAnswersFn({
-        data: { competitionId, competitionTeamId },
-      }),
-      cohostGetCompetitionWaiversFn({
-        data: { competitionId, competitionTeamId },
-      }).catch((error) => {
-        if (
-          error instanceof Error &&
-          error.message.startsWith("FORBIDDEN:")
-        ) {
-          return { waivers: [] }
-        }
-        throw error
-      }),
-      cohostGetCompetitionWaiverSignaturesFn({
-        data: { competitionId, competitionTeamId },
-      }).catch((error) => {
-        if (
-          error instanceof Error &&
-          error.message.startsWith("FORBIDDEN:")
-        ) {
-          return { signatures: [] }
-        }
-        throw error
-      }),
-      getPendingTeammateInvitationsFn({
-        data: { competitionId },
-      }),
-      getPendingTransfersForCompetitionFn({
-        data: { competitionId },
-      }),
-    ])
+      // Parallel fetch: registrations, divisions, questions, answers, waivers, signatures, pending invites, and pending transfers
+      const [
+        registrationsResult,
+        divisionsResult,
+        questionsResult,
+        answersResult,
+        waiversResult,
+        signaturesResult,
+        pendingInvitesResult,
+        pendingTransfersResult,
+      ] = await Promise.all([
+        cohostGetOrganizerRegistrationsFn({
+          data: { competitionId, competitionTeamId, divisionFilter },
+        }),
+        cohostGetDivisionsWithCountsFn({
+          data: { competitionId, competitionTeamId },
+        }),
+        cohostGetRegistrationQuestionsFn({
+          data: { competitionId, competitionTeamId },
+        }),
+        cohostGetCompetitionRegistrationAnswersFn({
+          data: { competitionId, competitionTeamId },
+        }),
+        cohostGetCompetitionWaiversFn({
+          data: { competitionId, competitionTeamId },
+        }).catch((error) => {
+          if (
+            error instanceof Error &&
+            error.message.startsWith("FORBIDDEN:")
+          ) {
+            return { waivers: [] }
+          }
+          throw error
+        }),
+        cohostGetCompetitionWaiverSignaturesFn({
+          data: { competitionId, competitionTeamId },
+        }).catch((error) => {
+          if (
+            error instanceof Error &&
+            error.message.startsWith("FORBIDDEN:")
+          ) {
+            return { signatures: [] }
+          }
+          throw error
+        }),
+        getPendingTeammateInvitationsFn({
+          data: { competitionId },
+        }),
+        getPendingTransfersForCompetitionFn({
+          data: { competitionId },
+        }),
+      ])
 
-    return {
-      registrations: registrationsResult.registrations,
-      divisions: divisionsResult.divisions,
-      questions: questionsResult.questions,
-      answersByRegistration: answersResult.answersByRegistration,
-      waivers: waiversResult.waivers,
-      signaturesByUser: signaturesResult.signatures.reduce(
-        (acc, sig) => {
-          const key = `${sig.userId}-${sig.waiverId}`
-          acc[key] = sig.signedAt
-          return acc
-        },
-        {} as Record<string, Date>,
-      ),
-      pendingInvites: pendingInvitesResult.pendingInvites,
-      pendingTransfers: pendingTransfersResult,
-      currentDivisionFilter: divisionFilter,
-      currentQuestionFilters: deps?.questionFilters || {},
-      currentWaiverFilters: deps?.waiverFilters || [],
-      currentSortBy: deps?.sortBy as SortColumn | undefined,
-      currentSortDir: deps?.sortDir as SortDirection | undefined,
-      competitionTeamId,
-    }
+      return {
+        registrations: registrationsResult.registrations,
+        divisions: divisionsResult.divisions,
+        questions: questionsResult.questions,
+        answersByRegistration: answersResult.answersByRegistration,
+        waivers: waiversResult.waivers,
+        signaturesByUser: signaturesResult.signatures.reduce(
+          (acc, sig) => {
+            const key = `${sig.userId}-${sig.waiverId}`
+            acc[key] = sig.signedAt
+            return acc
+          },
+          {} as Record<string, Date>,
+        ),
+        pendingInvites: pendingInvitesResult.pendingInvites,
+        pendingTransfers: pendingTransfersResult,
+        currentDivisionFilter: divisionFilter,
+        currentQuestionFilters: deps?.questionFilters || {},
+        currentWaiverFilters: deps?.waiverFilters || [],
+        currentSortBy: deps?.sortBy as SortColumn | undefined,
+        currentSortDir: deps?.sortDir as SortDirection | undefined,
+        competitionTeamId,
+      }
+    },
   },
-})
+)
 
 function CohostAthletesPage() {
   const { competition, permissions } = parentRoute.useLoaderData()
@@ -276,10 +282,16 @@ function CohostAthletesPage() {
   }
   const removeRegistration = useServerFn(cohostRemoveRegistrationFn)
   const cancelPurchaseTransfer = useServerFn(cancelPurchaseTransferFn)
-  const cohostCreateManualRegistration = useServerFn(cohostCreateManualRegistrationFn)
-  const cohostTransferDivision = useServerFn(cohostTransferRegistrationDivisionFn)
+  const cohostCreateManualRegistration = useServerFn(
+    cohostCreateManualRegistrationFn,
+  )
+  const cohostTransferDivision = useServerFn(
+    cohostTransferRegistrationDivisionFn,
+  )
 
-  const handleCohostCreateRegistration = async (data: ManualRegistrationData) => {
+  const handleCohostCreateRegistration = async (
+    data: ManualRegistrationData,
+  ) => {
     const result = await cohostCreateManualRegistration({
       data: { ...data, competitionTeamId },
     })
@@ -936,7 +948,11 @@ function CohostAthletesPage() {
 
   return (
     <>
-      <Tabs value={effectiveTab} onValueChange={handleTabChange} className="w-full">
+      <Tabs
+        value={effectiveTab}
+        onValueChange={handleTabChange}
+        className="w-full"
+      >
         <TabsList className="mb-6">
           <TabsTrigger value="athletes">Athletes</TabsTrigger>
           {canEditRegistrations && (
@@ -946,73 +962,76 @@ function CohostAthletesPage() {
           )}
         </TabsList>
         {canEditRegistrations && (
-        <TabsContent value="registration-rules" className="flex flex-col gap-6">
-          {/* Inherited Series Questions (read-only) */}
-          {questions.some((q) => q.source === "series") && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Link2 className="h-5 w-5" />
-                  Series Registration Questions
-                </CardTitle>
-                <CardDescription>
-                  These questions are inherited from the series and apply to all
-                  competitions.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {questions
-                    .filter((q) => q.source === "series")
-                    .map((question) => (
-                      <div
-                        key={question.id}
-                        className="flex items-start gap-3 p-4 border rounded-lg bg-muted/50"
-                      >
-                        <div className="flex-1 space-y-2">
-                          <div className="flex items-start justify-between gap-2">
-                            <h4 className="font-medium">{question.label}</h4>
-                            <Badge
-                              variant="outline"
-                              className="flex items-center gap-1 shrink-0"
-                            >
-                              <Link2 className="h-3 w-3" />
-                              From Series
-                            </Badge>
-                          </div>
-                          {question.helpText && (
-                            <p className="text-sm text-muted-foreground">
-                              {question.helpText}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Badge variant="secondary">{question.type}</Badge>
-                            <Badge
-                              variant={
-                                question.required ? "destructive" : "outline"
-                              }
-                            >
-                              {question.required ? "Required" : "Optional"}
-                            </Badge>
+          <TabsContent
+            value="registration-rules"
+            className="flex flex-col gap-6"
+          >
+            {/* Inherited Series Questions (read-only) */}
+            {questions.some((q) => q.source === "series") && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Link2 className="h-5 w-5" />
+                    Series Registration Questions
+                  </CardTitle>
+                  <CardDescription>
+                    These questions are inherited from the series and apply to
+                    all competitions.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {questions
+                      .filter((q) => q.source === "series")
+                      .map((question) => (
+                        <div
+                          key={question.id}
+                          className="flex items-start gap-3 p-4 border rounded-lg bg-muted/50"
+                        >
+                          <div className="flex-1 space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <h4 className="font-medium">{question.label}</h4>
+                              <Badge
+                                variant="outline"
+                                className="flex items-center gap-1 shrink-0"
+                              >
+                                <Link2 className="h-3 w-3" />
+                                From Series
+                              </Badge>
+                            </div>
+                            {question.helpText && (
+                              <p className="text-sm text-muted-foreground">
+                                {question.helpText}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge variant="secondary">{question.type}</Badge>
+                              <Badge
+                                variant={
+                                  question.required ? "destructive" : "outline"
+                                }
+                              >
+                                {question.required ? "Required" : "Optional"}
+                              </Badge>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                      ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-          {/* Competition-specific Registration Questions Editor */}
-          <RegistrationQuestionsEditor
-            entityType="competition"
-            entityId={competition.id}
-            teamId={competitionTeamId}
-            questions={questions.filter((q) => q.source === "competition")}
-            onQuestionsChange={handleQuestionsChange}
-            overrides={questionOverrides}
-          />
-        </TabsContent>
+            {/* Competition-specific Registration Questions Editor */}
+            <RegistrationQuestionsEditor
+              entityType="competition"
+              entityId={competition.id}
+              teamId={competitionTeamId}
+              questions={questions.filter((q) => q.source === "competition")}
+              onQuestionsChange={handleQuestionsChange}
+              overrides={questionOverrides}
+            />
+          </TabsContent>
         )}
 
         <TabsContent value="athletes" className="flex flex-col gap-6">
@@ -1330,105 +1349,110 @@ function CohostAthletesPage() {
                                   </span>
                                 </div>
                               </div>
-                              {row.isCaptain && !isRowRemoved && (
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 shrink-0"
-                                      aria-label="Open registration actions"
-                                    >
-                                      <MoreHorizontal className="h-4 w-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuItem
-                                      onClick={() => {
+                              {canEditRegistrations &&
+                                row.isCaptain &&
+                                !isRowRemoved && (
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 shrink-0"
+                                        aria-label="Open registration actions"
+                                      >
+                                        <MoreHorizontal className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem
+                                        onClick={() => {
+                                          const athleteName =
+                                            `${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim() ||
+                                            row.athlete.email ||
+                                            "Unknown"
+                                          setTransferTarget({
+                                            id: row.registrationId,
+                                            athleteName,
+                                            userId: row.athlete.id,
+                                            divisionId:
+                                              row.division?.id ?? null,
+                                            divisionLabel:
+                                              row.division?.label ?? null,
+                                            teamSize:
+                                              row.division?.teamSize ?? 1,
+                                          })
+                                        }}
+                                      >
+                                        <ArrowRight className="h-4 w-4 mr-2" />
+                                        Change Division
+                                      </DropdownMenuItem>
+                                      {(() => {
+                                        const pendingTransfer =
+                                          pendingTransfers.find(
+                                            (t) =>
+                                              t.purchaseId ===
+                                              row.commercePurchaseId,
+                                          )
                                         const athleteName =
                                           `${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim() ||
                                           row.athlete.email ||
                                           "Unknown"
-                                        setTransferTarget({
-                                          id: row.registrationId,
-                                          athleteName,
-                                          userId: row.athlete.id,
-                                          divisionId: row.division?.id ?? null,
-                                          divisionLabel:
-                                            row.division?.label ?? null,
-                                          teamSize: row.division?.teamSize ?? 1,
-                                        })
-                                      }}
-                                    >
-                                      <ArrowRight className="h-4 w-4 mr-2" />
-                                      Change Division
-                                    </DropdownMenuItem>
-                                    {(() => {
-                                      const pendingTransfer =
-                                        pendingTransfers.find(
-                                          (t) =>
-                                            t.purchaseId ===
-                                            row.commercePurchaseId,
-                                        )
-                                      const athleteName =
-                                        `${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim() ||
-                                        row.athlete.email ||
-                                        "Unknown"
-                                      if (pendingTransfer) {
+                                        if (pendingTransfer) {
+                                          return (
+                                            <DropdownMenuItem
+                                              className="text-destructive focus:text-destructive"
+                                              onClick={() =>
+                                                handleCancelTransfer(
+                                                  pendingTransfer.id,
+                                                )
+                                              }
+                                            >
+                                              <X className="h-4 w-4 mr-2" />
+                                              Cancel Transfer
+                                            </DropdownMenuItem>
+                                          )
+                                        }
                                         return (
                                           <DropdownMenuItem
-                                            className="text-destructive focus:text-destructive"
                                             onClick={() =>
-                                              handleCancelTransfer(
-                                                pendingTransfer.id,
-                                              )
+                                              setTransferRegistrationTarget({
+                                                id: row.registrationId,
+                                                athleteName,
+                                                divisionId:
+                                                  row.division?.id ?? null,
+                                                divisionLabel:
+                                                  row.division?.label ?? null,
+                                                commercePurchaseId:
+                                                  row.commercePurchaseId ??
+                                                  null,
+                                              })
                                             }
+                                            disabled={!row.commercePurchaseId}
                                           >
-                                            <X className="h-4 w-4 mr-2" />
-                                            Cancel Transfer
+                                            <UserPlus className="h-4 w-4 mr-2" />
+                                            Transfer Registration
                                           </DropdownMenuItem>
                                         )
-                                      }
-                                      return (
-                                        <DropdownMenuItem
-                                          onClick={() =>
-                                            setTransferRegistrationTarget({
-                                              id: row.registrationId,
-                                              athleteName,
-                                              divisionId:
-                                                row.division?.id ?? null,
-                                              divisionLabel:
-                                                row.division?.label ?? null,
-                                              commercePurchaseId:
-                                                row.commercePurchaseId ?? null,
-                                            })
-                                          }
-                                          disabled={!row.commercePurchaseId}
-                                        >
-                                          <UserPlus className="h-4 w-4 mr-2" />
-                                          Transfer Registration
-                                        </DropdownMenuItem>
-                                      )
-                                    })()}
-                                    <DropdownMenuItem
-                                      className="text-destructive focus:text-destructive"
-                                      onClick={() =>
-                                        setRemovingRegistration({
-                                          id: row.registrationId,
-                                          athleteName:
-                                            `${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim() ||
-                                            row.athlete.email ||
-                                            "Unknown",
-                                          teamName: row.teamName,
-                                        })
-                                      }
-                                    >
-                                      <Trash2 className="h-4 w-4 mr-2" />
-                                      Remove Registration
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              )}
+                                      })()}
+                                      <DropdownMenuItem
+                                        className="text-destructive focus:text-destructive"
+                                        onClick={() =>
+                                          setRemovingRegistration({
+                                            id: row.registrationId,
+                                            athleteName:
+                                              `${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim() ||
+                                              row.athlete.email ||
+                                              "Unknown",
+                                            teamName: row.teamName,
+                                          })
+                                        }
+                                      >
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Remove Registration
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                )}
                             </div>
                             <div className="mt-3 flex flex-wrap items-center gap-2">
                               {isRowRemoved ? (
@@ -1706,9 +1730,11 @@ function CohostAthletesPage() {
                                 <SortIcon column="joinedAt" />
                               </button>
                             </TableHead>
-                            <TableHead className="w-[40px]">
-                              <span className="sr-only">Actions</span>
-                            </TableHead>
+                            {canEditRegistrations && (
+                              <TableHead className="w-[40px]">
+                                <span className="sr-only">Actions</span>
+                              </TableHead>
+                            )}
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1971,110 +1997,118 @@ function CohostAthletesPage() {
                                     ? formatDate(row.joinedAt)
                                     : null}
                                 </TableCell>
-                                <TableCell>
-                                  {row.isCaptain && !isRowRemoved && (
-                                    <DropdownMenu>
-                                      <DropdownMenuTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-8 w-8"
-                                          aria-label="Open registration actions"
-                                        >
-                                          <MoreHorizontal className="h-4 w-4" />
-                                        </Button>
-                                      </DropdownMenuTrigger>
-                                      <DropdownMenuContent align="end">
-                                        <DropdownMenuItem
-                                          onClick={() => {
+                                {canEditRegistrations && (
+                                  <TableCell>
+                                    {row.isCaptain && !isRowRemoved && (
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            aria-label="Open registration actions"
+                                          >
+                                            <MoreHorizontal className="h-4 w-4" />
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                          <DropdownMenuItem
+                                            onClick={() => {
+                                              const athleteName =
+                                                `${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim() ||
+                                                row.athlete.email ||
+                                                "Unknown"
+                                              setTransferTarget({
+                                                id: row.registrationId,
+                                                athleteName,
+                                                userId: row.athlete.id,
+                                                divisionId:
+                                                  row.division?.id ?? null,
+                                                divisionLabel:
+                                                  row.division?.label ?? null,
+                                                teamSize:
+                                                  row.division?.teamSize ?? 1,
+                                              })
+                                            }}
+                                          >
+                                            <ArrowRight className="h-4 w-4 mr-2" />
+                                            Change Division
+                                          </DropdownMenuItem>
+                                          {(() => {
+                                            const pendingTransfer =
+                                              pendingTransfers.find(
+                                                (t) =>
+                                                  t.purchaseId ===
+                                                  row.commercePurchaseId,
+                                              )
                                             const athleteName =
                                               `${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim() ||
                                               row.athlete.email ||
                                               "Unknown"
-                                            setTransferTarget({
-                                              id: row.registrationId,
-                                              athleteName,
-                                              userId: row.athlete.id,
-                                              divisionId:
-                                                row.division?.id ?? null,
-                                              divisionLabel:
-                                                row.division?.label ?? null,
-                                              teamSize:
-                                                row.division?.teamSize ?? 1,
-                                            })
-                                          }}
-                                        >
-                                          <ArrowRight className="h-4 w-4 mr-2" />
-                                          Change Division
-                                        </DropdownMenuItem>
-                                        {(() => {
-                                          const pendingTransfer =
-                                            pendingTransfers.find(
-                                              (t) =>
-                                                t.purchaseId ===
-                                                row.commercePurchaseId,
-                                            )
-                                          const athleteName =
-                                            `${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim() ||
-                                            row.athlete.email ||
-                                            "Unknown"
-                                          if (pendingTransfer) {
+                                            if (pendingTransfer) {
+                                              return (
+                                                <DropdownMenuItem
+                                                  className="text-destructive focus:text-destructive"
+                                                  onClick={() =>
+                                                    handleCancelTransfer(
+                                                      pendingTransfer.id,
+                                                    )
+                                                  }
+                                                >
+                                                  <X className="h-4 w-4 mr-2" />
+                                                  Cancel Transfer
+                                                </DropdownMenuItem>
+                                              )
+                                            }
                                             return (
                                               <DropdownMenuItem
-                                                className="text-destructive focus:text-destructive"
                                                 onClick={() =>
-                                                  handleCancelTransfer(
-                                                    pendingTransfer.id,
+                                                  setTransferRegistrationTarget(
+                                                    {
+                                                      id: row.registrationId,
+                                                      athleteName,
+                                                      divisionId:
+                                                        row.division?.id ??
+                                                        null,
+                                                      divisionLabel:
+                                                        row.division?.label ??
+                                                        null,
+                                                      commercePurchaseId:
+                                                        row.commercePurchaseId ??
+                                                        null,
+                                                    },
                                                   )
                                                 }
+                                                disabled={
+                                                  !row.commercePurchaseId
+                                                }
                                               >
-                                                <X className="h-4 w-4 mr-2" />
-                                                Cancel Transfer
+                                                <UserPlus className="h-4 w-4 mr-2" />
+                                                Transfer Registration
                                               </DropdownMenuItem>
                                             )
-                                          }
-                                          return (
-                                            <DropdownMenuItem
-                                              onClick={() =>
-                                                setTransferRegistrationTarget({
-                                                  id: row.registrationId,
-                                                  athleteName,
-                                                  divisionId:
-                                                    row.division?.id ?? null,
-                                                  divisionLabel:
-                                                    row.division?.label ?? null,
-                                                  commercePurchaseId:
-                                                    row.commercePurchaseId ??
-                                                    null,
-                                                })
-                                              }
-                                              disabled={!row.commercePurchaseId}
-                                            >
-                                              <UserPlus className="h-4 w-4 mr-2" />
-                                              Transfer Registration
-                                            </DropdownMenuItem>
-                                          )
-                                        })()}
-                                        <DropdownMenuItem
-                                          className="text-destructive focus:text-destructive"
-                                          onClick={() =>
-                                            setRemovingRegistration({
-                                              id: row.registrationId,
-                                              athleteName:
-                                                `${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim() ||
-                                                row.athlete.email ||
-                                                "Unknown",
-                                              teamName: row.teamName,
-                                            })
-                                          }
-                                        >
-                                          <Trash2 className="h-4 w-4 mr-2" />
-                                          Remove Registration
-                                        </DropdownMenuItem>
-                                      </DropdownMenuContent>
-                                    </DropdownMenu>
-                                  )}
-                                </TableCell>
+                                          })()}
+                                          <DropdownMenuItem
+                                            className="text-destructive focus:text-destructive"
+                                            onClick={() =>
+                                              setRemovingRegistration({
+                                                id: row.registrationId,
+                                                athleteName:
+                                                  `${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim() ||
+                                                  row.athlete.email ||
+                                                  "Unknown",
+                                                teamName: row.teamName,
+                                              })
+                                            }
+                                          >
+                                            <Trash2 className="h-4 w-4 mr-2" />
+                                            Remove Registration
+                                          </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                    )}
+                                  </TableCell>
+                                )}
                               </TableRow>
                             )
                           })}
