@@ -260,6 +260,10 @@ function CohostAthletesPage() {
   const navigate = useNavigate()
   const router = useRouter()
   const { tab } = Route.useSearch()
+  // Coerce tab to "athletes" when the registration-rules tab is hidden so
+  // <Tabs> never holds a value with no matching TabsContent.
+  const effectiveTab =
+    tab === "registration-rules" && !canEditRegistrations ? "athletes" : tab
   const handleTabChange = (value: string) => {
     navigate({
       to: ".",
@@ -932,7 +936,7 @@ function CohostAthletesPage() {
 
   return (
     <>
-      <Tabs value={tab} onValueChange={handleTabChange} className="w-full">
+      <Tabs value={effectiveTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="athletes">Athletes</TabsTrigger>
           {canEditRegistrations && (
