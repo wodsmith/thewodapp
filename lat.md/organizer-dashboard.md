@@ -298,13 +298,15 @@ Each cohost server fn checks the user is a cohost on that competition team AND h
 
 ## Graceful Degradation Pattern
 
-All server function calls in cohost route loaders are wrapped with `.catch(() => sensibleDefault)` to degrade gracefully when permissions are missing.
+Cohost route loaders wrap optional-permission server fn calls with a `.catch()` that swallows only `FORBIDDEN:` errors and rethrows everything else — graceful degradation without masking real failures.
 
-The athletes loader (`/compete/cohost/$competitionId/athletes`) wraps `cohostGetCompetitionWaiversFn` and `cohostGetCompetitionWaiverSignaturesFn` with `.catch()` so cohosts with `viewRegistrations` but no `waivers` permission still load the page. `cohostGetDivisionsWithCountsFn` accepts `viewRegistrations` and `editRegistrations` (in addition to `divisions`/`leaderboardPreview`/`results`) since the athletes filter UI needs division metadata. The "Add Registration" button and the "Registration Rules" tab are hidden unless the cohost has `editRegistrations`.
+The athletes loader (`/compete/cohost/$competitionId/athletes`) wraps `cohostGetCompetitionWaiversFn` and `cohostGetCompetitionWaiverSignaturesFn` with a catch that returns `{ waivers: [] }` / `{ signatures: [] }` only when the error message starts with `FORBIDDEN:` — so cohosts with `viewRegistrations` but no `waivers` permission still load the page, while real errors (network, DB, etc.) still surface. `cohostGetDivisionsWithCountsFn` accepts `viewRegistrations` and `editRegistrations` (in addition to `divisions`/`leaderboardPreview`/`results`) since the athletes filter UI needs division metadata. The "Add Registration" button and the "Registration Rules" tab are hidden unless the cohost has `editRegistrations`.
 
 Registration question CRUD (`cohostCreateQuestionFn`, `cohostUpdateQuestionFn`, `cohostDeleteQuestionFn`) authorizes by `questionTarget`: volunteer questions require the `volunteers` permission, athlete questions require `editRegistrations`. Reorder accepts either since the editor only renders questions matching its target.
 
-Two failure categories exist: (1) organizer server fns (from `@/server-fns/` directly) that cohosts can never access because they require organizing team membership, and (2) cohost server fns that require a specific permission key the cohost may not have. Both are caught so pages render with empty data instead of crashing. The catch defaults match the return type of each function (e.g., `{ workouts: [] }`, `{ divisions: [] }`, `[]` for array returns).
+Two failure categories exist: (1) organizer server fns (from `@/server-fns/` directly) that cohosts can never access because they require organizing team membership, and (2) cohost server fns that require a specific permission key the cohost may not have. Both throw `FORBIDDEN:` errors via `requireCohostPermission` / `requireTeamPermission` and are caught so pages render with empty data instead of crashing. The catch defaults match the return type of each function (e.g., `{ workouts: [] }`, `{ divisions: [] }`, `[]` for array returns).
+
+[[apps/wodsmith-start/src/server-fns/competition-detail-fns.ts#getPendingTeammateInvitationsFn]] gates invite metadata fields by sensitivity. `pendingSignatures` (waiver signature status) and `submittedAt` are visible to anyone with `viewRegistrations` since cohosts need to see whether teammates signed/submitted the guest form. `pendingAnswers` (free-text answers to registration questions, potential PII) is restricted to admins, organizers, or cohosts with `editRegistrations` or `waivers`.
 
 ## Shared Component Callback Pattern
 

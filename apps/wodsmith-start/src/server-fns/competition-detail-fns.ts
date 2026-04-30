@@ -780,17 +780,22 @@ export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
         throw new Error("Unauthorized")
       }
 
-      if (session.user?.role !== ROLES_ENUM.ADMIN) {
+      const isAdmin = session.user?.role === ROLES_ENUM.ADMIN
+      let hasOrganizerPerm = false
+      let cohostPerms: Awaited<ReturnType<typeof getCohostPermissions>> = null
+
+      if (!isAdmin) {
         const organizerTeam = session.teams?.find(
           (t) => t.id === competition.organizingTeamId,
         )
-        const hasOrganizerPerm = organizerTeam?.permissions.includes(
-          TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-        )
+        hasOrganizerPerm =
+          organizerTeam?.permissions.includes(
+            TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+          ) ?? false
 
         let hasCohostPerm = false
         if (!hasOrganizerPerm && competition.competitionTeamId) {
-          const cohostPerms = await getCohostPermissions(
+          cohostPerms = await getCohostPermissions(
             session,
             competition.competitionTeamId,
           )
@@ -803,6 +808,16 @@ export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
           )
         }
       }
+
+      // Guest-form question answers are sensitive (PII in free-text fields)
+      // and require editRegistrations/waivers. Waiver signature status and
+      // submittedAt timestamp are visible to anyone with viewRegistrations
+      // since cohosts need to see whether teammates signed/submitted.
+      const canViewPendingAnswers =
+        isAdmin ||
+        hasOrganizerPerm ||
+        cohostPerms?.editRegistrations === true ||
+        cohostPerms?.waivers === true
 
       // Get all registrations for this competition to find their athlete teams
       const registrations =
@@ -893,7 +908,10 @@ export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
           if (inv.metadata) {
             try {
               const meta = JSON.parse(inv.metadata) as Record<string, unknown>
-              if (Array.isArray(meta.pendingAnswers)) {
+              if (
+                canViewPendingAnswers &&
+                Array.isArray(meta.pendingAnswers)
+              ) {
                 pendingAnswers =
                   meta.pendingAnswers as PendingTeammateInvite["pendingAnswers"]
               }

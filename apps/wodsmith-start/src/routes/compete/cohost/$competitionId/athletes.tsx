@@ -184,10 +184,26 @@ export const Route = createFileRoute(
       }),
       cohostGetCompetitionWaiversFn({
         data: { competitionId, competitionTeamId },
-      }).catch(() => ({ waivers: [] })),
+      }).catch((error) => {
+        if (
+          error instanceof Error &&
+          error.message.startsWith("FORBIDDEN:")
+        ) {
+          return { waivers: [] }
+        }
+        throw error
+      }),
       cohostGetCompetitionWaiverSignaturesFn({
         data: { competitionId, competitionTeamId },
-      }).catch(() => ({ signatures: [] })),
+      }).catch((error) => {
+        if (
+          error instanceof Error &&
+          error.message.startsWith("FORBIDDEN:")
+        ) {
+          return { signatures: [] }
+        }
+        throw error
+      }),
       getPendingTeammateInvitationsFn({
         data: { competitionId },
       }),
