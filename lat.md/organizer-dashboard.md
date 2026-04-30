@@ -300,7 +300,7 @@ Each cohost server fn checks the user is a cohost on that competition team AND h
 
 All server function calls in cohost route loaders are wrapped with `.catch(() => sensibleDefault)` to degrade gracefully when permissions are missing.
 
-The athletes loader (`/compete/cohost/$competitionId/athletes`) wraps `cohostGetCompetitionWaiversFn` and `cohostGetCompetitionWaiverSignaturesFn` with `.catch()` so cohosts with `viewRegistrations` but no `waivers` permission still load the page. `cohostGetDivisionsWithCountsFn` accepts `viewRegistrations` and `editRegistrations` (in addition to `divisions`/`leaderboardPreview`/`results`) since the athletes filter UI needs division metadata.
+The athletes loader (`/compete/cohost/$competitionId/athletes`) wraps `cohostGetCompetitionWaiversFn` and `cohostGetCompetitionWaiverSignaturesFn` with `.catch()` so cohosts with `viewRegistrations` but no `waivers` permission still load the page. `cohostGetDivisionsWithCountsFn` accepts `viewRegistrations` and `editRegistrations` (in addition to `divisions`/`leaderboardPreview`/`results`) since the athletes filter UI needs division metadata. The "Add Registration" button is hidden unless the cohost has `editRegistrations`.
 
 Two failure categories exist: (1) organizer server fns (from `@/server-fns/` directly) that cohosts can never access because they require organizing team membership, and (2) cohost server fns that require a specific permission key the cohost may not have. Both are caught so pages render with empty data instead of crashing. The catch defaults match the return type of each function (e.g., `{ workouts: [] }`, `{ divisions: [] }`, `[]` for array returns).
 

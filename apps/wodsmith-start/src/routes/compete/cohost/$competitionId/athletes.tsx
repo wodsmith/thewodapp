@@ -223,7 +223,8 @@ export const Route = createFileRoute(
 })
 
 function CohostAthletesPage() {
-  const { competition } = parentRoute.useLoaderData()
+  const { competition, permissions } = parentRoute.useLoaderData()
+  const canEditRegistrations = permissions?.editRegistrations === true
   const {
     registrations,
     divisions,
@@ -1004,14 +1005,16 @@ function CohostAthletesPage() {
               </p>
             </div>
             <div className="flex gap-2 w-full sm:w-auto">
-              <Button
-                onClick={() => setShowManualRegistration(true)}
-                size="sm"
-                className="w-full sm:w-auto"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Registration
-              </Button>
+              {canEditRegistrations && (
+                <Button
+                  onClick={() => setShowManualRegistration(true)}
+                  size="sm"
+                  className="w-full sm:w-auto"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Registration
+                </Button>
+              )}
               {registrations.length > 0 && (
                 <Button
                   onClick={handleExportCSV}
