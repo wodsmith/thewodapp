@@ -483,11 +483,20 @@ export async function getChampionshipRoster(
   // Fan out leaderboard fetches in parallel. Each call hits a cache on
   // the public render path; bounded by championship source count × per-
   // comp division count.
+  //
+  // `bypassHeatBasedDivisionFilter` is critical here: heat assignments
+  // are an implementation detail of in-person scoring, not a qualifier-
+  // eligibility signal. A division with registrations but no heat
+  // assignments yet must still surface its athletes as candidates —
+  // otherwise organizers cannot invite athletes from divisions that
+  // were configured late or whose heats haven't been drawn.
+  // See docs/bugs/0001-invite-candidates-missing-divisions.md.
   const leaderboards = await Promise.all(
     divisionRefs.map((ref) =>
       getCompetitionLeaderboard({
         competitionId: ref.competitionId,
         divisionId: ref.divisionId,
+        bypassHeatBasedDivisionFilter: true,
       }).then((lb) => ({ ref, entries: lb.entries })),
     ),
   )
