@@ -5,7 +5,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq } from "drizzle-orm"
+import { and, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -111,7 +111,9 @@ export const cohostCreateQuestionFn = createServerFn({ method: "POST" })
     cohostCreateQuestionInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "editRegistrations")
+    const requiredPermission =
+      data.questionTarget === "volunteer" ? "volunteers" : "editRegistrations"
+    await requireCohostPermission(data.competitionTeamId, requiredPermission)
     await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
@@ -184,7 +186,6 @@ export const cohostUpdateQuestionFn = createServerFn({ method: "POST" })
     cohostUpdateQuestionInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "editRegistrations")
     const db = getDb()
 
     // Get question
@@ -197,10 +198,20 @@ export const cohostUpdateQuestionFn = createServerFn({ method: "POST" })
       throw new Error("Question not found")
     }
 
+    const requiredPermission =
+      question.questionTarget === "volunteer" ? "volunteers" : "editRegistrations"
+    await requireCohostPermission(data.competitionTeamId, requiredPermission)
+
     // Only allow editing competition-level questions (not series-level)
     if (!question.competitionId) {
       throw new Error("Cannot edit series-level questions from cohost view")
     }
+
+    // Verify the question's competition belongs to this cohost team
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      question.competitionId,
+    )
 
     // Validate select type has options
     const newType = data.type ?? question.type
@@ -252,7 +263,6 @@ export const cohostDeleteQuestionFn = createServerFn({ method: "POST" })
     cohostDeleteQuestionInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "editRegistrations")
     const db = getDb()
 
     // Get question
@@ -265,10 +275,20 @@ export const cohostDeleteQuestionFn = createServerFn({ method: "POST" })
       throw new Error("Question not found")
     }
 
+    const requiredPermission =
+      question.questionTarget === "volunteer" ? "volunteers" : "editRegistrations"
+    await requireCohostPermission(data.competitionTeamId, requiredPermission)
+
     // Only allow deleting competition-level questions
     if (!question.competitionId) {
       throw new Error("Cannot delete series-level questions from cohost view")
     }
+
+    // Verify the question's competition belongs to this cohost team
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      question.competitionId,
+    )
 
     // Delete question (answers are cascaded)
     await db
@@ -287,11 +307,48 @@ export const cohostReorderQuestionsFn = createServerFn({ method: "POST" })
     cohostReorderQuestionsInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    await requireCohostPermission(data.competitionTeamId, "editRegistrations")
     await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
 
-    // Update sort orders in a transaction
+    // Fetch the questions to derive their target — the editor only renders
+    // questions for a single target (athlete or volunteer) at a time, so all
+    // ids in a reorder batch must share that target.
+    const questions = await db
+      .select({
+        id: competitionRegistrationQuestionsTable.id,
+        competitionId: competitionRegistrationQuestionsTable.competitionId,
+        questionTarget: competitionRegistrationQuestionsTable.questionTarget,
+      })
+      .from(competitionRegistrationQuestionsTable)
+      .where(
+        and(
+          eq(
+            competitionRegistrationQuestionsTable.competitionId,
+            data.competitionId,
+          ),
+          inArray(
+            competitionRegistrationQuestionsTable.id,
+            data.orderedQuestionIds,
+          ),
+        ),
+      )
+
+    if (questions.length !== data.orderedQuestionIds.length) {
+      throw new Error("One or more questions do not belong to this competition")
+    }
+
+    const targets = new Set(questions.map((q) => q.questionTarget))
+    if (targets.size !== 1) {
+      throw new Error("Cannot reorder questions across different targets")
+    }
+    const target = questions[0]?.questionTarget
+
+    const requiredPermission =
+      target === "volunteer" ? "volunteers" : "editRegistrations"
+    await requireCohostPermission(data.competitionTeamId, requiredPermission)
+
+    // Update sort orders in a transaction, scoped by target so a permission
+    // for one target can never reorder the other target's rows.
     await db.transaction(async (tx) => {
       await Promise.all(
         data.orderedQuestionIds.map((questionId, i) => {
@@ -305,6 +362,10 @@ export const cohostReorderQuestionsFn = createServerFn({ method: "POST" })
                 eq(
                   competitionRegistrationQuestionsTable.competitionId,
                   data.competitionId,
+                ),
+                eq(
+                  competitionRegistrationQuestionsTable.questionTarget,
+                  target,
                 ),
               ),
             )

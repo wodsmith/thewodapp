@@ -449,20 +449,35 @@ export const getPendingTransfersForCompetitionFn = createServerFn({
     updateRequestContext({ userId: session.userId })
     addRequestContextAttribute("competitionId", input.competitionId)
 
-    // Authorization: require MANAGE_COMPETITIONS on the organizing team
+    // Authorization: organizers (MANAGE_COMPETITIONS) or cohosts (viewRegistrations)
     const competition = await db.query.competitionsTable.findFirst({
       where: eq(competitionsTable.id, input.competitionId),
-      columns: { id: true, organizingTeamId: true },
+      columns: { id: true, organizingTeamId: true, competitionTeamId: true },
     })
 
     if (!competition) throw new Error("Competition not found")
 
     if (session.user?.role !== ROLES_ENUM.ADMIN) {
-      const team = session.teams?.find(
+      const organizerTeam = session.teams?.find(
         (t) => t.id === competition.organizingTeamId,
       )
-      if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS)) {
-        throw new Error("Missing required permission: manage_competitions")
+      const hasOrganizerPerm = organizerTeam?.permissions.includes(
+        TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+      )
+
+      let hasCohostPerm = false
+      if (!hasOrganizerPerm && competition.competitionTeamId) {
+        const cohostPerms = await getCohostPermissions(
+          session,
+          competition.competitionTeamId,
+        )
+        hasCohostPerm = cohostPerms?.viewRegistrations === true
+      }
+
+      if (!hasOrganizerPerm && !hasCohostPerm) {
+        throw new Error(
+          "Missing required permission: manage_competitions or cohost viewRegistrations",
+        )
       }
     }
 

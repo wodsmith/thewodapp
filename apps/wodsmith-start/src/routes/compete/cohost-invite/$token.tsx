@@ -3,6 +3,7 @@
 import {
   createFileRoute,
   Link,
+  redirect,
   useRouter,
 } from "@tanstack/react-router"
 import { AlertCircle, AlertTriangle, CheckCircle2, LogIn, Users } from "lucide-react"
@@ -37,6 +38,18 @@ export const Route = createFileRoute("/compete/cohost-invite/$token")({
     if (session && invite?.teamId) {
       existingCohost = await checkExistingCohostMembershipFn({
         data: { teamId: invite.teamId },
+      })
+    }
+
+    // Already accepted + user has cohost access → skip the invite screen
+    if (
+      invite?.acceptedAt &&
+      invite.competitionId &&
+      existingCohost
+    ) {
+      throw redirect({
+        to: "/compete/cohost/$competitionId",
+        params: { competitionId: invite.competitionId },
       })
     }
 
@@ -196,12 +209,13 @@ function CohostInvitePage() {
       )
 
       if (result.competitionId) {
-        router.navigate({
+        await router.navigate({
           to: "/compete/cohost/$competitionId",
           params: { competitionId: result.competitionId },
+          replace: true,
         })
       } else {
-        router.navigate({ to: "/compete" })
+        await router.navigate({ to: "/compete", replace: true })
       }
     } catch (error) {
       toast.dismiss()

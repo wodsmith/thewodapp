@@ -272,6 +272,12 @@ The series listing and creation pages live under `_dashboard/series/` (with the 
 
 The cohost dashboard at `/compete/cohost/{competitionId}` mirrors the organizer dashboard but uses cohost-specific server functions with permission-scoped access.
 
+## Invite Acceptance Redirect
+
+After accepting a cohost invite at `/compete/cohost-invite/{token}`, the user is redirected to the cohost dashboard for the accepted competition.
+
+`acceptCohostInviteFn` returns the `competitionId` parsed from invitation metadata. The route component awaits `router.navigate` to `/compete/cohost/{competitionId}` with `replace: true` so the invite page is removed from history. The route loader also throws `redirect` to the same destination when an already-accepted invite is revisited and the user has an existing cohost membership for that team — skipping the "Already Accepted" screen.
+
 ## Series-Level Cohost Invitations
 
 Inviting a cohost at the series level creates individual per-competition invitations tagged with `seriesGroupId` in the invitation metadata.
@@ -292,9 +298,15 @@ Each cohost server fn checks the user is a cohost on that competition team AND h
 
 ## Graceful Degradation Pattern
 
-All server function calls in cohost route loaders are wrapped with `.catch(() => sensibleDefault)` to degrade gracefully when permissions are missing.
+Cohost route loaders wrap optional-permission server fn calls with a `.catch()` that swallows only `FORBIDDEN:` errors and rethrows everything else — graceful degradation without masking real failures.
 
-Two failure categories exist: (1) organizer server fns (from `@/server-fns/` directly) that cohosts can never access because they require organizing team membership, and (2) cohost server fns that require a specific permission key the cohost may not have. Both are caught so pages render with empty data instead of crashing. The catch defaults match the return type of each function (e.g., `{ workouts: [] }`, `{ divisions: [] }`, `[]` for array returns).
+The athletes loader (`/compete/cohost/$competitionId/athletes`) wraps `cohostGetCompetitionWaiversFn` and `cohostGetCompetitionWaiverSignaturesFn` with a catch that returns `{ waivers: [] }` / `{ signatures: [] }` only when the error message starts with `FORBIDDEN:` — so cohosts with `viewRegistrations` but no `waivers` permission still load the page, while real errors (network, DB, etc.) still surface. `cohostGetDivisionsWithCountsFn` accepts `viewRegistrations` and `editRegistrations` (in addition to `divisions`/`leaderboardPreview`/`results`) since the athletes filter UI needs division metadata. The "Add Registration" button and the "Registration Rules" tab are hidden unless the cohost has `editRegistrations`. The page coerces a `tab=registration-rules` search param to `athletes` when `editRegistrations` is false, so `<Tabs>` never holds a value with no matching `TabsContent`.
+
+Registration question CRUD (`cohostCreateQuestionFn`, `cohostUpdateQuestionFn`, `cohostDeleteQuestionFn`, `cohostReorderQuestionsFn`) authorizes by `questionTarget`: volunteer questions require the `volunteers` permission, athlete questions require `editRegistrations`. Update/delete fetch the question first and then call `requireCohostCompetitionOwnership` so a cohost on team A can't mutate a question whose competition belongs to team B by passing a forged `competitionTeamId`. Reorder fetches the targeted ids, asserts they all share one `questionTarget`, requires the matching permission for that target, and adds a `questionTarget` filter to the update so a volunteers-only cohost cannot reorder athlete questions.
+
+Two failure categories exist: (1) organizer server fns (from `@/server-fns/` directly) that cohosts can never access because they require organizing team membership, and (2) cohost server fns that require a specific permission key the cohost may not have. Both throw `FORBIDDEN:` errors via `requireCohostPermission` / `requireTeamPermission` and are caught so pages render with empty data instead of crashing. The catch defaults match the return type of each function (e.g., `{ workouts: [] }`, `{ divisions: [] }`, `[]` for array returns).
+
+[[apps/wodsmith-start/src/server-fns/competition-detail-fns.ts#getPendingTeammateInvitationsFn]] gates invite metadata fields by sensitivity. `pendingSignatures` (waiver signature status) and `submittedAt` are visible to anyone with `viewRegistrations` since cohosts need to see whether teammates signed/submitted the guest form. `pendingAnswers` (free-text answers to registration questions, potential PII) is restricted to admins, organizers, or cohosts with `editRegistrations` or `waivers`.
 
 ## Shared Component Callback Pattern
 

@@ -184,9 +184,25 @@ export const Route = createFileRoute(
       }),
       cohostGetCompetitionWaiversFn({
         data: { competitionId, competitionTeamId },
+      }).catch((error) => {
+        if (
+          error instanceof Error &&
+          error.message.startsWith("FORBIDDEN:")
+        ) {
+          return { waivers: [] }
+        }
+        throw error
       }),
       cohostGetCompetitionWaiverSignaturesFn({
         data: { competitionId, competitionTeamId },
+      }).catch((error) => {
+        if (
+          error instanceof Error &&
+          error.message.startsWith("FORBIDDEN:")
+        ) {
+          return { signatures: [] }
+        }
+        throw error
       }),
       getPendingTeammateInvitationsFn({
         data: { competitionId },
@@ -223,7 +239,8 @@ export const Route = createFileRoute(
 })
 
 function CohostAthletesPage() {
-  const { competition } = parentRoute.useLoaderData()
+  const { competition, permissions } = parentRoute.useLoaderData()
+  const canEditRegistrations = permissions?.editRegistrations === true
   const {
     registrations,
     divisions,
@@ -243,6 +260,10 @@ function CohostAthletesPage() {
   const navigate = useNavigate()
   const router = useRouter()
   const { tab } = Route.useSearch()
+  // Coerce tab to "athletes" when the registration-rules tab is hidden so
+  // <Tabs> never holds a value with no matching TabsContent.
+  const effectiveTab =
+    tab === "registration-rules" && !canEditRegistrations ? "athletes" : tab
   const handleTabChange = (value: string) => {
     navigate({
       to: ".",
@@ -915,13 +936,16 @@ function CohostAthletesPage() {
 
   return (
     <>
-      <Tabs value={tab} onValueChange={handleTabChange} className="w-full">
+      <Tabs value={effectiveTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="athletes">Athletes</TabsTrigger>
-          <TabsTrigger value="registration-rules">
-            Registration Rules
-          </TabsTrigger>
+          {canEditRegistrations && (
+            <TabsTrigger value="registration-rules">
+              Registration Rules
+            </TabsTrigger>
+          )}
         </TabsList>
+        {canEditRegistrations && (
         <TabsContent value="registration-rules" className="flex flex-col gap-6">
           {/* Inherited Series Questions (read-only) */}
           {questions.some((q) => q.source === "series") && (
@@ -989,6 +1013,7 @@ function CohostAthletesPage() {
             overrides={questionOverrides}
           />
         </TabsContent>
+        )}
 
         <TabsContent value="athletes" className="flex flex-col gap-6">
           {/* Athletes Section */}
@@ -1004,14 +1029,16 @@ function CohostAthletesPage() {
               </p>
             </div>
             <div className="flex gap-2 w-full sm:w-auto">
-              <Button
-                onClick={() => setShowManualRegistration(true)}
-                size="sm"
-                className="w-full sm:w-auto"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Registration
-              </Button>
+              {canEditRegistrations && (
+                <Button
+                  onClick={() => setShowManualRegistration(true)}
+                  size="sm"
+                  className="w-full sm:w-auto"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Registration
+                </Button>
+              )}
               {registrations.length > 0 && (
                 <Button
                   onClick={handleExportCSV}

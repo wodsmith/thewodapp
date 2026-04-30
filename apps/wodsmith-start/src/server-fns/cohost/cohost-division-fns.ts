@@ -439,6 +439,8 @@ export const cohostGetDivisionsWithCountsFn = createServerFn({ method: "GET" })
       "divisions",
       "leaderboardPreview",
       "results",
+      "viewRegistrations",
+      "editRegistrations",
     ])
     await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
     const db = getDb()
