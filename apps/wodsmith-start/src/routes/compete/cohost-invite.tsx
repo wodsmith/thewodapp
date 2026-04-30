@@ -9,6 +9,7 @@ export const Route = createFileRoute("/compete/cohost-invite")({
       throw redirect({
         to: "/compete/cohost-invite/$token",
         params: { token: search.token },
+        search: () => ({ token: undefined }),
       })
     }
   },

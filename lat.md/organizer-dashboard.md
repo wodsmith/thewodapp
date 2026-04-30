@@ -272,6 +272,12 @@ The series listing and creation pages live under `_dashboard/series/` (with the 
 
 The cohost dashboard at `/compete/cohost/{competitionId}` mirrors the organizer dashboard but uses cohost-specific server functions with permission-scoped access.
 
+## Invite Acceptance Redirect
+
+After accepting a cohost invite at `/compete/cohost-invite/{token}`, the user is redirected to the cohost dashboard for the accepted competition.
+
+`acceptCohostInviteFn` returns the `competitionId` parsed from invitation metadata. The route component awaits `router.navigate` to `/compete/cohost/{competitionId}` with `replace: true` so the invite page is removed from history. The route loader also throws `redirect` to the same destination when an already-accepted invite is revisited and the user has an existing cohost membership for that team — skipping the "Already Accepted" screen.
+
 ## Series-Level Cohost Invitations
 
 Inviting a cohost at the series level creates individual per-competition invitations tagged with `seriesGroupId` in the invitation metadata.
@@ -293,6 +299,8 @@ Each cohost server fn checks the user is a cohost on that competition team AND h
 ## Graceful Degradation Pattern
 
 All server function calls in cohost route loaders are wrapped with `.catch(() => sensibleDefault)` to degrade gracefully when permissions are missing.
+
+The athletes loader (`/compete/cohost/$competitionId/athletes`) wraps `cohostGetCompetitionWaiversFn` and `cohostGetCompetitionWaiverSignaturesFn` with `.catch()` so cohosts with `viewRegistrations` but no `waivers` permission still load the page. `cohostGetDivisionsWithCountsFn` accepts `viewRegistrations` and `editRegistrations` (in addition to `divisions`/`leaderboardPreview`/`results`) since the athletes filter UI needs division metadata.
 
 Two failure categories exist: (1) organizer server fns (from `@/server-fns/` directly) that cohosts can never access because they require organizing team membership, and (2) cohost server fns that require a specific permission key the cohost may not have. Both are caught so pages render with empty data instead of crashing. The catch defaults match the return type of each function (e.g., `{ workouts: [] }`, `{ divisions: [] }`, `[]` for array returns).
 

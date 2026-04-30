@@ -184,10 +184,10 @@ export const Route = createFileRoute(
       }),
       cohostGetCompetitionWaiversFn({
         data: { competitionId, competitionTeamId },
-      }),
+      }).catch(() => ({ waivers: [] })),
       cohostGetCompetitionWaiverSignaturesFn({
         data: { competitionId, competitionTeamId },
-      }),
+      }).catch(() => ({ signatures: [] })),
       getPendingTeammateInvitationsFn({
         data: { competitionId },
       }),
