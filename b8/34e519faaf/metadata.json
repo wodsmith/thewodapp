@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "b834e519faaf",
+  "strategy": "manual-commit",
+  "branch": "fix/invite-allocation-flat-default",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/wodsmith-start/src/components/organizer/invites/invite-source-form.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/invites/sources/$sourceId.tsx",
+    "apps/wodsmith-start/src/server-fns/registration-fns.ts",
+    "apps/wodsmith-start/src/server/competition-invites/roster.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b8/34e519faaf/0/metadata.json",
+      "transcript": "/b8/34e519faaf/0/full.jsonl",
+      "context": "/b8/34e519faaf/0/context.md",
+      "content_hash": "/b8/34e519faaf/0/content_hash.txt",
+      "prompt": "/b8/34e519faaf/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 71,
+    "cache_creation_tokens": 151594,
+    "cache_read_tokens": 4650249,
+    "output_tokens": 23560,
+    "api_call_count": 52
+  }
+}
