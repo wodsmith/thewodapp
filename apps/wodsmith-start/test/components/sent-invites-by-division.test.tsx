@@ -1,8 +1,30 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
-import { SentInvitesByDivision } from "@/components/organizer/invites/sent-invites-by-division"
+import { describe, expect, it, vi } from "vitest"
+import {
+  computeAllocationMismatch,
+  SentInvitesByDivision,
+} from "@/components/organizer/invites/sent-invites-by-division"
 import type { AuditInviteSummary } from "@/server-fns/competition-invite-fns"
+
+// Stub the TanStack Router `Link` so the ADR-0013 mismatch warning
+// renders without a real router context. Mirrors the pattern used in
+// `competition-workout-card.test.tsx`. The real component otherwise
+// pulls the route tree from the file-based router, which isn't
+// available in a unit-test environment.
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({
+    children,
+    to,
+    params,
+  }: {
+    children: React.ReactNode
+    to: string
+    params: Record<string, string>
+  }) => (
+    <a href={`${to}?${new URLSearchParams(params).toString()}`}>{children}</a>
+  ),
+}))
 
 const baseInvite = (
   overrides: Partial<AuditInviteSummary>,
@@ -367,5 +389,181 @@ describe("SentInvitesByDivision", () => {
     expect(
       screen.getByRole("button", { name: /Accepted\s*1/ }),
     ).toBeInTheDocument()
+  })
+
+  // ADR-0013: the mismatch warning compares the sum of resolved
+  // per-source allocations against the division's enforced cap and
+  // surfaces a one-line warning with a link to the divisions page when
+  // they disagree.
+  describe("ADR-0013 allocation-mismatch warning", () => {
+    it("renders 'exceeds' warning when allocations sum above the division cap", () => {
+      render(
+        <SentInvitesByDivision
+          invites={[]}
+          divisions={[
+            {
+              id: "div_rxm",
+              label: "RX Men",
+              maxSpots: 1,
+              allocationTotal: 3,
+            },
+          ]}
+          competitionId="comp_champ"
+        />,
+      )
+      expect(
+        screen.getByText(
+          /Source allocations sum to 3, exceeding this division's capacity of 1/i,
+        ),
+      ).toBeInTheDocument()
+      const link = screen.getByRole("link", {
+        name: /Update division capacity/i,
+      })
+      expect(link).toHaveAttribute(
+        "href",
+        "/compete/organizer/$competitionId/divisions?competitionId=comp_champ",
+      )
+    })
+
+    it("renders 'fewer than' warning when allocations sum below the cap", () => {
+      render(
+        <SentInvitesByDivision
+          invites={[]}
+          divisions={[
+            {
+              id: "div_rxm",
+              label: "RX Men",
+              maxSpots: 10,
+              allocationTotal: 3,
+            },
+          ]}
+          competitionId="comp_champ"
+        />,
+      )
+      expect(
+        screen.getByText(
+          /Source allocations sum to 3, fewer than this division's capacity of 10/i,
+        ),
+      ).toBeInTheDocument()
+    })
+
+    it("renders 'no division cap' warning when allocations are set but no cap is", () => {
+      render(
+        <SentInvitesByDivision
+          invites={[]}
+          divisions={[
+            {
+              id: "div_rxm",
+              label: "RX Men",
+              maxSpots: null,
+              allocationTotal: 5,
+            },
+          ]}
+          competitionId="comp_champ"
+        />,
+      )
+      expect(
+        screen.getByText(
+          /Source allocations sum to 5, but no division cap is set/i,
+        ),
+      ).toBeInTheDocument()
+    })
+
+    it("renders no warning when allocations equal the cap", () => {
+      render(
+        <SentInvitesByDivision
+          invites={[]}
+          divisions={[
+            {
+              id: "div_rxm",
+              label: "RX Men",
+              maxSpots: 5,
+              allocationTotal: 5,
+            },
+          ]}
+          competitionId="comp_champ"
+        />,
+      )
+      expect(
+        screen.queryByText(/Source allocations sum to/i),
+      ).not.toBeInTheDocument()
+    })
+
+    it("renders no warning when both cap and allocations are 0/null", () => {
+      render(
+        <SentInvitesByDivision
+          invites={[]}
+          divisions={[
+            {
+              id: "div_rxm",
+              label: "RX Men",
+              maxSpots: null,
+              allocationTotal: 0,
+            },
+          ]}
+          competitionId="comp_champ"
+        />,
+      )
+      expect(
+        screen.queryByText(/Source allocations sum to/i),
+      ).not.toBeInTheDocument()
+    })
+
+    it("suppresses the link when no competitionId is provided", () => {
+      render(
+        <SentInvitesByDivision
+          invites={[]}
+          divisions={[
+            {
+              id: "div_rxm",
+              label: "RX Men",
+              maxSpots: 1,
+              allocationTotal: 3,
+            },
+          ]}
+        />,
+      )
+      // Warning copy renders, link does not.
+      expect(
+        screen.getByText(
+          /Source allocations sum to 3, exceeding this division's capacity of 1/i,
+        ),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByRole("link", { name: /Update division capacity/i }),
+      ).not.toBeInTheDocument()
+    })
+  })
+})
+
+describe("computeAllocationMismatch", () => {
+  it("returns null when allocations equal the cap", () => {
+    expect(
+      computeAllocationMismatch({ allocationTotal: 5, maxSpots: 5 }),
+    ).toBeNull()
+  })
+
+  it("returns null when both are 0/null", () => {
+    expect(
+      computeAllocationMismatch({ allocationTotal: 0, maxSpots: null }),
+    ).toBeNull()
+  })
+
+  it("returns 'exceeds' when allocation total > cap", () => {
+    expect(
+      computeAllocationMismatch({ allocationTotal: 7, maxSpots: 5 }),
+    ).toEqual({ kind: "exceeds", allocationTotal: 7, maxSpots: 5 })
+  })
+
+  it("returns 'undershoots' when allocation total < cap", () => {
+    expect(
+      computeAllocationMismatch({ allocationTotal: 2, maxSpots: 5 }),
+    ).toEqual({ kind: "undershoots", allocationTotal: 2, maxSpots: 5 })
+  })
+
+  it("returns 'no-cap' when cap is null but allocations are set", () => {
+    expect(
+      computeAllocationMismatch({ allocationTotal: 3, maxSpots: null }),
+    ).toEqual({ kind: "no-cap", allocationTotal: 3 })
   })
 })

@@ -67,6 +67,8 @@ Both division-level and competition-wide capacity are enforced at registration t
 
 Division capacity uses `calculateDivisionCapacity` with `divisionMaxSpots` (per-division override) falling back to `competitionDefaultMax`. Competition-wide capacity checks `maxTotalRegistrations`. Pending purchases (within a time window) count toward occupied spots to prevent overselling during concurrent checkouts.
 
+ADR-0013: the [[competition-invites#Sent invites tab]] reads the same `divisionMaxSpots ?? competitionDefaultMax` value for its per-division headline denominator, so the organizer-facing invite progress and the registration enforcement gate cannot drift. The divisions page is the single edit point for both.
+
 ## Stripe Checkout Workflow
 
 A Cloudflare Workflow that processes `checkout.session.completed` events from Stripe webhooks.

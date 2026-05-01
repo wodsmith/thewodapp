@@ -16,7 +16,8 @@
  */
 // @lat: [[competition-invites#Sent invites tab]]
 
-import { Copy } from "lucide-react"
+import { Link } from "@tanstack/react-router"
+import { AlertTriangle, Copy } from "lucide-react"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
@@ -61,12 +62,17 @@ interface SentInvitesByDivisionProps {
   divisions: ReadonlyArray<{
     id: string
     label: string
-    /** Resolved invite-allocation total across sources for this championship
-     *  division (sum of `allocationsBySourceByDivision[sourceId][divisionId]`
-     *  for every source feeding this championship). `null` when the resolved
-     *  total is `0` so the component falls back to the "X accepted" rendering
-     *  for divisions with no allocation. */
+    /** ADR-0013: division capacity from
+     *  `competition_divisions.maxSpots ?? competitions.defaultMaxSpotsPerDivision`
+     *  — the same value `calculateDivisionCapacity` enforces at
+     *  registration. `null` when no cap is configured (fallback "X
+     *  accepted" rendering). */
     maxSpots?: number | null
+    /** ADR-0013: sum of resolved per-source allocations contributing to
+     *  this championship division. Used only to drive the mismatch
+     *  warning when the organizer's source-allocation plan disagrees
+     *  with the division cap. Defaults to 0 when omitted. */
+    allocationTotal?: number
   }>
   /** Qualification sources feeding the championship. Used to break down
    *  "X/Y accepted" per source under each division card so the organizer
@@ -83,6 +89,11 @@ interface SentInvitesByDivisionProps {
    *  `competitionInviteSourcesTable.divisionMappings` JSON. Optional so
    *  older callers / tests can omit; missing entries default to 0. */
   allocationsBySourceByDivision?: Record<string, Record<string, number>>
+  /** Championship competition id — used to build the "Update division
+   *  capacity" link in the mismatch warning. Optional so older callers
+   *  (and tests that don't exercise the warning) can omit it; when
+   *  absent, the warning still renders without a link. */
+  competitionId?: string
 }
 
 /** Sentinel key for invites with no source (bespoke origin). Module-scoped
@@ -203,6 +214,7 @@ export function SentInvitesByDivision({
   competitionNamesById = {},
   seriesNamesById = {},
   allocationsBySourceByDivision = {},
+  competitionId,
 }: SentInvitesByDivisionProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [originFilter, setOriginFilter] = useState<OriginFilter>("all")
@@ -349,6 +361,18 @@ export function SentInvitesByDivision({
               ? `${acceptedCount}/${maxSpots} spots filled`
               : `${acceptedCount} accepted`
 
+          // ADR-0013: warn the organizer when the sum of per-source
+          // invite allocations disagrees with the division cap. The
+          // division cap is the only enforced gate (`calculateDivisionCapacity`
+          // at registration); allocation totals describe organizer
+          // intent. Silent when both are 0/null (no plan, no cap), or
+          // when the two numbers agree.
+          const allocationTotal = division.allocationTotal ?? 0
+          const allocationMismatch = computeAllocationMismatch({
+            allocationTotal,
+            maxSpots,
+          })
+
           // Per-source breakdown: every source that allocates spots to
           // this division gets a chip "<source>: accepted/allocated".
           // Bespoke invites are tracked separately (no allocation, so
@@ -390,6 +414,12 @@ export function SentInvitesByDivision({
                     <span className="text-xs text-muted-foreground tabular-nums">
                       {spotsFilledLabel}
                     </span>
+                    {allocationMismatch ? (
+                      <AllocationMismatchWarning
+                        mismatch={allocationMismatch}
+                        competitionId={competitionId}
+                      />
+                    ) : null}
                     {sourceBreakdown.length > 0 ? (
                       <div className="mt-1 flex flex-wrap gap-1.5">
                         {sourceBreakdown.map((b) => (
@@ -599,5 +629,66 @@ function CounterChip({
     >
       {label} <span className="tabular-nums">{count}</span>
     </button>
+  )
+}
+
+type AllocationMismatch =
+  | { kind: "exceeds"; allocationTotal: number; maxSpots: number }
+  | { kind: "undershoots"; allocationTotal: number; maxSpots: number }
+  | { kind: "no-cap"; allocationTotal: number }
+
+/**
+ * Compare the resolved sum of per-source allocations against the
+ * division's enforced cap. Silent when the two agree; silent when
+ * neither is set. Returns a discriminated mismatch shape for the
+ * warning component to render the appropriate copy.
+ */
+export function computeAllocationMismatch(args: {
+  allocationTotal: number
+  maxSpots: number | null
+}): AllocationMismatch | null {
+  const { allocationTotal, maxSpots } = args
+  if (maxSpots === null) {
+    if (allocationTotal === 0) return null
+    return { kind: "no-cap", allocationTotal }
+  }
+  if (allocationTotal === maxSpots) return null
+  if (allocationTotal > maxSpots) {
+    return { kind: "exceeds", allocationTotal, maxSpots }
+  }
+  return { kind: "undershoots", allocationTotal, maxSpots }
+}
+
+function AllocationMismatchWarning({
+  mismatch,
+  competitionId,
+}: {
+  mismatch: AllocationMismatch
+  competitionId: string | undefined
+}) {
+  const message =
+    mismatch.kind === "no-cap"
+      ? `Source allocations sum to ${mismatch.allocationTotal}, but no division cap is set — source allocations cannot enforce a limit.`
+      : mismatch.kind === "exceeds"
+        ? `Source allocations sum to ${mismatch.allocationTotal}, exceeding this division's capacity of ${mismatch.maxSpots}.`
+        : `Source allocations sum to ${mismatch.allocationTotal}, fewer than this division's capacity of ${mismatch.maxSpots}.`
+
+  return (
+    <div
+      role="status"
+      className="mt-1 flex flex-wrap items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-300"
+    >
+      <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden="true" />
+      <span className="leading-snug">{message}</span>
+      {competitionId ? (
+        <Link
+          to="/compete/organizer/$competitionId/divisions"
+          params={{ competitionId }}
+          className="font-medium underline-offset-2 hover:underline"
+        >
+          Update division capacity →
+        </Link>
+      ) : null}
+    </div>
   )
 }

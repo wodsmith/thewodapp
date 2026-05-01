@@ -171,12 +171,12 @@ export const Route = createFileRoute(
       listAllInvitesFn({
         data: { championshipCompetitionId: params.competitionId },
       }),
-      // ADR-0012: per-(source, division) allocation map + summed-by-
-      // division totals. The Sent tab's chip denominators read from
-      // `allocationsBySourceByDivision`, and the division headline
-      // denominator (`maxSpots` below) reads from
-      // `divisionAllocationTotals` instead of `competition_divisions
-      // .maxSpots` (registration capacity).
+      // ADR-0012: per-(source, division) allocation map. The Sent tab's
+      // chip denominators read from `allocationsBySourceByDivision`. The
+      // summed-by-division totals (`divisionAllocationTotals`) are no
+      // longer used as the headline denominator (see ADR-0013) — they
+      // now drive the mismatch warning that compares allocation intent
+      // against the division's actual cap.
       listInviteSourceAllocationsFn({
         data: { championshipCompetitionId: params.competitionId },
       }),
@@ -191,22 +191,22 @@ export const Route = createFileRoute(
     const { allocationsBySourceByDivision, divisionAllocationTotals } =
       allocationsResult
 
-    // ADR-0012 Phase 2: the Sent tab's per-division headline denominator
-    // switches from `competition_divisions.maxSpots` (registration
-    // capacity) to `divisionAllocationTotals[divisionId]` — the resolved
-    // sum of per-source allocations for that championship division. A
-    // total of `0` collapses to `null` so the component renders "X
-    // accepted" with no denominator (matches the existing optional-field
-    // signal for "no per-division cap set").
+    // ADR-0013: the Sent tab's per-division headline denominator reads
+    // `competition_divisions.maxSpots ?? competitions.defaultMaxSpotsPerDivision`
+    // — the same value `calculateDivisionCapacity` enforces at
+    // registration. `allocationTotal` (the resolved sum of per-source
+    // allocations) is passed alongside as a separate prop so the
+    // component can warn when the organizer's source-allocation plan
+    // disagrees with the division's actual cap.
+    const defaultMaxSpotsPerDivision =
+      divisionsResult.defaultMaxSpotsPerDivision ?? null
     const championshipDivisions = (divisionsResult.divisions ?? []).map(
-      (d: { id: string; label: string; maxSpots: number | null }) => {
-        const total = divisionAllocationTotals[d.id] ?? 0
-        return {
-          id: d.id,
-          label: d.label,
-          maxSpots: total > 0 ? total : null,
-        }
-      },
+      (d: { id: string; label: string; maxSpots: number | null }) => ({
+        id: d.id,
+        label: d.label,
+        maxSpots: d.maxSpots ?? defaultMaxSpotsPerDivision,
+        allocationTotal: divisionAllocationTotals[d.id] ?? 0,
+      }),
     )
 
     // Source pickers in the EditInviteSourceDialog exclude the championship
@@ -1035,6 +1035,7 @@ function InvitesPage() {
             competitionNamesById={competitionNamesById}
             seriesNamesById={seriesNamesById}
             allocationsBySourceByDivision={allocationsBySourceByDivision}
+            competitionId={competitionId}
           />
         </TabsContent>
 
