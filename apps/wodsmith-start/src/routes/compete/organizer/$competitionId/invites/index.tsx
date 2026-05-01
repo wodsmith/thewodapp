@@ -38,6 +38,7 @@ import {
   rosterRowKey,
 } from "@/components/organizer/invites/championship-roster-table"
 import { DeleteInviteSourceDialog } from "@/components/organizer/invites/delete-invite-source-dialog"
+import { DivisionAllocationSummary } from "@/components/organizer/invites/division-allocation-summary"
 import { EditInviteSourceDialog } from "@/components/organizer/invites/edit-invite-source-dialog"
 import { InviteSourcesList } from "@/components/organizer/invites/invite-sources-list"
 import {
@@ -660,6 +661,14 @@ function InvitesPage() {
         </div>
       </div>
 
+      <DivisionAllocationSummary
+        divisions={championshipDivisions}
+        sources={sources}
+        allocationsBySourceByDivision={allocationsBySourceByDivision}
+        competitionNamesById={competitionNamesById}
+        seriesNamesById={seriesNamesById}
+      />
+
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="candidates">Candidates</TabsTrigger>
@@ -1021,7 +1030,6 @@ function InvitesPage() {
             allocationsBySourceByDivision={allocationsBySourceByDivision}
           />
         </TabsContent>
-
       </Tabs>
 
       {championshipDivisions[0] ? (

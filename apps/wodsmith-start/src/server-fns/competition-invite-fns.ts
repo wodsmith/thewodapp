@@ -614,7 +614,20 @@ export const getInviteSourceByIdFn = createServerFn({ method: "GET" })
           TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
         )
 
-        return { source }
+        // For series sources, count the comps in the group so the details
+        // page can render the default-spots formula (`directSpotsPerComp ×
+        // seriesCompCount + globalSpots`). `null` for single-comp sources.
+        let seriesCompCount: number | null = null
+        if (source.sourceGroupId) {
+          const db = getDb()
+          const rows = await db
+            .select({ count: sql<number>`count(*)` })
+            .from(competitionsTable)
+            .where(eq(competitionsTable.groupId, source.sourceGroupId))
+          seriesCompCount = Number(rows[0]?.count ?? 0)
+        }
+
+        return { source, seriesCompCount }
       },
     )
   })

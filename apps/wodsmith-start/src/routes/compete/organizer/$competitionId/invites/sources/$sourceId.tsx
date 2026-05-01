@@ -137,6 +137,7 @@ export const Route = createFileRoute(
 
     return {
       source: sourceResult.source,
+      seriesCompCount: sourceResult.seriesCompCount,
       championshipDivisions,
       allocationsBySourceByDivision:
         allocationsResult.allocationsBySourceByDivision,
@@ -156,8 +157,8 @@ interface OverrideState {
 function InviteSourceDetailsPage() {
   const {
     source,
+    seriesCompCount,
     championshipDivisions,
-    allocationsBySourceByDivision,
     rawAllocationsForSource,
     competitionOptions,
     seriesOptions,
@@ -175,23 +176,16 @@ function InviteSourceDetailsPage() {
 
   // Source default applied per-division when no override row exists.
   // Mirrors `sourceDefaultPerDivision` in the server-side allocations
-  // helper — kept simple here because the details page only needs the
-  // displayable number, not the full resolution algorithm.
-  const sourceDefaultPerDivision = useMemo(() => {
-    if (source.kind === "series") {
-      // Series default is `directSpotsPerComp * compCount + globalSpots`
-      // applied per-division. We only have the resolved per-division
-      // total in `allocationsBySourceByDivision[source.id]` — pick any
-      // entry where there's no override to derive the default. If we
-      // can't (every entry has an override), fall back to the raw
-      // globalSpots so the toggle copy still has a number to show.
-      const map = allocationsBySourceByDivision[source.id] ?? {}
-      const firstDefault = Object.values(map)[0]
-      if (typeof firstDefault === "number") return firstDefault
-      return source.globalSpots ?? 0
-    }
-    return source.globalSpots ?? 0
-  }, [source, allocationsBySourceByDivision])
+  // helper. Derived directly from the source row + seriesCompCount so the
+  // formula breakdown shown to the organizer always matches what the
+  // resolver computes — no inference from the resolved allocation map.
+  const directSpotsPerComp = source.directSpotsPerComp ?? 0
+  const globalSpots = source.globalSpots ?? 0
+  const compCount = seriesCompCount ?? 0
+  const sourceDefaultPerDivision =
+    source.kind === "series"
+      ? directSpotsPerComp * compCount + globalSpots
+      : globalSpots
 
   // Seed the per-division override map from the raw allocation rows.
   // Presence of a row in `rawAllocationsForSource` means "override is
@@ -245,8 +239,7 @@ function InviteSourceDetailsPage() {
           kind: values.kind,
           sourceCompetitionId:
             values.kind === "competition" ? values.sourceCompetitionId : null,
-          sourceGroupId:
-            values.kind === "series" ? values.sourceGroupId : null,
+          sourceGroupId: values.kind === "series" ? values.sourceGroupId : null,
           directSpotsPerComp:
             values.kind === "series"
               ? (values.directSpotsPerComp ?? null)
@@ -287,7 +280,11 @@ function InviteSourceDetailsPage() {
           return
         }
         const parsed = Number(trimmed)
-        if (!Number.isFinite(parsed) || parsed < 0 || !Number.isInteger(parsed)) {
+        if (
+          !Number.isFinite(parsed) ||
+          parsed < 0 ||
+          !Number.isInteger(parsed)
+        ) {
           setAllocationError("Spots must be 0 or greater.")
           return
         }
@@ -394,11 +391,44 @@ function InviteSourceDetailsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Per-division allocation</CardTitle>
-          <CardDescription>
-            Override how many spots this source contributes per championship
-            division. Default is{" "}
-            <span className="font-semibold">{sourceDefaultPerDivision}</span>{" "}
-            per division. Toggle a row off to set an explicit value.
+          <CardDescription className="space-y-1">
+            <div>
+              Override how many spots this source contributes per championship
+              division. Toggle a row off to set an explicit value.
+            </div>
+            <div className="rounded-md border bg-muted/40 px-3 py-2 text-foreground">
+              <span className="text-muted-foreground">
+                Default per division:
+              </span>{" "}
+              <span className="font-semibold tabular-nums">
+                {sourceDefaultPerDivision}
+              </span>{" "}
+              {source.kind === "series" ? (
+                <span className="text-muted-foreground">
+                  ={" "}
+                  <span className="tabular-nums text-foreground">
+                    {directSpotsPerComp}
+                  </span>{" "}
+                  direct ×{" "}
+                  <span className="tabular-nums text-foreground">
+                    {compCount}
+                  </span>{" "}
+                  {compCount === 1 ? "comp" : "comps"} +{" "}
+                  <span className="tabular-nums text-foreground">
+                    {globalSpots}
+                  </span>{" "}
+                  global
+                </span>
+              ) : (
+                <span className="text-muted-foreground">
+                  = top{" "}
+                  <span className="tabular-nums text-foreground">
+                    {globalSpots}
+                  </span>{" "}
+                  qualifies, applied to every division
+                </span>
+              )}
+            </div>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -499,9 +529,7 @@ function InviteSourceDetailsPage() {
             <Button
               type="button"
               onClick={onSaveAllocations}
-              disabled={
-                savingAllocations || championshipDivisions.length === 0
-              }
+              disabled={savingAllocations || championshipDivisions.length === 0}
             >
               {savingAllocations ? "Saving..." : "Save changes"}
             </Button>
@@ -511,4 +539,3 @@ function InviteSourceDetailsPage() {
     </div>
   )
 }
-
