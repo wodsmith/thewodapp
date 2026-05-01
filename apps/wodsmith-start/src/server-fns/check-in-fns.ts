@@ -12,7 +12,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray } from "drizzle-orm"
+import { and, eq, inArray, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -72,6 +72,12 @@ async function requireCheckInAccess(competitionId: string): Promise<{
 
   if (!competition) {
     throw new Error("NOT_FOUND: Competition not found")
+  }
+
+  if (competition.competitionType !== "in-person") {
+    throw new Error(
+      "FORBIDDEN: Check-in is only available for in-person competitions",
+    )
   }
 
   if (session.user.role === ROLES_ENUM.ADMIN) {
@@ -378,19 +384,17 @@ export const checkInRegistrationFn = createServerFn({ method: "POST" })
         data.competitionId,
       )
 
-      if (competition.competitionType === "online") {
-        throw new Error(
-          "Check-in is only available for in-person competitions",
-        )
-      }
-
       const db = getDb()
 
-      // Verify the registration belongs to this competition.
+      // Verify the registration belongs to this competition and is active.
       const reg = await db.query.competitionRegistrationsTable.findFirst({
         where: and(
           eq(competitionRegistrationsTable.id, data.registrationId),
           eq(competitionRegistrationsTable.eventId, competition.id),
+          eq(
+            competitionRegistrationsTable.status,
+            REGISTRATION_STATUS.ACTIVE,
+          ),
         ),
         columns: { id: true },
       })
@@ -405,7 +409,15 @@ export const checkInRegistrationFn = createServerFn({ method: "POST" })
           checkedInAt: data.checkedIn ? now : null,
           checkedInBy: data.checkedIn ? userId : null,
         })
-        .where(eq(competitionRegistrationsTable.id, data.registrationId))
+        .where(
+          and(
+            eq(competitionRegistrationsTable.id, data.registrationId),
+            eq(
+              competitionRegistrationsTable.status,
+              REGISTRATION_STATUS.ACTIVE,
+            ),
+          ),
+        )
 
       return {
         success: true,
@@ -465,6 +477,10 @@ export const signWaiverAtCheckInFn = createServerFn({ method: "POST" })
           where: and(
             eq(competitionRegistrationsTable.id, data.registrationId),
             eq(competitionRegistrationsTable.eventId, competition.id),
+            eq(
+              competitionRegistrationsTable.status,
+              REGISTRATION_STATUS.ACTIVE,
+            ),
           ),
           with: {
             athleteTeam: {
@@ -493,27 +509,32 @@ export const signWaiverAtCheckInFn = createServerFn({ method: "POST" })
         )
       }
 
-      // Idempotent: short-circuit if already signed.
-      const existing = await db.query.waiverSignaturesTable.findFirst({
+      // Atomic upsert backed by the unique index on (waiverId, userId).
+      // Two concurrent requests cannot both create a row — the second one
+      // hits the no-op SET, then we re-read to return the canonical signedAt.
+      const now = new Date()
+      await db
+        .insert(waiverSignaturesTable)
+        .values({
+          id: createWaiverSignatureId(),
+          waiverId: data.waiverId,
+          userId: data.athleteUserId,
+          registrationId: data.registrationId,
+          signedAt: now,
+        })
+        .onDuplicateKeyUpdate({ set: { signedAt: sql`signed_at` } })
+
+      const sig = await db.query.waiverSignaturesTable.findFirst({
         where: and(
           eq(waiverSignaturesTable.waiverId, data.waiverId),
           eq(waiverSignaturesTable.userId, data.athleteUserId),
         ),
         columns: { signedAt: true },
       })
-      if (existing) {
-        return { success: true, signedAt: existing.signedAt.toISOString() }
+      if (!sig) {
+        throw new Error("Failed to record waiver signature")
       }
 
-      const now = new Date()
-      await db.insert(waiverSignaturesTable).values({
-        id: createWaiverSignatureId(),
-        waiverId: data.waiverId,
-        userId: data.athleteUserId,
-        registrationId: data.registrationId,
-        signedAt: now,
-      })
-
-      return { success: true, signedAt: now.toISOString() }
+      return { success: true, signedAt: sig.signedAt.toISOString() }
     },
   )

@@ -12,7 +12,7 @@ import {
   Users,
   XCircle,
 } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -46,6 +46,7 @@ export function CheckInKiosk({ competitionId, waivers }: CheckInKioskProps) {
   const search = useServerFn(searchCompetitionRegistrationsFn)
   const checkIn = useServerFn(checkInRegistrationFn)
   const router = useRouter()
+  const latestSearchIdRef = useRef(0)
 
   const [query, setQuery] = useState("")
   const [debouncedQuery, setDebouncedQuery] = useState("")
@@ -66,18 +67,23 @@ export function CheckInKiosk({ competitionId, waivers }: CheckInKioskProps) {
 
   const fetchRegistrations = useMemo(
     () => async (q: string) => {
+      const searchId = ++latestSearchIdRef.current
       setIsLoading(true)
       try {
         const result = await search({
           data: { competitionId, query: q || undefined },
         })
+        if (searchId !== latestSearchIdRef.current) return
         setRegistrations(result.registrations)
       } catch (err) {
+        if (searchId !== latestSearchIdRef.current) return
         toast.error(
           err instanceof Error ? err.message : "Failed to load registrations",
         )
       } finally {
-        setIsLoading(false)
+        if (searchId === latestSearchIdRef.current) {
+          setIsLoading(false)
+        }
       }
     },
     [competitionId, search],
