@@ -22,8 +22,8 @@ import {
 } from "@/components/ui/select"
 import { getUserCompetitionRegistrationFn } from "@/server-fns/competition-detail-fns"
 import {
+  getBatchVenuesForTrackWorkoutsFn,
   getPublicScheduleDataFn,
-  getVenueForTrackWorkoutFn,
   type PublicScheduleEvent,
 } from "@/server-fns/competition-heats-fns"
 import {
@@ -63,6 +63,7 @@ const workoutsSearchSchema = z.object({
 export const Route = createFileRoute("/compete/$slug/workouts/")({
   component: CompetitionWorkoutsPage,
   validateSearch: (search) => workoutsSearchSchema.parse(search),
+  staleTime: 30_000,
   loader: async ({ parentMatchPromise }) => {
     const parentMatch = await parentMatchPromise
     const competition = parentMatch.loaderData?.competition
@@ -109,10 +110,6 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
     const workouts = workoutsResult.workouts
     const athleteRegisteredDivisionId = athleteDivisionResult.divisionId
 
-    // Fetch division descriptions and venues for all workouts in parallel
-    const divisionIds = divisions?.map((d) => d.id) ?? []
-    const divisionDescriptionsMap: Record<string, DivisionDescription[]> = {}
-
     type VenueInfo = {
       id: string
       name: string
@@ -124,64 +121,65 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
         countryCode?: string
       } | null
     }
+
+    const divisionIds = divisions?.map((d) => d.id) ?? []
+    const workoutIds = workouts.map((w) => w.workoutId)
+    const trackWorkoutIds = workouts.map((w) => w.id)
+    const isOnline = competition.competitionType === "online"
+
+    const [
+      divisionDescriptionsResult,
+      batchVenuesResult,
+      submissionResult,
+    ] = await Promise.all([
+      divisionIds.length > 0 && workoutIds.length > 0
+        ? getBatchWorkoutDivisionDescriptionsFn({
+            data: { workoutIds, divisionIds },
+          })
+        : Promise.resolve({
+            descriptionsByWorkout: {} as Record<string, DivisionDescription[]>,
+          }),
+      trackWorkoutIds.length > 0
+        ? getBatchVenuesForTrackWorkoutsFn({
+            data: { trackWorkoutIds },
+          })
+        : Promise.resolve({
+            venues: {} as Awaited<
+              ReturnType<typeof getBatchVenuesForTrackWorkoutsFn>
+            >["venues"],
+          }),
+      isOnline && athleteRegisteredDivisionId && trackWorkoutIds.length > 0
+        ? getBatchSubmissionStatusFn({
+            data: { competitionId, trackWorkoutIds },
+          })
+        : Promise.resolve({ statuses: {} as Record<string, SubmissionStatus> }),
+    ])
+
+    const divisionDescriptionsMap = divisionDescriptionsResult.descriptionsByWorkout
+
     const venueMap: Record<string, VenueInfo | null> = {}
-
-    if (divisionIds.length > 0 && workouts.length > 0) {
-      const workoutIds = workouts.map((w) => w.workoutId)
-      const batchResult = await getBatchWorkoutDivisionDescriptionsFn({
-        data: { workoutIds, divisionIds },
-      })
-      Object.assign(divisionDescriptionsMap, batchResult.descriptionsByWorkout)
-    }
-
-    // Fetch venue data for each workout
-    if (workouts.length > 0) {
-      const venuePromises = workouts.map(async (event) => {
-        const result = await getVenueForTrackWorkoutFn({
-          data: { trackWorkoutId: event.id },
-        })
-        return { trackWorkoutId: event.id, venueData: result }
-      })
-
-      const venueResults = await Promise.all(venuePromises)
-      for (const { trackWorkoutId, venueData } of venueResults) {
-        if (venueData.venue) {
-          // Transform database address to simplified format
-          venueMap[trackWorkoutId] = {
-            id: venueData.venue.id,
-            name: venueData.venue.name,
-            address: venueData.venue.address
-              ? {
-                  streetLine1: venueData.venue.address.streetLine1 ?? undefined,
-                  city: venueData.venue.address.city ?? undefined,
-                  stateProvince:
-                    venueData.venue.address.stateProvince ?? undefined,
-                  postalCode: venueData.venue.address.postalCode ?? undefined,
-                  countryCode: venueData.venue.address.countryCode ?? undefined,
-                }
-              : null,
-          }
-        } else {
-          venueMap[trackWorkoutId] = null
+    for (const trackWorkoutId of trackWorkoutIds) {
+      const v = batchVenuesResult.venues[trackWorkoutId] ?? null
+      if (v) {
+        venueMap[trackWorkoutId] = {
+          id: v.id,
+          name: v.name,
+          address: v.address
+            ? {
+                streetLine1: v.address.streetLine1 ?? undefined,
+                city: v.address.city ?? undefined,
+                stateProvince: v.address.stateProvince ?? undefined,
+                postalCode: v.address.postalCode ?? undefined,
+                countryCode: v.address.countryCode ?? undefined,
+              }
+            : null,
         }
+      } else {
+        venueMap[trackWorkoutId] = null
       }
     }
 
-    // Fetch submission statuses for online competitions
-    let submissionStatusMap: Record<string, SubmissionStatus> = {}
-    if (
-      competition.competitionType === "online" &&
-      athleteRegisteredDivisionId &&
-      workouts.length > 0
-    ) {
-      const result = await getBatchSubmissionStatusFn({
-        data: {
-          competitionId,
-          trackWorkoutIds: workouts.map((w) => w.id),
-        },
-      })
-      submissionStatusMap = result.statuses
-    }
+    const submissionStatusMap = submissionResult.statuses
 
     return {
       workouts,

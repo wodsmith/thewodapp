@@ -225,6 +225,10 @@ const getVenueForTrackWorkoutInputSchema = z.object({
   trackWorkoutId: z.string().min(1, "Track workout ID is required"),
 })
 
+const getBatchVenuesForTrackWorkoutsInputSchema = z.object({
+  trackWorkoutIds: z.array(z.string().min(1)).min(1),
+})
+
 const getVenueForTrackWorkoutByDivisionInputSchema = z.object({
   trackWorkoutId: z.string().min(1, "Track workout ID is required"),
   divisionId: z.string().optional(),
@@ -1814,6 +1818,84 @@ export const getVenueForTrackWorkoutFn = createServerFn({ method: "GET" })
         address: venueWithAddress.address,
       },
     }
+  })
+
+/**
+ * Batched version of getVenueForTrackWorkoutFn — resolves the lowest-heatNumber
+ * venue for each trackWorkoutId in two queries total (heats + venues+addresses).
+ * Returns a map keyed by trackWorkoutId; entries with no heats or no venue are
+ * present and set to null so callers can distinguish "looked up" from "missing".
+ */
+export const getBatchVenuesForTrackWorkoutsFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    getBatchVenuesForTrackWorkoutsInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const trackWorkoutIds = [...new Set(data.trackWorkoutIds)]
+    const initialMap: Record<
+      string,
+      {
+        id: string
+        name: string
+        address: typeof addressesTable.$inferSelect | null
+      } | null
+    > = {}
+    for (const id of trackWorkoutIds) {
+      initialMap[id] = null
+    }
+
+    const db = getDb()
+
+    const heats = await db
+      .select({
+        trackWorkoutId: competitionHeatsTable.trackWorkoutId,
+        heatNumber: competitionHeatsTable.heatNumber,
+        venueId: competitionHeatsTable.venueId,
+      })
+      .from(competitionHeatsTable)
+      .where(inArray(competitionHeatsTable.trackWorkoutId, trackWorkoutIds))
+      .orderBy(asc(competitionHeatsTable.heatNumber))
+
+    const firstVenueByWorkout = new Map<string, string>()
+    for (const heat of heats) {
+      if (firstVenueByWorkout.has(heat.trackWorkoutId)) continue
+      if (!heat.venueId) continue
+      firstVenueByWorkout.set(heat.trackWorkoutId, heat.venueId)
+    }
+
+    const venueIds = [...new Set(firstVenueByWorkout.values())]
+    if (venueIds.length === 0) {
+      return { venues: initialMap }
+    }
+
+    const venuesWithAddress = await db
+      .select({
+        venue: competitionVenuesTable,
+        address: addressesTable,
+      })
+      .from(competitionVenuesTable)
+      .leftJoin(
+        addressesTable,
+        eq(competitionVenuesTable.addressId, addressesTable.id),
+      )
+      .where(inArray(competitionVenuesTable.id, venueIds))
+
+    const venueDetailsById = new Map(
+      venuesWithAddress.map((v) => [
+        v.venue.id,
+        {
+          id: v.venue.id,
+          name: v.venue.name,
+          address: v.address,
+        },
+      ]),
+    )
+
+    for (const [trackWorkoutId, venueId] of firstVenueByWorkout) {
+      initialMap[trackWorkoutId] = venueDetailsById.get(venueId) ?? null
+    }
+
+    return { venues: initialMap }
   })
 
 /**

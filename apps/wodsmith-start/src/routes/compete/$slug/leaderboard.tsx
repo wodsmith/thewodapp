@@ -2,6 +2,7 @@ import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { z } from "zod"
 import { CompetitionTabs } from "@/components/competition-tabs"
 import { LeaderboardPageContent } from "@/components/leaderboard-page-content"
+import { getCompetitionLeaderboardFn } from "@/server-fns/leaderboard-fns"
 
 const parentRoute = getRouteApi("/compete/$slug")
 
@@ -14,6 +15,41 @@ const leaderboardSearchSchema = z.object({
 
 export const Route = createFileRoute("/compete/$slug/leaderboard")({
   validateSearch: leaderboardSearchSchema,
+  staleTime: 10_000,
+  loaderDeps: ({ search }) => ({ division: search.division }),
+  loader: async ({ deps, parentMatchPromise }) => {
+    const parentMatch = await parentMatchPromise
+    const competition = parentMatch.loaderData?.competition
+    const divisions = parentMatch.loaderData?.divisions ?? []
+
+    if (!competition) {
+      return { initialLeaderboard: null }
+    }
+
+    const targetDivisionId = deps.division ?? divisions[0]?.id ?? null
+    if (!targetDivisionId) {
+      return { initialLeaderboard: null }
+    }
+
+    try {
+      const result = await getCompetitionLeaderboardFn({
+        data: {
+          competitionId: competition.id,
+          divisionId: targetDivisionId,
+        },
+      })
+      return {
+        initialLeaderboard: {
+          entries: result.entries,
+          scoringAlgorithm: result.scoringAlgorithm,
+          divisionId: targetDivisionId,
+        },
+      }
+    } catch {
+      // Don't block the page if the leaderboard fails — component falls back to client fetch
+      return { initialLeaderboard: null }
+    }
+  },
   head: ({ params }) => {
     const { slug } = params
     const displayName = slug
@@ -65,6 +101,7 @@ export const Route = createFileRoute("/compete/$slug/leaderboard")({
 
 function CompetitionLeaderboardPage() {
   const { competition, divisions } = parentRoute.useLoaderData()
+  const { initialLeaderboard } = Route.useLoaderData()
 
   return (
     <div className="space-y-4">
@@ -79,6 +116,7 @@ function CompetitionLeaderboardPage() {
             slug: competition.slug,
             competitionType: competition.competitionType,
           }}
+          initialData={initialLeaderboard}
         />
       </div>
     </div>
