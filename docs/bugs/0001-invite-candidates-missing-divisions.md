@@ -92,18 +92,20 @@ The same pattern silently affects MWFC for any division whose athletes haven't b
 
 Pricing isn't read anywhere in the candidates path. The likely reason the user noticed it: divisions added late in the comp setup (after heats were drawn) tend to also be the ones the organizer hadn't yet finished pricing. Both are downstream of "this division was an afterthought." Pricing isn't causal.
 
-## Proposed fix (sketch — not implemented in this PR)
+## Fix shipped in this PR
 
-The leaderboard's job in the championship-roster context is "give me the qualifying placements for division X in source comp Y." Heat assignments are an implementation detail of in-person scoring, not a qualifier-eligibility signal. Two options:
+Originally we tried adding a `bypassHeatBasedDivisionFilter` flag to `getCompetitionLeaderboard` (see commit `f2ba68f0`, since reverted). It cleared the symptom but coupled two different concerns through a growing list of conditional flags on the leaderboard. The architectural takeaway: invite candidacy and public leaderboard rendering have different definitions of "eligible" — they should be separate query paths.
 
-1. **Bypass heat-based event filtering when called from the roster path.** Add a flag to `getCompetitionLeaderboard` (e.g. `treatAllEventsAsRelevant: true`) that the roster fan-out passes. Registrations still get filtered by `divisionId` so the leaderboard stays division-correct; we just don't drop the events when no heats reference them yet.
-2. **Decouple roster computation from the leaderboard entirely.** For invite candidates, the source of truth is "athletes registered in division X of comp Y, ranked by their best-scored workouts (or just registration order if unscored)." This has the side benefit of not paying the leaderboard's full ranking cost for what is conceptually a registration query.
+The shipped fix decouples them:
 
-Either way, the fix should ensure that **a division with registrations always appears in the candidates list**, even if zero events have published results yet. Showing them with placeholder ranks (`#1`, `#2` by registration order) is acceptable; silently omitting them is not.
+- New: [`apps/wodsmith-start/src/server/competition-invites/candidates.ts`](../../apps/wodsmith-start/src/server/competition-invites/candidates.ts) exports `getCandidatesForSourceComp({ competitionId, divisionId })`. It owns its own SQL against `competition_registrations` joined to `users` (and `scaling_levels` for the label), filtered by `eventId`, `divisionId`, and `status ≠ "removed"`. No track-workout, heat, event-status, or publication gating.
+- `getChampionshipRoster` now fans out to `getCandidatesForSourceComp` instead of `getCompetitionLeaderboard`. The previous email-hydration second pass is gone — the candidates fn returns email inline.
+- `getCompetitionLeaderboard` reverts to its pre-bug shape (no `bypassHeatBasedDivisionFilter` flag).
+
+Tradeoff accepted: the candidates path no longer benefits from the leaderboard's score-based ranking. Today rows are stable-ordered by `registeredAt`. Adding score-based ranking to the candidates query is a follow-up — when it lands it will live inside `candidates.ts`, not as another flag on the leaderboard.
 
 ## Related
 
+- Candidates query: `apps/wodsmith-start/src/server/competition-invites/candidates.ts`
 - Roster computation: `apps/wodsmith-start/src/server/competition-invites/roster.ts`
-- Leaderboard heat filter: `apps/wodsmith-start/src/server/competition-leaderboard.ts:350,588,640`
-- Allocations resolver (unaffected — confirmed): `apps/wodsmith-start/src/server/competition-invites/allocations.ts`
-- Tests: `apps/wodsmith-start/test/server/competition-invites/roster-allocations.test.ts` does not currently cover the empty-heat-assignment case for a registered division.
+- Tests: `apps/wodsmith-start/test/server/competition-invites/candidates.test.ts`, `roster-candidates-wiring.test.ts`

@@ -402,16 +402,6 @@ export async function getCompetitionLeaderboard(params: {
    * the caller layer — this function does not enforce organizer permissions.
    */
   bypassPublicationFilter?: boolean
-  /**
-   * When true, skip heat-based event filtering when no explicit
-   * event-division mappings exist. Registration-level division filtering
-   * still applies. Used by the championship roster fan-out where heat
-   * assignments are an implementation detail of in-person scoring, not a
-   * qualifier-eligibility signal — a division with registrations but no
-   * heat assignments must still surface its athletes as candidates.
-   * See docs/bugs/0001-invite-candidates-missing-divisions.md.
-   */
-  bypassHeatBasedDivisionFilter?: boolean
 }): Promise<CompetitionLeaderboardResult> {
   const db = getDb()
 
@@ -594,20 +584,6 @@ export async function getCompetitionLeaderboard(params: {
           mappedToSelectedDiv.has(tw.id) ||
           (tw.parentEventId && mappedToSelectedDiv.has(tw.parentEventId))
         )
-      })
-    } else if (params.bypassHeatBasedDivisionFilter) {
-      // Roster path: heat assignments are not a qualifier-eligibility
-      // signal. Keep all track workouts visible so divisions with
-      // registrations but no heat assignments still surface their
-      // athletes. Registration-level division filtering below still
-      // narrows the leaderboard correctly.
-      logInfo({
-        message: "[Leaderboard] Skipping heat-based division filter",
-        attributes: {
-          competitionId: params.competitionId,
-          divisionId: params.divisionId,
-          reason: "bypassHeatBasedDivisionFilter",
-        },
       })
     } else {
       // No explicit mappings — fall back to heat-based filtering
