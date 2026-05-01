@@ -553,6 +553,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
     // 6. ALL FREE - create registrations directly
     if (allFree) {
       let firstRegistrationId: string | null = null
+      const createdRegistrationIds: string[] = []
 
       for (const item of input.items) {
         const result = await registerForCompetition({
@@ -564,6 +565,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
           teammates: item.teammates,
         })
 
+        createdRegistrationIds.push(result.registrationId)
         if (!firstRegistrationId) {
           firstRegistrationId = result.registrationId
         }
@@ -617,6 +619,68 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
       // stays `pending` indefinitely. Guarded by status=pending so a
       // racing claim/decline doesn't get stomped.
       if (inviteIdForPurchase && firstRegistrationId) {
+        // Authoritative allocation re-check at the write site. The
+        // preflight (above, before the allFree branch) is alone not
+        // enough for free invites: the free path skips Stripe, so
+        // `getOccupiedCountForBucket` sees no in-flight purchase rows
+        // for either flow — two concurrent free claims can both pass
+        // the preflight and overfill the (source, division) bucket.
+        // Re-running the check here catches any peer that has already
+        // flipped to accepted_paid; if we lose the race, mark the
+        // just-created registrations REMOVED so they don't squat
+        // division capacity and surface a clear error to the user.
+        if (inviteSourceIdForGuardrail) {
+          const inviteDivisionId =
+            inviteDivisionIdForPurchase ?? input.items[0].divisionId
+          const [allocation, occupiedCount] = await Promise.all([
+            resolveAllocationForInvite({
+              invite: {
+                sourceId: inviteSourceIdForGuardrail,
+                championshipDivisionId: inviteDivisionId,
+                championshipCompetitionId: input.competitionId,
+              },
+            }),
+            getOccupiedCountForBucket({
+              sourceId: inviteSourceIdForGuardrail,
+              championshipCompetitionId: input.competitionId,
+              championshipDivisionId: inviteDivisionId,
+            }),
+          ])
+          const allocationCheck = assertInviteWithinAllocation({
+            invite: { sourceId: inviteSourceIdForGuardrail },
+            allocation: allocation ?? 0,
+            acceptedCount: occupiedCount,
+          })
+          if (!allocationCheck.ok) {
+            await db
+              .update(competitionRegistrationsTable)
+              .set({
+                status: REGISTRATION_STATUS.REMOVED,
+                updatedAt: new Date(),
+              })
+              .where(
+                inArray(
+                  competitionRegistrationsTable.id,
+                  createdRegistrationIds,
+                ),
+              )
+            logWarning({
+              message:
+                "[Registration] Free-checkout invite blocked at write-time allocation recheck; rolled back registrations",
+              attributes: {
+                inviteId: inviteIdForPurchase,
+                sourceId: inviteSourceIdForGuardrail,
+                championshipDivisionId: inviteDivisionId,
+                allocation: allocation ?? 0,
+                occupiedCount,
+                rolledBackRegistrationIds: createdRegistrationIds,
+              },
+            })
+            throw new Error(
+              "All invitation spots from this qualifying source for this division are filled.",
+            )
+          }
+        }
         const now = new Date()
         await db
           .update(competitionInvitesTable)

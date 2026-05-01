@@ -19,7 +19,7 @@ import {
 } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { ArrowLeft } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import {
   InviteSourceForm,
@@ -216,6 +216,14 @@ function InviteSourceDetailsPage() {
   const [overrides, setOverrides] =
     useState<Record<string, OverrideState>>(initialOverrides)
 
+  // After router.invalidate() (post-save), the loader memo recomputes
+  // initialOverrides but useState retains the stale snapshot. Re-seed
+  // when the upstream-derived map changes so the table mirrors the
+  // freshly persisted data.
+  useEffect(() => {
+    setOverrides(initialOverrides)
+  }, [initialOverrides])
+
   const setRow = (divisionId: string, patch: Partial<OverrideState>) => {
     setOverrides((prev) => ({
       ...prev,
@@ -303,12 +311,13 @@ function InviteSourceDetailsPage() {
     setAllocationError(null)
   }
 
-  const sourceLabel =
-    source.kind === "series"
-      ? (seriesOptions.find((g) => g.id === source.sourceGroupId)?.name ??
-        "Unknown series")
-      : (competitionOptions.find((c) => c.id === source.sourceCompetitionId)
-          ?.name ?? "Unknown competition")
+  const isSeriesKind =
+    source.kind === "series" || source.kind === "series_global"
+  const sourceLabel = isSeriesKind
+    ? (seriesOptions.find((g) => g.id === source.sourceGroupId)?.name ??
+      "Unknown series")
+    : (competitionOptions.find((c) => c.id === source.sourceCompetitionId)
+        ?.name ?? "Unknown competition")
 
   return (
     <div className="space-y-6">

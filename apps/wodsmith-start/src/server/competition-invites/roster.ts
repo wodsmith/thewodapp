@@ -169,6 +169,14 @@ function mapSourceDivisionToChampionship(args: {
  * Returns a deduped list keyed by `competitionId` so a comp referenced
  * by both a direct source AND a series source only fetches once. The
  * first-encountered source wins for tagging.
+ *
+ * TODO(series_global): `series_global` currently fans out the same way
+ * as `series` — one (comp × division) candidate fetch per child comp,
+ * no series-level aggregation. The intent is "top N from the series
+ * global leaderboard per championship division", which needs a
+ * dedicated path that calls `getSeriesLeaderboard` and truncates by
+ * the resolved per-(source, championship division) allocation. The
+ * schema split lands first; the aggregate path is deferred.
  */
 async function resolveSourceCompetitions(
   championshipId: string,

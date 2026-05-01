@@ -92,7 +92,7 @@ export const inviteSourceFormSchema = z
     }
   })
 
-export type InviteSourceFormValues = {
+export interface InviteSourceFormValues {
   kind: "competition" | "series" | "series_global"
   sourceCompetitionId?: string
   sourceGroupId?: string
@@ -119,6 +119,11 @@ export function InviteSourceForm({
 }: InviteSourceFormProps) {
   const form = useForm<InviteSourceFormValues, unknown, InviteSourceFormValues>({
     resolver: standardSchemaResolver(inviteSourceFormSchema),
+    // When `kind` toggles, the now-hidden field's stale value would
+    // otherwise persist in form state and trip the "exactly one source"
+    // refine — blocking submit silently. Unregister hidden fields so the
+    // validator only sees what the active kind actually rendered.
+    shouldUnregister: true,
     defaultValues: {
       kind:
         (defaultValues?.kind as InviteSourceFormValues["kind"]) ?? "competition",

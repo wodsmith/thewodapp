@@ -232,6 +232,8 @@ Server-fn coverage lives in six sibling test files under `apps/wodsmith-start/te
 
 When a 100%-off coupon zeroes the total, the registration server fn takes the `allFree` branch and skips Stripe entirely — so it mirrors the workflow flip inline right after creating the registration row. Without this, an invite-locked free checkout would leave the invite stuck in `pending` even though the athlete is registered.
 
+The free-path flip runs the same `resolveAllocationForInvite` + `getOccupiedCountForBucket` + `assertInviteWithinAllocation` triple a second time, immediately before the inline `accepted_paid` update. The preflight alone is insufficient here: the free path skips Stripe, so neither concurrent free claim shows up in `getOccupiedCountForBucket`'s in-flight purchase count, and both can pass the preflight. The write-time recheck narrows the race window to whoever flips first; the loser rolls back its just-created registrations to `REMOVED` (tracked via `createdRegistrationIds`) so they don't squat division capacity, and surfaces the same "all spots filled" error. This isn't atomic — true atomicity would need a DB-level slot constraint — but it bounds the window to roughly one read round-trip.
+
 ## Organizer send UX
 
 Phase 2D makes the organizer invite buttons clickable. See [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/invites/index.tsx]] for the shell.
