@@ -632,6 +632,42 @@ function CounterChip({
   )
 }
 
+export interface SentTabDivision {
+  id: string
+  label: string
+  maxSpots: number | null
+  allocationTotal: number
+}
+
+/**
+ * ADR-0013: build the per-division shape the Sent tab consumes from
+ * the loader's three inputs — the championship's divisions (with their
+ * per-division `maxSpots` overrides), the competition-level
+ * `defaultMaxSpotsPerDivision`, and the resolved per-division
+ * allocation totals from `listInviteSourceAllocationsFn`.
+ *
+ * Pure: same `calculateDivisionCapacity` resolution (override → default
+ * → null) for the cap, plus the allocation total for the mismatch
+ * warning. Extracted from the route loader so the wiring is unit-testable
+ * without standing up a TanStack Router context.
+ */
+export function buildSentTabDivisions(args: {
+  divisions: ReadonlyArray<{
+    id: string
+    label: string
+    maxSpots: number | null
+  }>
+  defaultMaxSpotsPerDivision: number | null
+  divisionAllocationTotals: Record<string, number>
+}): SentTabDivision[] {
+  return args.divisions.map((d) => ({
+    id: d.id,
+    label: d.label,
+    maxSpots: d.maxSpots ?? args.defaultMaxSpotsPerDivision,
+    allocationTotal: args.divisionAllocationTotals[d.id] ?? 0,
+  }))
+}
+
 type AllocationMismatch =
   | { kind: "exceeds"; allocationTotal: number; maxSpots: number }
   | { kind: "undershoots"; allocationTotal: number; maxSpots: number }

@@ -2,6 +2,7 @@
 import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import {
+  buildSentTabDivisions,
   computeAllocationMismatch,
   SentInvitesByDivision,
 } from "@/components/organizer/invites/sent-invites-by-division"
@@ -565,5 +566,112 @@ describe("computeAllocationMismatch", () => {
     expect(
       computeAllocationMismatch({ allocationTotal: 3, maxSpots: null }),
     ).toEqual({ kind: "no-cap", allocationTotal: 3 })
+  })
+})
+
+describe("buildSentTabDivisions", () => {
+  it("uses the per-division override when present", () => {
+    expect(
+      buildSentTabDivisions({
+        divisions: [{ id: "div_rxm", label: "RX Men", maxSpots: 12 }],
+        defaultMaxSpotsPerDivision: 5,
+        divisionAllocationTotals: {},
+      }),
+    ).toEqual([
+      { id: "div_rxm", label: "RX Men", maxSpots: 12, allocationTotal: 0 },
+    ])
+  })
+
+  it("falls back to defaultMaxSpotsPerDivision when override is null", () => {
+    expect(
+      buildSentTabDivisions({
+        divisions: [{ id: "div_rxm", label: "RX Men", maxSpots: null }],
+        defaultMaxSpotsPerDivision: 5,
+        divisionAllocationTotals: {},
+      }),
+    ).toEqual([
+      { id: "div_rxm", label: "RX Men", maxSpots: 5, allocationTotal: 0 },
+    ])
+  })
+
+  it("returns null cap when both override and default are null", () => {
+    expect(
+      buildSentTabDivisions({
+        divisions: [{ id: "div_rxm", label: "RX Men", maxSpots: null }],
+        defaultMaxSpotsPerDivision: null,
+        divisionAllocationTotals: {},
+      }),
+    ).toEqual([
+      { id: "div_rxm", label: "RX Men", maxSpots: null, allocationTotal: 0 },
+    ])
+  })
+
+  it("attaches allocationTotal from the resolved-totals map", () => {
+    expect(
+      buildSentTabDivisions({
+        divisions: [
+          { id: "div_rxm", label: "RX Men", maxSpots: 1 },
+          { id: "div_rxw", label: "RX Women", maxSpots: 2 },
+        ],
+        defaultMaxSpotsPerDivision: null,
+        divisionAllocationTotals: { div_rxm: 3, div_rxw: 2 },
+      }),
+    ).toEqual([
+      { id: "div_rxm", label: "RX Men", maxSpots: 1, allocationTotal: 3 },
+      { id: "div_rxw", label: "RX Women", maxSpots: 2, allocationTotal: 2 },
+    ])
+  })
+
+  it("defaults allocationTotal to 0 when the division id is missing from the map", () => {
+    expect(
+      buildSentTabDivisions({
+        divisions: [{ id: "div_rxm", label: "RX Men", maxSpots: 5 }],
+        defaultMaxSpotsPerDivision: null,
+        divisionAllocationTotals: { other_division: 7 },
+      }),
+    ).toEqual([
+      { id: "div_rxm", label: "RX Men", maxSpots: 5, allocationTotal: 0 },
+    ])
+  })
+
+  it("returns an empty array when no divisions are configured", () => {
+    expect(
+      buildSentTabDivisions({
+        divisions: [],
+        defaultMaxSpotsPerDivision: 5,
+        divisionAllocationTotals: { div_rxm: 3 },
+      }),
+    ).toEqual([])
+  })
+
+  it("preserves division order from the input", () => {
+    const result = buildSentTabDivisions({
+      divisions: [
+        { id: "div_c", label: "C", maxSpots: null },
+        { id: "div_a", label: "A", maxSpots: null },
+        { id: "div_b", label: "B", maxSpots: null },
+      ],
+      defaultMaxSpotsPerDivision: 1,
+      divisionAllocationTotals: {},
+    })
+    expect(result.map((d) => d.id)).toEqual(["div_c", "div_a", "div_b"])
+  })
+
+  // ADR-0013 regression case: this is exactly the bug-report scenario —
+  // three sources each contribute their default `globalSpots: 1` into a
+  // division whose actual cap is also 1. Pre-ADR-0013 the loader would
+  // emit `maxSpots: 3` (sum of allocations); post-ADR-0013 it emits
+  // `maxSpots: 1` (the enforced cap) plus `allocationTotal: 3` so the
+  // component can render the mismatch warning.
+  it("emits the division cap, not the allocation sum (ADR-0013 regression)", () => {
+    expect(
+      buildSentTabDivisions({
+        divisions: [{ id: "div_rxm", label: "RX Men", maxSpots: null }],
+        defaultMaxSpotsPerDivision: 1,
+        divisionAllocationTotals: { div_rxm: 3 },
+      }),
+    ).toEqual([
+      { id: "div_rxm", label: "RX Men", maxSpots: 1, allocationTotal: 3 },
+    ])
   })
 })

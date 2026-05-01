@@ -44,7 +44,10 @@ import {
   SendInvitesDialog,
   type SendRecipient,
 } from "@/components/organizer/invites/send-invites-dialog"
-import { SentInvitesByDivision } from "@/components/organizer/invites/sent-invites-by-division"
+import {
+  buildSentTabDivisions,
+  SentInvitesByDivision,
+} from "@/components/organizer/invites/sent-invites-by-division"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -191,23 +194,19 @@ export const Route = createFileRoute(
     const { allocationsBySourceByDivision, divisionAllocationTotals } =
       allocationsResult
 
-    // ADR-0013: the Sent tab's per-division headline denominator reads
+    // ADR-0013: `buildSentTabDivisions` resolves each division's cap as
     // `competition_divisions.maxSpots ?? competitions.defaultMaxSpotsPerDivision`
     // — the same value `calculateDivisionCapacity` enforces at
-    // registration. `allocationTotal` (the resolved sum of per-source
-    // allocations) is passed alongside as a separate prop so the
-    // component can warn when the organizer's source-allocation plan
-    // disagrees with the division's actual cap.
-    const defaultMaxSpotsPerDivision =
-      divisionsResult.defaultMaxSpotsPerDivision ?? null
-    const championshipDivisions = (divisionsResult.divisions ?? []).map(
-      (d: { id: string; label: string; maxSpots: number | null }) => ({
-        id: d.id,
-        label: d.label,
-        maxSpots: d.maxSpots ?? defaultMaxSpotsPerDivision,
-        allocationTotal: divisionAllocationTotals[d.id] ?? 0,
-      }),
-    )
+    // registration — and attaches `allocationTotal` (the resolved sum
+    // of per-source allocations) so the component can warn when the
+    // organizer's source-allocation plan disagrees with the division's
+    // actual cap. Extracted as a pure helper for unit-testability.
+    const championshipDivisions = buildSentTabDivisions({
+      divisions: divisionsResult.divisions ?? [],
+      defaultMaxSpotsPerDivision:
+        divisionsResult.defaultMaxSpotsPerDivision ?? null,
+      divisionAllocationTotals,
+    })
 
     // Source pickers in the EditInviteSourceDialog exclude the championship
     // itself — a competition cannot qualify athletes from its own leaderboard.
