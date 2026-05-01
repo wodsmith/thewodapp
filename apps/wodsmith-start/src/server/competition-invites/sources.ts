@@ -38,7 +38,6 @@ export interface CreateSourceInput {
   kind: CompetitionInviteSourceKind
   sourceCompetitionId?: string | null
   sourceGroupId?: string | null
-  directSpotsPerComp?: number | null
   globalSpots?: number | null
   divisionMappings?: DivisionMapping[] | null
   sortOrder?: number
@@ -50,7 +49,6 @@ export interface UpdateSourceInput {
   kind?: CompetitionInviteSourceKind
   sourceCompetitionId?: string | null
   sourceGroupId?: string | null
-  directSpotsPerComp?: number | null
   globalSpots?: number | null
   divisionMappings?: DivisionMapping[] | null
   sortOrder?: number
@@ -73,9 +71,8 @@ export class InviteSourceValidationError extends Error {
  * and the `kind` alignment with which column is populated. Throws an
  * `InviteSourceValidationError` on violation.
  *
- * A `kind = "series"` source with no `globalSpots` / `directSpotsPerComp`
- * set is intentionally allowed — the organizer may want to set them later
- * before actually sourcing invitees.
+ * A source with no `globalSpots` set is intentionally allowed — the
+ * organizer may want to set it later before actually sourcing invitees.
  */
 export function assertSourceReferenceValid(input: {
   kind: CompetitionInviteSourceKind
@@ -168,7 +165,6 @@ export async function createSource(
     kind: input.kind,
     sourceCompetitionId: input.sourceCompetitionId ?? null,
     sourceGroupId: input.sourceGroupId ?? null,
-    directSpotsPerComp: input.directSpotsPerComp ?? null,
     globalSpots: input.globalSpots ?? null,
     divisionMappings: serializeDivisionMappings(input.divisionMappings),
     sortOrder: input.sortOrder ?? 0,
@@ -219,8 +215,6 @@ export async function updateSource(
     patch.sourceCompetitionId = input.sourceCompetitionId
   if (input.sourceGroupId !== undefined)
     patch.sourceGroupId = input.sourceGroupId
-  if (input.directSpotsPerComp !== undefined)
-    patch.directSpotsPerComp = input.directSpotsPerComp
   if (input.globalSpots !== undefined) patch.globalSpots = input.globalSpots
   if (input.divisionMappings !== undefined) {
     patch.divisionMappings = serializeDivisionMappings(input.divisionMappings)

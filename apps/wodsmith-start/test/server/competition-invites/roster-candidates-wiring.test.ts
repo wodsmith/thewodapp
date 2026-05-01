@@ -91,7 +91,6 @@ function sourceFixture(
 		kind: COMPETITION_INVITE_SOURCE_KIND.COMPETITION,
 		sourceCompetitionId: "comp_qual",
 		sourceGroupId: null,
-		directSpotsPerComp: null,
 		globalSpots: 5,
 		divisionMappings: null,
 		sortOrder: 0,

@@ -17,9 +17,9 @@
  * ADR-0012 Phase 6: per-(source, championshipDivision) cutoffs are
  * applied after leaderboards are fetched. The resolved allocation map
  * (`resolveSourceAllocations`) supplies the truncation N for each
- * `(sourceId, championshipDivisionId)`. Source-side `globalSpots` /
- * `directSpotsPerComp` act as defaults when no override row exists for
- * the championship division. See ADR-0012 "Allocation Resolution".
+ * `(sourceId, championshipDivisionId)`. Source-side `globalSpots` is
+ * the per-division default when no override row exists. See ADR-0012
+ * "Allocation Resolution".
  */
 // @lat: [[competition-invites#Roster computation]]
 
@@ -343,24 +343,11 @@ async function resolveDivisionRefs(
  * championshipDivision) value. Override present → uses override; absent
  * → uses the source's `globalSpots` default (applied per division).
  *
- * Series source: today the leaderboard fan-out yields one entry per
- * (seriesComp × division). The per-comp "direct" line uses
- * `directSpotsPerComp` as the default; when an override exists for the
- * championship division the override is the *total* number of direct
- * qualifiers for that division across the *whole series* — not per
- * comp. We can't faithfully redistribute that across comps without
- * series-leaderboard context (which row from comp A vs comp B counts
- * toward the global pool), so series with overrides keeps the current
- * full-leaderboard behavior and lets downstream UI / the
- * `divisionAllocationTotals` denominator surface the discrepancy.
- *
- * TODO(ADR-0012 Phase 6): split direct vs. global tiers cleanly for
- * series sources with division-level overrides; today the override is
- * honored on the per-division *denominator* (Sent tab) but not on the
- * per-comp leaderboard truncation here. See ADR-0012 "Allocation
- * Resolution" — the global block is still the safe fallback because it
- * never *adds* invalid qualifying rows; it can only over-include rows
- * the organizer must filter manually.
+ * Series source: keeps the full leaderboard (no cutoff). The per-
+ * (source, division) allocation still gates invite issuing and claim
+ * acceptance via `divisionAllocationTotals`; the leaderboard fan-out
+ * just doesn't pre-truncate so organizers can pick whom to invite from
+ * the full candidate pool.
  *
  * Returns `null` when no cutoff applies (i.e. include every row).
  */
@@ -373,11 +360,6 @@ function computeCutoffForLeaderboard(args: {
   divisionMappings: DivisionMapping[]
 }): number | null {
   if (args.source.kind === COMPETITION_INVITE_SOURCE_KIND.SERIES) {
-    // Series fallback: keep all rows. Per-comp direct truncation is a
-    // future improvement (TODO above) — until the (direct, global)
-    // tiers are split, returning the full leaderboard is the safer
-    // path because it can only over-include candidate rows the
-    // organizer manually filters, never silently drop a qualifier.
     return null
   }
 

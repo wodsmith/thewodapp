@@ -256,7 +256,6 @@ function InvitesPage() {
     sources,
     competitionNamesById,
     seriesNamesById,
-    seriesCompCountsById,
     competitionOptions,
     seriesOptions,
     championshipDivisions,
@@ -994,7 +993,6 @@ function InvitesPage() {
             sources={sources}
             competitionNamesById={competitionNamesById}
             seriesNamesById={seriesNamesById}
-            seriesCompCountsById={seriesCompCountsById}
             allocationsBySourceByDivision={allocationsBySourceByDivision}
             championshipDivisions={championshipDivisions}
             onAdd={() => {

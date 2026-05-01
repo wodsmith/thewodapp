@@ -75,8 +75,11 @@ import {
 import {
   assertInviteClaimable,
   findActiveInviteForEmail,
+  getOccupiedCountForBucket,
+  resolveAllocationForInvite,
   resolveInviteForClaim,
 } from "@/server/competition-invites/claim"
+import { assertInviteWithinAllocation } from "@/server/competition-invites/identity"
 import { normalizeInviteEmail } from "@/server/competition-invites/issue"
 import { recordRedemption, validateCoupon } from "@/server/coupons"
 import { requireVerifiedEmail } from "@/utils/auth"
@@ -308,6 +311,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
     let inviteAuthorized = false
     let inviteIdForPurchase: string | null = null
     let inviteDivisionIdForPurchase: string | null = null
+    let inviteSourceIdForGuardrail: string | null = null
     if (input.inviteToken) {
       const { invite } = await resolveInviteForClaim(input.inviteToken)
       if (sessionEmail !== normalizeInviteEmail(invite.email)) {
@@ -327,6 +331,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
       inviteAuthorized = true
       inviteIdForPurchase = invite.id
       inviteDivisionIdForPurchase = invite.championshipDivisionId
+      inviteSourceIdForGuardrail = invite.sourceId
     } else if (sessionEmail && input.items.length === 1) {
       // No token — probe by identity. Active AND claimable
       // (assertInviteClaimable throws on expired etc.).
@@ -341,10 +346,60 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
           inviteAuthorized = true
           inviteIdForPurchase = probe.id
           inviteDivisionIdForPurchase = probe.championshipDivisionId
+          inviteSourceIdForGuardrail = probe.sourceId
         } catch {
           // expired / declined / revoked etc — fall through to public-window
           // gating; the public flow will give the right error.
         }
+      }
+    }
+
+    // ADR-0012 Phase 5: per-(source, division) allocation guardrail.
+    // Mirrors the claim-landing soft gate so a direct submit to
+    // /register?invite=… can't bypass it before reaching Stripe. The
+    // authoritative re-check still lives in the Stripe workflow at
+    // payment confirmation. Bespoke invites (sourceId IS NULL) bypass.
+    // The occupied count includes both accepted_paid invites AND in-flight
+    // Stripe checkouts so two athletes can't both pass the gate while one
+    // is mid-payment.
+    if (inviteIdForPurchase && inviteSourceIdForGuardrail) {
+      const [allocation, occupiedCount] = await Promise.all([
+        resolveAllocationForInvite({
+          invite: {
+            sourceId: inviteSourceIdForGuardrail,
+            championshipDivisionId:
+              inviteDivisionIdForPurchase ?? input.items[0].divisionId,
+            championshipCompetitionId: input.competitionId,
+          },
+        }),
+        getOccupiedCountForBucket({
+          sourceId: inviteSourceIdForGuardrail,
+          championshipCompetitionId: input.competitionId,
+          championshipDivisionId:
+            inviteDivisionIdForPurchase ?? input.items[0].divisionId,
+        }),
+      ])
+      const allocationCheck = assertInviteWithinAllocation({
+        invite: { sourceId: inviteSourceIdForGuardrail },
+        allocation: allocation ?? 0,
+        acceptedCount: occupiedCount,
+      })
+      if (!allocationCheck.ok) {
+        logInfo({
+          message:
+            "[Registration] Invite blocked at register submit by allocation guardrail",
+          attributes: {
+            inviteId: inviteIdForPurchase,
+            sourceId: inviteSourceIdForGuardrail,
+            championshipDivisionId:
+              inviteDivisionIdForPurchase ?? input.items[0].divisionId,
+            allocation: allocation ?? 0,
+            occupiedCount,
+          },
+        })
+        throw new Error(
+          "All invitation spots from this qualifying source for this division are filled.",
+        )
       }
     }
 

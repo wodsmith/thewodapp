@@ -18,7 +18,6 @@ import "server-only"
 import { eq, inArray } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
-  COMPETITION_INVITE_SOURCE_KIND,
   type CompetitionInviteSource,
   type CompetitionInviteSourceDivisionAllocation,
   competitionInviteSourceDivisionAllocationsTable,
@@ -47,26 +46,13 @@ export interface ResolvedSourceAllocations {
 
 /**
  * Default allocation for a championship division when no override row
- * exists for `(source.id, division.id)`.
- *
- * - `kind = "competition"`: the source's `globalSpots` (Top N qualifies),
- *   applied per division. Null collapses to 0.
- * - `kind = "series"`: `directSpotsPerComp * seriesCompCount + globalSpots`,
- *   applied per division. This preserves ADR-0011's series math while
- *   distributing it equally per division by default — when the organizer
- *   wants different per-division counts they create override rows.
+ * exists for `(source.id, division.id)`. The source's `globalSpots`
+ * column is the single per-division default — the same value applies to
+ * every division of the championship until an override row says otherwise.
+ * Null collapses to 0.
  */
-function sourceDefaultPerDivision(
-  source: CompetitionInviteSource,
-  seriesCompCount: number | undefined,
-): number {
-  const globalSpots = source.globalSpots ?? 0
-  if (source.kind === COMPETITION_INVITE_SOURCE_KIND.SERIES) {
-    const direct = source.directSpotsPerComp ?? 0
-    const compCount = seriesCompCount ?? 0
-    return direct * compCount + globalSpots
-  }
-  return globalSpots
+function sourceDefaultPerDivision(source: CompetitionInviteSource): number {
+  return source.globalSpots ?? 0
 }
 
 /**
@@ -83,9 +69,6 @@ export function resolveSourceAllocations(args: {
   source: CompetitionInviteSource
   championshipDivisions: ReadonlyArray<ChampionshipDivision>
   allocations: ReadonlyArray<CompetitionInviteSourceDivisionAllocation>
-  /** For series sources: how many comps in the series (so directSpotsPerComp
-   *  scales). Ignored for single-comp sources. */
-  seriesCompCount?: number
 }): ResolvedSourceAllocations {
   const overrideByDivisionId = new Map<string, number>()
   for (const allocation of args.allocations) {
@@ -93,10 +76,7 @@ export function resolveSourceAllocations(args: {
     overrideByDivisionId.set(allocation.championshipDivisionId, allocation.spots)
   }
 
-  const defaultSpots = sourceDefaultPerDivision(
-    args.source,
-    args.seriesCompCount,
-  )
+  const defaultSpots = sourceDefaultPerDivision(args.source)
 
   const byDivision: Record<string, number> = {}
   let total = 0

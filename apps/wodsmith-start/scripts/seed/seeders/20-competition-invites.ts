@@ -33,9 +33,8 @@ import {
  *       2. Boise Throwdown from the MWFC series (single-comp, global_spots=2)
  *          — second source, exercises the multi-source aggregator plus the
  *          "skip already qualified" dedupe (mike is in both).
- *       3. MWFC Series (series kind, direct_spots_per_comp=1, global_spots=5)
- *          — demonstrates the Series UI card and the series-source sub-tabs
- *          placeholder. Roster rows depend on series_division_mappings
+ *       3. MWFC Series (series kind, global_spots=5) — demonstrates the
+ *          series UI card. Roster rows depend on series_division_mappings
  *          existing, which this seeder does not set up — the card itself
  *          still renders.
  *   - `competition_invites` rows covering every lifecycle state for both
@@ -940,7 +939,6 @@ export async function seed(client: Connection): Promise<void> {
 			kind: "competition",
 			source_competition_id: "comp_inv_qualifier",
 			source_group_id: null,
-			direct_spots_per_comp: null,
 			global_spots: 3,
 			division_mappings: qualifierDivisionMappings,
 			sort_order: 0,
@@ -955,7 +953,6 @@ export async function seed(client: Connection): Promise<void> {
 			kind: "competition",
 			source_competition_id: "comp_mwfc_a",
 			source_group_id: null,
-			direct_spots_per_comp: null,
 			global_spots: 2,
 			division_mappings: boiseDivisionMappings,
 			sort_order: 1,
@@ -970,12 +967,10 @@ export async function seed(client: Connection): Promise<void> {
 			kind: "series",
 			source_competition_id: null,
 			source_group_id: "cgrp_seed_mwfc_series",
-			direct_spots_per_comp: 1,
 			global_spots: 5,
 			division_mappings: mwfcDivisionMappings,
 			sort_order: 2,
-			notes:
-				"Mountain West series — top 1 of each throwdown auto-qualifies, plus top 5 on the global series leaderboard.",
+			notes: "Mountain West series — top 5 per division qualify.",
 			created_at: ts,
 			updated_at: ts,
 			update_counter: 0,
@@ -1073,9 +1068,9 @@ export async function seed(client: Connection): Promise<void> {
 			update_counter: 0,
 		},
 		// MWFC series — single override on Men's RX (4 instead of the
-		// default `directSpotsPerComp(1) * compCount(1) + globalSpots(5) = 6`).
-		// Other championship divisions intentionally have no row, so the
-		// details page demos the default-vs-override toggle mix.
+		// default `globalSpots = 5`). Other championship divisions
+		// intentionally have no row, so the details page demos the
+		// default-vs-override toggle mix.
 		{
 			id: "cisda_seed_mwfc_mrx",
 			source_id: "cisrc_seed_mwfc_series",

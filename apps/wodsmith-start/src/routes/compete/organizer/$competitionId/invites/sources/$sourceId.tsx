@@ -157,7 +157,6 @@ function InviteSourceDetailsPage() {
   const {
     source,
     championshipDivisions,
-    allocationsBySourceByDivision,
     rawAllocationsForSource,
     competitionOptions,
     seriesOptions,
@@ -175,23 +174,9 @@ function InviteSourceDetailsPage() {
 
   // Source default applied per-division when no override row exists.
   // Mirrors `sourceDefaultPerDivision` in the server-side allocations
-  // helper — kept simple here because the details page only needs the
-  // displayable number, not the full resolution algorithm.
-  const sourceDefaultPerDivision = useMemo(() => {
-    if (source.kind === "series") {
-      // Series default is `directSpotsPerComp * compCount + globalSpots`
-      // applied per-division. We only have the resolved per-division
-      // total in `allocationsBySourceByDivision[source.id]` — pick any
-      // entry where there's no override to derive the default. If we
-      // can't (every entry has an override), fall back to the raw
-      // globalSpots so the toggle copy still has a number to show.
-      const map = allocationsBySourceByDivision[source.id] ?? {}
-      const firstDefault = Object.values(map)[0]
-      if (typeof firstDefault === "number") return firstDefault
-      return source.globalSpots ?? 0
-    }
-    return source.globalSpots ?? 0
-  }, [source, allocationsBySourceByDivision])
+  // helper: just `source.globalSpots`, regardless of kind. No
+  // multiplication, no series math.
+  const sourceDefaultPerDivision = source.globalSpots ?? 0
 
   // Seed the per-division override map from the raw allocation rows.
   // Presence of a row in `rawAllocationsForSource` means "override is
@@ -247,10 +232,6 @@ function InviteSourceDetailsPage() {
             values.kind === "competition" ? values.sourceCompetitionId : null,
           sourceGroupId:
             values.kind === "series" ? values.sourceGroupId : null,
-          directSpotsPerComp:
-            values.kind === "series"
-              ? (values.directSpotsPerComp ?? null)
-              : null,
           globalSpots: values.globalSpots ?? null,
           notes: values.notes ?? null,
         },

@@ -15,7 +15,6 @@ function sourceFixture(
     kind: COMPETITION_INVITE_SOURCE_KIND.COMPETITION,
     sourceCompetitionId: "comp_src",
     sourceGroupId: null,
-    directSpotsPerComp: null,
     globalSpots: 5,
     divisionMappings: null,
     sortOrder: 0,
@@ -95,41 +94,36 @@ describe("resolveSourceAllocations", () => {
     expect(result.total).toBe(10)
   })
 
-  it("resolves a series source with no overrides as directSpotsPerComp * seriesCompCount + globalSpots per division", () => {
+  it("uses globalSpots as the default for a series source — no multiplication, no series math", () => {
     const result = resolveSourceAllocations({
       source: sourceFixture({
         kind: COMPETITION_INVITE_SOURCE_KIND.SERIES,
         sourceCompetitionId: null,
         sourceGroupId: "cgrp_series",
-        directSpotsPerComp: 3,
         globalSpots: 2,
       }),
       championshipDivisions: divisions,
       allocations: [],
-      seriesCompCount: 4,
     })
 
-    // Per division: 3 * 4 + 2 = 14
     expect(result.byDivision).toEqual({
-      div_rx: 14,
-      div_scaled: 14,
-      div_masters: 14,
+      div_rx: 2,
+      div_scaled: 2,
+      div_masters: 2,
     })
-    expect(result.total).toBe(42)
+    expect(result.total).toBe(6)
   })
 
-  it("falls back to 0 per division when both globalSpots and directSpotsPerComp are null", () => {
+  it("falls back to 0 per division when globalSpots is null", () => {
     const result = resolveSourceAllocations({
       source: sourceFixture({
         kind: COMPETITION_INVITE_SOURCE_KIND.SERIES,
         sourceCompetitionId: null,
         sourceGroupId: "cgrp_series",
-        directSpotsPerComp: null,
         globalSpots: null,
       }),
       championshipDivisions: divisions,
       allocations: [],
-      seriesCompCount: 4,
     })
 
     expect(result.byDivision).toEqual({

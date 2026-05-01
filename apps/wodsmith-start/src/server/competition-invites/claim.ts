@@ -37,7 +37,6 @@ import {
   type CompetitionInvite,
   competitionInvitesTable,
 } from "@/db/schemas/competition-invites"
-import { competitionsTable } from "@/db/schemas/competitions"
 import { PENDING_PURCHASE_MAX_AGE_MINUTES } from "@/server-fns/competition-divisions-fns"
 import {
   listAllocationsForChampionship,
@@ -269,20 +268,11 @@ export async function resolveAllocationForInvite(args: {
   )
   if (override) return override.spots
 
-  // Fallback: load the source row + (if series) its comp count, then run
-  // the same default math the loader uses.
+  // Fallback: load the source row and run the default math the loader
+  // uses. The default is just `source.globalSpots` per division — no
+  // multiplication, no series math.
   const source = await getSourceById(args.invite.sourceId)
   if (!source) return null
-
-  let seriesCompCount: number | undefined
-  if (source.sourceGroupId) {
-    const db = getDb()
-    const rows = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(competitionsTable)
-      .where(eq(competitionsTable.groupId, source.sourceGroupId))
-    seriesCompCount = Number(rows[0]?.count ?? 0)
-  }
 
   const resolved = resolveSourceAllocations({
     source,
@@ -290,7 +280,6 @@ export async function resolveAllocationForInvite(args: {
       { id: args.invite.championshipDivisionId, label: "" },
     ],
     allocations: allocations.filter((a) => a.sourceId === args.invite.sourceId),
-    seriesCompCount,
   })
 
   return resolved.byDivision[args.invite.championshipDivisionId] ?? 0

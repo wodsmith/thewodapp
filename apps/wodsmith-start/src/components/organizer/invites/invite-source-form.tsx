@@ -3,10 +3,12 @@
 /**
  * Invite Source Form — create / edit a single source.
  *
- * Two kinds: single-competition (requires globalSpots as "top N overall")
- * and series (requires sourceGroupId; directSpotsPerComp + globalSpots
- * both optional). The form-level validator mirrors the server-side
- * helper: exactly one of sourceCompetitionId / sourceGroupId.
+ * Two kinds: single-competition (requires sourceCompetitionId) and series
+ * (requires sourceGroupId). Both kinds share `globalSpots` as the per-
+ * division qualifying-spot default (e.g. 1 = "top 1 finisher per
+ * division"); per-division overrides live on the source-detail page.
+ * The form-level validator mirrors the server-side helper: exactly one
+ * of sourceCompetitionId / sourceGroupId.
  */
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
@@ -43,7 +45,6 @@ export const inviteSourceFormSchema = z
     ]),
     sourceCompetitionId: z.string().optional(),
     sourceGroupId: z.string().optional(),
-    directSpotsPerComp: z.number().int().positive().optional(),
     globalSpots: z.number().int().positive().optional(),
     notes: z.string().max(2000).optional(),
   })
@@ -64,10 +65,10 @@ export const inviteSourceFormSchema = z
         path: ["sourceCompetitionId"],
       })
     }
-    if (val.kind === "competition" && !val.globalSpots) {
+    if (!val.globalSpots) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Set the top-N (global spots) for a single-competition source",
+        message: "Set the top-N qualifying spots per division",
         path: ["globalSpots"],
       })
     }
@@ -84,7 +85,6 @@ export type InviteSourceFormValues = {
   kind: "competition" | "series"
   sourceCompetitionId?: string
   sourceGroupId?: string
-  directSpotsPerComp?: number
   globalSpots?: number
   notes?: string
 }
@@ -113,7 +113,6 @@ export function InviteSourceForm({
         (defaultValues?.kind as InviteSourceFormValues["kind"]) ?? "competition",
       sourceCompetitionId: defaultValues?.sourceCompetitionId ?? undefined,
       sourceGroupId: defaultValues?.sourceGroupId ?? undefined,
-      directSpotsPerComp: defaultValues?.directSpotsPerComp ?? undefined,
       globalSpots: defaultValues?.globalSpots ?? undefined,
       notes: defaultValues?.notes ?? undefined,
     },
@@ -208,39 +207,12 @@ export function InviteSourceForm({
           />
         )}
 
-        {kind === "series" ? (
-          <FormField
-            control={form.control}
-            name="directSpotsPerComp"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Direct spots per comp</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={field.value ?? ""}
-                    onChange={(e) =>
-                      field.onChange(
-                        e.target.value === "" ? undefined : Number(e.target.value),
-                      )
-                    }
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        ) : null}
-
         <FormField
           control={form.control}
           name="globalSpots"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>
-                {kind === "competition" ? "Top N qualifies" : "Global spots"}
-              </FormLabel>
+              <FormLabel>Top N qualifies per division</FormLabel>
               <FormControl>
                 <Input
                   type="number"

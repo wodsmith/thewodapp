@@ -71,10 +71,12 @@ export const competitionInviteSourcesTable = mysqlTable(
     sourceCompetitionId: varchar({ length: 255 }),
     // When kind = "series". Logical reference to competitionGroupsTable.id.
     sourceGroupId: varchar({ length: 255 }),
-    // For series: how many top-N per comp in the series get a direct slot.
-    directSpotsPerComp: int(),
-    // For series: how many additional spots come from the global leaderboard.
-    // For single-comp: the total top-N that qualifies.
+    // Default number of qualifying spots this source contributes per
+    // championship division. The same value applies to every division
+    // until a `competition_invite_source_division_allocations` override
+    // row says otherwise (e.g. globalSpots=1 → "top 1 finisher qualifies"
+    // per division; an override on Men's RX = 2 → 2 from this source for
+    // that division). No multiplication, no series math.
     globalSpots: int(),
     // JSON: [{ sourceDivisionId, championshipDivisionId, spots? }]
     divisionMappings: text(),
@@ -108,11 +110,11 @@ export type CompetitionInviteSource = InferSelectModel<
 /**
  * Per-(source, championship-division) override of the invite-spot allocation.
  *
- * Per ADR-0012: the source row's `globalSpots` / `directSpotsPerComp` are the
- * defaults; a row in this table means "this championship division differs
- * from the default for this source." A `spots` of `0` is meaningful — it
- * pins the division to zero from this source. Absence of the row means
- * "use the source default."
+ * Per ADR-0012: the source row's `globalSpots` is the per-division default;
+ * a row in this table means "this championship division differs from the
+ * default for this source." A `spots` of `0` is meaningful — it pins the
+ * division to zero from this source. Absence of the row means "use the
+ * source default."
  *
  * Cascading delete on the source row is handled in
  * `apps/wodsmith-start/src/server/competition-invites/sources.ts`

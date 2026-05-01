@@ -65,10 +65,6 @@ export function EditInviteSourceDialog({
               values.kind === "competition" ? values.sourceCompetitionId : null,
             sourceGroupId:
               values.kind === "series" ? values.sourceGroupId : null,
-            directSpotsPerComp:
-              values.kind === "series"
-                ? (values.directSpotsPerComp ?? null)
-                : null,
             globalSpots: values.globalSpots ?? null,
             notes: values.notes ?? null,
           },
@@ -82,10 +78,6 @@ export function EditInviteSourceDialog({
               values.kind === "competition" ? values.sourceCompetitionId : null,
             sourceGroupId:
               values.kind === "series" ? values.sourceGroupId : null,
-            directSpotsPerComp:
-              values.kind === "series"
-                ? (values.directSpotsPerComp ?? null)
-                : null,
             globalSpots: values.globalSpots ?? null,
             notes: values.notes ?? null,
           },
