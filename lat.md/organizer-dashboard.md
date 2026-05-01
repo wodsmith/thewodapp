@@ -14,6 +14,8 @@ The index page shows at-a-glance competition stats and quick action cards for co
 
 Parallel-fetches registrations, revenue stats, events, heats, division results status, and submission windows (online-only). Displays quick-action components for events, heats, submission windows, and division results that guide organizers through setup steps.
 
+For in-person competitions, the Registrations stat card exposes a `Go to Check-In` button that opens the volunteer-facing kiosk (`/compete/{slug}/check-in`) in a new tab — the same pattern used by the sidebar's [[organizer-dashboard#Check-In Kiosk]] link, so organizers can launch the kiosk from the dashboard's main view without losing their place. The button is hidden for online competitions.
+
 ## Competition Editing
 
 The edit page allows organizers to modify competition name, dates, description, registration window, timezone, and series group.
