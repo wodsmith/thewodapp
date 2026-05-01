@@ -1,0 +1,13 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+why is this invite still saying invited when they purchased and are registered for the competition zac+invite1@wodsmith.com https://demo.wodsmith.com/compete/organizer/comp_inv_championship/invites?source=comp_online_qualifier_2026&div=slvl_online_rx
+
+### Prompt 2
+
+Stop hook feedback:
+The codebase has changes (69 lines) but `lat.md/` may not be fully in sync (2 lines changed). Verify `lat.md/` is in sync — run `lat search` to find relevant sections. Run `lat check` at the end.
+
