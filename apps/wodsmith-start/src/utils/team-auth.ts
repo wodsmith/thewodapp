@@ -14,6 +14,7 @@ import { ROLES_ENUM } from "@/db/schema"
 import { competitionsTable } from "@/db/schemas/competitions"
 import { entitlementTable } from "@/db/schemas/entitlements"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { getCohostPermissions } from "@/server/cohost"
 import { getSessionFromCookie } from "./auth"
 
 /**
@@ -230,13 +231,23 @@ export async function requireSubmissionReviewAccess(
 		return { organizingTeamId: competition.organizingTeamId }
 	}
 
-	// Fall back to volunteer entitlement check
+	// Without a competition team, no cohost or volunteer fallback is possible
 	if (!competition.competitionTeamId) {
 		throw new Error(
 			"FORBIDDEN: You don't have the required permission to review submissions",
 		)
 	}
 
+	// Allow cohosts with the results permission (matches cohost-submission-fns)
+	const cohostPerms = await getCohostPermissions(
+		session,
+		competition.competitionTeamId,
+	)
+	if (cohostPerms?.results) {
+		return { organizingTeamId: competition.organizingTeamId }
+	}
+
+	// Fall back to volunteer entitlement check
 	const entitlements = await db.query.entitlementTable.findMany({
 		where: and(
 			eq(entitlementTable.userId, session.userId),

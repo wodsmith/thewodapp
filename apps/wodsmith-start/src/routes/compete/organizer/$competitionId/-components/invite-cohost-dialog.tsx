@@ -85,7 +85,7 @@ const PERMISSION_GROUPS = [
     items: [
       { key: "divisions" as const, label: "Divisions" },
       { key: "viewRegistrations" as const, label: "View registrations" },
-      { key: "editRegistrations" as const, label: "Add/remove/transfer athletes" },
+      { key: "editRegistrations" as const, label: "Manage Registrations" },
       { key: "editEvents" as const, label: "Edit events" },
       { key: "scoringConfig" as const, label: "Scoring config" },
       { key: "waivers" as const, label: "Waivers" },

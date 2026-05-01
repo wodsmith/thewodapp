@@ -39,13 +39,14 @@ import {
 } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
 import type { LaneShiftPattern } from "@/db/schemas/volunteers"
+import { getEvlog } from "@/lib/evlog"
+import { getCohostPermissions } from "@/server/cohost"
 import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
 import {
   DEFAULT_TIMEZONE,
   hasDateStartedInTimezone,
   isDeadlinePassedInTimezone,
 } from "@/utils/timezone-utils"
-import { getEvlog } from "@/lib/evlog"
 
 // ============================================================================
 // Input Schemas
@@ -766,18 +767,57 @@ export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
       // Get competition to find organizing team
       const competition = await db.query.competitionsTable.findFirst({
         where: eq(competitionsTable.id, data.competitionId),
-        columns: { organizingTeamId: true },
+        columns: { organizingTeamId: true, competitionTeamId: true },
       })
 
       if (!competition) {
         throw new Error("Competition not found")
       }
 
-      // Require permission to manage this competition's team
-      await requireTeamPermission(
-        competition.organizingTeamId,
-        TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-      )
+      // Allow organizers (MANAGE_COMPETITIONS) or cohosts (viewRegistrations)
+      const session = await getSessionFromCookie()
+      if (!session?.userId) {
+        throw new Error("Unauthorized")
+      }
+
+      const isAdmin = session.user?.role === ROLES_ENUM.ADMIN
+      let hasOrganizerPerm = false
+      let cohostPerms: Awaited<ReturnType<typeof getCohostPermissions>> = null
+
+      if (!isAdmin) {
+        const organizerTeam = session.teams?.find(
+          (t) => t.id === competition.organizingTeamId,
+        )
+        hasOrganizerPerm =
+          organizerTeam?.permissions.includes(
+            TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+          ) ?? false
+
+        let hasCohostPerm = false
+        if (!hasOrganizerPerm && competition.competitionTeamId) {
+          cohostPerms = await getCohostPermissions(
+            session,
+            competition.competitionTeamId,
+          )
+          hasCohostPerm = cohostPerms?.viewRegistrations === true
+        }
+
+        if (!hasOrganizerPerm && !hasCohostPerm) {
+          throw new Error(
+            "Missing required permission: manage_competitions or cohost viewRegistrations",
+          )
+        }
+      }
+
+      // Guest-form question answers are sensitive (PII in free-text fields)
+      // and require editRegistrations/waivers. Waiver signature status and
+      // submittedAt timestamp are visible to anyone with viewRegistrations
+      // since cohosts need to see whether teammates signed/submitted.
+      const canViewPendingAnswers =
+        isAdmin ||
+        hasOrganizerPerm ||
+        cohostPerms?.editRegistrations === true ||
+        cohostPerms?.waivers === true
 
       // Get all registrations for this competition to find their athlete teams
       const registrations =
@@ -868,7 +908,10 @@ export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
           if (inv.metadata) {
             try {
               const meta = JSON.parse(inv.metadata) as Record<string, unknown>
-              if (Array.isArray(meta.pendingAnswers)) {
+              if (
+                canViewPendingAnswers &&
+                Array.isArray(meta.pendingAnswers)
+              ) {
                 pendingAnswers =
                   meta.pendingAnswers as PendingTeammateInvite["pendingAnswers"]
               }

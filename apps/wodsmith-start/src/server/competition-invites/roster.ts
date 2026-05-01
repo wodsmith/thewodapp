@@ -32,14 +32,13 @@ import {
 } from "@/db/schemas/competition-invites"
 import { competitionsTable } from "@/db/schemas/competitions"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
-import { userTable } from "@/db/schemas/users"
-import { getCompetitionLeaderboard } from "@/server/competition-leaderboard"
 import { parseCompetitionSettings } from "@/server-fns/competition-divisions-fns"
 import {
   listAllocationsForChampionship,
   resolveSourceAllocations,
   type ResolvedSourceAllocations,
 } from "./allocations"
+import { getCandidatesForSourceComp } from "./candidates"
 import { type DivisionMapping, listSourcesForChampionship } from "./sources"
 
 // ============================================================================
@@ -480,20 +479,23 @@ export async function getChampionshipRoster(
     )
   }
 
-  // Fan out leaderboard fetches in parallel. Each call hits a cache on
-  // the public render path; bounded by championship source count × per-
-  // comp division count.
-  const leaderboards = await Promise.all(
+  // Fan out per (sourceComp × division) candidate fetches in parallel.
+  // `getCandidatesForSourceComp` is purpose-built for this surface: it
+  // returns active registrations directly, with no heat / event-status /
+  // publication gating. The roster used to call `getCompetitionLeaderboard`
+  // here, which silently dropped divisions whose athletes hadn't been
+  // heat-assigned — see docs/bugs/0001-invite-candidates-missing-divisions.md.
+  const candidates = await Promise.all(
     divisionRefs.map((ref) =>
-      getCompetitionLeaderboard({
+      getCandidatesForSourceComp({
         competitionId: ref.competitionId,
         divisionId: ref.divisionId,
-      }).then((lb) => ({ ref, entries: lb.entries })),
+      }).then((c) => ({ ref, entries: c.entries })),
     ),
   )
 
   const rows: RosterRow[] = []
-  for (const { ref, entries } of leaderboards) {
+  for (const { ref, entries } of candidates) {
     const source = sourceById.get(ref.sourceId)
     const resolved = resolvedBySourceId.get(ref.sourceId)
     const divisionMappings =
@@ -524,33 +526,13 @@ export async function getChampionshipRoster(
         sourceDivisionLabel: ref.divisionLabel,
         userId: e.userId,
         athleteName: e.athleteName,
-        athleteEmail: null,
+        athleteEmail: e.athleteEmail,
         inviteId: null,
         inviteStatus: null,
         roundId: null,
         roundNumber: null,
       })
     })
-  }
-
-  // Hydrate athlete emails in a single bulk lookup. Rows with no userId
-  // keep `athleteEmail = null`; the organizer UI disables the row for
-  // sending and shows a hint.
-  const userIds = Array.from(
-    new Set(rows.map((r) => r.userId).filter((v): v is string => !!v)),
-  )
-  if (userIds.length > 0) {
-    const db = getDb()
-    const users = await db
-      .select({ id: userTable.id, email: userTable.email })
-      .from(userTable)
-      .where(inArray(userTable.id, userIds))
-    const byId = new Map(users.map((u) => [u.id, u.email]))
-    for (const row of rows) {
-      if (row.userId) {
-        row.athleteEmail = byId.get(row.userId) ?? null
-      }
-    }
   }
 
   return { rows }

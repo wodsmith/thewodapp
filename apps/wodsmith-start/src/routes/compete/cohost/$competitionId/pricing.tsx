@@ -8,7 +8,10 @@
 
 import { createFileRoute, redirect } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { getCompetitionDivisionFeesFn } from "@/server-fns/commerce-fns"
+import {
+  getCompetitionDivisionFeesFn,
+  getOrganizerStripeStatusFn,
+} from "@/server-fns/commerce-fns"
 import {
   cohostUpdateDefaultFeeFn,
   cohostUpdateDivisionFeeFn,
@@ -17,8 +20,7 @@ import {
   getScalingGroupWithLevelsFn,
   parseCompetitionSettings,
 } from "@/server-fns/competition-divisions-fns"
-import { getStripeConnectionStatusFn } from "@/server-fns/stripe-connect-fns"
-import { getTeamFeeSettingsFn, getTeamSlugFn } from "@/server-fns/team-fns"
+import { getTeamFeeSettingsFn } from "@/server-fns/team-fns"
 
 import { PricingSettingsForm } from "@/routes/compete/organizer/$competitionId/-components/pricing-settings-form"
 import { StripeConnectionRequired } from "@/routes/compete/organizer/$competitionId/-components/stripe-connection-required"
@@ -39,17 +41,16 @@ export const Route = createFileRoute(
       })
     }
 
-    // Get Stripe connection status for the organizing team
-    const stripeStatus = await getStripeConnectionStatusFn({
-      data: { teamId: competition.organizingTeamId },
+    // Get Stripe connection status + team slug for the organizing team.
+    // Cohosts are not members of the organizing team, so we use the no-auth
+    // organizer-status fn rather than getStripeConnectionStatusFn (which
+    // requires team membership).
+    const { stripeStatus } = await getOrganizerStripeStatusFn({
+      data: { organizingTeamId: competition.organizingTeamId },
     })
 
-    const isStripeConnected = stripeStatus.isConnected
-
-    // Get team slug for Stripe connection redirect (if not connected)
-    const teamSlug = await getTeamSlugFn({
-      data: { teamId: competition.organizingTeamId },
-    })
+    const isStripeConnected = stripeStatus?.isConnected ?? false
+    const teamSlug = stripeStatus?.teamSlug ?? null
 
     const competitionTeamId = competition.competitionTeamId!
 
