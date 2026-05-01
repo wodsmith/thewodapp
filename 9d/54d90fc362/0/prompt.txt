@@ -1,0 +1,94 @@
+We are testing invite logic for competitions. So in competition can invite Athletes and part of this feature is we have source allocations where you can And set a default source allocation for a competition you're inviting from as well as a per division allocation override so maybe in some cases like most division you want to only qualify the top person, but one division you want to qualify the top two people. We have a bug where it looks like our Invite page and our registration page for this invite mechanism or feature is not respecting that allocations. We have extra invites for a qualifying source and those extra invites are able to go to Stripe and claim a spot when they are not supposed to since they had the full number of spots already allocated per the division override. I need you to investigate the code paths here and see what's up https://demo.wodsmith.com/compete/2026-wodsmith-invitational/register?divisionId=slvl_inv_champ_mrx&REDACTED https://demo.wodsmith.REDACTED
+
+---
+
+Base directory for this skill: /Users/zacjones/Documents/02.Areas/wodsmith/thewodapp-2/.claude/skills/team-memory
+
+# Team Memory
+
+Manage a shared team memory system backed by a Cloudflare Worker with semantic search.
+
+## Commands
+
+### /remember — Store an observation
+
+Save a new observation to team memory.
+
+```bash
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/remember.ts "<observation text>" [--category=<category>] [--priority=<priority>]
+```
+
+**Categories:** `convention`, `gotcha`, `debugging`, `architecture`, `workflow`
+**Priorities:** `critical`, `moderate`, `ephemeral`
+
+Defaults: category=convention, priority=moderate
+
+Examples:
+```bash
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/remember.ts "PlanetScale returns strings for COUNT columns — always wrap with Number()" --category=gotcha --priority=critical
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/remember.ts "Use ULID for ID generation, not CUID2" --category=convention
+```
+
+### /recall — Search memories
+
+Search team memory by semantic query.
+
+```bash
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/recall.ts "<query>" [--limit=<n>] [--category=<category>] [--priority=<priority>]
+```
+
+Default limit: 5. Results are ranked by relevance.
+
+Examples:
+```bash
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/recall.ts "database migration patterns"
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/recall.ts "Stripe" --category=gotcha --limit=10
+```
+
+### /feedback — Rate a memory
+
+Provide feedback on a memory's usefulness.
+
+```bash
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/feedback.ts <observation-id> <signal> [--note="<reason>"]
+```
+
+**Signals:** `helpful`, `harmful`, `irrelevant`
+
+Examples:
+```bash
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/feedback.ts 01J5K3M2N7 helpful --note="Saved me from a production bug"
+TEAM_MEMORY_URL=https://team-memory.zacjones93.workers.dev bun run .claude/skills/team-memory/scripts/feedback.ts 01J5K3M2N7 irrelevant
+```
+
+## Environment
+
+Production URL: `https://team-memory.zacjones93.workers.dev`
+
+All commands below include the env var inline. If `TEAM_MEMORY_URL` is already set in your shell, the prefix is optional.
+
+## Hooks
+
+- **SessionStart**: Reminds the agent about the memory system and how to use /recall for task-relevant lookups
+- **SessionEnd**: Reads transcript JSONL, extracts user/assistant messages, POSTs to `/sessions`
+- **Export**: Syncs memories to MEMORY.md between `<!-- BEGIN TEAM-MEMORY -->` / `<!-- END TEAM-MEMORY -->` markers
+
+
+ARGUMENTS: recall "competition invite source allocation division override"
+
+---
+
+To be clear, when we set top one finishers qualify on a qualification source, only one person from that division is allowed to accept an invite regardless of the other qualification sources. There's no complicated logic here. If Online Qualifier 2026 has top one finisher qualifies as the default all divisions from that that competition only get one invite that can take a spot at the competition If there is a per division allocation, then only say that Men's Rx is set to 2. Only two spots from online qualifier 2026 can be taken at this competition. There's no fancy math. There's no multiplying it by different competitions and adding a global spot for online qualified 2026, it's either one, which is the default, or Men's RX, which has two.
+
+---
+
+so we don't actually use direct_spots_per_comp
+
+---
+
+Your tool call was malformed and could not be parsed. Please retry.
+
+---
+
+Stop hook feedback:
+The codebase has changes (454 lines) but `lat.md/` may not be fully in sync (9 lines changed). Verify `lat.md/` is in sync — run `lat search` to find relevant sections. Run `lat check` at the end.

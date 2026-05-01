@@ -1,0 +1,49 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "9d54d90fc362",
+  "session_id": "78f046d8-7d1c-4c20-9a16-e5cace1a646c",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-01T06:49:56.665425Z",
+  "branch": "fix/invite-allocation-flat-default",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/wodsmith-start/scripts/seed/seeders/20-competition-invites.ts",
+    "apps/wodsmith-start/src/components/organizer/invites/edit-invite-source-dialog.tsx",
+    "apps/wodsmith-start/src/components/organizer/invites/invite-source-form.tsx",
+    "apps/wodsmith-start/src/components/organizer/invites/invite-sources-list.tsx",
+    "apps/wodsmith-start/src/components/organizer/invites/series-source-sub-tabs.tsx",
+    "apps/wodsmith-start/src/db/schemas/competition-invites.ts",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/invites/index.tsx",
+    "apps/wodsmith-start/src/routes/compete/organizer/$competitionId/invites/sources/$sourceId.tsx",
+    "apps/wodsmith-start/src/server-fns/competition-invite-fns.ts",
+    "apps/wodsmith-start/src/server-fns/registration-fns.ts",
+    "apps/wodsmith-start/src/server/competition-invites/allocations.ts",
+    "apps/wodsmith-start/src/server/competition-invites/claim.ts",
+    "apps/wodsmith-start/src/server/competition-invites/roster.ts",
+    "apps/wodsmith-start/src/server/competition-invites/sources.ts",
+    "apps/wodsmith-start/test/components/invite-source-form.test.ts",
+    "apps/wodsmith-start/test/server-fns/competition-invite-fns.sources.test.ts",
+    "apps/wodsmith-start/test/server/competition-invites/allocations.test.ts",
+    "apps/wodsmith-start/test/server/competition-invites/roster-allocations.test.ts",
+    "apps/wodsmith-start/test/server/competition-invites/roster-candidates-wiring.test.ts",
+    "lat.md/competition-invites.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "1d6529ea-ffa3-4eca-810b-a9fcf053c782",
+  "token_usage": {
+    "input_tokens": 748,
+    "cache_creation_tokens": 419581,
+    "cache_read_tokens": 38741596,
+    "output_tokens": 97971,
+    "api_call_count": 178
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-01T06:49:56.519202Z",
+    "agent_lines": 152,
+    "human_added": 0,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 153,
+    "agent_percentage": 99.34640522875817
+  }
+}
