@@ -821,10 +821,38 @@ export const getInviteByTokenFn = createServerFn({ method: "GET" })
                 occupiedCount,
               },
             })
+            // Hydrate the source display name so the claim page can tell
+            // the athlete which division and which qualifier filled up,
+            // not just a generic "this division". `getSourceById` only
+            // runs on the unhappy path so it doesn't pay round-trips on
+            // every claim; the lookups for the source's underlying
+            // competition / group name are best-effort and fall back to
+            // null on missing rows.
+            const source = await getSourceById(invite.sourceId)
+            let sourceLabel: string | null = null
+            if (source) {
+              if (source.sourceCompetitionId) {
+                const [row] = await db
+                  .select({ name: competitionsTable.name })
+                  .from(competitionsTable)
+                  .where(eq(competitionsTable.id, source.sourceCompetitionId))
+                  .limit(1)
+                sourceLabel = row?.name ?? null
+              } else if (source.sourceGroupId) {
+                const [row] = await db
+                  .select({ name: competitionGroupsTable.name })
+                  .from(competitionGroupsTable)
+                  .where(eq(competitionGroupsTable.id, source.sourceGroupId))
+                  .limit(1)
+                sourceLabel = row?.name ?? null
+              }
+            }
             return {
               kind: "not_claimable" as const,
               reason: "over_allocated" as InviteClaimableError,
               championshipName: champ.name,
+              divisionLabel: division?.label ?? null,
+              sourceLabel,
             }
           }
         }
