@@ -33,11 +33,7 @@ import {
 import { competitionsTable } from "@/db/schemas/competitions"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { parseCompetitionSettings } from "@/server-fns/competition-divisions-fns"
-import {
-  listAllocationsForChampionship,
-  resolveSourceAllocations,
-  type ResolvedSourceAllocations,
-} from "./allocations"
+import type { ResolvedSourceAllocations } from "./allocations"
 import { getCandidatesForSourceComp } from "./candidates"
 import { type DivisionMapping, listSourcesForChampionship } from "./sources"
 
@@ -340,41 +336,6 @@ async function resolveDivisionRefs(
 }
 
 /**
- * Resolve the championship's own divisions (scaling levels of its
- * scaling group). These are the keys used by `resolveSourceAllocations`
- * — the cutoff math compares each leaderboard's source-side division
- * against this championship-side list to decide which allocation row
- * applies.
- */
-async function resolveChampionshipDivisions(
-  championshipId: string,
-): Promise<ChampionshipDivisionInfo[]> {
-  const db = getDb()
-  const [championship] = await db
-    .select({ settings: competitionsTable.settings })
-    .from(competitionsTable)
-    .where(inArray(competitionsTable.id, [championshipId]))
-    .limit(1)
-  if (!championship) return []
-  const settings = parseCompetitionSettings(championship.settings)
-  const sgid = settings?.divisions?.scalingGroupId
-  if (!sgid) return []
-
-  const levels = await db
-    .select({
-      id: scalingLevelsTable.id,
-      label: scalingLevelsTable.label,
-      position: scalingLevelsTable.position,
-    })
-    .from(scalingLevelsTable)
-    .where(inArray(scalingLevelsTable.scalingGroupId, [sgid]))
-
-  return levels
-    .sort((a, b) => a.position - b.position)
-    .map((l) => ({ id: l.id, label: l.label }))
-}
-
-/**
  * Compute the cutoff (max number of qualifying placements) for a
  * leaderboard fetched for `(source, sourceCompetitionId, sourceDivisionId)`.
  *
@@ -443,41 +404,11 @@ function computeCutoffForLeaderboard(args: {
 export async function getChampionshipRoster(
   input: GetChampionshipRosterInput,
 ): Promise<{ rows: RosterRow[] }> {
-  const { sources, refs: comps, seriesCompCountBySourceId } =
-    await resolveSourceCompetitions(input.championshipId)
+  const { refs: comps } = await resolveSourceCompetitions(input.championshipId)
   if (comps.length === 0) return { rows: [] }
 
   const divisionRefs = await resolveDivisionRefs(comps)
   if (divisionRefs.length === 0) return { rows: [] }
-
-  // ADR-0012: load championship divisions + allocation rows once at the
-  // top, then resolve per-source allocation maps that feed the cutoff
-  // helper. Both reads are bounded by championship size (small).
-  const [championshipDivisions, allocations] = await Promise.all([
-    resolveChampionshipDivisions(input.championshipId),
-    listAllocationsForChampionship({
-      championshipCompetitionId: input.championshipId,
-    }),
-  ])
-
-  const sourceById = new Map(sources.map((s) => [s.id, s]))
-  const resolvedBySourceId = new Map<string, ResolvedSourceAllocations>()
-  const divisionMappingsBySourceId = new Map<string, DivisionMapping[]>()
-  for (const source of sources) {
-    divisionMappingsBySourceId.set(
-      source.id,
-      parseDivisionMappings(source.divisionMappings),
-    )
-    resolvedBySourceId.set(
-      source.id,
-      resolveSourceAllocations({
-        source,
-        championshipDivisions,
-        allocations: allocations.filter((a) => a.sourceId === source.id),
-        seriesCompCount: seriesCompCountBySourceId.get(source.id),
-      }),
-    )
-  }
 
   // Fan out per (sourceComp × division) candidate fetches in parallel.
   // `getCandidatesForSourceComp` is purpose-built for this surface: it
@@ -485,6 +416,13 @@ export async function getChampionshipRoster(
   // publication gating. The roster used to call `getCompetitionLeaderboard`
   // here, which silently dropped divisions whose athletes hadn't been
   // heat-assigned — see docs/bugs/0001-invite-candidates-missing-divisions.md.
+  //
+  // Cutoff is allocation budget metadata, not a candidate filter. The
+  // organizer needs every eligible athlete on the page so they can pick
+  // whom to invite — `entries.slice(0, cutoff)` previously dropped
+  // eligible candidates whenever the source had more registrants than
+  // the championship-division allocation. The denominator math lives in
+  // `divisionAllocationTotals` outside this fan-out.
   const candidates = await Promise.all(
     divisionRefs.map((ref) =>
       getCandidatesForSourceComp({
@@ -496,26 +434,7 @@ export async function getChampionshipRoster(
 
   const rows: RosterRow[] = []
   for (const { ref, entries } of candidates) {
-    const source = sourceById.get(ref.sourceId)
-    const resolved = resolvedBySourceId.get(ref.sourceId)
-    const divisionMappings =
-      divisionMappingsBySourceId.get(ref.sourceId) ?? []
-
-    let cutoff: number | null = null
-    if (source && resolved && championshipDivisions.length > 0) {
-      cutoff = computeCutoffForLeaderboard({
-        source,
-        sourceDivisionId: ref.divisionId,
-        sourceDivisionLabel: ref.divisionLabel,
-        championshipDivisions,
-        resolved,
-        divisionMappings,
-      })
-    }
-    const truncated =
-      cutoff !== null && cutoff >= 0 ? entries.slice(0, cutoff) : entries
-
-    truncated.forEach((e, idx) => {
+    entries.forEach((e, idx) => {
       rows.push({
         sourcePlacement: idx + 1,
         sourceId: ref.sourceId,

@@ -64,7 +64,7 @@ import {
 } from "@/server/competition-invites/bespoke"
 import {
   assertInviteClaimable,
-  getAcceptedPaidCountForBucket,
+  getOccupiedCountForBucket,
   type InviteClaimableError,
   InviteNotClaimableError,
   resolveAllocationForInvite,
@@ -792,19 +792,23 @@ export const getInviteByTokenFn = createServerFn({ method: "GET" })
         // ADR-0012 Phase 5: per-(source, division) allocation guardrail.
         // Best-effort UX gate — the authoritative re-check lives in the
         // Stripe workflow at payment confirmation. Bespoke invites
-        // (sourceId IS NULL) bypass.
+        // (sourceId IS NULL) bypass. The occupied count includes both
+        // accepted_paid invites AND in-flight Stripe checkouts (held for
+        // PENDING_PURCHASE_MAX_AGE_MINUTES) so two athletes can't both pass
+        // the gate while one is mid-payment.
         if (invite.sourceId) {
-          const [allocation, acceptedCount] = await Promise.all([
+          const [allocation, occupiedCount] = await Promise.all([
             resolveAllocationForInvite({ invite }),
-            getAcceptedPaidCountForBucket({
+            getOccupiedCountForBucket({
               sourceId: invite.sourceId,
+              championshipCompetitionId: invite.championshipCompetitionId,
               championshipDivisionId: invite.championshipDivisionId,
             }),
           ])
           const allocationCheck = assertInviteWithinAllocation({
             invite: { sourceId: invite.sourceId },
             allocation: allocation ?? 0,
-            acceptedCount,
+            acceptedCount: occupiedCount,
           })
           if (!allocationCheck.ok) {
             logInfo({
@@ -814,7 +818,7 @@ export const getInviteByTokenFn = createServerFn({ method: "GET" })
                 sourceId: invite.sourceId,
                 championshipDivisionId: invite.championshipDivisionId,
                 allocation: allocation ?? 0,
-                acceptedCount,
+                occupiedCount,
               },
             })
             return {

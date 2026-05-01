@@ -25,8 +25,12 @@
  */
 // @lat: [[competition-invites#Claim resolution]]
 
-import { and, eq, sql } from "drizzle-orm"
+import { and, eq, gt, sql } from "drizzle-orm"
 import { getDb } from "@/db"
+import {
+  COMMERCE_PURCHASE_STATUS,
+  commercePurchaseTable,
+} from "@/db/schemas/commerce"
 import {
   COMPETITION_INVITE_ACTIVE_MARKER,
   COMPETITION_INVITE_STATUS,
@@ -34,6 +38,7 @@ import {
   competitionInvitesTable,
 } from "@/db/schemas/competition-invites"
 import { competitionsTable } from "@/db/schemas/competitions"
+import { PENDING_PURCHASE_MAX_AGE_MINUTES } from "@/server-fns/competition-divisions-fns"
 import {
   listAllocationsForChampionship,
   resolveSourceAllocations,
@@ -153,6 +158,83 @@ export async function getAcceptedPaidCountForBucket(args: {
       ),
     )
   return Number(rows[0]?.count ?? 0)
+}
+
+/**
+ * Count occupied slots in a `(sourceId, championshipDivisionId)` bucket.
+ * Mirrors the regular division-capacity pattern: a slot is occupied when
+ * an invite has been claimed (`accepted_paid`) OR an athlete is mid-Stripe-
+ * checkout for an invite-driven registration.
+ *
+ * "Mid-checkout" = a `commerce_purchases` row in `pending` with
+ * `metadata.inviteId` pointing at an invite in this bucket and
+ * `created_at > now - PENDING_PURCHASE_MAX_AGE_MINUTES`. The TTL matches
+ * the Stripe checkout session expiry — abandoned sessions free their hold
+ * implicitly without a sweep job. Pass `excludePurchaseId` to skip the
+ * webhook's own purchase row during the authoritative race-close.
+ *
+ * Existing accepted-paid count + soft-hold count = the number to compare
+ * against the bucket's allocation. Two athletes claiming the last spot
+ * concurrently both see the hold in the count, so the second one bounces
+ * at claim load instead of paying-then-refunding.
+ */
+// @lat: [[competition-invites#Claim resolution]]
+export async function getOccupiedCountForBucket(args: {
+  sourceId: string
+  championshipCompetitionId: string
+  championshipDivisionId: string
+  excludePurchaseId?: string
+}): Promise<number> {
+  const db = getDb()
+  const cutoff = new Date(
+    Date.now() - PENDING_PURCHASE_MAX_AGE_MINUTES * 60 * 1000,
+  )
+
+  const [accepted, pending] = await Promise.all([
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(competitionInvitesTable)
+      .where(
+        and(
+          eq(competitionInvitesTable.sourceId, args.sourceId),
+          eq(
+            competitionInvitesTable.championshipDivisionId,
+            args.championshipDivisionId,
+          ),
+          eq(
+            competitionInvitesTable.status,
+            COMPETITION_INVITE_STATUS.ACCEPTED_PAID,
+          ),
+        ),
+      ),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(commercePurchaseTable)
+      .innerJoin(
+        competitionInvitesTable,
+        sql`${competitionInvitesTable.id} = JSON_UNQUOTE(JSON_EXTRACT(${commercePurchaseTable.metadata}, '$.inviteId'))`,
+      )
+      .where(
+        and(
+          eq(
+            commercePurchaseTable.competitionId,
+            args.championshipCompetitionId,
+          ),
+          eq(
+            commercePurchaseTable.divisionId,
+            args.championshipDivisionId,
+          ),
+          eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
+          gt(commercePurchaseTable.createdAt, cutoff),
+          eq(competitionInvitesTable.sourceId, args.sourceId),
+          args.excludePurchaseId
+            ? sql`${commercePurchaseTable.id} != ${args.excludePurchaseId}`
+            : sql`1 = 1`,
+        ),
+      ),
+  ])
+
+  return Number(accepted[0]?.count ?? 0) + Number(pending[0]?.count ?? 0)
 }
 
 /**

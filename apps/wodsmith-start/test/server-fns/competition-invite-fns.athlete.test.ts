@@ -84,7 +84,7 @@ vi.mock("@/server/competition-invites/claim", () => ({
   resolveInviteByToken: vi.fn(),
   assertInviteClaimable: vi.fn(),
   resolveAllocationForInvite: vi.fn(),
-  getAcceptedPaidCountForBucket: vi.fn(),
+  getOccupiedCountForBucket: vi.fn(),
   InviteNotClaimableError: class InviteNotClaimableError extends Error {
     readonly reason: string
     constructor(reason: string, message?: string) {
@@ -372,7 +372,7 @@ describe("getInviteByTokenFn", () => {
     vi.mocked(claim.resolveInviteByToken).mockResolvedValueOnce(invite)
     vi.mocked(claim.assertInviteClaimable).mockImplementationOnce(() => {})
     vi.mocked(claim.resolveAllocationForInvite).mockResolvedValueOnce(2)
-    vi.mocked(claim.getAcceptedPaidCountForBucket).mockResolvedValueOnce(2)
+    vi.mocked(claim.getOccupiedCountForBucket).mockResolvedValueOnce(2)
     vi.mocked(identity.assertInviteWithinAllocation).mockReturnValueOnce({
       ok: false,
       reason: "over_allocated",
