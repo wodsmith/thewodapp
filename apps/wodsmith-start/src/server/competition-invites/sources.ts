@@ -102,6 +102,14 @@ export function assertSourceReferenceValid(input: {
       'kind "series" requires sourceGroupId',
     )
   }
+  if (
+    input.kind === COMPETITION_INVITE_SOURCE_KIND.SERIES_GLOBAL &&
+    !hasGroup
+  ) {
+    throw new InviteSourceValidationError(
+      'kind "series_global" requires sourceGroupId',
+    )
+  }
 }
 
 // ============================================================================

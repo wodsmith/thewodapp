@@ -3,12 +3,20 @@
 /**
  * Invite Source Form — create / edit a single source.
  *
- * Two kinds: single-competition (requires sourceCompetitionId) and series
- * (requires sourceGroupId). Both kinds share `globalSpots` as the per-
- * division qualifying-spot default (e.g. 1 = "top 1 finisher per
- * division"); per-division overrides live on the source-detail page.
+ * Three kinds:
+ *   - "competition": single-comp source. Requires sourceCompetitionId
+ *     and globalSpots ("top N qualifies per division").
+ *   - "series": series grouping. Requires sourceGroupId. No globalSpots
+ *     — per-division override on the source-detail page is the only
+ *     knob, so each division gets an explicit absolute total or
+ *     contributes nothing.
+ *   - "series_global": series-aggregate leaderboard. Requires
+ *     sourceGroupId and globalSpots ("top N from the series global
+ *     leaderboard per division"). Modeled distinct from "series" so
+ *     each tier is its own bucket.
+ *
  * The form-level validator mirrors the server-side helper: exactly one
- * of sourceCompetitionId / sourceGroupId.
+ * of sourceCompetitionId / sourceGroupId, matched against `kind`.
  */
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
@@ -42,6 +50,7 @@ export const inviteSourceFormSchema = z
     kind: z.enum([
       COMPETITION_INVITE_SOURCE_KIND.COMPETITION,
       COMPETITION_INVITE_SOURCE_KIND.SERIES,
+      COMPETITION_INVITE_SOURCE_KIND.SERIES_GLOBAL,
     ]),
     sourceCompetitionId: z.string().optional(),
     sourceGroupId: z.string().optional(),
@@ -65,24 +74,26 @@ export const inviteSourceFormSchema = z
         path: ["sourceCompetitionId"],
       })
     }
-    if (!val.globalSpots) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Set the top-N qualifying spots per division",
-        path: ["globalSpots"],
-      })
-    }
-    if (val.kind === "series" && !hasGroup) {
+    if ((val.kind === "series" || val.kind === "series_global") && !hasGroup) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Series source needs a series",
         path: ["sourceGroupId"],
       })
     }
+    // globalSpots required for "competition" and "series_global"; not
+    // collected for "series" (per-division override is the only knob).
+    if (val.kind !== "series" && !val.globalSpots) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Set the top-N qualifying spots per division",
+        path: ["globalSpots"],
+      })
+    }
   })
 
 export type InviteSourceFormValues = {
-  kind: "competition" | "series"
+  kind: "competition" | "series" | "series_global"
   sourceCompetitionId?: string
   sourceGroupId?: string
   globalSpots?: number
@@ -142,6 +153,9 @@ export function InviteSourceForm({
                 <SelectContent>
                   <SelectItem value="competition">Single competition</SelectItem>
                   <SelectItem value="series">Series</SelectItem>
+                  <SelectItem value="series_global">
+                    Series global leaderboard
+                  </SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />
@@ -207,12 +221,17 @@ export function InviteSourceForm({
           />
         )}
 
+        {kind !== "series" ? (
         <FormField
           control={form.control}
           name="globalSpots"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Top N qualifies per division</FormLabel>
+              <FormLabel>
+                {kind === "series_global"
+                  ? "Top N from the series global leaderboard per division"
+                  : "Top N qualifies per division"}
+              </FormLabel>
               <FormControl>
                 <Input
                   type="number"
@@ -229,6 +248,7 @@ export function InviteSourceForm({
             </FormItem>
           )}
         />
+        ) : null}
 
         <FormField
           control={form.control}

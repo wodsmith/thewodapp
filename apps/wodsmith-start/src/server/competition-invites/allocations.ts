@@ -18,6 +18,7 @@ import "server-only"
 import { eq, inArray } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
+  COMPETITION_INVITE_SOURCE_KIND,
   type CompetitionInviteSource,
   type CompetitionInviteSourceDivisionAllocation,
   competitionInviteSourceDivisionAllocationsTable,
@@ -46,12 +47,19 @@ export interface ResolvedSourceAllocations {
 
 /**
  * Default allocation for a championship division when no override row
- * exists for `(source.id, division.id)`. The source's `globalSpots`
- * column is the single per-division default — the same value applies to
- * every division of the championship until an override row says otherwise.
- * Null collapses to 0.
+ * exists for `(source.id, division.id)`.
+ *
+ * - `competition` / `series_global`: source.globalSpots is the per-
+ *   division default. Same value across every division until an
+ *   override says otherwise.
+ * - `series`: 0 — the per-comp grouping kind has no source-level
+ *   default. Per-division override is the only knob, so an unconfigured
+ *   division contributes nothing.
+ *
+ * Null `globalSpots` collapses to 0 in either case.
  */
 function sourceDefaultPerDivision(source: CompetitionInviteSource): number {
+  if (source.kind === COMPETITION_INVITE_SOURCE_KIND.SERIES) return 0
   return source.globalSpots ?? 0
 }
 

@@ -174,9 +174,12 @@ function InviteSourceDetailsPage() {
 
   // Source default applied per-division when no override row exists.
   // Mirrors `sourceDefaultPerDivision` in the server-side allocations
-  // helper: just `source.globalSpots`, regardless of kind. No
-  // multiplication, no series math.
-  const sourceDefaultPerDivision = source.globalSpots ?? 0
+  // helper:
+  //   - "series": 0 (no source-level default; per-division override is
+  //     the only knob).
+  //   - "competition" / "series_global": source.globalSpots.
+  const sourceDefaultPerDivision =
+    source.kind === "series" ? 0 : (source.globalSpots ?? 0)
 
   // Seed the per-division override map from the raw allocation rows.
   // Presence of a row in `rawAllocationsForSource` means "override is
@@ -231,8 +234,11 @@ function InviteSourceDetailsPage() {
           sourceCompetitionId:
             values.kind === "competition" ? values.sourceCompetitionId : null,
           sourceGroupId:
-            values.kind === "series" ? values.sourceGroupId : null,
-          globalSpots: values.globalSpots ?? null,
+            values.kind === "series" || values.kind === "series_global"
+              ? values.sourceGroupId
+              : null,
+          globalSpots:
+            values.kind === "series" ? null : (values.globalSpots ?? null),
           notes: values.notes ?? null,
         },
       })

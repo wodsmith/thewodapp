@@ -94,7 +94,7 @@ describe("resolveSourceAllocations", () => {
     expect(result.total).toBe(10)
   })
 
-  it("uses globalSpots as the default for a series source — no multiplication, no series math", () => {
+  it("series kind ignores globalSpots — per-division override is the only knob (default 0)", () => {
     const result = resolveSourceAllocations({
       source: sourceFixture({
         kind: COMPETITION_INVITE_SOURCE_KIND.SERIES,
@@ -106,20 +106,40 @@ describe("resolveSourceAllocations", () => {
       allocations: [],
     })
 
+    // "series" kind has no source-level default. globalSpots is ignored;
+    // unconfigured divisions contribute 0.
     expect(result.byDivision).toEqual({
-      div_rx: 2,
-      div_scaled: 2,
-      div_masters: 2,
+      div_rx: 0,
+      div_scaled: 0,
+      div_masters: 0,
     })
-    expect(result.total).toBe(6)
+    expect(result.total).toBe(0)
   })
 
-  it("falls back to 0 per division when globalSpots is null", () => {
+  it("series_global uses globalSpots as the per-division default", () => {
     const result = resolveSourceAllocations({
       source: sourceFixture({
-        kind: COMPETITION_INVITE_SOURCE_KIND.SERIES,
+        kind: COMPETITION_INVITE_SOURCE_KIND.SERIES_GLOBAL,
         sourceCompetitionId: null,
         sourceGroupId: "cgrp_series",
+        globalSpots: 5,
+      }),
+      championshipDivisions: divisions,
+      allocations: [],
+    })
+
+    expect(result.byDivision).toEqual({
+      div_rx: 5,
+      div_scaled: 5,
+      div_masters: 5,
+    })
+    expect(result.total).toBe(15)
+  })
+
+  it("falls back to 0 per division when globalSpots is null on a competition source", () => {
+    const result = resolveSourceAllocations({
+      source: sourceFixture({
+        kind: COMPETITION_INVITE_SOURCE_KIND.COMPETITION,
         globalSpots: null,
       }),
       championshipDivisions: divisions,

@@ -88,9 +88,16 @@ export function InviteSourcesList({
 
       <div className="space-y-3">
         {sources.map((source) => {
-          const isSeries = source.kind === "series"
-          const Icon = isSeries ? Layers : Trophy
-          const name = isSeries
+          const isSeriesPerComp = source.kind === "series"
+          const isSeriesGlobal = source.kind === "series_global"
+          const isSeriesKind = isSeriesPerComp || isSeriesGlobal
+          const Icon = isSeriesKind ? Layers : Trophy
+          const kindLabel = isSeriesPerComp
+            ? "Series"
+            : isSeriesGlobal
+              ? "Series global leaderboard"
+              : "Single competition"
+          const name = isSeriesKind
             ? (source.sourceGroupId
                 ? seriesNamesById[source.sourceGroupId]
                 : undefined) ?? "Unknown series"
@@ -116,8 +123,8 @@ export function InviteSourcesList({
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <Badge variant={isSeries ? "default" : "secondary"}>
-                      {isSeries ? "Series" : "Single competition"}
+                    <Badge variant={isSeriesKind ? "default" : "secondary"}>
+                      {kindLabel}
                     </Badge>
                   </div>
                   <CardTitle className="mt-1 text-base">{name}</CardTitle>
@@ -154,14 +161,27 @@ export function InviteSourcesList({
                   ) : null}
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="text-xs uppercase text-muted-foreground">
-                  Top {source.globalSpots ?? 0}
-                </div>
-                <div className="mt-1 text-sm">
-                  Top {source.globalSpots ?? 0} finishers qualify per division.
-                </div>
-              </CardContent>
+              {isSeriesPerComp ? (
+                <CardContent>
+                  <div className="text-xs uppercase text-muted-foreground">
+                    Per-comp grouping
+                  </div>
+                  <div className="mt-1 text-sm">
+                    Per-division allocation set on the source detail page.
+                  </div>
+                </CardContent>
+              ) : (
+                <CardContent>
+                  <div className="text-xs uppercase text-muted-foreground">
+                    Top {source.globalSpots ?? 0}
+                  </div>
+                  <div className="mt-1 text-sm">
+                    {isSeriesGlobal
+                      ? `Top ${source.globalSpots ?? 0} from the series global leaderboard qualify per division.`
+                      : `Top ${source.globalSpots ?? 0} finishers qualify per division.`}
+                  </div>
+                </CardContent>
+              )}
               {renderSourceExtras ? (
                 <CardContent>{renderSourceExtras(source)}</CardContent>
               ) : null}

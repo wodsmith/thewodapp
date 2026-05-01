@@ -194,7 +194,8 @@ async function resolveSourceCompetitions(
   const groupIds = sources
     .filter(
       (s): s is typeof s & { sourceGroupId: string } =>
-        s.kind === "series" && !!s.sourceGroupId,
+        (s.kind === "series" || s.kind === "series_global") &&
+        !!s.sourceGroupId,
     )
     .map((s) => s.sourceGroupId)
 
@@ -242,7 +243,10 @@ async function resolveSourceCompetitions(
         competitionId: row.id,
         competitionName: row.name,
       })
-    } else if (source.kind === "series" && source.sourceGroupId) {
+    } else if (
+      (source.kind === "series" || source.kind === "series_global") &&
+      source.sourceGroupId
+    ) {
       const matchingComps = seriesComps.filter(
         (c) => c.groupId === source.sourceGroupId,
       )

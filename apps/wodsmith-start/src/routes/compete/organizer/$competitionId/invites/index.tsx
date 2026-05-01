@@ -66,6 +66,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   COMPETITION_INVITE_ORIGIN,
+  COMPETITION_INVITE_STATUS,
   type CompetitionInviteSource,
 } from "@/db/schemas/competition-invites"
 import { usePostHog } from "@/lib/posthog"
@@ -356,6 +357,23 @@ function InvitesPage() {
   const sentBespokeCount = bespokeInvites.length - draftBespokeInvites.length
 
   const isRowAlreadyInvited = (r: RosterRow) => !!lookupInviteForRow(r)
+
+  const getInviteStatusForRow = (
+    r: RosterRow,
+  ): "pending" | "accepted_paid" | null => {
+    const inv = lookupInviteForRow(r)
+    if (!inv) return null
+    if (
+      inv.status === COMPETITION_INVITE_STATUS.PENDING ||
+      inv.status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID
+    ) {
+      return inv.status
+    }
+    // Other statuses (declined/expired/revoked) shouldn't appear under
+    // `activeMarker = "active"`, but fall back to "pending" so the pill
+    // still flags the row as occupied if they ever do.
+    return COMPETITION_INVITE_STATUS.PENDING
+  }
 
   const getInviteUrlForRow = (r: RosterRow): string | null =>
     lookupInviteForRow(r)?.claimUrl ?? null
@@ -791,7 +809,7 @@ function InvitesPage() {
                 selectedKeys={selectedRosterKeys}
                 onToggleSelection={toggleRosterSelection}
                 onToggleAll={toggleAllRoster}
-                isRowAlreadyInvited={isRowAlreadyInvited}
+                getInviteStatusForRow={getInviteStatusForRow}
                 getInviteUrlForRow={getInviteUrlForRow}
                 allocationsBySourceByDivision={allocationsBySourceByDivision}
                 championshipDivisions={championshipDivisions}

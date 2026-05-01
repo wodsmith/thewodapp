@@ -104,6 +104,7 @@ const divisionMappingSchema = z.object({
 const kindSchema = z.enum([
   COMPETITION_INVITE_SOURCE_KIND.COMPETITION,
   COMPETITION_INVITE_SOURCE_KIND.SERIES,
+  COMPETITION_INVITE_SOURCE_KIND.SERIES_GLOBAL,
 ])
 
 const listInviteSourcesInputSchema = z.object({
@@ -276,7 +277,7 @@ async function getSeriesOrganizingTeamId(groupId: string): Promise<string> {
  */
 async function requireSourcePermissions(params: {
   championshipCompetitionId: string
-  kind: "competition" | "series"
+  kind: "competition" | "series" | "series_global"
   sourceCompetitionId?: string | null
   sourceGroupId?: string | null
 }): Promise<{ championshipTeamId: string }> {
@@ -296,9 +297,12 @@ async function requireSourcePermissions(params: {
     sourceTeamId = await getCompetitionOrganizingTeamId(
       params.sourceCompetitionId,
     )
-  } else if (params.kind === COMPETITION_INVITE_SOURCE_KIND.SERIES) {
+  } else if (
+    params.kind === COMPETITION_INVITE_SOURCE_KIND.SERIES ||
+    params.kind === COMPETITION_INVITE_SOURCE_KIND.SERIES_GLOBAL
+  ) {
     if (!params.sourceGroupId) {
-      throw new Error('kind "series" requires sourceGroupId')
+      throw new Error(`kind "${params.kind}" requires sourceGroupId`)
     }
     sourceTeamId = await getSeriesOrganizingTeamId(params.sourceGroupId)
   }

@@ -32,8 +32,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  COMPETITION_INVITE_STATUS,
+  type CompetitionInviteStatus,
+} from "@/db/schemas/competition-invites"
 import type { RosterRow } from "@/server/competition-invites/roster"
 import { cn } from "@/utils/cn"
+
+type RowInviteStatus = Extract<
+  CompetitionInviteStatus,
+  "pending" | "accepted_paid"
+>
 
 export function rosterRowKey(row: RosterRow): string {
   // Include sourceCompetitionId + sourceDivisionId in the key so series
@@ -52,11 +61,13 @@ interface ChampionshipRosterTableProps {
   selectedKeys?: Set<string>
   onToggleSelection?: (key: string, row: RosterRow) => void
   onToggleAll?: (selectAll: boolean) => void
-  /** Returns true when the row has an active invite (pending/accepted)
-   *  so the table can render the "Invited" status pill and disable the
-   *  row's checkbox. Without this, the row would render as "Not invited"
-   *  and let the organizer tick a box that the parent silently drops. */
-  isRowAlreadyInvited?: (row: RosterRow) => boolean
+  /** Returns the row's active-invite status so the table can render the
+   *  status pill ("Registered" for `accepted_paid`, "Invited" for
+   *  `pending`, "Not invited" when null) and disable the row's checkbox
+   *  when there's any active invite. Without this, the row would render
+   *  as "Not invited" and let the organizer tick a box that the parent
+   *  silently drops. */
+  getInviteStatusForRow?: (row: RosterRow) => RowInviteStatus | null
   /** When provided the table renders an Actions column with a "Copy
    *  invite link" affordance. Returns the claim URL for the row, or
    *  null when the row has no live token (draft / not-yet-sent /
@@ -295,10 +306,20 @@ function DivisionCell({ row }: { row: RosterRow }) {
   return <Badge variant="outline">{row.sourceDivisionLabel}</Badge>
 }
 
-function StatusPill({ alreadyInvited }: { alreadyInvited: boolean }) {
-  // `variant="outline"` for both — the default variant's `dark:bg-primary`
-  // would otherwise paint over the emerald tint in dark mode.
-  if (alreadyInvited) {
+function StatusPill({ status }: { status: RowInviteStatus | null }) {
+  // `variant="outline"` for all — the default variant's `dark:bg-primary`
+  // would otherwise paint over the colored tints in dark mode.
+  if (status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID) {
+    return (
+      <Badge
+        variant="outline"
+        className="border-sky-500/30 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 hover:border-sky-500/50"
+      >
+        Registered
+      </Badge>
+    )
+  }
+  if (status === COMPETITION_INVITE_STATUS.PENDING) {
     return (
       <Badge
         variant="outline"
@@ -320,7 +341,7 @@ export function ChampionshipRosterTable({
   selectedKeys,
   onToggleSelection,
   onToggleAll,
-  isRowAlreadyInvited,
+  getInviteStatusForRow,
   getInviteUrlForRow,
   allocationsBySourceByDivision,
   championshipDivisions,
@@ -328,7 +349,8 @@ export function ChampionshipRosterTable({
   const selectionEnabled =
     !!selectedKeys && !!onToggleSelection && !!onToggleAll
   const actionsEnabled = !!getInviteUrlForRow
-  const isInvited = (r: RosterRow) => !!isRowAlreadyInvited?.(r)
+  const inviteStatusFor = (r: RosterRow) => getInviteStatusForRow?.(r) ?? null
+  const isInvited = (r: RosterRow) => inviteStatusFor(r) !== null
   const selectableRows = rows.filter((r) => !!r.athleteEmail && !isInvited(r))
   const allSelected =
     selectionEnabled &&
@@ -408,7 +430,8 @@ export function ChampionshipRosterTable({
             <TableBody>
               {rows.map((row) => {
                 const rowKey = rosterRowKey(row)
-                const rowAlreadyInvited = isInvited(row)
+                const rowInviteStatus = inviteStatusFor(row)
+                const rowAlreadyInvited = rowInviteStatus !== null
                 const rowSelectable =
                   selectionEnabled && !!row.athleteEmail && !rowAlreadyInvited
                 return (
@@ -455,7 +478,7 @@ export function ChampionshipRosterTable({
                       <RankCell placement={row.sourcePlacement} />
                     </TableCell>
                     <TableCell>
-                      <StatusPill alreadyInvited={rowAlreadyInvited} />
+                      <StatusPill status={rowInviteStatus} />
                     </TableCell>
                     {actionsEnabled ? (
                       <TableCell className="text-right">
