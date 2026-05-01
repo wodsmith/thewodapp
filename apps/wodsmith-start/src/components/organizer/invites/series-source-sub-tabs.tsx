@@ -27,8 +27,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import type { CompetitionInviteSource } from "@/db/schemas/competition-invites"
-
 export interface SeriesCompView {
   competitionId: string
   competitionName: string
@@ -49,13 +47,11 @@ export interface SeriesGlobalView {
 }
 
 interface SeriesSourceSubTabsProps {
-  source: CompetitionInviteSource
   comps: SeriesCompView[]
   globalView: SeriesGlobalView | null
 }
 
 export function SeriesSourceSubTabs({
-  source,
   comps,
   globalView,
 }: SeriesSourceSubTabsProps) {
@@ -96,11 +92,6 @@ export function SeriesSourceSubTabs({
               ))}
             </TableBody>
           </Table>
-          {source.directSpotsPerComp ? (
-            <p className="mt-2 text-xs text-muted-foreground">
-              Top {source.directSpotsPerComp} directly qualify.
-            </p>
-          ) : null}
         </TabsContent>
       ))}
       <TabsContent value="global" className="mt-3">

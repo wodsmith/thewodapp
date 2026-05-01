@@ -104,6 +104,7 @@ const divisionMappingSchema = z.object({
 const kindSchema = z.enum([
   COMPETITION_INVITE_SOURCE_KIND.COMPETITION,
   COMPETITION_INVITE_SOURCE_KIND.SERIES,
+  COMPETITION_INVITE_SOURCE_KIND.SERIES_GLOBAL,
 ])
 
 const listInviteSourcesInputSchema = z.object({
@@ -115,7 +116,6 @@ const createInviteSourceInputSchema = z.object({
   kind: kindSchema,
   sourceCompetitionId: z.string().min(1).nullable().optional(),
   sourceGroupId: z.string().min(1).nullable().optional(),
-  directSpotsPerComp: z.number().int().positive().nullable().optional(),
   globalSpots: z.number().int().positive().nullable().optional(),
   divisionMappings: z.array(divisionMappingSchema).nullable().optional(),
   sortOrder: z.number().int().min(0).optional(),
@@ -128,7 +128,6 @@ const updateInviteSourceInputSchema = z.object({
   kind: kindSchema.optional(),
   sourceCompetitionId: z.string().min(1).nullable().optional(),
   sourceGroupId: z.string().min(1).nullable().optional(),
-  directSpotsPerComp: z.number().int().positive().nullable().optional(),
   globalSpots: z.number().int().positive().nullable().optional(),
   divisionMappings: z.array(divisionMappingSchema).nullable().optional(),
   sortOrder: z.number().int().min(0).optional(),
@@ -278,7 +277,7 @@ async function getSeriesOrganizingTeamId(groupId: string): Promise<string> {
  */
 async function requireSourcePermissions(params: {
   championshipCompetitionId: string
-  kind: "competition" | "series"
+  kind: "competition" | "series" | "series_global"
   sourceCompetitionId?: string | null
   sourceGroupId?: string | null
 }): Promise<{ championshipTeamId: string }> {
@@ -298,9 +297,12 @@ async function requireSourcePermissions(params: {
     sourceTeamId = await getCompetitionOrganizingTeamId(
       params.sourceCompetitionId,
     )
-  } else if (params.kind === COMPETITION_INVITE_SOURCE_KIND.SERIES) {
+  } else if (
+    params.kind === COMPETITION_INVITE_SOURCE_KIND.SERIES ||
+    params.kind === COMPETITION_INVITE_SOURCE_KIND.SERIES_GLOBAL
+  ) {
     if (!params.sourceGroupId) {
-      throw new Error('kind "series" requires sourceGroupId')
+      throw new Error(`kind "${params.kind}" requires sourceGroupId`)
     }
     sourceTeamId = await getSeriesOrganizingTeamId(params.sourceGroupId)
   }
@@ -448,7 +450,6 @@ export const createInviteSourceFn = createServerFn({ method: "POST" })
           kind: data.kind,
           sourceCompetitionId: data.sourceCompetitionId,
           sourceGroupId: data.sourceGroupId,
-          directSpotsPerComp: data.directSpotsPerComp,
           globalSpots: data.globalSpots,
           divisionMappings: data.divisionMappings,
           sortOrder: data.sortOrder,
@@ -517,7 +518,6 @@ export const updateInviteSourceFn = createServerFn({ method: "POST" })
           kind: data.kind,
           sourceCompetitionId: data.sourceCompetitionId,
           sourceGroupId: data.sourceGroupId,
-          directSpotsPerComp: data.directSpotsPerComp,
           globalSpots: data.globalSpots,
           divisionMappings: data.divisionMappings,
           sortOrder: data.sortOrder,
@@ -821,10 +821,38 @@ export const getInviteByTokenFn = createServerFn({ method: "GET" })
                 occupiedCount,
               },
             })
+            // Hydrate the source display name so the claim page can tell
+            // the athlete which division and which qualifier filled up,
+            // not just a generic "this division". `getSourceById` only
+            // runs on the unhappy path so it doesn't pay round-trips on
+            // every claim; the lookups for the source's underlying
+            // competition / group name are best-effort and fall back to
+            // null on missing rows.
+            const source = await getSourceById(invite.sourceId)
+            let sourceLabel: string | null = null
+            if (source) {
+              if (source.sourceCompetitionId) {
+                const [row] = await db
+                  .select({ name: competitionsTable.name })
+                  .from(competitionsTable)
+                  .where(eq(competitionsTable.id, source.sourceCompetitionId))
+                  .limit(1)
+                sourceLabel = row?.name ?? null
+              } else if (source.sourceGroupId) {
+                const [row] = await db
+                  .select({ name: competitionGroupsTable.name })
+                  .from(competitionGroupsTable)
+                  .where(eq(competitionGroupsTable.id, source.sourceGroupId))
+                  .limit(1)
+                sourceLabel = row?.name ?? null
+              }
+            }
             return {
               kind: "not_claimable" as const,
               reason: "over_allocated" as InviteClaimableError,
               championshipName: champ.name,
+              divisionLabel: division?.label ?? null,
+              sourceLabel,
             }
           }
         }
@@ -1674,9 +1702,8 @@ const saveInviteSourceAllocationsInputSchema = z.object({
  * Resolve per-source / per-championship-division allocation maps for the
  * organizer invites loader. The default-plus-override math lives in
  * `resolveSourceAllocations`; this fn wires up the inputs (sources,
- * championship divisions, allocation rows, series comp counts) and emits
- * both the per-source map and the summed-by-division total the Sent tab
- * needs.
+ * championship divisions, allocation rows) and emits both the per-source
+ * map and the summed-by-division total the Sent tab needs.
  *
  * Permission: `MANAGE_COMPETITIONS` on the championship's organizing team
  * — same gate as the rest of the organizer invite endpoints. The source
@@ -1709,11 +1736,11 @@ export const listInviteSourceAllocationsFn = createServerFn({ method: "GET" })
 
         const db = getDb()
 
-        // Load sources, championship divisions, allocation rows, and
-        // series comp counts in parallel. The championship divisions
-        // are derived the same way `getCompetitionDivisionsWithCountsFn`
-        // derives them — via the competition's `settings.divisions
-        // .scalingGroupId` → `scaling_levels` rows.
+        // Load sources, championship divisions, and allocation rows in
+        // parallel. The championship divisions are derived the same way
+        // `getCompetitionDivisionsWithCountsFn` derives them — via the
+        // competition's `settings.divisions.scalingGroupId` →
+        // `scaling_levels` rows.
         const [sources, competitionRow, allocationRows] = await Promise.all([
           listSourcesForChampionship(data.championshipCompetitionId),
           db
@@ -1742,32 +1769,6 @@ export const listInviteSourceAllocationsFn = createServerFn({ method: "GET" })
               .orderBy(scalingLevelsTable.position)
           : []
 
-        // Series comp counts — one query, grouped, only when needed.
-        const groupIds = Array.from(
-          new Set(
-            sources.map((s) => s.sourceGroupId).filter((v): v is string => !!v),
-          ),
-        )
-        const seriesCompCountsById: Record<string, number> =
-          groupIds.length > 0
-            ? Object.fromEntries(
-                (
-                  await db
-                    .select({
-                      groupId: competitionsTable.groupId,
-                      count: sql<number>`count(*)`,
-                    })
-                    .from(competitionsTable)
-                    .where(inArray(competitionsTable.groupId, groupIds))
-                    .groupBy(competitionsTable.groupId)
-                )
-                  .filter(
-                    (r): r is { groupId: string; count: number } => !!r.groupId,
-                  )
-                  .map((r) => [r.groupId, Number(r.count)]),
-              )
-            : {}
-
         const allocationsBySourceByDivision: Record<
           string,
           Record<string, number>
@@ -1785,9 +1786,6 @@ export const listInviteSourceAllocationsFn = createServerFn({ method: "GET" })
         }
 
         for (const source of sources) {
-          const seriesCompCount = source.sourceGroupId
-            ? (seriesCompCountsById[source.sourceGroupId] ?? 0)
-            : undefined
           const sourceRows = allocationRows.filter(
             (a) => a.sourceId === source.id,
           )
@@ -1795,7 +1793,6 @@ export const listInviteSourceAllocationsFn = createServerFn({ method: "GET" })
             source,
             championshipDivisions,
             allocations: sourceRows,
-            seriesCompCount,
           })
           allocationsBySourceByDivision[source.id] = resolved.byDivision
           rawAllocationsBySource[source.id] = sourceRows.map((r) => ({

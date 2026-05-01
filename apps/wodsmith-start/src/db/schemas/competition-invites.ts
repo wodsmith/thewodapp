@@ -35,6 +35,12 @@ import {
 export const COMPETITION_INVITE_SOURCE_KIND = {
   COMPETITION: "competition",
   SERIES: "series",
+  // Series-aggregate leaderboard. Picks a series like SERIES does, but
+  // the cap is "top N from the series global leaderboard," independent
+  // of the per-comp tier. Kept distinct from SERIES so each tier has its
+  // own bucket — inviting a top-1-per-comp qualifier doesn't fill the
+  // global cap, and vice versa.
+  SERIES_GLOBAL: "series_global",
 } as const
 
 export type CompetitionInviteSourceKind =
@@ -69,12 +75,19 @@ export const competitionInviteSourcesTable = mysqlTable(
       .notNull(),
     // When kind = "competition".
     sourceCompetitionId: varchar({ length: 255 }),
-    // When kind = "series". Logical reference to competitionGroupsTable.id.
+    // When kind = "series" or "series_global". Logical ref to competitionGroupsTable.id.
     sourceGroupId: varchar({ length: 255 }),
-    // For series: how many top-N per comp in the series get a direct slot.
-    directSpotsPerComp: int(),
-    // For series: how many additional spots come from the global leaderboard.
-    // For single-comp: the total top-N that qualifies.
+    // Default number of qualifying spots this source contributes per
+    // championship division. Same value applies to every division until
+    // a `competition_invite_source_division_allocations` override row
+    // says otherwise. Semantics depend on `kind`:
+    //   - "competition": top N from this comp per division.
+    //   - "series_global": top N from the series-aggregate leaderboard
+    //     per division.
+    //   - "series": null (the per-comp grouping has no source-level
+    //     default; per-division overrides are the only knob).
+    // No multiplication, no series math: the override on a series source
+    // is the absolute total for that championship division.
     globalSpots: int(),
     // JSON: [{ sourceDivisionId, championshipDivisionId, spots? }]
     divisionMappings: text(),
@@ -108,11 +121,11 @@ export type CompetitionInviteSource = InferSelectModel<
 /**
  * Per-(source, championship-division) override of the invite-spot allocation.
  *
- * Per ADR-0012: the source row's `globalSpots` / `directSpotsPerComp` are the
- * defaults; a row in this table means "this championship division differs
- * from the default for this source." A `spots` of `0` is meaningful — it
- * pins the division to zero from this source. Absence of the row means
- * "use the source default."
+ * Per ADR-0012: the source row's `globalSpots` is the per-division default;
+ * a row in this table means "this championship division differs from the
+ * default for this source." A `spots` of `0` is meaningful — it pins the
+ * division to zero from this source. Absence of the row means "use the
+ * source default."
  *
  * Cascading delete on the source row is handled in
  * `apps/wodsmith-start/src/server/competition-invites/sources.ts`

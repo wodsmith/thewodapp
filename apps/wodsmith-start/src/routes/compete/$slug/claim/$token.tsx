@@ -56,6 +56,8 @@ type Branch =
   | {
       kind: "over_allocated"
       championshipName?: string
+      divisionLabel?: string | null
+      sourceLabel?: string | null
     }
   | { kind: "invalid"; reason: InviteClaimableError; championshipName?: string }
 
@@ -90,6 +92,9 @@ export const Route = createFileRoute("/compete/$slug/claim/$token")({
           kind: "over_allocated",
           championshipName:
             "championshipName" in result ? result.championshipName : undefined,
+          divisionLabel:
+            "divisionLabel" in result ? result.divisionLabel : null,
+          sourceLabel: "sourceLabel" in result ? result.sourceLabel : null,
         }
       }
 
@@ -196,7 +201,13 @@ function ClaimPage() {
   }
 
   if (data.kind === "over_allocated") {
-    return <OverAllocated championshipName={data.championshipName} />
+    return (
+      <OverAllocated
+        championshipName={data.championshipName}
+        divisionLabel={data.divisionLabel}
+        sourceLabel={data.sourceLabel}
+      />
+    )
   }
 
   return (
@@ -377,7 +388,17 @@ function AlreadyClaimed(props: {
   )
 }
 
-function OverAllocated(props: { championshipName?: string }) {
+function OverAllocated(props: {
+  championshipName?: string
+  divisionLabel?: string | null
+  sourceLabel?: string | null
+}) {
+  const divisionPhrase = props.divisionLabel
+    ? `the ${props.divisionLabel} division`
+    : "this division"
+  const qualifierPhrase = props.sourceLabel
+    ? `${props.sourceLabel}`
+    : "this qualifier"
   return (
     <div className="mx-auto max-w-xl px-4 py-12">
       <Card>
@@ -386,7 +407,9 @@ function OverAllocated(props: { championshipName?: string }) {
             <AlertCircle className="h-7 w-7 text-amber-600" />
           </div>
           <CardTitle className="text-center">
-            This division has filled its spots from this qualifier
+            {props.divisionLabel
+              ? `${props.divisionLabel} has filled its spots from ${qualifierPhrase}`
+              : `${divisionPhrase[0].toUpperCase()}${divisionPhrase.slice(1)} has filled its spots from ${qualifierPhrase}`}
           </CardTitle>
           {props.championshipName ? (
             <CardDescription className="text-center">
@@ -394,11 +417,15 @@ function OverAllocated(props: { championshipName?: string }) {
             </CardDescription>
           ) : null}
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground text-center">
+            All invitation spots for {divisionPhrase} coming from{" "}
+            <span className="font-medium">{qualifierPhrase}</span> are now
+            filled, so this invite can't be claimed.
+          </p>
           <Alert>
             <AlertDescription>
-              The organizer has been notified — please contact them if you
-              believe this is in error.
+              Please contact the organizer if you believe this is in error.
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -469,7 +496,7 @@ function invalidReasonCopy(reason: InviteClaimableError): {
         title: "This division has filled its spots from this qualifier",
         headline: "Allocation filled",
         description:
-          "The organizer has been notified — please contact them if you believe this is in error.",
+          "Please contact the organizer if you believe this is in error.",
       }
     default:
       return {

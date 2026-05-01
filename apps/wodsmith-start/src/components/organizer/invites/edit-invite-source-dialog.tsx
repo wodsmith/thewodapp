@@ -55,6 +55,13 @@ export function EditInviteSourceDialog({
   const onSubmit = async (values: InviteSourceFormValues) => {
     setError(null)
     try {
+      const isSeriesKind =
+        values.kind === "series" || values.kind === "series_global"
+      // "series" kind has no source-level globalSpots — per-division
+      // override is the only knob. Force null on save so a stale value
+      // from a kind switch can't leak through.
+      const globalSpotsForSave =
+        values.kind === "series" ? null : (values.globalSpots ?? null)
       if (isEdit && source) {
         await updateSource({
           data: {
@@ -63,13 +70,8 @@ export function EditInviteSourceDialog({
             kind: values.kind,
             sourceCompetitionId:
               values.kind === "competition" ? values.sourceCompetitionId : null,
-            sourceGroupId:
-              values.kind === "series" ? values.sourceGroupId : null,
-            directSpotsPerComp:
-              values.kind === "series"
-                ? (values.directSpotsPerComp ?? null)
-                : null,
-            globalSpots: values.globalSpots ?? null,
+            sourceGroupId: isSeriesKind ? values.sourceGroupId : null,
+            globalSpots: globalSpotsForSave,
             notes: values.notes ?? null,
           },
         })
@@ -80,13 +82,8 @@ export function EditInviteSourceDialog({
             kind: values.kind,
             sourceCompetitionId:
               values.kind === "competition" ? values.sourceCompetitionId : null,
-            sourceGroupId:
-              values.kind === "series" ? values.sourceGroupId : null,
-            directSpotsPerComp:
-              values.kind === "series"
-                ? (values.directSpotsPerComp ?? null)
-                : null,
-            globalSpots: values.globalSpots ?? null,
+            sourceGroupId: isSeriesKind ? values.sourceGroupId : null,
+            globalSpots: globalSpotsForSave,
             notes: values.notes ?? null,
           },
         })

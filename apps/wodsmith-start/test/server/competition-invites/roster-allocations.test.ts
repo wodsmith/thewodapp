@@ -22,7 +22,6 @@ function sourceFixture(
     kind: COMPETITION_INVITE_SOURCE_KIND.COMPETITION,
     sourceCompetitionId: "comp_qual",
     sourceGroupId: null,
-    directSpotsPerComp: null,
     globalSpots: 5,
     divisionMappings: null,
     sortOrder: 0,
@@ -173,7 +172,6 @@ describe("computeCutoffForLeaderboard", () => {
       kind: COMPETITION_INVITE_SOURCE_KIND.SERIES,
       sourceCompetitionId: null,
       sourceGroupId: "cgrp_series",
-      directSpotsPerComp: 3,
       globalSpots: 2,
     })
     const resolved = resolveSourceAllocations({
@@ -186,7 +184,6 @@ describe("computeCutoffForLeaderboard", () => {
           sourceId: seriesSource.id,
         }),
       ],
-      seriesCompCount: 3,
     })
 
     const cutoff = computeCutoffForLeaderboard({
@@ -203,9 +200,9 @@ describe("computeCutoffForLeaderboard", () => {
       ],
     })
 
-    // Series fallback: per-comp truncation is a future improvement
-    // (see ADR-0012 "Allocation Resolution"). Returning null keeps the
-    // full leaderboard rather than risk dropping a qualifier.
+    // Series fallback: keeps the full leaderboard so organizers can
+    // pick whom to invite. The (source, division) cap is enforced
+    // downstream at claim/webhook time.
     expect(cutoff).toBeNull()
   })
 })
