@@ -217,3 +217,80 @@ describe("getChampionshipRoster — wires through getCandidatesForSourceComp", (
 		expect(byUser.usr_b).toBe("athlete-b@example.com")
 	})
 })
+
+// @lat: [[competition-invites#Roster computation]]
+describe("getChampionshipRoster — does not truncate candidates by allocation cutoff", () => {
+	// Repro for the production case where Ian's registration on
+	// `comp_inv_qualifier` (creg_01KQGX21AH1XSXD4S7X1WQFBT4, Men's RX,
+	// active) silently disappeared from the championship Candidates page.
+	// The qualifier source had a per-division allocation override of 5
+	// spots for the championship's Men's RX, but 6 athletes were actively
+	// registered in the matching source division. `entries.slice(0, 5)`
+	// dropped the 6th athlete (Ian) without surfacing him anywhere.
+	//
+	// The cutoff is allocation budget metadata, not a candidate filter —
+	// the organizer needs every eligible athlete on the page so they can
+	// choose whom to invite. This test pins that contract.
+	it("returns every active candidate even when allocation spots < candidate count", async () => {
+		listSourcesForChampionship.mockResolvedValueOnce([
+			sourceFixture({ globalSpots: 2 }),
+		])
+
+		listAllocationsForChampionship.mockResolvedValueOnce([])
+		// Override gives Men's RX exactly 5 spots from this source — fewer
+		// than the 6 registrations below.
+		resolveSourceAllocations.mockReturnValue({
+			total: 5,
+			byDivision: { div_champ_rx: 5 },
+		})
+
+		// resolveSourceCompetitions → directComps lookup.
+		selectQueue.push([
+			{ id: "comp_qual", name: "Qualifier Open", groupId: null },
+		])
+		// resolveDivisionRefs → competition settings rows.
+		selectQueue.push([{ id: "comp_qual", settings: "{}" }])
+		// resolveDivisionRefs → scaling levels for the source comp.
+		selectQueue.push([
+			{
+				id: "div_qual_rx",
+				label: "Rx",
+				scalingGroupId: "sg_qual",
+				position: 0,
+			},
+		])
+		// resolveChampionshipDivisions → championship settings row.
+		selectQueue.push([{ settings: "{}" }])
+		// resolveChampionshipDivisions → championship scaling levels.
+		// Label "Rx" matches source → cutoff resolves via div_champ_rx.
+		selectQueue.push([{ id: "div_champ_rx", label: "Rx", position: 0 }])
+
+		// 6 active candidates in the source division — one more than the
+		// allocation cutoff (5).
+		const candidateEntries = Array.from({ length: 6 }, (_, i) => ({
+			registrationId: `reg_${i + 1}`,
+			userId: `usr_${i + 1}`,
+			athleteName: `Athlete ${i + 1}`,
+			athleteEmail: `athlete-${i + 1}@example.com`,
+			divisionId: "div_qual_rx",
+			divisionLabel: "Rx",
+			registeredAt: new Date(`2026-04-${10 + i}T12:00:00Z`),
+		}))
+		getCandidatesForSourceComp.mockResolvedValueOnce({
+			entries: candidateEntries,
+		})
+
+		const result = await getChampionshipRoster({
+			championshipId: "comp_champ",
+		})
+
+		// All 6 candidates surface — the 6th (latest registrant) is the
+		// one that previously disappeared via `entries.slice(0, cutoff)`.
+		expect(result.rows).toHaveLength(6)
+		const userIds = result.rows.map((r) => r.userId)
+		expect(userIds).toContain("usr_6")
+		expect(new Set(userIds)).toEqual(
+			new Set(candidateEntries.map((c) => c.userId)),
+		)
+	})
+})
