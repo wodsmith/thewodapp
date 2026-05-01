@@ -1100,21 +1100,57 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
           throw err
         }
 
+        // Per-recipient failure list. Both the activation and dispatch
+        // loops push into this so the organizer sees a unified summary
+        // ("3 failed") regardless of which stage the failure occurred
+        // in. The dialog UX renders these inline alongside `skipped`.
+        const failed: Array<{
+          inviteId: string
+          email: string
+          error: string
+        }> = []
+
         // Activate draft bespoke rows that came back as alreadyActive+isDraft.
+        // Wrapped per-iteration in try/catch for the same reason as the
+        // dispatch loop below: a transient blip rotating one row's token
+        // must not abort the whole batch — the caller has already
+        // committed inserted rows in their own transaction, and earlier
+        // drafts in this loop have already had their tokens rotated.
+        // Aborting here would strand them with no recovery path because
+        // a re-issue would classify them as `alreadyActive` non-drafts
+        // (skipped). Failed activations land in `failed[]` like dispatch
+        // failures so the UI surfaces them the same way.
         const activated: Array<{
           invite: CompetitionInvite
           plaintextToken: string
         }> = []
         for (const prior of issueResult.alreadyActive) {
           if (!prior.isDraft) continue
-          const rotated = await reissueInvite({
-            inviteId: prior.existingInviteId,
-            newExpiresAt: rsvpDeadlineAt,
-          })
-          activated.push({
-            invite: rotated.invite,
-            plaintextToken: rotated.plaintextToken,
-          })
+          try {
+            const rotated = await reissueInvite({
+              inviteId: prior.existingInviteId,
+              newExpiresAt: rsvpDeadlineAt,
+            })
+            activated.push({
+              invite: rotated.invite,
+              plaintextToken: rotated.plaintextToken,
+            })
+          } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : String(err)
+            failed.push({
+              inviteId: prior.existingInviteId,
+              email: prior.email,
+              error: errorMsg,
+            })
+            logWarning({
+              message: "[Invites] Activation failed mid-batch",
+              error: err,
+              attributes: {
+                inviteId: prior.existingInviteId,
+                email: prior.email,
+              },
+            })
+          }
         }
 
         const allToDispatch = [...issueResult.inserted, ...activated]
@@ -1131,11 +1167,10 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
         const queue = (env as unknown as Record<string, unknown>)
           .BROADCAST_EMAIL_QUEUE as Queue<QueueEmailMessage> | undefined
 
-        const failed: Array<{
-          inviteId: string
-          email: string
-          error: string
-        }> = []
+        // Snapshot before the dispatch loop so we can derive an accurate
+        // `sentCount` without double-counting activation failures (which
+        // are already in `failed` but were never in `allToDispatch`).
+        const activationFailureCount = failed.length
 
         for (const { invite, plaintextToken } of allToDispatch) {
           try {
@@ -1220,7 +1255,8 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
         }
 
         const skipped = issueResult.alreadyActive.filter((r) => !r.isDraft)
-        const sentCount = allToDispatch.length - failed.length
+        const dispatchFailureCount = failed.length - activationFailureCount
+        const sentCount = allToDispatch.length - dispatchFailureCount
 
         logInfo({
           message: "[Invites] issueInvitesFn dispatched",
