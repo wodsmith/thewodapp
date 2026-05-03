@@ -36,6 +36,7 @@ import {
   COMPETITION_INVITE_STATUS,
   type CompetitionInvite,
   type CompetitionInviteOrigin,
+  type CompetitionInviteStatus,
   competitionInvitesTable,
 } from "@/db/schemas/competition-invites"
 import { generateInviteClaimTokenPlaintext } from "@/lib/competition-invites/tokens"
@@ -79,8 +80,14 @@ export interface IssuedInvite {
 export interface AlreadyActiveInvite {
   email: string
   existingInviteId: string
-  /** True when the existing row has no token yet (a draft bespoke invite). */
-  isDraft: boolean
+  /** Status of the existing row. The caller uses this to decide between
+   *  reissue (pending → re-send) and skip (accepted_paid → don't bother
+   *  the athlete who already registered). */
+  status: CompetitionInviteStatus
+  /** Current send-attempt counter on the existing row. Surfaces so the
+   *  caller / UI can show "this will be the Nth send" without a follow-up
+   *  read. Mirrors `competitionInvitesTable.sendAttempt`. */
+  sendAttempt: number
 }
 
 export interface IssueInvitesResult {
@@ -229,20 +236,8 @@ export async function issueInvitesForRecipients(
         alreadyActive.push({
           email: r.email,
           existingInviteId: existingRow.id,
-          // A draft is a bespoke row staged without a token (`pending` +
-          // null `claimToken`). `accepted_paid` rows also null
-          // `claimToken` while keeping `activeMarker = "active"` — the
-          // status guard keeps them out of the draft bucket. We also
-          // treat rows whose previous dispatch failed
-          // (`emailDeliveryStatus` = "failed") as draft-like so the
-          // organizer's resend can recover via `reissueInvite` —
-          // otherwise a render/queue error mid-batch would orphan the
-          // row in the active index until the expiry sweep runs.
-          isDraft:
-            existingRow.status === COMPETITION_INVITE_STATUS.PENDING &&
-            (!existingRow.claimToken ||
-              existingRow.emailDeliveryStatus ===
-                COMPETITION_INVITE_EMAIL_DELIVERY_STATUS.FAILED),
+          status: existingRow.status,
+          sendAttempt: existingRow.sendAttempt,
         })
       } else {
         toInsertInputs.push(r)

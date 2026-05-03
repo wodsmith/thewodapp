@@ -187,6 +187,18 @@ function nameForInvite(invite: AuditInviteSummary): string {
   )
 }
 
+/**
+ * "Times sent" for the row. New rows have `sendAttempt = 0` (= "sent
+ * once" once dispatched), and each reissue increments by one — so the
+ * user-facing count is `sendAttempt + 1`. A draft (no token, no send
+ * attempts) reads as 0 so the badge stays hidden until something
+ * actually went out.
+ */
+function sendCountForInvite(invite: AuditInviteSummary): number {
+  if (invite.claimUrl === null && invite.sendAttempt === 0) return 0
+  return invite.sendAttempt + 1
+}
+
 async function copyToClipboard(text: string) {
   try {
     await navigator.clipboard.writeText(text)
@@ -459,6 +471,9 @@ export function SentInvitesByDivision({
                           <TableHead className="w-32 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                             Status
                           </TableHead>
+                          <TableHead className="w-20 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                            Sends
+                          </TableHead>
                           <TableHead className="w-24 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                             Updated
                           </TableHead>
@@ -472,6 +487,7 @@ export function SentInvitesByDivision({
                           const name = nameForInvite(inv)
                           const initial = name.charAt(0).toUpperCase()
                           const sKey = statusKeyFor(inv)
+                          const sendCount = sendCountForInvite(inv)
                           const attribution =
                             inv.origin === COMPETITION_INVITE_ORIGIN.SOURCE
                               ? (inv.sourcePlacementLabel ?? "Source")
@@ -511,6 +527,31 @@ export function SentInvitesByDivision({
                                 >
                                   {statusLabel(sKey)}
                                 </Badge>
+                              </TableCell>
+                              <TableCell
+                                className="text-xs tabular-nums"
+                                title={
+                                  sendCount === 0
+                                    ? "Not sent yet (draft)"
+                                    : `Invited ${sendCount} time${sendCount === 1 ? "" : "s"}`
+                                }
+                              >
+                                {sendCount === 0 ? (
+                                  <span className="text-muted-foreground italic">
+                                    draft
+                                  </span>
+                                ) : (
+                                  <Badge
+                                    variant="outline"
+                                    className={
+                                      sendCount > 1
+                                        ? "border-amber-500/30 bg-amber-500/10 text-amber-300 tabular-nums"
+                                        : "text-muted-foreground tabular-nums"
+                                    }
+                                  >
+                                    {sendCount}×
+                                  </Badge>
+                                )}
                               </TableCell>
                               <TableCell
                                 className="text-xs text-muted-foreground"

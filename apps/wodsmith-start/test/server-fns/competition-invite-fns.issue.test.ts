@@ -455,7 +455,7 @@ describe("issueInvitesFn", () => {
     expect(renderMock).toHaveBeenCalledTimes(2)
   })
 
-  it("classifies non-draft already-active rows as skipped (no email queued)", async () => {
+  it("skips already-active rows whose status is accepted_paid (athlete already registered)", async () => {
     const { auth, issue } = await getMocks()
     vi.mocked(auth.getSessionFromCookie).mockResolvedValue(
       sessionStub as unknown as Awaited<
@@ -470,7 +470,8 @@ describe("issueInvitesFn", () => {
         {
           email: "a@example.com",
           existingInviteId: "ci_existing",
-          isDraft: false,
+          status: COMPETITION_INVITE_STATUS.ACCEPTED_PAID,
+          sendAttempt: 1,
         },
       ],
     })
@@ -501,6 +502,73 @@ describe("issueInvitesFn", () => {
     expect(result.skipped).toHaveLength(1)
     expect(result.skipped[0].existingInviteId).toBe("ci_existing")
     expect(queueStub.send).not.toHaveBeenCalled()
+    expect(issue.reissueInvite).not.toHaveBeenCalled()
+  })
+
+  it("re-issues already-active pending rows so the organizer can send a follow-up reminder", async () => {
+    // Pending rows are reissued in place rather than skipped — the same
+    // invite.id stays in the DB and `sendAttempt` increments. This is
+    // how the "send another round" feature works without minting
+    // duplicate rows or breaking Stripe metadata correlation.
+    const { auth, issue } = await getMocks()
+    vi.mocked(auth.getSessionFromCookie).mockResolvedValue(
+      sessionStub as unknown as Awaited<
+        ReturnType<typeof auth.getSessionFromCookie>
+      >,
+    )
+    pushHappyPathLookups()
+
+    vi.mocked(issue.issueInvitesForRecipients).mockResolvedValueOnce({
+      inserted: [],
+      alreadyActive: [
+        {
+          email: "a@example.com",
+          existingInviteId: "ci_existing",
+          status: COMPETITION_INVITE_STATUS.PENDING,
+          sendAttempt: 1,
+        },
+      ],
+    })
+
+    const reissued = makeInvite({
+      id: "ci_existing",
+      email: "a@example.com",
+      sendAttempt: 2,
+    })
+    vi.mocked(issue.reissueInvite).mockResolvedValueOnce({
+      invite: reissued,
+      plaintextToken: "tok_resend",
+    })
+
+    const { issueInvitesFn } = await import(
+      "@/server-fns/competition-invite-fns"
+    )
+
+    const result = await (
+      issueInvitesFn as unknown as (ctx: {
+        data: unknown
+      }) => Promise<{
+        sentCount: number
+        skipped: unknown[]
+        failed: unknown[]
+      }>
+    )({
+      data: {
+        championshipCompetitionId: "comp_champ",
+        championshipDivisionId: "div_rx",
+        rsvpDeadlineDate: "2099-12-31",
+        subject: "Welcome",
+        recipients: [{ ...validRecipient, email: "a@example.com" }],
+      },
+    })
+
+    expect(issue.reissueInvite).toHaveBeenCalledWith({
+      inviteId: "ci_existing",
+      newExpiresAt: expect.any(Date),
+    })
+    expect(result.sentCount).toBe(1)
+    expect(result.skipped).toHaveLength(0)
+    expect(queueStub.send).toHaveBeenCalledTimes(1)
   })
 
   it("activates draft bespoke rows via reissueInvite and queues their emails", async () => {
@@ -518,7 +586,8 @@ describe("issueInvitesFn", () => {
         {
           email: "draft@example.com",
           existingInviteId: "ci_draft",
-          isDraft: true,
+          status: COMPETITION_INVITE_STATUS.PENDING,
+          sendAttempt: 0,
         },
       ],
     })
@@ -776,17 +845,20 @@ describe("issueInvitesFn", () => {
         {
           email: "draft1@example.com",
           existingInviteId: "ci_d1",
-          isDraft: true,
+          status: COMPETITION_INVITE_STATUS.PENDING,
+          sendAttempt: 0,
         },
         {
           email: "draft2@example.com",
           existingInviteId: "ci_d2",
-          isDraft: true,
+          status: COMPETITION_INVITE_STATUS.PENDING,
+          sendAttempt: 0,
         },
         {
           email: "draft3@example.com",
           existingInviteId: "ci_d3",
-          isDraft: true,
+          status: COMPETITION_INVITE_STATUS.PENDING,
+          sendAttempt: 0,
         },
       ],
     })

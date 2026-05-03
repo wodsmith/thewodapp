@@ -1142,22 +1142,31 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
           error: string
         }> = []
 
-        // Activate draft bespoke rows that came back as alreadyActive+isDraft.
-        // Wrapped per-iteration in try/catch for the same reason as the
-        // dispatch loop below: a transient blip rotating one row's token
-        // must not abort the whole batch — the caller has already
-        // committed inserted rows in their own transaction, and earlier
-        // drafts in this loop have already had their tokens rotated.
-        // Aborting here would strand them with no recovery path because
-        // a re-issue would classify them as `alreadyActive` non-drafts
-        // (skipped). Failed activations land in `failed[]` like dispatch
+        // Re-issue every still-pending already-active row. This covers
+        // three cases under one branch:
+        //   1. Draft bespoke rows (no token yet) — first activation.
+        //   2. Failed-dispatch pending rows — recovery resend.
+        //   3. Already-sent pending rows — organizer wants to send another
+        //      reminder. Rotating the token + bumping `sendAttempt` is the
+        //      clean way to do this: the same `invite.id` keeps Stripe
+        //      metadata, audit history, and copy-link affordances stable,
+        //      and the Resend `Idempotency-Key` includes `sendAttempt` so
+        //      a fresh dispatch is not deduplicated. `accepted_paid` rows
+        //      stay in `skipped` — the athlete already registered and
+        //      another invite would just confuse them.
+        //
+        // Wrapped per-iteration in try/catch so a transient blip rotating
+        // one row's token doesn't abort the whole batch — the caller has
+        // already committed inserted rows in their own transaction, and
+        // earlier reissues in this loop have already rotated their
+        // tokens. Failed reissues land in `failed[]` like dispatch
         // failures so the UI surfaces them the same way.
         const activated: Array<{
           invite: CompetitionInvite
           plaintextToken: string
         }> = []
         for (const prior of issueResult.alreadyActive) {
-          if (!prior.isDraft) continue
+          if (prior.status !== COMPETITION_INVITE_STATUS.PENDING) continue
           try {
             const rotated = await reissueInvite({
               inviteId: prior.existingInviteId,
@@ -1175,7 +1184,7 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
               error: errorMsg,
             })
             logWarning({
-              message: "[Invites] Activation failed mid-batch",
+              message: "[Invites] Reissue failed mid-batch",
               error: err,
               attributes: {
                 inviteId: prior.existingInviteId,
@@ -1286,7 +1295,12 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
           }
         }
 
-        const skipped = issueResult.alreadyActive.filter((r) => !r.isDraft)
+        // Only `accepted_paid` rows end up here now that pending rows are
+        // reissued above — re-inviting an athlete who already registered
+        // isn't useful, so the organizer sees them in the skipped list.
+        const skipped = issueResult.alreadyActive.filter(
+          (r) => r.status !== COMPETITION_INVITE_STATUS.PENDING,
+        )
         const dispatchFailureCount = failed.length - activationFailureCount
         const sentCount = allToDispatch.length - dispatchFailureCount
 
@@ -1430,6 +1444,14 @@ export interface ActiveInviteSummary {
   inviteeLastName: string | null
   userId: string | null
   /**
+   * Re-send counter on the row. Initial insert is `0` (= "sent once"),
+   * each reissue increments by one. The UI computes `sendAttempt + 1`
+   * for the user-facing "invited Nx" badge — but only for rows that
+   * have actually dispatched (i.e. `claimUrl !== null` or `sendAttempt
+   * > 0`); a draft (`sendAttempt = 0` + no token) reads as "Not sent".
+   */
+  sendAttempt: number
+  /**
    * Pre-built `${appUrl}/compete/${slug}/claim/${claimToken}` URL when
    * the row has a live token, else `null`. Mirrors the
    * `team_invitations`-style copy-link affordance.
@@ -1515,6 +1537,7 @@ export const listActiveInvitesFn = createServerFn({ method: "GET" })
             inviteeFirstName: competitionInvitesTable.inviteeFirstName,
             inviteeLastName: competitionInvitesTable.inviteeLastName,
             userId: competitionInvitesTable.userId,
+            sendAttempt: competitionInvitesTable.sendAttempt,
             claimToken: competitionInvitesTable.claimToken,
             championshipSlug: competitionsTable.slug,
           })
@@ -1615,6 +1638,7 @@ export const listAllInvitesFn = createServerFn({ method: "GET" })
             inviteeFirstName: competitionInvitesTable.inviteeFirstName,
             inviteeLastName: competitionInvitesTable.inviteeLastName,
             userId: competitionInvitesTable.userId,
+            sendAttempt: competitionInvitesTable.sendAttempt,
             claimToken: competitionInvitesTable.claimToken,
             lastUpdatedAt: competitionInvitesTable.updatedAt,
             championshipSlug: competitionsTable.slug,

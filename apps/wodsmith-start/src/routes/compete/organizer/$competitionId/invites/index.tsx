@@ -354,9 +354,24 @@ function InvitesPage() {
     () => bespokeInvites.filter((inv) => inv.claimUrl === null),
     [bespokeInvites],
   )
+  // Pending bespoke rows the organizer can either send (drafts) or
+  // re-send (non-drafts). `accepted_paid` rows are excluded — they're
+  // the only post-pending state allowed under `activeMarker = "active"`,
+  // and we don't re-invite people who already registered.
+  const sendableBespokeInvites = useMemo(
+    () =>
+      bespokeInvites.filter(
+        (inv) => inv.status === COMPETITION_INVITE_STATUS.PENDING,
+      ),
+    [bespokeInvites],
+  )
   const sentBespokeCount = bespokeInvites.length - draftBespokeInvites.length
 
-  const isRowAlreadyInvited = (r: RosterRow) => !!lookupInviteForRow(r)
+  // `accepted_paid` is the only state we treat as "locked from re-invite"
+  // — pending rows stay reissuable so the organizer can send another
+  // round (the server routes those through `reissueInvite`).
+  const isRowLockedFromReinvite = (r: RosterRow) =>
+    lookupInviteForRow(r)?.status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID
 
   const getInviteStatusForRow = (
     r: RosterRow,
@@ -377,6 +392,19 @@ function InvitesPage() {
 
   const getInviteUrlForRow = (r: RosterRow): string | null =>
     lookupInviteForRow(r)?.claimUrl ?? null
+
+  // "Times sent" for the row's invite, mirrored straight off
+  // `sendAttempt`. New rows have `sendAttempt = 0` (= "sent once" once
+  // dispatched), and each reissue increments by one — so the
+  // user-facing count is `sendAttempt + 1`. Drafts (no token, no send
+  // attempts) collapse to 0 so the "Invited Nx" badge stays hidden
+  // until something actually went out.
+  const getInviteSendCountForRow = (r: RosterRow): number => {
+    const inv = lookupInviteForRow(r)
+    if (!inv) return 0
+    if (inv.claimUrl === null && inv.sendAttempt === 0) return 0
+    return inv.sendAttempt + 1
+  }
 
   const copyInviteLink = async (url: string) => {
     try {
@@ -483,6 +511,16 @@ function InvitesPage() {
     })
   }
 
+  // True when the row points at an invite we should not (re-)send to —
+  // currently just `accepted_paid`. Pending rows are kept in the
+  // recipient set so the organizer can issue another reminder; the
+  // server reissues those rows in place rather than inserting a
+  // duplicate.
+  const shouldSkipForReinvite = (email: string) => {
+    const inv = activeInviteByEmail.get(email.toLowerCase())
+    return inv?.status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID
+  }
+
   // Build recipients from the FULL roster (not just the filtered view) so
   // selections persist across filter changes — the organizer can build up
   // a cross-filter recipient list and the count + Send dialog reflect the
@@ -494,7 +532,7 @@ function InvitesPage() {
     for (const r of roster.rows) {
       if (!r.athleteEmail) continue
       if (!selectedRosterKeys.has(rosterRowKey(r))) continue
-      if (activeInviteByEmail.has(r.athleteEmail.toLowerCase())) continue
+      if (shouldSkipForReinvite(r.athleteEmail)) continue
       const emailKey = r.athleteEmail.toLowerCase()
       if (seenEmail.has(emailKey)) continue
       seenEmail.add(emailKey)
@@ -513,7 +551,11 @@ function InvitesPage() {
         userId: r.userId,
       })
     }
-    const bespokeRecipients: SendRecipient[] = draftBespokeInvites
+    // Both drafts (no token yet) and pending non-drafts (already sent
+    // at least once) can be selected. Both go through the same send
+    // pipeline — the server reissues whichever rows already exist
+    // for the recipient's email + division.
+    const bespokeRecipients: SendRecipient[] = sendableBespokeInvites
       .filter((inv) => selectedDraftIds.has(inv.id))
       .map((inv) => ({
         email: inv.email,
@@ -528,7 +570,7 @@ function InvitesPage() {
     roster.rows,
     selectedRosterKeys,
     activeInviteByEmail,
-    draftBespokeInvites,
+    sendableBespokeInvites,
     selectedDraftIds,
   ])
 
@@ -540,7 +582,7 @@ function InvitesPage() {
     for (const r of roster.rows) {
       if (!r.athleteEmail) continue
       if (!selectedRosterKeys.has(rosterRowKey(r))) continue
-      if (activeInviteByEmail.has(r.athleteEmail.toLowerCase())) continue
+      if (shouldSkipForReinvite(r.athleteEmail)) continue
       const emailKey = r.athleteEmail.toLowerCase()
       if (seen.has(emailKey)) continue
       seen.add(emailKey)
@@ -553,7 +595,7 @@ function InvitesPage() {
     for (const r of filteredRosterRows) {
       if (!r.athleteEmail) continue
       if (!selectedRosterKeys.has(rosterRowKey(r))) continue
-      if (activeInviteByEmail.has(r.athleteEmail.toLowerCase())) continue
+      if (shouldSkipForReinvite(r.athleteEmail)) continue
       const emailKey = r.athleteEmail.toLowerCase()
       if (seen.has(emailKey)) continue
       seen.add(emailKey)
@@ -617,10 +659,12 @@ function InvitesPage() {
       // visible (filtered AND on the current page) — that's what the
       // organizer can see ticked. Selections from other pages are
       // preserved when toggling on, and only the current page's keys
-      // are removed when toggling off.
+      // are removed when toggling off. `accepted_paid` rows are
+      // skipped because the athlete already registered; pending rows
+      // are included so a select-all + send naturally covers re-invites.
       const next = new Set(prev)
       for (const r of pagedRosterRows) {
-        if (!r.athleteEmail || isRowAlreadyInvited(r)) continue
+        if (!r.athleteEmail || isRowLockedFromReinvite(r)) continue
         if (selectAll) next.add(rosterRowKey(r))
         else next.delete(rosterRowKey(r))
       }
@@ -811,6 +855,7 @@ function InvitesPage() {
                 onToggleAll={toggleAllRoster}
                 getInviteStatusForRow={getInviteStatusForRow}
                 getInviteUrlForRow={getInviteUrlForRow}
+                getInviteSendCountForRow={getInviteSendCountForRow}
                 allocationsBySourceByDivision={allocationsBySourceByDivision}
                 championshipDivisions={championshipDivisions}
               />
@@ -868,22 +913,22 @@ function InvitesPage() {
                       <TableHead className="w-12">
                         <Checkbox
                           checked={
-                            draftBespokeInvites.length > 0 &&
-                            draftBespokeInvites.every((inv) =>
+                            sendableBespokeInvites.length > 0 &&
+                            sendableBespokeInvites.every((inv) =>
                               selectedDraftIds.has(inv.id),
                             )
                           }
-                          disabled={draftBespokeInvites.length === 0}
+                          disabled={sendableBespokeInvites.length === 0}
                           onCheckedChange={(v) => {
                             setSelectedDraftIds(
                               v === true
                                 ? new Set(
-                                    draftBespokeInvites.map((inv) => inv.id),
+                                    sendableBespokeInvites.map((inv) => inv.id),
                                   )
                                 : new Set(),
                             )
                           }}
-                          aria-label="Select all draft invitees"
+                          aria-label="Select all sendable invitees"
                         />
                       </TableHead>
                       <TableHead className="w-20 text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -911,6 +956,18 @@ function InvitesPage() {
                           .join(" ") || inv.email
                       const initial = name.charAt(0).toUpperCase()
                       const isDraft = inv.claimUrl === null
+                      // A pending row that's already been sent at least
+                      // once is re-selectable so the organizer can fire
+                      // another reminder. `accepted_paid`, `declined`,
+                      // `expired`, and `revoked` rows stay locked.
+                      const isReinvitable =
+                        inv.status === COMPETITION_INVITE_STATUS.PENDING &&
+                        !isDraft
+                      const isSelectable = isDraft || isReinvitable
+                      const sendCount =
+                        inv.claimUrl === null && inv.sendAttempt === 0
+                          ? 0
+                          : inv.sendAttempt + 1
                       const statusLabel =
                         inv.status === "accepted_paid"
                           ? "Accepted"
@@ -934,20 +991,32 @@ function InvitesPage() {
                               : isDraft
                                 ? "border-dashed text-muted-foreground"
                                 : "border-transparent bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/20"
+                      const checkboxTitle = !isSelectable
+                        ? inv.status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID
+                          ? "Already registered — invite not needed"
+                          : `Invite is ${inv.status}; cannot re-send`
+                        : sendCount > 1
+                          ? `Already invited ${sendCount}× — sending again will be attempt ${sendCount + 1}`
+                          : isReinvitable
+                            ? "Already invited — sending again will be attempt 2"
+                            : undefined
                       return (
                         <TableRow key={inv.id}>
                           <TableCell>
                             <Checkbox
-                              checked={isDraft && selectedDraftIds.has(inv.id)}
-                              disabled={!isDraft}
+                              checked={
+                                isSelectable && selectedDraftIds.has(inv.id)
+                              }
+                              disabled={!isSelectable}
                               onCheckedChange={() =>
-                                isDraft && toggleDraftSelection(inv.id)
+                                isSelectable && toggleDraftSelection(inv.id)
                               }
                               aria-label={
-                                isDraft
+                                isSelectable
                                   ? `Select ${inv.email}`
-                                  : `${inv.email} already sent`
+                                  : `${inv.email} not selectable`
                               }
+                              title={checkboxTitle}
                             />
                           </TableCell>
                           <TableCell>
@@ -974,12 +1043,23 @@ function InvitesPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge
-                              variant={isDraft ? "outline" : "default"}
-                              className={statusBadgeClass}
-                            >
-                              {statusLabel}
-                            </Badge>
+                            <div className="flex items-center gap-1.5">
+                              <Badge
+                                variant={isDraft ? "outline" : "default"}
+                                className={statusBadgeClass}
+                              >
+                                {statusLabel}
+                              </Badge>
+                              {sendCount > 1 ? (
+                                <Badge
+                                  variant="outline"
+                                  className="border-amber-500/30 bg-amber-500/10 text-amber-300 tabular-nums"
+                                  title={`Invited ${sendCount} times`}
+                                >
+                                  {sendCount}×
+                                </Badge>
+                              ) : null}
+                            </div>
                           </TableCell>
                           <TableCell className="text-right">
                             {inv.claimUrl !== null ? (

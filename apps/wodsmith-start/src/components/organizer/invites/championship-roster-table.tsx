@@ -63,16 +63,21 @@ interface ChampionshipRosterTableProps {
   onToggleAll?: (selectAll: boolean) => void
   /** Returns the row's active-invite status so the table can render the
    *  status pill ("Registered" for `accepted_paid`, "Invited" for
-   *  `pending`, "Not invited" when null) and disable the row's checkbox
-   *  when there's any active invite. Without this, the row would render
-   *  as "Not invited" and let the organizer tick a box that the parent
-   *  silently drops. */
+   *  `pending`, "Not invited" when null). Pending rows stay selectable
+   *  so the organizer can re-send another round; `accepted_paid` rows
+   *  are disabled because the athlete has already registered. */
   getInviteStatusForRow?: (row: RosterRow) => RowInviteStatus | null
   /** When provided the table renders an Actions column with a "Copy
    *  invite link" affordance. Returns the claim URL for the row, or
    *  null when the row has no live token (draft / not-yet-sent /
    *  terminal). */
   getInviteUrlForRow?: (row: RosterRow) => string | null
+  /** Returns the number of times the athlete has been invited to this
+   *  championship (across divisions, across re-sends). Drives the
+   *  "Invited Nx" badge next to the status pill. Zero or null suppresses
+   *  the badge — fresh rows that have never been sent show only the
+   *  status pill. */
+  getInviteSendCountForRow?: (row: RosterRow) => number | null
   /** ADR-0012 Phase 4: resolved per-(source, championship-division)
    *  allocation map. When supplied alongside `championshipDivisions`,
    *  the table renders a small "Allocates N to {Division}" banner per
@@ -336,6 +341,27 @@ function StatusPill({ status }: { status: RowInviteStatus | null }) {
   )
 }
 
+/**
+ * Small chip rendered next to the status pill showing how many invite
+ * emails have been sent to the athlete (`sendAttempt + 1` on the
+ * underlying row). Suppressed for `count <= 0` so first-time-sendable
+ * rows stay visually quiet — the "Invited" pill alone implies "1
+ * invite," and the chip only appears once a re-send actually pushes the
+ * count past 1.
+ */
+function SendCountBadge({ count }: { count: number }) {
+  if (count <= 1) return null
+  return (
+    <Badge
+      variant="outline"
+      className="border-amber-500/30 bg-amber-500/10 text-amber-300 tabular-nums"
+      title={`Invited ${count} times`}
+    >
+      {count}×
+    </Badge>
+  )
+}
+
 export function ChampionshipRosterTable({
   rows,
   selectedKeys,
@@ -343,6 +369,7 @@ export function ChampionshipRosterTable({
   onToggleAll,
   getInviteStatusForRow,
   getInviteUrlForRow,
+  getInviteSendCountForRow,
   allocationsBySourceByDivision,
   championshipDivisions,
 }: ChampionshipRosterTableProps) {
@@ -350,8 +377,16 @@ export function ChampionshipRosterTable({
     !!selectedKeys && !!onToggleSelection && !!onToggleAll
   const actionsEnabled = !!getInviteUrlForRow
   const inviteStatusFor = (r: RosterRow) => getInviteStatusForRow?.(r) ?? null
-  const isInvited = (r: RosterRow) => inviteStatusFor(r) !== null
-  const selectableRows = rows.filter((r) => !!r.athleteEmail && !isInvited(r))
+  // `accepted_paid` rows are the only ones we keep locked: re-inviting an
+  // athlete who already registered is confusing. Pending rows are
+  // selectable so the organizer can send another reminder; the server
+  // routes those through `reissueInvite` (rotates token, bumps
+  // `sendAttempt`) rather than inserting a duplicate row.
+  const isLockedFromReinvite = (r: RosterRow) =>
+    inviteStatusFor(r) === COMPETITION_INVITE_STATUS.ACCEPTED_PAID
+  const selectableRows = rows.filter(
+    (r) => !!r.athleteEmail && !isLockedFromReinvite(r),
+  )
   const allSelected =
     selectionEnabled &&
     selectableRows.length > 0 &&
@@ -431,9 +466,19 @@ export function ChampionshipRosterTable({
               {rows.map((row) => {
                 const rowKey = rosterRowKey(row)
                 const rowInviteStatus = inviteStatusFor(row)
-                const rowAlreadyInvited = rowInviteStatus !== null
+                const rowLocked = isLockedFromReinvite(row)
+                const rowSendCount = getInviteSendCountForRow?.(row) ?? 0
                 const rowSelectable =
-                  selectionEnabled && !!row.athleteEmail && !rowAlreadyInvited
+                  selectionEnabled && !!row.athleteEmail && !rowLocked
+                const checkboxTitle = !row.athleteEmail
+                  ? "No email on file for this athlete"
+                  : rowLocked
+                    ? "Already registered — invite not needed"
+                    : rowInviteStatus === COMPETITION_INVITE_STATUS.PENDING
+                      ? rowSendCount > 1
+                        ? `Already invited ${rowSendCount}× — sending again will be attempt ${rowSendCount + 1}`
+                        : "Already invited — sending again will be attempt 2"
+                      : undefined
                 return (
                   <TableRow key={rowKey}>
                     {selectionEnabled ? (
@@ -445,13 +490,7 @@ export function ChampionshipRosterTable({
                             rowSelectable && onToggleSelection?.(rowKey, row)
                           }
                           aria-label={`Select ${row.athleteName}`}
-                          title={
-                            rowSelectable
-                              ? undefined
-                              : rowAlreadyInvited
-                                ? "Already invited"
-                                : "No email on file for this athlete"
-                          }
+                          title={checkboxTitle}
                         />
                       </TableCell>
                     ) : null}
@@ -478,7 +517,10 @@ export function ChampionshipRosterTable({
                       <RankCell placement={row.sourcePlacement} />
                     </TableCell>
                     <TableCell>
-                      <StatusPill status={rowInviteStatus} />
+                      <div className="flex items-center gap-1.5">
+                        <StatusPill status={rowInviteStatus} />
+                        <SendCountBadge count={rowSendCount} />
+                      </div>
                     </TableCell>
                     {actionsEnabled ? (
                       <TableCell className="text-right">

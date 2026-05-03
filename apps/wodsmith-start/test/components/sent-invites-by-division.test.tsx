@@ -18,6 +18,7 @@ const baseInvite = (
   inviteeFirstName: "Ada",
   inviteeLastName: "Lovelace",
   userId: "usr_a",
+  sendAttempt: 0,
   claimUrl: "https://example.com/compete/champ/claim/tok_1",
   divisionLabel: "RX Men",
   lastUpdatedAt: new Date("2026-04-20T12:00:00Z"),
@@ -329,6 +330,51 @@ describe("SentInvitesByDivision", () => {
       />,
     )
     expect(screen.getByText("1 accepted")).toBeInTheDocument()
+  })
+
+  it("renders a per-row Sends column showing how many times the invite was dispatched", () => {
+    // `sendAttempt = 0` + `claimUrl !== null` → first dispatch ("1×").
+    // `sendAttempt = 2` → reissued twice on top of the initial send ("3×").
+    // `sendAttempt = 0` + `claimUrl = null` → draft, never dispatched.
+    render(
+      <SentInvitesByDivision
+        invites={[
+          baseInvite({
+            id: "inv_first",
+            email: "first@example.com",
+            inviteeFirstName: "First",
+            inviteeLastName: "Send",
+            sendAttempt: 0,
+            claimUrl: "https://example.com/claim/first",
+          }),
+          baseInvite({
+            id: "inv_resent",
+            email: "resent@example.com",
+            inviteeFirstName: "Re",
+            inviteeLastName: "Sent",
+            sendAttempt: 2,
+            claimUrl: "https://example.com/claim/resent",
+          }),
+          baseInvite({
+            id: "inv_draft",
+            email: "draft@example.com",
+            inviteeFirstName: "Drafted",
+            inviteeLastName: "Bespoke",
+            origin: "bespoke",
+            sourceId: null,
+            sourcePlacementLabel: null,
+            sendAttempt: 0,
+            claimUrl: null,
+          }),
+        ]}
+        divisions={divisions}
+      />,
+    )
+
+    expect(screen.getByText("1×")).toBeInTheDocument()
+    expect(screen.getByText("3×")).toBeInTheDocument()
+    // The draft row reads "draft" in the Sends column rather than a count.
+    expect(screen.getByText("draft")).toBeInTheDocument()
   })
 
   it("counter chip in the card header reflects unfiltered totals", () => {
