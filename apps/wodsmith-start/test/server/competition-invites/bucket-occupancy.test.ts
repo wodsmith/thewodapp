@@ -108,4 +108,23 @@ describe("getOccupiedCountForBucket", () => {
 
 		expect(total).toBe(1)
 	})
+
+	// Same shape as excludePurchaseId, but keyed on the joined invite row
+	// so the claim guardrail can omit *the invitee's own* mid-checkout
+	// hold. Without this an athlete who returns to the claim page while
+	// their Stripe session is still alive sees "Partner has filled its
+	// spots" because their own pending purchase counts against the bucket.
+	it("accepts excludeInviteId so the claim guard skips the invitee's own hold", async () => {
+		selectQueue.push([{ count: 0 }])
+		selectQueue.push([{ count: 0 }])
+
+		const total = await getOccupiedCountForBucket({
+			sourceId: "cisrc_1",
+			championshipCompetitionId: "comp_champ",
+			championshipDivisionId: "div_rxm",
+			excludeInviteId: "cinv_self",
+		})
+
+		expect(total).toBe(0)
+	})
 })

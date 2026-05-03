@@ -67,6 +67,8 @@ Both division-level and competition-wide capacity are enforced at registration t
 
 Division capacity uses `calculateDivisionCapacity` with `divisionMaxSpots` (per-division override) falling back to `competitionDefaultMax`. Competition-wide capacity checks `maxTotalRegistrations`. Pending purchases (within a time window) count toward occupied spots to prevent overselling during concurrent checkouts.
 
+Invite-locked registration bypasses the public `isFull` derived from this calc when resolving the invited division's eligibility — see [[competition-invites#Registration hand-off from claim]]. The bypass is necessary because the public count includes the invitee's *own* pending Stripe hold, which would otherwise self-fill the division on retry. Caps are still enforced by the per-(source, division) allocation guardrail and the payment-time re-check.
+
 ADR-0013: the [[competition-invites#Sent invites tab]] reads the same `divisionMaxSpots ?? competitionDefaultMax` value for its per-division headline denominator, so the organizer-facing invite progress and the registration enforcement gate cannot drift. The divisions page is the single edit point for both.
 
 ## Stripe Checkout Workflow

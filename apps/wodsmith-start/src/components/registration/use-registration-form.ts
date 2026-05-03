@@ -92,7 +92,12 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
     return coupon?.competitionSlug === competition.slug ? coupon : null
   })
 
-  // Resolve initial division (eligible iff present + not registered/removed/full)
+  // Resolve initial division (eligible iff present + not registered/removed/full).
+  // Invite-locked URLs (`inviteToken` set) bypass the public `isFull` check —
+  // the invite IS the authorization, and the per-(source, division) allocation
+  // guardrail + payment-time re-check enforce the real cap. The public count
+  // also includes the invitee's own in-flight pending purchase, which would
+  // otherwise self-fill the division on a retry.
   const invitedDivision = (() => {
     if (!initialDivisionId) return null
     const level = scalingGroup.scalingLevels.find(
@@ -101,8 +106,10 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
     if (!level) return null
     if (registeredDivisionIds.includes(level.id)) return null
     if (removedDivisionIds.includes(level.id)) return null
-    const pub = publicDivisions.find((d) => d.id === level.id)
-    if (pub?.isFull) return null
+    if (!inviteToken) {
+      const pub = publicDivisions.find((d) => d.id === level.id)
+      if (pub?.isFull) return null
+    }
     return level
   })()
 

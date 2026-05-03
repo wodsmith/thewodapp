@@ -170,12 +170,16 @@ export async function getAcceptedPaidCountForBucket(args: {
  * `created_at > now - PENDING_PURCHASE_MAX_AGE_MINUTES`. The TTL matches
  * the Stripe checkout session expiry — abandoned sessions free their hold
  * implicitly without a sweep job. Pass `excludePurchaseId` to skip the
- * webhook's own purchase row during the authoritative race-close.
+ * webhook's own purchase row during the authoritative race-close. Pass
+ * `excludeInviteId` so the *invitee's own* mid-flight checkout doesn't
+ * count against them when they revisit the claim page; the hold is theirs,
+ * not someone else's contention.
  *
  * Existing accepted-paid count + soft-hold count = the number to compare
- * against the bucket's allocation. Two athletes claiming the last spot
- * concurrently both see the hold in the count, so the second one bounces
- * at claim load instead of paying-then-refunding.
+ * against the bucket's allocation. Two *different* athletes claiming the
+ * last spot concurrently both see the hold in the count, so the second one
+ * bounces at claim load instead of paying-then-refunding. The same athlete
+ * re-clicking their own claim link does not.
  */
 // @lat: [[competition-invites#Claim resolution]]
 export async function getOccupiedCountForBucket(args: {
@@ -183,6 +187,7 @@ export async function getOccupiedCountForBucket(args: {
   championshipCompetitionId: string
   championshipDivisionId: string
   excludePurchaseId?: string
+  excludeInviteId?: string
 }): Promise<number> {
   const db = getDb()
   const cutoff = new Date(
@@ -228,6 +233,9 @@ export async function getOccupiedCountForBucket(args: {
           eq(competitionInvitesTable.sourceId, args.sourceId),
           args.excludePurchaseId
             ? sql`${commercePurchaseTable.id} != ${args.excludePurchaseId}`
+            : sql`1 = 1`,
+          args.excludeInviteId
+            ? sql`${competitionInvitesTable.id} != ${args.excludeInviteId}`
             : sql`1 = 1`,
         ),
       ),

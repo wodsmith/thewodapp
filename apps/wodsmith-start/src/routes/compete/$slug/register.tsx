@@ -224,6 +224,7 @@ const getInvitePrefillFn = createServerFn({ method: "GET" })
     // through competitionsTable since the invite stores the championship id.
     const { getDb } = await import("@/db")
     const { competitionsTable } = await import("@/db/schemas/competitions")
+    const { scalingLevelsTable } = await import("@/db/schemas/scaling")
     const db = getDb()
     const [champ] = await db
       .select({ slug: competitionsTable.slug })
@@ -232,7 +233,21 @@ const getInvitePrefillFn = createServerFn({ method: "GET" })
       .limit(1)
     if (!champ || champ.slug !== data.slug) return { priorTeam: null as null }
 
-    const priorTeam = await getPriorTeamForInvite({ invite })
+    // Individual destinations have no team UI, so prior-team prefill is moot.
+    // Skipping here also avoids surfacing a multi-division source athlete's
+    // team data into an individual invite by accident.
+    const [destDivision] = await db
+      .select({ teamSize: scalingLevelsTable.teamSize })
+      .from(scalingLevelsTable)
+      .where(eq(scalingLevelsTable.id, invite.championshipDivisionId))
+      .limit(1)
+    const destTeamSize = destDivision?.teamSize ?? 1
+    if (destTeamSize <= 1) return { priorTeam: null as null }
+
+    const priorTeam = await getPriorTeamForInvite({
+      invite,
+      destinationTeamSize: destTeamSize,
+    })
     return { priorTeam }
   })
 
