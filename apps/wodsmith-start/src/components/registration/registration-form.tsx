@@ -249,6 +249,7 @@ export function InviteRegistrationForm(props: InviteProps) {
         competition={props.competition}
         registrationOpensAt={props.registrationOpensAt}
         registrationClosesAt={props.registrationClosesAt}
+        hideRegistrationWindow
       />
 
       <form onSubmit={r.onSubmit} className="space-y-6">

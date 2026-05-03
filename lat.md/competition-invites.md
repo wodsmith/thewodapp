@@ -264,6 +264,8 @@ The register route's `validateSearch` accepts both `invite` (the plaintext token
 
 Invite-locked URLs also bypass the public `isFull` eligibility check inside [[apps/wodsmith-start/src/components/registration/use-registration-form.ts#useRegistrationForm]] when computing `invitedDivision`. The public capacity calc folds in pending `commerce_purchases` rows; a stale pending purchase from the invitee's own prior abandoned attempt would otherwise self-fill the division, fall the resolution back to `null`, and bounce the form into `PublicRegistrationForm` (where an unset registration window then renders "Registration Closed"). The invite is the authorization — the per-(source, division) allocation guardrail and the payment-time re-check enforce the real cap, so the public count is redundant for the invited division. The `registeredDivisionIds` and `removedDivisionIds` checks still apply because those represent durable state, not soft holds.
 
+The invite variant also passes `hideRegistrationWindow` to [[apps/wodsmith-start/src/components/registration/registration-sections.tsx#CompetitionDetailsCard]] so the "Registration Window" row is suppressed entirely. Invitees bypass the public window, and surfacing "TBA - TBA" (when dates aren't configured) directly contradicts the invite's "register now" CTA. The Competition Date and Hosted By rows still render.
+
 ## Prior team prefill
 
 When an athlete arrives at the registration form via an invite for a team division, the form pre-fills the team name and teammate slots from the team they were on in the qualifying source competition.

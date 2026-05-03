@@ -710,10 +710,7 @@ function AllocationMismatchWarning({
         : `Source allocations sum to ${mismatch.allocationTotal}, fewer than this division's capacity of ${mismatch.maxSpots}.`
 
   return (
-    <div
-      role="status"
-      className="mt-1 flex flex-wrap items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-300"
-    >
+    <output className="mt-1 flex flex-wrap items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-300">
       <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden="true" />
       <span className="leading-snug">{message}</span>
       {competitionId ? (
@@ -725,6 +722,6 @@ function AllocationMismatchWarning({
           Update division capacity →
         </Link>
       ) : null}
-    </div>
+    </output>
   )
 }
