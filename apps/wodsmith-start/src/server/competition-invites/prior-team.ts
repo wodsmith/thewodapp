@@ -11,19 +11,27 @@
  * return the other members of that athlete team. The captain (= invitee)
  * is filtered out.
  *
+ * Multi-division source athletes: an athlete may have multiple registrations
+ * in one source comp (e.g. captain of a partner team AND individual in a
+ * solo division). When `destinationTeamSize` is supplied, we prefer a source
+ * registration whose source-division `teamSize` matches the destination
+ * championship division's `teamSize`. Tie-break on oldest `registeredAt`.
+ * Falls back to "any team registration" if no exact match.
+ *
  * Bespoke invites (no `sourceCompetitionId`) and individual prior
  * registrations (`athleteTeamId IS NULL`) return `null` — caller falls
  * back to empty teammate slots.
  */
 // @lat: [[competition-invites#Prior team prefill]]
 
-import { and, eq, ne } from "drizzle-orm"
+import { and, asc, eq, ne } from "drizzle-orm"
 import { getDb } from "@/db"
 import type { CompetitionInvite } from "@/db/schemas/competition-invites"
 import {
   REGISTRATION_STATUS,
   competitionRegistrationsTable,
 } from "@/db/schemas/competitions"
+import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { teamMembershipTable } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
 import { normalizeInviteEmail } from "./issue"
@@ -44,8 +52,17 @@ export interface PriorTeam {
 
 export async function getPriorTeamForInvite(args: {
   invite: Pick<CompetitionInvite, "sourceCompetitionId" | "userId" | "email">
+  /**
+   * The destination championship division's `teamSize`. When supplied and
+   * > 1, the helper prefers a source registration whose source-division
+   * `teamSize` matches this value — disambiguating multi-division source
+   * athletes (e.g. partner-captain + solo registrant in the same source).
+   * When unset, the helper falls back to its legacy "first team reg wins"
+   * behavior.
+   */
+  destinationTeamSize?: number
 }): Promise<PriorTeam | null> {
-  const { invite } = args
+  const { invite, destinationTeamSize } = args
   if (!invite.sourceCompetitionId) return null
 
   const db = getDb()
@@ -64,16 +81,24 @@ export async function getPriorTeamForInvite(args: {
   }
   if (!inviteeUserId) return null
 
-  // 2. Find the invitee's registration in the prior comp. We accept either:
+  // 2. Find the invitee's registration(s) in the prior comp. We accept either:
   //    - userId match (they were captain), OR
   //    - membership in the prior athleteTeam (they were a teammate).
-  //    Try captain-first; if no captain row, fall through to membership.
-  const [captainReg] = await db
+  //    A single user may have multiple captain rows when registered in
+  //    several divisions in the source. Pull all of them and rank by
+  //    source-division teamSize == destinationTeamSize, then registeredAt.
+  const captainRegs = await db
     .select({
       athleteTeamId: competitionRegistrationsTable.athleteTeamId,
       teamName: competitionRegistrationsTable.teamName,
+      registeredAt: competitionRegistrationsTable.registeredAt,
+      sourceTeamSize: scalingLevelsTable.teamSize,
     })
     .from(competitionRegistrationsTable)
+    .leftJoin(
+      scalingLevelsTable,
+      eq(competitionRegistrationsTable.divisionId, scalingLevelsTable.id),
+    )
     .where(
       and(
         eq(competitionRegistrationsTable.eventId, invite.sourceCompetitionId),
@@ -81,10 +106,17 @@ export async function getPriorTeamForInvite(args: {
         ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
       ),
     )
-    .limit(1)
+    .orderBy(asc(competitionRegistrationsTable.registeredAt))
 
-  let athleteTeamId = captainReg?.athleteTeamId ?? null
-  let teamName = captainReg?.teamName ?? null
+  const teamCaptainRegs = captainRegs.filter((r) => r.athleteTeamId)
+  const preferredCaptain =
+    typeof destinationTeamSize === "number" && destinationTeamSize > 1
+      ? teamCaptainRegs.find((r) => r.sourceTeamSize === destinationTeamSize) ??
+        teamCaptainRegs[0]
+      : teamCaptainRegs[0]
+
+  let athleteTeamId = preferredCaptain?.athleteTeamId ?? null
+  let teamName = preferredCaptain?.teamName ?? null
 
   if (!athleteTeamId) {
     // Membership lane: invitee was a teammate (not captain) on a prior
@@ -109,17 +141,32 @@ export async function getPriorTeamForInvite(args: {
       .select({
         athleteTeamId: competitionRegistrationsTable.athleteTeamId,
         teamName: competitionRegistrationsTable.teamName,
+        registeredAt: competitionRegistrationsTable.registeredAt,
+        sourceTeamSize: scalingLevelsTable.teamSize,
       })
       .from(competitionRegistrationsTable)
+      .leftJoin(
+        scalingLevelsTable,
+        eq(competitionRegistrationsTable.divisionId, scalingLevelsTable.id),
+      )
       .where(
         and(
           eq(competitionRegistrationsTable.eventId, invite.sourceCompetitionId),
           ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
         ),
       )
-    const match = candidateRegs.find(
+      .orderBy(asc(competitionRegistrationsTable.registeredAt))
+
+    const memberCandidates = candidateRegs.filter(
       (r) => r.athleteTeamId && teamIds.includes(r.athleteTeamId),
     )
+    const match =
+      typeof destinationTeamSize === "number" && destinationTeamSize > 1
+        ? memberCandidates.find(
+            (r) => r.sourceTeamSize === destinationTeamSize,
+          ) ?? memberCandidates[0]
+        : memberCandidates[0]
+
     if (!match?.athleteTeamId) return null
     athleteTeamId = match.athleteTeamId
     teamName = match.teamName

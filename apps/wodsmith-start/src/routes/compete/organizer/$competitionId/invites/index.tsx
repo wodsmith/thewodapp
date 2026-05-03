@@ -44,7 +44,10 @@ import {
   SendInvitesDialog,
   type SendRecipient,
 } from "@/components/organizer/invites/send-invites-dialog"
-import { SentInvitesByDivision } from "@/components/organizer/invites/sent-invites-by-division"
+import {
+  buildSentTabDivisions,
+  SentInvitesByDivision,
+} from "@/components/organizer/invites/sent-invites-by-division"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -171,12 +174,12 @@ export const Route = createFileRoute(
       listAllInvitesFn({
         data: { championshipCompetitionId: params.competitionId },
       }),
-      // ADR-0012: per-(source, division) allocation map + summed-by-
-      // division totals. The Sent tab's chip denominators read from
-      // `allocationsBySourceByDivision`, and the division headline
-      // denominator (`maxSpots` below) reads from
-      // `divisionAllocationTotals` instead of `competition_divisions
-      // .maxSpots` (registration capacity).
+      // ADR-0012: per-(source, division) allocation map. The Sent tab's
+      // chip denominators read from `allocationsBySourceByDivision`. The
+      // summed-by-division totals (`divisionAllocationTotals`) are no
+      // longer used as the headline denominator (see ADR-0013) — they
+      // now drive the mismatch warning that compares allocation intent
+      // against the division's actual cap.
       listInviteSourceAllocationsFn({
         data: { championshipCompetitionId: params.competitionId },
       }),
@@ -191,23 +194,19 @@ export const Route = createFileRoute(
     const { allocationsBySourceByDivision, divisionAllocationTotals } =
       allocationsResult
 
-    // ADR-0012 Phase 2: the Sent tab's per-division headline denominator
-    // switches from `competition_divisions.maxSpots` (registration
-    // capacity) to `divisionAllocationTotals[divisionId]` — the resolved
-    // sum of per-source allocations for that championship division. A
-    // total of `0` collapses to `null` so the component renders "X
-    // accepted" with no denominator (matches the existing optional-field
-    // signal for "no per-division cap set").
-    const championshipDivisions = (divisionsResult.divisions ?? []).map(
-      (d: { id: string; label: string; maxSpots: number | null }) => {
-        const total = divisionAllocationTotals[d.id] ?? 0
-        return {
-          id: d.id,
-          label: d.label,
-          maxSpots: total > 0 ? total : null,
-        }
-      },
-    )
+    // ADR-0013: `buildSentTabDivisions` resolves each division's cap as
+    // `competition_divisions.maxSpots ?? competitions.defaultMaxSpotsPerDivision`
+    // — the same value `calculateDivisionCapacity` enforces at
+    // registration — and attaches `allocationTotal` (the resolved sum
+    // of per-source allocations) so the component can warn when the
+    // organizer's source-allocation plan disagrees with the division's
+    // actual cap. Extracted as a pure helper for unit-testability.
+    const championshipDivisions = buildSentTabDivisions({
+      divisions: divisionsResult.divisions ?? [],
+      defaultMaxSpotsPerDivision:
+        divisionsResult.defaultMaxSpotsPerDivision ?? null,
+      divisionAllocationTotals,
+    })
 
     // Source pickers in the EditInviteSourceDialog exclude the championship
     // itself — a competition cannot qualify athletes from its own leaderboard.
@@ -1035,6 +1034,7 @@ function InvitesPage() {
             competitionNamesById={competitionNamesById}
             seriesNamesById={seriesNamesById}
             allocationsBySourceByDivision={allocationsBySourceByDivision}
+            competitionId={competitionId}
           />
         </TabsContent>
 

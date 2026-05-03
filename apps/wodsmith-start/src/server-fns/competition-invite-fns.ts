@@ -803,6 +803,10 @@ export const getInviteByTokenFn = createServerFn({ method: "GET" })
               sourceId: invite.sourceId,
               championshipCompetitionId: invite.championshipCompetitionId,
               championshipDivisionId: invite.championshipDivisionId,
+              // The invitee's own mid-checkout hold belongs to *this* invite —
+              // counting it would falsely "fill" the bucket when they revisit
+              // claim while their own Stripe session is still alive.
+              excludeInviteId: invite.id,
             }),
           ])
           const allocationCheck = assertInviteWithinAllocation({

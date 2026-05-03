@@ -377,6 +377,9 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
           championshipCompetitionId: input.competitionId,
           championshipDivisionId:
             inviteDivisionIdForPurchase ?? input.items[0].divisionId,
+          // Stale pending purchases from the same invitee's prior abandoned
+          // attempt would otherwise self-block when they retry the form.
+          excludeInviteId: inviteIdForPurchase,
         }),
       ])
       const allocationCheck = assertInviteWithinAllocation({
@@ -644,6 +647,9 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
               sourceId: inviteSourceIdForGuardrail,
               championshipCompetitionId: input.competitionId,
               championshipDivisionId: inviteDivisionId,
+              // Same self-exclusion as the preflight: this invite's own
+              // stale pending purchases shouldn't block its own free flip.
+              excludeInviteId: inviteIdForPurchase,
             }),
           ])
           const allocationCheck = assertInviteWithinAllocation({
