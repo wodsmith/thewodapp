@@ -328,11 +328,6 @@ function ClaimablePage(props: {
               Continue to registration
             </Link>
           </Button>
-          {error ? (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          ) : null}
           <div className="text-center">
             <button
               type="button"
@@ -347,7 +342,16 @@ function ClaimablePage(props: {
           </div>
         </CardContent>
       </Card>
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+      <AlertDialog
+        open={confirmOpen}
+        onOpenChange={(next) => {
+          // Clear any stale error when the user cancels or dismisses —
+          // re-opening should start clean rather than show the prior
+          // attempt's failure.
+          if (!next) setError(null)
+          setConfirmOpen(next)
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Decline this invite?</AlertDialogTitle>
@@ -357,6 +361,11 @@ function ClaimablePage(props: {
               someone else.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {error ? (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={submitting}>
               Keep my spot
