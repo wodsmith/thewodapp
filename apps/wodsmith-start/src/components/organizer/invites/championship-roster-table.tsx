@@ -41,7 +41,7 @@ import { cn } from "@/utils/cn"
 
 type RowInviteStatus = Extract<
   CompetitionInviteStatus,
-  "pending" | "accepted_paid"
+  "pending" | "accepted_paid" | "declined"
 >
 
 export function rosterRowKey(row: RosterRow): string {
@@ -61,12 +61,13 @@ interface ChampionshipRosterTableProps {
   selectedKeys?: Set<string>
   onToggleSelection?: (key: string, row: RosterRow) => void
   onToggleAll?: (selectAll: boolean) => void
-  /** Returns the row's active-invite status so the table can render the
-   *  status pill ("Registered" for `accepted_paid`, "Invited" for
-   *  `pending`, "Not invited" when null) and disable the row's checkbox
-   *  when there's any active invite. Without this, the row would render
-   *  as "Not invited" and let the organizer tick a box that the parent
-   *  silently drops. */
+  /** Returns the row's invite status so the table can render the status
+   *  pill ("Registered" for `accepted_paid`, "Invited" for `pending`,
+   *  "Declined" when the athlete declined, "Not invited" when null).
+   *  Pending and accepted invites disable the row's checkbox; "declined"
+   *  is informational only — the organizer can re-issue. Without this,
+   *  the row would render as "Not invited" and let the organizer tick a
+   *  box that the parent silently drops. */
   getInviteStatusForRow?: (row: RosterRow) => RowInviteStatus | null
   /** When provided the table renders an Actions column with a "Copy
    *  invite link" affordance. Returns the claim URL for the row, or
@@ -329,6 +330,16 @@ function StatusPill({ status }: { status: RowInviteStatus | null }) {
       </Badge>
     )
   }
+  if (status === COMPETITION_INVITE_STATUS.DECLINED) {
+    return (
+      <Badge
+        variant="outline"
+        className="border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 hover:border-rose-500/50"
+      >
+        Declined
+      </Badge>
+    )
+  }
   return (
     <Badge variant="outline" className="text-muted-foreground">
       Not invited
@@ -350,7 +361,17 @@ export function ChampionshipRosterTable({
     !!selectedKeys && !!onToggleSelection && !!onToggleAll
   const actionsEnabled = !!getInviteUrlForRow
   const inviteStatusFor = (r: RosterRow) => getInviteStatusForRow?.(r) ?? null
-  const isInvited = (r: RosterRow) => inviteStatusFor(r) !== null
+  // "Already invited" gates the row's checkbox. Declined doesn't gate —
+  // the organizer can stage them again and re-issue. Pending and
+  // accepted_paid rows stay locked because the parent silently drops
+  // them on send.
+  const isInvited = (r: RosterRow) => {
+    const status = inviteStatusFor(r)
+    return (
+      status === COMPETITION_INVITE_STATUS.PENDING ||
+      status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID
+    )
+  }
   const selectableRows = rows.filter((r) => !!r.athleteEmail && !isInvited(r))
   const allSelected =
     selectionEnabled &&
@@ -431,7 +452,7 @@ export function ChampionshipRosterTable({
               {rows.map((row) => {
                 const rowKey = rosterRowKey(row)
                 const rowInviteStatus = inviteStatusFor(row)
-                const rowAlreadyInvited = rowInviteStatus !== null
+                const rowAlreadyInvited = isInvited(row)
                 const rowSelectable =
                   selectionEnabled && !!row.athleteEmail && !rowAlreadyInvited
                 return (

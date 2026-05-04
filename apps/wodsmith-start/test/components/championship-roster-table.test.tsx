@@ -46,4 +46,25 @@ describe("ChampionshipRosterTable", () => {
     expect(screen.getAllByText("SLC Throwdown")).toHaveLength(2)
     expect(screen.getAllByText("RX Men")).toHaveLength(2)
   })
+
+  it("renders 'Declined' pill and keeps the row selectable", () => {
+    const declinedRow = row({
+      athleteName: "Ada Lovelace",
+      athleteEmail: "ada@example.com",
+      userId: "usr_a",
+    })
+    render(
+      <ChampionshipRosterTable
+        rows={[declinedRow]}
+        selectedKeys={new Set()}
+        onToggleSelection={() => {}}
+        onToggleAll={() => {}}
+        getInviteStatusForRow={() => "declined"}
+      />,
+    )
+    expect(screen.getByText("Declined")).toBeInTheDocument()
+    // Declined doesn't gate the checkbox — organizer can re-issue.
+    const checkbox = screen.getByRole("checkbox", { name: /Select Ada/i })
+    expect(checkbox).not.toBeDisabled()
+  })
 })

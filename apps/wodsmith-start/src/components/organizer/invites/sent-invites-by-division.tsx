@@ -190,12 +190,66 @@ function formatRelativeTime(date: Date | null): string {
   return `${Math.round(diffMo / 12)}y ago`
 }
 
+// Forward-looking variant of `formatRelativeTime`. Picks an "in Nd"
+// phrasing for future timestamps and "expired Nd ago" for past
+// timestamps so the Sent tab's expiry column reads naturally regardless
+// of which side of "now" the deadline sits on.
+function formatExpiryRelative(date: Date | null): string {
+  if (!date) return "—"
+  const ts = date instanceof Date ? date.getTime() : new Date(date).getTime()
+  if (Number.isNaN(ts)) return "—"
+  const diffSec = Math.round((ts - Date.now()) / 1000)
+  if (diffSec <= 0) {
+    const past = -diffSec
+    if (past < 60) return "expired"
+    const m = Math.round(past / 60)
+    if (m < 60) return `expired ${m}m ago`
+    const h = Math.round(m / 60)
+    if (h < 24) return `expired ${h}h ago`
+    const d = Math.round(h / 24)
+    if (d < 30) return `expired ${d}d ago`
+    const mo = Math.round(d / 30)
+    if (mo < 12) return `expired ${mo}mo ago`
+    return `expired ${Math.round(mo / 12)}y ago`
+  }
+  if (diffSec < 60) return "in <1m"
+  const m = Math.round(diffSec / 60)
+  if (m < 60) return `in ${m}m`
+  const h = Math.round(m / 60)
+  if (h < 24) return `in ${h}h`
+  const d = Math.round(h / 24)
+  if (d < 30) return `in ${d}d`
+  const mo = Math.round(d / 30)
+  if (mo < 12) return `in ${mo}mo`
+  return `in ${Math.round(mo / 12)}y`
+}
+
 function nameForInvite(invite: AuditInviteSummary): string {
   return (
     [invite.inviteeFirstName, invite.inviteeLastName]
       .filter(Boolean)
       .join(" ") || invite.email
   )
+}
+
+// Sort key for "actionable rows on top, terminal rows on the bottom".
+// Lower = higher in the list. Within each bucket the existing relative
+// order survives because Array.prototype.sort is stable in modern JS
+// engines, so the visual ordering within "active" stays whatever
+// upstream order the data arrived in.
+const STATUS_SORT_BUCKET: Record<StatusKey, number> = {
+  pending: 0,
+  accepted: 0,
+  declined: 1,
+  expired: 2,
+  revoked: 2,
+}
+
+function compareInvitesByStatusBucket(
+  a: AuditInviteSummary,
+  b: AuditInviteSummary,
+): number {
+  return STATUS_SORT_BUCKET[statusKeyFor(a)] - STATUS_SORT_BUCKET[statusKeyFor(b)]
 }
 
 async function copyToClipboard(text: string) {
@@ -249,6 +303,13 @@ export function SentInvitesByDivision({
       const list = map.get(inv.championshipDivisionId) ?? []
       list.push(inv)
       map.set(inv.championshipDivisionId, list)
+    }
+    // Within each division, push terminal rows (declined first, then
+    // expired / revoked) to the bottom so the organizer's primary scan
+    // path stays on actionable invites — accepted + pending — without
+    // having to scroll past dead ones.
+    for (const list of map.values()) {
+      list.sort(compareInvitesByStatusBucket)
     }
     return map
   }, [filteredInvites])
@@ -492,6 +553,9 @@ export function SentInvitesByDivision({
                           <TableHead className="w-24 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                             Updated
                           </TableHead>
+                          <TableHead className="w-28 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                            Expires
+                          </TableHead>
                           <TableHead className="w-16 text-right">
                             <span className="sr-only">Actions</span>
                           </TableHead>
@@ -509,6 +573,17 @@ export function SentInvitesByDivision({
                           const lastUpdatedAt = inv.lastUpdatedAt
                             ? new Date(inv.lastUpdatedAt)
                             : null
+                          const expiresAt = inv.expiresAt
+                            ? new Date(inv.expiresAt)
+                            : null
+                          // Past expiry on a still-pending row is the
+                          // organizer's signal that this athlete won't
+                          // be auto-cleaned until the expiry sweep runs;
+                          // tint amber to flag it.
+                          const expiryIsOverdue =
+                            expiresAt !== null &&
+                            expiresAt.getTime() < Date.now() &&
+                            sKey === "pending"
                           return (
                             <TableRow key={inv.id}>
                               <TableCell>
@@ -547,6 +622,16 @@ export function SentInvitesByDivision({
                                 title={lastUpdatedAt?.toISOString() ?? ""}
                               >
                                 {formatRelativeTime(lastUpdatedAt)}
+                              </TableCell>
+                              <TableCell
+                                className={`text-xs ${
+                                  expiryIsOverdue
+                                    ? "text-amber-300"
+                                    : "text-muted-foreground"
+                                }`}
+                                title={expiresAt?.toISOString() ?? ""}
+                              >
+                                {formatExpiryRelative(expiresAt)}
                               </TableCell>
                               <TableCell className="text-right">
                                 {inv.claimUrl !== null ? (

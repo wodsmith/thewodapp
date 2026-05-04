@@ -45,6 +45,7 @@ const baseInvite = (
   divisionLabel: "RX Men",
   lastUpdatedAt: new Date("2026-04-20T12:00:00Z"),
   sourceId: "cisrc_qualifier",
+  expiresAt: new Date("2026-05-20T23:59:59Z"),
   ...overrides,
 })
 
@@ -183,6 +184,85 @@ describe("SentInvitesByDivision", () => {
 
     expect(screen.queryByText("Ada Lovelace")).not.toBeInTheDocument()
     expect(screen.getByText("Grace Hopper")).toBeInTheDocument()
+  })
+
+  it("sorts declined and other terminal rows to the bottom of each division", () => {
+    render(
+      <SentInvitesByDivision
+        invites={[
+          baseInvite({
+            id: "inv_declined",
+            email: "declined@example.com",
+            inviteeFirstName: "Declined",
+            inviteeLastName: "First",
+            status: "declined",
+            activeMarker: null,
+            claimUrl: null,
+          }),
+          baseInvite({
+            id: "inv_pending",
+            email: "pending@example.com",
+            inviteeFirstName: "Pending",
+            inviteeLastName: "Second",
+            status: "pending",
+          }),
+          baseInvite({
+            id: "inv_accepted",
+            email: "accepted@example.com",
+            inviteeFirstName: "Accepted",
+            inviteeLastName: "Third",
+            status: "accepted_paid",
+          }),
+        ]}
+        divisions={divisions}
+      />,
+    )
+
+    const cells = screen.getAllByText(/First|Second|Third/)
+    // Within the RX Men card body the order should be actionable
+    // statuses first, declined last — regardless of input order.
+    const labels = cells.map((c) => c.textContent)
+    const declinedIdx = labels.findIndex((l) => l?.includes("First"))
+    const pendingIdx = labels.findIndex((l) => l?.includes("Second"))
+    const acceptedIdx = labels.findIndex((l) => l?.includes("Third"))
+    expect(declinedIdx).toBeGreaterThan(pendingIdx)
+    expect(declinedIdx).toBeGreaterThan(acceptedIdx)
+  })
+
+  it("renders the expiration column with future and past expiries", () => {
+    // Freeze "now" so the relative-time strings are deterministic.
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-05-01T00:00:00Z"))
+    try {
+      render(
+        <SentInvitesByDivision
+          invites={[
+            baseInvite({
+              id: "inv_future",
+              email: "future@example.com",
+              inviteeFirstName: "Future",
+              inviteeLastName: "Athlete",
+              status: "pending",
+              expiresAt: new Date("2026-05-08T00:00:00Z"),
+            }),
+            baseInvite({
+              id: "inv_past",
+              email: "past@example.com",
+              inviteeFirstName: "Past",
+              inviteeLastName: "Athlete",
+              status: "pending",
+              expiresAt: new Date("2026-04-25T00:00:00Z"),
+            }),
+          ]}
+          divisions={divisions}
+        />,
+      )
+      expect(screen.getByText("Expires")).toBeInTheDocument()
+      expect(screen.getByText("in 7d")).toBeInTheDocument()
+      expect(screen.getByText("expired 6d ago")).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it("renders accepted/maxSpots ratio under each division title", () => {
