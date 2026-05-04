@@ -1467,6 +1467,12 @@ export interface AuditInviteSummary extends ActiveInviteSummary {
    *  bespoke. Used by the Sent tab to group accepted invites under each
    *  qualification source. */
   sourceId: string | null
+  /** Hard expiry from `competition_invites.expiresAt`. Mirrors the round's
+   *  `rsvpDeadlineAt` at issue time but stored per-invite so per-invite
+   *  extensions can move it. `null` when the invite has no expiry set
+   *  (drafts, or rounds without a deadline). Sent tab renders this so the
+   *  organizer can see how soon the live claim link goes stale. */
+  expiresAt: Date | null
 }
 
 /**
@@ -1569,10 +1575,12 @@ const listAllInvitesInputSchema = z.object({
 
 /**
  * List every invite (active OR terminal) for a championship. Powers the
- * organizer "Sent" audit tab — grouped by division, filterable by
- * status / origin / search. Distinct from `listActiveInvitesFn` which
- * only returns active rows so the Candidates tab's bespoke-draft list
- * never bleeds in declined/expired/revoked history.
+ * organizer "Sent" audit tab and the Candidates tab's bespoke list +
+ * roster status pills (so declined athletes stay visible to the
+ * organizer). Distinct from `listActiveInvitesFn`, which still drives
+ * the recipient-dedup map on the Candidates tab — that gate explicitly
+ * needs to *exclude* declined rows so re-issues flow back through
+ * `issueInvitesFn` instead of being silently filtered as duplicates.
  *
  * Joins `scalingLevels` to surface `divisionLabel` per row so the
  * client doesn't need a per-row map lookup, and selects `updatedAt`
@@ -1621,6 +1629,7 @@ export const listAllInvitesFn = createServerFn({ method: "GET" })
             userId: competitionInvitesTable.userId,
             claimToken: competitionInvitesTable.claimToken,
             lastUpdatedAt: competitionInvitesTable.updatedAt,
+            expiresAt: competitionInvitesTable.expiresAt,
             championshipSlug: competitionsTable.slug,
             divisionLabel: scalingLevelsTable.label,
           })

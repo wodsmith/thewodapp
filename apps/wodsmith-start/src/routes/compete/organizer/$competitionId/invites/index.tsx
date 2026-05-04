@@ -81,6 +81,7 @@ import {
 } from "@/server-fns/competition-fns"
 import {
   type ActiveInviteSummary,
+  type AuditInviteSummary,
   getChampionshipRosterFn,
   listActiveInvitesFn,
   listAllInvitesFn,
@@ -308,6 +309,10 @@ function InvitesPage() {
   // "Already invited" means "engaged at this championship in any
   // division" — we no longer scope the badge per championship division.
   // The send dialog enforces per-division uniqueness server-side.
+  // `activeInviteBy*` powers recipient deduplication: athletes with a
+  // pending or accepted_paid invite cannot be re-staged. Declined
+  // athletes are intentionally absent from these maps so the organizer
+  // can re-issue without manually purging the prior row.
   const activeInviteByEmail = useMemo(() => {
     const map = new Map<string, ActiveInviteSummary>()
     for (const inv of activeInvites) {
@@ -318,60 +323,142 @@ function InvitesPage() {
     return map
   }, [activeInvites])
 
-  const activeInviteByUserId = useMemo(() => {
-    const map = new Map<string, ActiveInviteSummary>()
-    for (const inv of activeInvites) {
+  // Status-display lookup: includes declined rows so the championship
+  // roster table can render a "Declined" pill. Active invites win when
+  // both exist (re-issued pending row → display the new pending state,
+  // not the prior decline). Sourced from `allInvites` because
+  // `activeInvites` filters declined rows out at the SQL level.
+  const inviteForStatusByEmail = useMemo(() => {
+    const map = new Map<string, AuditInviteSummary>()
+    // Pass 1: actives (pending / accepted_paid) take priority.
+    for (const inv of allInvites) {
+      if (inv.activeMarker === "active") {
+        map.set(inv.email.toLowerCase(), inv)
+      }
+    }
+    // Pass 2: declined fills gaps when there's no active row for the
+    // athlete. Prefer the most-recent declined row when several exist.
+    for (const inv of allInvites) {
+      if (inv.status !== COMPETITION_INVITE_STATUS.DECLINED) continue
+      const key = inv.email.toLowerCase()
+      const prior = map.get(key)
+      if (!prior || prior.status === COMPETITION_INVITE_STATUS.DECLINED) {
+        const priorTs = prior?.lastUpdatedAt
+          ? new Date(prior.lastUpdatedAt).getTime()
+          : -Infinity
+        const currentTs = inv.lastUpdatedAt
+          ? new Date(inv.lastUpdatedAt).getTime()
+          : 0
+        if (!prior || currentTs >= priorTs) map.set(key, inv)
+      }
+    }
+    return map
+  }, [allInvites])
+
+  const inviteForStatusByUserId = useMemo(() => {
+    const map = new Map<string, AuditInviteSummary>()
+    for (const inv of allInvites) {
       if (inv.activeMarker === "active" && inv.userId) {
         map.set(inv.userId, inv)
       }
     }
+    for (const inv of allInvites) {
+      if (inv.status !== COMPETITION_INVITE_STATUS.DECLINED) continue
+      if (!inv.userId) continue
+      const prior = map.get(inv.userId)
+      if (!prior || prior.status === COMPETITION_INVITE_STATUS.DECLINED) {
+        const priorTs = prior?.lastUpdatedAt
+          ? new Date(prior.lastUpdatedAt).getTime()
+          : -Infinity
+        const currentTs = inv.lastUpdatedAt
+          ? new Date(inv.lastUpdatedAt).getTime()
+          : 0
+        if (!prior || currentTs >= priorTs) map.set(inv.userId, inv)
+      }
+    }
     return map
-  }, [activeInvites])
+  }, [allInvites])
 
-  const lookupInviteForRow = (r: RosterRow): ActiveInviteSummary | null => {
+  const lookupInviteForRow = (r: RosterRow): AuditInviteSummary | null => {
     if (r.userId) {
-      const byUser = activeInviteByUserId.get(r.userId)
+      const byUser = inviteForStatusByUserId.get(r.userId)
       if (byUser) return byUser
     }
     if (r.athleteEmail) {
-      const byEmail = activeInviteByEmail.get(r.athleteEmail.toLowerCase())
+      const byEmail = inviteForStatusByEmail.get(r.athleteEmail.toLowerCase())
       if (byEmail) return byEmail
     }
     return null
   }
 
-  const bespokeInvites = useMemo(
-    () =>
-      activeInvites.filter(
-        (inv) =>
-          inv.origin === COMPETITION_INVITE_ORIGIN.BESPOKE &&
-          inv.activeMarker === "active",
-      ),
-    [activeInvites],
-  )
+  // Bespoke section reads from `allInvites` rather than `activeInvites`
+  // so declined / expired / revoked bespoke rows remain visible to the
+  // organizer (used to silently disappear from this list once their
+  // `activeMarker` flipped to NULL — exactly the "where did Susan go?"
+  // bug the audit-style view is meant to prevent). Status is rendered
+  // from `inv.status`; the `isDraft` check below is what gates which
+  // rows can still be selected for sending. Rows are sorted so
+  // actionable statuses (pending / accepted) stay on top and terminal
+  // statuses (declined, then expired / revoked) sink to the bottom —
+  // the organizer's primary scan path is "who do I still need to chase",
+  // not "who already opted out".
+  const bespokeInvites = useMemo(() => {
+    const list = allInvites.filter(
+      (inv) => inv.origin === COMPETITION_INVITE_ORIGIN.BESPOKE,
+    )
+    const bucketFor = (s: AuditInviteSummary["status"]): number => {
+      if (
+        s === COMPETITION_INVITE_STATUS.PENDING ||
+        s === COMPETITION_INVITE_STATUS.ACCEPTED_PAID
+      )
+        return 0
+      if (s === COMPETITION_INVITE_STATUS.DECLINED) return 1
+      return 2
+    }
+    return list
+      .slice()
+      .sort((a, b) => bucketFor(a.status) - bucketFor(b.status))
+  }, [allInvites])
+  // A bespoke "draft" is the staged-not-yet-sent shape from
+  // `bespoke.ts`: status=pending + no claimToken. Tightening the check
+  // beyond `claimUrl === null` keeps terminal rows (declined / accepted
+  // — which also null their token) from being treated as drafts.
   const draftBespokeInvites = useMemo(
-    () => bespokeInvites.filter((inv) => inv.claimUrl === null),
+    () =>
+      bespokeInvites.filter(
+        (inv) =>
+          inv.status === COMPETITION_INVITE_STATUS.PENDING &&
+          inv.claimUrl === null,
+      ),
     [bespokeInvites],
   )
   const sentBespokeCount = bespokeInvites.length - draftBespokeInvites.length
 
-  const isRowAlreadyInvited = (r: RosterRow) => !!lookupInviteForRow(r)
+  const isRowAlreadyInvited = (r: RosterRow) => {
+    const inv = lookupInviteForRow(r)
+    if (!inv) return false
+    return (
+      inv.status === COMPETITION_INVITE_STATUS.PENDING ||
+      inv.status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID
+    )
+  }
 
   const getInviteStatusForRow = (
     r: RosterRow,
-  ): "pending" | "accepted_paid" | null => {
+  ): "pending" | "accepted_paid" | "declined" | null => {
     const inv = lookupInviteForRow(r)
     if (!inv) return null
     if (
       inv.status === COMPETITION_INVITE_STATUS.PENDING ||
-      inv.status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID
+      inv.status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID ||
+      inv.status === COMPETITION_INVITE_STATUS.DECLINED
     ) {
       return inv.status
     }
-    // Other statuses (declined/expired/revoked) shouldn't appear under
-    // `activeMarker = "active"`, but fall back to "pending" so the pill
-    // still flags the row as occupied if they ever do.
-    return COMPETITION_INVITE_STATUS.PENDING
+    // Expired / revoked aren't surfaced in the roster — fall back to
+    // "no status" so the row reads as "Not invited" and stays
+    // selectable.
+    return null
   }
 
   const getInviteUrlForRow = (r: RosterRow): string | null =>
@@ -909,7 +996,14 @@ function InvitesPage() {
                           .filter(Boolean)
                           .join(" ") || inv.email
                       const initial = name.charAt(0).toUpperCase()
-                      const isDraft = inv.claimUrl === null
+                      // Tighter than `claimUrl === null`: declined /
+                      // accepted_paid also null their token, so the loose
+                      // check would mis-classify them as drafts and leave
+                      // their checkbox enabled. Drafts are strictly the
+                      // staged-not-yet-sent shape from `bespoke.ts`.
+                      const isDraft =
+                        inv.status === COMPETITION_INVITE_STATUS.PENDING &&
+                        inv.claimUrl === null
                       const statusLabel =
                         inv.status === "accepted_paid"
                           ? "Accepted"
@@ -922,17 +1016,23 @@ function InvitesPage() {
                                 : isDraft
                                   ? "Not invited"
                                   : "Invited"
+                      // Palette mirrors the StatusPill in
+                      // championship-roster-table so the two tables
+                      // read consistently. Always `variant="outline"` —
+                      // the default variant ships `dark:bg-primary`
+                      // which paints over the tinted bg, producing the
+                      // orange-on-green effect on hover.
                       const statusBadgeClass =
                         inv.status === "accepted_paid"
-                          ? "border-transparent bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/20"
+                          ? "border-sky-500/30 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 hover:border-sky-500/50"
                           : inv.status === "declined"
-                            ? "border-transparent bg-rose-500/15 text-rose-400 hover:bg-rose-500/20"
+                            ? "border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 hover:border-rose-500/50"
                             : inv.status === "expired" ||
                                 inv.status === "revoked"
-                              ? "border-transparent bg-muted text-muted-foreground"
+                              ? "border-zinc-500/30 bg-zinc-500/10 text-zinc-400 hover:bg-zinc-500/20"
                               : isDraft
                                 ? "border-dashed text-muted-foreground"
-                                : "border-transparent bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/20"
+                                : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50"
                       return (
                         <TableRow key={inv.id}>
                           <TableCell>
@@ -974,7 +1074,7 @@ function InvitesPage() {
                           </TableCell>
                           <TableCell>
                             <Badge
-                              variant={isDraft ? "outline" : "default"}
+                              variant="outline"
                               className={statusBadgeClass}
                             >
                               {statusLabel}
