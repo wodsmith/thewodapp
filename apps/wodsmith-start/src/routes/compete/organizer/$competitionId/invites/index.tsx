@@ -432,9 +432,7 @@ function InvitesPage() {
       ),
     [bespokeInvites],
   )
-  const sentBespokeCount = bespokeInvites.filter(
-    (inv) => inv.claimUrl !== null,
-  ).length
+  const sentBespokeCount = bespokeInvites.length - draftBespokeInvites.length
 
   const isRowAlreadyInvited = (r: RosterRow) => {
     const inv = lookupInviteForRow(r)

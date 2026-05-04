@@ -345,6 +345,10 @@ function ClaimablePage(props: {
       <AlertDialog
         open={confirmOpen}
         onOpenChange={(next) => {
+          // Block dismissal mid-flight so a request failure can't be
+          // hidden by an outside-click or Escape press while the
+          // optimistic "Declining…" state is still pending.
+          if (submitting) return
           // Clear any stale error when the user cancels or dismisses —
           // re-opening should start clean rather than show the prior
           // attempt's failure.
