@@ -192,6 +192,8 @@ The invite variant renders [[apps/wodsmith-start/src/components/registration/inv
 
 `$token/decline.tsx` uses the same loader branches, then POSTs through [[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#declineInviteFn]] on confirmation. The server fn re-runs resolve + identity-match (server is the authority — a forged POST can't bypass email-lock) before calling [[apps/wodsmith-start/src/server/competition-invites/decline.ts#declineInvite]], which transitions `pending → declined` and nulls `activeMarker` + `claimToken` so the link dies immediately. Declines are idempotent at the DB level: a zero-affected-rows outcome re-reads to tell "already terminal" apart from "row missing".
 
+The claim landing page also surfaces a secondary "Decline this invite" link directly under the registration CTA so an athlete who's already on the page can opt out without hopping to the email's separate decline link. The link opens an `AlertDialog` confirmation ("Are you sure? This action can't be undone.") and POSTs through the same `declineInviteFn` on confirm. Success swaps the card to an inline "Invite declined" state — no separate route navigation — so the organizer-notification + link-deactivation copy is identical across both entry points.
+
 `invite-pending.tsx` is a fallback landing for visitors who arrive without a token (e.g. a stale bookmark) — it tells them to re-open the email rather than guessing a URL. The claim route's `wrong_account` branch no longer routes through it; the post-logout redirect goes straight to `/sign-in` with the original claim URL pinned as `redirect`.
 
 ## Email delivery
