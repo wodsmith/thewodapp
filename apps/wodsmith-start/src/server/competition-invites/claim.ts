@@ -68,12 +68,16 @@ export {
  * "invite link is invalid or expired" page without leaking whether the
  * token ever existed.
  *
- * The `activeMarker = "active"` filter deliberately excludes
- * declined/expired/revoked rows: those have had their `claimToken`
- * nulled, but we belt-and-suspenders the query so a stale token that
- * somehow survived never resolves. Paid rows also have their token
- * nulled, so the happy path "you already claimed" short-circuit is
- * handled by {@link assertInviteClaimable} on the live re-read, not here.
+ * The lookup is intentionally activeMarker-agnostic so that *declined*
+ * rows still resolve (per the decline flow they keep their
+ * `claimToken`): an athlete revisiting a previously-declined link
+ * should land on the friendly "Invite declined" page rather than a
+ * generic "invalid link" error. `assertInviteClaimable` is the
+ * authoritative gate — it inspects `status` and rejects every terminal
+ * row before any claim work happens. `accepted_paid`, `expired`, and
+ * `revoked` transitions still null `claimToken`, so a stale link with
+ * one of those statuses never matches the `eq(claimToken, ...)`
+ * predicate in the first place.
  */
 export async function resolveInviteByToken(
   tokenPlaintext: string,
@@ -83,15 +87,7 @@ export async function resolveInviteByToken(
   const rows = await db
     .select()
     .from(competitionInvitesTable)
-    .where(
-      and(
-        eq(competitionInvitesTable.claimToken, tokenPlaintext),
-        eq(
-          competitionInvitesTable.activeMarker,
-          COMPETITION_INVITE_ACTIVE_MARKER,
-        ),
-      ),
-    )
+    .where(eq(competitionInvitesTable.claimToken, tokenPlaintext))
     .limit(1)
   return rows[0] ?? null
 }

@@ -304,10 +304,16 @@ export const competitionInvitesTable = mysqlTable(
     inviteeLastName: varchar({ length: 255 }),
     // URL-safe plaintext claim token. Mirrors `team_invitations.token` —
     // stored plaintext, looked up directly, with a unique index. Rotated on
-    // each re-send. NULLed on terminal transitions (`accepted_paid`,
-    // `declined`, `revoked`, `expired`) so the same link can't replay.
-    // Email-locked claim (`identityMatch`) remains the primary defense; the
-    // token is an unguessable identifier, not a bearer password.
+    // each re-send. NULLed on terminal transitions `accepted_paid`,
+    // `revoked`, and `expired` so the same link can't replay into a paid
+    // claim or get re-used after the organizer revoked it. `declined` is
+    // intentionally the exception: the token stays so the athlete revisiting
+    // the link sees the friendly "Invite declined" page instead of a
+    // generic "invalid link" — `assertInviteClaimable` blocks the actual
+    // claim because `status = "declined"`, so keeping the token is a UX
+    // affordance with no claim-side risk. Email-locked claim
+    // (`identityMatch`) remains the primary defense; the token is an
+    // unguessable identifier, not a bearer password.
     claimToken: varchar({ length: 255 }),
     // Hard expiry. Mirrors round.rsvpDeadlineAt at send time, but stored
     // per-invite so per-invite extensions work.
