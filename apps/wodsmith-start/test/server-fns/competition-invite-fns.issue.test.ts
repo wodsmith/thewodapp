@@ -115,8 +115,12 @@ vi.mock("@react-email/render", () => ({
   render: renderMock,
 }))
 
+// Capture the props passed to CompetitionInviteEmail so tests can assert
+// the rendered email body received the expected sourceLabel (placement)
+// from the invite row.
+const inviteEmailMock = vi.fn((_props: unknown) => ({}))
 vi.mock("@/react-email/competition-invites/invite-email", () => ({
-  CompetitionInviteEmail: () => ({}),
+  CompetitionInviteEmail: (props: unknown) => inviteEmailMock(props),
 }))
 
 vi.mock("@/lib/env", () => ({
@@ -218,6 +222,8 @@ beforeEach(() => {
   updateCalls.length = 0
   renderMock.mockClear()
   renderMock.mockImplementation(async () => "<html>email</html>")
+  inviteEmailMock.mockClear()
+  inviteEmailMock.mockImplementation((_props: unknown) => ({}))
   queueStub.send.mockClear()
   queueStub.send.mockImplementation(async () => undefined)
   // restore env queue binding (a test below removes it)
@@ -919,5 +925,76 @@ describe("issueInvitesFn", () => {
     expect(args?.rsvpDeadlineAt.toISOString()).toBe(
       "2025-03-01T23:59:59.000Z",
     )
+  })
+
+  // @lat: [[competition-invites#Email delivery#Source label is leaderboard placement]]
+  it("renders the email's Qualified-via label from the invite row's sourcePlacementLabel (leaderboard rank)", async () => {
+    // Regression guard for the chain that PR #445 fixed end-to-end:
+    //   getCompetitionLeaderboard.overallRank
+    //     → CandidateEntry.overallRank
+    //     → RosterRow.sourcePlacement
+    //     → recipient.sourcePlacementLabel ("3rd — <comp> · <div>")
+    //     → competition_invites.sourcePlacementLabel
+    //     → CompetitionInviteEmail props.sourceLabel
+    //     → email body "Qualified via: 3rd — <comp> · <div>"
+    //
+    // The earlier sub-arc (roster ↔ leaderboard) is locked by
+    // `roster-candidates-wiring.test.ts`. This test pins the
+    // tail of the chain — that the rank we ranked-by ends up in the
+    // recipient's inbox, not whatever ordering the row was inserted in.
+    const { auth, issue } = await getMocks()
+    vi.mocked(auth.getSessionFromCookie).mockResolvedValue(
+      sessionStub as unknown as Awaited<
+        ReturnType<typeof auth.getSessionFromCookie>
+      >,
+    )
+    pushHappyPathLookups()
+
+    const leaderboardLabel = "3rd — Qualifier Open · RX"
+    const invite = makeInvite({
+      id: "ci_a",
+      email: "a@example.com",
+      sourcePlacement: 3,
+      sourcePlacementLabel: leaderboardLabel,
+    })
+    vi.mocked(issue.issueInvitesForRecipients).mockResolvedValueOnce({
+      inserted: [{ invite, plaintextToken: "tok_a" }],
+      alreadyActive: [],
+    })
+
+    const { issueInvitesFn } = await import(
+      "@/server-fns/competition-invite-fns"
+    )
+
+    await (
+      issueInvitesFn as unknown as (ctx: {
+        data: unknown
+      }) => Promise<unknown>
+    )({
+      data: {
+        championshipCompetitionId: "comp_champ",
+        championshipDivisionId: "div_rx",
+        rsvpDeadlineDate: "2099-12-31",
+        subject: "Welcome",
+        recipients: [
+          {
+            ...validRecipient,
+            email: "a@example.com",
+            sourcePlacement: 3,
+            sourcePlacementLabel: leaderboardLabel,
+          },
+        ],
+      },
+    })
+
+    // CompetitionInviteEmail received the leaderboard-derived label as
+    // `sourceLabel`. The email JSX renders this verbatim under the
+    // "Qualified via:" detail row, so an assertion here is equivalent
+    // to asserting the recipient sees the leaderboard placement.
+    expect(inviteEmailMock).toHaveBeenCalledTimes(1)
+    const props = inviteEmailMock.mock.calls[0]?.[0] as unknown as {
+      sourceLabel: string | null | undefined
+    }
+    expect(props.sourceLabel).toBe(leaderboardLabel)
   })
 })

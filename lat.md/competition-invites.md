@@ -214,6 +214,12 @@ In dev (no `RESEND_API_KEY`) the consumer logs the preview and marks delivery as
 
 [[apps/wodsmith-start/src/react-email/competition-invites/invite-email.tsx]] renders the branded email: hero/headline, division + source + deadline card, primary claim CTA, and a secondary decline link. The subject + body text are organizer-supplied at send time (Phase 2 uses a single default; Phase 4 introduces templates).
 
+### Source label is leaderboard placement
+
+The email's "Qualified via:" line is the athlete's qualifier-leaderboard placement, not their registration order — PR #445 fixed an earlier bug where `sourcePlacement` was a registration-order index.
+
+`CompetitionInviteEmail` reads `props.sourceLabel`, which `renderInviteEmailHtml` populates from `invite.sourcePlacementLabel` — the column written at issue time from the recipient's `sourcePlacementLabel` ("3rd — Qualifier Open · RX"). That string is built from `RosterRow.sourcePlacement`, which is `entry.overallRank` from `getCandidatesForSourceComp` → `getCompetitionLeaderboard`. The regression test [[apps/wodsmith-start/test/server-fns/competition-invite-fns.issue.test.ts]] (`renders the email's Qualified-via label…`) pins the tail of the chain (invite row → email props) and `roster-candidates-wiring.test.ts` pins the head (leaderboard → roster).
+
 ## Send pipeline
 
 [[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#issueInvitesFn]] is the organizer's send button. Permission: `MANAGE_COMPETITIONS` on the championship's organizing team. Steps:
