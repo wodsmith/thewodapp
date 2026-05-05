@@ -37,6 +37,7 @@ import {
   type CompetitionInviteStatus,
 } from "@/db/schemas/competition-invites"
 import type { RosterRow } from "@/server/competition-invites/roster"
+import type { TeamMemberInfo } from "@/server/competition-leaderboard"
 import { cn } from "@/utils/cn"
 
 type RowInviteStatus = Extract<
@@ -292,6 +293,55 @@ function AthleteAvatar({ name }: { name: string }) {
   )
 }
 
+function formatMemberName(member: TeamMemberInfo): string {
+  const name =
+    `${member.firstName || ""} ${member.lastName || ""}`.trim() || "Unknown"
+  return member.isCaptain ? `${name} (C)` : name
+}
+
+/**
+ * Athlete cell. For team divisions, mirrors the qualifier's leaderboard:
+ * primary line is the team name and members are listed below with `(C)`
+ * after the captain. The captain's email still surfaces (it's the
+ * address the invite is sent to).
+ */
+function AthleteCell({ row }: { row: RosterRow }) {
+  if (row.isTeamDivision) {
+    const primary = row.teamName || "Unknown Team"
+    return (
+      <div className="flex items-center gap-2">
+        <AthleteAvatar name={primary} />
+        <div className="flex flex-col leading-tight">
+          <span>{primary}</span>
+          {row.teamMembers.length > 0 ? (
+            <span className="text-xs text-muted-foreground">
+              {row.teamMembers.map((m) => formatMemberName(m)).join(", ")}
+            </span>
+          ) : null}
+          {row.athleteEmail ? (
+            <span className="text-[10px] text-muted-foreground">
+              {row.athleteEmail}
+            </span>
+          ) : null}
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div className="flex items-center gap-2">
+      <AthleteAvatar name={row.athleteName} />
+      <div className="flex flex-col leading-tight">
+        <span>{row.athleteName}</span>
+        {row.athleteEmail ? (
+          <span className="text-xs text-muted-foreground">
+            {row.athleteEmail}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
 function CompetitionCell({ row }: { row: RosterRow }) {
   return (
     <div className="flex flex-col leading-tight">
@@ -477,17 +527,7 @@ export function ChampionshipRosterTable({
                       </TableCell>
                     ) : null}
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <AthleteAvatar name={row.athleteName} />
-                        <div className="flex flex-col leading-tight">
-                          <span>{row.athleteName}</span>
-                          {row.athleteEmail ? (
-                            <span className="text-xs text-muted-foreground">
-                              {row.athleteEmail}
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
+                      <AthleteCell row={row} />
                     </TableCell>
                     <TableCell>
                       <CompetitionCell row={row} />

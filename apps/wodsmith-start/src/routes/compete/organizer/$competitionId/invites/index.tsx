@@ -28,7 +28,7 @@ import {
   Upload,
   UserPlus,
 } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { z } from "zod"
 import { AddBespokeInviteeDialog } from "@/components/organizer/invites/add-bespoke-invitee-dialog"
@@ -103,6 +103,13 @@ const inviteSearchSchema = z.object({
 })
 
 const ROSTER_PAGE_SIZE = 50
+
+const divisionMappingsSchema = z.array(
+  z.object({
+    sourceDivisionId: z.string(),
+    championshipDivisionId: z.string(),
+  }),
+)
 
 export const Route = createFileRoute(
   "/compete/organizer/$competitionId/invites/",
@@ -252,6 +259,8 @@ function ordinalSuffix(n: number): string {
   }
 }
 
+const inviteKey = (id: string, divisionId: string) => `${id}|${divisionId}`
+
 function InvitesPage() {
   const {
     sources,
@@ -306,18 +315,73 @@ function InvitesPage() {
     () => new Set(),
   )
 
-  // "Already invited" means "engaged at this championship in any
-  // division" — we no longer scope the badge per championship division.
-  // The send dialog enforces per-division uniqueness server-side.
-  // `activeInviteBy*` powers recipient deduplication: athletes with a
-  // pending or accepted_paid invite cannot be re-staged. Declined
-  // athletes are intentionally absent from these maps so the organizer
-  // can re-issue without manually purging the prior row.
-  const activeInviteByEmail = useMemo(() => {
+  // Per-source explicit division mappings from the source's
+  // `divisionMappings` JSON, indexed by `(sourceId, sourceDivisionId)` →
+  // championship division id. Honors organizer-configured overrides
+  // (e.g. source "RX Men" → championship "Pro Men") that pure label
+  // matching would miss. Rows whose source isn't in the map (or whose
+  // source-division id isn't in the inner map) fall through to label
+  // matching in `mapRowToChampionshipDivisionId`.
+  const explicitMappingsBySource = useMemo(() => {
+    const map = new Map<string, Map<string, string>>()
+    for (const src of sources) {
+      if (!src.divisionMappings) continue
+      let raw: unknown
+      try {
+        raw = JSON.parse(src.divisionMappings)
+      } catch {
+        continue
+      }
+      const parsed = divisionMappingsSchema.safeParse(raw)
+      if (!parsed.success || parsed.data.length === 0) continue
+      map.set(
+        src.id,
+        new Map(
+          parsed.data.map((m) => [m.sourceDivisionId, m.championshipDivisionId]),
+        ),
+      )
+    }
+    return map
+  }, [sources])
+
+  // Resolve a roster row to its championship-division id. Explicit
+  // `divisionMappings` overrides win; otherwise fall back to a
+  // case-insensitive trimmed match against the championship's division
+  // labels. Returns null when no mapping can be inferred — callers treat
+  // that as "no division-scoped invite for this row" and render the
+  // row as not-invited / selectable.
+  const mapRowToChampionshipDivisionId = useMemo(() => {
+    return (r: RosterRow): string | null => {
+      const explicit = explicitMappingsBySource
+        .get(r.sourceId)
+        ?.get(r.sourceDivisionId)
+      if (explicit) return explicit
+      const normalized = r.sourceDivisionLabel.trim().toLowerCase()
+      return (
+        championshipDivisions.find(
+          (d) => d.label.trim().toLowerCase() === normalized,
+        )?.id ?? null
+      )
+    }
+  }, [explicitMappingsBySource, championshipDivisions])
+
+  // The candidates table renders one row per (sourceComp × sourceDivision)
+  // placement. An invite belongs to a single championship division, so we
+  // key these lookups by `(emailOrUserId, championshipDivisionId)` — that
+  // way an athlete invited to championship "Masters" only shows the
+  // "Invited" pill on roster rows whose source division maps to Masters,
+  // not on every row across every division they qualified in. The send
+  // dialog still enforces per-division uniqueness server-side at issue
+  // time. Declined athletes are absent from the active map so the
+  // organizer can re-issue without purging the prior row.
+  const activeInviteByEmailAndDivision = useMemo(() => {
     const map = new Map<string, ActiveInviteSummary>()
     for (const inv of activeInvites) {
       if (inv.activeMarker === "active") {
-        map.set(inv.email.toLowerCase(), inv)
+        map.set(
+          inviteKey(inv.email.toLowerCase(), inv.championshipDivisionId),
+          inv,
+        )
       }
     }
     return map
@@ -328,19 +392,22 @@ function InvitesPage() {
   // both exist (re-issued pending row → display the new pending state,
   // not the prior decline). Sourced from `allInvites` because
   // `activeInvites` filters declined rows out at the SQL level.
-  const inviteForStatusByEmail = useMemo(() => {
+  const inviteForStatusByEmailAndDivision = useMemo(() => {
     const map = new Map<string, AuditInviteSummary>()
     // Pass 1: actives (pending / accepted_paid) take priority.
     for (const inv of allInvites) {
       if (inv.activeMarker === "active") {
-        map.set(inv.email.toLowerCase(), inv)
+        map.set(
+          inviteKey(inv.email.toLowerCase(), inv.championshipDivisionId),
+          inv,
+        )
       }
     }
     // Pass 2: declined fills gaps when there's no active row for the
-    // athlete. Prefer the most-recent declined row when several exist.
+    // (athlete, division) pair. Prefer the most-recent declined row.
     for (const inv of allInvites) {
       if (inv.status !== COMPETITION_INVITE_STATUS.DECLINED) continue
-      const key = inv.email.toLowerCase()
+      const key = inviteKey(inv.email.toLowerCase(), inv.championshipDivisionId)
       const prior = map.get(key)
       if (!prior || prior.status === COMPETITION_INVITE_STATUS.DECLINED) {
         const priorTs = prior?.lastUpdatedAt
@@ -355,17 +422,18 @@ function InvitesPage() {
     return map
   }, [allInvites])
 
-  const inviteForStatusByUserId = useMemo(() => {
+  const inviteForStatusByUserIdAndDivision = useMemo(() => {
     const map = new Map<string, AuditInviteSummary>()
     for (const inv of allInvites) {
       if (inv.activeMarker === "active" && inv.userId) {
-        map.set(inv.userId, inv)
+        map.set(inviteKey(inv.userId, inv.championshipDivisionId), inv)
       }
     }
     for (const inv of allInvites) {
       if (inv.status !== COMPETITION_INVITE_STATUS.DECLINED) continue
       if (!inv.userId) continue
-      const prior = map.get(inv.userId)
+      const key = inviteKey(inv.userId, inv.championshipDivisionId)
+      const prior = map.get(key)
       if (!prior || prior.status === COMPETITION_INVITE_STATUS.DECLINED) {
         const priorTs = prior?.lastUpdatedAt
           ? new Date(prior.lastUpdatedAt).getTime()
@@ -373,23 +441,45 @@ function InvitesPage() {
         const currentTs = inv.lastUpdatedAt
           ? new Date(inv.lastUpdatedAt).getTime()
           : 0
-        if (!prior || currentTs >= priorTs) map.set(inv.userId, inv)
+        if (!prior || currentTs >= priorTs) map.set(key, inv)
       }
     }
     return map
   }, [allInvites])
 
   const lookupInviteForRow = (r: RosterRow): AuditInviteSummary | null => {
+    const championshipDivisionId = mapRowToChampionshipDivisionId(r)
+    if (!championshipDivisionId) return null
     if (r.userId) {
-      const byUser = inviteForStatusByUserId.get(r.userId)
+      const byUser = inviteForStatusByUserIdAndDivision.get(
+        inviteKey(r.userId, championshipDivisionId),
+      )
       if (byUser) return byUser
     }
     if (r.athleteEmail) {
-      const byEmail = inviteForStatusByEmail.get(r.athleteEmail.toLowerCase())
+      const byEmail = inviteForStatusByEmailAndDivision.get(
+        inviteKey(r.athleteEmail.toLowerCase(), championshipDivisionId),
+      )
       if (byEmail) return byEmail
     }
     return null
   }
+
+  // Row-level "already actively invited" check, scoped to the row's
+  // mapped championship division. Used by the recipient collector and
+  // selection counters so an athlete invited to one division stays
+  // selectable from a roster row that maps to a different division.
+  const isRowAlreadyActiveInvited = useCallback(
+    (r: RosterRow): boolean => {
+      if (!r.athleteEmail) return false
+      const championshipDivisionId = mapRowToChampionshipDivisionId(r)
+      if (!championshipDivisionId) return false
+      return activeInviteByEmailAndDivision.has(
+        inviteKey(r.athleteEmail.toLowerCase(), championshipDivisionId),
+      )
+    },
+    [activeInviteByEmailAndDivision, mapRowToChampionshipDivisionId],
+  )
 
   // Bespoke section reads from `allInvites` rather than `activeInvites`
   // so declined / expired / revoked bespoke rows remain visible to the
@@ -580,7 +670,7 @@ function InvitesPage() {
     for (const r of roster.rows) {
       if (!r.athleteEmail) continue
       if (!selectedRosterKeys.has(rosterRowKey(r))) continue
-      if (activeInviteByEmail.has(r.athleteEmail.toLowerCase())) continue
+      if (isRowAlreadyActiveInvited(r)) continue
       const emailKey = r.athleteEmail.toLowerCase()
       if (seenEmail.has(emailKey)) continue
       seenEmail.add(emailKey)
@@ -613,7 +703,7 @@ function InvitesPage() {
   }, [
     roster.rows,
     selectedRosterKeys,
-    activeInviteByEmail,
+    isRowAlreadyActiveInvited,
     draftBespokeInvites,
     selectedDraftIds,
   ])
@@ -626,26 +716,26 @@ function InvitesPage() {
     for (const r of roster.rows) {
       if (!r.athleteEmail) continue
       if (!selectedRosterKeys.has(rosterRowKey(r))) continue
-      if (activeInviteByEmail.has(r.athleteEmail.toLowerCase())) continue
+      if (isRowAlreadyActiveInvited(r)) continue
       const emailKey = r.athleteEmail.toLowerCase()
       if (seen.has(emailKey)) continue
       seen.add(emailKey)
     }
     return seen.size
-  }, [roster.rows, selectedRosterKeys, activeInviteByEmail])
+  }, [roster.rows, selectedRosterKeys, isRowAlreadyActiveInvited])
 
   const visibleRosterSelectedCount = useMemo(() => {
     const seen = new Set<string>()
     for (const r of filteredRosterRows) {
       if (!r.athleteEmail) continue
       if (!selectedRosterKeys.has(rosterRowKey(r))) continue
-      if (activeInviteByEmail.has(r.athleteEmail.toLowerCase())) continue
+      if (isRowAlreadyActiveInvited(r)) continue
       const emailKey = r.athleteEmail.toLowerCase()
       if (seen.has(emailKey)) continue
       seen.add(emailKey)
     }
     return seen.size
-  }, [filteredRosterRows, selectedRosterKeys, activeInviteByEmail])
+  }, [filteredRosterRows, selectedRosterKeys, isRowAlreadyActiveInvited])
 
   const hiddenSelectedCount =
     totalRosterSelectedCount - visibleRosterSelectedCount
