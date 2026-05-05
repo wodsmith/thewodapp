@@ -32,6 +32,7 @@ import {
 } from "@/db/schemas/competition-invites"
 import { competitionsTable } from "@/db/schemas/competitions"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
+import type { TeamMemberInfo } from "@/server/competition-leaderboard"
 import { parseCompetitionSettings } from "@/server-fns/competition-divisions-fns"
 import type { ResolvedSourceAllocations } from "./allocations"
 import { getCandidatesForSourceComp } from "./candidates"
@@ -64,6 +65,15 @@ export interface RosterRow {
    *  Null when the leaderboard surfaced no user id (rare) or the user
    *  has no email on file. */
   athleteEmail: string | null
+  /** True when the source division is a team division (`teamSize > 1`).
+   *  The roster table renders team rows with team name + members
+   *  underneath, mirroring the qualifier's leaderboard. */
+  isTeamDivision: boolean
+  /** Registration's team name when `isTeamDivision`; null otherwise. */
+  teamName: string | null
+  /** Team roster (captain-first), mirroring the leaderboard. Empty for
+   *  individual divisions. */
+  teamMembers: TeamMemberInfo[]
   /** Invite-state columns — always null at this layer; the route attaches
    *  invite status via `listActiveInvitesFn` keyed by email. */
   inviteId: null
@@ -440,6 +450,9 @@ export async function getChampionshipRoster(
         userId: e.userId,
         athleteName: e.athleteName,
         athleteEmail: e.athleteEmail,
+        isTeamDivision: e.isTeamDivision ?? false,
+        teamName: e.teamName ?? null,
+        teamMembers: e.teamMembers ?? [],
         inviteId: null,
         inviteStatus: null,
         roundId: null,

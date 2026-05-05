@@ -27,7 +27,10 @@ import "server-only"
 import { inArray } from "drizzle-orm"
 import { getDb } from "@/db"
 import { userTable } from "@/db/schemas/users"
-import { getCompetitionLeaderboard } from "@/server/competition-leaderboard"
+import {
+  getCompetitionLeaderboard,
+  type TeamMemberInfo,
+} from "@/server/competition-leaderboard"
 
 // ============================================================================
 // Types
@@ -55,6 +58,16 @@ export interface CandidateEntry {
   overallRank: number
   /** Total points used to compute `overallRank`. */
   totalPoints: number
+  /** True for team divisions (`teamSize > 1`). Mirrors the leaderboard's
+   *  `isTeamDivision` so the candidates table can render a team row
+   *  identically to the qualifier's leaderboard. */
+  isTeamDivision: boolean
+  /** Registration's team name when `isTeamDivision`; null for individual
+   *  divisions or unnamed teams. */
+  teamName: string | null
+  /** Active members on the captain's `athleteTeam`, sorted captain-first.
+   *  Empty for individual divisions. */
+  teamMembers: TeamMemberInfo[]
 }
 
 export interface GetCandidatesForSourceCompInput {
@@ -119,6 +132,9 @@ export async function getCandidatesForSourceComp(
     divisionLabel: e.divisionLabel,
     overallRank: e.overallRank,
     totalPoints: e.totalPoints,
+    isTeamDivision: e.isTeamDivision,
+    teamName: e.teamName,
+    teamMembers: e.teamMembers,
   }))
 
   // Defensive sort: `getCompetitionLeaderboard` already returns
