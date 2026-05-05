@@ -28,7 +28,7 @@ import {
   Upload,
   UserPlus,
 } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { z } from "zod"
 import { AddBespokeInviteeDialog } from "@/components/organizer/invites/add-bespoke-invitee-dialog"
@@ -103,6 +103,13 @@ const inviteSearchSchema = z.object({
 })
 
 const ROSTER_PAGE_SIZE = 50
+
+const divisionMappingsSchema = z.array(
+  z.object({
+    sourceDivisionId: z.string(),
+    championshipDivisionId: z.string(),
+  }),
+)
 
 export const Route = createFileRoute(
   "/compete/organizer/$competitionId/invites/",
@@ -252,6 +259,8 @@ function ordinalSuffix(n: number): string {
   }
 }
 
+const inviteKey = (id: string, divisionId: string) => `${id}|${divisionId}`
+
 function InvitesPage() {
   const {
     sources,
@@ -317,30 +326,20 @@ function InvitesPage() {
     const map = new Map<string, Map<string, string>>()
     for (const src of sources) {
       if (!src.divisionMappings) continue
+      let raw: unknown
       try {
-        const parsed = JSON.parse(src.divisionMappings) as unknown
-        if (!Array.isArray(parsed)) continue
-        const inner = new Map<string, string>()
-        for (const m of parsed) {
-          if (
-            m &&
-            typeof m === "object" &&
-            typeof (m as { sourceDivisionId?: unknown }).sourceDivisionId ===
-              "string" &&
-            typeof (m as { championshipDivisionId?: unknown })
-              .championshipDivisionId === "string"
-          ) {
-            const cast = m as {
-              sourceDivisionId: string
-              championshipDivisionId: string
-            }
-            inner.set(cast.sourceDivisionId, cast.championshipDivisionId)
-          }
-        }
-        if (inner.size > 0) map.set(src.id, inner)
+        raw = JSON.parse(src.divisionMappings)
       } catch {
-        // Malformed JSON falls through to label match.
+        continue
       }
+      const parsed = divisionMappingsSchema.safeParse(raw)
+      if (!parsed.success || parsed.data.length === 0) continue
+      map.set(
+        src.id,
+        new Map(
+          parsed.data.map((m) => [m.sourceDivisionId, m.championshipDivisionId]),
+        ),
+      )
     }
     return map
   }, [sources])
@@ -375,8 +374,6 @@ function InvitesPage() {
   // dialog still enforces per-division uniqueness server-side at issue
   // time. Declined athletes are absent from the active map so the
   // organizer can re-issue without purging the prior row.
-  const inviteKey = (id: string, divisionId: string) => `${id}|${divisionId}`
-
   const activeInviteByEmailAndDivision = useMemo(() => {
     const map = new Map<string, ActiveInviteSummary>()
     for (const inv of activeInvites) {
@@ -472,14 +469,17 @@ function InvitesPage() {
   // mapped championship division. Used by the recipient collector and
   // selection counters so an athlete invited to one division stays
   // selectable from a roster row that maps to a different division.
-  const isRowAlreadyActiveInvited = (r: RosterRow): boolean => {
-    if (!r.athleteEmail) return false
-    const championshipDivisionId = mapRowToChampionshipDivisionId(r)
-    if (!championshipDivisionId) return false
-    return activeInviteByEmailAndDivision.has(
-      inviteKey(r.athleteEmail.toLowerCase(), championshipDivisionId),
-    )
-  }
+  const isRowAlreadyActiveInvited = useCallback(
+    (r: RosterRow): boolean => {
+      if (!r.athleteEmail) return false
+      const championshipDivisionId = mapRowToChampionshipDivisionId(r)
+      if (!championshipDivisionId) return false
+      return activeInviteByEmailAndDivision.has(
+        inviteKey(r.athleteEmail.toLowerCase(), championshipDivisionId),
+      )
+    },
+    [activeInviteByEmailAndDivision, mapRowToChampionshipDivisionId],
+  )
 
   // Bespoke section reads from `allInvites` rather than `activeInvites`
   // so declined / expired / revoked bespoke rows remain visible to the
@@ -700,12 +700,10 @@ function InvitesPage() {
         userId: inv.userId,
       }))
     return [...sourceRecipients, ...bespokeRecipients]
-    // biome-ignore lint/correctness/useExhaustiveDependencies: isRowAlreadyActiveInvited closes over activeInviteByEmailAndDivision + mapRowToChampionshipDivisionId, both of which are listed.
   }, [
     roster.rows,
     selectedRosterKeys,
-    activeInviteByEmailAndDivision,
-    mapRowToChampionshipDivisionId,
+    isRowAlreadyActiveInvited,
     draftBespokeInvites,
     selectedDraftIds,
   ])
@@ -724,13 +722,7 @@ function InvitesPage() {
       seen.add(emailKey)
     }
     return seen.size
-    // biome-ignore lint/correctness/useExhaustiveDependencies: isRowAlreadyActiveInvited closes over activeInviteByEmailAndDivision + mapRowToChampionshipDivisionId, both of which are listed.
-  }, [
-    roster.rows,
-    selectedRosterKeys,
-    activeInviteByEmailAndDivision,
-    mapRowToChampionshipDivisionId,
-  ])
+  }, [roster.rows, selectedRosterKeys, isRowAlreadyActiveInvited])
 
   const visibleRosterSelectedCount = useMemo(() => {
     const seen = new Set<string>()
@@ -743,13 +735,7 @@ function InvitesPage() {
       seen.add(emailKey)
     }
     return seen.size
-    // biome-ignore lint/correctness/useExhaustiveDependencies: isRowAlreadyActiveInvited closes over activeInviteByEmailAndDivision + mapRowToChampionshipDivisionId, both of which are listed.
-  }, [
-    filteredRosterRows,
-    selectedRosterKeys,
-    activeInviteByEmailAndDivision,
-    mapRowToChampionshipDivisionId,
-  ])
+  }, [filteredRosterRows, selectedRosterKeys, isRowAlreadyActiveInvited])
 
   const hiddenSelectedCount =
     totalRosterSelectedCount - visibleRosterSelectedCount
