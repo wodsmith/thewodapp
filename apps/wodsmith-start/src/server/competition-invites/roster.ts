@@ -405,11 +405,11 @@ export async function getChampionshipRoster(
   if (divisionRefs.length === 0) return { rows: [] }
 
   // Fan out per (sourceComp × division) candidate fetches in parallel.
-  // `getCandidatesForSourceComp` is purpose-built for this surface: it
-  // returns active registrations directly, with no heat / event-status /
-  // publication gating. The roster used to call `getCompetitionLeaderboard`
-  // here, which silently dropped divisions whose athletes hadn't been
-  // heat-assigned — see docs/bugs/0001-invite-candidates-missing-divisions.md.
+  // `getCandidatesForSourceComp` mirrors the qualifier's leaderboard
+  // (same scoring algorithm + tiebreakers) so `sourcePlacement` on every
+  // row matches what the source competition's leaderboard would show —
+  // organizers use this surface as the source of truth when deciding
+  // whom to invite, so the two views must agree exactly.
   //
   // Cutoff is allocation budget metadata, not a candidate filter. The
   // organizer needs every eligible athlete on the page so they can pick
@@ -428,9 +428,9 @@ export async function getChampionshipRoster(
 
   const rows: RosterRow[] = []
   for (const { ref, entries } of candidates) {
-    entries.forEach((e, idx) => {
+    for (const e of entries) {
       rows.push({
-        sourcePlacement: idx + 1,
+        sourcePlacement: e.overallRank,
         sourceId: ref.sourceId,
         sourceKind: ref.sourceKind,
         sourceCompetitionId: ref.competitionId,
@@ -445,7 +445,7 @@ export async function getChampionshipRoster(
         roundId: null,
         roundNumber: null,
       })
-    })
+    }
   }
 
   return { rows }

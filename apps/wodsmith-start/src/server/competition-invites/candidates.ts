@@ -3,64 +3,67 @@
  *
  * `getCandidatesForSourceComp` returns the set of athletes from a single
  * source competition that are eligible to surface on the championship
- * organizer's Candidates page for a given source-side division.
+ * organizer's Candidates page for a given source-side division, ranked
+ * to mirror the source competition's leaderboard exactly.
  *
- * Why this lives here instead of going through `getCompetitionLeaderboard`:
+ * The placement (`overallRank`) on each candidate row is the same value
+ * the qualifier's leaderboard would render for that athlete: total points
+ * + tiebreakers from `getCompetitionLeaderboard`. Organizers use this as
+ * the source of truth when picking whom to invite, so any divergence
+ * between the invite roster and the public qualifier leaderboard is a
+ * bug — they must agree on rank and on athlete inclusion.
  *
- * The leaderboard's job is to rank athletes who have *scored* on
- * *published* events, with optional gating by heat assignment when no
- * explicit event-division mapping exists. Those gates make sense for the
- * public/event display, but they are the wrong contract for invite-source
- * candidates: a championship organizer wants to invite from every
- * registered division regardless of whether scores or heats exist yet.
- *
- * Earlier we tried bolting a `bypassHeatBasedDivisionFilter` flag onto
- * the leaderboard. That fixed the symptom but coupled two separate
- * concerns through a growing list of conditional flags. This module owns
- * its own query so the two paths can evolve independently — see
- * `docs/bugs/0001-invite-candidates-missing-divisions.md`.
+ * `bypassPublicationFilter: true` is intentional: the candidates page is
+ * organizer-only and must surface the working ranking even before the
+ * organizer publishes per-division results to athletes (online comps
+ * default to "everything hidden until published"). The same scoring
+ * algorithm and tiebreakers apply either way, so the ordering still
+ * matches what athletes will see once results go public.
  */
 // @lat: [[competition-invites#Candidates query]]
 
 import "server-only"
 
-import { and, asc, eq, ne } from "drizzle-orm"
+import { inArray } from "drizzle-orm"
 import { getDb } from "@/db"
-import {
-	competitionRegistrationsTable,
-	REGISTRATION_STATUS,
-} from "@/db/schemas/competitions"
-import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { userTable } from "@/db/schemas/users"
+import { getCompetitionLeaderboard } from "@/server/competition-leaderboard"
 
 // ============================================================================
 // Types
 // ============================================================================
 
 export interface CandidateEntry {
-	/** Registration row that produced this candidate. */
-	registrationId: string
-	/** Captain user id for the registration. */
-	userId: string
-	/** Display name — "First Last", or email when names are missing. */
-	athleteName: string
-	/** Athlete email; null only when the user row has no email on file. */
-	athleteEmail: string | null
-	/** Source-side division id (scaling level) on the source comp. */
-	divisionId: string
-	/** Source-side division label (e.g. "Co-Ed - RX"). */
-	divisionLabel: string
-	/** Source-comp registeredAt — used for stable ordering. */
-	registeredAt: Date
+  /** Registration row that produced this candidate. */
+  registrationId: string
+  /** Captain user id for the registration. */
+  userId: string
+  /** Display name — "First Last", or email when names are missing. */
+  athleteName: string
+  /** Athlete email; null only when the user row has no email on file. */
+  athleteEmail: string | null
+  /** Source-side division id (scaling level) on the source comp. */
+  divisionId: string
+  /** Source-side division label (e.g. "Co-Ed - RX"). */
+  divisionLabel: string
+  /**
+   * 1-based placement on the source competition's leaderboard. Same
+   * value `getCompetitionLeaderboard` would render for this athlete.
+   * Athletes with no scores tie at the bottom (per competition ranking
+   * rules); their rank is still deterministic.
+   */
+  overallRank: number
+  /** Total points used to compute `overallRank`. */
+  totalPoints: number
 }
 
 export interface GetCandidatesForSourceCompInput {
-	competitionId: string
-	divisionId: string
+  competitionId: string
+  divisionId: string
 }
 
 export interface GetCandidatesForSourceCompResult {
-	entries: CandidateEntry[]
+  entries: CandidateEntry[]
 }
 
 // ============================================================================
@@ -68,63 +71,61 @@ export interface GetCandidatesForSourceCompResult {
 // ============================================================================
 
 /**
- * Return active registrations for `(competitionId, divisionId)` shaped as
- * candidate entries. No score-based ranking is applied; entries are
- * ordered by `registeredAt` for stable display.
- *
- * Future enhancement: layer optional score-based ranking on top of this
- * query when the source comp has scored events. The ordering tradeoff is
- * called out in `docs/bugs/0001-invite-candidates-missing-divisions.md`.
+ * Return ranked candidates for `(competitionId, divisionId)` by mirroring
+ * the source competition's leaderboard. Entries are ordered by
+ * `overallRank` ascending so `entries[0]` is the qualifier's #1.
  */
 export async function getCandidatesForSourceComp(
-	input: GetCandidatesForSourceCompInput,
+  input: GetCandidatesForSourceCompInput,
 ): Promise<GetCandidatesForSourceCompResult> {
-	const db = getDb()
+  // Mirror the leaderboard the qualifier's organizers and athletes see.
+  // `bypassPublicationFilter: true` keeps draft/unpublished events in
+  // the ranking so the organizer-only candidates page doesn't go blank
+  // just because results haven't been published to athletes yet — the
+  // ordering is still the same scoring algorithm + tiebreakers the
+  // public leaderboard uses, so once the qualifier publishes the two
+  // surfaces agree row for row.
+  const { entries: leaderboardEntries } = await getCompetitionLeaderboard({
+    competitionId: input.competitionId,
+    divisionId: input.divisionId,
+    bypassPublicationFilter: true,
+  })
 
-	const rows = await db
-		.select({
-			registrationId: competitionRegistrationsTable.id,
-			userId: competitionRegistrationsTable.userId,
-			divisionId: competitionRegistrationsTable.divisionId,
-			divisionLabel: scalingLevelsTable.label,
-			registeredAt: competitionRegistrationsTable.registeredAt,
-			firstName: userTable.firstName,
-			lastName: userTable.lastName,
-			email: userTable.email,
-		})
-		.from(competitionRegistrationsTable)
-		.innerJoin(
-			userTable,
-			eq(competitionRegistrationsTable.userId, userTable.id),
-		)
-		.leftJoin(
-			scalingLevelsTable,
-			eq(competitionRegistrationsTable.divisionId, scalingLevelsTable.id),
-		)
-		.where(
-			and(
-				eq(competitionRegistrationsTable.eventId, input.competitionId),
-				eq(competitionRegistrationsTable.divisionId, input.divisionId),
-				ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
-			),
-		)
-		.orderBy(asc(competitionRegistrationsTable.registeredAt))
+  if (leaderboardEntries.length === 0) {
+    return { entries: [] }
+  }
 
-	const entries: CandidateEntry[] = rows.map((r) => {
-		const fullName =
-			`${r.firstName ?? ""} ${r.lastName ?? ""}`.trim() ||
-			r.email ||
-			"Unknown"
-		return {
-			registrationId: r.registrationId,
-			userId: r.userId,
-			athleteName: fullName,
-			athleteEmail: r.email ?? null,
-			divisionId: r.divisionId ?? input.divisionId,
-			divisionLabel: r.divisionLabel ?? "",
-			registeredAt: r.registeredAt,
-		}
-	})
+  // Hydrate athlete email from `userTable`. The leaderboard projection
+  // doesn't carry email today; we fetch it in one batched query keyed
+  // by the userIds the leaderboard returned.
+  const userIds = Array.from(new Set(leaderboardEntries.map((e) => e.userId)))
+  const db = getDb()
+  const users = await db
+    .select({
+      id: userTable.id,
+      email: userTable.email,
+    })
+    .from(userTable)
+    .where(inArray(userTable.id, userIds))
 
-	return { entries }
+  const emailByUserId = new Map(users.map((u) => [u.id, u.email]))
+
+  const entries: CandidateEntry[] = leaderboardEntries.map((e) => ({
+    registrationId: e.registrationId,
+    userId: e.userId,
+    athleteName: e.athleteName,
+    athleteEmail: emailByUserId.get(e.userId) ?? null,
+    divisionId: e.divisionId,
+    divisionLabel: e.divisionLabel,
+    overallRank: e.overallRank,
+    totalPoints: e.totalPoints,
+  }))
+
+  // Defensive sort: `getCompetitionLeaderboard` already returns
+  // division-grouped + rank-sorted entries, but we re-sort here so the
+  // candidates contract is "ascending overallRank" regardless of
+  // upstream ordering changes.
+  entries.sort((a, b) => a.overallRank - b.overallRank)
+
+  return { entries }
 }

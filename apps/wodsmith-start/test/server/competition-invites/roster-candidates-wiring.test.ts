@@ -38,11 +38,6 @@ vi.mock("cloudflare:workers", () => ({
 	env: { APP_URL: "https://test.wodsmith.com" },
 }))
 
-// Forbid the legacy path. The whole architectural reason
-// `getCandidatesForSourceComp` exists is to give the roster its own
-// query that doesn't inherit the leaderboard's heat / publication
-// gating. If this mock is ever invoked we've regressed back to the
-// fragile coupling that caused the missing-divisions bug.
 const getCompetitionLeaderboard = vi.fn()
 vi.mock("@/server/competition-leaderboard", () => ({
 	getCompetitionLeaderboard: (...args: unknown[]) =>
@@ -114,7 +109,7 @@ beforeEach(() => {
 
 // @lat: [[competition-invites#Roster computation]]
 describe("getChampionshipRoster — wires through getCandidatesForSourceComp", () => {
-	it("calls getCandidatesForSourceComp per (sourceComp, division), never getCompetitionLeaderboard, and surfaces the returned athletes with the email already hydrated", async () => {
+	it("calls getCandidatesForSourceComp per (sourceComp, division) and surfaces the returned athletes with email + leaderboard rank", async () => {
 		listSourcesForChampionship.mockResolvedValueOnce([sourceFixture()])
 
 		listAllocationsForChampionship.mockResolvedValueOnce([])
@@ -150,9 +145,8 @@ describe("getChampionshipRoster — wires through getCandidatesForSourceComp", (
 			{ id: "div_champ_scaled", label: "Scaled", position: 1 },
 		])
 
-		// One candidate per division. The candidates fn returns the email
-		// inline so the roster doesn't need a separate hydration pass —
-		// this assertion is part of the new contract.
+		// One candidate per division. Each carries the leaderboard's
+		// `overallRank` so the roster's `sourcePlacement` can mirror it.
 		getCandidatesForSourceComp.mockImplementation(async (params: {
 			competitionId: string
 			divisionId: string
@@ -167,7 +161,8 @@ describe("getChampionshipRoster — wires through getCandidatesForSourceComp", (
 							athleteEmail: "athlete-a@example.com",
 							divisionId: "div_qual_rx",
 							divisionLabel: "Rx",
-							registeredAt: new Date("2026-04-10T12:00:00Z"),
+							overallRank: 1,
+							totalPoints: 90,
 						},
 					],
 				}
@@ -181,7 +176,8 @@ describe("getChampionshipRoster — wires through getCandidatesForSourceComp", (
 						athleteEmail: "athlete-b@example.com",
 						divisionId: "div_qual_scaled",
 						divisionLabel: "Scaled",
-						registeredAt: new Date("2026-04-11T12:00:00Z"),
+						overallRank: 1,
+						totalPoints: 70,
 					},
 				],
 			}
@@ -191,10 +187,7 @@ describe("getChampionshipRoster — wires through getCandidatesForSourceComp", (
 			championshipId: "comp_champ",
 		})
 
-		// Assertion 1: leaderboard is forbidden.
-		expect(getCompetitionLeaderboard).not.toHaveBeenCalled()
-
-		// Assertion 2: candidates fn called once per (comp, division), with
+		// Assertion 1: candidates fn called once per (comp, division), with
 		// the right arguments.
 		expect(getCandidatesForSourceComp).toHaveBeenCalledTimes(2)
 		const calls = getCandidatesForSourceComp.mock.calls.map(
@@ -206,7 +199,7 @@ describe("getChampionshipRoster — wires through getCandidatesForSourceComp", (
 			expect(c.competitionId).toBe("comp_qual")
 		}
 
-		// Assertion 3: rows surface each athlete with email hydrated by the
+		// Assertion 2: rows surface each athlete with email hydrated by the
 		// candidates fn (the old roster path did a second user lookup; the
 		// new path expects email on the entry).
 		const byUser = Object.fromEntries(
@@ -214,6 +207,96 @@ describe("getChampionshipRoster — wires through getCandidatesForSourceComp", (
 		)
 		expect(byUser.usr_a).toBe("athlete-a@example.com")
 		expect(byUser.usr_b).toBe("athlete-b@example.com")
+	})
+
+	it("uses the candidate's overallRank as sourcePlacement so the invite roster matches the qualifier leaderboard exactly", async () => {
+		// Production bug: organizers reported athletes appearing on the
+		// invite roster in a different order than the qualifier
+		// leaderboard. Root cause was that the roster ignored the
+		// leaderboard's rank and assigned `sourcePlacement = idx + 1`
+		// over the candidate fan-out's local index. This test pins the
+		// new contract: `sourcePlacement` must equal the source
+		// leaderboard's `overallRank` 1:1, including ties and gaps.
+		listSourcesForChampionship.mockResolvedValueOnce([sourceFixture()])
+
+		listAllocationsForChampionship.mockResolvedValueOnce([])
+		resolveSourceAllocations.mockReturnValue({ total: 0, byDivision: {} })
+
+		selectQueue.push([
+			{ id: "comp_qual", name: "Qualifier Open", groupId: null },
+		])
+		selectQueue.push([{ id: "comp_qual", settings: "{}" }])
+		selectQueue.push([
+			{
+				id: "div_qual_rx",
+				label: "Rx",
+				scalingGroupId: "sg_qual",
+				position: 0,
+			},
+		])
+		selectQueue.push([{ settings: "{}" }])
+		selectQueue.push([{ id: "div_champ_rx", label: "Rx", position: 0 }])
+
+		// Three athletes with a tie at rank 2 (1224 standard ranking
+		// gap → no rank 3, next is rank 4). The roster must mirror this
+		// exactly; an idx-based assignment would emit 1, 2, 3, 4
+		// instead of 1, 2, 2, 4.
+		getCandidatesForSourceComp.mockResolvedValueOnce({
+			entries: [
+				{
+					registrationId: "reg_a",
+					userId: "usr_a",
+					athleteName: "Athlete A",
+					athleteEmail: "athlete-a@example.com",
+					divisionId: "div_qual_rx",
+					divisionLabel: "Rx",
+					overallRank: 1,
+					totalPoints: 100,
+				},
+				{
+					registrationId: "reg_b",
+					userId: "usr_b",
+					athleteName: "Athlete B",
+					athleteEmail: "athlete-b@example.com",
+					divisionId: "div_qual_rx",
+					divisionLabel: "Rx",
+					overallRank: 2,
+					totalPoints: 80,
+				},
+				{
+					registrationId: "reg_c",
+					userId: "usr_c",
+					athleteName: "Athlete C",
+					athleteEmail: "athlete-c@example.com",
+					divisionId: "div_qual_rx",
+					divisionLabel: "Rx",
+					overallRank: 2,
+					totalPoints: 80,
+				},
+				{
+					registrationId: "reg_d",
+					userId: "usr_d",
+					athleteName: "Athlete D",
+					athleteEmail: "athlete-d@example.com",
+					divisionId: "div_qual_rx",
+					divisionLabel: "Rx",
+					overallRank: 4,
+					totalPoints: 60,
+				},
+			],
+		})
+
+		const result = await getChampionshipRoster({
+			championshipId: "comp_champ",
+		})
+
+		const byUser = Object.fromEntries(
+			result.rows.map((r) => [r.userId, r.sourcePlacement]),
+		)
+		expect(byUser.usr_a).toBe(1)
+		expect(byUser.usr_b).toBe(2)
+		expect(byUser.usr_c).toBe(2)
+		expect(byUser.usr_d).toBe(4)
 	})
 })
 
@@ -265,7 +348,8 @@ describe("getChampionshipRoster — does not truncate candidates by allocation c
 		selectQueue.push([{ id: "div_champ_rx", label: "Rx", position: 0 }])
 
 		// 6 active candidates in the source division — one more than the
-		// allocation cutoff (5).
+		// allocation cutoff (5). Ranks descend so the helper still passes
+		// `overallRank` through to `sourcePlacement`.
 		const candidateEntries = Array.from({ length: 6 }, (_, i) => ({
 			registrationId: `reg_${i + 1}`,
 			userId: `usr_${i + 1}`,
@@ -273,7 +357,8 @@ describe("getChampionshipRoster — does not truncate candidates by allocation c
 			athleteEmail: `athlete-${i + 1}@example.com`,
 			divisionId: "div_qual_rx",
 			divisionLabel: "Rx",
-			registeredAt: new Date(`2026-04-${10 + i}T12:00:00Z`),
+			overallRank: i + 1,
+			totalPoints: 100 - i * 10,
 		}))
 		getCandidatesForSourceComp.mockResolvedValueOnce({
 			entries: candidateEntries,
@@ -283,8 +368,8 @@ describe("getChampionshipRoster — does not truncate candidates by allocation c
 			championshipId: "comp_champ",
 		})
 
-		// All 6 candidates surface — the 6th (latest registrant) is the
-		// one that previously disappeared via `entries.slice(0, cutoff)`.
+		// All 6 candidates surface — the 6th (last-place) is the one
+		// that previously disappeared via `entries.slice(0, cutoff)`.
 		expect(result.rows).toHaveLength(6)
 		const userIds = result.rows.map((r) => r.userId)
 		expect(userIds).toContain("usr_6")
