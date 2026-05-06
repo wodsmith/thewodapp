@@ -99,3 +99,47 @@ Cascading cleanup: deactivates team memberships (captain in event team + all mem
 Organizers can move a registration between divisions via `transferRegistrationDivisionFn`.
 
 Validates same team size between source and target divisions (individual-to-team blocked). Updates the registration's `divisionId`, removes heat assignments (division-specific), and updates the commerce purchase record. Does not enforce capacity (organizer decision).
+
+## Day-of Check-In
+
+In-person competitions can mark teams as physically arrived via the volunteer-facing kiosk at `/compete/{slug}/check-in`.
+
+Check-in is **per-registration** (the whole team checks in together), tracked by `checkedInAt` and `checkedInBy` on `competitionRegistrationsTable`. Per-athlete waiver status is read separately from `waiverSignaturesTable`. Access is granted to organizers (`MANAGE_COMPETITIONS`) and to anyone with the `volunteer` role on the competition team — see [[apps/wodsmith-start/src/server-fns/check-in-fns.ts#requireCheckInAccess]]. The auth helper rejects online competitions and the registration mutations require `status = ACTIVE`, so the endpoints can't be used to manipulate cancelled registrations or online events even by direct call.
+
+The kiosk page ([[apps/wodsmith-start/src/routes/compete/$slug/check-in.tsx]]) gates on `competitionType === "in-person"`, redirecting online competitions to the public detail page. It loads the competition's waivers and renders [[apps/wodsmith-start/src/routes/compete/$slug/check-in/-components/check-in-kiosk.tsx#CheckInKiosk]] which is the entire kiosk UI — a single-column athlete-first search interface (no separate detail panel).
+
+### Searching Registrations
+
+[[apps/wodsmith-start/src/server-fns/check-in-fns.ts#searchCompetitionRegistrationsFn]] returns up to 50 active registrations, optionally filtered by a substring query.
+
+The query matches team name, member first/last name, member email, or pending-teammate email — see [[apps/wodsmith-start/src/server-fns/check-in-fns.ts#matchesQuery]]. This means a volunteer can find a partner-format team by typing any partner's name. Results are sorted with not-yet-checked-in registrations first. Each result includes every member with a per-waiver `signedWaivers` map so the UI can show which athletes still need waivers.
+
+### Kiosk Layout
+
+The kiosk is **athlete-first and search-only**: there is no default list of registrations. The volunteer types an athlete (or team) name, the kiosk shows matching athletes with their per-athlete waiver status and a one-tap check-in button.
+
+A scoreboard banner sits at the top with `checked-in / total` registrations in large tabular numerals, a percent-complete progress bar, and (when the competition has required waivers) a `teams missing waivers` summary. When a search query is active, the scoreboard relabels to `Matching · Checked In` and reflects the filtered slice — that's intentional, the volunteer is reading "X of these matches are already in."
+
+Below the scoreboard, a single large search input is the entry point. With no query, the kiosk shows an empty prompt (`Search for an athlete to check them in`) plus the pending and waivers-missing counts — never a list of athletes.
+
+When a query is present, results are a flat list of **per-athlete rows** (one row per matching member, deduplicated across registrations). Each row shows the athlete's avatar and name, their team name (for team-format registrations) and division, and their email. A 4px colored left edge encodes registration status: emerald = checked in, amber = required waivers missing, neutral = pending. The primary action button is `Check in team` (or `Check in` for solo registrations) — a single tap checks in the entire registration, even when the row represents one teammate.
+
+Below the athlete header, the row shows that **specific athlete's** waivers — required waivers and optional waivers, each with a `Signed` indicator or a `Sign on iPad` button that opens [[apps/wodsmith-start/src/routes/compete/$slug/check-in/-components/check-in-waiver-dialog.tsx#CheckInWaiverDialog]]. A compact `signed/required` chip summarizes the athlete's required waiver progress.
+
+For multi-member registrations, each row has a collapsible `N teammates` strip that lists teammate first names inline. Expanding the strip reveals each teammate with their own waiver progress chip — the volunteer can spot a partner who also needs to sign without re-searching. Pending (unaccepted) invites appear in a dashed-border row.
+
+Once a registration is checked in, the row swaps the action button for an emerald `Checked in` badge and shows a timestamp strip with an inline `Undo` button at the bottom of the card — undoing calls [[apps/wodsmith-start/src/server-fns/check-in-fns.ts#checkInRegistrationFn]] with `checkedIn: false`. If the competition has zero registrations, the empty prompt becomes "No registrations for this competition yet" instead of the search guidance.
+
+Sort order: not-checked-in athletes first, then athletes still missing required waivers, then alphabetical by name.
+
+### Toggling Check-In
+
+[[apps/wodsmith-start/src/server-fns/check-in-fns.ts#checkInRegistrationFn]] sets or clears `checkedInAt` and `checkedInBy` on a registration.
+
+The handler refuses to operate on online competitions and validates the registration belongs to the given competition. Volunteers and organizers can both check teams in and undo a check-in.
+
+### Signing Waivers at Check-In
+
+When a teammate hasn't signed a required waiver, the volunteer hands the iPad to the athlete and opens the waiver dialog for that specific athlete + waiver pair.
+
+The dialog ([[apps/wodsmith-start/src/routes/compete/$slug/check-in/-components/check-in-waiver-dialog.tsx#CheckInWaiverDialog]]) displays the waiver in the standard `WaiverViewer` with an agreement checkbox and Accept button. [[apps/wodsmith-start/src/server-fns/check-in-fns.ts#signWaiverAtCheckInFn]] records the signature with `userId = athleteUserId` (so the legal record reflects who agreed), validates the athlete is part of the registration, and is idempotent under concurrency: the `(waiverId, userId)` pair has a DB-level unique index and the handler uses `INSERT … ON DUPLICATE KEY UPDATE` so two parallel taps cannot create duplicate signatures.

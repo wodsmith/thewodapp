@@ -9,7 +9,7 @@
 // @lat: [[organizer-dashboard#Overview Page]]
 
 import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router"
-import { FileText, TrendingUp, Users } from "lucide-react"
+import { ClipboardCheck, FileText, TrendingUp, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -332,15 +332,29 @@ function CompetitionOverviewPage() {
               <CardTitle>Registrations</CardTitle>
               <CardDescription>Athletes registered</CardDescription>
             </div>
-            <Link
-              to="/compete/organizer/$competitionId/athletes"
-              params={{ competitionId: competition.id }}
-            >
-              <Button variant="outline" size="sm">
-                <Users className="mr-2 h-4 w-4" />
-                View All
-              </Button>
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              {!isOnline && (
+                <a
+                  href={`/compete/${competition.slug}/check-in`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button size="sm">
+                    <ClipboardCheck className="mr-2 h-4 w-4" />
+                    Go to Check-In
+                  </Button>
+                </a>
+              )}
+              <Link
+                to="/compete/organizer/$competitionId/athletes"
+                params={{ competitionId: competition.id }}
+              >
+                <Button variant="outline" size="sm">
+                  <Users className="mr-2 h-4 w-4" />
+                  View All
+                </Button>
+              </Link>
+            </div>
           </CardHeader>
           <CardContent>
             {registrations.length === 0 ? (

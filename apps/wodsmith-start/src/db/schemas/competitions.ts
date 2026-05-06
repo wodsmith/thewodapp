@@ -195,6 +195,12 @@ export const competitionRegistrationsTable = mysqlTable(
     paymentStatus: varchar({ length: 20 }),
     // When payment was completed
     paidAt: datetime(),
+
+    // Day-of check-in: when the team physically arrived and was checked in
+    // Null = not yet checked in. In-person competitions only.
+    checkedInAt: datetime(),
+    // userId of the volunteer/organizer who performed the check-in (audit trail)
+    checkedInBy: varchar({ length: 255 }),
   },
   (table) => [
     // One user can only register once per division per competition
@@ -214,6 +220,10 @@ export const competitionRegistrationsTable = mysqlTable(
     index("competition_registrations_status_idx").on(
       table.eventId,
       table.status,
+    ),
+    index("competition_registrations_checked_in_idx").on(
+      table.eventId,
+      table.checkedInAt,
     ),
   ],
 )

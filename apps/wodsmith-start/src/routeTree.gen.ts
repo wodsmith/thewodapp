@@ -68,6 +68,7 @@ import { Route as CompeteSlugMyScheduleRouteImport } from './routes/compete/$slu
 import { Route as CompeteSlugLeaderboardRouteImport } from './routes/compete/$slug/leaderboard'
 import { Route as CompeteSlugJudgesScheduleRouteImport } from './routes/compete/$slug/judges-schedule'
 import { Route as CompeteSlugInvitePendingRouteImport } from './routes/compete/$slug/invite-pending'
+import { Route as CompeteSlugCheckInRouteImport } from './routes/compete/$slug/check-in'
 import { Route as CompeteSlugBroadcastsRouteImport } from './routes/compete/$slug/broadcasts'
 import { Route as ApiWorkoutsSearchRouteImport } from './routes/api/workouts/search'
 import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
@@ -508,6 +509,11 @@ const CompeteSlugInvitePendingRoute =
     path: '/invite-pending',
     getParentRoute: () => CompeteSlugRoute,
   } as any)
+const CompeteSlugCheckInRoute = CompeteSlugCheckInRouteImport.update({
+  id: '/check-in',
+  path: '/check-in',
+  getParentRoute: () => CompeteSlugRoute,
+} as any)
 const CompeteSlugBroadcastsRoute = CompeteSlugBroadcastsRouteImport.update({
   id: '/broadcasts',
   path: '/broadcasts',
@@ -1350,6 +1356,7 @@ export interface FileRoutesByFullPath {
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
   '/compete/$slug/broadcasts': typeof CompeteSlugBroadcastsRoute
+  '/compete/$slug/check-in': typeof CompeteSlugCheckInRoute
   '/compete/$slug/invite-pending': typeof CompeteSlugInvitePendingRoute
   '/compete/$slug/judges-schedule': typeof CompeteSlugJudgesScheduleRoute
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
@@ -1539,6 +1546,7 @@ export interface FileRoutesByTo {
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
   '/compete/$slug/broadcasts': typeof CompeteSlugBroadcastsRoute
+  '/compete/$slug/check-in': typeof CompeteSlugCheckInRoute
   '/compete/$slug/invite-pending': typeof CompeteSlugInvitePendingRoute
   '/compete/$slug/judges-schedule': typeof CompeteSlugJudgesScheduleRoute
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
@@ -1728,6 +1736,7 @@ export interface FileRoutesById {
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
   '/compete/$slug/broadcasts': typeof CompeteSlugBroadcastsRoute
+  '/compete/$slug/check-in': typeof CompeteSlugCheckInRoute
   '/compete/$slug/invite-pending': typeof CompeteSlugInvitePendingRoute
   '/compete/$slug/judges-schedule': typeof CompeteSlugJudgesScheduleRoute
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
@@ -1926,6 +1935,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
     | '/compete/$slug/broadcasts'
+    | '/compete/$slug/check-in'
     | '/compete/$slug/invite-pending'
     | '/compete/$slug/judges-schedule'
     | '/compete/$slug/leaderboard'
@@ -2115,6 +2125,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
     | '/compete/$slug/broadcasts'
+    | '/compete/$slug/check-in'
     | '/compete/$slug/invite-pending'
     | '/compete/$slug/judges-schedule'
     | '/compete/$slug/leaderboard'
@@ -2303,6 +2314,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
     | '/compete/$slug/broadcasts'
+    | '/compete/$slug/check-in'
     | '/compete/$slug/invite-pending'
     | '/compete/$slug/judges-schedule'
     | '/compete/$slug/leaderboard'
@@ -2919,6 +2931,13 @@ declare module '@tanstack/react-router' {
       path: '/invite-pending'
       fullPath: '/compete/$slug/invite-pending'
       preLoaderRoute: typeof CompeteSlugInvitePendingRouteImport
+      parentRoute: typeof CompeteSlugRoute
+    }
+    '/compete/$slug/check-in': {
+      id: '/compete/$slug/check-in'
+      path: '/check-in'
+      fullPath: '/compete/$slug/check-in'
+      preLoaderRoute: typeof CompeteSlugCheckInRouteImport
       parentRoute: typeof CompeteSlugRoute
     }
     '/compete/$slug/broadcasts': {
@@ -4099,6 +4118,7 @@ const CompeteSlugClaimTokenRouteWithChildren =
 
 interface CompeteSlugRouteChildren {
   CompeteSlugBroadcastsRoute: typeof CompeteSlugBroadcastsRoute
+  CompeteSlugCheckInRoute: typeof CompeteSlugCheckInRoute
   CompeteSlugInvitePendingRoute: typeof CompeteSlugInvitePendingRoute
   CompeteSlugJudgesScheduleRoute: typeof CompeteSlugJudgesScheduleRoute
   CompeteSlugLeaderboardRoute: typeof CompeteSlugLeaderboardRoute
@@ -4118,6 +4138,7 @@ interface CompeteSlugRouteChildren {
 
 const CompeteSlugRouteChildren: CompeteSlugRouteChildren = {
   CompeteSlugBroadcastsRoute: CompeteSlugBroadcastsRoute,
+  CompeteSlugCheckInRoute: CompeteSlugCheckInRoute,
   CompeteSlugInvitePendingRoute: CompeteSlugInvitePendingRoute,
   CompeteSlugJudgesScheduleRoute: CompeteSlugJudgesScheduleRoute,
   CompeteSlugLeaderboardRoute: CompeteSlugLeaderboardRoute,
