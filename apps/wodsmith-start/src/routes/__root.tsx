@@ -13,9 +13,7 @@ import { Toaster } from "sonner"
 
 import MainNav from "@/components/nav/main-nav"
 import { PostHogProvider } from "@/lib/posthog/provider"
-import { checkWorkoutTrackingAccess } from "@/server-fns/entitlements"
-import { getOptionalSession } from "@/server-fns/middleware/auth"
-import { getActiveTeamIdFn, getThemeCookieFn } from "@/server-fns/session-fns"
+import { getRootBootstrapFn } from "@/server-fns/session-fns"
 
 import appCss from "../styles.css?url"
 
@@ -42,17 +40,11 @@ export const Route = createRootRoute({
   }),
 
   beforeLoad: async () => {
-    const session = await getOptionalSession()
-    // Read theme cookie for SSR - apply 'dark' class on server if theme is 'dark'
-    // For 'system' or no cookie, default to light (inline script handles client correction)
-    const themeCookie = await getThemeCookieFn()
+    const { session, themeCookie, activeTeamId, hasWorkoutTracking } =
+      await getRootBootstrapFn()
+    // SSR theme: apply 'dark' class on server only for explicit 'dark' preference.
+    // For 'system' or no cookie, default to light (inline script corrects on client).
     const ssrTheme = themeCookie === "dark" ? "dark" : "light"
-    // Get active team ID from cookie for team switcher
-    const activeTeamId = await getActiveTeamIdFn()
-    // Check workout tracking access
-    const hasWorkoutTracking = session?.user
-      ? await checkWorkoutTrackingAccess()
-      : false
     return { session, ssrTheme, activeTeamId, hasWorkoutTracking }
   },
 
