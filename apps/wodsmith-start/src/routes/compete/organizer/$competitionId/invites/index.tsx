@@ -80,7 +80,6 @@ import {
   getOrganizerCompetitionsFn,
 } from "@/server-fns/competition-fns"
 import {
-  type ActiveInviteSummary,
   type AuditInviteSummary,
   getChampionshipRosterFn,
   listActiveInvitesFn,
@@ -270,7 +269,6 @@ function InvitesPage() {
     seriesOptions,
     championshipDivisions,
     roster,
-    activeInvites,
     allInvites,
     allocationsBySourceByDivision,
   } = Route.useLoaderData()
@@ -337,7 +335,10 @@ function InvitesPage() {
       map.set(
         src.id,
         new Map(
-          parsed.data.map((m) => [m.sourceDivisionId, m.championshipDivisionId]),
+          parsed.data.map((m) => [
+            m.sourceDivisionId,
+            m.championshipDivisionId,
+          ]),
         ),
       )
     }
@@ -364,28 +365,6 @@ function InvitesPage() {
       )
     }
   }, [explicitMappingsBySource, championshipDivisions])
-
-  // The candidates table renders one row per (sourceComp × sourceDivision)
-  // placement. An invite belongs to a single championship division, so we
-  // key these lookups by `(emailOrUserId, championshipDivisionId)` — that
-  // way an athlete invited to championship "Masters" only shows the
-  // "Invited" pill on roster rows whose source division maps to Masters,
-  // not on every row across every division they qualified in. The send
-  // dialog still enforces per-division uniqueness server-side at issue
-  // time. Declined athletes are absent from the active map so the
-  // organizer can re-issue without purging the prior row.
-  const activeInviteByEmailAndDivision = useMemo(() => {
-    const map = new Map<string, ActiveInviteSummary>()
-    for (const inv of activeInvites) {
-      if (inv.activeMarker === "active") {
-        map.set(
-          inviteKey(inv.email.toLowerCase(), inv.championshipDivisionId),
-          inv,
-        )
-      }
-    }
-    return map
-  }, [activeInvites])
 
   // Status-display lookup: includes declined rows so the championship
   // roster table can render a "Declined" pill. Active invites win when
@@ -465,20 +444,43 @@ function InvitesPage() {
     return null
   }
 
-  // Row-level "already actively invited" check, scoped to the row's
-  // mapped championship division. Used by the recipient collector and
-  // selection counters so an athlete invited to one division stays
-  // selectable from a roster row that maps to a different division.
-  const isRowAlreadyActiveInvited = useCallback(
+  // Row-level "already paid / registered" check, scoped to the row's
+  // mapped championship division. Drops accepted_paid rows from the
+  // recipient collector and selection counters — the athlete is
+  // already registered, so re-sending would just spam them.
+  // **Pending** rows stay in: the organizer can resend the same claim
+  // link with a fresh expiration date (the send pipeline picks them up
+  // via `alreadyActive` resolution `"resend"`).
+  //
+  // Mirrors the userId-first / email-fallback path that
+  // `lookupInviteForRow` uses for the table's status pill — if the two
+  // diverged, an athlete whose email changed post-invite would render
+  // as "Registered" in the status column but still slip into the
+  // recipient list. Inlined (rather than calling `lookupInviteForRow`)
+  // because this is a `useCallback` and `lookupInviteForRow` isn't
+  // hoisted yet at this point in the function body.
+  const isRowAlreadyAcceptedPaid = useCallback(
     (r: RosterRow): boolean => {
-      if (!r.athleteEmail) return false
       const championshipDivisionId = mapRowToChampionshipDivisionId(r)
       if (!championshipDivisionId) return false
-      return activeInviteByEmailAndDivision.has(
-        inviteKey(r.athleteEmail.toLowerCase(), championshipDivisionId),
-      )
+      const byUser = r.userId
+        ? inviteForStatusByUserIdAndDivision.get(
+            inviteKey(r.userId, championshipDivisionId),
+          )
+        : undefined
+      const byEmail = r.athleteEmail
+        ? inviteForStatusByEmailAndDivision.get(
+            inviteKey(r.athleteEmail.toLowerCase(), championshipDivisionId),
+          )
+        : undefined
+      const inv = byUser ?? byEmail
+      return inv?.status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID
     },
-    [activeInviteByEmailAndDivision, mapRowToChampionshipDivisionId],
+    [
+      mapRowToChampionshipDivisionId,
+      inviteForStatusByUserIdAndDivision,
+      inviteForStatusByEmailAndDivision,
+    ],
   )
 
   // Bespoke section reads from `allInvites` rather than `activeInvites`
@@ -522,15 +524,28 @@ function InvitesPage() {
       ),
     [bespokeInvites],
   )
+  // All pending bespoke rows the organizer can stage on a Send: drafts
+  // (no token yet) **plus** already-sent pending invites the organizer
+  // wants to resend. Terminal statuses (accepted_paid, declined, expired,
+  // revoked) stay out — `accepted_paid` is a "spam the registered athlete"
+  // hazard, and the others have nulled `activeMarker` so a fresh invite
+  // would be the right path, not a resend on the terminal row.
+  const sendableBespokeInvites = useMemo(
+    () =>
+      bespokeInvites.filter(
+        (inv) => inv.status === COMPETITION_INVITE_STATUS.PENDING,
+      ),
+    [bespokeInvites],
+  )
   const sentBespokeCount = bespokeInvites.length - draftBespokeInvites.length
 
-  const isRowAlreadyInvited = (r: RosterRow) => {
+  // Only `accepted_paid` rows are dropped from select-all on the
+  // candidates table — pending rows can be resent via the
+  // `redeliverInvite` path so they stay eligible for selection.
+  const isRowLockedFromSelection = (r: RosterRow) => {
     const inv = lookupInviteForRow(r)
     if (!inv) return false
-    return (
-      inv.status === COMPETITION_INVITE_STATUS.PENDING ||
-      inv.status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID
-    )
+    return inv.status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID
   }
 
   const getInviteStatusForRow = (
@@ -553,6 +568,45 @@ function InvitesPage() {
 
   const getInviteUrlForRow = (r: RosterRow): string | null =>
     lookupInviteForRow(r)?.claimUrl ?? null
+
+  // Map championshipDivision id → label so we can resolve the invite's
+  // `championshipDivisionId` (the actual destination of the invite,
+  // which can differ from the row's source-division label) into a
+  // human-readable column value.
+  const championshipDivisionLabelById = useMemo<Record<string, string>>(
+    () => Object.fromEntries(championshipDivisions.map((d) => [d.id, d.label])),
+    [championshipDivisions],
+  )
+
+  const getInvitedDivisionLabelForRow = (r: RosterRow): string | null => {
+    const inv = lookupInviteForRow(r)
+    if (!inv) return null
+    // Only surface a division label for rows that are actively engaged
+    // at this championship — terminal rows (declined / expired /
+    // revoked) shouldn't read as "invited to X" because the invite is
+    // no longer live. Accepted_paid stays in because the athlete IS
+    // claimed against that division.
+    if (
+      inv.status !== COMPETITION_INVITE_STATUS.PENDING &&
+      inv.status !== COMPETITION_INVITE_STATUS.ACCEPTED_PAID
+    ) {
+      return null
+    }
+    return championshipDivisionLabelById[inv.championshipDivisionId] ?? null
+  }
+
+  // The invite row's `sendAttempt` is 0 on first dispatch and increments
+  // by one each refresh, so the human-readable "we've sent N emails"
+  // count is `sendAttempt + 1`. Drafts (claimUrl null) have never been
+  // dispatched — return 0 so the StatusPill suppresses the count
+  // suffix and the row reads as "Not invited" / "Invited" without a
+  // misleading 1×.
+  const getInviteSendCountForRow = (r: RosterRow): number | null => {
+    const inv = lookupInviteForRow(r)
+    if (!inv) return null
+    if (inv.claimUrl === null) return 0
+    return (inv.sendAttempt ?? 0) + 1
+  }
 
   const copyInviteLink = async (url: string) => {
     try {
@@ -670,7 +724,7 @@ function InvitesPage() {
     for (const r of roster.rows) {
       if (!r.athleteEmail) continue
       if (!selectedRosterKeys.has(rosterRowKey(r))) continue
-      if (isRowAlreadyActiveInvited(r)) continue
+      if (isRowAlreadyAcceptedPaid(r)) continue
       const emailKey = r.athleteEmail.toLowerCase()
       if (seenEmail.has(emailKey)) continue
       seenEmail.add(emailKey)
@@ -689,7 +743,12 @@ function InvitesPage() {
         userId: r.userId,
       })
     }
-    const bespokeRecipients: SendRecipient[] = draftBespokeInvites
+    // Pending bespokes — both staged drafts and already-sent rows the
+    // organizer is resending — funnel through the same recipient slot.
+    // The server pipeline detects the existing-active row in
+    // `issueInvitesForRecipients` and routes it to either `reissueInvite`
+    // (drafts) or `redeliverInvite` (resends) based on token state.
+    const bespokeRecipients: SendRecipient[] = sendableBespokeInvites
       .filter((inv) => selectedDraftIds.has(inv.id))
       .map((inv) => ({
         email: inv.email,
@@ -703,8 +762,8 @@ function InvitesPage() {
   }, [
     roster.rows,
     selectedRosterKeys,
-    isRowAlreadyActiveInvited,
-    draftBespokeInvites,
+    isRowAlreadyAcceptedPaid,
+    sendableBespokeInvites,
     selectedDraftIds,
   ])
 
@@ -716,26 +775,26 @@ function InvitesPage() {
     for (const r of roster.rows) {
       if (!r.athleteEmail) continue
       if (!selectedRosterKeys.has(rosterRowKey(r))) continue
-      if (isRowAlreadyActiveInvited(r)) continue
+      if (isRowAlreadyAcceptedPaid(r)) continue
       const emailKey = r.athleteEmail.toLowerCase()
       if (seen.has(emailKey)) continue
       seen.add(emailKey)
     }
     return seen.size
-  }, [roster.rows, selectedRosterKeys, isRowAlreadyActiveInvited])
+  }, [roster.rows, selectedRosterKeys, isRowAlreadyAcceptedPaid])
 
   const visibleRosterSelectedCount = useMemo(() => {
     const seen = new Set<string>()
     for (const r of filteredRosterRows) {
       if (!r.athleteEmail) continue
       if (!selectedRosterKeys.has(rosterRowKey(r))) continue
-      if (isRowAlreadyActiveInvited(r)) continue
+      if (isRowAlreadyAcceptedPaid(r)) continue
       const emailKey = r.athleteEmail.toLowerCase()
       if (seen.has(emailKey)) continue
       seen.add(emailKey)
     }
     return seen.size
-  }, [filteredRosterRows, selectedRosterKeys, isRowAlreadyActiveInvited])
+  }, [filteredRosterRows, selectedRosterKeys, isRowAlreadyAcceptedPaid])
 
   const hiddenSelectedCount =
     totalRosterSelectedCount - visibleRosterSelectedCount
@@ -796,7 +855,7 @@ function InvitesPage() {
       // are removed when toggling off.
       const next = new Set(prev)
       for (const r of pagedRosterRows) {
-        if (!r.athleteEmail || isRowAlreadyInvited(r)) continue
+        if (!r.athleteEmail || isRowLockedFromSelection(r)) continue
         if (selectAll) next.add(rosterRowKey(r))
         else next.delete(rosterRowKey(r))
       }
@@ -987,6 +1046,8 @@ function InvitesPage() {
                 onToggleAll={toggleAllRoster}
                 getInviteStatusForRow={getInviteStatusForRow}
                 getInviteUrlForRow={getInviteUrlForRow}
+                getInvitedDivisionLabelForRow={getInvitedDivisionLabelForRow}
+                getInviteSendCountForRow={getInviteSendCountForRow}
                 allocationsBySourceByDivision={allocationsBySourceByDivision}
                 championshipDivisions={championshipDivisions}
               />
@@ -1044,22 +1105,22 @@ function InvitesPage() {
                       <TableHead className="w-12">
                         <Checkbox
                           checked={
-                            draftBespokeInvites.length > 0 &&
-                            draftBespokeInvites.every((inv) =>
+                            sendableBespokeInvites.length > 0 &&
+                            sendableBespokeInvites.every((inv) =>
                               selectedDraftIds.has(inv.id),
                             )
                           }
-                          disabled={draftBespokeInvites.length === 0}
+                          disabled={sendableBespokeInvites.length === 0}
                           onCheckedChange={(v) => {
                             setSelectedDraftIds(
                               v === true
                                 ? new Set(
-                                    draftBespokeInvites.map((inv) => inv.id),
+                                    sendableBespokeInvites.map((inv) => inv.id),
                                   )
                                 : new Set(),
                             )
                           }}
-                          aria-label="Select all draft invitees"
+                          aria-label="Select all sendable invitees"
                         />
                       </TableHead>
                       <TableHead className="w-20 text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -1073,6 +1134,9 @@ function InvitesPage() {
                       </TableHead>
                       <TableHead className="w-32 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         Status
+                      </TableHead>
+                      <TableHead className="w-32 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        Invited division
                       </TableHead>
                       <TableHead className="w-16 text-right">
                         <span className="sr-only">Actions</span>
@@ -1094,6 +1158,22 @@ function InvitesPage() {
                       const isDraft =
                         inv.status === COMPETITION_INVITE_STATUS.PENDING &&
                         inv.claimUrl === null
+                      // Sendable = draft (first-time send) **or**
+                      // already-sent pending invite the organizer wants
+                      // to resend. Terminal statuses (accepted_paid,
+                      // declined, expired, revoked) stay locked.
+                      const isSendable =
+                        inv.status === COMPETITION_INVITE_STATUS.PENDING
+                      // For sent rows (non-draft), append a "(N×)"
+                      // suffix when the invite has been emailed more
+                      // than once. The first send carries no suffix
+                      // — adding "1×" everywhere would be noise without
+                      // telling the organizer anything new. Mirrors
+                      // the StatusPill logic in
+                      // championship-roster-table.tsx.
+                      const sendCount = isDraft ? 0 : inv.sendAttempt + 1
+                      const sendCountSuffix =
+                        sendCount >= 2 ? ` ${sendCount}×` : ""
                       const statusLabel =
                         inv.status === "accepted_paid"
                           ? "Accepted"
@@ -1105,7 +1185,7 @@ function InvitesPage() {
                                 ? "Revoked"
                                 : isDraft
                                   ? "Not invited"
-                                  : "Invited"
+                                  : `Invited${sendCountSuffix}`
                       // Palette mirrors the StatusPill in
                       // championship-roster-table so the two tables
                       // read consistently. Always `variant="outline"` —
@@ -1127,15 +1207,26 @@ function InvitesPage() {
                         <TableRow key={inv.id}>
                           <TableCell>
                             <Checkbox
-                              checked={isDraft && selectedDraftIds.has(inv.id)}
-                              disabled={!isDraft}
+                              checked={
+                                isSendable && selectedDraftIds.has(inv.id)
+                              }
+                              disabled={!isSendable}
                               onCheckedChange={() =>
-                                isDraft && toggleDraftSelection(inv.id)
+                                isSendable && toggleDraftSelection(inv.id)
                               }
                               aria-label={
                                 isDraft
                                   ? `Select ${inv.email}`
-                                  : `${inv.email} already sent`
+                                  : isSendable
+                                    ? `Resend invite to ${inv.email}`
+                                    : `${inv.email} cannot be sent`
+                              }
+                              title={
+                                isDraft
+                                  ? undefined
+                                  : isSendable
+                                    ? "Resend will redeliver the same link with a fresh expiration date"
+                                    : undefined
                               }
                             />
                           </TableCell>
@@ -1169,6 +1260,34 @@ function InvitesPage() {
                             >
                               {statusLabel}
                             </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {(() => {
+                              // Only surface the invited-division label
+                              // for actively-engaged rows (pending or
+                              // accepted_paid) — terminal statuses keep
+                              // their championshipDivisionId on the row
+                              // but reading them as "invited to X" is
+                              // misleading when the invite is no longer
+                              // live. Mirrors the candidates table.
+                              const showLabel =
+                                inv.status ===
+                                  COMPETITION_INVITE_STATUS.PENDING ||
+                                inv.status ===
+                                  COMPETITION_INVITE_STATUS.ACCEPTED_PAID
+                              const label = showLabel
+                                ? championshipDivisionLabelById[
+                                    inv.championshipDivisionId
+                                  ]
+                                : null
+                              return label ? (
+                                <Badge variant="outline">{label}</Badge>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">
+                                  —
+                                </span>
+                              )
+                            })()}
                           </TableCell>
                           <TableCell className="text-right">
                             {inv.claimUrl !== null ? (
@@ -1227,7 +1346,6 @@ function InvitesPage() {
             competitionId={competitionId}
           />
         </TabsContent>
-
       </Tabs>
 
       {championshipDivisions[0] ? (
