@@ -4,112 +4,124 @@ sidebar_position: 1
 
 # Register for Your First Competition
 
-In this tutorial, we will register for a CrossFit competition on WODsmith. By the end, you will have successfully submitted your registration, selected a division, and received a confirmation.
+In this tutorial, we will register for a CrossFit competition on WODsmith. By the end, you will have an account, a confirmed registration, a chosen division, and a clear path to event day.
 
 ## What We'll Accomplish
 
 1. Find a competition
 2. Create an account (if needed)
 3. Select a division
-4. Complete registration
-5. View your confirmation
-
-Let's begin!
+4. Complete registration and waivers
+5. Confirm and orient yourself for event day
 
 ## Step 1: Find the Competition
 
-First, we need to locate the competition you want to enter.
+First, locate the competition.
 
-1. Open the competition link shared by the organizer, or visit the gym's WODsmith page
-2. You should see the competition landing page with the event name and date
+1. Open the link the organizer shared, or visit the gym's WODsmith page.
+2. The public landing page shows the event name, dates, location, sponsors, and registration status.
 
-**Notice** the competition details displayed: date, location, and available divisions. This confirms you're in the right place.
+![Competition landing page](/img/tutorials/athletes/athlete-landing.png)
+
+**Notice** the right-hand panel — when you're not yet registered, it shows a **Register** button. After you register, the same panel turns green with **You're Registered!** and shows your division.
 
 ## Step 2: Start Registration
 
-Now we'll begin the registration process.
-
-1. Click the **Register** button
-2. If you're not signed in, you'll see login options
-
-**You should see** either a login form or the registration form if you're already signed in.
+1. Click **Register** on the landing page.
+2. If you're not signed in, you'll be sent to the sign-in page first.
 
 ### Creating an Account
 
-If you don't have a WODsmith account yet:
+If you don't have an account yet:
 
-1. Click **Sign Up**
-2. Enter your email address
-3. Create a password
-4. Click **Create Account**
+1. Click **Sign Up** on the sign-in page.
+2. Enter your email and create a password.
+3. Verify your email when the verification link arrives.
 
-**Notice** the confirmation message. You now have a WODsmith account that works across all competitions.
+Your WODsmith account works across every gym and competition on the platform — you only ever need one.
 
 ## Step 3: Select Your Division
 
-Now we'll choose which division to compete in.
+The registration form lists every division the organizer configured.
 
-1. Review the available divisions displayed
-2. Read the requirements for each division
-3. Click on your chosen division
+![Registration form with division picker](/img/tutorials/athletes/athlete-register.png)
 
-**You should see** the division highlighted, indicating your selection.
+Each division card shows:
 
-Common divisions include:
+- **Name** (e.g., RX, Scaled, Masters 40+)
+- **Team size** — solo, pairs, or team
+- **Capacity remaining**, if a cap is set
+- **Fee** — registration price for that division
 
-- **RX** - Prescribed weights and movements
-- **Scaled** - Modified standards
-- **Masters** - Age-group categories
+**Notice** that team divisions (size > 1) ask for a captain — the captain registers first, then invites teammates by email. Teammates accept their invite from their own inbox and complete the form independently.
+
+Common divisions:
+
+- **RX** — prescribed weights and full movement standards
+- **Scaled** — modified weights and substituted movements
+- **Masters 40+ / 50+** — age-grouped fields
+- **Teens** — age-grouped, often with reduced weights
+- **Partner / Team** — team divisions (size 2 or 4)
 
 ## Step 4: Complete Your Information
 
-Next, we'll fill in the required registration details.
+Fill in your registration details:
 
-1. Enter your personal information as requested
-2. Provide any emergency contact details
-3. Answer any custom questions from the organizer
+- **Personal info** — name, date of birth, gender (used for division eligibility)
+- **Affiliate** — the gym you train at (used in leaderboard team columns)
+- **Emergency contact** — most organizers require this
+- **Custom questions** — set by the organizer (T-shirt size, dietary restrictions, etc.)
 
-**Notice** required fields are marked. Complete all required fields before proceeding.
+Required fields are marked with `*`. The form won't submit until they're all complete.
 
-## Step 5: Review and Sign Waiver
+## Step 5: Sign the Waiver
 
-Most competitions require a liability waiver.
+Most competitions require an electronic waiver before paying.
 
-1. Read through the waiver text
-2. Check the acknowledgment box
-3. Enter your electronic signature
+1. Read the waiver text — it's a real legal document.
+2. Check the acknowledgment box.
+3. Type your full legal name as the signature.
 
-**You should see** the signature field accept your input.
+The signature is timestamped and stored as part of your registration. The organizer sees signed status in their athlete list and can re-send waivers if any are missing.
 
-## Step 6: Submit Registration
+## Step 6: Pay (or Skip Payment)
 
-We're ready to complete the registration!
+If the division has a registration fee, you'll be redirected to Stripe Checkout. Free competitions skip this step entirely.
 
-1. Review your information one final time
-2. Click **Submit Registration**
+After payment, you land on the confirmation screen and receive a confirmation email.
 
-**You should see** a confirmation screen showing:
+## Step 7: Confirm and Explore
 
-- Your registration status: **Confirmed** or **Pending**
-- Your selected division
-- A confirmation email will arrive shortly
+Once registered, the competition page changes for you:
+
+![Athlete view of a registered competition](/img/tutorials/athletes/athlete-landing.png)
+
+- The right rail shows **You're Registered!** with your division
+- A **View Registration** button opens your registration details (where you can edit answers, manage teammates, sign waivers, etc.)
+- The tabs — **Workouts**, **Schedule**, **Leaderboard**, **Announcements** — populate with your event's content
+
+You can also see all your competitions at once on `/compete/athlete`:
+
+![Personal athlete dashboard](/img/how-to/athletes/athlete-dashboard.png)
+
+This page lists every competition you've registered for, your competitive history, your invoices, and your editable profile.
 
 ## You've Done It!
 
-Congratulations! You have successfully registered for your first competition. Your confirmation includes:
+You're registered. Your confirmation includes:
 
-- Registration confirmation number
+- Confirmation number
 - Division assignment
-- Next steps and what to expect
+- Receipt (if you paid)
+- Reminders about upcoming dates
 
 ## What's Next
 
-Now that you're registered:
-
-- [View your schedule](/how-to/athletes/view-schedule) once heat times are posted
-- [Check the workout standards](/how-to/athletes/view-workouts) to prepare
-- [Track your results](/how-to/athletes/check-standings) during the competition
+- [View your heat schedule](/how-to/athletes/view-schedule) once heats are published
+- [Review the workout standards](/how-to/athletes/view-workouts) so you can prepare
+- [Track standings on the leaderboard](/how-to/athletes/check-standings) during the event
+- [Read announcements](/how-to/athletes/view-broadcasts) the organizer posts before and during the competition
 
 ---
 
-_Need to make changes? Contact the competition organizer._
+*Need to make changes? Open the competition, click **View Registration**, and most fields can be edited up to the registration deadline. Beyond that, contact the organizer.*
