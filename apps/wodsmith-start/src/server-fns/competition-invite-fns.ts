@@ -1458,6 +1458,16 @@ export interface ActiveInviteSummary {
    * `team_invitations`-style copy-link affordance.
    */
   claimUrl: string | null
+  /**
+   * Counter incremented on every refresh dispatch. The dispatch loop
+   * reads `invite.sendAttempt` to feed the Resend `Idempotency-Key`,
+   * so an organizer-facing "this athlete has been emailed N times"
+   * count is `sendAttempt + 1` for any row with a token (the +1 covers
+   * the first send that ran while sendAttempt was still 0). Drafts
+   * (no token, never dispatched) read 0 the same way fresh inserts do
+   * — the UI distinguishes by checking `claimUrl === null`.
+   */
+  sendAttempt: number
 }
 
 /**
@@ -1545,6 +1555,7 @@ export const listActiveInvitesFn = createServerFn({ method: "GET" })
             inviteeLastName: competitionInvitesTable.inviteeLastName,
             userId: competitionInvitesTable.userId,
             claimToken: competitionInvitesTable.claimToken,
+            sendAttempt: competitionInvitesTable.sendAttempt,
             championshipSlug: competitionsTable.slug,
           })
           .from(competitionInvitesTable)
@@ -1647,6 +1658,7 @@ export const listAllInvitesFn = createServerFn({ method: "GET" })
             inviteeLastName: competitionInvitesTable.inviteeLastName,
             userId: competitionInvitesTable.userId,
             claimToken: competitionInvitesTable.claimToken,
+            sendAttempt: competitionInvitesTable.sendAttempt,
             lastUpdatedAt: competitionInvitesTable.updatedAt,
             expiresAt: competitionInvitesTable.expiresAt,
             championshipSlug: competitionsTable.slug,

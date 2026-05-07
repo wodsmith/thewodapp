@@ -42,6 +42,7 @@ const baseInvite = (
   inviteeLastName: "Lovelace",
   userId: "usr_a",
   claimUrl: "https://example.com/compete/champ/claim/tok_1",
+  sendAttempt: 0,
   divisionLabel: "RX Men",
   lastUpdatedAt: new Date("2026-04-20T12:00:00Z"),
   sourceId: "cisrc_qualifier",

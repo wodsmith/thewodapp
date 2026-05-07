@@ -85,6 +85,13 @@ interface ChampionshipRosterTableProps {
    *  so the label is taken from the resolved invite — not the row's
    *  source-division label. */
   getInvitedDivisionLabelForRow?: (row: RosterRow) => string | null
+  /** Total number of times the invite has been emailed (1 = first
+   *  send, 2 = first resend, etc.). Returns null for rows with no
+   *  active invite or for drafts that haven't been dispatched yet.
+   *  When supplied, the status pill suffixes a "(N×)" tail for any
+   *  count >= 2 so the organizer can spot already-nudged athletes
+   *  without clicking into the Sent tab. */
+  getInviteSendCountForRow?: (row: RosterRow) => number | null
   /** ADR-0012 Phase 4: resolved per-(source, championship-division)
    *  allocation map. When supplied alongside `championshipDivisions`,
    *  the table renders a small "Allocates N to {Division}" banner per
@@ -367,7 +374,18 @@ function DivisionCell({ row }: { row: RosterRow }) {
   return <Badge variant="outline">{row.sourceDivisionLabel}</Badge>
 }
 
-function StatusPill({ status }: { status: RowInviteStatus | null }) {
+function StatusPill({
+  status,
+  sendCount,
+}: {
+  status: RowInviteStatus | null
+  sendCount?: number | null
+}) {
+  // Suffix the pill with "(N×)" only when the invite has been emailed
+  // more than once. The default state (one send) reads as just "Invited"
+  // — adding a "1×" everywhere would be visual noise without telling
+  // the organizer anything new.
+  const countSuffix = sendCount && sendCount >= 2 ? ` ${sendCount}×` : ""
   // `variant="outline"` for all — the default variant's `dark:bg-primary`
   // would otherwise paint over the colored tints in dark mode.
   if (status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID) {
@@ -386,7 +404,7 @@ function StatusPill({ status }: { status: RowInviteStatus | null }) {
         variant="outline"
         className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50"
       >
-        Invited
+        Invited{countSuffix}
       </Badge>
     )
   }
@@ -415,6 +433,7 @@ export function ChampionshipRosterTable({
   getInviteStatusForRow,
   getInviteUrlForRow,
   getInvitedDivisionLabelForRow,
+  getInviteSendCountForRow,
   allocationsBySourceByDivision,
   championshipDivisions,
 }: ChampionshipRosterTableProps) {
@@ -557,7 +576,10 @@ export function ChampionshipRosterTable({
                       <RankCell placement={row.sourcePlacement} />
                     </TableCell>
                     <TableCell>
-                      <StatusPill status={rowInviteStatus} />
+                      <StatusPill
+                        status={rowInviteStatus}
+                        sendCount={getInviteSendCountForRow?.(row) ?? null}
+                      />
                     </TableCell>
                     {invitedDivisionColumnEnabled ? (
                       <TableCell>

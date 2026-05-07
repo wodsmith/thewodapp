@@ -602,6 +602,19 @@ function InvitesPage() {
     return championshipDivisionLabelById[inv.championshipDivisionId] ?? null
   }
 
+  // The invite row's `sendAttempt` is 0 on first dispatch and increments
+  // by one each refresh, so the human-readable "we've sent N emails"
+  // count is `sendAttempt + 1`. Drafts (claimUrl null) have never been
+  // dispatched — return 0 so the StatusPill suppresses the count
+  // suffix and the row reads as "Not invited" / "Invited" without a
+  // misleading 1×.
+  const getInviteSendCountForRow = (r: RosterRow): number | null => {
+    const inv = lookupInviteForRow(r)
+    if (!inv) return null
+    if (inv.claimUrl === null) return 0
+    return (inv.sendAttempt ?? 0) + 1
+  }
+
   const copyInviteLink = async (url: string) => {
     try {
       await navigator.clipboard.writeText(url)
@@ -1041,6 +1054,7 @@ function InvitesPage() {
                 getInviteStatusForRow={getInviteStatusForRow}
                 getInviteUrlForRow={getInviteUrlForRow}
                 getInvitedDivisionLabelForRow={getInvitedDivisionLabelForRow}
+                getInviteSendCountForRow={getInviteSendCountForRow}
                 allocationsBySourceByDivision={allocationsBySourceByDivision}
                 championshipDivisions={championshipDivisions}
               />
@@ -1128,6 +1142,9 @@ function InvitesPage() {
                       <TableHead className="w-32 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         Status
                       </TableHead>
+                      <TableHead className="w-32 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        Invited division
+                      </TableHead>
                       <TableHead className="w-16 text-right">
                         <span className="sr-only">Actions</span>
                       </TableHead>
@@ -1154,6 +1171,16 @@ function InvitesPage() {
                       // declined, expired, revoked) stay locked.
                       const isSendable =
                         inv.status === COMPETITION_INVITE_STATUS.PENDING
+                      // For sent rows (non-draft), append a "(N×)"
+                      // suffix when the invite has been emailed more
+                      // than once. The first send carries no suffix
+                      // — adding "1×" everywhere would be noise without
+                      // telling the organizer anything new. Mirrors
+                      // the StatusPill logic in
+                      // championship-roster-table.tsx.
+                      const sendCount = isDraft ? 0 : inv.sendAttempt + 1
+                      const sendCountSuffix =
+                        sendCount >= 2 ? ` ${sendCount}×` : ""
                       const statusLabel =
                         inv.status === "accepted_paid"
                           ? "Accepted"
@@ -1165,7 +1192,7 @@ function InvitesPage() {
                                 ? "Revoked"
                                 : isDraft
                                   ? "Not invited"
-                                  : "Invited"
+                                  : `Invited${sendCountSuffix}`
                       // Palette mirrors the StatusPill in
                       // championship-roster-table so the two tables
                       // read consistently. Always `variant="outline"` —
@@ -1240,6 +1267,34 @@ function InvitesPage() {
                             >
                               {statusLabel}
                             </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {(() => {
+                              // Only surface the invited-division label
+                              // for actively-engaged rows (pending or
+                              // accepted_paid) — terminal statuses keep
+                              // their championshipDivisionId on the row
+                              // but reading them as "invited to X" is
+                              // misleading when the invite is no longer
+                              // live. Mirrors the candidates table.
+                              const showLabel =
+                                inv.status ===
+                                  COMPETITION_INVITE_STATUS.PENDING ||
+                                inv.status ===
+                                  COMPETITION_INVITE_STATUS.ACCEPTED_PAID
+                              const label = showLabel
+                                ? championshipDivisionLabelById[
+                                    inv.championshipDivisionId
+                                  ]
+                                : null
+                              return label ? (
+                                <Badge variant="outline">{label}</Badge>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">
+                                  —
+                                </span>
+                              )
+                            })()}
                           </TableCell>
                           <TableCell className="text-right">
                             {inv.claimUrl !== null ? (

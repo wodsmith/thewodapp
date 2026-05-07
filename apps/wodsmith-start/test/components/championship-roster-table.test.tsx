@@ -187,4 +187,54 @@ describe("ChampionshipRosterTable", () => {
     )
     expect(screen.getByText(/invited division/i)).toBeInTheDocument()
   })
+
+  it("shows the send count in the status pill when an athlete has been invited more than once", () => {
+    // The organizer's whole reason for the resend feature is to nudge
+    // athletes who already got the first email. They need to see at a
+    // glance who's already been pinged twice vs. only once — otherwise
+    // they have no way to tell "second reminder" from "first send"
+    // without clicking into the Sent tab.
+    const pendingRow = row({
+      athleteName: "Ada Lovelace",
+      athleteEmail: "ada@example.com",
+      userId: "usr_a",
+    })
+    render(
+      <ChampionshipRosterTable
+        rows={[pendingRow]}
+        selectedKeys={new Set()}
+        onToggleSelection={() => {}}
+        onToggleAll={() => {}}
+        getInviteStatusForRow={() => "pending"}
+        getInviteSendCountForRow={() => 3}
+      />,
+    )
+    // Pill text reads "Invited 3×" (or close — assertion uses regex
+    // so the implementation can pick its delimiter).
+    expect(screen.getByText(/invited.*3/i)).toBeInTheDocument()
+  })
+
+  it("omits the send count from the status pill when only one send has happened", () => {
+    // Avoid noise: the default state for any invited row is "Invited
+    // 1×". Showing the suffix on every single row would clutter the
+    // table without telling the organizer anything new — only
+    // surface the count when it carries information (>= 2).
+    const pendingRow = row({
+      athleteName: "Ada Lovelace",
+      athleteEmail: "ada@example.com",
+      userId: "usr_a",
+    })
+    render(
+      <ChampionshipRosterTable
+        rows={[pendingRow]}
+        selectedKeys={new Set()}
+        onToggleSelection={() => {}}
+        onToggleAll={() => {}}
+        getInviteStatusForRow={() => "pending"}
+        getInviteSendCountForRow={() => 1}
+      />,
+    )
+    // The pill is just "Invited", no count suffix.
+    expect(screen.getByText("Invited")).toBeInTheDocument()
+  })
 })
