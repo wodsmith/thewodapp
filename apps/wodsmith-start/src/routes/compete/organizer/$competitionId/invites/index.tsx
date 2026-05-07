@@ -531,6 +531,19 @@ function InvitesPage() {
       ),
     [bespokeInvites],
   )
+  // All pending bespoke rows the organizer can stage on a Send: drafts
+  // (no token yet) **plus** already-sent pending invites the organizer
+  // wants to resend. Terminal statuses (accepted_paid, declined, expired,
+  // revoked) stay out — `accepted_paid` is a "spam the registered athlete"
+  // hazard, and the others have nulled `activeMarker` so a fresh invite
+  // would be the right path, not a resend on the terminal row.
+  const sendableBespokeInvites = useMemo(
+    () =>
+      bespokeInvites.filter(
+        (inv) => inv.status === COMPETITION_INVITE_STATUS.PENDING,
+      ),
+    [bespokeInvites],
+  )
   const sentBespokeCount = bespokeInvites.length - draftBespokeInvites.length
 
   // Only `accepted_paid` rows are dropped from select-all on the
@@ -698,7 +711,12 @@ function InvitesPage() {
         userId: r.userId,
       })
     }
-    const bespokeRecipients: SendRecipient[] = draftBespokeInvites
+    // Pending bespokes — both staged drafts and already-sent rows the
+    // organizer is resending — funnel through the same recipient slot.
+    // The server pipeline detects the existing-active row in
+    // `issueInvitesForRecipients` and routes it to either `reissueInvite`
+    // (drafts) or `redeliverInvite` (resends) based on token state.
+    const bespokeRecipients: SendRecipient[] = sendableBespokeInvites
       .filter((inv) => selectedDraftIds.has(inv.id))
       .map((inv) => ({
         email: inv.email,
@@ -713,7 +731,7 @@ function InvitesPage() {
     roster.rows,
     selectedRosterKeys,
     isRowAlreadyAcceptedPaid,
-    draftBespokeInvites,
+    sendableBespokeInvites,
     selectedDraftIds,
   ])
 
@@ -1053,22 +1071,22 @@ function InvitesPage() {
                       <TableHead className="w-12">
                         <Checkbox
                           checked={
-                            draftBespokeInvites.length > 0 &&
-                            draftBespokeInvites.every((inv) =>
+                            sendableBespokeInvites.length > 0 &&
+                            sendableBespokeInvites.every((inv) =>
                               selectedDraftIds.has(inv.id),
                             )
                           }
-                          disabled={draftBespokeInvites.length === 0}
+                          disabled={sendableBespokeInvites.length === 0}
                           onCheckedChange={(v) => {
                             setSelectedDraftIds(
                               v === true
                                 ? new Set(
-                                    draftBespokeInvites.map((inv) => inv.id),
+                                    sendableBespokeInvites.map((inv) => inv.id),
                                   )
                                 : new Set(),
                             )
                           }}
-                          aria-label="Select all draft invitees"
+                          aria-label="Select all sendable invitees"
                         />
                       </TableHead>
                       <TableHead className="w-20 text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -1103,6 +1121,12 @@ function InvitesPage() {
                       const isDraft =
                         inv.status === COMPETITION_INVITE_STATUS.PENDING &&
                         inv.claimUrl === null
+                      // Sendable = draft (first-time send) **or**
+                      // already-sent pending invite the organizer wants
+                      // to resend. Terminal statuses (accepted_paid,
+                      // declined, expired, revoked) stay locked.
+                      const isSendable =
+                        inv.status === COMPETITION_INVITE_STATUS.PENDING
                       const statusLabel =
                         inv.status === "accepted_paid"
                           ? "Accepted"
@@ -1136,15 +1160,26 @@ function InvitesPage() {
                         <TableRow key={inv.id}>
                           <TableCell>
                             <Checkbox
-                              checked={isDraft && selectedDraftIds.has(inv.id)}
-                              disabled={!isDraft}
+                              checked={
+                                isSendable && selectedDraftIds.has(inv.id)
+                              }
+                              disabled={!isSendable}
                               onCheckedChange={() =>
-                                isDraft && toggleDraftSelection(inv.id)
+                                isSendable && toggleDraftSelection(inv.id)
                               }
                               aria-label={
                                 isDraft
                                   ? `Select ${inv.email}`
-                                  : `${inv.email} already sent`
+                                  : isSendable
+                                    ? `Resend invite to ${inv.email}`
+                                    : `${inv.email} cannot be sent`
+                              }
+                              title={
+                                isDraft
+                                  ? undefined
+                                  : isSendable
+                                    ? "Resend will redeliver the same link with a fresh expiration date"
+                                    : undefined
                               }
                             />
                           </TableCell>
