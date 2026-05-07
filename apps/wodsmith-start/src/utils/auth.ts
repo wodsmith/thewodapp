@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks"
 import { encodeHexLowerCase } from "@oslojs/encoding"
 import { init } from "@paralleldrive/cuid2"
 import { getCookie, setCookie } from "@tanstack/react-start/server"
@@ -521,9 +522,22 @@ export async function getActiveOrPersonalTeamId(
 }
 
 /**
- * This function can only be called in a Server Components, Server Action or Route Handler
+ * Per-request memoization for getSessionFromCookie.
+ * The fetch handler in server.ts wraps every request with withSessionCache,
+ * which means duplicate calls within the same request (e.g. handler + nested
+ * requireTeamPermission) share a single KV read instead of fanning out.
  */
-export async function getSessionFromCookie(): Promise<SessionValidationResult | null> {
+interface SessionCacheStore {
+  session?: Promise<SessionValidationResult | null>
+}
+
+const sessionCacheStorage = new AsyncLocalStorage<SessionCacheStore>()
+
+export function withSessionCache<T>(fn: () => T): T {
+  return sessionCacheStorage.run({}, fn)
+}
+
+async function computeSessionFromCookie(): Promise<SessionValidationResult | null> {
   const sessionCookie = getCookie(SESSION_COOKIE_NAME)
 
   if (!sessionCookie) {
@@ -541,6 +555,20 @@ export async function getSessionFromCookie(): Promise<SessionValidationResult | 
     setEvlogUser(session.userId)
   }
   return session
+}
+
+/**
+ * This function can only be called in a Server Components, Server Action or Route Handler
+ */
+export async function getSessionFromCookie(): Promise<SessionValidationResult | null> {
+  const cache = sessionCacheStorage.getStore()
+  if (!cache) {
+    return computeSessionFromCookie()
+  }
+  if (!cache.session) {
+    cache.session = computeSessionFromCookie()
+  }
+  return cache.session
 }
 
 export async function requireVerifiedEmail() {
