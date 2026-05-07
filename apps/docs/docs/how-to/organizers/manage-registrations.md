@@ -4,51 +4,90 @@ sidebar_position: 1
 
 # How to Manage Registrations
 
-View and filter athlete registrations for your competition.
+View, filter, and edit athlete registrations for your competition.
 
 ## Prerequisites
 
-- Competition organizer permissions
-- Competition with registration enabled
+- Competition organizer permissions on the organizing team (or admin role)
+- Competition with at least one division configured
 
 ## Viewing Registrations
 
-1. Open your competition from the **Organizer** dashboard
-2. Click **Registrations** in the sidebar
-3. View all registered athletes
+1. Open your competition from the **Organize** dashboard.
+2. Click **Registrations** in the sidebar.
 
-![Registrations list](/img/how-to/organizers/registrations-list.png)
+![Registrations table with division filter](/img/how-to/organizers/organizer-registrations.png)
 
-The registrations table displays:
-- **#** - Registration number
-- **Athlete** - Name and email
-- **Division** - The division they registered for
-- **Team** - Team name (if applicable)
-- **Registered** - Registration date
+The table shows every registered athlete with sortable columns:
+
+| Column | What's there |
+| --- | --- |
+| **#** | Row number |
+| **Status** | Registration status (e.g., Active, Removed) |
+| **Athlete** | Name and email — captain only for team registrations |
+| **Division** | The division they registered for |
+| **Team Name** | Team registration name (— for solos) |
+| **Affiliate** | Their gym; appears as subtext on the public leaderboard |
+| **Registered** | Registration date |
+| **Joined** | When they accepted (different from Registered for invited teammates) |
+
+The **`...`** menu on each row opens captain-scoped actions: **View Details**, **Change Division**, **Transfer Registration**, **Remove**.
 
 ## Filtering by Division
 
-Use the division filter to view registrations for a specific division:
+Use the **All Divisions** dropdown to scope the table to a specific division. The dropdown labels include counts (e.g., `RX (10)`).
 
-1. Click the **All Divisions** dropdown
-2. Select a division to filter
+## Athlete Detail Page
 
-![Division filter](/img/how-to/organizers/registrations-division-filter.png)
+Click **View Details** on any row to open the per-athlete page at `/compete/organizer/{competitionId}/athletes/{registrationId}`. This is the surface for any per-registration edit:
 
-The dropdown shows the count of registrations per division (e.g., "RX (10)").
+- Inline edit of team name, affiliate (per-member for team registrations)
+- Roster management — invite teammates, resend invites, remove non-captain members
+- Per-question answer edit for active members and pending invites
+- Read-only waiver list with signature status (waivers are legal records and never editable)
+- Per-event score entry with the same rounds + tiebreak + status controls athletes use
+- Video submission management (online competitions)
 
-<!-- FEATURE NOT FOUND: Registration Statuses (Confirmed, Pending, Waitlisted, Cancelled) - The current implementation shows all registrations without status indicators -->
+For pending teammate invites, you can also pre-fill answers and affiliate before they accept — those values transfer onto their registration on acceptance.
 
-<!-- FEATURE NOT FOUND: Approving/Rejecting Registrations - There are no Approve or Reject buttons. All registrations are auto-confirmed. -->
+## Adding a Manual Registration
 
-<!-- FEATURE NOT FOUND: Waitlist Management - There is no waitlist feature in this application. Divisions do not have capacity limits and all registrations are immediately accepted. -->
+The **Add Registration** button opens the manual registration dialog. Use this when:
 
-<!-- FEATURE NOT FOUND: Refunds - There is no refund functionality in the registration management interface. Refunds would need to be processed directly through your payment provider. -->
+- An athlete pays you directly (cash, check, comp ticket) and you want to add them to the system
+- You're testing the flow before going public
+- An athlete loses access to their email and can't accept an invite
 
-## Exporting Registrations
+The dialog accepts an email — if a user with that email already exists, they're added as a normal registration. If not, WODsmith creates a placeholder user and emails a claim link so the athlete can finish setting up their account.
 
-Click **Export CSV** to download all registrations including custom question answers.
+## Transferring a Registration
+
+Two transfer types:
+
+- **Change Division** — same person, new division. Use **Change Division** in the row menu.
+- **Transfer Registration (Purchase Transfer)** — different person inheriting the slot (and waiver, answers, payment). Use **Transfer Registration**. The recipient gets an email with a claim link; until they accept, the transfer shows as **Pending**.
+
+Both actions preserve the slot count — the transfer doesn't open a new spot for waitlist purposes.
+
+## Removing a Registration
+
+The **Remove** action soft-deletes the registration. Removing cascades:
+
+- Drops the athlete from heat assignments
+- Removes their pending teammate invites
+- Voids any per-event scores in that division
+- Emails the captain (and Stripe-refunds the purchase if the organizer chose that option)
+
+Removed registrations are still visible in the list with status **Removed** for audit purposes.
+
+## Exporting
+
+Click **Export CSV** to download all registrations including custom question answers. Useful for:
+
+- Heat assignment spreadsheets
+- T-shirt size tallies
+- Insurance / waiver audit trails
 
 ---
 
-*See also: [How to Create Registration Questions](/how-to/organizers/registration-questions) | [How to Schedule Heats](/how-to/organizers/schedule-heats)*
+*See also: [How to Create Registration Questions](/how-to/organizers/registration-questions) | [How to Schedule Heats](/how-to/organizers/schedule-heats) | [How to Run Event Day](/how-to/organizers/event-day)*
