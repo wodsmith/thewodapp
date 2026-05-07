@@ -2,25 +2,27 @@
  * Competition invite issue helpers (Phase 2).
  *
  * DB-side-only layer that writes `competition_invites` rows for new sends
- * and rotates tokens on re-send. Does NOT render email, does NOT enqueue
- * — those belong to `competition-invite-fns.issueInvitesFn` (2.13) so the
- * email queue consumer is the only path that calls Resend.
+ * and refreshes existing rows on re-send. Does NOT render email, does
+ * NOT enqueue — those belong to `competition-invite-fns.issueInvitesFn`
+ * (2.13) so the email queue consumer is the only path that calls Resend.
  *
- * Two primary helpers:
+ * Three primary helpers:
  * - {@link issueInvitesForRecipients} — insert new pending invite rows for
  *   source-derived and fresh bespoke recipients. Returns the inserted rows
  *   together with their plaintext claim tokens for the email render.
- *   The plaintext also lives in `claimToken` on the row (mirroring the
- *   `team_invitations.token` pattern) so the organizer UI can build a
- *   copy-link. Conflicts against an already-active invite surface as
- *   `alreadyActive` with the existing invite id so the caller can decide
- *   to reissue.
+ *   Conflicts against an already-active invite surface as `alreadyActive`
+ *   with a {@link AlreadyActiveResolution} hint telling the caller
+ *   whether to activate (draft), redeliver (already-sent), or skip
+ *   (terminal status).
  * - {@link reissueInvite} — rotate token, bump `sendAttempt`, bump
  *   `expiresAt`, restore `activeMarker = "active"`, and flip `expired` /
  *   draft-no-token rows back to `pending`. Covers both extend-expired
  *   and activate-draft-bespoke paths.
+ * - {@link redeliverInvite} — bump `sendAttempt` + `expiresAt` while
+ *   **preserving** the existing `claimToken`, so an athlete who already
+ *   received the prior email keeps a working link after the resend.
  *
- * Both paths reject at the target division's registration fee of $0 —
+ * All paths reject at the target division's registration fee of $0 —
  * free competitions are not eligible for invites in the MVP (ADR-0011
  * "Capacity Math" → "Free competitions").
  */
@@ -76,11 +78,33 @@ export interface IssuedInvite {
   plaintextToken: string
 }
 
+/**
+ * What the caller should do with an already-active invite when the
+ * organizer re-runs Send.
+ *
+ * - `"draft"`  — pending row that has no claim token yet (a staged
+ *   bespoke draft) **or** has one but its prior dispatch failed
+ *   (`emailDeliveryStatus = "failed"`). The athlete never received the
+ *   prior link, so {@link reissueInvite} rotates a fresh token and
+ *   re-sends.
+ *
+ * - `"resend"` — pending row with a delivered token. The athlete may
+ *   already have the prior email, so {@link redeliverInvite} keeps the
+ *   token (the existing claim URL stays valid) and only bumps
+ *   `expiresAt` + `sendAttempt` before re-rendering and re-queuing the
+ *   email. Use case: organizer is opening earned spots up to first-come-
+ *   first-serve and needs to nudge previously-invited athletes that
+ *   they could lose their qualifying spot.
+ *
+ * - `"skip"`   — terminal active state (e.g. `accepted_paid`). The
+ *   athlete is already registered; re-sending would be spam.
+ */
+export type AlreadyActiveResolution = "draft" | "resend" | "skip"
+
 export interface AlreadyActiveInvite {
   email: string
   existingInviteId: string
-  /** True when the existing row has no token yet (a draft bespoke invite). */
-  isDraft: boolean
+  resolution: AlreadyActiveResolution
 }
 
 export interface IssueInvitesResult {
@@ -153,6 +177,40 @@ async function assertDivisionIsPaid(params: {
   if (fee <= 0) {
     throw new FreeCompetitionNotEligibleError(params)
   }
+}
+
+/**
+ * Decide what to do with an active invite the organizer is trying to
+ * (re-)issue. See {@link AlreadyActiveResolution} for the contract.
+ *
+ * The four input dimensions:
+ *   1. `status` — pending vs. terminal (accepted_paid, etc.).
+ *   2. `claimToken` — null means the row is a bespoke draft.
+ *   3. `emailDeliveryStatus` — `"failed"` means the prior dispatch
+ *      crashed before the email reached the recipient.
+ *
+ * The PENDING + token + non-failed branch is the "athlete already has a
+ * working link" case — preserve the token, just refresh the expiration.
+ */
+function resolveAlreadyActive(
+  existingRow: Pick<
+    CompetitionInvite,
+    "status" | "claimToken" | "emailDeliveryStatus"
+  >,
+): AlreadyActiveResolution {
+  if (existingRow.status !== COMPETITION_INVITE_STATUS.PENDING) {
+    return "skip"
+  }
+  if (!existingRow.claimToken) {
+    return "draft"
+  }
+  if (
+    existingRow.emailDeliveryStatus ===
+    COMPETITION_INVITE_EMAIL_DELIVERY_STATUS.FAILED
+  ) {
+    return "draft"
+  }
+  return "resend"
 }
 
 // ============================================================================
@@ -229,20 +287,7 @@ export async function issueInvitesForRecipients(
         alreadyActive.push({
           email: r.email,
           existingInviteId: existingRow.id,
-          // A draft is a bespoke row staged without a token (`pending` +
-          // null `claimToken`). `accepted_paid` rows also null
-          // `claimToken` while keeping `activeMarker = "active"` — the
-          // status guard keeps them out of the draft bucket. We also
-          // treat rows whose previous dispatch failed
-          // (`emailDeliveryStatus` = "failed") as draft-like so the
-          // organizer's resend can recover via `reissueInvite` —
-          // otherwise a render/queue error mid-batch would orphan the
-          // row in the active index until the expiry sweep runs.
-          isDraft:
-            existingRow.status === COMPETITION_INVITE_STATUS.PENDING &&
-            (!existingRow.claimToken ||
-              existingRow.emailDeliveryStatus ===
-                COMPETITION_INVITE_EMAIL_DELIVERY_STATUS.FAILED),
+          resolution: resolveAlreadyActive(existingRow),
         })
       } else {
         toInsertInputs.push(r)
@@ -264,21 +309,22 @@ export async function issueInvitesForRecipients(
         championshipCompetitionId: input.championshipCompetitionId,
         roundId: input.roundId ?? "",
         origin: r.origin,
-        sourceId: r.origin === COMPETITION_INVITE_ORIGIN.SOURCE
-          ? r.sourceId ?? null
-          : null,
+        sourceId:
+          r.origin === COMPETITION_INVITE_ORIGIN.SOURCE
+            ? (r.sourceId ?? null)
+            : null,
         sourceCompetitionId:
           r.origin === COMPETITION_INVITE_ORIGIN.SOURCE
-            ? r.sourceCompetitionId ?? null
+            ? (r.sourceCompetitionId ?? null)
             : null,
         sourcePlacement:
           r.origin === COMPETITION_INVITE_ORIGIN.SOURCE
-            ? r.sourcePlacement ?? null
+            ? (r.sourcePlacement ?? null)
             : null,
         sourcePlacementLabel: r.sourcePlacementLabel ?? null,
         bespokeReason:
           r.origin === COMPETITION_INVITE_ORIGIN.BESPOKE
-            ? r.bespokeReason ?? null
+            ? (r.bespokeReason ?? null)
             : null,
         championshipDivisionId: input.championshipDivisionId,
         email: r.email,
@@ -436,4 +482,125 @@ export async function reissueInvite(
   }
 
   return { invite: rotated, plaintextToken }
+}
+
+// ============================================================================
+// Redeliver (resend the SAME token with a fresh expiration date)
+// ============================================================================
+
+export interface RedeliverInviteInput {
+  inviteId: string
+  newExpiresAt: Date
+  roundId?: string
+}
+
+/**
+ * Re-deliver a pending invite to an athlete who already has the prior
+ * link. Bumps `expiresAt` + `sendAttempt`, queues a fresh email
+ * dispatch, but **preserves the existing `claimToken`** so the URL the
+ * athlete already received from the prior email stays valid.
+ *
+ * Use case: organizer is opening earned spots up to first-come-first-
+ * serve and needs to nudge previously-invited athletes that they could
+ * lose their qualifying spot. Rotating the token here would invalidate
+ * the link they already had in hand.
+ *
+ * Pre-conditions enforced here:
+ * - Row must exist.
+ * - `status` must be `pending` (terminal states are skip-only).
+ * - `claimToken` must be non-null (a draft has nothing to preserve —
+ *   call {@link reissueInvite} to mint the first token instead).
+ *
+ * Concurrent-claim protection mirrors {@link reissueInvite}: the UPDATE
+ * pins `status = pending` in the WHERE clause, and a 0-row outcome
+ * forces a re-read to distinguish "vanished" from "raced to a terminal
+ * status mid-flight".
+ */
+export async function redeliverInvite(
+  input: RedeliverInviteInput,
+): Promise<IssuedInvite> {
+  const db = getDb()
+
+  const existing = await db
+    .select()
+    .from(competitionInvitesTable)
+    .where(eq(competitionInvitesTable.id, input.inviteId))
+    .limit(1)
+    .then((rows) => rows[0] ?? null)
+
+  if (!existing) {
+    throw new InviteIssueValidationError(
+      `Invite ${input.inviteId} does not exist`,
+    )
+  }
+
+  if (existing.status !== COMPETITION_INVITE_STATUS.PENDING) {
+    throw new InviteIssueValidationError(
+      `Invite ${input.inviteId} cannot be redelivered from status ${existing.status}`,
+    )
+  }
+
+  if (!existing.claimToken) {
+    throw new InviteIssueValidationError(
+      `Invite ${input.inviteId} has no claim token — use reissueInvite to activate a draft`,
+    )
+  }
+
+  await assertDivisionIsPaid({
+    competitionId: existing.championshipCompetitionId,
+    divisionId: existing.championshipDivisionId,
+  })
+
+  const nextSendAttempt = existing.sendAttempt + 1
+  const now = new Date()
+
+  const updateResult = await db
+    .update(competitionInvitesTable)
+    .set({
+      // claimToken intentionally omitted — the prior link must keep working.
+      expiresAt: input.newExpiresAt,
+      sendAttempt: nextSendAttempt,
+      status: COMPETITION_INVITE_STATUS.PENDING,
+      activeMarker: COMPETITION_INVITE_ACTIVE_MARKER,
+      emailDeliveryStatus: COMPETITION_INVITE_EMAIL_DELIVERY_STATUS.QUEUED,
+      emailLastError: null,
+      roundId: input.roundId ?? existing.roundId,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(competitionInvitesTable.id, input.inviteId),
+        eq(competitionInvitesTable.status, COMPETITION_INVITE_STATUS.PENDING),
+      ),
+    )
+
+  const affected =
+    (updateResult as unknown as { rowsAffected?: number }).rowsAffected ??
+    (updateResult as unknown as [{ affectedRows?: number }])[0]?.affectedRows ??
+    0
+  if (affected === 0) {
+    const fresh = await db
+      .select({ status: competitionInvitesTable.status })
+      .from(competitionInvitesTable)
+      .where(eq(competitionInvitesTable.id, input.inviteId))
+      .limit(1)
+      .then((rows) => rows[0] ?? null)
+    throw new InviteIssueValidationError(
+      `Invite ${input.inviteId} cannot be redelivered — concurrently transitioned to ${fresh?.status ?? "unknown"}`,
+    )
+  }
+
+  const refreshed: CompetitionInvite = {
+    ...existing,
+    expiresAt: input.newExpiresAt,
+    sendAttempt: nextSendAttempt,
+    status: COMPETITION_INVITE_STATUS.PENDING,
+    activeMarker: COMPETITION_INVITE_ACTIVE_MARKER,
+    emailDeliveryStatus: COMPETITION_INVITE_EMAIL_DELIVERY_STATUS.QUEUED,
+    emailLastError: null,
+    roundId: input.roundId ?? existing.roundId,
+    updatedAt: now,
+  }
+
+  return { invite: refreshed, plaintextToken: existing.claimToken }
 }

@@ -100,4 +100,48 @@ describe("ChampionshipRosterTable", () => {
     const checkbox = screen.getByRole("checkbox", { name: /Select Ada/i })
     expect(checkbox).not.toBeDisabled()
   })
+
+  it("keeps a 'pending' row selectable so the organizer can resend", () => {
+    // Use case: organizer is opening up earned spots first-come-first-serve
+    // and needs to nudge previously-invited athletes that they could lose
+    // their spot. Pending rows must stay selectable; the send pipeline
+    // re-delivers the same claim link with a refreshed expiration date.
+    const pendingRow = row({
+      athleteName: "Ada Lovelace",
+      athleteEmail: "ada@example.com",
+      userId: "usr_a",
+    })
+    render(
+      <ChampionshipRosterTable
+        rows={[pendingRow]}
+        selectedKeys={new Set()}
+        onToggleSelection={() => {}}
+        onToggleAll={() => {}}
+        getInviteStatusForRow={() => "pending"}
+      />,
+    )
+    expect(screen.getByText("Invited")).toBeInTheDocument()
+    const checkbox = screen.getByRole("checkbox", { name: /Select Ada/i })
+    expect(checkbox).not.toBeDisabled()
+  })
+
+  it("locks an 'accepted_paid' row — the athlete already registered", () => {
+    const acceptedRow = row({
+      athleteName: "Ada Lovelace",
+      athleteEmail: "ada@example.com",
+      userId: "usr_a",
+    })
+    render(
+      <ChampionshipRosterTable
+        rows={[acceptedRow]}
+        selectedKeys={new Set()}
+        onToggleSelection={() => {}}
+        onToggleAll={() => {}}
+        getInviteStatusForRow={() => "accepted_paid"}
+      />,
+    )
+    expect(screen.getByText("Registered")).toBeInTheDocument()
+    const checkbox = screen.getByRole("checkbox", { name: /Select Ada/i })
+    expect(checkbox).toBeDisabled()
+  })
 })
