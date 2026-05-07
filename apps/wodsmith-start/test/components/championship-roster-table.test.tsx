@@ -144,4 +144,47 @@ describe("ChampionshipRosterTable", () => {
     const checkbox = screen.getByRole("checkbox", { name: /Select Ada/i })
     expect(checkbox).toBeDisabled()
   })
+
+  it("renders the invited championship division when getInvitedDivisionLabelForRow returns one", () => {
+    // Organizers asked for a per-row "which championship division did
+    // I invite this athlete to?" affordance so they can see who's been
+    // invited to e.g. "Pro Men" vs "Masters Men" without clicking into
+    // the Sent tab. Source-derived rows can map to multiple championship
+    // divisions across re-runs, so the label has to come from the
+    // resolved invite, not the row's source division label.
+    const invitedRow = row({
+      athleteName: "Ada Lovelace",
+      athleteEmail: "ada@example.com",
+      userId: "usr_a",
+    })
+    render(
+      <ChampionshipRosterTable
+        rows={[invitedRow]}
+        selectedKeys={new Set()}
+        onToggleSelection={() => {}}
+        onToggleAll={() => {}}
+        getInviteStatusForRow={() => "pending"}
+        getInvitedDivisionLabelForRow={() => "Pro Men"}
+      />,
+    )
+    expect(screen.getByText("Pro Men")).toBeInTheDocument()
+  })
+
+  it("renders an Invited Division header when the callback is supplied", () => {
+    const uninvitedRow = row({
+      athleteName: "Grace Hopper",
+      athleteEmail: "grace@example.com",
+      userId: "usr_b",
+    })
+    render(
+      <ChampionshipRosterTable
+        rows={[uninvitedRow]}
+        selectedKeys={new Set()}
+        onToggleSelection={() => {}}
+        onToggleAll={() => {}}
+        getInvitedDivisionLabelForRow={() => null}
+      />,
+    )
+    expect(screen.getByText(/invited division/i)).toBeInTheDocument()
+  })
 })

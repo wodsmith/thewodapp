@@ -576,6 +576,32 @@ function InvitesPage() {
   const getInviteUrlForRow = (r: RosterRow): string | null =>
     lookupInviteForRow(r)?.claimUrl ?? null
 
+  // Map championshipDivision id → label so we can resolve the invite's
+  // `championshipDivisionId` (the actual destination of the invite,
+  // which can differ from the row's source-division label) into a
+  // human-readable column value.
+  const championshipDivisionLabelById = useMemo<Record<string, string>>(
+    () => Object.fromEntries(championshipDivisions.map((d) => [d.id, d.label])),
+    [championshipDivisions],
+  )
+
+  const getInvitedDivisionLabelForRow = (r: RosterRow): string | null => {
+    const inv = lookupInviteForRow(r)
+    if (!inv) return null
+    // Only surface a division label for rows that are actively engaged
+    // at this championship — terminal rows (declined / expired /
+    // revoked) shouldn't read as "invited to X" because the invite is
+    // no longer live. Accepted_paid stays in because the athlete IS
+    // claimed against that division.
+    if (
+      inv.status !== COMPETITION_INVITE_STATUS.PENDING &&
+      inv.status !== COMPETITION_INVITE_STATUS.ACCEPTED_PAID
+    ) {
+      return null
+    }
+    return championshipDivisionLabelById[inv.championshipDivisionId] ?? null
+  }
+
   const copyInviteLink = async (url: string) => {
     try {
       await navigator.clipboard.writeText(url)
@@ -1014,6 +1040,7 @@ function InvitesPage() {
                 onToggleAll={toggleAllRoster}
                 getInviteStatusForRow={getInviteStatusForRow}
                 getInviteUrlForRow={getInviteUrlForRow}
+                getInvitedDivisionLabelForRow={getInvitedDivisionLabelForRow}
                 allocationsBySourceByDivision={allocationsBySourceByDivision}
                 championshipDivisions={championshipDivisions}
               />

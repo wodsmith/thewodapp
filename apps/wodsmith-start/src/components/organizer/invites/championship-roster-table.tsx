@@ -77,6 +77,14 @@ interface ChampionshipRosterTableProps {
    *  null when the row has no live token (draft / not-yet-sent /
    *  terminal). */
   getInviteUrlForRow?: (row: RosterRow) => string | null
+  /** When provided the table renders an "Invited division" column.
+   *  Returns the championship-division label the row's athlete was
+   *  invited to, or null when no active invite exists. The same
+   *  athlete can map to a different championship division across
+   *  re-runs (the parent route honors per-source `divisionMappings`),
+   *  so the label is taken from the resolved invite — not the row's
+   *  source-division label. */
+  getInvitedDivisionLabelForRow?: (row: RosterRow) => string | null
   /** ADR-0012 Phase 4: resolved per-(source, championship-division)
    *  allocation map. When supplied alongside `championshipDivisions`,
    *  the table renders a small "Allocates N to {Division}" banner per
@@ -406,12 +414,14 @@ export function ChampionshipRosterTable({
   onToggleAll,
   getInviteStatusForRow,
   getInviteUrlForRow,
+  getInvitedDivisionLabelForRow,
   allocationsBySourceByDivision,
   championshipDivisions,
 }: ChampionshipRosterTableProps) {
   const selectionEnabled =
     !!selectedKeys && !!onToggleSelection && !!onToggleAll
   const actionsEnabled = !!getInviteUrlForRow
+  const invitedDivisionColumnEnabled = !!getInvitedDivisionLabelForRow
   const inviteStatusFor = (r: RosterRow) => getInviteStatusForRow?.(r) ?? null
   // Only `accepted_paid` gates the row's checkbox — re-sending to a
   // registered athlete is spam. `pending` stays selectable so the
@@ -490,6 +500,11 @@ export function ChampionshipRosterTable({
                 <TableHead className="w-28 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   Status
                 </TableHead>
+                {invitedDivisionColumnEnabled ? (
+                  <TableHead className="w-32 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Invited division
+                  </TableHead>
+                ) : null}
                 {actionsEnabled ? (
                   <TableHead className="w-16 text-right">
                     <span className="sr-only">Actions</span>
@@ -544,6 +559,20 @@ export function ChampionshipRosterTable({
                     <TableCell>
                       <StatusPill status={rowInviteStatus} />
                     </TableCell>
+                    {invitedDivisionColumnEnabled ? (
+                      <TableCell>
+                        {(() => {
+                          const label = getInvitedDivisionLabelForRow?.(row)
+                          return label ? (
+                            <Badge variant="outline">{label}</Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              —
+                            </span>
+                          )
+                        })()}
+                      </TableCell>
+                    ) : null}
                     {actionsEnabled ? (
                       <TableCell className="text-right">
                         {(() => {
