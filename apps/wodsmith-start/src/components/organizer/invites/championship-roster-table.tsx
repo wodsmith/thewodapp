@@ -65,10 +65,12 @@ interface ChampionshipRosterTableProps {
   /** Returns the row's invite status so the table can render the status
    *  pill ("Registered" for `accepted_paid`, "Invited" for `pending`,
    *  "Declined" when the athlete declined, "Not invited" when null).
-   *  Pending and accepted invites disable the row's checkbox; "declined"
-   *  is informational only — the organizer can re-issue. Without this,
-   *  the row would render as "Not invited" and let the organizer tick a
-   *  box that the parent silently drops. */
+   *  Only `accepted_paid` disables the row's checkbox — the athlete is
+   *  already registered, so re-sending would just spam them. `pending`
+   *  rows stay selectable so the organizer can resend the same claim
+   *  link with a refreshed expiration date (use case: opening earned
+   *  spots up to first-come-first-serve). `declined` is informational
+   *  and still selectable — the organizer can re-issue from scratch. */
   getInviteStatusForRow?: (row: RosterRow) => RowInviteStatus | null
   /** When provided the table renders an Actions column with a "Copy
    *  invite link" affordance. Returns the claim URL for the row, or
@@ -411,18 +413,15 @@ export function ChampionshipRosterTable({
     !!selectedKeys && !!onToggleSelection && !!onToggleAll
   const actionsEnabled = !!getInviteUrlForRow
   const inviteStatusFor = (r: RosterRow) => getInviteStatusForRow?.(r) ?? null
-  // "Already invited" gates the row's checkbox. Declined doesn't gate —
-  // the organizer can stage them again and re-issue. Pending and
-  // accepted_paid rows stay locked because the parent silently drops
-  // them on send.
-  const isInvited = (r: RosterRow) => {
-    const status = inviteStatusFor(r)
-    return (
-      status === COMPETITION_INVITE_STATUS.PENDING ||
-      status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID
-    )
-  }
-  const selectableRows = rows.filter((r) => !!r.athleteEmail && !isInvited(r))
+  // Only `accepted_paid` gates the row's checkbox — re-sending to a
+  // registered athlete is spam. `pending` stays selectable so the
+  // organizer can resend the same claim link with a refreshed
+  // expiration date (the send pipeline picks up the row via
+  // `alreadyActive` resolution `"resend"` and re-delivers the email
+  // without rotating the token). Declined is informational only.
+  const isLocked = (r: RosterRow) =>
+    inviteStatusFor(r) === COMPETITION_INVITE_STATUS.ACCEPTED_PAID
+  const selectableRows = rows.filter((r) => !!r.athleteEmail && !isLocked(r))
   const allSelected =
     selectionEnabled &&
     selectableRows.length > 0 &&
@@ -502,9 +501,13 @@ export function ChampionshipRosterTable({
               {rows.map((row) => {
                 const rowKey = rosterRowKey(row)
                 const rowInviteStatus = inviteStatusFor(row)
-                const rowAlreadyInvited = isInvited(row)
+                const rowLocked = isLocked(row)
                 const rowSelectable =
-                  selectionEnabled && !!row.athleteEmail && !rowAlreadyInvited
+                  selectionEnabled && !!row.athleteEmail && !rowLocked
+                const rowResendHint =
+                  rowInviteStatus === COMPETITION_INVITE_STATUS.PENDING
+                    ? "Resend will redeliver the same link with a fresh expiration date"
+                    : undefined
                 return (
                   <TableRow key={rowKey}>
                     {selectionEnabled ? (
@@ -518,9 +521,9 @@ export function ChampionshipRosterTable({
                           aria-label={`Select ${row.athleteName}`}
                           title={
                             rowSelectable
-                              ? undefined
-                              : rowAlreadyInvited
-                                ? "Already invited"
+                              ? rowResendHint
+                              : rowLocked
+                                ? "Already registered"
                                 : "No email on file for this athlete"
                           }
                         />

@@ -78,6 +78,7 @@ import {
   type IssueInvitesResult,
   issueInvitesForRecipients,
   normalizeInviteEmail,
+  redeliverInvite,
   reissueInvite,
 } from "@/server/competition-invites/issue"
 import { getChampionshipRoster } from "@/server/competition-invites/roster"
@@ -1146,30 +1147,45 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
           error: string
         }> = []
 
-        // Activate draft bespoke rows that came back as alreadyActive+isDraft.
-        // Wrapped per-iteration in try/catch for the same reason as the
-        // dispatch loop below: a transient blip rotating one row's token
-        // must not abort the whole batch — the caller has already
-        // committed inserted rows in their own transaction, and earlier
-        // drafts in this loop have already had their tokens rotated.
-        // Aborting here would strand them with no recovery path because
-        // a re-issue would classify them as `alreadyActive` non-drafts
-        // (skipped). Failed activations land in `failed[]` like dispatch
-        // failures so the UI surfaces them the same way.
-        const activated: Array<{
+        // Refresh `alreadyActive` rows that came back with a non-skip
+        // resolution. Wrapped per-iteration in try/catch for the same
+        // reason as the dispatch loop below: a transient blip on one
+        // row's UPDATE must not abort the whole batch — the caller has
+        // already committed inserted rows in their own transaction, and
+        // earlier rows in this loop have already had their tokens
+        // rotated or expirations bumped. Aborting here would strand
+        // them with no recovery path because a re-issue would classify
+        // them as `alreadyActive` non-drafts (skipped). Failed refreshes
+        // land in `failed[]` like dispatch failures so the UI surfaces
+        // them the same way.
+        //
+        // Two refresh paths, picked by the helper based on the existing
+        // row's shape (see `resolveAlreadyActive` in `issue.ts`):
+        //   - "draft"  → `reissueInvite` rotates a fresh token (the
+        //     athlete never received the prior link).
+        //   - "resend" → `redeliverInvite` keeps the existing token
+        //     (the athlete may already have the prior email; rotating
+        //     would invalidate the link they have in hand).
+        const refreshed: Array<{
           invite: CompetitionInvite
           plaintextToken: string
         }> = []
         for (const prior of issueResult.alreadyActive) {
-          if (!prior.isDraft) continue
+          if (prior.resolution === "skip") continue
           try {
-            const rotated = await reissueInvite({
-              inviteId: prior.existingInviteId,
-              newExpiresAt: rsvpDeadlineAt,
-            })
-            activated.push({
-              invite: rotated.invite,
-              plaintextToken: rotated.plaintextToken,
+            const rotatedOrRefreshed =
+              prior.resolution === "draft"
+                ? await reissueInvite({
+                    inviteId: prior.existingInviteId,
+                    newExpiresAt: rsvpDeadlineAt,
+                  })
+                : await redeliverInvite({
+                    inviteId: prior.existingInviteId,
+                    newExpiresAt: rsvpDeadlineAt,
+                  })
+            refreshed.push({
+              invite: rotatedOrRefreshed.invite,
+              plaintextToken: rotatedOrRefreshed.plaintextToken,
             })
           } catch (err) {
             const errorMsg = err instanceof Error ? err.message : String(err)
@@ -1179,17 +1195,18 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
               error: errorMsg,
             })
             logWarning({
-              message: "[Invites] Activation failed mid-batch",
+              message: "[Invites] Refresh failed mid-batch",
               error: err,
               attributes: {
                 inviteId: prior.existingInviteId,
                 email: prior.email,
+                resolution: prior.resolution,
               },
             })
           }
         }
 
-        const allToDispatch = [...issueResult.inserted, ...activated]
+        const allToDispatch = [...issueResult.inserted, ...refreshed]
 
         // Render + enqueue per invite. Render is intentionally sequential
         // to keep memory bounded when a round targets hundreds of recipients.
@@ -1204,9 +1221,9 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
           .BROADCAST_EMAIL_QUEUE as Queue<QueueEmailMessage> | undefined
 
         // Snapshot before the dispatch loop so we can derive an accurate
-        // `sentCount` without double-counting activation failures (which
+        // `sentCount` without double-counting refresh failures (which
         // are already in `failed` but were never in `allToDispatch`).
-        const activationFailureCount = failed.length
+        const refreshFailureCount = failed.length
 
         for (const { invite, plaintextToken } of allToDispatch) {
           try {
@@ -1290,8 +1307,10 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
           }
         }
 
-        const skipped = issueResult.alreadyActive.filter((r) => !r.isDraft)
-        const dispatchFailureCount = failed.length - activationFailureCount
+        const skipped = issueResult.alreadyActive.filter(
+          (r) => r.resolution === "skip",
+        )
+        const dispatchFailureCount = failed.length - refreshFailureCount
         const sentCount = allToDispatch.length - dispatchFailureCount
 
         logInfo({

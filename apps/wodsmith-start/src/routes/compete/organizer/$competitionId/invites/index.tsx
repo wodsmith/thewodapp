@@ -337,7 +337,10 @@ function InvitesPage() {
       map.set(
         src.id,
         new Map(
-          parsed.data.map((m) => [m.sourceDivisionId, m.championshipDivisionId]),
+          parsed.data.map((m) => [
+            m.sourceDivisionId,
+            m.championshipDivisionId,
+          ]),
         ),
       )
     }
@@ -465,18 +468,24 @@ function InvitesPage() {
     return null
   }
 
-  // Row-level "already actively invited" check, scoped to the row's
-  // mapped championship division. Used by the recipient collector and
-  // selection counters so an athlete invited to one division stays
-  // selectable from a roster row that maps to a different division.
-  const isRowAlreadyActiveInvited = useCallback(
+  // Row-level "already paid / registered" check, scoped to the row's
+  // mapped championship division. Drops accepted_paid rows from the
+  // recipient collector and selection counters — the athlete is
+  // already registered, so re-sending would just spam them.
+  // **Pending** rows stay in: the organizer can resend the same claim
+  // link with a fresh expiration date (the send pipeline picks them up
+  // via `alreadyActive` resolution `"resend"`). An athlete invited to
+  // one division still maps independently per row's championship
+  // division.
+  const isRowAlreadyAcceptedPaid = useCallback(
     (r: RosterRow): boolean => {
       if (!r.athleteEmail) return false
       const championshipDivisionId = mapRowToChampionshipDivisionId(r)
       if (!championshipDivisionId) return false
-      return activeInviteByEmailAndDivision.has(
+      const inv = activeInviteByEmailAndDivision.get(
         inviteKey(r.athleteEmail.toLowerCase(), championshipDivisionId),
       )
+      return inv?.status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID
     },
     [activeInviteByEmailAndDivision, mapRowToChampionshipDivisionId],
   )
@@ -524,13 +533,13 @@ function InvitesPage() {
   )
   const sentBespokeCount = bespokeInvites.length - draftBespokeInvites.length
 
-  const isRowAlreadyInvited = (r: RosterRow) => {
+  // Only `accepted_paid` rows are dropped from select-all on the
+  // candidates table — pending rows can be resent via the
+  // `redeliverInvite` path so they stay eligible for selection.
+  const isRowLockedFromSelection = (r: RosterRow) => {
     const inv = lookupInviteForRow(r)
     if (!inv) return false
-    return (
-      inv.status === COMPETITION_INVITE_STATUS.PENDING ||
-      inv.status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID
-    )
+    return inv.status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID
   }
 
   const getInviteStatusForRow = (
@@ -670,7 +679,7 @@ function InvitesPage() {
     for (const r of roster.rows) {
       if (!r.athleteEmail) continue
       if (!selectedRosterKeys.has(rosterRowKey(r))) continue
-      if (isRowAlreadyActiveInvited(r)) continue
+      if (isRowAlreadyAcceptedPaid(r)) continue
       const emailKey = r.athleteEmail.toLowerCase()
       if (seenEmail.has(emailKey)) continue
       seenEmail.add(emailKey)
@@ -703,7 +712,7 @@ function InvitesPage() {
   }, [
     roster.rows,
     selectedRosterKeys,
-    isRowAlreadyActiveInvited,
+    isRowAlreadyAcceptedPaid,
     draftBespokeInvites,
     selectedDraftIds,
   ])
@@ -716,26 +725,26 @@ function InvitesPage() {
     for (const r of roster.rows) {
       if (!r.athleteEmail) continue
       if (!selectedRosterKeys.has(rosterRowKey(r))) continue
-      if (isRowAlreadyActiveInvited(r)) continue
+      if (isRowAlreadyAcceptedPaid(r)) continue
       const emailKey = r.athleteEmail.toLowerCase()
       if (seen.has(emailKey)) continue
       seen.add(emailKey)
     }
     return seen.size
-  }, [roster.rows, selectedRosterKeys, isRowAlreadyActiveInvited])
+  }, [roster.rows, selectedRosterKeys, isRowAlreadyAcceptedPaid])
 
   const visibleRosterSelectedCount = useMemo(() => {
     const seen = new Set<string>()
     for (const r of filteredRosterRows) {
       if (!r.athleteEmail) continue
       if (!selectedRosterKeys.has(rosterRowKey(r))) continue
-      if (isRowAlreadyActiveInvited(r)) continue
+      if (isRowAlreadyAcceptedPaid(r)) continue
       const emailKey = r.athleteEmail.toLowerCase()
       if (seen.has(emailKey)) continue
       seen.add(emailKey)
     }
     return seen.size
-  }, [filteredRosterRows, selectedRosterKeys, isRowAlreadyActiveInvited])
+  }, [filteredRosterRows, selectedRosterKeys, isRowAlreadyAcceptedPaid])
 
   const hiddenSelectedCount =
     totalRosterSelectedCount - visibleRosterSelectedCount
@@ -796,7 +805,7 @@ function InvitesPage() {
       // are removed when toggling off.
       const next = new Set(prev)
       for (const r of pagedRosterRows) {
-        if (!r.athleteEmail || isRowAlreadyInvited(r)) continue
+        if (!r.athleteEmail || isRowLockedFromSelection(r)) continue
         if (selectAll) next.add(rosterRowKey(r))
         else next.delete(rosterRowKey(r))
       }
@@ -1227,7 +1236,6 @@ function InvitesPage() {
             competitionId={competitionId}
           />
         </TabsContent>
-
       </Tabs>
 
       {championshipDivisions[0] ? (

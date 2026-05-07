@@ -104,6 +104,7 @@ class FakeFreeCompetitionNotEligibleError extends Error {
 vi.mock("@/server/competition-invites/issue", () => ({
   issueInvitesForRecipients: vi.fn(),
   reissueInvite: vi.fn(),
+  redeliverInvite: vi.fn(),
   normalizeInviteEmail: (e: string) => e.trim().toLowerCase(),
   FreeCompetitionNotEligibleError: FakeFreeCompetitionNotEligibleError,
 }))
@@ -461,7 +462,10 @@ describe("issueInvitesFn", () => {
     expect(renderMock).toHaveBeenCalledTimes(2)
   })
 
-  it("classifies non-draft already-active rows as skipped (no email queued)", async () => {
+  it("classifies skip-resolution already-active rows as skipped (no email queued)", async () => {
+    // `resolution: "skip"` covers terminal active states like
+    // `accepted_paid` — re-delivering would spam an athlete who's
+    // already registered, so the helper marks the row to be left alone.
     const { auth, issue } = await getMocks()
     vi.mocked(auth.getSessionFromCookie).mockResolvedValue(
       sessionStub as unknown as Awaited<
@@ -476,7 +480,7 @@ describe("issueInvitesFn", () => {
         {
           email: "a@example.com",
           existingInviteId: "ci_existing",
-          isDraft: false,
+          resolution: "skip",
         },
       ],
     })
@@ -509,6 +513,83 @@ describe("issueInvitesFn", () => {
     expect(queueStub.send).not.toHaveBeenCalled()
   })
 
+  it("redelivers a resend-resolution row via redeliverInvite (keeps the same claim token)", async () => {
+    // Use case: organizer is opening up earned spots first-come-first-serve
+    // and wants to nudge previously-invited athletes that they could lose
+    // their qualifying spot. The athlete may already have the prior link
+    // in hand, so we DO NOT rotate the token — we re-deliver the email
+    // with a refreshed expiration date and the same claim URL.
+    const { auth, issue } = await getMocks()
+    vi.mocked(auth.getSessionFromCookie).mockResolvedValue(
+      sessionStub as unknown as Awaited<
+        ReturnType<typeof auth.getSessionFromCookie>
+      >,
+    )
+    pushHappyPathLookups()
+
+    vi.mocked(issue.issueInvitesForRecipients).mockResolvedValueOnce({
+      inserted: [],
+      alreadyActive: [
+        {
+          email: "athlete@example.com",
+          existingInviteId: "ci_resend",
+          resolution: "resend",
+        },
+      ],
+    })
+
+    const refreshedInvite = makeInvite({
+      id: "ci_resend",
+      email: "athlete@example.com",
+      claimToken: "tok_already_delivered",
+      sendAttempt: 2,
+      expiresAt: new Date("2099-12-31T23:59:59Z"),
+    })
+    vi.mocked(issue.redeliverInvite).mockResolvedValueOnce({
+      invite: refreshedInvite,
+      plaintextToken: "tok_already_delivered",
+    })
+
+    const { issueInvitesFn } = await import(
+      "@/server-fns/competition-invite-fns"
+    )
+
+    const result = await (
+      issueInvitesFn as unknown as (ctx: {
+        data: unknown
+      }) => Promise<{
+        sentCount: number
+        skipped: unknown[]
+        failed: unknown[]
+      }>
+    )({
+      data: {
+        championshipCompetitionId: "comp_champ",
+        championshipDivisionId: "div_rx",
+        rsvpDeadlineDate: "2099-12-31",
+        subject: "Spots opening up",
+        recipients: [{ ...validRecipient, email: "athlete@example.com" }],
+      },
+    })
+
+    expect(issue.redeliverInvite).toHaveBeenCalledTimes(1)
+    expect(issue.redeliverInvite).toHaveBeenCalledWith(
+      expect.objectContaining({ inviteId: "ci_resend" }),
+    )
+    // Token rotation must NOT happen for resend-resolution rows.
+    expect(issue.reissueInvite).not.toHaveBeenCalled()
+    expect(result.sentCount).toBe(1)
+    expect(result.skipped).toHaveLength(0)
+    expect(queueStub.send).toHaveBeenCalledTimes(1)
+    // Render received the existing token (no rotation) — the athlete's
+    // prior email link must still work after the resend.
+    expect(inviteEmailMock).toHaveBeenCalledTimes(1)
+    const renderedProps = inviteEmailMock.mock.calls[0]?.[0] as unknown as {
+      claimUrl: string
+    }
+    expect(renderedProps.claimUrl).toContain("tok_already_delivered")
+  })
+
   it("activates draft bespoke rows via reissueInvite and queues their emails", async () => {
     const { auth, issue } = await getMocks()
     vi.mocked(auth.getSessionFromCookie).mockResolvedValue(
@@ -524,7 +605,7 @@ describe("issueInvitesFn", () => {
         {
           email: "draft@example.com",
           existingInviteId: "ci_draft",
-          isDraft: true,
+          resolution: "draft",
         },
       ],
     })
@@ -782,17 +863,17 @@ describe("issueInvitesFn", () => {
         {
           email: "draft1@example.com",
           existingInviteId: "ci_d1",
-          isDraft: true,
+          resolution: "draft",
         },
         {
           email: "draft2@example.com",
           existingInviteId: "ci_d2",
-          isDraft: true,
+          resolution: "draft",
         },
         {
           email: "draft3@example.com",
           existingInviteId: "ci_d3",
-          isDraft: true,
+          resolution: "draft",
         },
       ],
     })
