@@ -1,8 +1,31 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
-import { SentInvitesByDivision } from "@/components/organizer/invites/sent-invites-by-division"
+import { describe, expect, it, vi } from "vitest"
+import {
+  buildSentTabDivisions,
+  computeAllocationMismatch,
+  SentInvitesByDivision,
+} from "@/components/organizer/invites/sent-invites-by-division"
 import type { AuditInviteSummary } from "@/server-fns/competition-invite-fns"
+
+// Stub the TanStack Router `Link` so the ADR-0013 mismatch warning
+// renders without a real router context. Mirrors the pattern used in
+// `competition-workout-card.test.tsx`. The real component otherwise
+// pulls the route tree from the file-based router, which isn't
+// available in a unit-test environment.
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({
+    children,
+    to,
+    params,
+  }: {
+    children: React.ReactNode
+    to: string
+    params: Record<string, string>
+  }) => (
+    <a href={`${to}?${new URLSearchParams(params).toString()}`}>{children}</a>
+  ),
+}))
 
 const baseInvite = (
   overrides: Partial<AuditInviteSummary>,
@@ -22,6 +45,7 @@ const baseInvite = (
   divisionLabel: "RX Men",
   lastUpdatedAt: new Date("2026-04-20T12:00:00Z"),
   sourceId: "cisrc_qualifier",
+  expiresAt: new Date("2026-05-20T23:59:59Z"),
   ...overrides,
 })
 
@@ -162,6 +186,85 @@ describe("SentInvitesByDivision", () => {
     expect(screen.getByText("Grace Hopper")).toBeInTheDocument()
   })
 
+  it("sorts declined and other terminal rows to the bottom of each division", () => {
+    render(
+      <SentInvitesByDivision
+        invites={[
+          baseInvite({
+            id: "inv_declined",
+            email: "declined@example.com",
+            inviteeFirstName: "Declined",
+            inviteeLastName: "First",
+            status: "declined",
+            activeMarker: null,
+            claimUrl: null,
+          }),
+          baseInvite({
+            id: "inv_pending",
+            email: "pending@example.com",
+            inviteeFirstName: "Pending",
+            inviteeLastName: "Second",
+            status: "pending",
+          }),
+          baseInvite({
+            id: "inv_accepted",
+            email: "accepted@example.com",
+            inviteeFirstName: "Accepted",
+            inviteeLastName: "Third",
+            status: "accepted_paid",
+          }),
+        ]}
+        divisions={divisions}
+      />,
+    )
+
+    const cells = screen.getAllByText(/First|Second|Third/)
+    // Within the RX Men card body the order should be actionable
+    // statuses first, declined last — regardless of input order.
+    const labels = cells.map((c) => c.textContent)
+    const declinedIdx = labels.findIndex((l) => l?.includes("First"))
+    const pendingIdx = labels.findIndex((l) => l?.includes("Second"))
+    const acceptedIdx = labels.findIndex((l) => l?.includes("Third"))
+    expect(declinedIdx).toBeGreaterThan(pendingIdx)
+    expect(declinedIdx).toBeGreaterThan(acceptedIdx)
+  })
+
+  it("renders the expiration column with future and past expiries", () => {
+    // Freeze "now" so the relative-time strings are deterministic.
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-05-01T00:00:00Z"))
+    try {
+      render(
+        <SentInvitesByDivision
+          invites={[
+            baseInvite({
+              id: "inv_future",
+              email: "future@example.com",
+              inviteeFirstName: "Future",
+              inviteeLastName: "Athlete",
+              status: "pending",
+              expiresAt: new Date("2026-05-08T00:00:00Z"),
+            }),
+            baseInvite({
+              id: "inv_past",
+              email: "past@example.com",
+              inviteeFirstName: "Past",
+              inviteeLastName: "Athlete",
+              status: "pending",
+              expiresAt: new Date("2026-04-25T00:00:00Z"),
+            }),
+          ]}
+          divisions={divisions}
+        />,
+      )
+      expect(screen.getByText("Expires")).toBeInTheDocument()
+      expect(screen.getByText("in 7d")).toBeInTheDocument()
+      expect(screen.getByText("expired 6d ago")).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it("renders accepted/maxSpots ratio under each division title", () => {
     render(
       <SentInvitesByDivision
@@ -206,7 +309,6 @@ describe("SentInvitesByDivision", () => {
         kind: "competition" as const,
         sourceCompetitionId: "comp_qualifier",
         sourceGroupId: null,
-        directSpotsPerComp: null,
         globalSpots: 5,
         divisionMappings: null,
         sortOrder: 0,
@@ -221,7 +323,6 @@ describe("SentInvitesByDivision", () => {
         kind: "competition" as const,
         sourceCompetitionId: "comp_throwdown",
         sourceGroupId: null,
-        directSpotsPerComp: null,
         globalSpots: 4,
         divisionMappings: null,
         sortOrder: 1,
@@ -369,5 +470,288 @@ describe("SentInvitesByDivision", () => {
     expect(
       screen.getByRole("button", { name: /Accepted\s*1/ }),
     ).toBeInTheDocument()
+  })
+
+  // ADR-0013: the mismatch warning compares the sum of resolved
+  // per-source allocations against the division's enforced cap and
+  // surfaces a one-line warning with a link to the divisions page when
+  // they disagree.
+  describe("ADR-0013 allocation-mismatch warning", () => {
+    it("renders 'exceeds' warning when allocations sum above the division cap", () => {
+      render(
+        <SentInvitesByDivision
+          invites={[]}
+          divisions={[
+            {
+              id: "div_rxm",
+              label: "RX Men",
+              maxSpots: 1,
+              allocationTotal: 3,
+            },
+          ]}
+          competitionId="comp_champ"
+        />,
+      )
+      expect(
+        screen.getByText(
+          /Source allocations sum to 3, exceeding this division's capacity of 1/i,
+        ),
+      ).toBeInTheDocument()
+      const link = screen.getByRole("link", {
+        name: /Update division capacity/i,
+      })
+      expect(link).toHaveAttribute(
+        "href",
+        "/compete/organizer/$competitionId/divisions?competitionId=comp_champ",
+      )
+    })
+
+    it("renders 'fewer than' warning when allocations sum below the cap", () => {
+      render(
+        <SentInvitesByDivision
+          invites={[]}
+          divisions={[
+            {
+              id: "div_rxm",
+              label: "RX Men",
+              maxSpots: 10,
+              allocationTotal: 3,
+            },
+          ]}
+          competitionId="comp_champ"
+        />,
+      )
+      expect(
+        screen.getByText(
+          /Source allocations sum to 3, fewer than this division's capacity of 10/i,
+        ),
+      ).toBeInTheDocument()
+    })
+
+    it("renders 'no division cap' warning when allocations are set but no cap is", () => {
+      render(
+        <SentInvitesByDivision
+          invites={[]}
+          divisions={[
+            {
+              id: "div_rxm",
+              label: "RX Men",
+              maxSpots: null,
+              allocationTotal: 5,
+            },
+          ]}
+          competitionId="comp_champ"
+        />,
+      )
+      expect(
+        screen.getByText(
+          /Source allocations sum to 5, but no division cap is set/i,
+        ),
+      ).toBeInTheDocument()
+    })
+
+    it("renders no warning when allocations equal the cap", () => {
+      render(
+        <SentInvitesByDivision
+          invites={[]}
+          divisions={[
+            {
+              id: "div_rxm",
+              label: "RX Men",
+              maxSpots: 5,
+              allocationTotal: 5,
+            },
+          ]}
+          competitionId="comp_champ"
+        />,
+      )
+      expect(
+        screen.queryByText(/Source allocations sum to/i),
+      ).not.toBeInTheDocument()
+    })
+
+    it("renders no warning when both cap and allocations are 0/null", () => {
+      render(
+        <SentInvitesByDivision
+          invites={[]}
+          divisions={[
+            {
+              id: "div_rxm",
+              label: "RX Men",
+              maxSpots: null,
+              allocationTotal: 0,
+            },
+          ]}
+          competitionId="comp_champ"
+        />,
+      )
+      expect(
+        screen.queryByText(/Source allocations sum to/i),
+      ).not.toBeInTheDocument()
+    })
+
+    it("suppresses the link when no competitionId is provided", () => {
+      render(
+        <SentInvitesByDivision
+          invites={[]}
+          divisions={[
+            {
+              id: "div_rxm",
+              label: "RX Men",
+              maxSpots: 1,
+              allocationTotal: 3,
+            },
+          ]}
+        />,
+      )
+      // Warning copy renders, link does not.
+      expect(
+        screen.getByText(
+          /Source allocations sum to 3, exceeding this division's capacity of 1/i,
+        ),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByRole("link", { name: /Update division capacity/i }),
+      ).not.toBeInTheDocument()
+    })
+  })
+})
+
+describe("computeAllocationMismatch", () => {
+  it("returns null when allocations equal the cap", () => {
+    expect(
+      computeAllocationMismatch({ allocationTotal: 5, maxSpots: 5 }),
+    ).toBeNull()
+  })
+
+  it("returns null when both are 0/null", () => {
+    expect(
+      computeAllocationMismatch({ allocationTotal: 0, maxSpots: null }),
+    ).toBeNull()
+  })
+
+  it("returns 'exceeds' when allocation total > cap", () => {
+    expect(
+      computeAllocationMismatch({ allocationTotal: 7, maxSpots: 5 }),
+    ).toEqual({ kind: "exceeds", allocationTotal: 7, maxSpots: 5 })
+  })
+
+  it("returns 'undershoots' when allocation total < cap", () => {
+    expect(
+      computeAllocationMismatch({ allocationTotal: 2, maxSpots: 5 }),
+    ).toEqual({ kind: "undershoots", allocationTotal: 2, maxSpots: 5 })
+  })
+
+  it("returns 'no-cap' when cap is null but allocations are set", () => {
+    expect(
+      computeAllocationMismatch({ allocationTotal: 3, maxSpots: null }),
+    ).toEqual({ kind: "no-cap", allocationTotal: 3 })
+  })
+})
+
+describe("buildSentTabDivisions", () => {
+  it("uses the per-division override when present", () => {
+    expect(
+      buildSentTabDivisions({
+        divisions: [{ id: "div_rxm", label: "RX Men", maxSpots: 12 }],
+        defaultMaxSpotsPerDivision: 5,
+        divisionAllocationTotals: {},
+      }),
+    ).toEqual([
+      { id: "div_rxm", label: "RX Men", maxSpots: 12, allocationTotal: 0 },
+    ])
+  })
+
+  it("falls back to defaultMaxSpotsPerDivision when override is null", () => {
+    expect(
+      buildSentTabDivisions({
+        divisions: [{ id: "div_rxm", label: "RX Men", maxSpots: null }],
+        defaultMaxSpotsPerDivision: 5,
+        divisionAllocationTotals: {},
+      }),
+    ).toEqual([
+      { id: "div_rxm", label: "RX Men", maxSpots: 5, allocationTotal: 0 },
+    ])
+  })
+
+  it("returns null cap when both override and default are null", () => {
+    expect(
+      buildSentTabDivisions({
+        divisions: [{ id: "div_rxm", label: "RX Men", maxSpots: null }],
+        defaultMaxSpotsPerDivision: null,
+        divisionAllocationTotals: {},
+      }),
+    ).toEqual([
+      { id: "div_rxm", label: "RX Men", maxSpots: null, allocationTotal: 0 },
+    ])
+  })
+
+  it("attaches allocationTotal from the resolved-totals map", () => {
+    expect(
+      buildSentTabDivisions({
+        divisions: [
+          { id: "div_rxm", label: "RX Men", maxSpots: 1 },
+          { id: "div_rxw", label: "RX Women", maxSpots: 2 },
+        ],
+        defaultMaxSpotsPerDivision: null,
+        divisionAllocationTotals: { div_rxm: 3, div_rxw: 2 },
+      }),
+    ).toEqual([
+      { id: "div_rxm", label: "RX Men", maxSpots: 1, allocationTotal: 3 },
+      { id: "div_rxw", label: "RX Women", maxSpots: 2, allocationTotal: 2 },
+    ])
+  })
+
+  it("defaults allocationTotal to 0 when the division id is missing from the map", () => {
+    expect(
+      buildSentTabDivisions({
+        divisions: [{ id: "div_rxm", label: "RX Men", maxSpots: 5 }],
+        defaultMaxSpotsPerDivision: null,
+        divisionAllocationTotals: { other_division: 7 },
+      }),
+    ).toEqual([
+      { id: "div_rxm", label: "RX Men", maxSpots: 5, allocationTotal: 0 },
+    ])
+  })
+
+  it("returns an empty array when no divisions are configured", () => {
+    expect(
+      buildSentTabDivisions({
+        divisions: [],
+        defaultMaxSpotsPerDivision: 5,
+        divisionAllocationTotals: { div_rxm: 3 },
+      }),
+    ).toEqual([])
+  })
+
+  it("preserves division order from the input", () => {
+    const result = buildSentTabDivisions({
+      divisions: [
+        { id: "div_c", label: "C", maxSpots: null },
+        { id: "div_a", label: "A", maxSpots: null },
+        { id: "div_b", label: "B", maxSpots: null },
+      ],
+      defaultMaxSpotsPerDivision: 1,
+      divisionAllocationTotals: {},
+    })
+    expect(result.map((d) => d.id)).toEqual(["div_c", "div_a", "div_b"])
+  })
+
+  // ADR-0013 regression case: this is exactly the bug-report scenario —
+  // three sources each contribute their default `globalSpots: 1` into a
+  // division whose actual cap is also 1. Pre-ADR-0013 the loader would
+  // emit `maxSpots: 3` (sum of allocations); post-ADR-0013 it emits
+  // `maxSpots: 1` (the enforced cap) plus `allocationTotal: 3` so the
+  // component can render the mismatch warning.
+  it("emits the division cap, not the allocation sum (ADR-0013 regression)", () => {
+    expect(
+      buildSentTabDivisions({
+        divisions: [{ id: "div_rxm", label: "RX Men", maxSpots: null }],
+        defaultMaxSpotsPerDivision: 1,
+        divisionAllocationTotals: { div_rxm: 3 },
+      }),
+    ).toEqual([
+      { id: "div_rxm", label: "RX Men", maxSpots: 1, allocationTotal: 3 },
+    ])
   })
 })

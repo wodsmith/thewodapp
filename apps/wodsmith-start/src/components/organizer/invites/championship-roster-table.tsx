@@ -32,8 +32,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  COMPETITION_INVITE_STATUS,
+  type CompetitionInviteStatus,
+} from "@/db/schemas/competition-invites"
 import type { RosterRow } from "@/server/competition-invites/roster"
+import type { TeamMemberInfo } from "@/server/competition-leaderboard"
 import { cn } from "@/utils/cn"
+
+type RowInviteStatus = Extract<
+  CompetitionInviteStatus,
+  "pending" | "accepted_paid" | "declined"
+>
 
 export function rosterRowKey(row: RosterRow): string {
   // Include sourceCompetitionId + sourceDivisionId in the key so series
@@ -52,11 +62,14 @@ interface ChampionshipRosterTableProps {
   selectedKeys?: Set<string>
   onToggleSelection?: (key: string, row: RosterRow) => void
   onToggleAll?: (selectAll: boolean) => void
-  /** Returns true when the row has an active invite (pending/accepted)
-   *  so the table can render the "Invited" status pill and disable the
-   *  row's checkbox. Without this, the row would render as "Not invited"
-   *  and let the organizer tick a box that the parent silently drops. */
-  isRowAlreadyInvited?: (row: RosterRow) => boolean
+  /** Returns the row's invite status so the table can render the status
+   *  pill ("Registered" for `accepted_paid`, "Invited" for `pending`,
+   *  "Declined" when the athlete declined, "Not invited" when null).
+   *  Pending and accepted invites disable the row's checkbox; "declined"
+   *  is informational only — the organizer can re-issue. Without this,
+   *  the row would render as "Not invited" and let the organizer tick a
+   *  box that the parent silently drops. */
+  getInviteStatusForRow?: (row: RosterRow) => RowInviteStatus | null
   /** When provided the table renders an Actions column with a "Copy
    *  invite link" affordance. Returns the claim URL for the row, or
    *  null when the row has no live token (draft / not-yet-sent /
@@ -280,6 +293,55 @@ function AthleteAvatar({ name }: { name: string }) {
   )
 }
 
+function formatMemberName(member: TeamMemberInfo): string {
+  const name =
+    `${member.firstName || ""} ${member.lastName || ""}`.trim() || "Unknown"
+  return member.isCaptain ? `${name} (C)` : name
+}
+
+/**
+ * Athlete cell. For team divisions, mirrors the qualifier's leaderboard:
+ * primary line is the team name and members are listed below with `(C)`
+ * after the captain. The captain's email still surfaces (it's the
+ * address the invite is sent to).
+ */
+function AthleteCell({ row }: { row: RosterRow }) {
+  if (row.isTeamDivision) {
+    const primary = row.teamName || "Unknown Team"
+    return (
+      <div className="flex items-center gap-2">
+        <AthleteAvatar name={primary} />
+        <div className="flex flex-col leading-tight">
+          <span>{primary}</span>
+          {row.teamMembers.length > 0 ? (
+            <span className="text-xs text-muted-foreground">
+              {row.teamMembers.map((m) => formatMemberName(m)).join(", ")}
+            </span>
+          ) : null}
+          {row.athleteEmail ? (
+            <span className="text-[10px] text-muted-foreground">
+              {row.athleteEmail}
+            </span>
+          ) : null}
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div className="flex items-center gap-2">
+      <AthleteAvatar name={row.athleteName} />
+      <div className="flex flex-col leading-tight">
+        <span>{row.athleteName}</span>
+        {row.athleteEmail ? (
+          <span className="text-xs text-muted-foreground">
+            {row.athleteEmail}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
 function CompetitionCell({ row }: { row: RosterRow }) {
   return (
     <div className="flex flex-col leading-tight">
@@ -295,16 +357,36 @@ function DivisionCell({ row }: { row: RosterRow }) {
   return <Badge variant="outline">{row.sourceDivisionLabel}</Badge>
 }
 
-function StatusPill({ alreadyInvited }: { alreadyInvited: boolean }) {
-  // `variant="outline"` for both — the default variant's `dark:bg-primary`
-  // would otherwise paint over the emerald tint in dark mode.
-  if (alreadyInvited) {
+function StatusPill({ status }: { status: RowInviteStatus | null }) {
+  // `variant="outline"` for all — the default variant's `dark:bg-primary`
+  // would otherwise paint over the colored tints in dark mode.
+  if (status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID) {
+    return (
+      <Badge
+        variant="outline"
+        className="border-sky-500/30 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 hover:border-sky-500/50"
+      >
+        Registered
+      </Badge>
+    )
+  }
+  if (status === COMPETITION_INVITE_STATUS.PENDING) {
     return (
       <Badge
         variant="outline"
         className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50"
       >
         Invited
+      </Badge>
+    )
+  }
+  if (status === COMPETITION_INVITE_STATUS.DECLINED) {
+    return (
+      <Badge
+        variant="outline"
+        className="border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 hover:border-rose-500/50"
+      >
+        Declined
       </Badge>
     )
   }
@@ -320,7 +402,7 @@ export function ChampionshipRosterTable({
   selectedKeys,
   onToggleSelection,
   onToggleAll,
-  isRowAlreadyInvited,
+  getInviteStatusForRow,
   getInviteUrlForRow,
   allocationsBySourceByDivision,
   championshipDivisions,
@@ -328,7 +410,18 @@ export function ChampionshipRosterTable({
   const selectionEnabled =
     !!selectedKeys && !!onToggleSelection && !!onToggleAll
   const actionsEnabled = !!getInviteUrlForRow
-  const isInvited = (r: RosterRow) => !!isRowAlreadyInvited?.(r)
+  const inviteStatusFor = (r: RosterRow) => getInviteStatusForRow?.(r) ?? null
+  // "Already invited" gates the row's checkbox. Declined doesn't gate —
+  // the organizer can stage them again and re-issue. Pending and
+  // accepted_paid rows stay locked because the parent silently drops
+  // them on send.
+  const isInvited = (r: RosterRow) => {
+    const status = inviteStatusFor(r)
+    return (
+      status === COMPETITION_INVITE_STATUS.PENDING ||
+      status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID
+    )
+  }
   const selectableRows = rows.filter((r) => !!r.athleteEmail && !isInvited(r))
   const allSelected =
     selectionEnabled &&
@@ -408,6 +501,7 @@ export function ChampionshipRosterTable({
             <TableBody>
               {rows.map((row) => {
                 const rowKey = rosterRowKey(row)
+                const rowInviteStatus = inviteStatusFor(row)
                 const rowAlreadyInvited = isInvited(row)
                 const rowSelectable =
                   selectionEnabled && !!row.athleteEmail && !rowAlreadyInvited
@@ -433,17 +527,7 @@ export function ChampionshipRosterTable({
                       </TableCell>
                     ) : null}
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <AthleteAvatar name={row.athleteName} />
-                        <div className="flex flex-col leading-tight">
-                          <span>{row.athleteName}</span>
-                          {row.athleteEmail ? (
-                            <span className="text-xs text-muted-foreground">
-                              {row.athleteEmail}
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
+                      <AthleteCell row={row} />
                     </TableCell>
                     <TableCell>
                       <CompetitionCell row={row} />
@@ -455,7 +539,7 @@ export function ChampionshipRosterTable({
                       <RankCell placement={row.sourcePlacement} />
                     </TableCell>
                     <TableCell>
-                      <StatusPill alreadyInvited={rowAlreadyInvited} />
+                      <StatusPill status={rowInviteStatus} />
                     </TableCell>
                     {actionsEnabled ? (
                       <TableCell className="text-right">

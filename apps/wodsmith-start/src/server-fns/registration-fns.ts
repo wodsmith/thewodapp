@@ -75,8 +75,11 @@ import {
 import {
   assertInviteClaimable,
   findActiveInviteForEmail,
+  getOccupiedCountForBucket,
+  resolveAllocationForInvite,
   resolveInviteForClaim,
 } from "@/server/competition-invites/claim"
+import { assertInviteWithinAllocation } from "@/server/competition-invites/identity"
 import { normalizeInviteEmail } from "@/server/competition-invites/issue"
 import { recordRedemption, validateCoupon } from "@/server/coupons"
 import { requireVerifiedEmail } from "@/utils/auth"
@@ -308,6 +311,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
     let inviteAuthorized = false
     let inviteIdForPurchase: string | null = null
     let inviteDivisionIdForPurchase: string | null = null
+    let inviteSourceIdForGuardrail: string | null = null
     if (input.inviteToken) {
       const { invite } = await resolveInviteForClaim(input.inviteToken)
       if (sessionEmail !== normalizeInviteEmail(invite.email)) {
@@ -327,6 +331,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
       inviteAuthorized = true
       inviteIdForPurchase = invite.id
       inviteDivisionIdForPurchase = invite.championshipDivisionId
+      inviteSourceIdForGuardrail = invite.sourceId
     } else if (sessionEmail && input.items.length === 1) {
       // No token — probe by identity. Active AND claimable
       // (assertInviteClaimable throws on expired etc.).
@@ -341,10 +346,63 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
           inviteAuthorized = true
           inviteIdForPurchase = probe.id
           inviteDivisionIdForPurchase = probe.championshipDivisionId
+          inviteSourceIdForGuardrail = probe.sourceId
         } catch {
           // expired / declined / revoked etc — fall through to public-window
           // gating; the public flow will give the right error.
         }
+      }
+    }
+
+    // ADR-0012 Phase 5: per-(source, division) allocation guardrail.
+    // Mirrors the claim-landing soft gate so a direct submit to
+    // /register?invite=… can't bypass it before reaching Stripe. The
+    // authoritative re-check still lives in the Stripe workflow at
+    // payment confirmation. Bespoke invites (sourceId IS NULL) bypass.
+    // The occupied count includes both accepted_paid invites AND in-flight
+    // Stripe checkouts so two athletes can't both pass the gate while one
+    // is mid-payment.
+    if (inviteIdForPurchase && inviteSourceIdForGuardrail) {
+      const [allocation, occupiedCount] = await Promise.all([
+        resolveAllocationForInvite({
+          invite: {
+            sourceId: inviteSourceIdForGuardrail,
+            championshipDivisionId:
+              inviteDivisionIdForPurchase ?? input.items[0].divisionId,
+            championshipCompetitionId: input.competitionId,
+          },
+        }),
+        getOccupiedCountForBucket({
+          sourceId: inviteSourceIdForGuardrail,
+          championshipCompetitionId: input.competitionId,
+          championshipDivisionId:
+            inviteDivisionIdForPurchase ?? input.items[0].divisionId,
+          // Stale pending purchases from the same invitee's prior abandoned
+          // attempt would otherwise self-block when they retry the form.
+          excludeInviteId: inviteIdForPurchase,
+        }),
+      ])
+      const allocationCheck = assertInviteWithinAllocation({
+        invite: { sourceId: inviteSourceIdForGuardrail },
+        allocation: allocation ?? 0,
+        acceptedCount: occupiedCount,
+      })
+      if (!allocationCheck.ok) {
+        logInfo({
+          message:
+            "[Registration] Invite blocked at register submit by allocation guardrail",
+          attributes: {
+            inviteId: inviteIdForPurchase,
+            sourceId: inviteSourceIdForGuardrail,
+            championshipDivisionId:
+              inviteDivisionIdForPurchase ?? input.items[0].divisionId,
+            allocation: allocation ?? 0,
+            occupiedCount,
+          },
+        })
+        throw new Error(
+          "All invitation spots from this qualifying source for this division are filled.",
+        )
       }
     }
 
@@ -498,6 +556,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
     // 6. ALL FREE - create registrations directly
     if (allFree) {
       let firstRegistrationId: string | null = null
+      const createdRegistrationIds: string[] = []
 
       for (const item of input.items) {
         const result = await registerForCompetition({
@@ -509,6 +568,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
           teammates: item.teammates,
         })
 
+        createdRegistrationIds.push(result.registrationId)
         if (!firstRegistrationId) {
           firstRegistrationId = result.registrationId
         }
@@ -562,6 +622,71 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
       // stays `pending` indefinitely. Guarded by status=pending so a
       // racing claim/decline doesn't get stomped.
       if (inviteIdForPurchase && firstRegistrationId) {
+        // Authoritative allocation re-check at the write site. The
+        // preflight (above, before the allFree branch) is alone not
+        // enough for free invites: the free path skips Stripe, so
+        // `getOccupiedCountForBucket` sees no in-flight purchase rows
+        // for either flow — two concurrent free claims can both pass
+        // the preflight and overfill the (source, division) bucket.
+        // Re-running the check here catches any peer that has already
+        // flipped to accepted_paid; if we lose the race, mark the
+        // just-created registrations REMOVED so they don't squat
+        // division capacity and surface a clear error to the user.
+        if (inviteSourceIdForGuardrail) {
+          const inviteDivisionId =
+            inviteDivisionIdForPurchase ?? input.items[0].divisionId
+          const [allocation, occupiedCount] = await Promise.all([
+            resolveAllocationForInvite({
+              invite: {
+                sourceId: inviteSourceIdForGuardrail,
+                championshipDivisionId: inviteDivisionId,
+                championshipCompetitionId: input.competitionId,
+              },
+            }),
+            getOccupiedCountForBucket({
+              sourceId: inviteSourceIdForGuardrail,
+              championshipCompetitionId: input.competitionId,
+              championshipDivisionId: inviteDivisionId,
+              // Same self-exclusion as the preflight: this invite's own
+              // stale pending purchases shouldn't block its own free flip.
+              excludeInviteId: inviteIdForPurchase,
+            }),
+          ])
+          const allocationCheck = assertInviteWithinAllocation({
+            invite: { sourceId: inviteSourceIdForGuardrail },
+            allocation: allocation ?? 0,
+            acceptedCount: occupiedCount,
+          })
+          if (!allocationCheck.ok) {
+            await db
+              .update(competitionRegistrationsTable)
+              .set({
+                status: REGISTRATION_STATUS.REMOVED,
+                updatedAt: new Date(),
+              })
+              .where(
+                inArray(
+                  competitionRegistrationsTable.id,
+                  createdRegistrationIds,
+                ),
+              )
+            logWarning({
+              message:
+                "[Registration] Free-checkout invite blocked at write-time allocation recheck; rolled back registrations",
+              attributes: {
+                inviteId: inviteIdForPurchase,
+                sourceId: inviteSourceIdForGuardrail,
+                championshipDivisionId: inviteDivisionId,
+                allocation: allocation ?? 0,
+                occupiedCount,
+                rolledBackRegistrationIds: createdRegistrationIds,
+              },
+            })
+            throw new Error(
+              "All invitation spots from this qualifying source for this division are filled.",
+            )
+          }
+        }
         const now = new Date()
         await db
           .update(competitionInvitesTable)

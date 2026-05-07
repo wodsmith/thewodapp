@@ -15,7 +15,6 @@ function sourceFixture(
     kind: COMPETITION_INVITE_SOURCE_KIND.COMPETITION,
     sourceCompetitionId: "comp_src",
     sourceGroupId: null,
-    directSpotsPerComp: null,
     globalSpots: 5,
     divisionMappings: null,
     sortOrder: 0,
@@ -95,41 +94,56 @@ describe("resolveSourceAllocations", () => {
     expect(result.total).toBe(10)
   })
 
-  it("resolves a series source with no overrides as directSpotsPerComp * seriesCompCount + globalSpots per division", () => {
+  it("series kind ignores globalSpots — per-division override is the only knob (default 0)", () => {
     const result = resolveSourceAllocations({
       source: sourceFixture({
         kind: COMPETITION_INVITE_SOURCE_KIND.SERIES,
         sourceCompetitionId: null,
         sourceGroupId: "cgrp_series",
-        directSpotsPerComp: 3,
         globalSpots: 2,
       }),
       championshipDivisions: divisions,
       allocations: [],
-      seriesCompCount: 4,
     })
 
-    // Per division: 3 * 4 + 2 = 14
+    // "series" kind has no source-level default. globalSpots is ignored;
+    // unconfigured divisions contribute 0.
     expect(result.byDivision).toEqual({
-      div_rx: 14,
-      div_scaled: 14,
-      div_masters: 14,
+      div_rx: 0,
+      div_scaled: 0,
+      div_masters: 0,
     })
-    expect(result.total).toBe(42)
+    expect(result.total).toBe(0)
   })
 
-  it("falls back to 0 per division when both globalSpots and directSpotsPerComp are null", () => {
+  it("series_global uses globalSpots as the per-division default", () => {
     const result = resolveSourceAllocations({
       source: sourceFixture({
-        kind: COMPETITION_INVITE_SOURCE_KIND.SERIES,
+        kind: COMPETITION_INVITE_SOURCE_KIND.SERIES_GLOBAL,
         sourceCompetitionId: null,
         sourceGroupId: "cgrp_series",
-        directSpotsPerComp: null,
+        globalSpots: 5,
+      }),
+      championshipDivisions: divisions,
+      allocations: [],
+    })
+
+    expect(result.byDivision).toEqual({
+      div_rx: 5,
+      div_scaled: 5,
+      div_masters: 5,
+    })
+    expect(result.total).toBe(15)
+  })
+
+  it("falls back to 0 per division when globalSpots is null on a competition source", () => {
+    const result = resolveSourceAllocations({
+      source: sourceFixture({
+        kind: COMPETITION_INVITE_SOURCE_KIND.COMPETITION,
         globalSpots: null,
       }),
       championshipDivisions: divisions,
       allocations: [],
-      seriesCompCount: 4,
     })
 
     expect(result.byDivision).toEqual({

@@ -19,14 +19,29 @@ describe("inviteSourceFormSchema", () => {
     expect(result.success).toBe(false)
   })
 
-  it("accepts a series source with sourceGroupId", () => {
+  it("accepts a series source with sourceGroupId (globalSpots not required)", () => {
     const result = inviteSourceFormSchema.safeParse({
       kind: "series",
       sourceGroupId: "cgrp_abc",
-      directSpotsPerComp: 3,
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it("accepts a series_global source with sourceGroupId + globalSpots", () => {
+    const result = inviteSourceFormSchema.safeParse({
+      kind: "series_global",
+      sourceGroupId: "cgrp_abc",
       globalSpots: 5,
     })
     expect(result.success).toBe(true)
+  })
+
+  it("rejects a series_global source without globalSpots", () => {
+    const result = inviteSourceFormSchema.safeParse({
+      kind: "series_global",
+      sourceGroupId: "cgrp_abc",
+    })
+    expect(result.success).toBe(false)
   })
 
   it("rejects when both sourceCompetitionId and sourceGroupId are set", () => {

@@ -15,6 +15,9 @@ const row = (overrides: Partial<RosterRow>): RosterRow => ({
   userId: "usr_a",
   athleteName: "Ada Lovelace",
   athleteEmail: null,
+  isTeamDivision: false,
+  teamName: null,
+  teamMembers: [],
   inviteId: null,
   inviteStatus: null,
   roundId: null,
@@ -45,5 +48,56 @@ describe("ChampionshipRosterTable", () => {
     expect(screen.getByText("Grace Hopper")).toBeInTheDocument()
     expect(screen.getAllByText("SLC Throwdown")).toHaveLength(2)
     expect(screen.getAllByText("RX Men")).toHaveLength(2)
+  })
+
+  it("renders team rows with team name and members (captain marked)", () => {
+    const teamRow = row({
+      isTeamDivision: true,
+      teamName: "Team Pegasus",
+      athleteName: "Ada Lovelace",
+      athleteEmail: "ada@example.com",
+      teamMembers: [
+        {
+          userId: "usr_a",
+          firstName: "Ada",
+          lastName: "Lovelace",
+          isCaptain: true,
+        },
+        {
+          userId: "usr_b",
+          firstName: "Grace",
+          lastName: "Hopper",
+          isCaptain: false,
+        },
+      ],
+    })
+    render(<ChampionshipRosterTable rows={[teamRow]} />)
+    expect(screen.getByText("Team Pegasus")).toBeInTheDocument()
+    expect(
+      screen.getByText("Ada Lovelace (C), Grace Hopper"),
+    ).toBeInTheDocument()
+    // Individual athlete name should NOT be the primary label on team rows.
+    expect(screen.queryByText("Ada Lovelace")).not.toBeInTheDocument()
+  })
+
+  it("renders 'Declined' pill and keeps the row selectable", () => {
+    const declinedRow = row({
+      athleteName: "Ada Lovelace",
+      athleteEmail: "ada@example.com",
+      userId: "usr_a",
+    })
+    render(
+      <ChampionshipRosterTable
+        rows={[declinedRow]}
+        selectedKeys={new Set()}
+        onToggleSelection={() => {}}
+        onToggleAll={() => {}}
+        getInviteStatusForRow={() => "declined"}
+      />,
+    )
+    expect(screen.getByText("Declined")).toBeInTheDocument()
+    // Declined doesn't gate the checkbox — organizer can re-issue.
+    const checkbox = screen.getByRole("checkbox", { name: /Select Ada/i })
+    expect(checkbox).not.toBeDisabled()
   })
 })
