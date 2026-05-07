@@ -80,7 +80,6 @@ import {
   getOrganizerCompetitionsFn,
 } from "@/server-fns/competition-fns"
 import {
-  type ActiveInviteSummary,
   type AuditInviteSummary,
   getChampionshipRosterFn,
   listActiveInvitesFn,
@@ -270,7 +269,6 @@ function InvitesPage() {
     seriesOptions,
     championshipDivisions,
     roster,
-    activeInvites,
     allInvites,
     allocationsBySourceByDivision,
   } = Route.useLoaderData()
@@ -368,28 +366,6 @@ function InvitesPage() {
     }
   }, [explicitMappingsBySource, championshipDivisions])
 
-  // The candidates table renders one row per (sourceComp × sourceDivision)
-  // placement. An invite belongs to a single championship division, so we
-  // key these lookups by `(emailOrUserId, championshipDivisionId)` — that
-  // way an athlete invited to championship "Masters" only shows the
-  // "Invited" pill on roster rows whose source division maps to Masters,
-  // not on every row across every division they qualified in. The send
-  // dialog still enforces per-division uniqueness server-side at issue
-  // time. Declined athletes are absent from the active map so the
-  // organizer can re-issue without purging the prior row.
-  const activeInviteByEmailAndDivision = useMemo(() => {
-    const map = new Map<string, ActiveInviteSummary>()
-    for (const inv of activeInvites) {
-      if (inv.activeMarker === "active") {
-        map.set(
-          inviteKey(inv.email.toLowerCase(), inv.championshipDivisionId),
-          inv,
-        )
-      }
-    }
-    return map
-  }, [activeInvites])
-
   // Status-display lookup: includes declined rows so the championship
   // roster table can render a "Declined" pill. Active invites win when
   // both exist (re-issued pending row → display the new pending state,
@@ -474,20 +450,37 @@ function InvitesPage() {
   // already registered, so re-sending would just spam them.
   // **Pending** rows stay in: the organizer can resend the same claim
   // link with a fresh expiration date (the send pipeline picks them up
-  // via `alreadyActive` resolution `"resend"`). An athlete invited to
-  // one division still maps independently per row's championship
-  // division.
+  // via `alreadyActive` resolution `"resend"`).
+  //
+  // Mirrors the userId-first / email-fallback path that
+  // `lookupInviteForRow` uses for the table's status pill — if the two
+  // diverged, an athlete whose email changed post-invite would render
+  // as "Registered" in the status column but still slip into the
+  // recipient list. Inlined (rather than calling `lookupInviteForRow`)
+  // because this is a `useCallback` and `lookupInviteForRow` isn't
+  // hoisted yet at this point in the function body.
   const isRowAlreadyAcceptedPaid = useCallback(
     (r: RosterRow): boolean => {
-      if (!r.athleteEmail) return false
       const championshipDivisionId = mapRowToChampionshipDivisionId(r)
       if (!championshipDivisionId) return false
-      const inv = activeInviteByEmailAndDivision.get(
-        inviteKey(r.athleteEmail.toLowerCase(), championshipDivisionId),
-      )
+      const byUser = r.userId
+        ? inviteForStatusByUserIdAndDivision.get(
+            inviteKey(r.userId, championshipDivisionId),
+          )
+        : undefined
+      const byEmail = r.athleteEmail
+        ? inviteForStatusByEmailAndDivision.get(
+            inviteKey(r.athleteEmail.toLowerCase(), championshipDivisionId),
+          )
+        : undefined
+      const inv = byUser ?? byEmail
       return inv?.status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID
     },
-    [activeInviteByEmailAndDivision, mapRowToChampionshipDivisionId],
+    [
+      mapRowToChampionshipDivisionId,
+      inviteForStatusByUserIdAndDivision,
+      inviteForStatusByEmailAndDivision,
+    ],
   )
 
   // Bespoke section reads from `allInvites` rather than `activeInvites`

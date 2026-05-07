@@ -511,10 +511,16 @@ export interface RedeliverInviteInput {
  * - `claimToken` must be non-null (a draft has nothing to preserve —
  *   call {@link reissueInvite} to mint the first token instead).
  *
- * Concurrent-claim protection mirrors {@link reissueInvite}: the UPDATE
- * pins `status = pending` in the WHERE clause, and a 0-row outcome
- * forces a re-read to distinguish "vanished" from "raced to a terminal
- * status mid-flight".
+ * Concurrent-mutation protection: the UPDATE pins `status = pending`
+ * **and** `sendAttempt = existing.sendAttempt` in the WHERE clause, an
+ * optimistic-lock guard that bails out cleanly if a parallel
+ * reissue/redeliver bumped the row between our read and write.
+ * Without the `sendAttempt` pin, a parallel reissue (e.g. dispatch
+ * marked the row `failed`, kicking another organizer's request into
+ * the `"draft"` resolution that rotates the token) could leave us
+ * returning the now-stale `existing.claimToken` while the row holds
+ * the rotated value. A 0-row outcome forces a re-read to surface the
+ * race in the error message.
  */
 export async function redeliverInvite(
   input: RedeliverInviteInput,
@@ -571,6 +577,11 @@ export async function redeliverInvite(
       and(
         eq(competitionInvitesTable.id, input.inviteId),
         eq(competitionInvitesTable.status, COMPETITION_INVITE_STATUS.PENDING),
+        // Optimistic-lock pin: bail if another writer touched the row
+        // between our SELECT and UPDATE. A successful UPDATE here means
+        // `existing.claimToken` is guaranteed to still be the value in
+        // the DB, so it's safe to return as the plaintext token.
+        eq(competitionInvitesTable.sendAttempt, existing.sendAttempt),
       ),
     )
 
@@ -580,13 +591,23 @@ export async function redeliverInvite(
     0
   if (affected === 0) {
     const fresh = await db
-      .select({ status: competitionInvitesTable.status })
+      .select({
+        status: competitionInvitesTable.status,
+        sendAttempt: competitionInvitesTable.sendAttempt,
+      })
       .from(competitionInvitesTable)
       .where(eq(competitionInvitesTable.id, input.inviteId))
       .limit(1)
       .then((rows) => rows[0] ?? null)
+    // The error message distinguishes "status raced" from "sendAttempt
+    // raced" so a same-status concurrent-bump (the optimistic-lock
+    // case) doesn't read as a misleading "transitioned to pending".
+    const reason =
+      fresh && fresh.status === COMPETITION_INVITE_STATUS.PENDING
+        ? `concurrently bumped (sendAttempt ${existing.sendAttempt} → ${fresh.sendAttempt})`
+        : `concurrently transitioned to ${fresh?.status ?? "unknown"}`
     throw new InviteIssueValidationError(
-      `Invite ${input.inviteId} cannot be redelivered — concurrently transitioned to ${fresh?.status ?? "unknown"}`,
+      `Invite ${input.inviteId} cannot be redelivered — ${reason}`,
     )
   }
 
