@@ -134,6 +134,14 @@ Plaintext storage matches [[apps/wodsmith-start/src/db/schemas/teams.ts#teamInvi
 
 Threat model: the token already lives forever in the recipient's email inbox and the email provider's outbound logs, so a DB hash was never the only or even primary copy of the secret. The actual auth gate is `identityMatch` — even with a stolen token, the visitor must be signed in as the invited email address (verification-gated sign-up if no account exists) to claim. The token is an unguessable identifier scoped to a recipient, not a bearer password. Defense-in-depth: terminal transitions (`accepted_paid`, `declined`, `revoked`, `expired`) null `claimToken` so a leaked active row cannot replay after payment, and the organizer can copy the live claim URL straight from the invite list UI to resend or hand-deliver — the user-visible feature that motivated the change.
 
+## Send count display
+
+The "Invited N×" suffix on the candidates roster pill and bespoke status badge counts how many emails have gone out. Centralized in [[apps/wodsmith-start/src/lib/competition-invites/send-count.ts#computeInviteSendCount]] because the math depends on `origin` — the two flows arrive at the first send differently.
+
+Source-origin invites are inserted by [[apps/wodsmith-start/src/server/competition-invites/issue.ts#issueInvitesForRecipients]] with `sendAttempt = 0` and dispatched directly — the first email goes out at `sendAttempt = 0`, so total sends = `sendAttempt + 1`. Bespoke invites are inserted by [[apps/wodsmith-start/src/server/competition-invites/bespoke.ts]] as drafts (`sendAttempt = 0`, `claimToken = NULL`, `emailDeliveryStatus = SKIPPED`); the activation `reissueInvite` call bumps `sendAttempt` to 1 *before* the first email goes out, so for bespoke total sends = `sendAttempt`. The pre-fix formula was `sendAttempt + 1` for both origins, which over-counted bespoke rows by 1 — a single-send bespoke invite rendered as "Invited 2×".
+
+Drafts (`claimUrl === null`) return 0 so the StatusPill suppresses the suffix and the row reads as "Not invited" rather than a misleading 1×. Both call sites — `getInviteSendCountForRow` and the inline bespoke-row computation in [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/invites/index.tsx]] — go through the helper so the candidates tab and the bespoke section stay in lock-step.
+
 ## Issue helpers
 
 The DB-side-only layer that writes invite rows lives in [[apps/wodsmith-start/src/server/competition-invites/issue.ts]]. It never renders HTML and never enqueues — that belongs to the `issueInvitesFn` server fn in a later sub-arc.

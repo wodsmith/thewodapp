@@ -72,6 +72,7 @@ import {
   COMPETITION_INVITE_STATUS,
   type CompetitionInviteSource,
 } from "@/db/schemas/competition-invites"
+import { computeInviteSendCount } from "@/lib/competition-invites/send-count"
 import { usePostHog } from "@/lib/posthog"
 import type { RosterRow } from "@/server/competition-invites/roster"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
@@ -595,17 +596,14 @@ function InvitesPage() {
     return championshipDivisionLabelById[inv.championshipDivisionId] ?? null
   }
 
-  // The invite row's `sendAttempt` is 0 on first dispatch and increments
-  // by one each refresh, so the human-readable "we've sent N emails"
-  // count is `sendAttempt + 1`. Drafts (claimUrl null) have never been
-  // dispatched — return 0 so the StatusPill suppresses the count
-  // suffix and the row reads as "Not invited" / "Invited" without a
-  // misleading 1×.
+  // Origin matters: source-origin rows hit `sendAttempt=0` on the first
+  // dispatch, but bespoke drafts get bumped to `sendAttempt=1` by the
+  // activation `reissueInvite` before their first send. See
+  // `computeInviteSendCount` for the full rationale.
   const getInviteSendCountForRow = (r: RosterRow): number | null => {
     const inv = lookupInviteForRow(r)
     if (!inv) return null
-    if (inv.claimUrl === null) return 0
-    return (inv.sendAttempt ?? 0) + 1
+    return computeInviteSendCount(inv)
   }
 
   const copyInviteLink = async (url: string) => {
@@ -1171,7 +1169,7 @@ function InvitesPage() {
                       // telling the organizer anything new. Mirrors
                       // the StatusPill logic in
                       // championship-roster-table.tsx.
-                      const sendCount = isDraft ? 0 : inv.sendAttempt + 1
+                      const sendCount = computeInviteSendCount(inv)
                       const sendCountSuffix =
                         sendCount >= 2 ? ` ${sendCount}×` : ""
                       const statusLabel =
