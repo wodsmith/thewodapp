@@ -2396,6 +2396,36 @@ describe('registration-fns', () => {
         })
       })
 
+      it('pulls funds from the connect account and keeps the platform application fee', async () => {
+        // Stripe Connect destination charges:
+        //  - reverse_transfer: true → reverses the transfer, debiting the
+        //    connect account so the refund is funded by the organizer's
+        //    balance, not the platform's.
+        //  - refund_application_fee: false → the platform fee we collected
+        //    via application_fee_amount is NOT refunded; it stays as
+        //    platform revenue.
+        // Both flags must be explicit (not relying on defaults) since this
+        // controls who bears the cost of the refund.
+        setupRefundMocks()
+
+        await refundRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        const call = mockStripeRefundsCreate.mock.calls[0]?.[0]
+        expect(call).toMatchObject({
+          reverse_transfer: true,
+          refund_application_fee: false,
+        })
+        // Belt-and-suspenders: also assert the value isn't undefined so we
+        // notice if a future refactor accidentally drops the explicit flag
+        // and falls back to Stripe's default.
+        expect(call?.refund_application_fee).toBe(false)
+      })
+
       it('records a REFUND_INITIATED financial event', async () => {
         setupRefundMocks()
 

@@ -2590,9 +2590,16 @@ export const refundRegistrationFn = createServerFn({ method: "POST" })
     })
 
     // 7. Issue the Stripe refund. Charges are destination charges (created on
-    //    the platform with transfer_data.destination), so refund on the
-    //    platform payment_intent with reverse_transfer to claw back the
-    //    transferred amount from the connected account.
+    //    the platform with transfer_data.destination + application_fee_amount),
+    //    so we refund on the platform payment_intent and tell Stripe how to
+    //    fund it:
+    //      - reverse_transfer: true → reverse the transfer to the connected
+    //        account so the refund is funded by the organizer's Stripe
+    //        balance, not ours.
+    //      - refund_application_fee: false → the platform fee we collected
+    //        via application_fee_amount is NOT returned; it stays as platform
+    //        revenue. Both flags are set explicitly (not relying on defaults)
+    //        because they control who bears the cost of the refund.
     //
     //    The purchase id doubles as a Stripe idempotency key — concurrent
     //    organizer clicks for the same purchase resolve to a single refund.
@@ -2600,6 +2607,7 @@ export const refundRegistrationFn = createServerFn({ method: "POST" })
       {
         payment_intent: purchase.stripePaymentIntentId,
         reverse_transfer: true,
+        refund_application_fee: false,
         reason: "requested_by_customer",
         metadata: {
           purchaseId: purchase.id,

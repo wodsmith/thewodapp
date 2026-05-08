@@ -100,7 +100,12 @@ Organizers can refund a paid registration via [[apps/wodsmith-start/src/server-f
 
 Express-only: surface this action only when the organizing team's connected account is `express` and `VERIFIED`. Standard accounts manage refunds in their own Stripe dashboard, so we do not initiate them through the platform.
 
-Charges use destination charges (`transfer_data.destination`), so we refund on the platform `payment_intent` with `reverse_transfer: true` to claw back the transfer to the connected account. The refund is bounded by purchase id as a Stripe idempotency key. A `REFUND_INITIATED` financial event is recorded immediately; the existing `charge.refunded` webhook records `REFUND_COMPLETED` once Stripe confirms.
+Charges use destination charges (`transfer_data.destination` + `application_fee_amount`), so we refund on the platform `payment_intent` with two explicit flags that decide who pays for the refund:
+
+- `reverse_transfer: true` — funds are pulled from the organizer's connected account, not the platform balance.
+- `refund_application_fee: false` — the platform fee we collected stays as platform revenue and is NOT returned to the organizer or the customer.
+
+Both flags are set explicitly (not via Stripe defaults) since this controls who bears the refund cost. The purchase id doubles as a Stripe idempotency key. A `REFUND_INITIATED` financial event is recorded immediately; the existing `charge.refunded` webhook records `REFUND_COMPLETED` once Stripe confirms.
 
 Idempotency on the app side: the action is blocked if any `REFUND_INITIATED` or `REFUND_COMPLETED` row already exists for the purchase. The athletes loader returns `canRefund` (team capability) and `refundedPurchaseIds` (already-refunded set) so the dropdown only shows the action for eligible rows.
 
