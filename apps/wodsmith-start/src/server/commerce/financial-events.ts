@@ -98,6 +98,35 @@ export const recordPaymentCompleted = createServerOnlyFn(
 )
 
 /**
+ * Record a REFUND_INITIATED event (negative amount).
+ *
+ * Logged when an organizer kicks off a refund through Stripe. Stripe's
+ * `charge.refunded` webhook later writes the matching REFUND_COMPLETED row.
+ */
+export const recordRefundInitiated = createServerOnlyFn(
+	async (params: {
+		purchaseId: string
+		teamId: string
+		amountCents: number
+		stripePaymentIntentId?: string
+		stripeRefundId?: string
+		reason: string
+		actorId?: string
+	}): Promise<void> => {
+		await recordFinancialEvent({
+			purchaseId: params.purchaseId,
+			teamId: params.teamId,
+			eventType: FINANCIAL_EVENT_TYPE.REFUND_INITIATED,
+			amountCents: -Math.abs(params.amountCents), // always negative
+			stripePaymentIntentId: params.stripePaymentIntentId,
+			stripeRefundId: params.stripeRefundId,
+			reason: params.reason,
+			actorId: params.actorId,
+		})
+	},
+)
+
+/**
  * Record a REFUND_COMPLETED event (negative amount).
  */
 export const recordRefundCompleted = createServerOnlyFn(

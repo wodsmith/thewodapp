@@ -26,6 +26,7 @@ import {
   Mail,
   MoreHorizontal,
   Plus,
+  RotateCcw,
   Trash2,
   UserPlus,
   X,
@@ -87,7 +88,10 @@ import {
   cancelPurchaseTransferFn,
   getPendingTransfersForCompetitionFn,
 } from "@/server-fns/purchase-transfer-fns"
-import { removeRegistrationFn } from "@/server-fns/registration-fns"
+import {
+  refundRegistrationFn,
+  removeRegistrationFn,
+} from "@/server-fns/registration-fns"
 import {
   getCompetitionQuestionsFn,
   getCompetitionRegistrationAnswersFn,
@@ -187,6 +191,8 @@ export const Route = createFileRoute(
 
     return {
       registrations: registrationsResult.registrations,
+      canRefund: registrationsResult.canRefund,
+      refundedPurchaseIds: registrationsResult.refundedPurchaseIds,
       divisions: divisionsResult.divisions,
       questions: questionsResult.questions,
       answersByRegistration: answersResult.answersByRegistration,
@@ -215,6 +221,8 @@ function AthletesPage() {
   const { competition } = parentRoute.useLoaderData()
   const {
     registrations,
+    canRefund,
+    refundedPurchaseIds,
     divisions,
     questions,
     answersByRegistration,
@@ -229,6 +237,10 @@ function AthletesPage() {
     currentSortDir,
     teamId,
   } = Route.useLoaderData()
+  const refundedPurchaseIdSet = React.useMemo(
+    () => new Set(refundedPurchaseIds),
+    [refundedPurchaseIds],
+  )
   const navigate = useNavigate()
   const router = useRouter()
   const { tab } = Route.useSearch()
@@ -243,6 +255,7 @@ function AthletesPage() {
     })
   }
   const removeRegistration = useServerFn(removeRegistrationFn)
+  const refundRegistration = useServerFn(refundRegistrationFn)
   const cancelPurchaseTransfer = useServerFn(cancelPurchaseTransferFn)
   const [removingRegistration, setRemovingRegistration] = useState<{
     id: string
@@ -250,6 +263,12 @@ function AthletesPage() {
     teamName: string | null
   } | null>(null)
   const [isRemoving, setIsRemoving] = useState(false)
+  const [refundingRegistration, setRefundingRegistration] = useState<{
+    id: string
+    athleteName: string
+    teamName: string | null
+  } | null>(null)
+  const [isRefunding, setIsRefunding] = useState(false)
   const [showManualRegistration, setShowManualRegistration] = useState(false)
   const [transferTarget, setTransferTarget] = useState<{
     id: string
@@ -304,6 +323,28 @@ function AthletesPage() {
       )
     } finally {
       setIsRemoving(false)
+    }
+  }
+
+  const handleRefundRegistration = async () => {
+    if (!refundingRegistration) return
+    setIsRefunding(true)
+    try {
+      await refundRegistration({
+        data: {
+          registrationId: refundingRegistration.id,
+          competitionId: competition.id,
+        },
+      })
+      toast.success("Refund initiated. Stripe will confirm shortly.")
+      setRefundingRegistration(null)
+      router.invalidate()
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to refund registration",
+      )
+    } finally {
+      setIsRefunding(false)
     }
   }
 
@@ -485,6 +526,7 @@ function AthletesPage() {
     registrationId: string
     registrationStatus: string // 'active' | 'removed'
     commercePurchaseId: string | null
+    paymentStatus: string | null
     athlete: {
       id: string
       firstName: string | null
@@ -587,6 +629,9 @@ function AthletesPage() {
         commercePurchaseId:
           (registration as { commercePurchaseId?: string | null })
             ?.commercePurchaseId ?? null,
+        paymentStatus:
+          (registration as { paymentStatus?: string | null })?.paymentStatus ??
+          null,
         ordinal: rowIndex,
         ordinalLabel: memberIndex === 0 ? String(rowIndex) : "",
         athlete: {
@@ -622,6 +667,7 @@ function AthletesPage() {
           registrationId: registration.id,
           registrationStatus: registration.status,
           commercePurchaseId: null,
+          paymentStatus: null,
           ordinal: rowIndex,
           ordinalLabel: "",
           athlete: {
@@ -1349,6 +1395,28 @@ function AthletesPage() {
                                         </DropdownMenuItem>
                                       )
                                     })()}
+                                    {canRefund &&
+                                      row.commercePurchaseId &&
+                                      row.paymentStatus === "PAID" &&
+                                      !refundedPurchaseIdSet.has(
+                                        row.commercePurchaseId,
+                                      ) && (
+                                        <DropdownMenuItem
+                                          onClick={() =>
+                                            setRefundingRegistration({
+                                              id: row.registrationId,
+                                              athleteName:
+                                                `${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim() ||
+                                                row.athlete.email ||
+                                                "Unknown",
+                                              teamName: row.teamName,
+                                            })
+                                          }
+                                        >
+                                          <RotateCcw className="h-4 w-4 mr-2" />
+                                          Refund Registration
+                                        </DropdownMenuItem>
+                                      )}
                                     <DropdownMenuItem
                                       className="text-destructive focus:text-destructive"
                                       onClick={() =>
@@ -2017,6 +2085,28 @@ function AthletesPage() {
                                             </DropdownMenuItem>
                                           )
                                         })()}
+                                        {canRefund &&
+                                          row.commercePurchaseId &&
+                                          row.paymentStatus === "PAID" &&
+                                          !refundedPurchaseIdSet.has(
+                                            row.commercePurchaseId,
+                                          ) && (
+                                            <DropdownMenuItem
+                                              onClick={() =>
+                                                setRefundingRegistration({
+                                                  id: row.registrationId,
+                                                  athleteName:
+                                                    `${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim() ||
+                                                    row.athlete.email ||
+                                                    "Unknown",
+                                                  teamName: row.teamName,
+                                                })
+                                              }
+                                            >
+                                              <RotateCcw className="h-4 w-4 mr-2" />
+                                              Refund Registration
+                                            </DropdownMenuItem>
+                                          )}
                                         <DropdownMenuItem
                                           className="text-destructive focus:text-destructive"
                                           onClick={() =>
@@ -2076,6 +2166,36 @@ function AthletesPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {isRemoving ? "Removing..." : "Remove Registration"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!refundingRegistration}
+        onOpenChange={(open) => !open && setRefundingRegistration(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Refund Registration</AlertDialogTitle>
+            <AlertDialogDescription>
+              Refund the full registration fee for{" "}
+              <strong>{refundingRegistration?.athleteName}</strong>
+              {refundingRegistration?.teamName && (
+                <> (team: {refundingRegistration.teamName})</>
+              )}
+              ? This issues a Stripe refund and reverses the transfer to your
+              connected account. The registration itself stays in place — use
+              "Remove Registration" if you also want to release their spot.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isRefunding}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRefundRegistration}
+              disabled={isRefunding}
+            >
+              {isRefunding ? "Refunding..." : "Refund Registration"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

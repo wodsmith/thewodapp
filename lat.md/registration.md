@@ -94,6 +94,16 @@ Organizers can soft-delete registrations via `removeRegistrationFn`, setting sta
 
 Cascading cleanup: deactivates team memberships (captain in event team + all members in athlete team), cancels pending invitations, deletes heat assignments, and deletes scores for the registered user(s) across all competition events. Requires `MANAGE_COMPETITIONS` permission.
 
+## Registration Refund
+
+Organizers can refund a paid registration via [[apps/wodsmith-start/src/server-fns/registration-fns.ts#refundRegistrationFn]]. This is a separate action from removal — refunds and removals can be done independently or together.
+
+Express-only: surface this action only when the organizing team's connected account is `express` and `VERIFIED`. Standard accounts manage refunds in their own Stripe dashboard, so we do not initiate them through the platform.
+
+Charges use destination charges (`transfer_data.destination`), so we refund on the platform `payment_intent` with `reverse_transfer: true` to claw back the transfer to the connected account. The refund is bounded by purchase id as a Stripe idempotency key. A `REFUND_INITIATED` financial event is recorded immediately; the existing `charge.refunded` webhook records `REFUND_COMPLETED` once Stripe confirms.
+
+Idempotency on the app side: the action is blocked if any `REFUND_INITIATED` or `REFUND_COMPLETED` row already exists for the purchase. The athletes loader returns `canRefund` (team capability) and `refundedPurchaseIds` (already-refunded set) so the dropdown only shows the action for eligible rows.
+
 ## Division Transfer
 
 Organizers can move a registration between divisions via `transferRegistrationDivisionFn`.

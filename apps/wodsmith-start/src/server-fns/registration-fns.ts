@@ -36,6 +36,8 @@ import {
   createTeamId,
   createTeamMembershipId,
   createUserId,
+  FINANCIAL_EVENT_TYPE,
+  financialEventTable,
   REGISTRATION_STATUS,
   ROLES_ENUM,
   scalingGroupsTable,
@@ -81,6 +83,7 @@ import {
 } from "@/server/competition-invites/claim"
 import { assertInviteWithinAllocation } from "@/server/competition-invites/identity"
 import { normalizeInviteEmail } from "@/server/competition-invites/issue"
+import { recordRefundInitiated } from "@/server/commerce/financial-events"
 import { recordRedemption, validateCoupon } from "@/server/coupons"
 import { requireVerifiedEmail } from "@/utils/auth"
 import { createToken, getClaimTokenKey } from "@/utils/auth-utils"
@@ -2435,4 +2438,203 @@ export const refreshCompetitionTeamInviteFn = createServerFn({
     })
 
     return { success: true, newToken }
+  })
+
+// ============================================================================
+// Refund Registration (Organizer-Initiated, Stripe Express Only)
+// ============================================================================
+
+const refundRegistrationInputSchema = z.object({
+  registrationId: z.string().min(1, "Registration ID is required"),
+  competitionId: z.string().min(1, "Competition ID is required"),
+  reason: z.string().max(500).optional(),
+})
+
+/**
+ * Refund a registration's payment via Stripe.
+ *
+ * Separate from removeRegistrationFn — the registration's status is left
+ * unchanged so an organizer can refund without removing, or remove without
+ * refunding. The two actions can be used independently or together.
+ *
+ * Express-only: payouts on a Standard connected account are governed by the
+ * organizer's own Stripe dashboard, so refunds for those should originate
+ * there. We only expose this action when the organizing team's connected
+ * account is `express` and VERIFIED.
+ *
+ * Charges are destination charges (created on the platform with
+ * `transfer_data.destination`), so we issue the refund on the platform
+ * payment_intent and pass `reverse_transfer: true` to claw back the funds
+ * already routed to the connected account. The matching `charge.refunded`
+ * webhook records REFUND_COMPLETED.
+ */
+// @lat: [[registration#Registration Refund]]
+export const refundRegistrationFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => refundRegistrationInputSchema.parse(data))
+  .handler(async ({ data: input }) => {
+    const session = await requireVerifiedEmail()
+
+    const db = getDb()
+
+    updateRequestContext({ userId: session.userId })
+    addRequestContextAttribute("competitionId", input.competitionId)
+    addRequestContextAttribute("registrationId", input.registrationId)
+    getEvlog()?.set({
+      action: "refund_registration",
+      registration: {
+        id: input.registrationId,
+        competitionId: input.competitionId,
+      },
+    })
+
+    // 1. Verify competition + ownership
+    const competition = await db.query.competitionsTable.findFirst({
+      where: eq(competitionsTable.id, input.competitionId),
+      columns: { id: true, organizingTeamId: true },
+    })
+
+    if (!competition) throw new Error("Competition not found")
+
+    // 2. Authorization (admin bypass)
+    if (session.user?.role !== ROLES_ENUM.ADMIN) {
+      const team = session.teams?.find(
+        (t) => t.id === competition.organizingTeamId,
+      )
+      if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS)) {
+        throw new Error("Missing required permission: manage_competitions")
+      }
+    }
+
+    // 3. Registration must exist in this competition
+    const registration = await db.query.competitionRegistrationsTable.findFirst(
+      {
+        where: and(
+          eq(competitionRegistrationsTable.id, input.registrationId),
+          eq(competitionRegistrationsTable.eventId, input.competitionId),
+        ),
+      },
+    )
+
+    if (!registration) throw new Error("Registration not found")
+
+    // 4. Stripe Express requirement on the organizing team
+    const organizingTeam = await db.query.teamTable.findFirst({
+      where: eq(teamTable.id, competition.organizingTeamId),
+      columns: {
+        id: true,
+        stripeConnectedAccountId: true,
+        stripeAccountStatus: true,
+        stripeAccountType: true,
+      },
+    })
+
+    if (
+      !organizingTeam?.stripeConnectedAccountId ||
+      organizingTeam.stripeAccountType !== "express" ||
+      organizingTeam.stripeAccountStatus !== "VERIFIED"
+    ) {
+      throw new Error(
+        "Refunds require a verified Stripe Express account on the organizing team",
+      )
+    }
+
+    // 5. Purchase must be paid via Stripe
+    if (!registration.commercePurchaseId) {
+      throw new Error("Registration has no associated purchase to refund")
+    }
+
+    const purchase = await db.query.commercePurchaseTable.findFirst({
+      where: eq(commercePurchaseTable.id, registration.commercePurchaseId),
+    })
+
+    if (!purchase) {
+      throw new Error("Registration has no associated purchase to refund")
+    }
+
+    if (purchase.status !== COMMERCE_PURCHASE_STATUS.COMPLETED) {
+      throw new Error(
+        "Cannot refund: purchase is not completed",
+      )
+    }
+
+    if (!purchase.stripePaymentIntentId) {
+      throw new Error(
+        "Cannot refund: purchase has no Stripe payment intent",
+      )
+    }
+
+    // 6. Idempotency — block if a REFUND_INITIATED or REFUND_COMPLETED already exists
+    const existingRefund = await db.query.financialEventTable.findFirst({
+      where: and(
+        eq(financialEventTable.purchaseId, purchase.id),
+        inArray(financialEventTable.eventType, [
+          FINANCIAL_EVENT_TYPE.REFUND_INITIATED,
+          FINANCIAL_EVENT_TYPE.REFUND_COMPLETED,
+        ]),
+      ),
+      columns: { id: true, eventType: true },
+    })
+
+    if (existingRefund) {
+      throw new Error("Purchase has already been refunded")
+    }
+
+    logInfo({
+      message: "[Registration] Initiating refund",
+      attributes: {
+        registrationId: input.registrationId,
+        competitionId: input.competitionId,
+        purchaseId: purchase.id,
+        amountCents: purchase.totalCents,
+      },
+    })
+
+    // 7. Issue the Stripe refund. Charges are destination charges (created on
+    //    the platform with transfer_data.destination), so refund on the
+    //    platform payment_intent with reverse_transfer to claw back the
+    //    transferred amount from the connected account.
+    //
+    //    The purchase id doubles as a Stripe idempotency key — concurrent
+    //    organizer clicks for the same purchase resolve to a single refund.
+    const refund = await getStripe().refunds.create(
+      {
+        payment_intent: purchase.stripePaymentIntentId,
+        reverse_transfer: true,
+        reason: "requested_by_customer",
+        metadata: {
+          purchaseId: purchase.id,
+          registrationId: input.registrationId,
+          competitionId: input.competitionId,
+          organizerUserId: session.userId,
+        },
+      },
+      { idempotencyKey: `refund:${purchase.id}` },
+    )
+
+    // 8. Record the REFUND_INITIATED financial event. The webhook will record
+    //    REFUND_COMPLETED when Stripe confirms the refund settled.
+    await recordRefundInitiated({
+      purchaseId: purchase.id,
+      teamId: competition.organizingTeamId,
+      amountCents: purchase.totalCents,
+      stripePaymentIntentId: purchase.stripePaymentIntentId,
+      stripeRefundId: refund.id,
+      reason: input.reason ?? "Refund initiated by organizer",
+      actorId: session.userId,
+    })
+
+    logInfo({
+      message: "[Registration] Refund initiated successfully",
+      attributes: {
+        registrationId: input.registrationId,
+        purchaseId: purchase.id,
+        refundId: refund.id,
+      },
+    })
+
+    return {
+      success: true,
+      refundId: refund.id,
+      amountCents: purchase.totalCents,
+    }
   })
