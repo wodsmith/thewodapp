@@ -201,13 +201,13 @@ function AthleteProfilePage() {
               </div>
               <div className="flex gap-2">
                 <Button asChild variant="outline" size="sm">
-                  <Link to="/compete/athlete/invoices">
+                  <Link to="/settings/billing">
                     <Receipt className="mr-2 h-4 w-4" />
                     Invoices
                   </Link>
                 </Button>
                 <Button asChild variant="outline" size="sm">
-                  <Link to="/compete/athlete/edit">
+                  <Link to="/settings/athlete">
                     <Edit className="mr-2 h-4 w-4" />
                     Edit Profile
                   </Link>
@@ -654,7 +654,7 @@ function SponsorsSocial({
             <CardDescription>Supporting brands and partners</CardDescription>
           </div>
           <Button asChild variant="outline" size="sm">
-            <Link to="/compete/athlete/sponsors">
+            <Link to="/settings/sponsors">
               <Pencil className="mr-2 h-4 w-4" />
               Manage
             </Link>

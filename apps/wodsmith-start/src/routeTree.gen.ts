@@ -88,10 +88,15 @@ import { Route as AdminTeamsTeamIdIndexRouteImport } from './routes/admin/teams/
 import { Route as ProtectedWorkoutsNewIndexRouteImport } from './routes/_protected/workouts/new/index'
 import { Route as ProtectedWorkoutsWorkoutIdIndexRouteImport } from './routes/_protected/workouts/$workoutId/index'
 import { Route as ProtectedSettingsTeamsIndexRouteImport } from './routes/_protected/settings/teams/index'
+import { Route as ProtectedSettingsSponsorsIndexRouteImport } from './routes/_protected/settings/sponsors/index'
 import { Route as ProtectedSettingsSessionsIndexRouteImport } from './routes/_protected/settings/sessions/index'
 import { Route as ProtectedSettingsSecurityIndexRouteImport } from './routes/_protected/settings/security/index'
 import { Route as ProtectedSettingsProgrammingIndexRouteImport } from './routes/_protected/settings/programming/index'
 import { Route as ProtectedSettingsProfileIndexRouteImport } from './routes/_protected/settings/profile/index'
+import { Route as ProtectedSettingsOverviewIndexRouteImport } from './routes/_protected/settings/overview/index'
+import { Route as ProtectedSettingsBillingIndexRouteImport } from './routes/_protected/settings/billing/index'
+import { Route as ProtectedSettingsAthleteIndexRouteImport } from './routes/_protected/settings/athlete/index'
+import { Route as ProtectedSettingsAppearanceIndexRouteImport } from './routes/_protected/settings/appearance/index'
 import { Route as ProtectedProgrammingSubscriptionsIndexRouteImport } from './routes/_protected/programming/subscriptions/index'
 import { Route as ProtectedProgrammingTrackIdIndexRouteImport } from './routes/_protected/programming/$trackId/index'
 import { Route as ProtectedMovementsNewIndexRouteImport } from './routes/_protected/movements/new/index'
@@ -618,6 +623,12 @@ const ProtectedSettingsTeamsIndexRoute =
     path: '/teams/',
     getParentRoute: () => ProtectedSettingsRoute,
   } as any)
+const ProtectedSettingsSponsorsIndexRoute =
+  ProtectedSettingsSponsorsIndexRouteImport.update({
+    id: '/sponsors/',
+    path: '/sponsors/',
+    getParentRoute: () => ProtectedSettingsRoute,
+  } as any)
 const ProtectedSettingsSessionsIndexRoute =
   ProtectedSettingsSessionsIndexRouteImport.update({
     id: '/sessions/',
@@ -640,6 +651,30 @@ const ProtectedSettingsProfileIndexRoute =
   ProtectedSettingsProfileIndexRouteImport.update({
     id: '/profile/',
     path: '/profile/',
+    getParentRoute: () => ProtectedSettingsRoute,
+  } as any)
+const ProtectedSettingsOverviewIndexRoute =
+  ProtectedSettingsOverviewIndexRouteImport.update({
+    id: '/overview/',
+    path: '/overview/',
+    getParentRoute: () => ProtectedSettingsRoute,
+  } as any)
+const ProtectedSettingsBillingIndexRoute =
+  ProtectedSettingsBillingIndexRouteImport.update({
+    id: '/billing/',
+    path: '/billing/',
+    getParentRoute: () => ProtectedSettingsRoute,
+  } as any)
+const ProtectedSettingsAthleteIndexRoute =
+  ProtectedSettingsAthleteIndexRouteImport.update({
+    id: '/athlete/',
+    path: '/athlete/',
+    getParentRoute: () => ProtectedSettingsRoute,
+  } as any)
+const ProtectedSettingsAppearanceIndexRoute =
+  ProtectedSettingsAppearanceIndexRouteImport.update({
+    id: '/appearance/',
+    path: '/appearance/',
     getParentRoute: () => ProtectedSettingsRoute,
   } as any)
 const ProtectedProgrammingSubscriptionsIndexRoute =
@@ -1447,10 +1482,15 @@ export interface FileRoutesByFullPath {
   '/movements/new': typeof ProtectedMovementsNewIndexRoute
   '/programming/$trackId': typeof ProtectedProgrammingTrackIdIndexRoute
   '/programming/subscriptions': typeof ProtectedProgrammingSubscriptionsIndexRoute
+  '/settings/appearance': typeof ProtectedSettingsAppearanceIndexRoute
+  '/settings/athlete': typeof ProtectedSettingsAthleteIndexRoute
+  '/settings/billing': typeof ProtectedSettingsBillingIndexRoute
+  '/settings/overview': typeof ProtectedSettingsOverviewIndexRoute
   '/settings/profile': typeof ProtectedSettingsProfileIndexRoute
   '/settings/programming': typeof ProtectedSettingsProgrammingIndexRoute
   '/settings/security': typeof ProtectedSettingsSecurityIndexRoute
   '/settings/sessions': typeof ProtectedSettingsSessionsIndexRoute
+  '/settings/sponsors': typeof ProtectedSettingsSponsorsIndexRoute
   '/settings/teams': typeof ProtectedSettingsTeamsIndexRoute
   '/workouts/$workoutId': typeof ProtectedWorkoutsWorkoutIdIndexRoute
   '/workouts/new': typeof ProtectedWorkoutsNewIndexRoute
@@ -1633,10 +1673,15 @@ export interface FileRoutesByTo {
   '/movements/new': typeof ProtectedMovementsNewIndexRoute
   '/programming/$trackId': typeof ProtectedProgrammingTrackIdIndexRoute
   '/programming/subscriptions': typeof ProtectedProgrammingSubscriptionsIndexRoute
+  '/settings/appearance': typeof ProtectedSettingsAppearanceIndexRoute
+  '/settings/athlete': typeof ProtectedSettingsAthleteIndexRoute
+  '/settings/billing': typeof ProtectedSettingsBillingIndexRoute
+  '/settings/overview': typeof ProtectedSettingsOverviewIndexRoute
   '/settings/profile': typeof ProtectedSettingsProfileIndexRoute
   '/settings/programming': typeof ProtectedSettingsProgrammingIndexRoute
   '/settings/security': typeof ProtectedSettingsSecurityIndexRoute
   '/settings/sessions': typeof ProtectedSettingsSessionsIndexRoute
+  '/settings/sponsors': typeof ProtectedSettingsSponsorsIndexRoute
   '/settings/teams': typeof ProtectedSettingsTeamsIndexRoute
   '/workouts/$workoutId': typeof ProtectedWorkoutsWorkoutIdIndexRoute
   '/workouts/new': typeof ProtectedWorkoutsNewIndexRoute
@@ -1826,10 +1871,15 @@ export interface FileRoutesById {
   '/_protected/movements/new/': typeof ProtectedMovementsNewIndexRoute
   '/_protected/programming/$trackId/': typeof ProtectedProgrammingTrackIdIndexRoute
   '/_protected/programming/subscriptions/': typeof ProtectedProgrammingSubscriptionsIndexRoute
+  '/_protected/settings/appearance/': typeof ProtectedSettingsAppearanceIndexRoute
+  '/_protected/settings/athlete/': typeof ProtectedSettingsAthleteIndexRoute
+  '/_protected/settings/billing/': typeof ProtectedSettingsBillingIndexRoute
+  '/_protected/settings/overview/': typeof ProtectedSettingsOverviewIndexRoute
   '/_protected/settings/profile/': typeof ProtectedSettingsProfileIndexRoute
   '/_protected/settings/programming/': typeof ProtectedSettingsProgrammingIndexRoute
   '/_protected/settings/security/': typeof ProtectedSettingsSecurityIndexRoute
   '/_protected/settings/sessions/': typeof ProtectedSettingsSessionsIndexRoute
+  '/_protected/settings/sponsors/': typeof ProtectedSettingsSponsorsIndexRoute
   '/_protected/settings/teams/': typeof ProtectedSettingsTeamsIndexRoute
   '/_protected/workouts/$workoutId/': typeof ProtectedWorkoutsWorkoutIdIndexRoute
   '/_protected/workouts/new/': typeof ProtectedWorkoutsNewIndexRoute
@@ -2023,10 +2073,15 @@ export interface FileRouteTypes {
     | '/movements/new'
     | '/programming/$trackId'
     | '/programming/subscriptions'
+    | '/settings/appearance'
+    | '/settings/athlete'
+    | '/settings/billing'
+    | '/settings/overview'
     | '/settings/profile'
     | '/settings/programming'
     | '/settings/security'
     | '/settings/sessions'
+    | '/settings/sponsors'
     | '/settings/teams'
     | '/workouts/$workoutId'
     | '/workouts/new'
@@ -2209,10 +2264,15 @@ export interface FileRouteTypes {
     | '/movements/new'
     | '/programming/$trackId'
     | '/programming/subscriptions'
+    | '/settings/appearance'
+    | '/settings/athlete'
+    | '/settings/billing'
+    | '/settings/overview'
     | '/settings/profile'
     | '/settings/programming'
     | '/settings/security'
     | '/settings/sessions'
+    | '/settings/sponsors'
     | '/settings/teams'
     | '/workouts/$workoutId'
     | '/workouts/new'
@@ -2401,10 +2461,15 @@ export interface FileRouteTypes {
     | '/_protected/movements/new/'
     | '/_protected/programming/$trackId/'
     | '/_protected/programming/subscriptions/'
+    | '/_protected/settings/appearance/'
+    | '/_protected/settings/athlete/'
+    | '/_protected/settings/billing/'
+    | '/_protected/settings/overview/'
     | '/_protected/settings/profile/'
     | '/_protected/settings/programming/'
     | '/_protected/settings/security/'
     | '/_protected/settings/sessions/'
+    | '/_protected/settings/sponsors/'
     | '/_protected/settings/teams/'
     | '/_protected/workouts/$workoutId/'
     | '/_protected/workouts/new/'
@@ -3061,6 +3126,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedSettingsTeamsIndexRouteImport
       parentRoute: typeof ProtectedSettingsRoute
     }
+    '/_protected/settings/sponsors/': {
+      id: '/_protected/settings/sponsors/'
+      path: '/sponsors'
+      fullPath: '/settings/sponsors'
+      preLoaderRoute: typeof ProtectedSettingsSponsorsIndexRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
+    }
     '/_protected/settings/sessions/': {
       id: '/_protected/settings/sessions/'
       path: '/sessions'
@@ -3087,6 +3159,34 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/settings/profile'
       preLoaderRoute: typeof ProtectedSettingsProfileIndexRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
+    }
+    '/_protected/settings/overview/': {
+      id: '/_protected/settings/overview/'
+      path: '/overview'
+      fullPath: '/settings/overview'
+      preLoaderRoute: typeof ProtectedSettingsOverviewIndexRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
+    }
+    '/_protected/settings/billing/': {
+      id: '/_protected/settings/billing/'
+      path: '/billing'
+      fullPath: '/settings/billing'
+      preLoaderRoute: typeof ProtectedSettingsBillingIndexRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
+    }
+    '/_protected/settings/athlete/': {
+      id: '/_protected/settings/athlete/'
+      path: '/athlete'
+      fullPath: '/settings/athlete'
+      preLoaderRoute: typeof ProtectedSettingsAthleteIndexRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
+    }
+    '/_protected/settings/appearance/': {
+      id: '/_protected/settings/appearance/'
+      path: '/appearance'
+      fullPath: '/settings/appearance'
+      preLoaderRoute: typeof ProtectedSettingsAppearanceIndexRouteImport
       parentRoute: typeof ProtectedSettingsRoute
     }
     '/_protected/programming/subscriptions/': {
@@ -3905,10 +4005,15 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 interface ProtectedSettingsRouteChildren {
   ProtectedSettingsIndexRoute: typeof ProtectedSettingsIndexRoute
+  ProtectedSettingsAppearanceIndexRoute: typeof ProtectedSettingsAppearanceIndexRoute
+  ProtectedSettingsAthleteIndexRoute: typeof ProtectedSettingsAthleteIndexRoute
+  ProtectedSettingsBillingIndexRoute: typeof ProtectedSettingsBillingIndexRoute
+  ProtectedSettingsOverviewIndexRoute: typeof ProtectedSettingsOverviewIndexRoute
   ProtectedSettingsProfileIndexRoute: typeof ProtectedSettingsProfileIndexRoute
   ProtectedSettingsProgrammingIndexRoute: typeof ProtectedSettingsProgrammingIndexRoute
   ProtectedSettingsSecurityIndexRoute: typeof ProtectedSettingsSecurityIndexRoute
   ProtectedSettingsSessionsIndexRoute: typeof ProtectedSettingsSessionsIndexRoute
+  ProtectedSettingsSponsorsIndexRoute: typeof ProtectedSettingsSponsorsIndexRoute
   ProtectedSettingsTeamsIndexRoute: typeof ProtectedSettingsTeamsIndexRoute
   ProtectedSettingsProgrammingTrackIdIndexRoute: typeof ProtectedSettingsProgrammingTrackIdIndexRoute
   ProtectedSettingsTeamsTeamSlugIndexRoute: typeof ProtectedSettingsTeamsTeamSlugIndexRoute
@@ -3917,11 +4022,16 @@ interface ProtectedSettingsRouteChildren {
 
 const ProtectedSettingsRouteChildren: ProtectedSettingsRouteChildren = {
   ProtectedSettingsIndexRoute: ProtectedSettingsIndexRoute,
+  ProtectedSettingsAppearanceIndexRoute: ProtectedSettingsAppearanceIndexRoute,
+  ProtectedSettingsAthleteIndexRoute: ProtectedSettingsAthleteIndexRoute,
+  ProtectedSettingsBillingIndexRoute: ProtectedSettingsBillingIndexRoute,
+  ProtectedSettingsOverviewIndexRoute: ProtectedSettingsOverviewIndexRoute,
   ProtectedSettingsProfileIndexRoute: ProtectedSettingsProfileIndexRoute,
   ProtectedSettingsProgrammingIndexRoute:
     ProtectedSettingsProgrammingIndexRoute,
   ProtectedSettingsSecurityIndexRoute: ProtectedSettingsSecurityIndexRoute,
   ProtectedSettingsSessionsIndexRoute: ProtectedSettingsSessionsIndexRoute,
+  ProtectedSettingsSponsorsIndexRoute: ProtectedSettingsSponsorsIndexRoute,
   ProtectedSettingsTeamsIndexRoute: ProtectedSettingsTeamsIndexRoute,
   ProtectedSettingsProgrammingTrackIdIndexRoute:
     ProtectedSettingsProgrammingTrackIdIndexRoute,

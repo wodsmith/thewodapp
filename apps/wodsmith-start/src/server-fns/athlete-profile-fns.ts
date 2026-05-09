@@ -167,7 +167,7 @@ export const getAthleteEditDataFn = createServerFn({ method: "GET" }).handler(
     if (!session) {
       throw redirect({
         to: "/sign-in",
-        search: { redirect: "/compete/athlete/edit" },
+        search: { redirect: "/settings/athlete" },
       })
     }
 
@@ -186,7 +186,7 @@ export const getAthleteEditDataFn = createServerFn({ method: "GET" }).handler(
     if (!user) {
       throw redirect({
         to: "/sign-in",
-        search: { redirect: "/compete/athlete/edit" },
+        search: { redirect: "/settings/athlete" },
       })
     }
 
@@ -403,7 +403,7 @@ export const getAthleteInvoicesDataFn = createServerFn({
   if (!session) {
     throw redirect({
       to: "/sign-in",
-      search: { redirect: "/compete/athlete/invoices" },
+      search: { redirect: "/settings/billing" },
     })
   }
 

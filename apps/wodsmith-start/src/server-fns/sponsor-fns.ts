@@ -799,7 +799,7 @@ export const getSponsorsPageDataFn = createServerFn({ method: "GET" }).handler(
     if (!session) {
       throw redirect({
         to: "/sign-in",
-        search: { redirect: "/compete/athlete/sponsors" },
+        search: { redirect: "/settings/sponsors" },
       })
     }
 
