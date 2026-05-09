@@ -23,6 +23,10 @@ import {
   commercePurchaseTable,
 } from "@/db/schemas/commerce"
 import {
+  FINANCIAL_EVENT_TYPE,
+  financialEventTable,
+} from "@/db/schemas/financial-events"
+import {
   competitionRegistrationsTable,
   competitionsTable,
   REGISTRATION_STATUS,
@@ -656,7 +660,14 @@ const getOrganizerRegistrationsInputSchema = z.object({
 })
 
 /**
- * Get registrations for organizer view with full user and division details
+ * Get registrations for organizer view with full user and division details.
+ *
+ * Returns refund-capability metadata so the UI can decide whether to surface
+ * the "Refund Registration" action:
+ * - `canRefund` is true when the organizing team has a verified Stripe Express
+ *   connected account (only Express accounts use platform-mediated refunds).
+ * - `refundedPurchaseIds` lists purchases that already have a REFUND_INITIATED
+ *   or REFUND_COMPLETED financial event so the UI hides the action per row.
  */
 export const getOrganizerRegistrationsFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) =>
@@ -728,7 +739,56 @@ export const getOrganizerRegistrationsFn = createServerFn({ method: "GET" })
       ? registrations.filter((r) => r.divisionId === data.divisionFilter)
       : registrations
 
-    return { registrations: filteredRegistrations }
+    // Refund capability: organizing team Stripe Express + already-refunded set
+    const competition = await db.query.competitionsTable.findFirst({
+      where: eq(competitionsTable.id, data.competitionId),
+      columns: { organizingTeamId: true },
+    })
+
+    let canRefund = false
+    if (competition?.organizingTeamId) {
+      const team = await db.query.teamTable.findFirst({
+        where: eq(teamTable.id, competition.organizingTeamId),
+        columns: {
+          stripeConnectedAccountId: true,
+          stripeAccountStatus: true,
+          stripeAccountType: true,
+        },
+      })
+      canRefund =
+        !!team?.stripeConnectedAccountId &&
+        team.stripeAccountType === "express" &&
+        team.stripeAccountStatus === "VERIFIED"
+    }
+
+    const purchaseIds = filteredRegistrations
+      .map((r) => r.commercePurchaseId)
+      .filter((id): id is string => !!id)
+
+    let refundedPurchaseIds: string[] = []
+    if (purchaseIds.length > 0) {
+      const refundEvents = await db
+        .select({ purchaseId: financialEventTable.purchaseId })
+        .from(financialEventTable)
+        .where(
+          and(
+            inArray(financialEventTable.purchaseId, purchaseIds),
+            inArray(financialEventTable.eventType, [
+              FINANCIAL_EVENT_TYPE.REFUND_INITIATED,
+              FINANCIAL_EVENT_TYPE.REFUND_COMPLETED,
+            ]),
+          ),
+        )
+      refundedPurchaseIds = Array.from(
+        new Set(refundEvents.map((r) => r.purchaseId)),
+      )
+    }
+
+    return {
+      registrations: filteredRegistrations,
+      canRefund,
+      refundedPurchaseIds,
+    }
   })
 
 /**

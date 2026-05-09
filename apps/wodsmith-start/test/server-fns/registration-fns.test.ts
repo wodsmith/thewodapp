@@ -45,6 +45,7 @@ vi.mock('@/lib/env', () => ({
 
 // Mock Stripe
 const mockStripeCheckoutCreate = vi.fn()
+const mockStripeRefundsCreate = vi.fn()
 vi.mock('@/lib/stripe', () => ({
   getStripe: vi.fn(() => ({
     checkout: {
@@ -52,7 +53,23 @@ vi.mock('@/lib/stripe', () => ({
         create: (...args: unknown[]) => mockStripeCheckoutCreate(...args),
       },
     },
+    refunds: {
+      create: (...args: unknown[]) => mockStripeRefundsCreate(...args),
+    },
   })),
+}))
+
+// Mock financial events module so refund tests can observe and assert on writes
+const mockRecordRefundInitiated = vi.fn()
+const mockRecordFinancialEvent = vi.fn()
+vi.mock('@/server/commerce/financial-events', () => ({
+  recordRefundInitiated: (...args: unknown[]) =>
+    mockRecordRefundInitiated(...args),
+  recordRefundCompleted: vi.fn(),
+  recordFinancialEvent: (...args: unknown[]) =>
+    mockRecordFinancialEvent(...args),
+  recordPaymentCompleted: vi.fn(),
+  recordDisputeEvent: vi.fn(),
 }))
 
 // Mock division capacity
@@ -138,6 +155,7 @@ import {
   initiateRegistrationPaymentFn,
   cancelPendingPurchaseFn,
   removeRegistrationFn,
+  refundRegistrationFn,
   transferRegistrationDivisionFn,
 } from '@/server-fns/registration-fns'
 
@@ -177,6 +195,16 @@ const removeRegistration = removeRegistrationFn as unknown as (args: {
 const transferRegistrationDivision = transferRegistrationDivisionFn as unknown as (args: {
   data: {registrationId: string; competitionId: string; targetDivisionId: string}
 }) => Promise<{success: boolean; removedHeatAssignments: number}>
+
+const refundRegistration = refundRegistrationFn as unknown as (args: {
+  data: {
+    registrationId: string
+    competitionId: string
+    reason?: string
+    amountCents?: number
+    idempotencyToken?: string
+  }
+}) => Promise<{success: boolean; refundId: string; amountCents: number}>
 
 // Helper to set mock session
 const setMockSession = (session: unknown) => {
@@ -2009,6 +2037,685 @@ describe('registration-fns', () => {
         })
 
         expect(result.success).toBe(true)
+      })
+    })
+  })
+
+  // ============================================================================
+  // Refund Registration (Organizer-Initiated, Stripe Express Only) Tests
+  // ============================================================================
+
+  describe('refundRegistrationFn', () => {
+    const organizingTeamId = 'org-team-1'
+    const refundPurchaseId = 'purchase-refund-1'
+    const stripePaymentIntent = 'pi_refundtest123'
+    const stripeRefundId = 're_test_abc123'
+    const stripeConnectedAccountId = 'acct_express_1'
+
+    const mockOrganizerSession = {
+      userId: 'organizer-user-1',
+      user: {id: 'organizer-user-1', email: 'organizer@example.com', role: 'user'},
+      teams: [
+        {
+          id: organizingTeamId,
+          permissions: ['manage_competitions'],
+        },
+      ],
+    }
+
+    const mockAdminSession = {
+      userId: 'admin-user-1',
+      user: {id: 'admin-user-1', email: 'admin@example.com', role: 'admin'},
+      teams: [],
+    }
+
+    const mockCompetition = {
+      id: testCompetitionId,
+      organizingTeamId,
+    }
+
+    const mockRefundableRegistration = {
+      id: testRegistrationId,
+      userId: registeredUserId,
+      eventId: testCompetitionId,
+      divisionId: testDivisionId,
+      status: 'active',
+      athleteTeamId: null,
+      teamMemberId: 'member-123',
+      paymentStatus: 'PAID',
+      commercePurchaseId: refundPurchaseId,
+    }
+
+    const mockExpressTeam = {
+      id: organizingTeamId,
+      stripeConnectedAccountId,
+      stripeAccountStatus: 'VERIFIED',
+      stripeAccountType: 'express',
+    }
+
+    const mockStandardTeam = {
+      id: organizingTeamId,
+      stripeConnectedAccountId,
+      stripeAccountStatus: 'VERIFIED',
+      stripeAccountType: 'standard',
+    }
+
+    const mockUnverifiedExpressTeam = {
+      id: organizingTeamId,
+      stripeConnectedAccountId,
+      stripeAccountStatus: 'PENDING',
+      stripeAccountType: 'express',
+    }
+
+    const mockCompletedPurchase = {
+      id: refundPurchaseId,
+      userId: registeredUserId,
+      status: 'COMPLETED',
+      totalCents: 7500,
+      stripePaymentIntentId: stripePaymentIntent,
+    }
+
+    function setupRefundMocks(overrides?: {
+      registration?: Record<string, unknown> | null
+      team?: Record<string, unknown> | null
+      purchase?: Record<string, unknown> | null
+      existingRefundEvent?: Record<string, unknown> | null
+    }) {
+      mockDb.registerTable('competitionsTable')
+      mockDb.registerTable('competitionRegistrationsTable')
+      mockDb.registerTable('teamTable')
+      mockDb.registerTable('commercePurchaseTable')
+      mockDb.registerTable('financialEventTable')
+
+      const registration = overrides?.registration === undefined
+        ? mockRefundableRegistration
+        : overrides.registration
+      const team = overrides?.team === undefined ? mockExpressTeam : overrides.team
+      const purchase = overrides?.purchase === undefined
+        ? mockCompletedPurchase
+        : overrides.purchase
+      const existingRefundEvent = overrides?.existingRefundEvent ?? null
+
+      mockDb.query.competitionsTable = {
+        findFirst: vi.fn().mockResolvedValue(mockCompetition),
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+      mockDb.query.competitionRegistrationsTable = {
+        findFirst: vi.fn().mockResolvedValue(registration),
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+      mockDb.query.teamTable = {
+        findFirst: vi.fn().mockResolvedValue(team),
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+      mockDb.query.commercePurchaseTable = {
+        findFirst: vi.fn().mockResolvedValue(purchase),
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+      mockDb.query.financialEventTable = {
+        findFirst: vi.fn().mockResolvedValue(existingRefundEvent),
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+
+      mockStripeRefundsCreate.mockResolvedValue({
+        id: stripeRefundId,
+        amount: purchase?.totalCents ?? 0,
+        status: 'succeeded',
+        payment_intent: stripePaymentIntent,
+      })
+    }
+
+    beforeEach(() => {
+      mockStripeRefundsCreate.mockReset()
+      mockRecordRefundInitiated.mockReset()
+      setMockSession(mockOrganizerSession)
+    })
+
+    describe('authentication', () => {
+      it('rejects unauthenticated users', async () => {
+        vi.mocked(requireVerifiedEmail).mockRejectedValue(new Error('Unauthorized'))
+
+        await expect(
+          refundRegistration({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+            },
+          }),
+        ).rejects.toThrow('Unauthorized')
+      })
+    })
+
+    describe('authorization', () => {
+      it('rejects users without manage_competitions permission', async () => {
+        setupRefundMocks()
+        setMockSession({
+          userId: 'random-user',
+          user: {id: 'random-user', email: 'random@example.com', role: 'user'},
+          teams: [{id: organizingTeamId, permissions: ['access_dashboard']}],
+        })
+
+        await expect(
+          refundRegistration({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+            },
+          }),
+        ).rejects.toThrow('Missing required permission: manage_competitions')
+      })
+
+      it('allows site admins to bypass team check', async () => {
+        setupRefundMocks()
+        setMockSession(mockAdminSession)
+
+        const result = await refundRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        expect(result.success).toBe(true)
+      })
+    })
+
+    describe('Stripe Express requirement', () => {
+      it('rejects when team has no Stripe Connect account', async () => {
+        setupRefundMocks({
+          team: {
+            id: organizingTeamId,
+            stripeConnectedAccountId: null,
+            stripeAccountStatus: null,
+            stripeAccountType: null,
+          },
+        })
+
+        await expect(
+          refundRegistration({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+            },
+          }),
+        ).rejects.toThrow(/Stripe Express/)
+      })
+
+      it('rejects when team uses a Standard (non-Express) account', async () => {
+        setupRefundMocks({team: mockStandardTeam})
+
+        await expect(
+          refundRegistration({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+            },
+          }),
+        ).rejects.toThrow(/Stripe Express/)
+      })
+
+      it('rejects when Express account is not VERIFIED', async () => {
+        setupRefundMocks({team: mockUnverifiedExpressTeam})
+
+        await expect(
+          refundRegistration({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+            },
+          }),
+        ).rejects.toThrow(/Stripe Express/)
+      })
+
+      it('does not call Stripe when Express check fails', async () => {
+        setupRefundMocks({team: mockStandardTeam})
+
+        await expect(
+          refundRegistration({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+            },
+          }),
+        ).rejects.toThrow()
+
+        expect(mockStripeRefundsCreate).not.toHaveBeenCalled()
+      })
+    })
+
+    describe('validation', () => {
+      it('throws when competition not found', async () => {
+        setupRefundMocks()
+        mockDb.query.competitionsTable = {
+          findFirst: vi.fn().mockResolvedValue(null),
+          findMany: vi.fn().mockResolvedValue([]),
+        }
+
+        await expect(
+          refundRegistration({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: 'nonexistent',
+            },
+          }),
+        ).rejects.toThrow('Competition not found')
+      })
+
+      it('throws when registration not found', async () => {
+        setupRefundMocks({registration: null})
+
+        await expect(
+          refundRegistration({
+            data: {
+              registrationId: 'nonexistent',
+              competitionId: testCompetitionId,
+            },
+          }),
+        ).rejects.toThrow('Registration not found')
+      })
+
+      it('throws when registration has no associated purchase', async () => {
+        setupRefundMocks({
+          registration: {...mockRefundableRegistration, commercePurchaseId: null},
+        })
+
+        await expect(
+          refundRegistration({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+            },
+          }),
+        ).rejects.toThrow(/no.*purchase|not.*paid/i)
+      })
+
+      it('throws when purchase is not COMPLETED', async () => {
+        setupRefundMocks({
+          purchase: {...mockCompletedPurchase, status: 'PENDING'},
+        })
+
+        await expect(
+          refundRegistration({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+            },
+          }),
+        ).rejects.toThrow(/not.*completed|cannot.*refund/i)
+      })
+
+      it('throws when purchase has no Stripe payment intent', async () => {
+        setupRefundMocks({
+          purchase: {...mockCompletedPurchase, stripePaymentIntentId: null},
+        })
+
+        await expect(
+          refundRegistration({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+            },
+          }),
+        ).rejects.toThrow(/payment intent|cannot.*refund/i)
+      })
+    })
+
+    describe('partial refund', () => {
+      it('passes the requested amountCents to Stripe (not the full purchase total)', async () => {
+        // Purchase total: $75.00 — organizer requests a partial $30.00 refund.
+        setupRefundMocks()
+
+        await refundRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+            amountCents: 3000,
+          },
+        })
+
+        expect(mockStripeRefundsCreate).toHaveBeenCalledTimes(1)
+        const call = mockStripeRefundsCreate.mock.calls[0]?.[0]
+        expect(call).toMatchObject({
+          payment_intent: stripePaymentIntent,
+          amount: 3000,
+          reverse_transfer: true,
+          refund_application_fee: false,
+        })
+      })
+
+      it('allows a follow-up refund up to the remaining balance', async () => {
+        // $75 purchase, $30 already refunded → $45 remaining.
+        setupRefundMocks()
+        mockDb.query.financialEventTable.findMany = vi.fn().mockResolvedValue([
+          {
+            id: 'fevt_prior',
+            purchaseId: refundPurchaseId,
+            eventType: 'REFUND_INITIATED',
+            amountCents: -3000,
+          },
+        ])
+
+        const result = await refundRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+            amountCents: 4500,
+          },
+        })
+
+        expect(result.success).toBe(true)
+        expect(result.amountCents).toBe(4500)
+        expect(mockStripeRefundsCreate).toHaveBeenCalledTimes(1)
+        expect(mockStripeRefundsCreate.mock.calls[0]?.[0]).toMatchObject({
+          amount: 4500,
+        })
+      })
+
+      it('rejects a refund that would exceed the remaining balance', async () => {
+        // $75 purchase, $30 already refunded → $45 remaining.
+        // Asking for $50 must be rejected; Stripe is never called.
+        setupRefundMocks()
+        mockDb.query.financialEventTable.findMany = vi.fn().mockResolvedValue([
+          {
+            id: 'fevt_prior',
+            purchaseId: refundPurchaseId,
+            eventType: 'REFUND_INITIATED',
+            amountCents: -3000,
+          },
+        ])
+
+        await expect(
+          refundRegistration({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+              amountCents: 5000,
+            },
+          }),
+        ).rejects.toThrow(/exceed|remaining|balance/i)
+
+        expect(mockStripeRefundsCreate).not.toHaveBeenCalled()
+        expect(mockRecordRefundInitiated).not.toHaveBeenCalled()
+      })
+
+      it('rejects when the purchase has already been fully refunded', async () => {
+        // $75 purchase, $75 already refunded across two prior partials → $0 remaining.
+        setupRefundMocks()
+        mockDb.query.financialEventTable.findMany = vi.fn().mockResolvedValue([
+          {amountCents: -3000},
+          {amountCents: -4500},
+        ])
+
+        await expect(
+          refundRegistration({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+            },
+          }),
+        ).rejects.toThrow(/fully refunded|already.*refund/i)
+
+        expect(mockStripeRefundsCreate).not.toHaveBeenCalled()
+        expect(mockRecordRefundInitiated).not.toHaveBeenCalled()
+      })
+
+      it('defaults amountCents to remaining balance when not provided', async () => {
+        // $75 purchase, $30 already refunded → $45 remaining.
+        // Caller omits amountCents, so the function should refund $45.
+        setupRefundMocks()
+        mockDb.query.financialEventTable.findMany = vi.fn().mockResolvedValue([
+          {amountCents: -3000},
+        ])
+
+        const result = await refundRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        expect(result.amountCents).toBe(4500)
+        expect(mockStripeRefundsCreate.mock.calls[0]?.[0]).toMatchObject({
+          amount: 4500,
+        })
+        expect(mockRecordRefundInitiated.mock.calls[0]?.[0]).toMatchObject({
+          amountCents: 4500,
+        })
+      })
+    })
+
+    describe('happy path', () => {
+      it('creates a Stripe refund with reverse_transfer for destination charges', async () => {
+        setupRefundMocks()
+
+        await refundRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        expect(mockStripeRefundsCreate).toHaveBeenCalledTimes(1)
+        const call = mockStripeRefundsCreate.mock.calls[0]?.[0]
+        expect(call).toMatchObject({
+          payment_intent: stripePaymentIntent,
+          reverse_transfer: true,
+        })
+      })
+
+      it('pulls funds from the connect account and keeps the platform application fee', async () => {
+        // Stripe Connect destination charges:
+        //  - reverse_transfer: true → reverses the transfer, debiting the
+        //    connect account so the refund is funded by the organizer's
+        //    balance, not the platform's.
+        //  - refund_application_fee: false → the platform fee we collected
+        //    via application_fee_amount is NOT refunded; it stays as
+        //    platform revenue.
+        // Both flags must be explicit (not relying on defaults) since this
+        // controls who bears the cost of the refund.
+        setupRefundMocks()
+
+        await refundRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        const call = mockStripeRefundsCreate.mock.calls[0]?.[0]
+        expect(call).toMatchObject({
+          reverse_transfer: true,
+          refund_application_fee: false,
+        })
+        // Belt-and-suspenders: also assert the value isn't undefined so we
+        // notice if a future refactor accidentally drops the explicit flag
+        // and falls back to Stripe's default.
+        expect(call?.refund_application_fee).toBe(false)
+      })
+
+      it('records a REFUND_INITIATED financial event', async () => {
+        setupRefundMocks()
+
+        await refundRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+            reason: 'Athlete unable to compete',
+          },
+        })
+
+        expect(mockRecordRefundInitiated).toHaveBeenCalledTimes(1)
+        const call = mockRecordRefundInitiated.mock.calls[0]?.[0]
+        expect(call).toMatchObject({
+          purchaseId: refundPurchaseId,
+          teamId: organizingTeamId,
+          amountCents: 7500,
+          stripePaymentIntentId: stripePaymentIntent,
+          stripeRefundId,
+          actorId: 'organizer-user-1',
+        })
+      })
+
+      it('returns the Stripe refund id and amount', async () => {
+        setupRefundMocks()
+
+        const result = await refundRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        expect(result.success).toBe(true)
+        expect(result.refundId).toBe(stripeRefundId)
+        expect(result.amountCents).toBe(7500)
+      })
+    })
+
+    describe('Stripe failure handling', () => {
+      it('does not record a financial event if Stripe rejects the refund', async () => {
+        setupRefundMocks()
+        mockStripeRefundsCreate.mockRejectedValueOnce(
+          new Error('Stripe error: insufficient funds'),
+        )
+
+        await expect(
+          refundRegistration({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+            },
+          }),
+        ).rejects.toThrow(/Stripe|refund/i)
+
+        expect(mockRecordRefundInitiated).not.toHaveBeenCalled()
+      })
+    })
+
+    describe('concurrency safety', () => {
+      // The TOCTOU race between balance-check and event-write is closed by
+      // running the entire balance-check + Stripe-call + event-write inside
+      // a single db.transaction() and acquiring a row-level lock on the
+      // purchase row (SELECT ... FOR UPDATE). PlanetScale (Vitess) supports
+      // FOR UPDATE in single-shard transactions and queues concurrent
+      // requests via "hot row protection". The lock can't be exercised in a
+      // unit test (the mock has no real concurrency), so this asserts the
+      // structural property: the work is wrapped in a transaction.
+      it('wraps the refund flow in db.transaction()', async () => {
+        setupRefundMocks()
+
+        await refundRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        expect(mockDb.transaction).toHaveBeenCalledTimes(1)
+        // Stripe refund must happen inside the transaction (so a thrown
+        // error rolls back the lock cleanly without recording a phantom
+        // financial event).
+        expect(mockStripeRefundsCreate).toHaveBeenCalledTimes(1)
+      })
+
+      it('acquires a SELECT ... FOR UPDATE lock on the purchase row inside the transaction', async () => {
+        setupRefundMocks()
+        const chainMock = mockDb.getChainMock()
+
+        await refundRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        expect(chainMock.for).toHaveBeenCalledWith('update')
+      })
+
+      it('uses the client-supplied idempotencyToken in the Stripe idempotency key', async () => {
+        // Without a stable client-supplied token, a partial-refund retry
+        // (client times out before seeing the response) would generate a
+        // different key on the second attempt and produce a DUPLICATE Stripe
+        // refund. The token is the contract that ties retries to a single
+        // logical operation — same token in, same idempotency key out.
+        setupRefundMocks()
+
+        await refundRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+            amountCents: 3000,
+            idempotencyToken: 'client-uuid-aaa-111',
+          },
+        })
+
+        expect(mockStripeRefundsCreate).toHaveBeenCalledTimes(1)
+        const opts = mockStripeRefundsCreate.mock.calls[0]?.[1]
+        expect(opts).toMatchObject({
+          idempotencyKey: 'refund:client-uuid-aaa-111',
+        })
+      })
+
+      it('produces the same Stripe idempotency key for two calls sharing the same token', async () => {
+        // Stable derivation — the test exercises the idempotency contract
+        // directly: replays of the same logical operation must collapse.
+        setupRefundMocks()
+        await refundRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+            amountCents: 3000,
+            idempotencyToken: 'client-uuid-stable',
+          },
+        })
+        const firstKey =
+          mockStripeRefundsCreate.mock.calls[0]?.[1]?.idempotencyKey
+
+        // Simulate the retry: prior REFUND_INITIATED row already exists
+        // (the first attempt persisted before the response was lost).
+        mockStripeRefundsCreate.mockReset()
+        mockStripeRefundsCreate.mockResolvedValue({
+          id: stripeRefundId,
+          amount: 3000,
+          status: 'succeeded',
+        })
+        mockDb.query.financialEventTable.findMany = vi.fn().mockResolvedValue([
+          {amountCents: -3000},
+        ])
+
+        await refundRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+            amountCents: 3000,
+            idempotencyToken: 'client-uuid-stable',
+          },
+        })
+        const secondKey =
+          mockStripeRefundsCreate.mock.calls[0]?.[1]?.idempotencyKey
+
+        expect(secondKey).toBe(firstKey)
+      })
+
+      it('records the financial event through the same tx (not a fresh getDb connection)', async () => {
+        // Without this, the REFUND_INITIATED INSERT escapes the transaction
+        // and survives a rollback — breaking the atomicity claim. We verify by
+        // asserting recordRefundInitiated receives the tx passed in by
+        // db.transaction(), which equals the chain mock that FakeDrizzleDb
+        // hands the callback.
+        setupRefundMocks()
+        const chainMock = mockDb.getChainMock()
+
+        await refundRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        expect(mockRecordRefundInitiated).toHaveBeenCalledTimes(1)
+        const recordedParams = mockRecordRefundInitiated.mock.calls[0]?.[0]
+        expect(recordedParams.db).toBe(chainMock)
       })
     })
   })
