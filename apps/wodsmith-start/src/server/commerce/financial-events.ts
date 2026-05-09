@@ -15,6 +15,14 @@ import {
 import { createFinancialEventId } from "@/db/schemas/financial-events"
 import { logInfo } from "@/lib/logging/posthog-otel-logger"
 
+/**
+ * Drizzle's `db` and the `tx` argument passed to `db.transaction(async (tx) =>
+ * ...)` both expose `.insert()`, but their TS types differ. Callers may pass
+ * either: when present, the INSERT participates in the caller's transaction;
+ * when absent, the helper opens a fresh connection via `getDb()`.
+ */
+type DbOrTx = ReturnType<typeof getDb> | { insert: ReturnType<typeof getDb>["insert"] }
+
 interface RecordFinancialEventParams {
 	purchaseId: string
 	teamId: string
@@ -28,6 +36,7 @@ interface RecordFinancialEventParams {
 	metadata?: Record<string, unknown>
 	actorId?: string
 	stripeEventTimestamp?: Date
+	db?: DbOrTx
 }
 
 /**
@@ -35,10 +44,10 @@ interface RecordFinancialEventParams {
  */
 export const recordFinancialEvent = createServerOnlyFn(
 	async (params: RecordFinancialEventParams): Promise<string> => {
-		const db = getDb()
+		const conn = params.db ?? getDb()
 		const id = createFinancialEventId()
 
-		await db.insert(financialEventTable).values({
+		await conn.insert(financialEventTable).values({
 			id,
 			purchaseId: params.purchaseId,
 			teamId: params.teamId,
@@ -112,6 +121,7 @@ export const recordRefundInitiated = createServerOnlyFn(
 		stripeRefundId?: string
 		reason: string
 		actorId?: string
+		db?: DbOrTx
 	}): Promise<void> => {
 		await recordFinancialEvent({
 			purchaseId: params.purchaseId,
@@ -122,6 +132,7 @@ export const recordRefundInitiated = createServerOnlyFn(
 			stripeRefundId: params.stripeRefundId,
 			reason: params.reason,
 			actorId: params.actorId,
+			db: params.db,
 		})
 	},
 )

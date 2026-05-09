@@ -2449,6 +2449,15 @@ const refundRegistrationInputSchema = z.object({
   competitionId: z.string().min(1, "Competition ID is required"),
   reason: z.string().max(500).optional(),
   amountCents: z.number().int().positive().optional(),
+  /**
+   * Stable, client-generated identifier for this refund operation. Replays
+   * (e.g., a network timeout retry of the same click) MUST send the same
+   * token so the Stripe idempotency key matches and the refund collapses to
+   * a single charge. Required if the caller may issue multiple distinct
+   * partial refunds for the same purchase; optional for the full-refund
+   * path where remaining-balance check provides natural retry safety.
+   */
+  idempotencyToken: z.string().min(1).max(128).optional(),
 })
 
 /**
@@ -2639,10 +2648,18 @@ export const refundRegistrationFn = createServerFn({ method: "POST" })
       //   - refund_application_fee: false → the platform fee stays as
       //     revenue. Both flags are explicit (not relying on defaults).
       //
-      // The purchase id is the Stripe idempotency key by convention, but
-      // partial-refund retries need distinct keys, so we mix in the
-      // requested amount and the count of prior refunds.
-      const stripeIdempotencyKey = `refund:${purchase.id}:${priorRefunds.length}:${requestedAmountCents}`
+      // The Stripe idempotency key MUST be stable across client retries —
+      // if it varies between attempts of the same logical operation, Stripe
+      // issues a duplicate refund. When the caller supplies an
+      // `idempotencyToken` (a UUID generated on click and replayed on
+      // retry), we use it directly. Otherwise we fall back to
+      // `${purchaseId}:${amount}` which is retry-safe for the full-refund
+      // path (the remaining-balance check rejects retries before we get
+      // here) but cannot distinguish two intentional partial refunds of the
+      // same amount — partial-refund callers should supply a token.
+      const stripeIdempotencyKey = input.idempotencyToken
+        ? `refund:${input.idempotencyToken}`
+        : `refund:${purchase.id}:${requestedAmountCents}`
 
       const refund = await getStripe().refunds.create(
         {
@@ -2661,7 +2678,9 @@ export const refundRegistrationFn = createServerFn({ method: "POST" })
         { idempotencyKey: stripeIdempotencyKey },
       )
 
-      // Record the REFUND_INITIATED financial event. The webhook will write
+      // Record the REFUND_INITIATED financial event through the same tx so
+      // the INSERT participates in the surrounding transaction (rolls back
+      // with the lock if anything throws). The webhook will write
       // REFUND_COMPLETED when Stripe confirms the refund settled.
       await recordRefundInitiated({
         purchaseId: purchase.id,
@@ -2671,6 +2690,7 @@ export const refundRegistrationFn = createServerFn({ method: "POST" })
         stripeRefundId: refund.id,
         reason: input.reason ?? "Refund initiated by organizer",
         actorId: session.userId,
+        db: tx,
       })
 
       return { refundId: refund.id, refundAmountCents: requestedAmountCents }

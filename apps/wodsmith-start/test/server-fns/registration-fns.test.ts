@@ -202,6 +202,7 @@ const refundRegistration = refundRegistrationFn as unknown as (args: {
     competitionId: string
     reason?: string
     amountCents?: number
+    idempotencyToken?: string
   }
 }) => Promise<{success: boolean; refundId: string; amountCents: number}>
 
@@ -2629,6 +2630,92 @@ describe('registration-fns', () => {
         })
 
         expect(chainMock.for).toHaveBeenCalledWith('update')
+      })
+
+      it('uses the client-supplied idempotencyToken in the Stripe idempotency key', async () => {
+        // Without a stable client-supplied token, a partial-refund retry
+        // (client times out before seeing the response) would generate a
+        // different key on the second attempt and produce a DUPLICATE Stripe
+        // refund. The token is the contract that ties retries to a single
+        // logical operation — same token in, same idempotency key out.
+        setupRefundMocks()
+
+        await refundRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+            amountCents: 3000,
+            idempotencyToken: 'client-uuid-aaa-111',
+          },
+        })
+
+        expect(mockStripeRefundsCreate).toHaveBeenCalledTimes(1)
+        const opts = mockStripeRefundsCreate.mock.calls[0]?.[1]
+        expect(opts).toMatchObject({
+          idempotencyKey: 'refund:client-uuid-aaa-111',
+        })
+      })
+
+      it('produces the same Stripe idempotency key for two calls sharing the same token', async () => {
+        // Stable derivation — the test exercises the idempotency contract
+        // directly: replays of the same logical operation must collapse.
+        setupRefundMocks()
+        await refundRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+            amountCents: 3000,
+            idempotencyToken: 'client-uuid-stable',
+          },
+        })
+        const firstKey =
+          mockStripeRefundsCreate.mock.calls[0]?.[1]?.idempotencyKey
+
+        // Simulate the retry: prior REFUND_INITIATED row already exists
+        // (the first attempt persisted before the response was lost).
+        mockStripeRefundsCreate.mockReset()
+        mockStripeRefundsCreate.mockResolvedValue({
+          id: stripeRefundId,
+          amount: 3000,
+          status: 'succeeded',
+        })
+        mockDb.query.financialEventTable.findMany = vi.fn().mockResolvedValue([
+          {amountCents: -3000},
+        ])
+
+        await refundRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+            amountCents: 3000,
+            idempotencyToken: 'client-uuid-stable',
+          },
+        })
+        const secondKey =
+          mockStripeRefundsCreate.mock.calls[0]?.[1]?.idempotencyKey
+
+        expect(secondKey).toBe(firstKey)
+      })
+
+      it('records the financial event through the same tx (not a fresh getDb connection)', async () => {
+        // Without this, the REFUND_INITIATED INSERT escapes the transaction
+        // and survives a rollback — breaking the atomicity claim. We verify by
+        // asserting recordRefundInitiated receives the tx passed in by
+        // db.transaction(), which equals the chain mock that FakeDrizzleDb
+        // hands the callback.
+        setupRefundMocks()
+        const chainMock = mockDb.getChainMock()
+
+        await refundRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        expect(mockRecordRefundInitiated).toHaveBeenCalledTimes(1)
+        const recordedParams = mockRecordRefundInitiated.mock.calls[0]?.[0]
+        expect(recordedParams.db).toBe(chainMock)
       })
     })
   })
