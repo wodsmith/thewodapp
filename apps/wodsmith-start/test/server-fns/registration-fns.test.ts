@@ -197,7 +197,12 @@ const transferRegistrationDivision = transferRegistrationDivisionFn as unknown a
 }) => Promise<{success: boolean; removedHeatAssignments: number}>
 
 const refundRegistration = refundRegistrationFn as unknown as (args: {
-  data: {registrationId: string; competitionId: string; reason?: string}
+  data: {
+    registrationId: string
+    competitionId: string
+    reason?: string
+    amountCents?: number
+  }
 }) => Promise<{success: boolean; refundId: string; amountCents: number}>
 
 // Helper to set mock session
@@ -2354,15 +2359,91 @@ describe('registration-fns', () => {
       })
     })
 
-    describe('idempotency', () => {
-      it('throws when a REFUND event already exists for this purchase', async () => {
-        setupRefundMocks({
-          existingRefundEvent: {
-            id: 'fevt_existing',
-            purchaseId: refundPurchaseId,
-            eventType: 'REFUND_INITIATED',
+    describe('partial refund', () => {
+      it('passes the requested amountCents to Stripe (not the full purchase total)', async () => {
+        // Purchase total: $75.00 — organizer requests a partial $30.00 refund.
+        setupRefundMocks()
+
+        await refundRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+            amountCents: 3000,
           },
         })
+
+        expect(mockStripeRefundsCreate).toHaveBeenCalledTimes(1)
+        const call = mockStripeRefundsCreate.mock.calls[0]?.[0]
+        expect(call).toMatchObject({
+          payment_intent: stripePaymentIntent,
+          amount: 3000,
+          reverse_transfer: true,
+          refund_application_fee: false,
+        })
+      })
+
+      it('allows a follow-up refund up to the remaining balance', async () => {
+        // $75 purchase, $30 already refunded → $45 remaining.
+        setupRefundMocks()
+        mockDb.query.financialEventTable.findMany = vi.fn().mockResolvedValue([
+          {
+            id: 'fevt_prior',
+            purchaseId: refundPurchaseId,
+            eventType: 'REFUND_INITIATED',
+            amountCents: -3000,
+          },
+        ])
+
+        const result = await refundRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+            amountCents: 4500,
+          },
+        })
+
+        expect(result.success).toBe(true)
+        expect(result.amountCents).toBe(4500)
+        expect(mockStripeRefundsCreate).toHaveBeenCalledTimes(1)
+        expect(mockStripeRefundsCreate.mock.calls[0]?.[0]).toMatchObject({
+          amount: 4500,
+        })
+      })
+
+      it('rejects a refund that would exceed the remaining balance', async () => {
+        // $75 purchase, $30 already refunded → $45 remaining.
+        // Asking for $50 must be rejected; Stripe is never called.
+        setupRefundMocks()
+        mockDb.query.financialEventTable.findMany = vi.fn().mockResolvedValue([
+          {
+            id: 'fevt_prior',
+            purchaseId: refundPurchaseId,
+            eventType: 'REFUND_INITIATED',
+            amountCents: -3000,
+          },
+        ])
+
+        await expect(
+          refundRegistration({
+            data: {
+              registrationId: testRegistrationId,
+              competitionId: testCompetitionId,
+              amountCents: 5000,
+            },
+          }),
+        ).rejects.toThrow(/exceed|remaining|balance/i)
+
+        expect(mockStripeRefundsCreate).not.toHaveBeenCalled()
+        expect(mockRecordRefundInitiated).not.toHaveBeenCalled()
+      })
+
+      it('rejects when the purchase has already been fully refunded', async () => {
+        // $75 purchase, $75 already refunded across two prior partials → $0 remaining.
+        setupRefundMocks()
+        mockDb.query.financialEventTable.findMany = vi.fn().mockResolvedValue([
+          {amountCents: -3000},
+          {amountCents: -4500},
+        ])
 
         await expect(
           refundRegistration({
@@ -2371,9 +2452,34 @@ describe('registration-fns', () => {
               competitionId: testCompetitionId,
             },
           }),
-        ).rejects.toThrow(/already.*refund/i)
+        ).rejects.toThrow(/fully refunded|already.*refund/i)
 
         expect(mockStripeRefundsCreate).not.toHaveBeenCalled()
+        expect(mockRecordRefundInitiated).not.toHaveBeenCalled()
+      })
+
+      it('defaults amountCents to remaining balance when not provided', async () => {
+        // $75 purchase, $30 already refunded → $45 remaining.
+        // Caller omits amountCents, so the function should refund $45.
+        setupRefundMocks()
+        mockDb.query.financialEventTable.findMany = vi.fn().mockResolvedValue([
+          {amountCents: -3000},
+        ])
+
+        const result = await refundRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        expect(result.amountCents).toBe(4500)
+        expect(mockStripeRefundsCreate.mock.calls[0]?.[0]).toMatchObject({
+          amount: 4500,
+        })
+        expect(mockRecordRefundInitiated.mock.calls[0]?.[0]).toMatchObject({
+          amountCents: 4500,
+        })
       })
     })
 
@@ -2482,6 +2588,47 @@ describe('registration-fns', () => {
         ).rejects.toThrow(/Stripe|refund/i)
 
         expect(mockRecordRefundInitiated).not.toHaveBeenCalled()
+      })
+    })
+
+    describe('concurrency safety', () => {
+      // The TOCTOU race between balance-check and event-write is closed by
+      // running the entire balance-check + Stripe-call + event-write inside
+      // a single db.transaction() and acquiring a row-level lock on the
+      // purchase row (SELECT ... FOR UPDATE). PlanetScale (Vitess) supports
+      // FOR UPDATE in single-shard transactions and queues concurrent
+      // requests via "hot row protection". The lock can't be exercised in a
+      // unit test (the mock has no real concurrency), so this asserts the
+      // structural property: the work is wrapped in a transaction.
+      it('wraps the refund flow in db.transaction()', async () => {
+        setupRefundMocks()
+
+        await refundRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        expect(mockDb.transaction).toHaveBeenCalledTimes(1)
+        // Stripe refund must happen inside the transaction (so a thrown
+        // error rolls back the lock cleanly without recording a phantom
+        // financial event).
+        expect(mockStripeRefundsCreate).toHaveBeenCalledTimes(1)
+      })
+
+      it('acquires a SELECT ... FOR UPDATE lock on the purchase row inside the transaction', async () => {
+        setupRefundMocks()
+        const chainMock = mockDb.getChainMock()
+
+        await refundRegistration({
+          data: {
+            registrationId: testRegistrationId,
+            competitionId: testCompetitionId,
+          },
+        })
+
+        expect(chainMock.for).toHaveBeenCalledWith('update')
       })
     })
   })

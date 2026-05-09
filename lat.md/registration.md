@@ -105,9 +105,17 @@ Charges use destination charges (`transfer_data.destination` + `application_fee_
 - `reverse_transfer: true` — funds are pulled from the organizer's connected account, not the platform balance.
 - `refund_application_fee: false` — the platform fee we collected stays as platform revenue and is NOT returned to the organizer or the customer.
 
-Both flags are set explicitly (not via Stripe defaults) since this controls who bears the refund cost. The purchase id doubles as a Stripe idempotency key. A `REFUND_INITIATED` financial event is recorded immediately; the existing `charge.refunded` webhook records `REFUND_COMPLETED` once Stripe confirms.
+Both flags are set explicitly (not via Stripe defaults) since this controls who bears the refund cost. The Stripe idempotency key mixes the purchase id, the count of prior refunds, and the requested amount so partial-refund retries don't collide while accidental double-clicks for the same partial still dedupe. A `REFUND_INITIATED` financial event is recorded immediately; the existing `charge.refunded` webhook records `REFUND_COMPLETED` once Stripe confirms.
 
-Idempotency on the app side: the action is blocked if any `REFUND_INITIATED` or `REFUND_COMPLETED` row already exists for the purchase. The athletes loader returns `canRefund` (team capability) and `refundedPurchaseIds` (already-refunded set) so the dropdown only shows the action for eligible rows.
+### Partial refunds and concurrency
+
+Refunds accept an optional `amountCents` and reject any request that would exceed the remaining balance, computed from prior `REFUND_INITIATED` events.
+
+When `amountCents` is omitted, the request defaults to a full refund of the remaining balance. The handler computes `remainingCents = purchase.totalCents − Σ|prior REFUND_INITIATED amountCents|` and requires `requestedAmountCents ≤ remainingCents`. Once `remainingCents` reaches zero the action is rejected as already-fully-refunded.
+
+The balance check, the Stripe call, and the financial-event write all run inside a single `db.transaction()` that opens with `SELECT ... FOR UPDATE` on the `commerce_purchases` row. PlanetScale (Vitess) supports `FOR UPDATE` in single-shard transactions and queues hot-row contenders, so concurrent organizer refund requests for the same purchase serialize: the second attempt waits for the first commit (or rollback), then sees the freshly-recorded `REFUND_INITIATED` row and recomputes its remaining balance accordingly. Trade-off: the lock is held across the Stripe network call. Refunds are organizer-driven and low-frequency, so the lock duration is acceptable; releasing the lock before the Stripe call would reopen the TOCTOU race.
+
+The athletes loader returns `canRefund` (team capability) and `refundedPurchaseIds` (purchases with any prior refund) so the dropdown surface stays accurate. Once partial refunds are exposed in the UI, the loader should expose remaining balance instead of a binary refunded set.
 
 ## Division Transfer
 

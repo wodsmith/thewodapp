@@ -2448,6 +2448,7 @@ const refundRegistrationInputSchema = z.object({
   registrationId: z.string().min(1, "Registration ID is required"),
   competitionId: z.string().min(1, "Competition ID is required"),
   reason: z.string().max(500).optional(),
+  amountCents: z.number().int().positive().optional(),
 })
 
 /**
@@ -2562,73 +2563,117 @@ export const refundRegistrationFn = createServerFn({ method: "POST" })
         "Cannot refund: purchase has no Stripe payment intent",
       )
     }
+    const stripePaymentIntentId = purchase.stripePaymentIntentId
 
-    // 6. Idempotency — block if a REFUND_INITIATED or REFUND_COMPLETED already exists
-    const existingRefund = await db.query.financialEventTable.findFirst({
-      where: and(
-        eq(financialEventTable.purchaseId, purchase.id),
-        inArray(financialEventTable.eventType, [
-          FINANCIAL_EVENT_TYPE.REFUND_INITIATED,
-          FINANCIAL_EVENT_TYPE.REFUND_COMPLETED,
-        ]),
-      ),
-      columns: { id: true, eventType: true },
-    })
-
-    if (existingRefund) {
-      throw new Error("Purchase has already been refunded")
-    }
-
-    logInfo({
-      message: "[Registration] Initiating refund",
-      attributes: {
-        registrationId: input.registrationId,
-        competitionId: input.competitionId,
-        purchaseId: purchase.id,
-        amountCents: purchase.totalCents,
-      },
-    })
-
-    // 7. Issue the Stripe refund. Charges are destination charges (created on
-    //    the platform with transfer_data.destination + application_fee_amount),
-    //    so we refund on the platform payment_intent and tell Stripe how to
-    //    fund it:
-    //      - reverse_transfer: true → reverse the transfer to the connected
-    //        account so the refund is funded by the organizer's Stripe
-    //        balance, not ours.
-    //      - refund_application_fee: false → the platform fee we collected
-    //        via application_fee_amount is NOT returned; it stays as platform
-    //        revenue. Both flags are set explicitly (not relying on defaults)
-    //        because they control who bears the cost of the refund.
+    // 6. Lock the purchase row, compute remaining balance, issue refund, and
+    //    record the financial event — all inside one transaction. The
+    //    SELECT ... FOR UPDATE on commerce_purchase serializes concurrent
+    //    organizer-initiated refunds for the same purchase: the second
+    //    request waits until the first commits (or rolls back), then sees
+    //    the freshly-recorded REFUND_INITIATED row and updates its remaining
+    //    balance accordingly. PlanetScale (Vitess) supports FOR UPDATE in
+    //    single-shard transactions and queues hot-row contenders.
     //
-    //    The purchase id doubles as a Stripe idempotency key — concurrent
-    //    organizer clicks for the same purchase resolve to a single refund.
-    const refund = await getStripe().refunds.create(
-      {
-        payment_intent: purchase.stripePaymentIntentId,
-        reverse_transfer: true,
-        refund_application_fee: false,
-        reason: "requested_by_customer",
-        metadata: {
-          purchaseId: purchase.id,
+    //    Trade-off: the lock is held across the Stripe network call. Refunds
+    //    are organizer-driven and low-frequency, and Stripe latency is
+    //    bounded; the alternative (releasing the lock before Stripe) would
+    //    leave a race window we'd need a second guard for.
+    const { refundId, refundAmountCents } = await db.transaction(async (tx) => {
+      // Acquire a row-level lock on the purchase. We only need the lock —
+      // the row data was already fetched above for status/paymentIntent
+      // validation.
+      await tx
+        .select({ id: commercePurchaseTable.id })
+        .from(commercePurchaseTable)
+        .where(eq(commercePurchaseTable.id, purchase.id))
+        .for("update")
+        .limit(1)
+
+      // Compute remaining refundable balance from prior REFUND_INITIATED
+      // events. Each row's amountCents is stored as a negative number
+      // (money out), so absolute values sum to the total already refunded.
+      const priorRefunds = await tx.query.financialEventTable.findMany({
+        where: and(
+          eq(financialEventTable.purchaseId, purchase.id),
+          eq(
+            financialEventTable.eventType,
+            FINANCIAL_EVENT_TYPE.REFUND_INITIATED,
+          ),
+        ),
+        columns: { amountCents: true },
+      })
+
+      const refundedCents = priorRefunds.reduce(
+        (sum, r) => sum + Math.abs(r.amountCents),
+        0,
+      )
+      const remainingCents = purchase.totalCents - refundedCents
+      const requestedAmountCents = input.amountCents ?? remainingCents
+
+      if (remainingCents <= 0) {
+        throw new Error("Purchase has already been fully refunded")
+      }
+
+      if (requestedAmountCents > remainingCents) {
+        throw new Error(
+          `Refund amount (${requestedAmountCents}) exceeds remaining balance (${remainingCents})`,
+        )
+      }
+
+      logInfo({
+        message: "[Registration] Initiating refund",
+        attributes: {
           registrationId: input.registrationId,
           competitionId: input.competitionId,
-          organizerUserId: session.userId,
+          purchaseId: purchase.id,
+          amountCents: requestedAmountCents,
+          remainingCents,
         },
-      },
-      { idempotencyKey: `refund:${purchase.id}` },
-    )
+      })
 
-    // 8. Record the REFUND_INITIATED financial event. The webhook will record
-    //    REFUND_COMPLETED when Stripe confirms the refund settled.
-    await recordRefundInitiated({
-      purchaseId: purchase.id,
-      teamId: competition.organizingTeamId,
-      amountCents: purchase.totalCents,
-      stripePaymentIntentId: purchase.stripePaymentIntentId,
-      stripeRefundId: refund.id,
-      reason: input.reason ?? "Refund initiated by organizer",
-      actorId: session.userId,
+      // Issue the Stripe refund. Destination charges (created with
+      // transfer_data.destination + application_fee_amount) require
+      // refunding on the platform payment_intent with:
+      //   - reverse_transfer: true → reverse the transfer so the refund is
+      //     funded by the organizer's balance, not ours.
+      //   - refund_application_fee: false → the platform fee stays as
+      //     revenue. Both flags are explicit (not relying on defaults).
+      //
+      // The purchase id is the Stripe idempotency key by convention, but
+      // partial-refund retries need distinct keys, so we mix in the
+      // requested amount and the count of prior refunds.
+      const stripeIdempotencyKey = `refund:${purchase.id}:${priorRefunds.length}:${requestedAmountCents}`
+
+      const refund = await getStripe().refunds.create(
+        {
+          payment_intent: stripePaymentIntentId,
+          amount: requestedAmountCents,
+          reverse_transfer: true,
+          refund_application_fee: false,
+          reason: "requested_by_customer",
+          metadata: {
+            purchaseId: purchase.id,
+            registrationId: input.registrationId,
+            competitionId: input.competitionId,
+            organizerUserId: session.userId,
+          },
+        },
+        { idempotencyKey: stripeIdempotencyKey },
+      )
+
+      // Record the REFUND_INITIATED financial event. The webhook will write
+      // REFUND_COMPLETED when Stripe confirms the refund settled.
+      await recordRefundInitiated({
+        purchaseId: purchase.id,
+        teamId: competition.organizingTeamId,
+        amountCents: requestedAmountCents,
+        stripePaymentIntentId,
+        stripeRefundId: refund.id,
+        reason: input.reason ?? "Refund initiated by organizer",
+        actorId: session.userId,
+      })
+
+      return { refundId: refund.id, refundAmountCents: requestedAmountCents }
     })
 
     logInfo({
@@ -2636,13 +2681,13 @@ export const refundRegistrationFn = createServerFn({ method: "POST" })
       attributes: {
         registrationId: input.registrationId,
         purchaseId: purchase.id,
-        refundId: refund.id,
+        refundId,
       },
     })
 
     return {
       success: true,
-      refundId: refund.id,
-      amountCents: purchase.totalCents,
+      refundId,
+      amountCents: refundAmountCents,
     }
   })
