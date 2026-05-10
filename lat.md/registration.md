@@ -121,7 +121,7 @@ The Stripe idempotency key MUST stay stable across client retries; otherwise Str
 
 Callers can pass an `idempotencyToken` (UUID generated on click, replayed on timeout retry) — the key becomes `refund:${token}`. When omitted, the key is `refund:${purchaseId}:${requestedAmountCents}`, which is retry-safe for the full-refund path because the remaining-balance check rejects the retry before reaching Stripe but cannot distinguish two intentional partial refunds of the same amount. Partial-refund callers should always supply a token.
 
-The athletes loader returns `canRefund` (team capability) and `refundedPurchaseIds` (purchases with any prior refund) so the dropdown surface stays accurate. Once partial refunds are exposed in the UI, the loader should expose remaining balance instead of a binary refunded set.
+The athletes loader [[apps/wodsmith-start/src/server-fns/competition-detail-fns.ts#getOrganizerRegistrationsFn]] returns `canRefund` (team capability) and `refundsByPurchaseId` — a `Record<purchaseId, {refundedCents, totalCents}>` keyed off REFUND_INITIATED events. The loader uses INITIATED rather than INITIATED + COMPLETED so the totals don't double-count once Stripe's webhook lands. Per-purchase refund summaries let the athletes UI render a [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/-components/refund-status-badge.tsx#RefundStatusBadge]] ("Refunded" when `refundedCents ≥ totalCents`, "Partially refunded ($X)" otherwise) and gate the dropdown's "Refund Registration" item on whether any refund is recorded.
 
 ## Division Transfer
 

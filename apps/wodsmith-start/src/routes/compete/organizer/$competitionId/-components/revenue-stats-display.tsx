@@ -47,6 +47,13 @@ export function RevenueStatsDisplay({
 }: RevenueStatsDisplayProps) {
   const location = useLocation()
   const hasRevenue = stats.purchaseCount > 0
+  const hasRefunds = stats.totalRefundedCents > 0
+  // Net Revenue shown to organizers is post-refund: refunds use
+  // reverse_transfer (organizer's account funds the refund) so they reduce
+  // what the organizer keeps. Platform/Stripe fees stay (refund_application_fee
+  // is false), so the net subtracts only the refunded principal.
+  const netAfterRefundsCents =
+    stats.totalOrganizerNetCents - stats.totalRefundedCents
 
   // Build payouts URL with returnTo so user comes back here after setup
   const payoutsUrl = stripeStatus
@@ -68,7 +75,8 @@ export function RevenueStatsDisplay({
               "The organizer has not yet connected a Stripe account for payouts."
             ) : (
               <>
-                Connect your Stripe account to receive payouts for registrations.{" "}
+                Connect your Stripe account to receive payouts for
+                registrations.{" "}
                 <Link to={payoutsUrl as "/"} className="font-medium underline">
                   Set up payouts &rarr;
                 </Link>
@@ -104,9 +112,11 @@ export function RevenueStatsDisplay({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {formatCents(stats.totalOrganizerNetCents)}
+              {formatCents(netAfterRefundsCents)}
             </div>
-            <p className="text-xs text-muted-foreground">After all fees</p>
+            <p className="text-xs text-muted-foreground">
+              {hasRefunds ? "After all fees and refunds" : "After all fees"}
+            </p>
           </CardContent>
         </Card>
 
@@ -168,10 +178,18 @@ export function RevenueStatsDisplay({
                   - {formatCents(stats.totalPlatformFeeCents)}
                 </span>
               </div>
+              {hasRefunds && (
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <span className="text-sm">Refunds</span>
+                  <span className="text-sm">
+                    - {formatCents(stats.totalRefundedCents)}
+                  </span>
+                </div>
+              )}
               <div className="border-t pt-4 flex items-center justify-between">
                 <span className="font-medium">Your Net Revenue</span>
                 <span className="font-bold text-green-600">
-                  {formatCents(stats.totalOrganizerNetCents)}
+                  {formatCents(netAfterRefundsCents)}
                 </span>
               </div>
             </div>
@@ -204,6 +222,11 @@ export function RevenueStatsDisplay({
                   <TableHead className="text-right text-red-400">
                     Stripe Fee
                   </TableHead>
+                  {hasRefunds && (
+                    <TableHead className="text-right text-red-400">
+                      Refunds
+                    </TableHead>
+                  )}
                   <TableHead className="text-right">Net</TableHead>
                 </TableRow>
               </TableHeader>
@@ -228,8 +251,17 @@ export function RevenueStatsDisplay({
                     <TableCell className="text-right text-red-400">
                       -{formatCents(division.stripeFeeCents)}
                     </TableCell>
+                    {hasRefunds && (
+                      <TableCell className="text-right text-red-400">
+                        {division.refundedCents > 0
+                          ? `-${formatCents(division.refundedCents)}`
+                          : "—"}
+                      </TableCell>
+                    )}
                     <TableCell className="text-right text-green-600">
-                      {formatCents(division.organizerNetCents)}
+                      {formatCents(
+                        division.organizerNetCents - division.refundedCents,
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
