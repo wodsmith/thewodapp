@@ -71,6 +71,7 @@ import { Route as CompeteSlugInvitePendingRouteImport } from './routes/compete/$
 import { Route as CompeteSlugBroadcastsRouteImport } from './routes/compete/$slug/broadcasts'
 import { Route as ApiWorkoutsSearchRouteImport } from './routes/api/workouts/search'
 import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
+import { Route as ApiJudgeSchedulerSuggestRouteImport } from './routes/api/judge-scheduler/suggest'
 import { Route as ApiAuthTokenRouteImport } from './routes/api/auth/token'
 import { Route as AdminTeamsScheduleRouteImport } from './routes/admin/teams/schedule'
 import { Route as AdminTeamsTeamIdRouteImport } from './routes/admin/teams/$teamId'
@@ -124,6 +125,7 @@ import { Route as CompeteOrganizerCompetitionIdDangerZoneRouteImport } from './r
 import { Route as CompeteOrganizerCompetitionIdCouponsRouteImport } from './routes/compete/organizer/$competitionId/coupons'
 import { Route as CompeteOrganizerCompetitionIdCoHostsRouteImport } from './routes/compete/organizer/$competitionId/co-hosts'
 import { Route as CompeteOrganizerCompetitionIdBroadcastsRouteImport } from './routes/compete/organizer/$competitionId/broadcasts'
+import { Route as CompeteOrganizerCompetitionIdAiJudgeSchedulerRouteImport } from './routes/compete/organizer/$competitionId/ai-judge-scheduler'
 import { Route as CompeteCohostCompetitionIdWaiversRouteImport } from './routes/compete/cohost/$competitionId/waivers'
 import { Route as CompeteCohostCompetitionIdVolunteersRouteImport } from './routes/compete/cohost/$competitionId/volunteers'
 import { Route as CompeteCohostCompetitionIdSubmissionWindowsRouteImport } from './routes/compete/cohost/$competitionId/submission-windows'
@@ -523,6 +525,12 @@ const ApiWebhooksStripeRoute = ApiWebhooksStripeRouteImport.update({
   path: '/api/webhooks/stripe',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiJudgeSchedulerSuggestRoute =
+  ApiJudgeSchedulerSuggestRouteImport.update({
+    id: '/api/judge-scheduler/suggest',
+    path: '/api/judge-scheduler/suggest',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiAuthTokenRoute = ApiAuthTokenRouteImport.update({
   id: '/api/auth/token',
   path: '/api/auth/token',
@@ -828,6 +836,12 @@ const CompeteOrganizerCompetitionIdBroadcastsRoute =
   CompeteOrganizerCompetitionIdBroadcastsRouteImport.update({
     id: '/broadcasts',
     path: '/broadcasts',
+    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+  } as any)
+const CompeteOrganizerCompetitionIdAiJudgeSchedulerRoute =
+  CompeteOrganizerCompetitionIdAiJudgeSchedulerRouteImport.update({
+    id: '/ai-judge-scheduler',
+    path: '/ai-judge-scheduler',
     getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
   } as any)
 const CompeteCohostCompetitionIdWaiversRoute =
@@ -1347,6 +1361,7 @@ export interface FileRoutesByFullPath {
   '/admin/teams/$teamId': typeof AdminTeamsTeamIdRouteWithChildren
   '/admin/teams/schedule': typeof AdminTeamsScheduleRouteWithChildren
   '/api/auth/token': typeof ApiAuthTokenRouteWithChildren
+  '/api/judge-scheduler/suggest': typeof ApiJudgeSchedulerSuggestRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
   '/compete/$slug/broadcasts': typeof CompeteSlugBroadcastsRoute
@@ -1415,6 +1430,7 @@ export interface FileRoutesByFullPath {
   '/compete/cohost/$competitionId/submission-windows': typeof CompeteCohostCompetitionIdSubmissionWindowsRoute
   '/compete/cohost/$competitionId/volunteers': typeof CompeteCohostCompetitionIdVolunteersRoute
   '/compete/cohost/$competitionId/waivers': typeof CompeteCohostCompetitionIdWaiversRoute
+  '/compete/organizer/$competitionId/ai-judge-scheduler': typeof CompeteOrganizerCompetitionIdAiJudgeSchedulerRoute
   '/compete/organizer/$competitionId/broadcasts': typeof CompeteOrganizerCompetitionIdBroadcastsRoute
   '/compete/organizer/$competitionId/co-hosts': typeof CompeteOrganizerCompetitionIdCoHostsRoute
   '/compete/organizer/$competitionId/coupons': typeof CompeteOrganizerCompetitionIdCouponsRoute
@@ -1536,6 +1552,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/compete': typeof CompeteIndexRoute
   '/api/auth/token': typeof ApiAuthTokenRouteWithChildren
+  '/api/judge-scheduler/suggest': typeof ApiJudgeSchedulerSuggestRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
   '/compete/$slug/broadcasts': typeof CompeteSlugBroadcastsRoute
@@ -1602,6 +1619,7 @@ export interface FileRoutesByTo {
   '/compete/cohost/$competitionId/submission-windows': typeof CompeteCohostCompetitionIdSubmissionWindowsRoute
   '/compete/cohost/$competitionId/volunteers': typeof CompeteCohostCompetitionIdVolunteersRoute
   '/compete/cohost/$competitionId/waivers': typeof CompeteCohostCompetitionIdWaiversRoute
+  '/compete/organizer/$competitionId/ai-judge-scheduler': typeof CompeteOrganizerCompetitionIdAiJudgeSchedulerRoute
   '/compete/organizer/$competitionId/broadcasts': typeof CompeteOrganizerCompetitionIdBroadcastsRoute
   '/compete/organizer/$competitionId/co-hosts': typeof CompeteOrganizerCompetitionIdCoHostsRoute
   '/compete/organizer/$competitionId/coupons': typeof CompeteOrganizerCompetitionIdCouponsRoute
@@ -1725,6 +1743,7 @@ export interface FileRoutesById {
   '/admin/teams/$teamId': typeof AdminTeamsTeamIdRouteWithChildren
   '/admin/teams/schedule': typeof AdminTeamsScheduleRouteWithChildren
   '/api/auth/token': typeof ApiAuthTokenRouteWithChildren
+  '/api/judge-scheduler/suggest': typeof ApiJudgeSchedulerSuggestRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
   '/compete/$slug/broadcasts': typeof CompeteSlugBroadcastsRoute
@@ -1794,6 +1813,7 @@ export interface FileRoutesById {
   '/compete/cohost/$competitionId/submission-windows': typeof CompeteCohostCompetitionIdSubmissionWindowsRoute
   '/compete/cohost/$competitionId/volunteers': typeof CompeteCohostCompetitionIdVolunteersRoute
   '/compete/cohost/$competitionId/waivers': typeof CompeteCohostCompetitionIdWaiversRoute
+  '/compete/organizer/$competitionId/ai-judge-scheduler': typeof CompeteOrganizerCompetitionIdAiJudgeSchedulerRoute
   '/compete/organizer/$competitionId/broadcasts': typeof CompeteOrganizerCompetitionIdBroadcastsRoute
   '/compete/organizer/$competitionId/co-hosts': typeof CompeteOrganizerCompetitionIdCoHostsRoute
   '/compete/organizer/$competitionId/coupons': typeof CompeteOrganizerCompetitionIdCouponsRoute
@@ -1923,6 +1943,7 @@ export interface FileRouteTypes {
     | '/admin/teams/$teamId'
     | '/admin/teams/schedule'
     | '/api/auth/token'
+    | '/api/judge-scheduler/suggest'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
     | '/compete/$slug/broadcasts'
@@ -1991,6 +2012,7 @@ export interface FileRouteTypes {
     | '/compete/cohost/$competitionId/submission-windows'
     | '/compete/cohost/$competitionId/volunteers'
     | '/compete/cohost/$competitionId/waivers'
+    | '/compete/organizer/$competitionId/ai-judge-scheduler'
     | '/compete/organizer/$competitionId/broadcasts'
     | '/compete/organizer/$competitionId/co-hosts'
     | '/compete/organizer/$competitionId/coupons'
@@ -2112,6 +2134,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/compete'
     | '/api/auth/token'
+    | '/api/judge-scheduler/suggest'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
     | '/compete/$slug/broadcasts'
@@ -2178,6 +2201,7 @@ export interface FileRouteTypes {
     | '/compete/cohost/$competitionId/submission-windows'
     | '/compete/cohost/$competitionId/volunteers'
     | '/compete/cohost/$competitionId/waivers'
+    | '/compete/organizer/$competitionId/ai-judge-scheduler'
     | '/compete/organizer/$competitionId/broadcasts'
     | '/compete/organizer/$competitionId/co-hosts'
     | '/compete/organizer/$competitionId/coupons'
@@ -2300,6 +2324,7 @@ export interface FileRouteTypes {
     | '/admin/teams/$teamId'
     | '/admin/teams/schedule'
     | '/api/auth/token'
+    | '/api/judge-scheduler/suggest'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
     | '/compete/$slug/broadcasts'
@@ -2369,6 +2394,7 @@ export interface FileRouteTypes {
     | '/compete/cohost/$competitionId/submission-windows'
     | '/compete/cohost/$competitionId/volunteers'
     | '/compete/cohost/$competitionId/waivers'
+    | '/compete/organizer/$competitionId/ai-judge-scheduler'
     | '/compete/organizer/$competitionId/broadcasts'
     | '/compete/organizer/$competitionId/co-hosts'
     | '/compete/organizer/$competitionId/coupons'
@@ -2483,6 +2509,7 @@ export interface RootRouteChildren {
   ApiUploadRoute: typeof ApiUploadRoute
   TransferTransferIdRoute: typeof TransferTransferIdRoute
   ApiAuthTokenRoute: typeof ApiAuthTokenRouteWithChildren
+  ApiJudgeSchedulerSuggestRoute: typeof ApiJudgeSchedulerSuggestRoute
   ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
   ApiWorkoutsSearchRoute: typeof ApiWorkoutsSearchRoute
   DemoApiNamesRoute: typeof DemoApiNamesRoute
@@ -2942,6 +2969,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiWebhooksStripeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/judge-scheduler/suggest': {
+      id: '/api/judge-scheduler/suggest'
+      path: '/api/judge-scheduler/suggest'
+      fullPath: '/api/judge-scheduler/suggest'
+      preLoaderRoute: typeof ApiJudgeSchedulerSuggestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/token': {
       id: '/api/auth/token'
       path: '/api/auth/token'
@@ -3311,6 +3345,13 @@ declare module '@tanstack/react-router' {
       path: '/broadcasts'
       fullPath: '/compete/organizer/$competitionId/broadcasts'
       preLoaderRoute: typeof CompeteOrganizerCompetitionIdBroadcastsRouteImport
+      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+    }
+    '/compete/organizer/$competitionId/ai-judge-scheduler': {
+      id: '/compete/organizer/$competitionId/ai-judge-scheduler'
+      path: '/ai-judge-scheduler'
+      fullPath: '/compete/organizer/$competitionId/ai-judge-scheduler'
+      preLoaderRoute: typeof CompeteOrganizerCompetitionIdAiJudgeSchedulerRouteImport
       parentRoute: typeof CompeteOrganizerCompetitionIdRoute
     }
     '/compete/cohost/$competitionId/waivers': {
@@ -4298,6 +4339,7 @@ const CompeteOrganizerCompetitionIdEventsEventIdRouteWithChildren =
   )
 
 interface CompeteOrganizerCompetitionIdRouteChildren {
+  CompeteOrganizerCompetitionIdAiJudgeSchedulerRoute: typeof CompeteOrganizerCompetitionIdAiJudgeSchedulerRoute
   CompeteOrganizerCompetitionIdBroadcastsRoute: typeof CompeteOrganizerCompetitionIdBroadcastsRoute
   CompeteOrganizerCompetitionIdCoHostsRoute: typeof CompeteOrganizerCompetitionIdCoHostsRoute
   CompeteOrganizerCompetitionIdCouponsRoute: typeof CompeteOrganizerCompetitionIdCouponsRoute
@@ -4328,6 +4370,8 @@ interface CompeteOrganizerCompetitionIdRouteChildren {
 
 const CompeteOrganizerCompetitionIdRouteChildren: CompeteOrganizerCompetitionIdRouteChildren =
   {
+    CompeteOrganizerCompetitionIdAiJudgeSchedulerRoute:
+      CompeteOrganizerCompetitionIdAiJudgeSchedulerRoute,
     CompeteOrganizerCompetitionIdBroadcastsRoute:
       CompeteOrganizerCompetitionIdBroadcastsRoute,
     CompeteOrganizerCompetitionIdCoHostsRoute:
@@ -4554,6 +4598,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiUploadRoute: ApiUploadRoute,
   TransferTransferIdRoute: TransferTransferIdRoute,
   ApiAuthTokenRoute: ApiAuthTokenRouteWithChildren,
+  ApiJudgeSchedulerSuggestRoute: ApiJudgeSchedulerSuggestRoute,
   ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
   ApiWorkoutsSearchRoute: ApiWorkoutsSearchRoute,
   DemoApiNamesRoute: DemoApiNamesRoute,
@@ -4581,12 +4626,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

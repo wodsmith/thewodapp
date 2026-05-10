@@ -1,32 +1,23 @@
+/**
+ * AI Judge Scheduler — non-streaming server fn.
+ *
+ * Used by code paths that don't need progressive proposals (tests, server-side
+ * tooling). The interactive UI uses the streaming API route at
+ * /api/judge-scheduler/suggest instead.
+ *
+ * Proposals are buffered server-side and never written from this server fn —
+ * the organizer accepts them via the existing createJudgeRotationFn flow.
+ */
+
 import "server-only"
 
 import {createServerFn} from "@tanstack/react-start"
-import {eq, inArray} from "drizzle-orm"
 import {z} from "zod"
-import {getDb} from "@/db"
-import {
-  competitionHeatAssignmentsTable,
-  competitionHeatsTable,
-  competitionJudgeRotationsTable,
-  competitionVenuesTable,
-  teamMembershipTable,
-  trackWorkoutsTable,
-  userTable,
-} from "@/db/schema"
 import {TEAM_PERMISSIONS} from "@/db/schemas/teams"
-import {
-  VOLUNTEER_ROLE_TYPES,
-  type VolunteerMembershipMetadata,
-} from "@/db/schemas/volunteers"
 import {isAiHeatSchedulingEnabled} from "@/lib/env"
 import {runJudgeSchedulerAgent} from "@/server/ai/judge-scheduler/agent"
-import {buildSchedulingContext} from "@/server/ai/judge-scheduler/context"
+import {loadEventContext} from "@/server/ai/judge-scheduler/load-context"
 import {projectCoverage} from "@/server/ai/judge-scheduler/projector"
-import type {
-  SchedulingHeatInput,
-  SchedulingJudgeInput,
-  SchedulingRotationInput,
-} from "@/server/ai/judge-scheduler/types"
 import {requireTeamPermission} from "@/utils/team-auth"
 
 const inputSchema = z.object({
@@ -54,136 +45,9 @@ export const generateJudgeRotationSuggestionsFn = createServerFn({
       TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
     )
 
-    const db = getDb()
-
-    const heats = await db
-      .select({
-        id: competitionHeatsTable.id,
-        heatNumber: competitionHeatsTable.heatNumber,
-        scheduledTime: competitionHeatsTable.scheduledTime,
-        durationMinutes: competitionHeatsTable.durationMinutes,
-        venueId: competitionHeatsTable.venueId,
-      })
-      .from(competitionHeatsTable)
-      .where(eq(competitionHeatsTable.trackWorkoutId, data.trackWorkoutId))
-
-    const venueIds = [
-      ...new Set(
-        heats
-          .map((h) => h.venueId)
-          .filter((v): v is string => !!v),
-      ),
-    ]
-    const venues =
-      venueIds.length > 0
-        ? await db
-            .select({
-              id: competitionVenuesTable.id,
-              laneCount: competitionVenuesTable.laneCount,
-            })
-            .from(competitionVenuesTable)
-            .where(inArray(competitionVenuesTable.id, venueIds))
-        : []
-    const venueMap = new Map(venues.map((v) => [v.id, v]))
-
-    const heatIds = heats.map((h) => h.id)
-    const heatAssignments =
-      heatIds.length > 0
-        ? await db
-            .select({
-              heatId: competitionHeatAssignmentsTable.heatId,
-              laneNumber: competitionHeatAssignmentsTable.laneNumber,
-            })
-            .from(competitionHeatAssignmentsTable)
-            .where(
-              inArray(competitionHeatAssignmentsTable.heatId, heatIds),
-            )
-        : []
-
-    const occupiedByHeat = new Map<string, Set<number>>()
-    for (const a of heatAssignments) {
-      const set = occupiedByHeat.get(a.heatId) ?? new Set<number>()
-      set.add(a.laneNumber)
-      occupiedByHeat.set(a.heatId, set)
-    }
-
-    const heatInputs: SchedulingHeatInput[] = heats.map((h) => ({
-      heatNumber: h.heatNumber,
-      laneCount: h.venueId ? venueMap.get(h.venueId)?.laneCount ?? 0 : 0,
-      occupiedLanes: occupiedByHeat.get(h.id),
-      scheduledTime: h.scheduledTime,
-      durationMinutes: h.durationMinutes,
-    }))
-
-    const memberships = await db
-      .select({
-        id: teamMembershipTable.id,
-        userId: teamMembershipTable.userId,
-        metadata: teamMembershipTable.metadata,
-      })
-      .from(teamMembershipTable)
-      .where(eq(teamMembershipTable.teamId, data.competitionTeamId))
-
-    const judgeMemberships = memberships.filter((m) =>
-      isJudgeMembership(m.metadata),
-    )
-    const userIds = [...new Set(judgeMemberships.map((m) => m.userId))]
-    const users =
-      userIds.length > 0
-        ? await db
-            .select({
-              id: userTable.id,
-              firstName: userTable.firstName,
-              lastName: userTable.lastName,
-            })
-            .from(userTable)
-            .where(inArray(userTable.id, userIds))
-        : []
-    const userMap = new Map(users.map((u) => [u.id, u]))
-
-    const judgeInputs: SchedulingJudgeInput[] = judgeMemberships.map((m) => {
-      const meta = parseMetadata(m.metadata)
-      const user = userMap.get(m.userId)
-      const displayName =
-        [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
-        "Unknown judge"
-      return {
-        membershipId: m.id,
-        displayName,
-        availability: meta?.availability,
-        availabilityNotes: meta?.availabilityNotes,
-        credentials: meta?.credentials,
-      }
-    })
-
-    const rotations = await db
-      .select()
-      .from(competitionJudgeRotationsTable)
-      .where(
-        eq(
-          competitionJudgeRotationsTable.trackWorkoutId,
-          data.trackWorkoutId,
-        ),
-      )
-    const rotationInputs: SchedulingRotationInput[] = rotations.map((r) => ({
-      id: r.id,
-      membershipId: r.membershipId,
-      startingHeat: r.startingHeat,
-      startingLane: r.startingLane,
-      heatsCount: r.heatsCount,
-      laneShiftPattern: r.laneShiftPattern,
-    }))
-
-    const event = await db.query.trackWorkoutsTable.findFirst({
-      where: eq(trackWorkoutsTable.id, data.trackWorkoutId),
-    })
-    const minHeatBuffer = event?.minHeatBuffer ?? 1
-
-    const context = buildSchedulingContext({
-      heats: heatInputs,
-      judges: judgeInputs,
-      rotations: rotationInputs,
-      eventDefaults: {minHeatBuffer},
+    const context = await loadEventContext({
+      competitionTeamId: data.competitionTeamId,
+      trackWorkoutId: data.trackWorkoutId,
     })
 
     const result = await runJudgeSchedulerAgent({
@@ -192,7 +56,11 @@ export const generateJudgeRotationSuggestionsFn = createServerFn({
     })
 
     const proposalRotations = result.proposals.map((p) => p.proposal)
-    const projected = projectCoverage(rotationInputs, proposalRotations, heatInputs)
+    const projected = projectCoverage(
+      context.rotations,
+      proposalRotations,
+      context.heats,
+    )
 
     return {
       ok: true as const,
@@ -210,23 +78,3 @@ export const generateJudgeRotationSuggestionsFn = createServerFn({
       },
     }
   })
-
-function parseMetadata(
-  metadata: string | null,
-): VolunteerMembershipMetadata | null {
-  if (!metadata) return null
-  try {
-    return JSON.parse(metadata) as VolunteerMembershipMetadata
-  } catch {
-    return null
-  }
-}
-
-function isJudgeMembership(metadata: string | null): boolean {
-  const meta = parseMetadata(metadata)
-  if (!meta?.volunteerRoleTypes) return false
-  return (
-    meta.volunteerRoleTypes.includes(VOLUNTEER_ROLE_TYPES.JUDGE) ||
-    meta.volunteerRoleTypes.includes(VOLUNTEER_ROLE_TYPES.HEAD_JUDGE)
-  )
-}

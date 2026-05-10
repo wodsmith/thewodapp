@@ -274,6 +274,12 @@ function getAgent(): Agent {
 export interface JudgeSchedulingAgentInput {
   context: SchedulingContext
   organizerInstructions?: string
+  /**
+   * Optional pre-built collector. Used by the streaming API route to inject a
+   * BroadcastingProposalCollector that publishes events as proposals arrive.
+   * Defaults to a fresh in-memory ProposalCollector when omitted.
+   */
+  collector?: ProposalCollector
 }
 
 export interface JudgeSchedulingAgentOutput {
@@ -290,7 +296,7 @@ export interface JudgeSchedulingAgentOutput {
 export async function runJudgeSchedulerAgent(
   input: JudgeSchedulingAgentInput,
 ): Promise<JudgeSchedulingAgentOutput> {
-  const collector = new ProposalCollector(input.context)
+  const collector = input.collector ?? new ProposalCollector(input.context)
   const requestContext = new RequestContext<AgentRequestContextValues>([
     [CONTEXT_KEY, input.context],
     [COLLECTOR_KEY, collector],

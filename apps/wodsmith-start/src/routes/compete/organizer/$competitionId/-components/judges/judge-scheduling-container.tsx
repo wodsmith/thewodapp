@@ -1,7 +1,7 @@
 "use client"
 
 import { Link } from "@tanstack/react-router"
-import { ClipboardList, FileWarning, Search } from "lucide-react"
+import { ClipboardList, FileWarning, Search, Sparkles } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -762,7 +762,19 @@ export function JudgeSchedulingContainer({
       {/* Rotations Section - Only for in-person competitions */}
       {!isOnline && (
         <section className="space-y-6">
-          <h3 className="text-lg font-semibold">Rotations</h3>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-lg font-semibold">Rotations</h3>
+            <Button asChild variant="outline" size="sm">
+              <Link
+                to="/compete/organizer/$competitionId/ai-judge-scheduler"
+                params={{competitionId}}
+                search={{event: selectedEventId}}
+              >
+                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                Suggest with AI
+              </Link>
+            </Button>
+          </div>
 
           {/* Event Defaults Editor */}
           <EventDefaultsEditor
