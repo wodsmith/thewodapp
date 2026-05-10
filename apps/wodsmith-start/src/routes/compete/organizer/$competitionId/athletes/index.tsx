@@ -101,6 +101,7 @@ import {
   getCompetitionWaiversFn,
 } from "@/server-fns/waiver-fns"
 import { ManualRegistrationDialog } from "../-components/manual-registration-dialog"
+import { RefundStatusBadge } from "../-components/refund-status-badge"
 import { TransferDivisionDialog } from "../-components/transfer-division-dialog"
 import { TransferRegistrationDialog } from "../-components/transfer-registration-dialog"
 
@@ -192,7 +193,7 @@ export const Route = createFileRoute(
     return {
       registrations: registrationsResult.registrations,
       canRefund: registrationsResult.canRefund,
-      refundedPurchaseIds: registrationsResult.refundedPurchaseIds,
+      refundsByPurchaseId: registrationsResult.refundsByPurchaseId,
       divisions: divisionsResult.divisions,
       questions: questionsResult.questions,
       answersByRegistration: answersResult.answersByRegistration,
@@ -222,7 +223,7 @@ function AthletesPage() {
   const {
     registrations,
     canRefund,
-    refundedPurchaseIds,
+    refundsByPurchaseId,
     divisions,
     questions,
     answersByRegistration,
@@ -237,9 +238,22 @@ function AthletesPage() {
     currentSortDir,
     teamId,
   } = Route.useLoaderData()
-  const refundedPurchaseIdSet = React.useMemo(
-    () => new Set(refundedPurchaseIds),
-    [refundedPurchaseIds],
+  /**
+   * Resolve refund status for a given purchaseId. Returns:
+   *   - null  → no refund recorded
+   *   - "full"    → refundedCents >= totalCents (e.g. organizer refunded the full ticket)
+   *   - "partial" → 0 < refundedCents < totalCents
+   * The dropdown action hides on any refund, but the badge surfaces the
+   * distinction so an organizer can tell at a glance whether more remains.
+   */
+  const getRefundStatus = React.useCallback(
+    (purchaseId: string | null): "full" | "partial" | null => {
+      if (!purchaseId) return null
+      const refund = refundsByPurchaseId[purchaseId]
+      if (!refund || refund.refundedCents <= 0) return null
+      return refund.refundedCents >= refund.totalCents ? "full" : "partial"
+    },
+    [refundsByPurchaseId],
   )
   const navigate = useNavigate()
   const router = useRouter()
@@ -1398,7 +1412,7 @@ function AthletesPage() {
                                     {canRefund &&
                                       row.commercePurchaseId &&
                                       row.paymentStatus === "PAID" &&
-                                      !refundedPurchaseIdSet.has(
+                                      !getRefundStatus(
                                         row.commercePurchaseId,
                                       ) && (
                                         <DropdownMenuItem
@@ -1504,6 +1518,21 @@ function AthletesPage() {
                                   {row.division.label}
                                 </Badge>
                               )}
+                              {row.commercePurchaseId &&
+                                refundsByPurchaseId[row.commercePurchaseId] && (
+                                  <RefundStatusBadge
+                                    refundedCents={
+                                      refundsByPurchaseId[
+                                        row.commercePurchaseId
+                                      ]?.refundedCents ?? 0
+                                    }
+                                    totalCents={
+                                      refundsByPurchaseId[
+                                        row.commercePurchaseId
+                                      ]?.totalCents ?? 0
+                                    }
+                                  />
+                                )}
                             </div>
                             <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                               {row.teamName && (
@@ -1810,6 +1839,25 @@ function AthletesPage() {
                                       </button>
                                     </div>
                                   ) : null}
+                                  {row.commercePurchaseId &&
+                                    refundsByPurchaseId[
+                                      row.commercePurchaseId
+                                    ] && (
+                                      <div className="mt-1">
+                                        <RefundStatusBadge
+                                          refundedCents={
+                                            refundsByPurchaseId[
+                                              row.commercePurchaseId
+                                            ]?.refundedCents ?? 0
+                                          }
+                                          totalCents={
+                                            refundsByPurchaseId[
+                                              row.commercePurchaseId
+                                            ]?.totalCents ?? 0
+                                          }
+                                        />
+                                      </div>
+                                    )}
                                 </TableCell>
                                 <TableCell>
                                   <div className="flex items-center gap-3">
@@ -2088,7 +2136,7 @@ function AthletesPage() {
                                         {canRefund &&
                                           row.commercePurchaseId &&
                                           row.paymentStatus === "PAID" &&
-                                          !refundedPurchaseIdSet.has(
+                                          !getRefundStatus(
                                             row.commercePurchaseId,
                                           ) && (
                                             <DropdownMenuItem

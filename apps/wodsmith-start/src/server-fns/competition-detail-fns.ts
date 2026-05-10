@@ -660,14 +660,48 @@ const getOrganizerRegistrationsInputSchema = z.object({
 })
 
 /**
+ * Roll up refund events into a per-purchase map keyed by purchaseId. Negative
+ * `amountCents` values (sign convention from financial_events) are normalized
+ * to positive cents so the UI can compare refundedCents to totalCents
+ * directly. Refund events for purchaseIds not present in the totals map are
+ * dropped — they cannot be paired with a purchase total and would render an
+ * incomplete badge.
+ *
+ * Pure for testability; used by getOrganizerRegistrationsFn below.
+ */
+export function computeRefundsByPurchase(
+  refundEvents: Array<{ purchaseId: string; amountCents: number }>,
+  purchaseTotals: Map<string, number>,
+): Record<string, { refundedCents: number; totalCents: number }> {
+  const result: Record<
+    string,
+    { refundedCents: number; totalCents: number }
+  > = {}
+  for (const event of refundEvents) {
+    const totalCents = purchaseTotals.get(event.purchaseId)
+    if (totalCents === undefined) continue
+    const cents = Math.abs(event.amountCents)
+    const existing = result[event.purchaseId]
+    if (existing) {
+      existing.refundedCents += cents
+    } else {
+      result[event.purchaseId] = { refundedCents: cents, totalCents }
+    }
+  }
+  return result
+}
+
+/**
  * Get registrations for organizer view with full user and division details.
  *
- * Returns refund-capability metadata so the UI can decide whether to surface
- * the "Refund Registration" action:
+ * Returns refund metadata so the UI can decide whether to surface the "Refund
+ * Registration" action and render the appropriate refund-status badge:
  * - `canRefund` is true when the organizing team has a verified Stripe Express
  *   connected account (only Express accounts use platform-mediated refunds).
- * - `refundedPurchaseIds` lists purchases that already have a REFUND_INITIATED
- *   or REFUND_COMPLETED financial event so the UI hides the action per row.
+ * - `refundsByPurchaseId` maps each refunded purchase to {refundedCents,
+ *   totalCents} so the UI shows "Refunded" for full refunds and "Partially
+ *   refunded" for partials, and so the dropdown action can be hidden once a
+ *   purchase has any refund recorded.
  */
 export const getOrganizerRegistrationsFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) =>
@@ -765,29 +799,52 @@ export const getOrganizerRegistrationsFn = createServerFn({ method: "GET" })
       .map((r) => r.commercePurchaseId)
       .filter((id): id is string => !!id)
 
-    let refundedPurchaseIds: string[] = []
+    let refundsByPurchaseId: Record<
+      string,
+      { refundedCents: number; totalCents: number }
+    > = {}
     if (purchaseIds.length > 0) {
-      const refundEvents = await db
-        .select({ purchaseId: financialEventTable.purchaseId })
-        .from(financialEventTable)
-        .where(
-          and(
-            inArray(financialEventTable.purchaseId, purchaseIds),
-            inArray(financialEventTable.eventType, [
-              FINANCIAL_EVENT_TYPE.REFUND_INITIATED,
-              FINANCIAL_EVENT_TYPE.REFUND_COMPLETED,
-            ]),
+      // Pull the totals (so the UI can detect full vs partial refunds) and
+      // refund events (REFUND_INITIATED only — counting INITIATED + COMPLETED
+      // would double-count once Stripe's webhook lands).
+      const [purchaseRows, refundEvents] = await Promise.all([
+        db
+          .select({
+            id: commercePurchaseTable.id,
+            totalCents: commercePurchaseTable.totalCents,
+          })
+          .from(commercePurchaseTable)
+          .where(inArray(commercePurchaseTable.id, purchaseIds)),
+        db
+          .select({
+            purchaseId: financialEventTable.purchaseId,
+            amountCents: financialEventTable.amountCents,
+          })
+          .from(financialEventTable)
+          .where(
+            and(
+              inArray(financialEventTable.purchaseId, purchaseIds),
+              eq(
+                financialEventTable.eventType,
+                FINANCIAL_EVENT_TYPE.REFUND_INITIATED,
+              ),
+            ),
           ),
-        )
-      refundedPurchaseIds = Array.from(
-        new Set(refundEvents.map((r) => r.purchaseId)),
+      ])
+
+      const purchaseTotals = new Map(
+        purchaseRows.map((p) => [p.id, p.totalCents]),
+      )
+      refundsByPurchaseId = computeRefundsByPurchase(
+        refundEvents,
+        purchaseTotals,
       )
     }
 
     return {
       registrations: filteredRegistrations,
       canRefund,
-      refundedPurchaseIds,
+      refundsByPurchaseId,
     }
   })
 

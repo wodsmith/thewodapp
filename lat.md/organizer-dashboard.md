@@ -186,6 +186,8 @@ Displays financial statistics for the competition including total revenue, platf
 
 Fetches revenue stats and Stripe connection status in parallel. Uses `RevenueStatsDisplay` component.
 
+Refunds are surfaced as a separate row/column. [[apps/wodsmith-start/src/server/commerce/fee-calculator.ts#getCompetitionRevenueStats]] sums REFUND_INITIATED financial events per purchase, attributes each to the purchase's division, and returns `totalRefundedCents` plus `byDivision[].refundedCents`. The display then shows a "Refunds" line in the fee-breakdown card and a "Refunds" column in the per-division table when any refund exists. "Your Net Revenue" is `totalOrganizerNetCents − totalRefundedCents` because refunds use `reverse_transfer` (organizer's account funds them) while the platform fee stays (`refund_application_fee: false`); only the refunded principal reduces organizer net. The pre-refund `organizerNetCents` field is preserved on each row so it still reconciles with per-purchase ledger totals — the post-refund Net is computed in the component, not the loader.
+
 ## Coupons
 
 Discount codes that reduce registration fees for athletes.
