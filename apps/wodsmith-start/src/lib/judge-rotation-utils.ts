@@ -5,8 +5,25 @@
 
 import type { CompetitionJudgeRotation } from "@/db/schema"
 import { LANE_SHIFT_PATTERN } from "@/db/schema"
-import type { VolunteerAvailability } from "@/db/schemas/volunteers"
+import type {
+  LaneShiftPattern,
+  VolunteerAvailability,
+} from "@/db/schemas/volunteers"
 import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
+
+/**
+ * Minimal rotation shape required by the rotation utilities. CompetitionJudgeRotation
+ * satisfies this; AI-feature code can also pass plain objects without the DB-only
+ * fields (competitionId, trackWorkoutId, timestamps, etc.).
+ */
+export interface RotationLike {
+  id: string
+  membershipId: string
+  startingHeat: number
+  startingLane: number
+  heatsCount: number
+  laneShiftPattern: LaneShiftPattern
+}
 
 // ============================================================================
 // Types
@@ -72,7 +89,7 @@ export interface ExpandOptions {
  * @returns Array of virtual assignments
  */
 export function expandRotationToAssignments(
-  rotation: CompetitionJudgeRotation,
+  rotation: RotationLike,
   heats: HeatInfo[],
   options?: ExpandOptions,
 ): HeatLaneAssignment[] {
@@ -142,7 +159,7 @@ export function expandRotationToAssignments(
  * @returns Coverage statistics
  */
 export function calculateCoverage(
-  rotations: CompetitionJudgeRotation[],
+  rotations: RotationLike[],
   heats: HeatInfo[],
 ): CoverageStats {
   // Build coverage grid: Map<"heat:lane", array of assignments>

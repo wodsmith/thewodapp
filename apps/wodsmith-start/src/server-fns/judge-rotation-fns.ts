@@ -353,11 +353,6 @@ async function validateRotationConflictsInternal(
       {
         ...rotation,
         id: rotation.id ?? "new",
-        competitionId: "", // Not needed for expansion
-        notes: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        updateCounter: null,
       },
       heats,
     )

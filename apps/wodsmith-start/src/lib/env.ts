@@ -24,6 +24,10 @@ type ExtendedEnv = typeof env & {
   SLACK_PURCHASE_NOTIFICATION_TYPES?: string
   // Sentry error monitoring
   SENTRY_DSN?: string
+  // OpenAI (used by AI scheduling features)
+  OPENAI_API_KEY?: string
+  // AI heat scheduling feature flag
+  AI_HEAT_SCHEDULING_ENABLED?: string
 }
 
 const extendedEnv = env as ExtendedEnv
@@ -235,4 +239,29 @@ export const getSlackPurchaseNotificationTypes = createServerOnlyFn(
 
 export const getSentryDsn = createServerOnlyFn((): string | undefined => {
   return extendedEnv.SENTRY_DSN
+})
+
+// AI / OpenAI configuration accessors
+
+/**
+ * Get the OpenAI API key.
+ * This is a server-only function that will throw if called from the client.
+ *
+ * @returns The OPENAI_API_KEY environment variable or undefined if not set
+ */
+export const getOpenAiApiKey = createServerOnlyFn((): string | undefined => {
+  return extendedEnv.OPENAI_API_KEY
+})
+
+/**
+ * Whether the AI judge-scheduling feature is enabled. Gated by env flag so we
+ * can deploy the code without exposing the route to organizers until ready.
+ *
+ * @returns True if AI_HEAT_SCHEDULING_ENABLED is "true" AND OPENAI_API_KEY is set
+ */
+export const isAiHeatSchedulingEnabled = createServerOnlyFn((): boolean => {
+  return (
+    extendedEnv.AI_HEAT_SCHEDULING_ENABLED === "true" &&
+    !!extendedEnv.OPENAI_API_KEY
+  )
 })
