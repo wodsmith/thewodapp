@@ -1,0 +1,190 @@
+/**
+ * Zod schemas for the AI judge-scheduling agent.
+ *
+ * Tool inputs/outputs and persisted state are all defined here so the LLM,
+ * the server, and the client share one source of truth.
+ *
+ * The schemas live alongside the agent rather than in src/schemas/ because
+ * they are an implementation detail of the agent and not a public form schema.
+ */
+
+import { z } from "zod"
+import { LANE_SHIFT_PATTERN } from "@/db/schema"
+import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
+
+// ============================================================================
+// Building blocks
+// ============================================================================
+
+export const laneShiftPatternSchema = z.enum([
+  LANE_SHIFT_PATTERN.STAY,
+  LANE_SHIFT_PATTERN.SHIFT_RIGHT,
+])
+
+export const confidenceSchema = z.enum(["high", "medium", "low"])
+
+export const availabilitySchema = z.enum([
+  VOLUNTEER_AVAILABILITY.MORNING,
+  VOLUNTEER_AVAILABILITY.AFTERNOON,
+  VOLUNTEER_AVAILABILITY.ALL_DAY,
+])
+
+// ============================================================================
+// Proposal — the central artifact the agent produces
+// ============================================================================
+
+export const proposedRotationSchema = z.object({
+  proposalId: z.string().min(1).max(64),
+  membershipId: z.string().min(1),
+  startingHeat: z.number().int().min(1),
+  startingLane: z.number().int().min(1),
+  heatsCount: z.number().int().min(1).max(50),
+  laneShiftPattern: laneShiftPatternSchema,
+  confidence: confidenceSchema,
+  rationale: z.string().min(1).max(280),
+  softViolations: z.array(z.string().max(160)).max(10),
+})
+
+export type ProposedRotation = z.infer<typeof proposedRotationSchema>
+
+// ============================================================================
+// Tool input schemas (what the LLM is allowed to send)
+// ============================================================================
+
+export const proposeRotationInputSchema = proposedRotationSchema
+
+export const revokeProposalInputSchema = z.object({
+  proposalId: z.string().min(1),
+  reason: z.string().min(1).max(240),
+})
+
+export const markCompleteInputSchema = z.object({
+  summary: z.string().min(1).max(600),
+})
+
+// ============================================================================
+// Coverage report (returned by check_coverage tool)
+// ============================================================================
+
+export const coverageReportSchema = z.object({
+  totalSlots: z.number().int().min(0),
+  coveredSlots: z.number().int().min(0),
+  coveragePercent: z.number().min(0).max(100),
+  gaps: z.array(
+    z.object({
+      heatNumber: z.number().int().min(1),
+      laneNumber: z.number().int().min(1),
+    }),
+  ),
+  overlaps: z.array(
+    z.object({
+      heatNumber: z.number().int().min(1),
+      laneNumber: z.number().int().min(1),
+      proposalIds: z.array(z.string()),
+    }),
+  ),
+})
+
+export type CoverageReport = z.infer<typeof coverageReportSchema>
+
+// ============================================================================
+// Context DTOs (what the agent sees when loading context)
+// ============================================================================
+
+export const heatInfoDtoSchema = z.object({
+  heatNumber: z.number().int().min(1),
+  laneCount: z.number().int().min(1),
+  startTime: z.string().nullable(),
+  occupiedLanes: z.array(z.number().int().min(1)),
+})
+
+export type HeatInfoDto = z.infer<typeof heatInfoDtoSchema>
+
+export const eventContextDtoSchema = z.object({
+  trackWorkoutId: z.string(),
+  workoutName: z.string(),
+  competitionId: z.string(),
+  totalHeats: z.number().int().min(0),
+  defaultHeatsPerRotation: z.number().int().min(1),
+  defaultLaneShiftPattern: laneShiftPatternSchema,
+  minHeatBuffer: z.number().int().min(0),
+  heats: z.array(heatInfoDtoSchema),
+  existingRotations: z.array(
+    z.object({
+      membershipId: z.string(),
+      judgeName: z.string(),
+      startingHeat: z.number().int(),
+      startingLane: z.number().int(),
+      heatsCount: z.number().int(),
+      laneShiftPattern: laneShiftPatternSchema,
+    }),
+  ),
+})
+
+export type EventContextDto = z.infer<typeof eventContextDtoSchema>
+
+export const judgeRosterEntrySchema = z.object({
+  membershipId: z.string(),
+  name: z.string(),
+  availability: availabilitySchema.nullable(),
+  availabilityNotes: z.string().nullable(),
+  credentials: z.string().nullable(),
+  /** How many rotations this judge already has across the competition */
+  currentRotationCount: z.number().int().min(0),
+})
+
+export type JudgeRosterEntry = z.infer<typeof judgeRosterEntrySchema>
+
+export const priorRotationExampleSchema = z.object({
+  workoutName: z.string(),
+  judgeName: z.string(),
+  startingHeat: z.number().int(),
+  startingLane: z.number().int(),
+  heatsCount: z.number().int(),
+  laneShiftPattern: laneShiftPatternSchema,
+})
+
+export type PriorRotationExample = z.infer<typeof priorRotationExampleSchema>
+
+// ============================================================================
+// Persisted agent state (synced to client over the websocket)
+// ============================================================================
+
+export const agentStatusSchema = z.enum(["idle", "thinking", "done", "error"])
+
+export type AgentStatus = z.infer<typeof agentStatusSchema>
+
+export const agentStateSchema = z.object({
+  trackWorkoutId: z.string().nullable(),
+  status: agentStatusSchema,
+  proposals: z.array(proposedRotationSchema),
+  summary: z.string().nullable(),
+  errorMessage: z.string().nullable(),
+  startedAt: z.number().nullable(),
+  completedAt: z.number().nullable(),
+})
+
+export type AgentState = z.infer<typeof agentStateSchema>
+
+export const initialAgentState: AgentState = {
+  trackWorkoutId: null,
+  status: "idle",
+  proposals: [],
+  summary: null,
+  errorMessage: null,
+  startedAt: null,
+  completedAt: null,
+}
+
+// ============================================================================
+// Client → agent kickoff message
+// ============================================================================
+
+export const startSchedulingInputSchema = z.object({
+  trackWorkoutId: z.string().min(1),
+  competitionId: z.string().min(1),
+  /** When true, agent will revoke any proposals from a previous run on this DO */
+  reset: z.boolean().default(true),
+})
+
+export type StartSchedulingInput = z.infer<typeof startSchedulingInputSchema>

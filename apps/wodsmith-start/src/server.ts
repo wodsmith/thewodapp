@@ -19,6 +19,7 @@ import type {
 } from "@cloudflare/workers-types"
 import * as Sentry from "@sentry/cloudflare"
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry"
+import { routeAgentRequest } from "agents"
 import { env, waitUntil } from "cloudflare:workers"
 import { sendBatchToPostHog } from "evlog/posthog"
 import { createWorkersLogger, initWorkersLogger } from "evlog/workers"
@@ -103,12 +104,22 @@ initWorkersLogger({
 export { StripeCheckoutWorkflow } from "./workflows/stripe-checkout-workflow"
 export { ManualRegistrationWorkflow } from "./workflows/manual-registration-workflow"
 
+// Workers runtime requires Durable Object classes to be exported from the entry point
+export { JudgeSchedulerAgent } from "./agents/judge-scheduler-agent"
+
 // Threshold for logging slow requests (in ms)
 const SLOW_REQUEST_THRESHOLD_MS = 2000
 
 // Create the base TanStack Start entry with default fetch handling
 const startEntry = createServerEntry({
-  fetch(request) {
+  async fetch(request) {
+    // Route /agents/* to the agents library (handles WS upgrade + RPC).
+    // Must run before the TanStack handler so WebSocket upgrades are honored.
+    const url = new URL(request.url)
+    if (url.pathname.startsWith("/agents/")) {
+      const agentResponse = await routeAgentRequest(request, env)
+      if (agentResponse) return agentResponse
+    }
     return handler.fetch(request)
   },
 })

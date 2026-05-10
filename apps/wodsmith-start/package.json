@@ -35,6 +35,7 @@
     "email:dev": "pnpm dlx react-email@latest dev -d src/react-email"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.26",
     "@atlaskit/pragmatic-drag-and-drop": "^1.7.4",
     "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
     "@atlaskit/pragmatic-drag-and-drop-react-accessibility": "^2.0.6",
@@ -93,6 +94,8 @@
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/router-plugin": "^1.132.0",
     "@vimeo/player": "^2.30.3",
+    "agents": "^0.12.3",
+    "ai": "^6.0.77",
     "alchemy": "catalog:",
     "arctic": "^2.0.0",
     "class-variance-authority": "^0.7.1",

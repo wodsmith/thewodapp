@@ -88,6 +88,7 @@
 
 import alchemy from "alchemy"
 import {
+  DurableObjectNamespace,
   Hyperdrive,
   KVNamespace,
   Queue,
@@ -501,6 +502,20 @@ const manualRegistrationWorkflow = Workflow(
 )
 
 /**
+ * Durable Object namespace for the AI judge-scheduling agent.
+ *
+ * Each scheduling session is keyed by `${trackWorkoutId}:${userId}` so an
+ * organizer reconnecting (e.g. tab refresh) reattaches to the same Agent
+ * instance and resumes the in-flight stream of proposals.
+ *
+ * @see src/agents/judge-scheduler-agent.ts
+ */
+const judgeSchedulerAgent = DurableObjectNamespace("judge-scheduler-agent", {
+  className: "JudgeSchedulerAgent",
+  sqlite: true,
+})
+
+/**
  * Cloudflare Queue for async broadcast email delivery.
  *
  * When an organizer sends a broadcast, recipient batches are enqueued here.
@@ -591,6 +606,8 @@ const website = await TanStackStart("app", {
     MANUAL_REGISTRATION_WORKFLOW: manualRegistrationWorkflow,
     /** Queue for async broadcast email delivery */
     BROADCAST_EMAIL_QUEUE: broadcastEmailQueue,
+    /** Durable Object namespace for the AI judge-scheduling agent */
+    JUDGE_SCHEDULER_AGENT: judgeSchedulerAgent,
 
     // App configuration
     // biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time
