@@ -7,15 +7,13 @@
  */
 
 import { createFileRoute, redirect } from "@tanstack/react-router"
+import { RevenueStatsDisplay } from "@/routes/compete/organizer/$competitionId/-components/revenue-stats-display"
 import {
   getCompetitionRevenueStatsFn,
   getOrganizerStripeStatusFn,
 } from "@/server-fns/commerce-fns"
-import { RevenueStatsDisplay } from "@/routes/compete/organizer/$competitionId/-components/revenue-stats-display"
 
-export const Route = createFileRoute(
-  "/compete/cohost/$competitionId/revenue",
-)({
+export const Route = createFileRoute("/compete/cohost/$competitionId/revenue")({
   staleTime: 10_000,
   loader: async ({ params, parentMatchPromise }) => {
     const parentMatch = await parentMatchPromise
@@ -31,8 +29,19 @@ export const Route = createFileRoute(
 
     // Parallel fetch: revenue stats and stripe status
     const [revenueResult, stripeResult] = await Promise.all([
-      getCompetitionRevenueStatsFn({ data: { competitionId: competition.id } })
-        .catch(() => ({ stats: { totalGrossCents: 0, totalPlatformFeeCents: 0, totalStripeFeeCents: 0, totalOrganizerNetCents: 0, purchaseCount: 0, byDivision: [] } })),
+      getCompetitionRevenueStatsFn({
+        data: { competitionId: competition.id },
+      }).catch(() => ({
+        stats: {
+          totalGrossCents: 0,
+          totalPlatformFeeCents: 0,
+          totalStripeFeeCents: 0,
+          totalOrganizerNetCents: 0,
+          totalRefundedCents: 0,
+          purchaseCount: 0,
+          byDivision: [],
+        },
+      })),
       getOrganizerStripeStatusFn({
         data: { organizingTeamId: competition.organizingTeamId },
       }).catch(() => ({ stripeStatus: null })),
