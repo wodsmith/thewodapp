@@ -169,22 +169,28 @@ function AthleteSettingsPage() {
   }
 
   const handleImperialHeightChange = () => {
-    const feet = Number.parseInt(localFeet) || 0
-    const inches = Number.parseInt(localInches) || 0
-    if (feet > 0 || inches > 0) {
-      const cm = feetInchesToCm(feet, inches)
-      form.setValue("heightCm", cm)
+    const feetStr = localFeet.trim()
+    const inchesStr = localInches.trim()
+    if (feetStr === "" && inchesStr === "") {
+      form.setValue("heightCm", undefined as unknown as number)
+      return
     }
+    const feet = Number.parseInt(feetStr) || 0
+    const inches = Number.parseInt(inchesStr) || 0
+    form.setValue("heightCm", feetInchesToCm(feet, inches))
   }
 
   const handleWeightChange = () => {
-    const weight = Number.parseInt(localWeight) || 0
-    if (weight > 0) {
-      if (preferredUnits === "imperial") {
-        form.setValue("weightKg", lbsToKg(weight))
-      } else {
-        form.setValue("weightKg", weight)
-      }
+    const weightStr = localWeight.trim()
+    if (weightStr === "") {
+      form.setValue("weightKg", undefined as unknown as number)
+      return
+    }
+    const weight = Number.parseInt(weightStr) || 0
+    if (preferredUnits === "imperial") {
+      form.setValue("weightKg", lbsToKg(weight))
+    } else {
+      form.setValue("weightKg", weight)
     }
   }
 

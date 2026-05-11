@@ -26,6 +26,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { safeHttpUrl } from "@/lib/safe-url"
 import { calculateProfileCompletion } from "@/lib/settings/profile-completion"
 import { getAthleteProfileDataFn } from "@/server-fns/athlete-profile-fns"
 import { isSameUTCDay } from "@/utils/date-utils"
@@ -664,8 +665,17 @@ function SponsorsSocial({
   sponsors: Sponsor[]
 }) {
   const social = athleteProfile?.social
+  const safeSocial = {
+    instagram: safeHttpUrl(social?.instagram),
+    facebook: safeHttpUrl(social?.facebook),
+    twitter: safeHttpUrl(social?.twitter),
+    tiktok: safeHttpUrl(social?.tiktok),
+  }
   const hasSocialLinks =
-    social?.facebook || social?.instagram || social?.twitter || social?.tiktok
+    safeSocial.instagram ||
+    safeSocial.facebook ||
+    safeSocial.twitter ||
+    safeSocial.tiktok
   const hasSponsors = sponsors && sponsors.length > 0
 
   return (
@@ -678,10 +688,10 @@ function SponsorsSocial({
         <CardContent>
           {hasSocialLinks ? (
             <div className="flex flex-wrap gap-3">
-              {social?.instagram && (
+              {safeSocial.instagram && (
                 <Button asChild variant="outline" size="sm">
                   <a
-                    href={social.instagram}
+                    href={safeSocial.instagram}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -690,10 +700,10 @@ function SponsorsSocial({
                   </a>
                 </Button>
               )}
-              {social?.facebook && (
+              {safeSocial.facebook && (
                 <Button asChild variant="outline" size="sm">
                   <a
-                    href={social.facebook}
+                    href={safeSocial.facebook}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -702,10 +712,10 @@ function SponsorsSocial({
                   </a>
                 </Button>
               )}
-              {social?.twitter && (
+              {safeSocial.twitter && (
                 <Button asChild variant="outline" size="sm">
                   <a
-                    href={social.twitter}
+                    href={safeSocial.twitter}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -714,10 +724,10 @@ function SponsorsSocial({
                   </a>
                 </Button>
               )}
-              {social?.tiktok && (
+              {safeSocial.tiktok && (
                 <Button asChild variant="outline" size="sm">
                   <a
-                    href={social.tiktok}
+                    href={safeSocial.tiktok}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -751,41 +761,45 @@ function SponsorsSocial({
         <CardContent>
           {hasSponsors ? (
             <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-              {sponsors.map((sponsor) => (
-                <div
-                  key={sponsor.id}
-                  className="border-muted flex flex-col items-center gap-2 rounded-lg border p-4 text-center"
-                >
-                  {sponsor.logoUrl ? (
-                    <img
-                      src={sponsor.logoUrl}
-                      alt={sponsor.name}
-                      className="h-16 w-auto object-contain"
-                    />
-                  ) : (
-                    <div className="flex h-16 items-center">
-                      <p className="font-semibold">{sponsor.name}</p>
-                    </div>
-                  )}
-                  {sponsor.website && (
-                    <Button
-                      asChild
-                      variant="link"
-                      size="sm"
-                      className="h-auto p-0"
-                    >
-                      <a
-                        href={sponsor.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs"
+              {sponsors.map((sponsor) => {
+                const safeLogo = safeHttpUrl(sponsor.logoUrl)
+                const safeWebsite = safeHttpUrl(sponsor.website)
+                return (
+                  <div
+                    key={sponsor.id}
+                    className="border-muted flex flex-col items-center gap-2 rounded-lg border p-4 text-center"
+                  >
+                    {safeLogo ? (
+                      <img
+                        src={safeLogo}
+                        alt={sponsor.name}
+                        className="h-16 w-auto object-contain"
+                      />
+                    ) : (
+                      <div className="flex h-16 items-center">
+                        <p className="font-semibold">{sponsor.name}</p>
+                      </div>
+                    )}
+                    {safeWebsite && (
+                      <Button
+                        asChild
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0"
                       >
-                        Visit Website
-                      </a>
-                    </Button>
-                  )}
-                </div>
-              ))}
+                        <a
+                          href={safeWebsite}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs"
+                        >
+                          Visit Website
+                        </a>
+                      </Button>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           ) : (
             <p className="text-muted-foreground text-sm">

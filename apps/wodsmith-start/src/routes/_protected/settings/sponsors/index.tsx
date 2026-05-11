@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { safeHttpUrl } from "@/lib/safe-url"
 import {
   createSponsorFn,
   deleteSponsorFn,
@@ -43,6 +44,7 @@ function SettingsSponsorsPage() {
   const [sponsors, setSponsors] = useState<Sponsor[]>(initialSponsors)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [editingSponsor, setEditingSponsor] = useState<Sponsor | null>(null)
+  const [deletingSponsor, setDeletingSponsor] = useState<Sponsor | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [formName, setFormName] = useState("")
@@ -127,15 +129,20 @@ function SettingsSponsorsPage() {
     }
   }
 
-  const handleDelete = async (sponsorId: string) => {
+  const handleDelete = async () => {
+    if (!deletingSponsor) return
+    setIsSubmitting(true)
     try {
-      await deleteSponsor({ data: { sponsorId } })
+      await deleteSponsor({ data: { sponsorId: deletingSponsor.id } })
       toast.success("Sponsor removed")
+      setDeletingSponsor(null)
       router.invalidate()
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to remove sponsor",
       )
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -198,31 +205,35 @@ function SettingsSponsorsPage() {
                     <p className="font-medium text-sm">{sponsor.name}</p>
                   )}
 
-                  {sponsor.website && (
-                    <Button
-                      asChild
-                      variant="link"
-                      size="sm"
-                      className="h-auto p-0"
-                    >
-                      <a
-                        href={sponsor.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs flex items-center gap-1"
+                  {(() => {
+                    const safeWebsite = safeHttpUrl(sponsor.website)
+                    return safeWebsite ? (
+                      <Button
+                        asChild
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0"
                       >
-                        <ExternalLink className="h-3 w-3" />
-                        Website
-                      </a>
-                    </Button>
-                  )}
+                        <a
+                          href={safeWebsite}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs flex items-center gap-1"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          Website
+                        </a>
+                      </Button>
+                    ) : null
+                  })()}
                 </div>
 
-                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                <div className="absolute top-2 right-2 flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity">
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8"
+                    aria-label={`Edit ${sponsor.name}`}
                     onClick={() => setEditingSponsor(sponsor)}
                   >
                     <Pencil className="h-4 w-4" />
@@ -231,7 +242,8 @@ function SettingsSponsorsPage() {
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-destructive hover:text-destructive"
-                    onClick={() => handleDelete(sponsor.id)}
+                    aria-label={`Remove ${sponsor.name}`}
+                    onClick={() => setDeletingSponsor(sponsor)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -285,6 +297,38 @@ function SettingsSponsorsPage() {
             </Button>
             <Button onClick={handleCreate} disabled={isSubmitting}>
               {isSubmitting ? "Adding..." : "Add Sponsor"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!deletingSponsor}
+        onOpenChange={(open) => !open && setDeletingSponsor(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove sponsor?</DialogTitle>
+            <DialogDescription>
+              {deletingSponsor
+                ? `This will remove "${deletingSponsor.name}" from your profile. You can add them back later.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeletingSponsor(null)}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Removing..." : "Remove"}
             </Button>
           </DialogFooter>
         </DialogContent>

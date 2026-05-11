@@ -627,10 +627,10 @@ describe('Sponsor Server Functions (TanStack)', () => {
       expect(result.sponsor.displayOrder).toBe(0)
     })
 
-    it('creates user sponsor', async () => {
+    it('creates user sponsor for the session user', async () => {
       const created = createSponsor({
         id: 'sponsor-1',
-        userId: 'user-1',
+        userId: 'test-user',
         competitionId: null,
         name: 'Athlete Sponsor',
         displayOrder: 0,
@@ -644,13 +644,24 @@ describe('Sponsor Server Functions (TanStack)', () => {
 
       const result = await createSponsorFn({
         data: {
-          userId: 'user-1',
+          userId: 'test-user',
           name: 'Athlete Sponsor',
         },
       })
 
-      expect(result.sponsor.userId).toBe('user-1')
+      expect(result.sponsor.userId).toBe('test-user')
       expect(result.sponsor.competitionId).toBeNull()
+    })
+
+    it('rejects user-sponsor creation when userId does not match session', async () => {
+      await expect(
+        createSponsorFn({
+          data: {
+            userId: 'someone-else',
+            name: 'Hijacked Sponsor',
+          },
+        }),
+      ).rejects.toThrow(/unauthorized/i)
     })
 
     it('creates sponsor with group assignment', async () => {
@@ -845,7 +856,7 @@ describe('Sponsor Server Functions (TanStack)', () => {
     it('updates logo URL', async () => {
       const existing = createSponsor({
         id: 'sponsor-1',
-        userId: 'user-1',
+        userId: 'test-user',
         competitionId: null,
         logoUrl: null,
       })
@@ -929,10 +940,10 @@ describe('Sponsor Server Functions (TanStack)', () => {
       expect(result.success).toBe(true)
     })
 
-    it('deletes user sponsor without permission check', async () => {
+    it('deletes user sponsor when session matches the owner', async () => {
       const existing = createSponsor({
         id: 'sponsor-1',
-        userId: 'user-1',
+        userId: 'test-user',
         competitionId: null,
       })
 
@@ -946,6 +957,21 @@ describe('Sponsor Server Functions (TanStack)', () => {
       })
 
       expect(result.success).toBe(true)
+    })
+
+    it('rejects deleting another user’s sponsor', async () => {
+      const existing = createSponsor({
+        id: 'sponsor-1',
+        userId: 'someone-else',
+        competitionId: null,
+      })
+
+      const whereMock = mockDb.getChainMock().where as any
+      whereMock.mockResolvedValueOnce([existing])
+
+      await expect(
+        deleteSponsorFn({ data: { sponsorId: 'sponsor-1' } }),
+      ).rejects.toThrow(/unauthorized/i)
     })
   })
 
