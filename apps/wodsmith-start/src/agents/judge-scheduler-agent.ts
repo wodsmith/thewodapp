@@ -29,7 +29,7 @@ import {
 const MODEL_ID = "gpt-4o-mini"
 const MAX_STEPS = 24
 
-const SYSTEM_PROMPT = `You are an assistant that drafts judge rotations for a single CrossFit-style competition workout.
+const SYSTEM_PROMPT = `You are an assistant that drafts judge rotations for a single Functional Fitness-style competition workout.
 
 Your goal: cover every (heat, lane) slot once with a judge from the available roster, while respecting their stated availability and credentials as soft preferences.
 

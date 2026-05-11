@@ -71,7 +71,7 @@ function createMockAssignment(
       teamName: null,
       user: {id: 'user-1', firstName: 'John', lastName: 'Doe'},
       division: {id: 'div-1', label: 'RX'},
-      affiliate: 'CrossFit Box',
+      affiliate: 'Functional Fitness Box',
     },
     ...overrides,
   }
@@ -198,7 +198,7 @@ describe('SchedulePageContent', () => {
               teamName: null,
               user: {id: 'user-1', firstName: 'John', lastName: 'Doe'},
               division: {id: 'div-1', label: 'RX'},
-              affiliate: 'CrossFit Box 1',
+              affiliate: 'Functional Fitness Box 1',
             },
           }),
           createMockAssignment({
@@ -233,7 +233,7 @@ describe('SchedulePageContent', () => {
       // Use getAllByText since there's mobile + desktop views
       expect(screen.getAllByText('John Doe').length).toBeGreaterThan(0)
       expect(screen.getAllByText('Team Alpha').length).toBeGreaterThan(0)
-      expect(screen.getAllByText('CrossFit Box 1').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('Functional Fitness Box 1').length).toBeGreaterThan(0)
       expect(screen.getAllByText('RX').length).toBeGreaterThan(0)
       expect(screen.getAllByText('Scaled').length).toBeGreaterThan(0)
     })
@@ -280,7 +280,7 @@ describe('SchedulePageContent', () => {
               teamName: null,
               user: {id: 'user-1', firstName: 'John', lastName: 'Doe'},
               division: {id: 'div-1', label: 'RX'},
-              affiliate: 'CrossFit Box',
+              affiliate: 'Functional Fitness Box',
             },
           }),
         ],
@@ -317,7 +317,7 @@ describe('SchedulePageContent', () => {
               teamName: null,
               user: {id: 'user-1', firstName: 'John', lastName: 'Doe'},
               division: {id: 'div-1', label: 'RX'},
-              affiliate: 'CrossFit Box',
+              affiliate: 'Functional Fitness Box',
             },
           }),
         ],
@@ -736,7 +736,7 @@ describe('SchedulePageContent', () => {
               teamName: null,
               user: {id: 'user-1', firstName: 'John', lastName: 'Doe'},
               division: {id: 'div-1', label: 'RX'},
-              affiliate: 'CrossFit ABC',
+              affiliate: 'Functional Fitness ABC',
             },
           }),
           createMockAssignment({
@@ -747,7 +747,7 @@ describe('SchedulePageContent', () => {
               teamName: null,
               user: {id: 'user-2', firstName: 'Jane', lastName: 'Smith'},
               division: {id: 'div-2', label: 'Scaled'},
-              affiliate: 'CrossFit XYZ',
+              affiliate: 'Functional Fitness XYZ',
             },
           }),
         ],
@@ -780,7 +780,7 @@ describe('SchedulePageContent', () => {
               teamName: null,
               user: {id: 'user-1', firstName: 'John', lastName: 'Doe'},
               division: {id: 'div-1', label: 'RX'},
-              affiliate: 'CrossFit ABC',
+              affiliate: 'Functional Fitness ABC',
             },
           }),
         ],

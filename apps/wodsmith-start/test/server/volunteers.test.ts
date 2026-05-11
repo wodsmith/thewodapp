@@ -281,7 +281,7 @@ describe('volunteer metadata parsing edge cases', () => {
           VOLUNTEER_ROLE_TYPES.JUDGE,
           VOLUNTEER_ROLE_TYPES.HEAD_JUDGE,
         ],
-        credentials: 'CrossFit L1 Judge, EMT Certified',
+        credentials: 'Functional Fitness L1 Judge, EMT Certified',
       }
       const membership = createMembership({
         roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
@@ -906,7 +906,7 @@ describe('volunteer invite metadata integration', () => {
       const acceptedDirectInvite: VolunteerMembershipMetadata = {
         ...directInvite,
         availability: VOLUNTEER_AVAILABILITY.ALL_DAY,
-        credentials: 'CrossFit L1',
+        credentials: 'Functional Fitness L1',
         availabilityNotes: 'Available both days',
       }
 

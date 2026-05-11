@@ -788,7 +788,7 @@ describe('Characterization tests - Current buggy behavior', () => {
 })
 
 describe('Integration test scenarios - Real competition examples', () => {
-  it('Scenario: CrossFit Open-style workout with multiple ties', () => {
+  it('Scenario: Functional Fitness Open-style workout with multiple ties', () => {
     // 10 athletes, 3 tie for 2nd place, 2 tie for 7th place
     const sortedScores = [
       {
@@ -2602,7 +2602,7 @@ describe('integration tests - complete leaderboard scenarios', () => {
     })
   })
 
-  describe('real-world CrossFit Open scenario', () => {
+  describe('real-world Functional Fitness Open scenario', () => {
     it('should rank Open-style workout with time cap and tiebreaks', () => {
       // Fran-style workout: 21-15-9 Thrusters and Pull-ups
       // Time cap: 10:00, Tiebreak at 21-15 (36 reps)
