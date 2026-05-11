@@ -65,16 +65,33 @@ interface ChampionshipRosterTableProps {
   /** Returns the row's invite status so the table can render the status
    *  pill ("Registered" for `accepted_paid`, "Invited" for `pending`,
    *  "Declined" when the athlete declined, "Not invited" when null).
-   *  Pending and accepted invites disable the row's checkbox; "declined"
-   *  is informational only — the organizer can re-issue. Without this,
-   *  the row would render as "Not invited" and let the organizer tick a
-   *  box that the parent silently drops. */
+   *  Only `accepted_paid` disables the row's checkbox — the athlete is
+   *  already registered, so re-sending would just spam them. `pending`
+   *  rows stay selectable so the organizer can resend the same claim
+   *  link with a refreshed expiration date (use case: opening earned
+   *  spots up to first-come-first-serve). `declined` is informational
+   *  and still selectable — the organizer can re-issue from scratch. */
   getInviteStatusForRow?: (row: RosterRow) => RowInviteStatus | null
   /** When provided the table renders an Actions column with a "Copy
    *  invite link" affordance. Returns the claim URL for the row, or
    *  null when the row has no live token (draft / not-yet-sent /
    *  terminal). */
   getInviteUrlForRow?: (row: RosterRow) => string | null
+  /** When provided the table renders an "Invited division" column.
+   *  Returns the championship-division label the row's athlete was
+   *  invited to, or null when no active invite exists. The same
+   *  athlete can map to a different championship division across
+   *  re-runs (the parent route honors per-source `divisionMappings`),
+   *  so the label is taken from the resolved invite — not the row's
+   *  source-division label. */
+  getInvitedDivisionLabelForRow?: (row: RosterRow) => string | null
+  /** Total number of times the invite has been emailed (1 = first
+   *  send, 2 = first resend, etc.). Returns null for rows with no
+   *  active invite or for drafts that haven't been dispatched yet.
+   *  When supplied, the status pill suffixes a "(N×)" tail for any
+   *  count >= 2 so the organizer can spot already-nudged athletes
+   *  without clicking into the Sent tab. */
+  getInviteSendCountForRow?: (row: RosterRow) => number | null
   /** ADR-0012 Phase 4: resolved per-(source, championship-division)
    *  allocation map. When supplied alongside `championshipDivisions`,
    *  the table renders a small "Allocates N to {Division}" banner per
@@ -357,7 +374,18 @@ function DivisionCell({ row }: { row: RosterRow }) {
   return <Badge variant="outline">{row.sourceDivisionLabel}</Badge>
 }
 
-function StatusPill({ status }: { status: RowInviteStatus | null }) {
+function StatusPill({
+  status,
+  sendCount,
+}: {
+  status: RowInviteStatus | null
+  sendCount?: number | null
+}) {
+  // Suffix the pill with "(N×)" only when the invite has been emailed
+  // more than once. The default state (one send) reads as just "Invited"
+  // — adding a "1×" everywhere would be visual noise without telling
+  // the organizer anything new.
+  const countSuffix = sendCount && sendCount >= 2 ? ` ${sendCount}×` : ""
   // `variant="outline"` for all — the default variant's `dark:bg-primary`
   // would otherwise paint over the colored tints in dark mode.
   if (status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID) {
@@ -376,7 +404,7 @@ function StatusPill({ status }: { status: RowInviteStatus | null }) {
         variant="outline"
         className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50"
       >
-        Invited
+        Invited{countSuffix}
       </Badge>
     )
   }
@@ -404,25 +432,25 @@ export function ChampionshipRosterTable({
   onToggleAll,
   getInviteStatusForRow,
   getInviteUrlForRow,
+  getInvitedDivisionLabelForRow,
+  getInviteSendCountForRow,
   allocationsBySourceByDivision,
   championshipDivisions,
 }: ChampionshipRosterTableProps) {
   const selectionEnabled =
     !!selectedKeys && !!onToggleSelection && !!onToggleAll
   const actionsEnabled = !!getInviteUrlForRow
+  const invitedDivisionColumnEnabled = !!getInvitedDivisionLabelForRow
   const inviteStatusFor = (r: RosterRow) => getInviteStatusForRow?.(r) ?? null
-  // "Already invited" gates the row's checkbox. Declined doesn't gate —
-  // the organizer can stage them again and re-issue. Pending and
-  // accepted_paid rows stay locked because the parent silently drops
-  // them on send.
-  const isInvited = (r: RosterRow) => {
-    const status = inviteStatusFor(r)
-    return (
-      status === COMPETITION_INVITE_STATUS.PENDING ||
-      status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID
-    )
-  }
-  const selectableRows = rows.filter((r) => !!r.athleteEmail && !isInvited(r))
+  // Only `accepted_paid` gates the row's checkbox — re-sending to a
+  // registered athlete is spam. `pending` stays selectable so the
+  // organizer can resend the same claim link with a refreshed
+  // expiration date (the send pipeline picks up the row via
+  // `alreadyActive` resolution `"resend"` and re-delivers the email
+  // without rotating the token). Declined is informational only.
+  const isLocked = (r: RosterRow) =>
+    inviteStatusFor(r) === COMPETITION_INVITE_STATUS.ACCEPTED_PAID
+  const selectableRows = rows.filter((r) => !!r.athleteEmail && !isLocked(r))
   const allSelected =
     selectionEnabled &&
     selectableRows.length > 0 &&
@@ -491,6 +519,11 @@ export function ChampionshipRosterTable({
                 <TableHead className="w-28 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   Status
                 </TableHead>
+                {invitedDivisionColumnEnabled ? (
+                  <TableHead className="w-32 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Invited division
+                  </TableHead>
+                ) : null}
                 {actionsEnabled ? (
                   <TableHead className="w-16 text-right">
                     <span className="sr-only">Actions</span>
@@ -502,9 +535,13 @@ export function ChampionshipRosterTable({
               {rows.map((row) => {
                 const rowKey = rosterRowKey(row)
                 const rowInviteStatus = inviteStatusFor(row)
-                const rowAlreadyInvited = isInvited(row)
+                const rowLocked = isLocked(row)
                 const rowSelectable =
-                  selectionEnabled && !!row.athleteEmail && !rowAlreadyInvited
+                  selectionEnabled && !!row.athleteEmail && !rowLocked
+                const rowResendHint =
+                  rowInviteStatus === COMPETITION_INVITE_STATUS.PENDING
+                    ? "Resend will redeliver the same link with a fresh expiration date"
+                    : undefined
                 return (
                   <TableRow key={rowKey}>
                     {selectionEnabled ? (
@@ -518,9 +555,9 @@ export function ChampionshipRosterTable({
                           aria-label={`Select ${row.athleteName}`}
                           title={
                             rowSelectable
-                              ? undefined
-                              : rowAlreadyInvited
-                                ? "Already invited"
+                              ? rowResendHint
+                              : rowLocked
+                                ? "Already registered"
                                 : "No email on file for this athlete"
                           }
                         />
@@ -539,8 +576,25 @@ export function ChampionshipRosterTable({
                       <RankCell placement={row.sourcePlacement} />
                     </TableCell>
                     <TableCell>
-                      <StatusPill status={rowInviteStatus} />
+                      <StatusPill
+                        status={rowInviteStatus}
+                        sendCount={getInviteSendCountForRow?.(row) ?? null}
+                      />
                     </TableCell>
+                    {invitedDivisionColumnEnabled ? (
+                      <TableCell>
+                        {(() => {
+                          const label = getInvitedDivisionLabelForRow?.(row)
+                          return label ? (
+                            <Badge variant="outline">{label}</Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              —
+                            </span>
+                          )
+                        })()}
+                      </TableCell>
+                    ) : null}
                     {actionsEnabled ? (
                       <TableCell className="text-right">
                         {(() => {
