@@ -95,7 +95,6 @@ import {
   TanStackStart,
   Workflow,
 } from "alchemy/cloudflare"
-import { GitHubComment } from "alchemy/github"
 import { CloudflareStateStore } from "alchemy/state"
 import {
   Branch as PlanetScaleBranch,
@@ -130,7 +129,6 @@ import { WebhookEndpoint } from "alchemy/stripe"
  */
 /**
  * Current stage name for conditional configuration.
- * PR stages are formatted as `pr-{number}` (e.g., `pr-42`).
  */
 const stage = process.env.STAGE ?? "dev"
 
@@ -162,7 +160,6 @@ const app = await alchemy("wodsmith", {
    * - "dev"     → Development database, no custom domain
    * - "staging" → Staging database, staging domain (if configured)
    * - "prod"    → Production database, wodsmith.com domain
-   * - "pr-42"   → PR preview with auto-generated workers.dev URL
    */
   stage,
 
@@ -227,20 +224,16 @@ const psOrg = process.env.PLANETSCALE_ORGANIZATION ?? "wodsmith"
  * - prod  → "main" (production branch, no Branch resource needed)
  * - dev   → branches off main
  * - demo  → branches off main (parallel to dev)
- * - pr-N  → uses "dev" branch directly (no per-PR branch creation)
  */
 const branchConfig: Record<string, { name: string; parent: string }> = {
   dev: { name: "dev", parent: "main" },
   demo: { name: "demo", parent: "main" },
 }
 
-const isPrStage = stage.startsWith("pr-")
 const psBranchName =
-  stage === "prod"
-    ? "main"
-    : (branchConfig[stage]?.name ?? (isPrStage ? "dev" : stage))
+  stage === "prod" ? "main" : (branchConfig[stage]?.name ?? stage)
 const psBranch =
-  stage === "prod" || isPrStage
+  stage === "prod"
     ? undefined
     : await PlanetScaleBranch(`ps-branch-${stage}`, {
         organization: psOrg,
@@ -446,21 +439,19 @@ const stripeWebhook = needsStripeWebhook
 /**
  * Determines the custom domain(s) for the current deployment stage.
  *
- * @param currentStage - The current deployment stage (e.g., "dev", "prod", "demo", "pr-42")
+ * @param currentStage - The current deployment stage (e.g., "dev", "prod", "demo")
  * @returns Array of domains for prod/demo stages, undefined for others (uses workers.dev)
  *
  * @remarks
  * Domain assignment logic:
  * - **prod**: Returns `["wodsmith.com"]` for production
  * - **demo**: Returns `["demo.wodsmith.com"]` for persistent staging/demo environment
- * - **pr-N**: Returns `undefined` to use auto-generated workers.dev subdomain (avoids DNS delays)
  * - **other**: Returns `undefined` to use auto-generated workers.dev subdomain
  *
  * @example
  * ```typescript
  * getDomains("prod")    // ["wodsmith.com"]
  * getDomains("demo")    // ["demo.wodsmith.com"]
- * getDomains("pr-42")   // undefined (uses workers.dev)
  * getDomains("staging") // undefined
  * getDomains("dev")     // undefined
  * ```
@@ -530,7 +521,6 @@ const broadcastEmailQueue = await Queue(`broadcast-email-queue-${stage}`, {
  * | dev         | `*.workers.dev`           | Auto-generated Cloudflare subdomain |
  * | demo        | `demo.wodsmith.com`       | Persistent staging/demo environment |
  * | prod        | `wodsmith.com`            | Custom domain with SSL              |
- * | pr-N        | `*.workers.dev`           | Auto-generated (avoids DNS delays)  |
  *
  * The `bindings` object makes Cloudflare resources available in your server code
  * via the `env` object. Types are automatically inferred and exported as `Env`.
@@ -694,7 +684,6 @@ const website = await TanStackStart("app", {
    * Domain assignment by environment:
    * - **prod**: `wodsmith.com` (production domain)
    * - **demo**: `demo.wodsmith.com` (persistent staging/demo environment)
-   * - **pr-N**: Auto-generated `*.workers.dev` subdomain (avoids DNS delays)
    * - **other**: Auto-generated `*.workers.dev` subdomain
    */
   domains: getDomains(stage),
@@ -705,51 +694,6 @@ const website = await TanStackStart("app", {
    */
   adopt: true,
 })
-
-/**
- * GitHub PR comment with preview URL for pull request deployments.
- *
- * When deploying from a pull request (PULL_REQUEST env var is set), this resource
- * creates or updates a comment on the PR with the preview deployment URL.
- * This provides immediate feedback to reviewers about where to test the changes.
- *
- * @remarks
- * **Environment variables required:**
- * - `PULL_REQUEST`: PR number (set by CI workflow)
- * - `GITHUB_SHA`: Commit SHA for display (optional, auto-detected in GitHub Actions)
- * - `GITHUB_TOKEN`: Token with `pull-requests: write` permission (auto-available in Actions)
- *
- * **Comment behavior:**
- * - Creates a new comment on first deployment
- * - Updates existing comment on subsequent deployments (idempotent)
- * - Comment includes preview URL, commit SHA, and deployment timestamp
- *
- * @see {@link https://alchemy.run/docs/github GitHub Integration Docs}
- */
-if (process.env.PULL_REQUEST) {
-  const prNumber = Number(process.env.PULL_REQUEST)
-  // Use default workers.dev URL to avoid DNS propagation delays
-  const previewUrl = `https://wodsmith-app-pr-${prNumber}.zacjones93.workers.dev`
-  const commitSha = process.env.GITHUB_SHA?.slice(0, 7) ?? "unknown"
-
-  await GitHubComment("preview-comment", {
-    owner: "wodsmith",
-    repository: "thewodapp",
-    issueNumber: prNumber,
-    body: `## 🚀 Preview Deployed
-
-**URL:** ${previewUrl}
-
-| Detail | Value |
-|--------|-------|
-| Commit | \`${commitSha}\` |
-| Stage | \`pr-${prNumber}\` |
-| Deployed | ${new Date().toISOString()} |
-
----
-_This comment is automatically updated on each push to this PR._`,
-  })
-}
 
 /**
  * Exported environment type for use throughout the application.
