@@ -90,7 +90,6 @@ import { Route as ProtectedWorkoutsWorkoutIdIndexRouteImport } from './routes/_p
 import { Route as ProtectedSettingsTeamsIndexRouteImport } from './routes/_protected/settings/teams/index'
 import { Route as ProtectedSettingsSponsorsIndexRouteImport } from './routes/_protected/settings/sponsors/index'
 import { Route as ProtectedSettingsSessionsIndexRouteImport } from './routes/_protected/settings/sessions/index'
-import { Route as ProtectedSettingsSecurityIndexRouteImport } from './routes/_protected/settings/security/index'
 import { Route as ProtectedSettingsProgrammingIndexRouteImport } from './routes/_protected/settings/programming/index'
 import { Route as ProtectedSettingsProfileIndexRouteImport } from './routes/_protected/settings/profile/index'
 import { Route as ProtectedSettingsOverviewIndexRouteImport } from './routes/_protected/settings/overview/index'
@@ -633,12 +632,6 @@ const ProtectedSettingsSessionsIndexRoute =
   ProtectedSettingsSessionsIndexRouteImport.update({
     id: '/sessions/',
     path: '/sessions/',
-    getParentRoute: () => ProtectedSettingsRoute,
-  } as any)
-const ProtectedSettingsSecurityIndexRoute =
-  ProtectedSettingsSecurityIndexRouteImport.update({
-    id: '/security/',
-    path: '/security/',
     getParentRoute: () => ProtectedSettingsRoute,
   } as any)
 const ProtectedSettingsProgrammingIndexRoute =
@@ -1488,7 +1481,6 @@ export interface FileRoutesByFullPath {
   '/settings/overview': typeof ProtectedSettingsOverviewIndexRoute
   '/settings/profile': typeof ProtectedSettingsProfileIndexRoute
   '/settings/programming': typeof ProtectedSettingsProgrammingIndexRoute
-  '/settings/security': typeof ProtectedSettingsSecurityIndexRoute
   '/settings/sessions': typeof ProtectedSettingsSessionsIndexRoute
   '/settings/sponsors': typeof ProtectedSettingsSponsorsIndexRoute
   '/settings/teams': typeof ProtectedSettingsTeamsIndexRoute
@@ -1679,7 +1671,6 @@ export interface FileRoutesByTo {
   '/settings/overview': typeof ProtectedSettingsOverviewIndexRoute
   '/settings/profile': typeof ProtectedSettingsProfileIndexRoute
   '/settings/programming': typeof ProtectedSettingsProgrammingIndexRoute
-  '/settings/security': typeof ProtectedSettingsSecurityIndexRoute
   '/settings/sessions': typeof ProtectedSettingsSessionsIndexRoute
   '/settings/sponsors': typeof ProtectedSettingsSponsorsIndexRoute
   '/settings/teams': typeof ProtectedSettingsTeamsIndexRoute
@@ -1877,7 +1868,6 @@ export interface FileRoutesById {
   '/_protected/settings/overview/': typeof ProtectedSettingsOverviewIndexRoute
   '/_protected/settings/profile/': typeof ProtectedSettingsProfileIndexRoute
   '/_protected/settings/programming/': typeof ProtectedSettingsProgrammingIndexRoute
-  '/_protected/settings/security/': typeof ProtectedSettingsSecurityIndexRoute
   '/_protected/settings/sessions/': typeof ProtectedSettingsSessionsIndexRoute
   '/_protected/settings/sponsors/': typeof ProtectedSettingsSponsorsIndexRoute
   '/_protected/settings/teams/': typeof ProtectedSettingsTeamsIndexRoute
@@ -2079,7 +2069,6 @@ export interface FileRouteTypes {
     | '/settings/overview'
     | '/settings/profile'
     | '/settings/programming'
-    | '/settings/security'
     | '/settings/sessions'
     | '/settings/sponsors'
     | '/settings/teams'
@@ -2270,7 +2259,6 @@ export interface FileRouteTypes {
     | '/settings/overview'
     | '/settings/profile'
     | '/settings/programming'
-    | '/settings/security'
     | '/settings/sessions'
     | '/settings/sponsors'
     | '/settings/teams'
@@ -2467,7 +2455,6 @@ export interface FileRouteTypes {
     | '/_protected/settings/overview/'
     | '/_protected/settings/profile/'
     | '/_protected/settings/programming/'
-    | '/_protected/settings/security/'
     | '/_protected/settings/sessions/'
     | '/_protected/settings/sponsors/'
     | '/_protected/settings/teams/'
@@ -3138,13 +3125,6 @@ declare module '@tanstack/react-router' {
       path: '/sessions'
       fullPath: '/settings/sessions'
       preLoaderRoute: typeof ProtectedSettingsSessionsIndexRouteImport
-      parentRoute: typeof ProtectedSettingsRoute
-    }
-    '/_protected/settings/security/': {
-      id: '/_protected/settings/security/'
-      path: '/security'
-      fullPath: '/settings/security'
-      preLoaderRoute: typeof ProtectedSettingsSecurityIndexRouteImport
       parentRoute: typeof ProtectedSettingsRoute
     }
     '/_protected/settings/programming/': {
@@ -4011,7 +3991,6 @@ interface ProtectedSettingsRouteChildren {
   ProtectedSettingsOverviewIndexRoute: typeof ProtectedSettingsOverviewIndexRoute
   ProtectedSettingsProfileIndexRoute: typeof ProtectedSettingsProfileIndexRoute
   ProtectedSettingsProgrammingIndexRoute: typeof ProtectedSettingsProgrammingIndexRoute
-  ProtectedSettingsSecurityIndexRoute: typeof ProtectedSettingsSecurityIndexRoute
   ProtectedSettingsSessionsIndexRoute: typeof ProtectedSettingsSessionsIndexRoute
   ProtectedSettingsSponsorsIndexRoute: typeof ProtectedSettingsSponsorsIndexRoute
   ProtectedSettingsTeamsIndexRoute: typeof ProtectedSettingsTeamsIndexRoute
@@ -4029,7 +4008,6 @@ const ProtectedSettingsRouteChildren: ProtectedSettingsRouteChildren = {
   ProtectedSettingsProfileIndexRoute: ProtectedSettingsProfileIndexRoute,
   ProtectedSettingsProgrammingIndexRoute:
     ProtectedSettingsProgrammingIndexRoute,
-  ProtectedSettingsSecurityIndexRoute: ProtectedSettingsSecurityIndexRoute,
   ProtectedSettingsSessionsIndexRoute: ProtectedSettingsSessionsIndexRoute,
   ProtectedSettingsSponsorsIndexRoute: ProtectedSettingsSponsorsIndexRoute,
   ProtectedSettingsTeamsIndexRoute: ProtectedSettingsTeamsIndexRoute,

@@ -5,7 +5,6 @@ import {
   Calendar,
   CreditCard,
   LayoutDashboard,
-  Lock,
   LogOut,
   Medal,
   Palette,
@@ -57,7 +56,6 @@ const navGroups: SidebarNavGroup[] = [
   {
     label: "Account",
     items: [
-      { title: "Security", href: "/settings/security", icon: Lock },
       { title: "Sessions", href: "/settings/sessions", icon: Smartphone },
       { title: "Billing", href: "/settings/billing", icon: CreditCard },
     ],

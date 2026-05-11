@@ -50,13 +50,9 @@ describe("SettingsSidebar", () => {
     )
   })
 
-  it("renders Account group with Security, Sessions, Billing items", () => {
+  it("renders Account group with Sessions and Billing items", () => {
     render(<SettingsSidebar />)
     expect(screen.getByText("Account")).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: /security/i })).toHaveAttribute(
-      "href",
-      "/settings/security",
-    )
     expect(screen.getByRole("link", { name: /sessions/i })).toHaveAttribute(
       "href",
       "/settings/sessions",
@@ -64,6 +60,9 @@ describe("SettingsSidebar", () => {
     expect(
       screen.getByRole("link", { name: /billing/i }),
     ).toHaveAttribute("href", "/settings/billing")
+    expect(
+      screen.queryByRole("link", { name: /security/i }),
+    ).not.toBeInTheDocument()
   })
 
   it("conditionally shows Programming under Athlete when hasWorkoutTracking", () => {
