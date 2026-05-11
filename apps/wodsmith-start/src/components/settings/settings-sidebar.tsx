@@ -1,7 +1,17 @@
 "use client"
 
 import { Link, useLocation } from "@tanstack/react-router"
-import { Calendar, Lock, LogOut, Smartphone, User, Users } from "lucide-react"
+import {
+  Calendar,
+  CreditCard,
+  LayoutDashboard,
+  LogOut,
+  Medal,
+  Palette,
+  Smartphone,
+  User,
+  Users,
+} from "lucide-react"
 import { useRef } from "react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import {
@@ -22,38 +32,41 @@ interface SidebarNavItem {
   icon: React.ComponentType<{ className?: string }>
 }
 
-const sidebarNavItems: SidebarNavItem[] = [
+interface SidebarNavGroup {
+  label: string
+  items: SidebarNavItem[]
+}
+
+const navGroups: SidebarNavGroup[] = [
   {
-    title: "Profile",
-    href: "/settings/profile",
-    icon: User,
+    label: "General",
+    items: [
+      { title: "Overview", href: "/settings/overview", icon: LayoutDashboard },
+      { title: "Profile", href: "/settings/profile", icon: User },
+      { title: "Appearance", href: "/settings/appearance", icon: Palette },
+    ],
   },
   {
-    title: "Teams",
-    href: "/settings/teams",
-    icon: Users,
+    label: "Athlete",
+    items: [
+      { title: "Athlete profile", href: "/settings/athlete", icon: Medal },
+      { title: "Teams", href: "/settings/teams", icon: Users },
+    ],
   },
   {
-    title: "Security",
-    href: "/settings/security",
-    icon: Lock,
-  },
-  {
-    title: "Sessions",
-    href: "/settings/sessions",
-    icon: Smartphone,
-  },
-  {
-    title: "Programming",
-    href: "/settings/programming",
-    icon: Calendar,
-  },
-  {
-    title: "Change Password",
-    href: "/forgot-password",
-    icon: Lock,
+    label: "Account",
+    items: [
+      { title: "Sessions", href: "/settings/sessions", icon: Smartphone },
+      { title: "Billing", href: "/settings/billing", icon: CreditCard },
+    ],
   },
 ]
+
+const programmingItem: SidebarNavItem = {
+  title: "Programming",
+  href: "/settings/programming",
+  icon: Calendar,
+}
 
 interface SettingsSidebarProps {
   hasWorkoutTracking?: boolean
@@ -64,33 +77,46 @@ export function SettingsSidebar({ hasWorkoutTracking }: SettingsSidebarProps) {
   const pathname = location.pathname
   const dialogCloseRef = useRef<HTMLButtonElement>(null)
 
-  const filteredNavItems = hasWorkoutTracking
-    ? sidebarNavItems
-    : sidebarNavItems.filter((item) => item.title !== "Programming")
+  const groups = hasWorkoutTracking
+    ? navGroups.map((g) =>
+        g.label === "Athlete"
+          ? { ...g, items: [...g.items, programmingItem] }
+          : g,
+      )
+    : navGroups
 
   const handleSignOut = async () => {
-    // Navigate to sign-out which triggers full page reload
     window.location.href = "/api/auth/sign-out"
   }
 
   return (
     <div className="w-full lg:w-auto whitespace-nowrap pb-2 overflow-x-auto">
-      <nav className="flex items-center lg:items-stretch min-w-full space-x-2 pb-2 lg:pb-0 lg:flex-col lg:space-x-0 lg:space-y-1">
-        {filteredNavItems.map((item) => (
-          <Link
-            key={item.href}
-            to={item.href}
-            className={cn(
-              buttonVariants({ variant: "ghost" }),
-              pathname.startsWith(item.href)
-                ? "bg-muted hover:bg-muted dark:text-foreground dark:hover:text-foreground/70"
-                : "hover:bg-transparent",
-              "justify-start hover:no-underline whitespace-nowrap",
-            )}
+      <nav className="flex items-stretch min-w-full gap-2 pb-2 lg:pb-0 lg:flex-col lg:gap-0 lg:space-y-4">
+        {groups.map((group) => (
+          <div
+            key={group.label}
+            className="flex items-center lg:flex-col lg:items-stretch gap-1 lg:gap-0 lg:space-y-1"
           >
-            <item.icon className="mr-2 h-4 w-4" />
-            {item.title}
-          </Link>
+            <div className="px-2 lg:px-3 pb-0 lg:pb-1.5 text-[10px] font-bold tracking-[0.18em] uppercase text-muted-foreground shrink-0">
+              {group.label}
+            </div>
+            {group.items.map((item) => (
+              <Link
+                key={item.href}
+                to={item.href}
+                className={cn(
+                  buttonVariants({ variant: "ghost" }),
+                  pathname.startsWith(item.href)
+                    ? "bg-muted hover:bg-muted dark:text-foreground dark:hover:text-foreground/70"
+                    : "hover:bg-transparent",
+                  "justify-start hover:no-underline whitespace-nowrap",
+                )}
+              >
+                <item.icon className="mr-2 h-4 w-4" />
+                {item.title}
+              </Link>
+            ))}
+          </div>
         ))}
 
         <Dialog>

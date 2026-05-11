@@ -1,6 +1,6 @@
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
+import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { ArrowLeft, ExternalLink, Pencil, Plus, Trash2 } from "lucide-react"
+import { ExternalLink, Pencil, Plus, Trash2 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { safeHttpUrl } from "@/lib/safe-url"
 import {
   createSponsorFn,
   deleteSponsorFn,
@@ -22,16 +23,12 @@ import {
   updateSponsorFn,
 } from "@/server-fns/sponsor-fns"
 
-export const Route = createFileRoute("/compete/athlete/sponsors/")({
-  component: AthleteSponsorsPage,
+export const Route = createFileRoute("/_protected/settings/sponsors/")({
+  component: SettingsSponsorsPage,
   loader: async () => {
     return await getSponsorsPageDataFn()
   },
 })
-
-// ============================================================================
-// Types
-// ============================================================================
 
 type Sponsor = {
   id: string
@@ -40,35 +37,28 @@ type Sponsor = {
   website: string | null
 }
 
-// ============================================================================
-// Component
-// ============================================================================
-
-function AthleteSponsorsPage() {
+function SettingsSponsorsPage() {
   const { sponsors: initialSponsors, userId } = Route.useLoaderData()
   const router = useRouter()
 
   const [sponsors, setSponsors] = useState<Sponsor[]>(initialSponsors)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [editingSponsor, setEditingSponsor] = useState<Sponsor | null>(null)
+  const [deletingSponsor, setDeletingSponsor] = useState<Sponsor | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Form state
   const [formName, setFormName] = useState("")
   const [formLogoUrl, setFormLogoUrl] = useState("")
   const [formWebsite, setFormWebsite] = useState("")
 
-  // Server functions
   const createSponsor = useServerFn(createSponsorFn)
   const updateSponsor = useServerFn(updateSponsorFn)
   const deleteSponsor = useServerFn(deleteSponsorFn)
 
-  // Sync state with props
   useEffect(() => {
     setSponsors(initialSponsors)
   }, [initialSponsors])
 
-  // Reset form when dialog opens/closes
   useEffect(() => {
     if (showAddDialog) {
       setFormName("")
@@ -90,7 +80,6 @@ function AthleteSponsorsPage() {
       toast.error("Sponsor name is required")
       return
     }
-
     setIsSubmitting(true)
     try {
       await createSponsor({
@@ -118,7 +107,6 @@ function AthleteSponsorsPage() {
       toast.error("Sponsor name is required")
       return
     }
-
     setIsSubmitting(true)
     try {
       await updateSponsor({
@@ -141,46 +129,44 @@ function AthleteSponsorsPage() {
     }
   }
 
-  const handleDelete = async (sponsorId: string) => {
+  const handleDelete = async () => {
+    if (!deletingSponsor) return
+    setIsSubmitting(true)
     try {
-      await deleteSponsor({ data: { sponsorId } })
+      await deleteSponsor({ data: { sponsorId: deletingSponsor.id } })
       toast.success("Sponsor removed")
+      setDeletingSponsor(null)
       router.invalidate()
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to remove sponsor",
       )
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8 pb-12">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button asChild variant="ghost" size="icon">
-            <Link to="/compete/athlete">
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold">My Sponsors</h1>
-            <p className="text-muted-foreground mt-1">
-              Manage your sponsors and partnerships
-            </p>
+    <div className="space-y-6 pb-12">
+      {/* Page header */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div className="text-xs font-bold tracking-[0.18em] uppercase text-primary mb-1.5">
+            Sponsors
           </div>
+          <h1 className="text-3xl font-mono font-bold tracking-tight">
+            Sponsors
+          </h1>
+          <p className="text-muted-foreground mt-1.5 max-w-2xl">
+            Supporting brands and partners. Shown on your public athlete page.
+          </p>
         </div>
-      </div>
-
-      {/* Add button */}
-      <div className="flex justify-end">
         <Button onClick={() => setShowAddDialog(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Add Sponsor
         </Button>
       </div>
 
-      {/* Sponsors grid */}
       {sponsors.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
@@ -219,32 +205,35 @@ function AthleteSponsorsPage() {
                     <p className="font-medium text-sm">{sponsor.name}</p>
                   )}
 
-                  {sponsor.website && (
-                    <Button
-                      asChild
-                      variant="link"
-                      size="sm"
-                      className="h-auto p-0"
-                    >
-                      <a
-                        href={sponsor.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs flex items-center gap-1"
+                  {(() => {
+                    const safeWebsite = safeHttpUrl(sponsor.website)
+                    return safeWebsite ? (
+                      <Button
+                        asChild
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0"
                       >
-                        <ExternalLink className="h-3 w-3" />
-                        Website
-                      </a>
-                    </Button>
-                  )}
+                        <a
+                          href={safeWebsite}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs flex items-center gap-1"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          Website
+                        </a>
+                      </Button>
+                    ) : null
+                  })()}
                 </div>
 
-                {/* Actions (show on hover) */}
-                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                <div className="absolute top-2 right-2 flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity">
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8"
+                    aria-label={`Edit ${sponsor.name}`}
                     onClick={() => setEditingSponsor(sponsor)}
                   >
                     <Pencil className="h-4 w-4" />
@@ -253,7 +242,8 @@ function AthleteSponsorsPage() {
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-destructive hover:text-destructive"
-                    onClick={() => handleDelete(sponsor.id)}
+                    aria-label={`Remove ${sponsor.name}`}
+                    onClick={() => setDeletingSponsor(sponsor)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -264,7 +254,6 @@ function AthleteSponsorsPage() {
         </div>
       )}
 
-      {/* Add Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent>
           <DialogHeader>
@@ -313,7 +302,38 @@ function AthleteSponsorsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
+      <Dialog
+        open={!!deletingSponsor}
+        onOpenChange={(open) => !open && setDeletingSponsor(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove sponsor?</DialogTitle>
+            <DialogDescription>
+              {deletingSponsor
+                ? `This will remove "${deletingSponsor.name}" from your profile. You can add them back later.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeletingSponsor(null)}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Removing..." : "Remove"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog
         open={!!editingSponsor}
         onOpenChange={(open) => !open && setEditingSponsor(null)}

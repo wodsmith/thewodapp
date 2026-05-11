@@ -1,11 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { ArrowLeft } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
-import { trackEvent } from "@/lib/posthog"
 import { AffiliateCombobox } from "@/components/registration/affiliate-combobox"
 import { Button } from "@/components/ui/button"
 import {
@@ -33,16 +31,13 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { GENDER_ENUM } from "@/db/schemas/users"
+import { trackEvent } from "@/lib/posthog"
 import {
   type AthleteProfileFormValues,
   athleteProfileExtendedSchema,
   getAthleteEditDataFn,
   updateAthleteExtendedProfileFn,
 } from "@/server-fns/athlete-profile-fns"
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
 
 type AthleteProfileData = AthleteProfileFormValues & {
   gender?: "male" | "female"
@@ -79,22 +74,14 @@ function lbsToKg(lbs: number): number {
   return Math.round(lbs / 2.205)
 }
 
-// ============================================================================
-// Route Definition
-// ============================================================================
-
-export const Route = createFileRoute("/compete/athlete/edit/")({
-  component: AthleteEditPage,
+export const Route = createFileRoute("/_protected/settings/athlete/")({
+  component: AthleteSettingsPage,
   loader: async () => {
     return await getAthleteEditDataFn()
   },
 })
 
-// ============================================================================
-// Component
-// ============================================================================
-
-function AthleteEditPage() {
+function AthleteSettingsPage() {
   const { user } = Route.useLoaderData()
   const navigate = useNavigate()
   const [isPending, setIsPending] = useState(false)
@@ -102,10 +89,8 @@ function AthleteEditPage() {
   const [localInches, setLocalInches] = useState<string>("")
   const [localWeight, setLocalWeight] = useState<string>("")
 
-  // Use useServerFn for client-side calls
   const updateProfile = useServerFn(updateAthleteExtendedProfileFn)
 
-  // Parse athlete profile JSON and merge with direct column fields
   const parsed = parseAthleteProfile(user.athleteProfile)
   const athleteProfile: AthleteProfileData = {
     ...parsed,
@@ -127,7 +112,6 @@ function AthleteEditPage() {
 
   const preferredUnits = form.watch("preferredUnits")
 
-  // Initialize local state from form values
   useEffect(() => {
     const heightCm = form.getValues("heightCm")
     const weightKg = form.getValues("weightKg")
@@ -148,7 +132,6 @@ function AthleteEditPage() {
     }
   }, [preferredUnits, form])
 
-  // Reset form only once on initial mount - athleteProfile comes from loader data
   const initialData = JSON.stringify(athleteProfile)
   useEffect(() => {
     const data = JSON.parse(initialData) as AthleteProfileData | null
@@ -171,7 +154,7 @@ function AthleteEditPage() {
       })
       toast.dismiss()
       toast.success("Profile updated successfully")
-      navigate({ to: "/compete/athlete" })
+      navigate({ to: "/settings/overview" })
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to update profile"
@@ -185,46 +168,47 @@ function AthleteEditPage() {
     }
   }
 
-  // Handle imperial height conversion
   const handleImperialHeightChange = () => {
-    const feet = Number.parseInt(localFeet) || 0
-    const inches = Number.parseInt(localInches) || 0
-    if (feet > 0 || inches > 0) {
-      const cm = feetInchesToCm(feet, inches)
-      form.setValue("heightCm", cm)
+    const feetStr = localFeet.trim()
+    const inchesStr = localInches.trim()
+    if (feetStr === "" && inchesStr === "") {
+      form.setValue("heightCm", undefined as unknown as number)
+      return
     }
+    const feet = Number.parseInt(feetStr) || 0
+    const inches = Number.parseInt(inchesStr) || 0
+    form.setValue("heightCm", feetInchesToCm(feet, inches))
   }
 
-  // Handle weight conversion
   const handleWeightChange = () => {
-    const weight = Number.parseInt(localWeight) || 0
-    if (weight > 0) {
-      if (preferredUnits === "imperial") {
-        form.setValue("weightKg", lbsToKg(weight))
-      } else {
-        form.setValue("weightKg", weight)
-      }
+    const weightStr = localWeight.trim()
+    if (weightStr === "") {
+      form.setValue("weightKg", undefined as unknown as number)
+      return
+    }
+    const weight = Number.parseInt(weightStr) || 0
+    if (preferredUnits === "imperial") {
+      form.setValue("weightKg", lbsToKg(weight))
+    } else {
+      form.setValue("weightKg", weight)
     }
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8 pb-12">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button asChild variant="ghost" size="icon">
-          <Link to="/compete/athlete">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold">Edit Athlete Profile</h1>
-          <p className="text-muted-foreground mt-1">
-            Update your competition profile information
-          </p>
+    <div className="space-y-6 pb-12">
+      {/* Page header */}
+      <div>
+        <div className="text-xs font-bold tracking-[0.18em] uppercase text-primary mb-1.5">
+          Athlete profile
         </div>
+        <h1 className="text-3xl font-mono font-bold tracking-tight leading-tight">
+          Athlete profile
+        </h1>
+        <p className="text-muted-foreground mt-1.5 max-w-2xl">
+          Required for competition registration and division placement.
+        </p>
       </div>
 
-      {/* Form */}
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           {/* Unit Preference */}
@@ -489,164 +473,47 @@ function AthleteEditPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Fran */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="conditioning.fran.time"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Fran</FormLabel>
-                      <FormControl>
-                        <Input placeholder="3:45" {...field} />
-                      </FormControl>
-                      <FormDescription>Format: MM:SS</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="conditioning.fran.date"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Date</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              {(
+                [
+                  ["fran", "Fran", "MM:SS", "3:45"],
+                  ["grace", "Grace", "MM:SS", "2:30"],
+                  ["helen", "Helen", "MM:SS", "8:30"],
+                  ["diane", "Diane", "MM:SS", "5:00"],
+                  ["murph", "Murph", "MM:SS or HH:MM:SS", "45:00"],
+                ] as const
+              ).map(([name, label, hint, ph]) => (
+                <div key={name} className="grid gap-4 sm:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name={`conditioning.${name}.time`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{label}</FormLabel>
+                        <FormControl>
+                          <Input placeholder={ph} {...field} />
+                        </FormControl>
+                        <FormDescription>Format: {hint}</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name={`conditioning.${name}.date`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Date</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              ))}
 
-              {/* Grace */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="conditioning.grace.time"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Grace</FormLabel>
-                      <FormControl>
-                        <Input placeholder="2:30" {...field} />
-                      </FormControl>
-                      <FormDescription>Format: MM:SS</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="conditioning.grace.date"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Date</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* Helen */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="conditioning.helen.time"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Helen</FormLabel>
-                      <FormControl>
-                        <Input placeholder="8:30" {...field} />
-                      </FormControl>
-                      <FormDescription>Format: MM:SS</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="conditioning.helen.date"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Date</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* Diane */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="conditioning.diane.time"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Diane</FormLabel>
-                      <FormControl>
-                        <Input placeholder="5:00" {...field} />
-                      </FormControl>
-                      <FormDescription>Format: MM:SS</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="conditioning.diane.date"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Date</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* Murph */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="conditioning.murph.time"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Murph</FormLabel>
-                      <FormControl>
-                        <Input placeholder="45:00" {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        Format: MM:SS or HH:MM:SS
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="conditioning.murph.date"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Date</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* Max Cindy Rounds */}
+              {/* Cindy */}
               <div className="grid gap-4 sm:grid-cols-2">
                 <FormField
                   control={form.control}
@@ -688,129 +555,44 @@ function AthleteEditPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* 2K Row */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="conditioning.row2k.time"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>2K Row Time</FormLabel>
-                      <FormControl>
-                        <Input placeholder="7:30" {...field} />
-                      </FormControl>
-                      <FormDescription>Format: MM:SS</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="conditioning.row2k.date"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Date</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* 1 Mile Run */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="conditioning.run1Mile.time"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>1 Mile Run Time</FormLabel>
-                      <FormControl>
-                        <Input placeholder="6:30" {...field} />
-                      </FormControl>
-                      <FormDescription>Format: MM:SS</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="conditioning.run1Mile.date"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Date</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* 5K Run */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="conditioning.run5k.time"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>5K Run Time</FormLabel>
-                      <FormControl>
-                        <Input placeholder="22:30" {...field} />
-                      </FormControl>
-                      <FormDescription>Format: MM:SS</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="conditioning.run5k.date"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Date</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* 500m Row */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="conditioning.row500m.time"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>500m Row Time</FormLabel>
-                      <FormControl>
-                        <Input placeholder="1:30" {...field} />
-                      </FormControl>
-                      <FormDescription>Format: MM:SS</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="conditioning.row500m.date"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Date</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              {(
+                [
+                  ["row2k", "2K Row Time", "MM:SS", "7:30"],
+                  ["run1Mile", "1 Mile Run Time", "MM:SS", "6:30"],
+                  ["run5k", "5K Run Time", "MM:SS", "22:30"],
+                  ["row500m", "500m Row Time", "MM:SS", "1:30"],
+                ] as const
+              ).map(([name, label, hint, ph]) => (
+                <div key={name} className="grid gap-4 sm:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name={`conditioning.${name}.time`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{label}</FormLabel>
+                        <FormControl>
+                          <Input placeholder={ph} {...field} />
+                        </FormControl>
+                        <FormDescription>Format: {hint}</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name={`conditioning.${name}.date`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Date</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              ))}
 
               {/* Max Pull-ups */}
               <div className="grid gap-4 sm:grid-cols-2">
@@ -943,73 +725,39 @@ function AthleteEditPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="social.instagram"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Instagram</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="https://instagram.com/yourhandle"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="social.facebook"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Facebook</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="https://facebook.com/yourpage"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="social.twitter"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Twitter/X</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="https://twitter.com/yourhandle"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="social.tiktok"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>TikTok</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="https://tiktok.com/@yourhandle"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {(
+                [
+                  ["instagram", "Instagram", "https://instagram.com/yourhandle"],
+                  ["facebook", "Facebook", "https://facebook.com/yourpage"],
+                  ["twitter", "Twitter/X", "https://twitter.com/yourhandle"],
+                  ["tiktok", "TikTok", "https://tiktok.com/@yourhandle"],
+                ] as const
+              ).map(([name, label, ph]) => (
+                <FormField
+                  key={name}
+                  control={form.control}
+                  name={`social.${name}`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{label}</FormLabel>
+                      <FormControl>
+                        <Input placeholder={ph} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ))}
+              <p className="text-sm text-muted-foreground">
+                Manage sponsors on the{" "}
+                <Link
+                  to="/settings/sponsors"
+                  className="text-primary font-medium hover:underline"
+                >
+                  Sponsors page
+                </Link>
+                .
+              </p>
             </CardContent>
           </Card>
 
@@ -1018,7 +766,7 @@ function AthleteEditPage() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => navigate({ to: "/compete/athlete" })}
+              onClick={() => navigate({ to: "/settings/overview" })}
               disabled={isPending}
             >
               Cancel

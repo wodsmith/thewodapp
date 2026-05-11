@@ -1,20 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
-import { ArrowLeft, ChevronRight, FileText, Receipt } from "lucide-react"
+import { ChevronRight, FileText, Receipt } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { getAthleteInvoicesDataFn } from "@/server-fns/athlete-profile-fns"
 
-export const Route = createFileRoute("/compete/athlete/invoices/")({
-  component: InvoicesPage,
+export const Route = createFileRoute("/_protected/settings/billing/")({
+  component: SettingsBillingPage,
   loader: async () => {
     return await getAthleteInvoicesDataFn()
   },
 })
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
 
 function formatCurrency(cents: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -46,10 +41,6 @@ function getStatusBadge(status: string) {
       return <Badge variant="outline">{status}</Badge>
   }
 }
-
-// ============================================================================
-// Component
-// ============================================================================
 
 /**
  * Group purchases by checkout session so multi-division registrations
@@ -84,23 +75,23 @@ function groupByInvoice(
   return [...groups.values(), ...standalone]
 }
 
-function InvoicesPage() {
+function SettingsBillingPage() {
   const { purchases } = Route.useLoaderData()
   const invoices = groupByInvoice(purchases)
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 pb-12">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link to="/compete/athlete">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        </Button>
-        <div className="flex items-center gap-2">
-          <Receipt className="h-6 w-6" />
-          <h1 className="font-bold text-2xl">Invoices</h1>
+    <div className="space-y-6 pb-12">
+      {/* Page header */}
+      <div>
+        <div className="text-xs font-bold tracking-[0.18em] uppercase text-primary mb-1.5">
+          Billing
         </div>
+        <h1 className="text-3xl font-mono font-bold tracking-tight">
+          Billing &amp; invoices
+        </h1>
+        <p className="text-muted-foreground mt-1.5 max-w-2xl">
+          Receipts for every comp registration & gym subscription.
+        </p>
       </div>
 
       {invoices.length === 0 ? (
@@ -119,7 +110,7 @@ function InvoicesPage() {
           {invoices.map(({ primary: purchase, totalCents }) => (
             <Link
               key={purchase.id}
-              to="/compete/athlete/invoices/$purchaseId"
+              to="/settings/billing/$purchaseId"
               params={{ purchaseId: purchase.id }}
             >
               <Card className="transition-colors hover:bg-muted/50">
