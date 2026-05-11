@@ -7,12 +7,15 @@
 
 import { redirect } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
-import { eq } from "drizzle-orm"
+import { and, eq, inArray, ne } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
   commercePurchaseTable,
+  competitionRegistrationsTable,
+  REGISTRATION_STATUS,
   teamInvitationTable,
+  teamMembershipTable,
   userTable,
 } from "@/db/schema"
 import { GENDER_ENUM } from "@/db/schemas/users"
@@ -21,6 +24,7 @@ import {
   getInvoiceDetails,
   getUserPurchases,
 } from "@/server/commerce/purchases"
+import { getUserSponsorsFn } from "@/server-fns/sponsor-fns"
 import { getSessionFromCookie } from "@/utils/auth"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 
@@ -268,6 +272,112 @@ export const updateAthleteBasicProfileFn = createServerFn({ method: "POST" })
 
     return { success: true }
   })
+
+/**
+ * Get athlete profile page data (full profile with sponsors + competition history)
+ */
+export const getAthleteProfileDataFn = createServerFn({
+  method: "GET",
+}).handler(async () => {
+  const session = await getSessionFromCookie()
+  if (!session) {
+    throw redirect({
+      to: "/sign-in",
+      search: { redirect: "/settings/overview" },
+    })
+  }
+
+  const db = getDb()
+
+  const user = await db.query.userTable.findFirst({
+    where: eq(userTable.id, session.userId),
+    columns: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      avatar: true,
+      gender: true,
+      dateOfBirth: true,
+      athleteProfile: true,
+      affiliateName: true,
+    },
+  })
+
+  if (!user) {
+    throw redirect({
+      to: "/sign-in",
+      search: { redirect: "/settings/overview" },
+    })
+  }
+
+  const sponsorsResult = await getUserSponsorsFn({
+    data: { userId: session.userId },
+  })
+
+  const directRegistrations =
+    await db.query.competitionRegistrationsTable.findMany({
+      where: and(
+        eq(competitionRegistrationsTable.userId, session.userId),
+        ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+      ),
+      with: {
+        competition: { with: { organizingTeam: true } },
+        division: true,
+        athleteTeam: true,
+      },
+      orderBy: (table, { desc }) => [desc(table.registeredAt)],
+    })
+
+  const userTeamMemberships = await db.query.teamMembershipTable.findMany({
+    where: and(
+      eq(teamMembershipTable.userId, session.userId),
+      eq(teamMembershipTable.isActive, true),
+    ),
+    columns: { teamId: true },
+  })
+
+  const userTeamIds = userTeamMemberships.map((m) => m.teamId)
+
+  const teamRegistrations =
+    userTeamIds.length > 0
+      ? await db.query.competitionRegistrationsTable.findMany({
+          where: and(
+            inArray(competitionRegistrationsTable.athleteTeamId, userTeamIds),
+            ne(
+              competitionRegistrationsTable.status,
+              REGISTRATION_STATUS.REMOVED,
+            ),
+          ),
+          with: {
+            competition: { with: { organizingTeam: true } },
+            division: true,
+            athleteTeam: true,
+          },
+          orderBy: (table, { desc }) => [desc(table.registeredAt)],
+        })
+      : []
+
+  const allRegistrations = [...directRegistrations, ...teamRegistrations]
+  const seenIds = new Set<string>()
+  const competitionHistory = allRegistrations
+    .filter((reg) => {
+      if (seenIds.has(reg.id)) return false
+      seenIds.add(reg.id)
+      return true
+    })
+    .sort((a, b) => {
+      const aDate = new Date(a.registeredAt).getTime()
+      const bDate = new Date(b.registeredAt).getTime()
+      return bDate - aDate
+    })
+
+  return {
+    user,
+    sponsors: sponsorsResult.sponsors,
+    competitionHistory,
+  }
+})
 
 /**
  * Get athlete invoices data
