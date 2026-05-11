@@ -110,7 +110,7 @@ function SettingsBillingPage() {
           {invoices.map(({ primary: purchase, totalCents }) => (
             <Link
               key={purchase.id}
-              to="/compete/athlete/invoices/$purchaseId"
+              to="/settings/billing/$purchaseId"
               params={{ purchaseId: purchase.id }}
             >
               <Card className="transition-colors hover:bg-muted/50">

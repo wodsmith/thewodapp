@@ -44,7 +44,7 @@ export default function CompeteNav({ session, canOrganize }: CompeteNavProps) {
               )}
               <div className="mx-2 h-6 border-black border-l-2 dark:border-dark-border" />
               <a
-                href="/compete/athlete"
+                href="/settings/overview"
                 className="font-bold text-foreground dark:text-dark-foreground"
               >
                 <User className="h-5 w-5" />

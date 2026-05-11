@@ -1,7 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { ExternalLink } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -192,24 +191,16 @@ function AthleteSettingsPage() {
   return (
     <div className="space-y-6 pb-12">
       {/* Page header */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <div className="text-xs font-bold tracking-[0.18em] uppercase text-primary mb-1.5">
-            Athlete profile
-          </div>
-          <h1 className="text-3xl font-mono font-bold tracking-tight leading-tight">
-            Athlete profile
-          </h1>
-          <p className="text-muted-foreground mt-1.5 max-w-2xl">
-            Required for competition registration and division placement.
-          </p>
+      <div>
+        <div className="text-xs font-bold tracking-[0.18em] uppercase text-primary mb-1.5">
+          Athlete profile
         </div>
-        <Button asChild variant="outline">
-          <Link to="/compete/athlete">
-            <ExternalLink className="h-4 w-4 mr-2" />
-            View public profile
-          </Link>
-        </Button>
+        <h1 className="text-3xl font-mono font-bold tracking-tight leading-tight">
+          Athlete profile
+        </h1>
+        <p className="text-muted-foreground mt-1.5 max-w-2xl">
+          Required for competition registration and division placement.
+        </p>
       </div>
 
       <Form {...form}>

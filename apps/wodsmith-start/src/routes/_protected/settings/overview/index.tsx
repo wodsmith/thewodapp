@@ -1,7 +1,7 @@
 "use client"
 
 import { createFileRoute, Link } from "@tanstack/react-router"
-import { ArrowRight, Calendar, Check, ExternalLink, Mail, Pencil } from "lucide-react"
+import { ArrowRight, Calendar, Check, Mail, Pencil } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -131,20 +131,12 @@ function SettingsOverviewPage() {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" asChild>
-              <Link to="/compete/athlete">
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Public profile
-              </Link>
-            </Button>
-            <Button asChild>
-              <Link to="/settings/athlete">
-                <Pencil className="h-4 w-4 mr-2" />
-                Edit athlete
-              </Link>
-            </Button>
-          </div>
+          <Button asChild>
+            <Link to="/settings/athlete">
+              <Pencil className="h-4 w-4 mr-2" />
+              Edit athlete
+            </Link>
+          </Button>
         </CardContent>
       </Card>
 

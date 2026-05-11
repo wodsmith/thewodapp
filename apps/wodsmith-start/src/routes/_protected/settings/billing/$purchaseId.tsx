@@ -19,7 +19,7 @@ const searchSchema = z.object({
   returnTo: z.string().startsWith("/").optional(),
 })
 
-export const Route = createFileRoute("/compete/athlete/invoices/$purchaseId")({
+export const Route = createFileRoute("/_protected/settings/billing/$purchaseId")({
   component: InvoiceDetailPage,
   validateSearch: (search) => searchSchema.parse(search),
   loader: async ({ params }) => {
@@ -122,7 +122,7 @@ function InvoiceDetailPage() {
   )
 
   // Default back to invoices list if no returnTo specified
-  const backLink = returnTo || "/compete/athlete/invoices"
+  const backLink = returnTo || "/settings/billing"
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 pb-12">

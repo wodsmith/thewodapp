@@ -185,7 +185,7 @@ export default function CompeteMobileNav({
                 </>
               )}
               <a
-                href="/compete/athlete"
+                href="/settings/overview"
                 className="hover:text-primary"
                 onClick={handleLinkClick}
               >
