@@ -1856,11 +1856,14 @@ export const getBatchVenuesForTrackWorkoutsFn = createServerFn({ method: "GET" }
       .where(inArray(competitionHeatsTable.trackWorkoutId, trackWorkoutIds))
       .orderBy(asc(competitionHeatsTable.heatNumber))
 
+    const seenWorkouts = new Set<string>()
     const firstVenueByWorkout = new Map<string, string>()
     for (const heat of heats) {
-      if (firstVenueByWorkout.has(heat.trackWorkoutId)) continue
-      if (!heat.venueId) continue
-      firstVenueByWorkout.set(heat.trackWorkoutId, heat.venueId)
+      if (seenWorkouts.has(heat.trackWorkoutId)) continue
+      seenWorkouts.add(heat.trackWorkoutId)
+      if (heat.venueId) {
+        firstVenueByWorkout.set(heat.trackWorkoutId, heat.venueId)
+      }
     }
 
     const venueIds = [...new Set(firstVenueByWorkout.values())]
