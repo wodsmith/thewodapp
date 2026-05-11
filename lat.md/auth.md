@@ -14,6 +14,10 @@ Session tokens stored as HTTP-only cookies. The `/api/get-session` endpoint vali
 
 Session management functions live in `src/server-fns/session-fns.ts`. Auth middleware in `src/server-fns/middleware/` wraps server functions to require authentication.
 
+### Per-request session cache
+
+`getSessionFromCookie()` is memoized per HTTP request via `AsyncLocalStorage` so multiple calls within the same request lifecycle (e.g. handler + nested `requireTeamPermission`) share a single KV read. The `withSessionCache` wrapper is applied once at the fetch boundary in [[apps/wodsmith-start/src/server.ts]], and during SSR it deduplicates the session lookup across all loaders/server fns running in one request. See [[apps/wodsmith-start/src/utils/auth.ts#getSessionFromCookie]].
+
 ## Authorization
 
 Route-level auth is enforced by the `_protected` layout route. Server function auth uses middleware that validates the session and injects the current user.

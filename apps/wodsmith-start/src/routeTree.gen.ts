@@ -79,19 +79,20 @@ import { Route as CompeteOrganizerOnboardIndexRouteImport } from './routes/compe
 import { Route as CompeteOrganizerDashboardIndexRouteImport } from './routes/compete/organizer/_dashboard/index'
 import { Route as CompeteOrganizerCompetitionIdIndexRouteImport } from './routes/compete/organizer/$competitionId/index'
 import { Route as CompeteCohostCompetitionIdIndexRouteImport } from './routes/compete/cohost/$competitionId/index'
-import { Route as CompeteAthleteSponsorsIndexRouteImport } from './routes/compete/athlete/sponsors/index'
-import { Route as CompeteAthleteInvoicesIndexRouteImport } from './routes/compete/athlete/invoices/index'
-import { Route as CompeteAthleteEditIndexRouteImport } from './routes/compete/athlete/edit/index'
 import { Route as CompeteSlugWorkoutsIndexRouteImport } from './routes/compete/$slug/workouts/index'
 import { Route as AdminTeamsScheduleIndexRouteImport } from './routes/admin/teams/schedule/index'
 import { Route as AdminTeamsTeamIdIndexRouteImport } from './routes/admin/teams/$teamId/index'
 import { Route as ProtectedWorkoutsNewIndexRouteImport } from './routes/_protected/workouts/new/index'
 import { Route as ProtectedWorkoutsWorkoutIdIndexRouteImport } from './routes/_protected/workouts/$workoutId/index'
 import { Route as ProtectedSettingsTeamsIndexRouteImport } from './routes/_protected/settings/teams/index'
+import { Route as ProtectedSettingsSponsorsIndexRouteImport } from './routes/_protected/settings/sponsors/index'
 import { Route as ProtectedSettingsSessionsIndexRouteImport } from './routes/_protected/settings/sessions/index'
-import { Route as ProtectedSettingsSecurityIndexRouteImport } from './routes/_protected/settings/security/index'
 import { Route as ProtectedSettingsProgrammingIndexRouteImport } from './routes/_protected/settings/programming/index'
 import { Route as ProtectedSettingsProfileIndexRouteImport } from './routes/_protected/settings/profile/index'
+import { Route as ProtectedSettingsOverviewIndexRouteImport } from './routes/_protected/settings/overview/index'
+import { Route as ProtectedSettingsBillingIndexRouteImport } from './routes/_protected/settings/billing/index'
+import { Route as ProtectedSettingsAthleteIndexRouteImport } from './routes/_protected/settings/athlete/index'
+import { Route as ProtectedSettingsAppearanceIndexRouteImport } from './routes/_protected/settings/appearance/index'
 import { Route as ProtectedProgrammingSubscriptionsIndexRouteImport } from './routes/_protected/programming/subscriptions/index'
 import { Route as ProtectedProgrammingTrackIdIndexRouteImport } from './routes/_protected/programming/$trackId/index'
 import { Route as ProtectedMovementsNewIndexRouteImport } from './routes/_protected/movements/new/index'
@@ -138,7 +139,6 @@ import { Route as CompeteCohostCompetitionIdLeaderboardPreviewRouteImport } from
 import { Route as CompeteCohostCompetitionIdDivisionsRouteImport } from './routes/compete/cohost/$competitionId/divisions'
 import { Route as CompeteCohostCompetitionIdCouponsRouteImport } from './routes/compete/cohost/$competitionId/coupons'
 import { Route as CompeteCohostCompetitionIdAthletesRouteImport } from './routes/compete/cohost/$competitionId/athletes'
-import { Route as CompeteAthleteInvoicesPurchaseIdRouteImport } from './routes/compete/athlete/invoices/$purchaseId'
 import { Route as CompeteSlugWorkoutsEventIdRouteImport } from './routes/compete/$slug/workouts/$eventId'
 import { Route as CompeteSlugRegisterSuccessRouteImport } from './routes/compete/$slug/register/success'
 import { Route as CompeteSlugClaimTokenRouteImport } from './routes/compete/$slug/claim/$token'
@@ -157,6 +157,7 @@ import { Route as AdminTeamsScheduleGenerateRouteImport } from './routes/admin/t
 import { Route as AdminTeamsScheduleCoachesRouteImport } from './routes/admin/teams/schedule/coaches'
 import { Route as AdminTeamsScheduleClassesRouteImport } from './routes/admin/teams/schedule/classes'
 import { Route as AdminTeamsTeamIdSchedulingRouteImport } from './routes/admin/teams/$teamId/scheduling'
+import { Route as ProtectedSettingsBillingPurchaseIdRouteImport } from './routes/_protected/settings/billing/$purchaseId'
 import { Route as CompeteOrganizerSeriesGroupIdIndexRouteImport } from './routes/compete/organizer/series/$groupId/index'
 import { Route as CompeteOrganizerDashboardSeriesIndexRouteImport } from './routes/compete/organizer/_dashboard/series/index'
 import { Route as CompeteOrganizerCompetitionIdInvitesIndexRouteImport } from './routes/compete/organizer/$competitionId/invites/index'
@@ -567,23 +568,6 @@ const CompeteCohostCompetitionIdIndexRoute =
     path: '/',
     getParentRoute: () => CompeteCohostCompetitionIdRoute,
   } as any)
-const CompeteAthleteSponsorsIndexRoute =
-  CompeteAthleteSponsorsIndexRouteImport.update({
-    id: '/athlete/sponsors/',
-    path: '/athlete/sponsors/',
-    getParentRoute: () => CompeteRoute,
-  } as any)
-const CompeteAthleteInvoicesIndexRoute =
-  CompeteAthleteInvoicesIndexRouteImport.update({
-    id: '/athlete/invoices/',
-    path: '/athlete/invoices/',
-    getParentRoute: () => CompeteRoute,
-  } as any)
-const CompeteAthleteEditIndexRoute = CompeteAthleteEditIndexRouteImport.update({
-  id: '/athlete/edit/',
-  path: '/athlete/edit/',
-  getParentRoute: () => CompeteRoute,
-} as any)
 const CompeteSlugWorkoutsIndexRoute =
   CompeteSlugWorkoutsIndexRouteImport.update({
     id: '/workouts/',
@@ -618,16 +602,16 @@ const ProtectedSettingsTeamsIndexRoute =
     path: '/teams/',
     getParentRoute: () => ProtectedSettingsRoute,
   } as any)
+const ProtectedSettingsSponsorsIndexRoute =
+  ProtectedSettingsSponsorsIndexRouteImport.update({
+    id: '/sponsors/',
+    path: '/sponsors/',
+    getParentRoute: () => ProtectedSettingsRoute,
+  } as any)
 const ProtectedSettingsSessionsIndexRoute =
   ProtectedSettingsSessionsIndexRouteImport.update({
     id: '/sessions/',
     path: '/sessions/',
-    getParentRoute: () => ProtectedSettingsRoute,
-  } as any)
-const ProtectedSettingsSecurityIndexRoute =
-  ProtectedSettingsSecurityIndexRouteImport.update({
-    id: '/security/',
-    path: '/security/',
     getParentRoute: () => ProtectedSettingsRoute,
   } as any)
 const ProtectedSettingsProgrammingIndexRoute =
@@ -640,6 +624,30 @@ const ProtectedSettingsProfileIndexRoute =
   ProtectedSettingsProfileIndexRouteImport.update({
     id: '/profile/',
     path: '/profile/',
+    getParentRoute: () => ProtectedSettingsRoute,
+  } as any)
+const ProtectedSettingsOverviewIndexRoute =
+  ProtectedSettingsOverviewIndexRouteImport.update({
+    id: '/overview/',
+    path: '/overview/',
+    getParentRoute: () => ProtectedSettingsRoute,
+  } as any)
+const ProtectedSettingsBillingIndexRoute =
+  ProtectedSettingsBillingIndexRouteImport.update({
+    id: '/billing/',
+    path: '/billing/',
+    getParentRoute: () => ProtectedSettingsRoute,
+  } as any)
+const ProtectedSettingsAthleteIndexRoute =
+  ProtectedSettingsAthleteIndexRouteImport.update({
+    id: '/athlete/',
+    path: '/athlete/',
+    getParentRoute: () => ProtectedSettingsRoute,
+  } as any)
+const ProtectedSettingsAppearanceIndexRoute =
+  ProtectedSettingsAppearanceIndexRouteImport.update({
+    id: '/appearance/',
+    path: '/appearance/',
     getParentRoute: () => ProtectedSettingsRoute,
   } as any)
 const ProtectedProgrammingSubscriptionsIndexRoute =
@@ -914,12 +922,6 @@ const CompeteCohostCompetitionIdAthletesRoute =
     path: '/athletes',
     getParentRoute: () => CompeteCohostCompetitionIdRoute,
   } as any)
-const CompeteAthleteInvoicesPurchaseIdRoute =
-  CompeteAthleteInvoicesPurchaseIdRouteImport.update({
-    id: '/athlete/invoices/$purchaseId',
-    path: '/athlete/invoices/$purchaseId',
-    getParentRoute: () => CompeteRoute,
-  } as any)
 const CompeteSlugWorkoutsEventIdRoute =
   CompeteSlugWorkoutsEventIdRouteImport.update({
     id: '/workouts/$eventId',
@@ -1022,6 +1024,12 @@ const AdminTeamsTeamIdSchedulingRoute =
     id: '/scheduling',
     path: '/scheduling',
     getParentRoute: () => AdminTeamsTeamIdRoute,
+  } as any)
+const ProtectedSettingsBillingPurchaseIdRoute =
+  ProtectedSettingsBillingPurchaseIdRouteImport.update({
+    id: '/billing/$purchaseId',
+    path: '/billing/$purchaseId',
+    getParentRoute: () => ProtectedSettingsRoute,
   } as any)
 const CompeteOrganizerSeriesGroupIdIndexRoute =
   CompeteOrganizerSeriesGroupIdIndexRouteImport.update({
@@ -1382,6 +1390,7 @@ export interface FileRoutesByFullPath {
   '/admin/teams': typeof AdminTeamsIndexRoute
   '/compete/$slug/': typeof CompeteSlugIndexRoute
   '/compete/athlete': typeof CompeteAthleteIndexRoute
+  '/settings/billing/$purchaseId': typeof ProtectedSettingsBillingPurchaseIdRoute
   '/admin/teams/$teamId/scheduling': typeof AdminTeamsTeamIdSchedulingRoute
   '/admin/teams/schedule/classes': typeof AdminTeamsScheduleClassesRoute
   '/admin/teams/schedule/coaches': typeof AdminTeamsScheduleCoachesRoute
@@ -1400,7 +1409,6 @@ export interface FileRoutesByFullPath {
   '/compete/$slug/claim/$token': typeof CompeteSlugClaimTokenRouteWithChildren
   '/compete/$slug/register/success': typeof CompeteSlugRegisterSuccessRoute
   '/compete/$slug/workouts/$eventId': typeof CompeteSlugWorkoutsEventIdRoute
-  '/compete/athlete/invoices/$purchaseId': typeof CompeteAthleteInvoicesPurchaseIdRoute
   '/compete/cohost/$competitionId/athletes': typeof CompeteCohostCompetitionIdAthletesRoute
   '/compete/cohost/$competitionId/coupons': typeof CompeteCohostCompetitionIdCouponsRoute
   '/compete/cohost/$competitionId/divisions': typeof CompeteCohostCompetitionIdDivisionsRoute
@@ -1447,19 +1455,20 @@ export interface FileRoutesByFullPath {
   '/movements/new': typeof ProtectedMovementsNewIndexRoute
   '/programming/$trackId': typeof ProtectedProgrammingTrackIdIndexRoute
   '/programming/subscriptions': typeof ProtectedProgrammingSubscriptionsIndexRoute
+  '/settings/appearance': typeof ProtectedSettingsAppearanceIndexRoute
+  '/settings/athlete': typeof ProtectedSettingsAthleteIndexRoute
+  '/settings/billing': typeof ProtectedSettingsBillingIndexRoute
+  '/settings/overview': typeof ProtectedSettingsOverviewIndexRoute
   '/settings/profile': typeof ProtectedSettingsProfileIndexRoute
   '/settings/programming': typeof ProtectedSettingsProgrammingIndexRoute
-  '/settings/security': typeof ProtectedSettingsSecurityIndexRoute
   '/settings/sessions': typeof ProtectedSettingsSessionsIndexRoute
+  '/settings/sponsors': typeof ProtectedSettingsSponsorsIndexRoute
   '/settings/teams': typeof ProtectedSettingsTeamsIndexRoute
   '/workouts/$workoutId': typeof ProtectedWorkoutsWorkoutIdIndexRoute
   '/workouts/new': typeof ProtectedWorkoutsNewIndexRoute
   '/admin/teams/$teamId/': typeof AdminTeamsTeamIdIndexRoute
   '/admin/teams/schedule/': typeof AdminTeamsScheduleIndexRoute
   '/compete/$slug/workouts': typeof CompeteSlugWorkoutsIndexRoute
-  '/compete/athlete/edit': typeof CompeteAthleteEditIndexRoute
-  '/compete/athlete/invoices': typeof CompeteAthleteInvoicesIndexRoute
-  '/compete/athlete/sponsors': typeof CompeteAthleteSponsorsIndexRoute
   '/compete/cohost/$competitionId/': typeof CompeteCohostCompetitionIdIndexRoute
   '/compete/organizer/$competitionId/': typeof CompeteOrganizerCompetitionIdIndexRoute
   '/compete/organizer/': typeof CompeteOrganizerDashboardIndexRoute
@@ -1569,6 +1578,7 @@ export interface FileRoutesByTo {
   '/admin/teams': typeof AdminTeamsIndexRoute
   '/compete/$slug': typeof CompeteSlugIndexRoute
   '/compete/athlete': typeof CompeteAthleteIndexRoute
+  '/settings/billing/$purchaseId': typeof ProtectedSettingsBillingPurchaseIdRoute
   '/admin/teams/$teamId/scheduling': typeof AdminTeamsTeamIdSchedulingRoute
   '/admin/teams/schedule/classes': typeof AdminTeamsScheduleClassesRoute
   '/admin/teams/schedule/coaches': typeof AdminTeamsScheduleCoachesRoute
@@ -1587,7 +1597,6 @@ export interface FileRoutesByTo {
   '/compete/$slug/claim/$token': typeof CompeteSlugClaimTokenRouteWithChildren
   '/compete/$slug/register/success': typeof CompeteSlugRegisterSuccessRoute
   '/compete/$slug/workouts/$eventId': typeof CompeteSlugWorkoutsEventIdRoute
-  '/compete/athlete/invoices/$purchaseId': typeof CompeteAthleteInvoicesPurchaseIdRoute
   '/compete/cohost/$competitionId/athletes': typeof CompeteCohostCompetitionIdAthletesRoute
   '/compete/cohost/$competitionId/coupons': typeof CompeteCohostCompetitionIdCouponsRoute
   '/compete/cohost/$competitionId/divisions': typeof CompeteCohostCompetitionIdDivisionsRoute
@@ -1633,19 +1642,20 @@ export interface FileRoutesByTo {
   '/movements/new': typeof ProtectedMovementsNewIndexRoute
   '/programming/$trackId': typeof ProtectedProgrammingTrackIdIndexRoute
   '/programming/subscriptions': typeof ProtectedProgrammingSubscriptionsIndexRoute
+  '/settings/appearance': typeof ProtectedSettingsAppearanceIndexRoute
+  '/settings/athlete': typeof ProtectedSettingsAthleteIndexRoute
+  '/settings/billing': typeof ProtectedSettingsBillingIndexRoute
+  '/settings/overview': typeof ProtectedSettingsOverviewIndexRoute
   '/settings/profile': typeof ProtectedSettingsProfileIndexRoute
   '/settings/programming': typeof ProtectedSettingsProgrammingIndexRoute
-  '/settings/security': typeof ProtectedSettingsSecurityIndexRoute
   '/settings/sessions': typeof ProtectedSettingsSessionsIndexRoute
+  '/settings/sponsors': typeof ProtectedSettingsSponsorsIndexRoute
   '/settings/teams': typeof ProtectedSettingsTeamsIndexRoute
   '/workouts/$workoutId': typeof ProtectedWorkoutsWorkoutIdIndexRoute
   '/workouts/new': typeof ProtectedWorkoutsNewIndexRoute
   '/admin/teams/$teamId': typeof AdminTeamsTeamIdIndexRoute
   '/admin/teams/schedule': typeof AdminTeamsScheduleIndexRoute
   '/compete/$slug/workouts': typeof CompeteSlugWorkoutsIndexRoute
-  '/compete/athlete/edit': typeof CompeteAthleteEditIndexRoute
-  '/compete/athlete/invoices': typeof CompeteAthleteInvoicesIndexRoute
-  '/compete/athlete/sponsors': typeof CompeteAthleteSponsorsIndexRoute
   '/compete/cohost/$competitionId': typeof CompeteCohostCompetitionIdIndexRoute
   '/compete/organizer/$competitionId': typeof CompeteOrganizerCompetitionIdIndexRoute
   '/compete/organizer/onboard': typeof CompeteOrganizerOnboardIndexRoute
@@ -1761,6 +1771,7 @@ export interface FileRoutesById {
   '/admin/teams/': typeof AdminTeamsIndexRoute
   '/compete/$slug/': typeof CompeteSlugIndexRoute
   '/compete/athlete/': typeof CompeteAthleteIndexRoute
+  '/_protected/settings/billing/$purchaseId': typeof ProtectedSettingsBillingPurchaseIdRoute
   '/admin/teams/$teamId/scheduling': typeof AdminTeamsTeamIdSchedulingRoute
   '/admin/teams/schedule/classes': typeof AdminTeamsScheduleClassesRoute
   '/admin/teams/schedule/coaches': typeof AdminTeamsScheduleCoachesRoute
@@ -1779,7 +1790,6 @@ export interface FileRoutesById {
   '/compete/$slug/claim/$token': typeof CompeteSlugClaimTokenRouteWithChildren
   '/compete/$slug/register/success': typeof CompeteSlugRegisterSuccessRoute
   '/compete/$slug/workouts/$eventId': typeof CompeteSlugWorkoutsEventIdRoute
-  '/compete/athlete/invoices/$purchaseId': typeof CompeteAthleteInvoicesPurchaseIdRoute
   '/compete/cohost/$competitionId/athletes': typeof CompeteCohostCompetitionIdAthletesRoute
   '/compete/cohost/$competitionId/coupons': typeof CompeteCohostCompetitionIdCouponsRoute
   '/compete/cohost/$competitionId/divisions': typeof CompeteCohostCompetitionIdDivisionsRoute
@@ -1826,19 +1836,20 @@ export interface FileRoutesById {
   '/_protected/movements/new/': typeof ProtectedMovementsNewIndexRoute
   '/_protected/programming/$trackId/': typeof ProtectedProgrammingTrackIdIndexRoute
   '/_protected/programming/subscriptions/': typeof ProtectedProgrammingSubscriptionsIndexRoute
+  '/_protected/settings/appearance/': typeof ProtectedSettingsAppearanceIndexRoute
+  '/_protected/settings/athlete/': typeof ProtectedSettingsAthleteIndexRoute
+  '/_protected/settings/billing/': typeof ProtectedSettingsBillingIndexRoute
+  '/_protected/settings/overview/': typeof ProtectedSettingsOverviewIndexRoute
   '/_protected/settings/profile/': typeof ProtectedSettingsProfileIndexRoute
   '/_protected/settings/programming/': typeof ProtectedSettingsProgrammingIndexRoute
-  '/_protected/settings/security/': typeof ProtectedSettingsSecurityIndexRoute
   '/_protected/settings/sessions/': typeof ProtectedSettingsSessionsIndexRoute
+  '/_protected/settings/sponsors/': typeof ProtectedSettingsSponsorsIndexRoute
   '/_protected/settings/teams/': typeof ProtectedSettingsTeamsIndexRoute
   '/_protected/workouts/$workoutId/': typeof ProtectedWorkoutsWorkoutIdIndexRoute
   '/_protected/workouts/new/': typeof ProtectedWorkoutsNewIndexRoute
   '/admin/teams/$teamId/': typeof AdminTeamsTeamIdIndexRoute
   '/admin/teams/schedule/': typeof AdminTeamsScheduleIndexRoute
   '/compete/$slug/workouts/': typeof CompeteSlugWorkoutsIndexRoute
-  '/compete/athlete/edit/': typeof CompeteAthleteEditIndexRoute
-  '/compete/athlete/invoices/': typeof CompeteAthleteInvoicesIndexRoute
-  '/compete/athlete/sponsors/': typeof CompeteAthleteSponsorsIndexRoute
   '/compete/cohost/$competitionId/': typeof CompeteCohostCompetitionIdIndexRoute
   '/compete/organizer/$competitionId/': typeof CompeteOrganizerCompetitionIdIndexRoute
   '/compete/organizer/_dashboard/': typeof CompeteOrganizerDashboardIndexRoute
@@ -1958,6 +1969,7 @@ export interface FileRouteTypes {
     | '/admin/teams'
     | '/compete/$slug/'
     | '/compete/athlete'
+    | '/settings/billing/$purchaseId'
     | '/admin/teams/$teamId/scheduling'
     | '/admin/teams/schedule/classes'
     | '/admin/teams/schedule/coaches'
@@ -1976,7 +1988,6 @@ export interface FileRouteTypes {
     | '/compete/$slug/claim/$token'
     | '/compete/$slug/register/success'
     | '/compete/$slug/workouts/$eventId'
-    | '/compete/athlete/invoices/$purchaseId'
     | '/compete/cohost/$competitionId/athletes'
     | '/compete/cohost/$competitionId/coupons'
     | '/compete/cohost/$competitionId/divisions'
@@ -2023,19 +2034,20 @@ export interface FileRouteTypes {
     | '/movements/new'
     | '/programming/$trackId'
     | '/programming/subscriptions'
+    | '/settings/appearance'
+    | '/settings/athlete'
+    | '/settings/billing'
+    | '/settings/overview'
     | '/settings/profile'
     | '/settings/programming'
-    | '/settings/security'
     | '/settings/sessions'
+    | '/settings/sponsors'
     | '/settings/teams'
     | '/workouts/$workoutId'
     | '/workouts/new'
     | '/admin/teams/$teamId/'
     | '/admin/teams/schedule/'
     | '/compete/$slug/workouts'
-    | '/compete/athlete/edit'
-    | '/compete/athlete/invoices'
-    | '/compete/athlete/sponsors'
     | '/compete/cohost/$competitionId/'
     | '/compete/organizer/$competitionId/'
     | '/compete/organizer/'
@@ -2145,6 +2157,7 @@ export interface FileRouteTypes {
     | '/admin/teams'
     | '/compete/$slug'
     | '/compete/athlete'
+    | '/settings/billing/$purchaseId'
     | '/admin/teams/$teamId/scheduling'
     | '/admin/teams/schedule/classes'
     | '/admin/teams/schedule/coaches'
@@ -2163,7 +2176,6 @@ export interface FileRouteTypes {
     | '/compete/$slug/claim/$token'
     | '/compete/$slug/register/success'
     | '/compete/$slug/workouts/$eventId'
-    | '/compete/athlete/invoices/$purchaseId'
     | '/compete/cohost/$competitionId/athletes'
     | '/compete/cohost/$competitionId/coupons'
     | '/compete/cohost/$competitionId/divisions'
@@ -2209,19 +2221,20 @@ export interface FileRouteTypes {
     | '/movements/new'
     | '/programming/$trackId'
     | '/programming/subscriptions'
+    | '/settings/appearance'
+    | '/settings/athlete'
+    | '/settings/billing'
+    | '/settings/overview'
     | '/settings/profile'
     | '/settings/programming'
-    | '/settings/security'
     | '/settings/sessions'
+    | '/settings/sponsors'
     | '/settings/teams'
     | '/workouts/$workoutId'
     | '/workouts/new'
     | '/admin/teams/$teamId'
     | '/admin/teams/schedule'
     | '/compete/$slug/workouts'
-    | '/compete/athlete/edit'
-    | '/compete/athlete/invoices'
-    | '/compete/athlete/sponsors'
     | '/compete/cohost/$competitionId'
     | '/compete/organizer/$competitionId'
     | '/compete/organizer/onboard'
@@ -2336,6 +2349,7 @@ export interface FileRouteTypes {
     | '/admin/teams/'
     | '/compete/$slug/'
     | '/compete/athlete/'
+    | '/_protected/settings/billing/$purchaseId'
     | '/admin/teams/$teamId/scheduling'
     | '/admin/teams/schedule/classes'
     | '/admin/teams/schedule/coaches'
@@ -2354,7 +2368,6 @@ export interface FileRouteTypes {
     | '/compete/$slug/claim/$token'
     | '/compete/$slug/register/success'
     | '/compete/$slug/workouts/$eventId'
-    | '/compete/athlete/invoices/$purchaseId'
     | '/compete/cohost/$competitionId/athletes'
     | '/compete/cohost/$competitionId/coupons'
     | '/compete/cohost/$competitionId/divisions'
@@ -2401,19 +2414,20 @@ export interface FileRouteTypes {
     | '/_protected/movements/new/'
     | '/_protected/programming/$trackId/'
     | '/_protected/programming/subscriptions/'
+    | '/_protected/settings/appearance/'
+    | '/_protected/settings/athlete/'
+    | '/_protected/settings/billing/'
+    | '/_protected/settings/overview/'
     | '/_protected/settings/profile/'
     | '/_protected/settings/programming/'
-    | '/_protected/settings/security/'
     | '/_protected/settings/sessions/'
+    | '/_protected/settings/sponsors/'
     | '/_protected/settings/teams/'
     | '/_protected/workouts/$workoutId/'
     | '/_protected/workouts/new/'
     | '/admin/teams/$teamId/'
     | '/admin/teams/schedule/'
     | '/compete/$slug/workouts/'
-    | '/compete/athlete/edit/'
-    | '/compete/athlete/invoices/'
-    | '/compete/athlete/sponsors/'
     | '/compete/cohost/$competitionId/'
     | '/compete/organizer/$competitionId/'
     | '/compete/organizer/_dashboard/'
@@ -2998,27 +3012,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompeteCohostCompetitionIdIndexRouteImport
       parentRoute: typeof CompeteCohostCompetitionIdRoute
     }
-    '/compete/athlete/sponsors/': {
-      id: '/compete/athlete/sponsors/'
-      path: '/athlete/sponsors'
-      fullPath: '/compete/athlete/sponsors'
-      preLoaderRoute: typeof CompeteAthleteSponsorsIndexRouteImport
-      parentRoute: typeof CompeteRoute
-    }
-    '/compete/athlete/invoices/': {
-      id: '/compete/athlete/invoices/'
-      path: '/athlete/invoices'
-      fullPath: '/compete/athlete/invoices'
-      preLoaderRoute: typeof CompeteAthleteInvoicesIndexRouteImport
-      parentRoute: typeof CompeteRoute
-    }
-    '/compete/athlete/edit/': {
-      id: '/compete/athlete/edit/'
-      path: '/athlete/edit'
-      fullPath: '/compete/athlete/edit'
-      preLoaderRoute: typeof CompeteAthleteEditIndexRouteImport
-      parentRoute: typeof CompeteRoute
-    }
     '/compete/$slug/workouts/': {
       id: '/compete/$slug/workouts/'
       path: '/workouts'
@@ -3061,18 +3054,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedSettingsTeamsIndexRouteImport
       parentRoute: typeof ProtectedSettingsRoute
     }
+    '/_protected/settings/sponsors/': {
+      id: '/_protected/settings/sponsors/'
+      path: '/sponsors'
+      fullPath: '/settings/sponsors'
+      preLoaderRoute: typeof ProtectedSettingsSponsorsIndexRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
+    }
     '/_protected/settings/sessions/': {
       id: '/_protected/settings/sessions/'
       path: '/sessions'
       fullPath: '/settings/sessions'
       preLoaderRoute: typeof ProtectedSettingsSessionsIndexRouteImport
-      parentRoute: typeof ProtectedSettingsRoute
-    }
-    '/_protected/settings/security/': {
-      id: '/_protected/settings/security/'
-      path: '/security'
-      fullPath: '/settings/security'
-      preLoaderRoute: typeof ProtectedSettingsSecurityIndexRouteImport
       parentRoute: typeof ProtectedSettingsRoute
     }
     '/_protected/settings/programming/': {
@@ -3087,6 +3080,34 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/settings/profile'
       preLoaderRoute: typeof ProtectedSettingsProfileIndexRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
+    }
+    '/_protected/settings/overview/': {
+      id: '/_protected/settings/overview/'
+      path: '/overview'
+      fullPath: '/settings/overview'
+      preLoaderRoute: typeof ProtectedSettingsOverviewIndexRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
+    }
+    '/_protected/settings/billing/': {
+      id: '/_protected/settings/billing/'
+      path: '/billing'
+      fullPath: '/settings/billing'
+      preLoaderRoute: typeof ProtectedSettingsBillingIndexRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
+    }
+    '/_protected/settings/athlete/': {
+      id: '/_protected/settings/athlete/'
+      path: '/athlete'
+      fullPath: '/settings/athlete'
+      preLoaderRoute: typeof ProtectedSettingsAthleteIndexRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
+    }
+    '/_protected/settings/appearance/': {
+      id: '/_protected/settings/appearance/'
+      path: '/appearance'
+      fullPath: '/settings/appearance'
+      preLoaderRoute: typeof ProtectedSettingsAppearanceIndexRouteImport
       parentRoute: typeof ProtectedSettingsRoute
     }
     '/_protected/programming/subscriptions/': {
@@ -3411,13 +3432,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompeteCohostCompetitionIdAthletesRouteImport
       parentRoute: typeof CompeteCohostCompetitionIdRoute
     }
-    '/compete/athlete/invoices/$purchaseId': {
-      id: '/compete/athlete/invoices/$purchaseId'
-      path: '/athlete/invoices/$purchaseId'
-      fullPath: '/compete/athlete/invoices/$purchaseId'
-      preLoaderRoute: typeof CompeteAthleteInvoicesPurchaseIdRouteImport
-      parentRoute: typeof CompeteRoute
-    }
     '/compete/$slug/workouts/$eventId': {
       id: '/compete/$slug/workouts/$eventId'
       path: '/workouts/$eventId'
@@ -3543,6 +3557,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/teams/$teamId/scheduling'
       preLoaderRoute: typeof AdminTeamsTeamIdSchedulingRouteImport
       parentRoute: typeof AdminTeamsTeamIdRoute
+    }
+    '/_protected/settings/billing/$purchaseId': {
+      id: '/_protected/settings/billing/$purchaseId'
+      path: '/billing/$purchaseId'
+      fullPath: '/settings/billing/$purchaseId'
+      preLoaderRoute: typeof ProtectedSettingsBillingPurchaseIdRouteImport
+      parentRoute: typeof ProtectedSettingsRoute
     }
     '/compete/organizer/series/$groupId/': {
       id: '/compete/organizer/series/$groupId/'
@@ -3905,10 +3926,15 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 interface ProtectedSettingsRouteChildren {
   ProtectedSettingsIndexRoute: typeof ProtectedSettingsIndexRoute
+  ProtectedSettingsBillingPurchaseIdRoute: typeof ProtectedSettingsBillingPurchaseIdRoute
+  ProtectedSettingsAppearanceIndexRoute: typeof ProtectedSettingsAppearanceIndexRoute
+  ProtectedSettingsAthleteIndexRoute: typeof ProtectedSettingsAthleteIndexRoute
+  ProtectedSettingsBillingIndexRoute: typeof ProtectedSettingsBillingIndexRoute
+  ProtectedSettingsOverviewIndexRoute: typeof ProtectedSettingsOverviewIndexRoute
   ProtectedSettingsProfileIndexRoute: typeof ProtectedSettingsProfileIndexRoute
   ProtectedSettingsProgrammingIndexRoute: typeof ProtectedSettingsProgrammingIndexRoute
-  ProtectedSettingsSecurityIndexRoute: typeof ProtectedSettingsSecurityIndexRoute
   ProtectedSettingsSessionsIndexRoute: typeof ProtectedSettingsSessionsIndexRoute
+  ProtectedSettingsSponsorsIndexRoute: typeof ProtectedSettingsSponsorsIndexRoute
   ProtectedSettingsTeamsIndexRoute: typeof ProtectedSettingsTeamsIndexRoute
   ProtectedSettingsProgrammingTrackIdIndexRoute: typeof ProtectedSettingsProgrammingTrackIdIndexRoute
   ProtectedSettingsTeamsTeamSlugIndexRoute: typeof ProtectedSettingsTeamsTeamSlugIndexRoute
@@ -3917,11 +3943,17 @@ interface ProtectedSettingsRouteChildren {
 
 const ProtectedSettingsRouteChildren: ProtectedSettingsRouteChildren = {
   ProtectedSettingsIndexRoute: ProtectedSettingsIndexRoute,
+  ProtectedSettingsBillingPurchaseIdRoute:
+    ProtectedSettingsBillingPurchaseIdRoute,
+  ProtectedSettingsAppearanceIndexRoute: ProtectedSettingsAppearanceIndexRoute,
+  ProtectedSettingsAthleteIndexRoute: ProtectedSettingsAthleteIndexRoute,
+  ProtectedSettingsBillingIndexRoute: ProtectedSettingsBillingIndexRoute,
+  ProtectedSettingsOverviewIndexRoute: ProtectedSettingsOverviewIndexRoute,
   ProtectedSettingsProfileIndexRoute: ProtectedSettingsProfileIndexRoute,
   ProtectedSettingsProgrammingIndexRoute:
     ProtectedSettingsProgrammingIndexRoute,
-  ProtectedSettingsSecurityIndexRoute: ProtectedSettingsSecurityIndexRoute,
   ProtectedSettingsSessionsIndexRoute: ProtectedSettingsSessionsIndexRoute,
+  ProtectedSettingsSponsorsIndexRoute: ProtectedSettingsSponsorsIndexRoute,
   ProtectedSettingsTeamsIndexRoute: ProtectedSettingsTeamsIndexRoute,
   ProtectedSettingsProgrammingTrackIdIndexRoute:
     ProtectedSettingsProgrammingTrackIdIndexRoute,
@@ -4504,10 +4536,6 @@ interface CompeteRouteChildren {
   CompeteInviteTokenRoute: typeof CompeteInviteTokenRoute
   CompeteSeriesGroupIdRoute: typeof CompeteSeriesGroupIdRouteWithChildren
   CompeteAthleteIndexRoute: typeof CompeteAthleteIndexRoute
-  CompeteAthleteInvoicesPurchaseIdRoute: typeof CompeteAthleteInvoicesPurchaseIdRoute
-  CompeteAthleteEditIndexRoute: typeof CompeteAthleteEditIndexRoute
-  CompeteAthleteInvoicesIndexRoute: typeof CompeteAthleteInvoicesIndexRoute
-  CompeteAthleteSponsorsIndexRoute: typeof CompeteAthleteSponsorsIndexRoute
 }
 
 const CompeteRouteChildren: CompeteRouteChildren = {
@@ -4519,10 +4547,6 @@ const CompeteRouteChildren: CompeteRouteChildren = {
   CompeteInviteTokenRoute: CompeteInviteTokenRoute,
   CompeteSeriesGroupIdRoute: CompeteSeriesGroupIdRouteWithChildren,
   CompeteAthleteIndexRoute: CompeteAthleteIndexRoute,
-  CompeteAthleteInvoicesPurchaseIdRoute: CompeteAthleteInvoicesPurchaseIdRoute,
-  CompeteAthleteEditIndexRoute: CompeteAthleteEditIndexRoute,
-  CompeteAthleteInvoicesIndexRoute: CompeteAthleteInvoicesIndexRoute,
-  CompeteAthleteSponsorsIndexRoute: CompeteAthleteSponsorsIndexRoute,
 }
 
 const CompeteRouteWithChildren =

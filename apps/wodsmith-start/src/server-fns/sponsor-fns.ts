@@ -493,6 +493,14 @@ export const createSponsorFn = createServerFn({ method: "POST" })
       )
     }
 
+    // For user sponsors, enforce ownership from session (never trust client userId)
+    if (data.userId) {
+      const session = await getSessionFromCookie()
+      if (!session?.userId || session.userId !== data.userId) {
+        throw new Error("Unauthorized")
+      }
+    }
+
     // If no displayOrder, put at end
     let order = data.displayOrder
     if (order === undefined) {
@@ -564,8 +572,13 @@ export const updateSponsorFn = createServerFn({ method: "POST" })
           TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
         )
       }
+    } else if (existing.userId) {
+      // For user sponsors, enforce ownership from session
+      const session = await getSessionFromCookie()
+      if (!session?.userId || session.userId !== existing.userId) {
+        throw new Error("Unauthorized")
+      }
     }
-    // For user sponsors, authorization is checked at action level
 
     await db
       .update(sponsorsTable)
@@ -618,6 +631,12 @@ export const deleteSponsorFn = createServerFn({ method: "POST" })
           competition.organizingTeamId,
           TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
         )
+      }
+    } else if (existing.userId) {
+      // For user sponsors, enforce ownership from session
+      const session = await getSessionFromCookie()
+      if (!session?.userId || session.userId !== existing.userId) {
+        throw new Error("Unauthorized")
       }
     }
 
@@ -799,7 +818,7 @@ export const getSponsorsPageDataFn = createServerFn({ method: "GET" }).handler(
     if (!session) {
       throw redirect({
         to: "/sign-in",
-        search: { redirect: "/compete/athlete/sponsors" },
+        search: { redirect: "/settings/sponsors" },
       })
     }
 

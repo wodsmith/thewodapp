@@ -242,10 +242,18 @@ export function CompetitionDetailsCard({
   competition,
   registrationOpensAt,
   registrationClosesAt,
+  hideRegistrationWindow = false,
 }: {
   competition: Competition & { organizingTeam: Team | null }
   registrationOpensAt: string | null
   registrationClosesAt: string | null
+  /**
+   * Suppresses the "Registration Window" row. Set when the form is in
+   * invite-locked mode — invitees bypass the public registration window,
+   * so the row is irrelevant and surfaces "TBA - TBA" when dates aren't
+   * configured, which contradicts the "you can register now" CTA.
+   */
+  hideRegistrationWindow?: boolean
 }) {
   return (
     <Card>
@@ -265,13 +273,15 @@ export function CompetitionDetailsCard({
               : `${formatRegistrationDate(competition.startDate)} - ${formatRegistrationDate(competition.endDate)}`}
           </p>
         </div>
-        <div>
-          <p className="text-muted-foreground text-sm">Registration Window</p>
-          <p className="font-medium">
-            {formatRegistrationDate(registrationOpensAt)} -{" "}
-            {formatRegistrationDate(registrationClosesAt)}
-          </p>
-        </div>
+        {!hideRegistrationWindow && (
+          <div>
+            <p className="text-muted-foreground text-sm">Registration Window</p>
+            <p className="font-medium">
+              {formatRegistrationDate(registrationOpensAt)} -{" "}
+              {formatRegistrationDate(registrationClosesAt)}
+            </p>
+          </div>
+        )}
         <div>
           <p className="text-muted-foreground text-sm">Hosted By</p>
           <p className="font-medium">

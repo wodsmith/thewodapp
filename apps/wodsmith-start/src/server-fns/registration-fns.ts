@@ -36,6 +36,8 @@ import {
   createTeamId,
   createTeamMembershipId,
   createUserId,
+  FINANCIAL_EVENT_TYPE,
+  financialEventTable,
   REGISTRATION_STATUS,
   ROLES_ENUM,
   scalingGroupsTable,
@@ -75,9 +77,13 @@ import {
 import {
   assertInviteClaimable,
   findActiveInviteForEmail,
+  getOccupiedCountForBucket,
+  resolveAllocationForInvite,
   resolveInviteForClaim,
 } from "@/server/competition-invites/claim"
+import { assertInviteWithinAllocation } from "@/server/competition-invites/identity"
 import { normalizeInviteEmail } from "@/server/competition-invites/issue"
+import { recordRefundInitiated } from "@/server/commerce/financial-events"
 import { recordRedemption, validateCoupon } from "@/server/coupons"
 import { requireVerifiedEmail } from "@/utils/auth"
 import { createToken, getClaimTokenKey } from "@/utils/auth-utils"
@@ -308,6 +314,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
     let inviteAuthorized = false
     let inviteIdForPurchase: string | null = null
     let inviteDivisionIdForPurchase: string | null = null
+    let inviteSourceIdForGuardrail: string | null = null
     if (input.inviteToken) {
       const { invite } = await resolveInviteForClaim(input.inviteToken)
       if (sessionEmail !== normalizeInviteEmail(invite.email)) {
@@ -327,6 +334,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
       inviteAuthorized = true
       inviteIdForPurchase = invite.id
       inviteDivisionIdForPurchase = invite.championshipDivisionId
+      inviteSourceIdForGuardrail = invite.sourceId
     } else if (sessionEmail && input.items.length === 1) {
       // No token — probe by identity. Active AND claimable
       // (assertInviteClaimable throws on expired etc.).
@@ -341,10 +349,63 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
           inviteAuthorized = true
           inviteIdForPurchase = probe.id
           inviteDivisionIdForPurchase = probe.championshipDivisionId
+          inviteSourceIdForGuardrail = probe.sourceId
         } catch {
           // expired / declined / revoked etc — fall through to public-window
           // gating; the public flow will give the right error.
         }
+      }
+    }
+
+    // ADR-0012 Phase 5: per-(source, division) allocation guardrail.
+    // Mirrors the claim-landing soft gate so a direct submit to
+    // /register?invite=… can't bypass it before reaching Stripe. The
+    // authoritative re-check still lives in the Stripe workflow at
+    // payment confirmation. Bespoke invites (sourceId IS NULL) bypass.
+    // The occupied count includes both accepted_paid invites AND in-flight
+    // Stripe checkouts so two athletes can't both pass the gate while one
+    // is mid-payment.
+    if (inviteIdForPurchase && inviteSourceIdForGuardrail) {
+      const [allocation, occupiedCount] = await Promise.all([
+        resolveAllocationForInvite({
+          invite: {
+            sourceId: inviteSourceIdForGuardrail,
+            championshipDivisionId:
+              inviteDivisionIdForPurchase ?? input.items[0].divisionId,
+            championshipCompetitionId: input.competitionId,
+          },
+        }),
+        getOccupiedCountForBucket({
+          sourceId: inviteSourceIdForGuardrail,
+          championshipCompetitionId: input.competitionId,
+          championshipDivisionId:
+            inviteDivisionIdForPurchase ?? input.items[0].divisionId,
+          // Stale pending purchases from the same invitee's prior abandoned
+          // attempt would otherwise self-block when they retry the form.
+          excludeInviteId: inviteIdForPurchase,
+        }),
+      ])
+      const allocationCheck = assertInviteWithinAllocation({
+        invite: { sourceId: inviteSourceIdForGuardrail },
+        allocation: allocation ?? 0,
+        acceptedCount: occupiedCount,
+      })
+      if (!allocationCheck.ok) {
+        logInfo({
+          message:
+            "[Registration] Invite blocked at register submit by allocation guardrail",
+          attributes: {
+            inviteId: inviteIdForPurchase,
+            sourceId: inviteSourceIdForGuardrail,
+            championshipDivisionId:
+              inviteDivisionIdForPurchase ?? input.items[0].divisionId,
+            allocation: allocation ?? 0,
+            occupiedCount,
+          },
+        })
+        throw new Error(
+          "All invitation spots from this qualifying source for this division are filled.",
+        )
       }
     }
 
@@ -498,6 +559,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
     // 6. ALL FREE - create registrations directly
     if (allFree) {
       let firstRegistrationId: string | null = null
+      const createdRegistrationIds: string[] = []
 
       for (const item of input.items) {
         const result = await registerForCompetition({
@@ -509,6 +571,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
           teammates: item.teammates,
         })
 
+        createdRegistrationIds.push(result.registrationId)
         if (!firstRegistrationId) {
           firstRegistrationId = result.registrationId
         }
@@ -562,6 +625,71 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
       // stays `pending` indefinitely. Guarded by status=pending so a
       // racing claim/decline doesn't get stomped.
       if (inviteIdForPurchase && firstRegistrationId) {
+        // Authoritative allocation re-check at the write site. The
+        // preflight (above, before the allFree branch) is alone not
+        // enough for free invites: the free path skips Stripe, so
+        // `getOccupiedCountForBucket` sees no in-flight purchase rows
+        // for either flow — two concurrent free claims can both pass
+        // the preflight and overfill the (source, division) bucket.
+        // Re-running the check here catches any peer that has already
+        // flipped to accepted_paid; if we lose the race, mark the
+        // just-created registrations REMOVED so they don't squat
+        // division capacity and surface a clear error to the user.
+        if (inviteSourceIdForGuardrail) {
+          const inviteDivisionId =
+            inviteDivisionIdForPurchase ?? input.items[0].divisionId
+          const [allocation, occupiedCount] = await Promise.all([
+            resolveAllocationForInvite({
+              invite: {
+                sourceId: inviteSourceIdForGuardrail,
+                championshipDivisionId: inviteDivisionId,
+                championshipCompetitionId: input.competitionId,
+              },
+            }),
+            getOccupiedCountForBucket({
+              sourceId: inviteSourceIdForGuardrail,
+              championshipCompetitionId: input.competitionId,
+              championshipDivisionId: inviteDivisionId,
+              // Same self-exclusion as the preflight: this invite's own
+              // stale pending purchases shouldn't block its own free flip.
+              excludeInviteId: inviteIdForPurchase,
+            }),
+          ])
+          const allocationCheck = assertInviteWithinAllocation({
+            invite: { sourceId: inviteSourceIdForGuardrail },
+            allocation: allocation ?? 0,
+            acceptedCount: occupiedCount,
+          })
+          if (!allocationCheck.ok) {
+            await db
+              .update(competitionRegistrationsTable)
+              .set({
+                status: REGISTRATION_STATUS.REMOVED,
+                updatedAt: new Date(),
+              })
+              .where(
+                inArray(
+                  competitionRegistrationsTable.id,
+                  createdRegistrationIds,
+                ),
+              )
+            logWarning({
+              message:
+                "[Registration] Free-checkout invite blocked at write-time allocation recheck; rolled back registrations",
+              attributes: {
+                inviteId: inviteIdForPurchase,
+                sourceId: inviteSourceIdForGuardrail,
+                championshipDivisionId: inviteDivisionId,
+                allocation: allocation ?? 0,
+                occupiedCount,
+                rolledBackRegistrationIds: createdRegistrationIds,
+              },
+            })
+            throw new Error(
+              "All invitation spots from this qualifying source for this division are filled.",
+            )
+          }
+        }
         const now = new Date()
         await db
           .update(competitionInvitesTable)
@@ -2310,4 +2438,276 @@ export const refreshCompetitionTeamInviteFn = createServerFn({
     })
 
     return { success: true, newToken }
+  })
+
+// ============================================================================
+// Refund Registration (Organizer-Initiated, Stripe Express Only)
+// ============================================================================
+
+const refundRegistrationInputSchema = z.object({
+  registrationId: z.string().min(1, "Registration ID is required"),
+  competitionId: z.string().min(1, "Competition ID is required"),
+  reason: z.string().max(500).optional(),
+  amountCents: z.number().int().positive().optional(),
+  /**
+   * Stable, client-generated identifier for this refund operation. Replays
+   * (e.g., a network timeout retry of the same click) MUST send the same
+   * token so the Stripe idempotency key matches and the refund collapses to
+   * a single charge. Required if the caller may issue multiple distinct
+   * partial refunds for the same purchase; optional for the full-refund
+   * path where remaining-balance check provides natural retry safety.
+   */
+  idempotencyToken: z.string().min(1).max(128).optional(),
+})
+
+/**
+ * Refund a registration's payment via Stripe.
+ *
+ * Separate from removeRegistrationFn — the registration's status is left
+ * unchanged so an organizer can refund without removing, or remove without
+ * refunding. The two actions can be used independently or together.
+ *
+ * Express-only: payouts on a Standard connected account are governed by the
+ * organizer's own Stripe dashboard, so refunds for those should originate
+ * there. We only expose this action when the organizing team's connected
+ * account is `express` and VERIFIED.
+ *
+ * Charges are destination charges (created on the platform with
+ * `transfer_data.destination`), so we issue the refund on the platform
+ * payment_intent and pass `reverse_transfer: true` to claw back the funds
+ * already routed to the connected account. The matching `charge.refunded`
+ * webhook records REFUND_COMPLETED.
+ */
+// @lat: [[registration#Registration Refund]]
+export const refundRegistrationFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => refundRegistrationInputSchema.parse(data))
+  .handler(async ({ data: input }) => {
+    const session = await requireVerifiedEmail()
+
+    const db = getDb()
+
+    updateRequestContext({ userId: session.userId })
+    addRequestContextAttribute("competitionId", input.competitionId)
+    addRequestContextAttribute("registrationId", input.registrationId)
+    getEvlog()?.set({
+      action: "refund_registration",
+      registration: {
+        id: input.registrationId,
+        competitionId: input.competitionId,
+      },
+    })
+
+    // 1. Verify competition + ownership
+    const competition = await db.query.competitionsTable.findFirst({
+      where: eq(competitionsTable.id, input.competitionId),
+      columns: { id: true, organizingTeamId: true },
+    })
+
+    if (!competition) throw new Error("Competition not found")
+
+    // 2. Authorization (admin bypass)
+    if (session.user?.role !== ROLES_ENUM.ADMIN) {
+      const team = session.teams?.find(
+        (t) => t.id === competition.organizingTeamId,
+      )
+      if (!team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS)) {
+        throw new Error("Missing required permission: manage_competitions")
+      }
+    }
+
+    // 3. Registration must exist in this competition
+    const registration = await db.query.competitionRegistrationsTable.findFirst(
+      {
+        where: and(
+          eq(competitionRegistrationsTable.id, input.registrationId),
+          eq(competitionRegistrationsTable.eventId, input.competitionId),
+        ),
+      },
+    )
+
+    if (!registration) throw new Error("Registration not found")
+
+    // 4. Stripe Express requirement on the organizing team
+    const organizingTeam = await db.query.teamTable.findFirst({
+      where: eq(teamTable.id, competition.organizingTeamId),
+      columns: {
+        id: true,
+        stripeConnectedAccountId: true,
+        stripeAccountStatus: true,
+        stripeAccountType: true,
+      },
+    })
+
+    if (
+      !organizingTeam?.stripeConnectedAccountId ||
+      organizingTeam.stripeAccountType !== "express" ||
+      organizingTeam.stripeAccountStatus !== "VERIFIED"
+    ) {
+      throw new Error(
+        "Refunds require a verified Stripe Express account on the organizing team",
+      )
+    }
+
+    // 5. Purchase must be paid via Stripe
+    if (!registration.commercePurchaseId) {
+      throw new Error("Registration has no associated purchase to refund")
+    }
+
+    const purchase = await db.query.commercePurchaseTable.findFirst({
+      where: eq(commercePurchaseTable.id, registration.commercePurchaseId),
+    })
+
+    if (!purchase) {
+      throw new Error("Registration has no associated purchase to refund")
+    }
+
+    if (purchase.status !== COMMERCE_PURCHASE_STATUS.COMPLETED) {
+      throw new Error(
+        "Cannot refund: purchase is not completed",
+      )
+    }
+
+    if (!purchase.stripePaymentIntentId) {
+      throw new Error(
+        "Cannot refund: purchase has no Stripe payment intent",
+      )
+    }
+    const stripePaymentIntentId = purchase.stripePaymentIntentId
+
+    // 6. Lock the purchase row, compute remaining balance, issue refund, and
+    //    record the financial event — all inside one transaction. The
+    //    SELECT ... FOR UPDATE on commerce_purchase serializes concurrent
+    //    organizer-initiated refunds for the same purchase: the second
+    //    request waits until the first commits (or rolls back), then sees
+    //    the freshly-recorded REFUND_INITIATED row and updates its remaining
+    //    balance accordingly. PlanetScale (Vitess) supports FOR UPDATE in
+    //    single-shard transactions and queues hot-row contenders.
+    //
+    //    Trade-off: the lock is held across the Stripe network call. Refunds
+    //    are organizer-driven and low-frequency, and Stripe latency is
+    //    bounded; the alternative (releasing the lock before Stripe) would
+    //    leave a race window we'd need a second guard for.
+    const { refundId, refundAmountCents } = await db.transaction(async (tx) => {
+      // Acquire a row-level lock on the purchase. We only need the lock —
+      // the row data was already fetched above for status/paymentIntent
+      // validation.
+      await tx
+        .select({ id: commercePurchaseTable.id })
+        .from(commercePurchaseTable)
+        .where(eq(commercePurchaseTable.id, purchase.id))
+        .for("update")
+        .limit(1)
+
+      // Compute remaining refundable balance from prior REFUND_INITIATED
+      // events. Each row's amountCents is stored as a negative number
+      // (money out), so absolute values sum to the total already refunded.
+      const priorRefunds = await tx.query.financialEventTable.findMany({
+        where: and(
+          eq(financialEventTable.purchaseId, purchase.id),
+          eq(
+            financialEventTable.eventType,
+            FINANCIAL_EVENT_TYPE.REFUND_INITIATED,
+          ),
+        ),
+        columns: { amountCents: true },
+      })
+
+      const refundedCents = priorRefunds.reduce(
+        (sum, r) => sum + Math.abs(r.amountCents),
+        0,
+      )
+      const remainingCents = purchase.totalCents - refundedCents
+      const requestedAmountCents = input.amountCents ?? remainingCents
+
+      if (remainingCents <= 0) {
+        throw new Error("Purchase has already been fully refunded")
+      }
+
+      if (requestedAmountCents > remainingCents) {
+        throw new Error(
+          `Refund amount (${requestedAmountCents}) exceeds remaining balance (${remainingCents})`,
+        )
+      }
+
+      logInfo({
+        message: "[Registration] Initiating refund",
+        attributes: {
+          registrationId: input.registrationId,
+          competitionId: input.competitionId,
+          purchaseId: purchase.id,
+          amountCents: requestedAmountCents,
+          remainingCents,
+        },
+      })
+
+      // Issue the Stripe refund. Destination charges (created with
+      // transfer_data.destination + application_fee_amount) require
+      // refunding on the platform payment_intent with:
+      //   - reverse_transfer: true → reverse the transfer so the refund is
+      //     funded by the organizer's balance, not ours.
+      //   - refund_application_fee: false → the platform fee stays as
+      //     revenue. Both flags are explicit (not relying on defaults).
+      //
+      // The Stripe idempotency key MUST be stable across client retries —
+      // if it varies between attempts of the same logical operation, Stripe
+      // issues a duplicate refund. When the caller supplies an
+      // `idempotencyToken` (a UUID generated on click and replayed on
+      // retry), we use it directly. Otherwise we fall back to
+      // `${purchaseId}:${amount}` which is retry-safe for the full-refund
+      // path (the remaining-balance check rejects retries before we get
+      // here) but cannot distinguish two intentional partial refunds of the
+      // same amount — partial-refund callers should supply a token.
+      const stripeIdempotencyKey = input.idempotencyToken
+        ? `refund:${input.idempotencyToken}`
+        : `refund:${purchase.id}:${requestedAmountCents}`
+
+      const refund = await getStripe().refunds.create(
+        {
+          payment_intent: stripePaymentIntentId,
+          amount: requestedAmountCents,
+          reverse_transfer: true,
+          refund_application_fee: false,
+          reason: "requested_by_customer",
+          metadata: {
+            purchaseId: purchase.id,
+            registrationId: input.registrationId,
+            competitionId: input.competitionId,
+            organizerUserId: session.userId,
+          },
+        },
+        { idempotencyKey: stripeIdempotencyKey },
+      )
+
+      // Record the REFUND_INITIATED financial event through the same tx so
+      // the INSERT participates in the surrounding transaction (rolls back
+      // with the lock if anything throws). The webhook will write
+      // REFUND_COMPLETED when Stripe confirms the refund settled.
+      await recordRefundInitiated({
+        purchaseId: purchase.id,
+        teamId: competition.organizingTeamId,
+        amountCents: requestedAmountCents,
+        stripePaymentIntentId,
+        stripeRefundId: refund.id,
+        reason: input.reason ?? "Refund initiated by organizer",
+        actorId: session.userId,
+        db: tx,
+      })
+
+      return { refundId: refund.id, refundAmountCents: requestedAmountCents }
+    })
+
+    logInfo({
+      message: "[Registration] Refund initiated successfully",
+      attributes: {
+        registrationId: input.registrationId,
+        purchaseId: purchase.id,
+        refundId,
+      },
+    })
+
+    return {
+      success: true,
+      refundId,
+      amountCents: refundAmountCents,
+    }
   })

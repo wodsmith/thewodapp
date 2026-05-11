@@ -3,10 +3,20 @@
 /**
  * Invite Source Form — create / edit a single source.
  *
- * Two kinds: single-competition (requires globalSpots as "top N overall")
- * and series (requires sourceGroupId; directSpotsPerComp + globalSpots
- * both optional). The form-level validator mirrors the server-side
- * helper: exactly one of sourceCompetitionId / sourceGroupId.
+ * Three kinds:
+ *   - "competition": single-comp source. Requires sourceCompetitionId
+ *     and globalSpots ("top N qualifies per division").
+ *   - "series": series grouping. Requires sourceGroupId. No globalSpots
+ *     — per-division override on the source-detail page is the only
+ *     knob, so each division gets an explicit absolute total or
+ *     contributes nothing.
+ *   - "series_global": series-aggregate leaderboard. Requires
+ *     sourceGroupId and globalSpots ("top N from the series global
+ *     leaderboard per division"). Modeled distinct from "series" so
+ *     each tier is its own bucket.
+ *
+ * The form-level validator mirrors the server-side helper: exactly one
+ * of sourceCompetitionId / sourceGroupId, matched against `kind`.
  */
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
@@ -40,10 +50,10 @@ export const inviteSourceFormSchema = z
     kind: z.enum([
       COMPETITION_INVITE_SOURCE_KIND.COMPETITION,
       COMPETITION_INVITE_SOURCE_KIND.SERIES,
+      COMPETITION_INVITE_SOURCE_KIND.SERIES_GLOBAL,
     ]),
     sourceCompetitionId: z.string().optional(),
     sourceGroupId: z.string().optional(),
-    directSpotsPerComp: z.number().int().positive().optional(),
     globalSpots: z.number().int().positive().optional(),
     notes: z.string().max(2000).optional(),
   })
@@ -64,27 +74,28 @@ export const inviteSourceFormSchema = z
         path: ["sourceCompetitionId"],
       })
     }
-    if (val.kind === "competition" && !val.globalSpots) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Set the top-N (global spots) for a single-competition source",
-        path: ["globalSpots"],
-      })
-    }
-    if (val.kind === "series" && !hasGroup) {
+    if ((val.kind === "series" || val.kind === "series_global") && !hasGroup) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Series source needs a series",
         path: ["sourceGroupId"],
       })
     }
+    // globalSpots required for "competition" and "series_global"; not
+    // collected for "series" (per-division override is the only knob).
+    if (val.kind !== "series" && !val.globalSpots) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Set the top-N qualifying spots per division",
+        path: ["globalSpots"],
+      })
+    }
   })
 
-export type InviteSourceFormValues = {
-  kind: "competition" | "series"
+export interface InviteSourceFormValues {
+  kind: "competition" | "series" | "series_global"
   sourceCompetitionId?: string
   sourceGroupId?: string
-  directSpotsPerComp?: number
   globalSpots?: number
   notes?: string
 }
@@ -108,12 +119,16 @@ export function InviteSourceForm({
 }: InviteSourceFormProps) {
   const form = useForm<InviteSourceFormValues, unknown, InviteSourceFormValues>({
     resolver: standardSchemaResolver(inviteSourceFormSchema),
+    // When `kind` toggles, the now-hidden field's stale value would
+    // otherwise persist in form state and trip the "exactly one source"
+    // refine — blocking submit silently. Unregister hidden fields so the
+    // validator only sees what the active kind actually rendered.
+    shouldUnregister: true,
     defaultValues: {
       kind:
         (defaultValues?.kind as InviteSourceFormValues["kind"]) ?? "competition",
       sourceCompetitionId: defaultValues?.sourceCompetitionId ?? undefined,
       sourceGroupId: defaultValues?.sourceGroupId ?? undefined,
-      directSpotsPerComp: defaultValues?.directSpotsPerComp ?? undefined,
       globalSpots: defaultValues?.globalSpots ?? undefined,
       notes: defaultValues?.notes ?? undefined,
     },
@@ -143,6 +158,9 @@ export function InviteSourceForm({
                 <SelectContent>
                   <SelectItem value="competition">Single competition</SelectItem>
                   <SelectItem value="series">Series</SelectItem>
+                  <SelectItem value="series_global">
+                    Series global leaderboard
+                  </SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />
@@ -208,38 +226,16 @@ export function InviteSourceForm({
           />
         )}
 
-        {kind === "series" ? (
-          <FormField
-            control={form.control}
-            name="directSpotsPerComp"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Direct spots per comp</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={field.value ?? ""}
-                    onChange={(e) =>
-                      field.onChange(
-                        e.target.value === "" ? undefined : Number(e.target.value),
-                      )
-                    }
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        ) : null}
-
+        {kind !== "series" ? (
         <FormField
           control={form.control}
           name="globalSpots"
           render={({ field }) => (
             <FormItem>
               <FormLabel>
-                {kind === "competition" ? "Top N qualifies" : "Global spots"}
+                {kind === "series_global"
+                  ? "Top N from the series global leaderboard per division"
+                  : "Top N qualifies per division"}
               </FormLabel>
               <FormControl>
                 <Input
@@ -257,6 +253,7 @@ export function InviteSourceForm({
             </FormItem>
           )}
         />
+        ) : null}
 
         <FormField
           control={form.control}

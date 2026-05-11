@@ -167,7 +167,7 @@ export const getAthleteEditDataFn = createServerFn({ method: "GET" }).handler(
     if (!session) {
       throw redirect({
         to: "/sign-in",
-        search: { redirect: "/compete/athlete/edit" },
+        search: { redirect: "/settings/athlete" },
       })
     }
 
@@ -186,7 +186,7 @@ export const getAthleteEditDataFn = createServerFn({ method: "GET" }).handler(
     if (!user) {
       throw redirect({
         to: "/sign-in",
-        search: { redirect: "/compete/athlete/edit" },
+        search: { redirect: "/settings/athlete" },
       })
     }
 
@@ -274,7 +274,7 @@ export const updateAthleteBasicProfileFn = createServerFn({ method: "POST" })
   })
 
 /**
- * Get athlete profile page data (full profile with competition history)
+ * Get athlete profile page data (full profile with sponsors + competition history)
  */
 export const getAthleteProfileDataFn = createServerFn({
   method: "GET",
@@ -283,13 +283,12 @@ export const getAthleteProfileDataFn = createServerFn({
   if (!session) {
     throw redirect({
       to: "/sign-in",
-      search: { redirect: "/compete/athlete" },
+      search: { redirect: "/settings/overview" },
     })
   }
 
   const db = getDb()
 
-  // Fetch user profile data
   const user = await db.query.userTable.findFirst({
     where: eq(userTable.id, session.userId),
     columns: {
@@ -308,16 +307,14 @@ export const getAthleteProfileDataFn = createServerFn({
   if (!user) {
     throw redirect({
       to: "/sign-in",
-      search: { redirect: "/compete/athlete" },
+      search: { redirect: "/settings/overview" },
     })
   }
 
-  // Get sponsors
   const sponsorsResult = await getUserSponsorsFn({
     data: { userId: session.userId },
   })
 
-  // Get direct registrations (user is captain)
   const directRegistrations =
     await db.query.competitionRegistrationsTable.findMany({
       where: and(
@@ -325,18 +322,13 @@ export const getAthleteProfileDataFn = createServerFn({
         ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
       ),
       with: {
-        competition: {
-          with: {
-            organizingTeam: true,
-          },
-        },
+        competition: { with: { organizingTeam: true } },
         division: true,
         athleteTeam: true,
       },
       orderBy: (table, { desc }) => [desc(table.registeredAt)],
     })
 
-  // Get team registrations (user is teammate)
   const userTeamMemberships = await db.query.teamMembershipTable.findMany({
     where: and(
       eq(teamMembershipTable.userId, session.userId),
@@ -347,7 +339,6 @@ export const getAthleteProfileDataFn = createServerFn({
 
   const userTeamIds = userTeamMemberships.map((m) => m.teamId)
 
-  // Get team registrations
   const teamRegistrations =
     userTeamIds.length > 0
       ? await db.query.competitionRegistrationsTable.findMany({
@@ -359,11 +350,7 @@ export const getAthleteProfileDataFn = createServerFn({
             ),
           ),
           with: {
-            competition: {
-              with: {
-                organizingTeam: true,
-              },
-            },
+            competition: { with: { organizingTeam: true } },
             division: true,
             athleteTeam: true,
           },
@@ -371,7 +358,6 @@ export const getAthleteProfileDataFn = createServerFn({
         })
       : []
 
-  // Combine and deduplicate by registration ID
   const allRegistrations = [...directRegistrations, ...teamRegistrations]
   const seenIds = new Set<string>()
   const competitionHistory = allRegistrations
@@ -403,7 +389,7 @@ export const getAthleteInvoicesDataFn = createServerFn({
   if (!session) {
     throw redirect({
       to: "/sign-in",
-      search: { redirect: "/compete/athlete/invoices" },
+      search: { redirect: "/settings/billing" },
     })
   }
 
@@ -426,7 +412,7 @@ export const getInvoiceDetailsFn = createServerFn({ method: "GET" })
     if (!session) {
       throw redirect({
         to: "/sign-in",
-        search: { redirect: `/compete/athlete/invoices/${data.purchaseId}` },
+        search: { redirect: `/settings/billing/${data.purchaseId}` },
       })
     }
 

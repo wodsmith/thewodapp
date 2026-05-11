@@ -8,6 +8,9 @@ import { createServerFn } from "@tanstack/react-start"
 import { getCookie } from "@tanstack/react-start/server"
 import { UAParser } from "ua-parser-js"
 import { z } from "zod"
+import { FEATURES } from "@/config/features"
+import { hasFeature } from "@/server/entitlements"
+import type { SessionValidationResult } from "@/types"
 import { getActiveTeamFromCookie, getSessionFromCookie } from "@/utils/auth"
 import {
   deleteKVSession,
@@ -45,6 +48,44 @@ export const getThemeCookieFn = createServerFn({ method: "GET" }).handler(
 export const getActiveTeamIdFn = createServerFn({ method: "GET" }).handler(
   async () => {
     return getActiveTeamFromCookie()
+  },
+)
+
+// ============================================================================
+// Root Bootstrap Server Function
+// ============================================================================
+
+export interface RootBootstrap {
+  session: SessionValidationResult | null
+  themeCookie: ThemePreference | undefined
+  activeTeamId: string | null
+  hasWorkoutTracking: boolean
+}
+
+/**
+ * Single round-trip bootstrap for the root beforeLoad.
+ *
+ * Replaces 4 separate server fn calls (getOptionalSession, getThemeCookieFn,
+ * getActiveTeamIdFn, checkWorkoutTrackingAccess) with one HTTP request and
+ * one session lookup. The session cache (auth.withSessionCache) further
+ * deduplicates the session read with any other server fns running in the
+ * same request lifecycle (e.g. during SSR).
+ */
+export const getRootBootstrapFn = createServerFn({ method: "GET" }).handler(
+  async (): Promise<RootBootstrap> => {
+    const session = await getSessionFromCookie()
+    const themeCookie = getCookie("theme") as ThemePreference | undefined
+    const activeTeamId = await getActiveTeamFromCookie()
+
+    let hasWorkoutTracking = false
+    if (session?.user && activeTeamId) {
+      hasWorkoutTracking = await hasFeature(
+        activeTeamId,
+        FEATURES.WORKOUT_TRACKING,
+      )
+    }
+
+    return { session, themeCookie, activeTeamId, hasWorkoutTracking }
   },
 )
 

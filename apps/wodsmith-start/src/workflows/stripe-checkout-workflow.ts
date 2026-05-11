@@ -56,7 +56,7 @@ import { PENDING_PURCHASE_MAX_AGE_MINUTES } from "@/server-fns/competition-divis
 import { calculateDivisionCapacity } from "@/utils/division-capacity"
 import { calculateCompetitionCapacity } from "@/utils/competition-capacity"
 import {
-  getAcceptedPaidCountForBucket,
+  getOccupiedCountForBucket,
   resolveAllocationForInvite,
 } from "@/server/competition-invites/claim"
 import { assertInviteWithinAllocation } from "@/server/competition-invites/identity"
@@ -486,17 +486,24 @@ async function createRegistration(
       where: eq(competitionInvitesTable.id, registrationData.inviteId),
     })
     if (inviteRow?.sourceId) {
-      const [allocation, acceptedCount] = await Promise.all([
+      // Authoritative re-check: count accepted_paid + in-flight pending
+      // purchases in the bucket, excluding our own purchase row (which is
+      // still PENDING at this point in the workflow). This closes the
+      // millisecond race where two purchases initiate concurrently — only
+      // the first webhook to reach this check sees occupiedCount = 0.
+      const [allocation, occupiedCount] = await Promise.all([
         resolveAllocationForInvite({ invite: inviteRow }),
-        getAcceptedPaidCountForBucket({
+        getOccupiedCountForBucket({
           sourceId: inviteRow.sourceId,
+          championshipCompetitionId: inviteRow.championshipCompetitionId,
           championshipDivisionId: inviteRow.championshipDivisionId,
+          excludePurchaseId: purchaseId,
         }),
       ])
       const allocationCheck = assertInviteWithinAllocation({
         invite: { sourceId: inviteRow.sourceId },
         allocation: allocation ?? 0,
-        acceptedCount,
+        acceptedCount: occupiedCount,
       })
       if (!allocationCheck.ok) {
         logError({
@@ -510,7 +517,7 @@ async function createRegistration(
             inviteId: registrationData.inviteId,
             sourceId: inviteRow.sourceId,
             allocation,
-            acceptedCount,
+            occupiedCount,
           },
         })
 

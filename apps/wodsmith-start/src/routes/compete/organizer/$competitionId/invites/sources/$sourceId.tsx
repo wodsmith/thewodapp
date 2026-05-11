@@ -19,7 +19,7 @@ import {
 } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { ArrowLeft } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import {
   InviteSourceForm,
@@ -157,7 +157,6 @@ function InviteSourceDetailsPage() {
   const {
     source,
     championshipDivisions,
-    allocationsBySourceByDivision,
     rawAllocationsForSource,
     competitionOptions,
     seriesOptions,
@@ -175,23 +174,12 @@ function InviteSourceDetailsPage() {
 
   // Source default applied per-division when no override row exists.
   // Mirrors `sourceDefaultPerDivision` in the server-side allocations
-  // helper — kept simple here because the details page only needs the
-  // displayable number, not the full resolution algorithm.
-  const sourceDefaultPerDivision = useMemo(() => {
-    if (source.kind === "series") {
-      // Series default is `directSpotsPerComp * compCount + globalSpots`
-      // applied per-division. We only have the resolved per-division
-      // total in `allocationsBySourceByDivision[source.id]` — pick any
-      // entry where there's no override to derive the default. If we
-      // can't (every entry has an override), fall back to the raw
-      // globalSpots so the toggle copy still has a number to show.
-      const map = allocationsBySourceByDivision[source.id] ?? {}
-      const firstDefault = Object.values(map)[0]
-      if (typeof firstDefault === "number") return firstDefault
-      return source.globalSpots ?? 0
-    }
-    return source.globalSpots ?? 0
-  }, [source, allocationsBySourceByDivision])
+  // helper:
+  //   - "series": 0 (no source-level default; per-division override is
+  //     the only knob).
+  //   - "competition" / "series_global": source.globalSpots.
+  const sourceDefaultPerDivision =
+    source.kind === "series" ? 0 : (source.globalSpots ?? 0)
 
   // Seed the per-division override map from the raw allocation rows.
   // Presence of a row in `rawAllocationsForSource` means "override is
@@ -228,6 +216,14 @@ function InviteSourceDetailsPage() {
   const [overrides, setOverrides] =
     useState<Record<string, OverrideState>>(initialOverrides)
 
+  // After router.invalidate() (post-save), the loader memo recomputes
+  // initialOverrides but useState retains the stale snapshot. Re-seed
+  // when the upstream-derived map changes so the table mirrors the
+  // freshly persisted data.
+  useEffect(() => {
+    setOverrides(initialOverrides)
+  }, [initialOverrides])
+
   const setRow = (divisionId: string, patch: Partial<OverrideState>) => {
     setOverrides((prev) => ({
       ...prev,
@@ -246,12 +242,11 @@ function InviteSourceDetailsPage() {
           sourceCompetitionId:
             values.kind === "competition" ? values.sourceCompetitionId : null,
           sourceGroupId:
-            values.kind === "series" ? values.sourceGroupId : null,
-          directSpotsPerComp:
-            values.kind === "series"
-              ? (values.directSpotsPerComp ?? null)
+            values.kind === "series" || values.kind === "series_global"
+              ? values.sourceGroupId
               : null,
-          globalSpots: values.globalSpots ?? null,
+          globalSpots:
+            values.kind === "series" ? null : (values.globalSpots ?? null),
           notes: values.notes ?? null,
         },
       })
@@ -316,12 +311,13 @@ function InviteSourceDetailsPage() {
     setAllocationError(null)
   }
 
-  const sourceLabel =
-    source.kind === "series"
-      ? (seriesOptions.find((g) => g.id === source.sourceGroupId)?.name ??
-        "Unknown series")
-      : (competitionOptions.find((c) => c.id === source.sourceCompetitionId)
-          ?.name ?? "Unknown competition")
+  const isSeriesKind =
+    source.kind === "series" || source.kind === "series_global"
+  const sourceLabel = isSeriesKind
+    ? (seriesOptions.find((g) => g.id === source.sourceGroupId)?.name ??
+      "Unknown series")
+    : (competitionOptions.find((c) => c.id === source.sourceCompetitionId)
+        ?.name ?? "Unknown competition")
 
   return (
     <div className="space-y-6">

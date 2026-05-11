@@ -64,7 +64,7 @@ import {
 } from "@/server/competition-invites/bespoke"
 import {
   assertInviteClaimable,
-  getAcceptedPaidCountForBucket,
+  getOccupiedCountForBucket,
   type InviteClaimableError,
   InviteNotClaimableError,
   resolveAllocationForInvite,
@@ -78,6 +78,7 @@ import {
   type IssueInvitesResult,
   issueInvitesForRecipients,
   normalizeInviteEmail,
+  redeliverInvite,
   reissueInvite,
 } from "@/server/competition-invites/issue"
 import { getChampionshipRoster } from "@/server/competition-invites/roster"
@@ -104,6 +105,7 @@ const divisionMappingSchema = z.object({
 const kindSchema = z.enum([
   COMPETITION_INVITE_SOURCE_KIND.COMPETITION,
   COMPETITION_INVITE_SOURCE_KIND.SERIES,
+  COMPETITION_INVITE_SOURCE_KIND.SERIES_GLOBAL,
 ])
 
 const listInviteSourcesInputSchema = z.object({
@@ -115,7 +117,6 @@ const createInviteSourceInputSchema = z.object({
   kind: kindSchema,
   sourceCompetitionId: z.string().min(1).nullable().optional(),
   sourceGroupId: z.string().min(1).nullable().optional(),
-  directSpotsPerComp: z.number().int().positive().nullable().optional(),
   globalSpots: z.number().int().positive().nullable().optional(),
   divisionMappings: z.array(divisionMappingSchema).nullable().optional(),
   sortOrder: z.number().int().min(0).optional(),
@@ -128,7 +129,6 @@ const updateInviteSourceInputSchema = z.object({
   kind: kindSchema.optional(),
   sourceCompetitionId: z.string().min(1).nullable().optional(),
   sourceGroupId: z.string().min(1).nullable().optional(),
-  directSpotsPerComp: z.number().int().positive().nullable().optional(),
   globalSpots: z.number().int().positive().nullable().optional(),
   divisionMappings: z.array(divisionMappingSchema).nullable().optional(),
   sortOrder: z.number().int().min(0).optional(),
@@ -278,7 +278,7 @@ async function getSeriesOrganizingTeamId(groupId: string): Promise<string> {
  */
 async function requireSourcePermissions(params: {
   championshipCompetitionId: string
-  kind: "competition" | "series"
+  kind: "competition" | "series" | "series_global"
   sourceCompetitionId?: string | null
   sourceGroupId?: string | null
 }): Promise<{ championshipTeamId: string }> {
@@ -298,9 +298,12 @@ async function requireSourcePermissions(params: {
     sourceTeamId = await getCompetitionOrganizingTeamId(
       params.sourceCompetitionId,
     )
-  } else if (params.kind === COMPETITION_INVITE_SOURCE_KIND.SERIES) {
+  } else if (
+    params.kind === COMPETITION_INVITE_SOURCE_KIND.SERIES ||
+    params.kind === COMPETITION_INVITE_SOURCE_KIND.SERIES_GLOBAL
+  ) {
     if (!params.sourceGroupId) {
-      throw new Error('kind "series" requires sourceGroupId')
+      throw new Error(`kind "${params.kind}" requires sourceGroupId`)
     }
     sourceTeamId = await getSeriesOrganizingTeamId(params.sourceGroupId)
   }
@@ -448,7 +451,6 @@ export const createInviteSourceFn = createServerFn({ method: "POST" })
           kind: data.kind,
           sourceCompetitionId: data.sourceCompetitionId,
           sourceGroupId: data.sourceGroupId,
-          directSpotsPerComp: data.directSpotsPerComp,
           globalSpots: data.globalSpots,
           divisionMappings: data.divisionMappings,
           sortOrder: data.sortOrder,
@@ -517,7 +519,6 @@ export const updateInviteSourceFn = createServerFn({ method: "POST" })
           kind: data.kind,
           sourceCompetitionId: data.sourceCompetitionId,
           sourceGroupId: data.sourceGroupId,
-          directSpotsPerComp: data.directSpotsPerComp,
           globalSpots: data.globalSpots,
           divisionMappings: data.divisionMappings,
           sortOrder: data.sortOrder,
@@ -792,19 +793,27 @@ export const getInviteByTokenFn = createServerFn({ method: "GET" })
         // ADR-0012 Phase 5: per-(source, division) allocation guardrail.
         // Best-effort UX gate — the authoritative re-check lives in the
         // Stripe workflow at payment confirmation. Bespoke invites
-        // (sourceId IS NULL) bypass.
+        // (sourceId IS NULL) bypass. The occupied count includes both
+        // accepted_paid invites AND in-flight Stripe checkouts (held for
+        // PENDING_PURCHASE_MAX_AGE_MINUTES) so two athletes can't both pass
+        // the gate while one is mid-payment.
         if (invite.sourceId) {
-          const [allocation, acceptedCount] = await Promise.all([
+          const [allocation, occupiedCount] = await Promise.all([
             resolveAllocationForInvite({ invite }),
-            getAcceptedPaidCountForBucket({
+            getOccupiedCountForBucket({
               sourceId: invite.sourceId,
+              championshipCompetitionId: invite.championshipCompetitionId,
               championshipDivisionId: invite.championshipDivisionId,
+              // The invitee's own mid-checkout hold belongs to *this* invite —
+              // counting it would falsely "fill" the bucket when they revisit
+              // claim while their own Stripe session is still alive.
+              excludeInviteId: invite.id,
             }),
           ])
           const allocationCheck = assertInviteWithinAllocation({
             invite: { sourceId: invite.sourceId },
             allocation: allocation ?? 0,
-            acceptedCount,
+            acceptedCount: occupiedCount,
           })
           if (!allocationCheck.ok) {
             logInfo({
@@ -814,13 +823,41 @@ export const getInviteByTokenFn = createServerFn({ method: "GET" })
                 sourceId: invite.sourceId,
                 championshipDivisionId: invite.championshipDivisionId,
                 allocation: allocation ?? 0,
-                acceptedCount,
+                occupiedCount,
               },
             })
+            // Hydrate the source display name so the claim page can tell
+            // the athlete which division and which qualifier filled up,
+            // not just a generic "this division". `getSourceById` only
+            // runs on the unhappy path so it doesn't pay round-trips on
+            // every claim; the lookups for the source's underlying
+            // competition / group name are best-effort and fall back to
+            // null on missing rows.
+            const source = await getSourceById(invite.sourceId)
+            let sourceLabel: string | null = null
+            if (source) {
+              if (source.sourceCompetitionId) {
+                const [row] = await db
+                  .select({ name: competitionsTable.name })
+                  .from(competitionsTable)
+                  .where(eq(competitionsTable.id, source.sourceCompetitionId))
+                  .limit(1)
+                sourceLabel = row?.name ?? null
+              } else if (source.sourceGroupId) {
+                const [row] = await db
+                  .select({ name: competitionGroupsTable.name })
+                  .from(competitionGroupsTable)
+                  .where(eq(competitionGroupsTable.id, source.sourceGroupId))
+                  .limit(1)
+                sourceLabel = row?.name ?? null
+              }
+            }
             return {
               kind: "not_claimable" as const,
               reason: "over_allocated" as InviteClaimableError,
               championshipName: champ.name,
+              divisionLabel: division?.label ?? null,
+              sourceLabel,
             }
           }
         }
@@ -1100,24 +1137,76 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
           throw err
         }
 
-        // Activate draft bespoke rows that came back as alreadyActive+isDraft.
-        const activated: Array<{
+        // Per-recipient failure list. Both the activation and dispatch
+        // loops push into this so the organizer sees a unified summary
+        // ("3 failed") regardless of which stage the failure occurred
+        // in. The dialog UX renders these inline alongside `skipped`.
+        const failed: Array<{
+          inviteId: string
+          email: string
+          error: string
+        }> = []
+
+        // Refresh `alreadyActive` rows that came back with a non-skip
+        // resolution. Wrapped per-iteration in try/catch for the same
+        // reason as the dispatch loop below: a transient blip on one
+        // row's UPDATE must not abort the whole batch — the caller has
+        // already committed inserted rows in their own transaction, and
+        // earlier rows in this loop have already had their tokens
+        // rotated or expirations bumped. Aborting here would strand
+        // them with no recovery path because a re-issue would classify
+        // them as `alreadyActive` non-drafts (skipped). Failed refreshes
+        // land in `failed[]` like dispatch failures so the UI surfaces
+        // them the same way.
+        //
+        // Two refresh paths, picked by the helper based on the existing
+        // row's shape (see `resolveAlreadyActive` in `issue.ts`):
+        //   - "draft"  → `reissueInvite` rotates a fresh token (the
+        //     athlete never received the prior link).
+        //   - "resend" → `redeliverInvite` keeps the existing token
+        //     (the athlete may already have the prior email; rotating
+        //     would invalidate the link they have in hand).
+        const refreshed: Array<{
           invite: CompetitionInvite
           plaintextToken: string
         }> = []
         for (const prior of issueResult.alreadyActive) {
-          if (!prior.isDraft) continue
-          const rotated = await reissueInvite({
-            inviteId: prior.existingInviteId,
-            newExpiresAt: rsvpDeadlineAt,
-          })
-          activated.push({
-            invite: rotated.invite,
-            plaintextToken: rotated.plaintextToken,
-          })
+          if (prior.resolution === "skip") continue
+          try {
+            const rotatedOrRefreshed =
+              prior.resolution === "draft"
+                ? await reissueInvite({
+                    inviteId: prior.existingInviteId,
+                    newExpiresAt: rsvpDeadlineAt,
+                  })
+                : await redeliverInvite({
+                    inviteId: prior.existingInviteId,
+                    newExpiresAt: rsvpDeadlineAt,
+                  })
+            refreshed.push({
+              invite: rotatedOrRefreshed.invite,
+              plaintextToken: rotatedOrRefreshed.plaintextToken,
+            })
+          } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : String(err)
+            failed.push({
+              inviteId: prior.existingInviteId,
+              email: prior.email,
+              error: errorMsg,
+            })
+            logWarning({
+              message: "[Invites] Refresh failed mid-batch",
+              error: err,
+              attributes: {
+                inviteId: prior.existingInviteId,
+                email: prior.email,
+                resolution: prior.resolution,
+              },
+            })
+          }
         }
 
-        const allToDispatch = [...issueResult.inserted, ...activated]
+        const allToDispatch = [...issueResult.inserted, ...refreshed]
 
         // Render + enqueue per invite. Render is intentionally sequential
         // to keep memory bounded when a round targets hundreds of recipients.
@@ -1131,11 +1220,10 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
         const queue = (env as unknown as Record<string, unknown>)
           .BROADCAST_EMAIL_QUEUE as Queue<QueueEmailMessage> | undefined
 
-        const failed: Array<{
-          inviteId: string
-          email: string
-          error: string
-        }> = []
+        // Snapshot before the dispatch loop so we can derive an accurate
+        // `sentCount` without double-counting refresh failures (which
+        // are already in `failed` but were never in `allToDispatch`).
+        const refreshFailureCount = failed.length
 
         for (const { invite, plaintextToken } of allToDispatch) {
           try {
@@ -1219,8 +1307,11 @@ export const issueInvitesFn = createServerFn({ method: "POST" })
           }
         }
 
-        const skipped = issueResult.alreadyActive.filter((r) => !r.isDraft)
-        const sentCount = allToDispatch.length - failed.length
+        const skipped = issueResult.alreadyActive.filter(
+          (r) => r.resolution === "skip",
+        )
+        const dispatchFailureCount = failed.length - refreshFailureCount
+        const sentCount = allToDispatch.length - dispatchFailureCount
 
         logInfo({
           message: "[Invites] issueInvitesFn dispatched",
@@ -1367,6 +1458,16 @@ export interface ActiveInviteSummary {
    * `team_invitations`-style copy-link affordance.
    */
   claimUrl: string | null
+  /**
+   * Counter incremented on every refresh dispatch. The dispatch loop
+   * reads `invite.sendAttempt` to feed the Resend `Idempotency-Key`,
+   * so an organizer-facing "this athlete has been emailed N times"
+   * count is `sendAttempt + 1` for any row with a token (the +1 covers
+   * the first send that ran while sendAttempt was still 0). Drafts
+   * (no token, never dispatched) read 0 the same way fresh inserts do
+   * — the UI distinguishes by checking `claimUrl === null`.
+   */
+  sendAttempt: number
 }
 
 /**
@@ -1395,6 +1496,12 @@ export interface AuditInviteSummary extends ActiveInviteSummary {
    *  bespoke. Used by the Sent tab to group accepted invites under each
    *  qualification source. */
   sourceId: string | null
+  /** Hard expiry from `competition_invites.expiresAt`. Mirrors the round's
+   *  `rsvpDeadlineAt` at issue time but stored per-invite so per-invite
+   *  extensions can move it. `null` when the invite has no expiry set
+   *  (drafts, or rounds without a deadline). Sent tab renders this so the
+   *  organizer can see how soon the live claim link goes stale. */
+  expiresAt: Date | null
 }
 
 /**
@@ -1448,6 +1555,7 @@ export const listActiveInvitesFn = createServerFn({ method: "GET" })
             inviteeLastName: competitionInvitesTable.inviteeLastName,
             userId: competitionInvitesTable.userId,
             claimToken: competitionInvitesTable.claimToken,
+            sendAttempt: competitionInvitesTable.sendAttempt,
             championshipSlug: competitionsTable.slug,
           })
           .from(competitionInvitesTable)
@@ -1497,10 +1605,12 @@ const listAllInvitesInputSchema = z.object({
 
 /**
  * List every invite (active OR terminal) for a championship. Powers the
- * organizer "Sent" audit tab — grouped by division, filterable by
- * status / origin / search. Distinct from `listActiveInvitesFn` which
- * only returns active rows so the Candidates tab's bespoke-draft list
- * never bleeds in declined/expired/revoked history.
+ * organizer "Sent" audit tab and the Candidates tab's bespoke list +
+ * roster status pills (so declined athletes stay visible to the
+ * organizer). Distinct from `listActiveInvitesFn`, which still drives
+ * the recipient-dedup map on the Candidates tab — that gate explicitly
+ * needs to *exclude* declined rows so re-issues flow back through
+ * `issueInvitesFn` instead of being silently filtered as duplicates.
  *
  * Joins `scalingLevels` to surface `divisionLabel` per row so the
  * client doesn't need a per-row map lookup, and selects `updatedAt`
@@ -1548,7 +1658,9 @@ export const listAllInvitesFn = createServerFn({ method: "GET" })
             inviteeLastName: competitionInvitesTable.inviteeLastName,
             userId: competitionInvitesTable.userId,
             claimToken: competitionInvitesTable.claimToken,
+            sendAttempt: competitionInvitesTable.sendAttempt,
             lastUpdatedAt: competitionInvitesTable.updatedAt,
+            expiresAt: competitionInvitesTable.expiresAt,
             championshipSlug: competitionsTable.slug,
             divisionLabel: scalingLevelsTable.label,
           })
@@ -1634,9 +1746,8 @@ const saveInviteSourceAllocationsInputSchema = z.object({
  * Resolve per-source / per-championship-division allocation maps for the
  * organizer invites loader. The default-plus-override math lives in
  * `resolveSourceAllocations`; this fn wires up the inputs (sources,
- * championship divisions, allocation rows, series comp counts) and emits
- * both the per-source map and the summed-by-division total the Sent tab
- * needs.
+ * championship divisions, allocation rows) and emits both the per-source
+ * map and the summed-by-division total the Sent tab needs.
  *
  * Permission: `MANAGE_COMPETITIONS` on the championship's organizing team
  * — same gate as the rest of the organizer invite endpoints. The source
@@ -1669,11 +1780,11 @@ export const listInviteSourceAllocationsFn = createServerFn({ method: "GET" })
 
         const db = getDb()
 
-        // Load sources, championship divisions, allocation rows, and
-        // series comp counts in parallel. The championship divisions
-        // are derived the same way `getCompetitionDivisionsWithCountsFn`
-        // derives them — via the competition's `settings.divisions
-        // .scalingGroupId` → `scaling_levels` rows.
+        // Load sources, championship divisions, and allocation rows in
+        // parallel. The championship divisions are derived the same way
+        // `getCompetitionDivisionsWithCountsFn` derives them — via the
+        // competition's `settings.divisions.scalingGroupId` →
+        // `scaling_levels` rows.
         const [sources, competitionRow, allocationRows] = await Promise.all([
           listSourcesForChampionship(data.championshipCompetitionId),
           db
@@ -1702,32 +1813,6 @@ export const listInviteSourceAllocationsFn = createServerFn({ method: "GET" })
               .orderBy(scalingLevelsTable.position)
           : []
 
-        // Series comp counts — one query, grouped, only when needed.
-        const groupIds = Array.from(
-          new Set(
-            sources.map((s) => s.sourceGroupId).filter((v): v is string => !!v),
-          ),
-        )
-        const seriesCompCountsById: Record<string, number> =
-          groupIds.length > 0
-            ? Object.fromEntries(
-                (
-                  await db
-                    .select({
-                      groupId: competitionsTable.groupId,
-                      count: sql<number>`count(*)`,
-                    })
-                    .from(competitionsTable)
-                    .where(inArray(competitionsTable.groupId, groupIds))
-                    .groupBy(competitionsTable.groupId)
-                )
-                  .filter(
-                    (r): r is { groupId: string; count: number } => !!r.groupId,
-                  )
-                  .map((r) => [r.groupId, Number(r.count)]),
-              )
-            : {}
-
         const allocationsBySourceByDivision: Record<
           string,
           Record<string, number>
@@ -1745,9 +1830,6 @@ export const listInviteSourceAllocationsFn = createServerFn({ method: "GET" })
         }
 
         for (const source of sources) {
-          const seriesCompCount = source.sourceGroupId
-            ? (seriesCompCountsById[source.sourceGroupId] ?? 0)
-            : undefined
           const sourceRows = allocationRows.filter(
             (a) => a.sourceId === source.id,
           )
@@ -1755,7 +1837,6 @@ export const listInviteSourceAllocationsFn = createServerFn({ method: "GET" })
             source,
             championshipDivisions,
             allocations: sourceRows,
-            seriesCompCount,
           })
           allocationsBySourceByDivision[source.id] = resolved.byDivision
           rawAllocationsBySource[source.id] = sourceRows.map((r) => ({

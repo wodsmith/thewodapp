@@ -223,7 +223,7 @@ export function RegistrationDetailsCard({
               isOriginalPurchaser && (
                 <div className="pt-2 border-t">
                   <Link
-                    to="/compete/athlete/invoices/$purchaseId"
+                    to="/settings/billing/$purchaseId"
                     params={{ purchaseId: purchase.id }}
                     search={{ returnTo: location.pathname }}
                     className="text-sm text-primary hover:underline flex items-center gap-1"

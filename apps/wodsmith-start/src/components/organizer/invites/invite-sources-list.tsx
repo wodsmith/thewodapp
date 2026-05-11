@@ -23,14 +23,10 @@ interface InviteSourcesListProps {
   sources: CompetitionInviteSource[]
   competitionNamesById: Record<string, string>
   seriesNamesById: Record<string, string>
-  /** Number of competitions per series groupId, used to scale
-   *  `directSpotsPerComp` into a total allocation. */
-  seriesCompCountsById?: Record<string, number>
   /** ADR-0012: resolved per-(source, championshipDivision) allocation
    *  map, summed per source. When supplied, each card's "qualifying
-   *  spots" line uses the authoritative resolved total instead of the
-   *  source-level scalar math. Optional so older callers (and tests)
-   *  keep working with the local fallback. */
+   *  spots" line uses the authoritative resolved total. Optional so
+   *  tests can fall back to the source's `globalSpots` scalar. */
   allocationsBySourceByDivision?: Record<string, Record<string, number>>
   /** Championship divisions in display order — used to render the
    *  per-division preview row under each source card. Optional; the
@@ -44,26 +40,10 @@ interface InviteSourcesListProps {
   renderSourceExtras?: (source: CompetitionInviteSource) => React.ReactNode
 }
 
-function allocatedSpotsFor(
-  source: CompetitionInviteSource,
-  seriesCompCountsById: Record<string, number>,
-): number {
-  if (source.kind === "series") {
-    const compCount = source.sourceGroupId
-      ? (seriesCompCountsById[source.sourceGroupId] ?? 0)
-      : 0
-    return (
-      (source.directSpotsPerComp ?? 0) * compCount + (source.globalSpots ?? 0)
-    )
-  }
-  return source.globalSpots ?? 0
-}
-
 export function InviteSourcesList({
   sources,
   competitionNamesById,
   seriesNamesById,
-  seriesCompCountsById = {},
   allocationsBySourceByDivision,
   championshipDivisions,
   onEdit,
@@ -71,15 +51,16 @@ export function InviteSourcesList({
   onAdd,
   renderSourceExtras,
 }: InviteSourcesListProps) {
-  // Authoritative resolved total per source. Falls back to the local
-  // scalar math when the loader hasn't supplied the resolved map (older
-  // callers + unit tests).
+  // Authoritative resolved total per source. Falls back to the source's
+  // `globalSpots` scalar when the loader hasn't supplied the resolved
+  // map (older callers + unit tests). Note: the fallback omits per-
+  // division overrides — only the resolved map reflects them.
   const resolvedTotalFor = (source: CompetitionInviteSource): number => {
     const map = allocationsBySourceByDivision?.[source.id]
     if (map) {
       return Object.values(map).reduce((a, b) => a + b, 0)
     }
-    return allocatedSpotsFor(source, seriesCompCountsById)
+    return source.globalSpots ?? 0
   }
 
   const totalAllocated = sources.reduce(
@@ -107,9 +88,16 @@ export function InviteSourcesList({
 
       <div className="space-y-3">
         {sources.map((source) => {
-          const isSeries = source.kind === "series"
-          const Icon = isSeries ? Layers : Trophy
-          const name = isSeries
+          const isSeriesPerComp = source.kind === "series"
+          const isSeriesGlobal = source.kind === "series_global"
+          const isSeriesKind = isSeriesPerComp || isSeriesGlobal
+          const Icon = isSeriesKind ? Layers : Trophy
+          const kindLabel = isSeriesPerComp
+            ? "Series"
+            : isSeriesGlobal
+              ? "Series global leaderboard"
+              : "Single competition"
+          const name = isSeriesKind
             ? (source.sourceGroupId
                 ? seriesNamesById[source.sourceGroupId]
                 : undefined) ?? "Unknown series"
@@ -135,8 +123,8 @@ export function InviteSourcesList({
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <Badge variant={isSeries ? "default" : "secondary"}>
-                      {isSeries ? "Series" : "Single competition"}
+                    <Badge variant={isSeriesKind ? "default" : "secondary"}>
+                      {kindLabel}
                     </Badge>
                   </div>
                   <CardTitle className="mt-1 text-base">{name}</CardTitle>
@@ -173,32 +161,13 @@ export function InviteSourcesList({
                   ) : null}
                 </div>
               </CardHeader>
-              {isSeries ? (
+              {isSeriesPerComp ? (
                 <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <div className="text-xs uppercase text-muted-foreground">
-                        Direct qualifiers
-                      </div>
-                      <div className="mt-1 text-sm">
-                        Top{" "}
-                        <span className="font-semibold">
-                          {source.directSpotsPerComp ?? 0}
-                        </span>{" "}
-                        of each throwdown directly invited.
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs uppercase text-muted-foreground">
-                        Global spots
-                      </div>
-                      <div className="mt-1 text-sm">
-                        <span className="font-semibold">
-                          {source.globalSpots ?? 0}
-                        </span>{" "}
-                        from the series global leaderboard.
-                      </div>
-                    </div>
+                  <div className="text-xs uppercase text-muted-foreground">
+                    Per-comp grouping
+                  </div>
+                  <div className="mt-1 text-sm">
+                    Per-division allocation set on the source detail page.
                   </div>
                 </CardContent>
               ) : (
@@ -207,7 +176,9 @@ export function InviteSourcesList({
                     Top {source.globalSpots ?? 0}
                   </div>
                   <div className="mt-1 text-sm">
-                    Top {source.globalSpots ?? 0} finishers qualify.
+                    {isSeriesGlobal
+                      ? `Top ${source.globalSpots ?? 0} from the series global leaderboard qualify per division.`
+                      : `Top ${source.globalSpots ?? 0} finishers qualify per division.`}
                   </div>
                 </CardContent>
               )}

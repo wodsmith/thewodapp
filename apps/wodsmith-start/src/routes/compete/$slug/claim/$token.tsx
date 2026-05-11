@@ -17,9 +17,20 @@
  */
 
 import { createFileRoute, Link, redirect } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
 import { AlertCircle, CheckCircle2, LogOut, Ticket, UserX } from "lucide-react"
 import { useState } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -33,7 +44,10 @@ import {
   identityMatch,
 } from "@/server/competition-invites/identity"
 import { logoutFn } from "@/server-fns/auth-fns"
-import { getInviteByTokenFn } from "@/server-fns/competition-invite-fns"
+import {
+  declineInviteFn,
+  getInviteByTokenFn,
+} from "@/server-fns/competition-invite-fns"
 
 type Branch =
   | {
@@ -56,6 +70,8 @@ type Branch =
   | {
       kind: "over_allocated"
       championshipName?: string
+      divisionLabel?: string | null
+      sourceLabel?: string | null
     }
   | { kind: "invalid"; reason: InviteClaimableError; championshipName?: string }
 
@@ -90,6 +106,9 @@ export const Route = createFileRoute("/compete/$slug/claim/$token")({
           kind: "over_allocated",
           championshipName:
             "championshipName" in result ? result.championshipName : undefined,
+          divisionLabel:
+            "divisionLabel" in result ? result.divisionLabel : null,
+          sourceLabel: "sourceLabel" in result ? result.sourceLabel : null,
         }
       }
 
@@ -196,7 +215,13 @@ function ClaimPage() {
   }
 
   if (data.kind === "over_allocated") {
-    return <OverAllocated championshipName={data.championshipName} />
+    return (
+      <OverAllocated
+        championshipName={data.championshipName}
+        divisionLabel={data.divisionLabel}
+        sourceLabel={data.sourceLabel}
+      />
+    )
   }
 
   return (
@@ -221,6 +246,51 @@ function ClaimablePage(props: {
   divisionLabel: string
   championshipName: string
 }) {
+  const decline = useServerFn(declineInviteFn)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [declined, setDeclined] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const onConfirmDecline = async () => {
+    setSubmitting(true)
+    setError(null)
+    try {
+      const result = await decline({
+        data: { slug: props.slug, token: props.token },
+      })
+      if (result.ok) {
+        setConfirmOpen(false)
+        setDeclined(true)
+      } else {
+        setError(declineErrorCopy(result.reason))
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to decline")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (declined) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-12">
+        <Card>
+          <CardHeader>
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+              <CheckCircle2 className="h-7 w-7 text-primary" />
+            </div>
+            <CardTitle className="text-center">Invite declined</CardTitle>
+            <CardDescription className="text-center">
+              We've let the organizer know you won't be competing. Your link has
+              been deactivated.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="mx-auto max-w-xl px-4 py-12">
       <Card>
@@ -258,10 +328,84 @@ function ClaimablePage(props: {
               Continue to registration
             </Link>
           </Button>
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setError(null)
+                setConfirmOpen(true)
+              }}
+              className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              Decline this invite
+            </button>
+          </div>
         </CardContent>
       </Card>
+      <AlertDialog
+        open={confirmOpen}
+        onOpenChange={(next) => {
+          // Block dismissal mid-flight so a request failure can't be
+          // hidden by an outside-click or Escape press while the
+          // optimistic "Declining…" state is still pending.
+          if (submitting) return
+          // Clear any stale error when the user cancels or dismisses —
+          // re-opening should start clean rather than show the prior
+          // attempt's failure.
+          if (!next) setError(null)
+          setConfirmOpen(next)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Decline this invite?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure? This action can't be undone. Your invite link will
+              stop working and the organizer will be able to offer your spot to
+              someone else.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {error ? (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={submitting}>
+              Keep my spot
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                void onConfirmDecline()
+              }}
+              disabled={submitting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {submitting ? "Declining…" : "Decline invite"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
+}
+
+function declineErrorCopy(reason: string): string {
+  switch (reason) {
+    case "not_found":
+      return "This invite link is no longer valid."
+    case "expired":
+      return "This invite has expired — contact the organizer to re-issue."
+    case "declined":
+      return "This invite has already been declined."
+    case "revoked":
+      return "This invite was revoked by the organizer."
+    case "already_paid":
+      return "You've already registered for this competition."
+    default:
+      return "Unable to decline this invite. Try again or contact the organizer."
+  }
 }
 
 function WrongAccount(props: {
@@ -377,7 +521,17 @@ function AlreadyClaimed(props: {
   )
 }
 
-function OverAllocated(props: { championshipName?: string }) {
+function OverAllocated(props: {
+  championshipName?: string
+  divisionLabel?: string | null
+  sourceLabel?: string | null
+}) {
+  const divisionPhrase = props.divisionLabel
+    ? `the ${props.divisionLabel} division`
+    : "this division"
+  const qualifierPhrase = props.sourceLabel
+    ? `${props.sourceLabel}`
+    : "this qualifier"
   return (
     <div className="mx-auto max-w-xl px-4 py-12">
       <Card>
@@ -386,7 +540,9 @@ function OverAllocated(props: { championshipName?: string }) {
             <AlertCircle className="h-7 w-7 text-amber-600" />
           </div>
           <CardTitle className="text-center">
-            This division has filled its spots from this qualifier
+            {props.divisionLabel
+              ? `${props.divisionLabel} has filled its spots from ${qualifierPhrase}`
+              : `${divisionPhrase[0].toUpperCase()}${divisionPhrase.slice(1)} has filled its spots from ${qualifierPhrase}`}
           </CardTitle>
           {props.championshipName ? (
             <CardDescription className="text-center">
@@ -394,11 +550,15 @@ function OverAllocated(props: { championshipName?: string }) {
             </CardDescription>
           ) : null}
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground text-center">
+            All invitation spots for {divisionPhrase} coming from{" "}
+            <span className="font-medium">{qualifierPhrase}</span> are now
+            filled, so this invite can't be claimed.
+          </p>
           <Alert>
             <AlertDescription>
-              The organizer has been notified — please contact them if you
-              believe this is in error.
+              Please contact the organizer if you believe this is in error.
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -469,7 +629,7 @@ function invalidReasonCopy(reason: InviteClaimableError): {
         title: "This division has filled its spots from this qualifier",
         headline: "Allocation filled",
         description:
-          "The organizer has been notified — please contact them if you believe this is in error.",
+          "Please contact the organizer if you believe this is in error.",
       }
     default:
       return {
