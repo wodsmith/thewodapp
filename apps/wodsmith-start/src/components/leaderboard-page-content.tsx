@@ -66,6 +66,17 @@ interface LeaderboardPageContentProps {
    * for routing this only to authorized organizer views.
    */
   preview?: boolean
+  /**
+   * Pre-fetched leaderboard data from a route loader. When provided AND its
+   * divisionId matches the URL-selected division, the initial client fetch
+   * is skipped — the SSR'd data is used directly. Subsequent division
+   * changes still re-trigger the client fetch path.
+   */
+  initialData?: {
+    entries: CompetitionLeaderboardEntry[]
+    scoringAlgorithm: ScoringAlgorithm
+    divisionId: string
+  } | null
 }
 
 /**
@@ -118,6 +129,7 @@ export function LeaderboardPageContent({
   divisions,
   competition,
   preview = false,
+  initialData = null,
 }: LeaderboardPageContentProps) {
   const navigate = useNavigate()
   const isMobile = useIsMobile()
@@ -136,13 +148,27 @@ export function LeaderboardPageContent({
   const selectedEventId = searchParams.event ?? null
   const selectedAffiliate = searchParams.affiliate ?? "all"
 
+  const initialMatchesSelected =
+    initialData != null && initialData.divisionId === selectedDivision
   const [leaderboard, setLeaderboard] = useState<CompetitionLeaderboardEntry[]>(
-    [],
+    initialMatchesSelected ? initialData.entries : [],
   )
-  const [scoringAlgorithm, setScoringAlgorithm] =
-    useState<ScoringAlgorithm>("traditional")
-  const [isLoading, setIsLoading] = useState(true)
+  const [scoringAlgorithm, setScoringAlgorithm] = useState<ScoringAlgorithm>(
+    initialMatchesSelected ? initialData.scoringAlgorithm : "traditional",
+  )
+  const [isLoading, setIsLoading] = useState(!initialMatchesSelected)
   const [error, setError] = useState<string | null>(null)
+
+  // Sync state when the loader hands us a new initialData payload
+  // (e.g. division changed via URL navigation, loader re-ran)
+  useEffect(() => {
+    if (initialData && initialData.divisionId === selectedDivision) {
+      setLeaderboard(initialData.entries)
+      setScoringAlgorithm(initialData.scoringAlgorithm)
+      setIsLoading(false)
+      setError(null)
+    }
+  }, [initialData, selectedDivision])
 
   // Workout preview state
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
@@ -298,6 +324,11 @@ export function LeaderboardPageContent({
         return
       }
 
+      // SSR'd loader data already covers this division — no client fetch needed
+      if (initialData && initialData.divisionId === selectedDivision) {
+        return
+      }
+
       setIsLoading(true)
       setError(null)
 
@@ -335,7 +366,7 @@ export function LeaderboardPageContent({
     return () => {
       cancelled = true
     }
-  }, [competitionId, selectedDivision, getLeaderboard, preview])
+  }, [competitionId, selectedDivision, getLeaderboard, preview, initialData])
 
   // Handle division change - update URL
   const handleDivisionChange = useCallback(

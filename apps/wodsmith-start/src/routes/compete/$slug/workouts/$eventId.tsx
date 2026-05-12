@@ -40,9 +40,9 @@ import {
   getVenueForTrackWorkoutByDivisionFn,
 } from "@/server-fns/competition-heats-fns"
 import {
+  getBatchWorkoutDivisionDescriptionsFn,
   getPublicEventDetailsFn,
   getPublishedCompetitionWorkoutsFn,
-  getWorkoutDivisionDescriptionsFn,
 } from "@/server-fns/competition-workouts-fns"
 import { getPublicEventDivisionMappingsFn } from "@/server-fns/event-division-mapping-fns"
 import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
@@ -81,6 +81,7 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
   component: EventDetailsPage,
   validateSearch: (search) => eventSearchSchema.parse(search),
   loaderDeps: ({ search }) => ({ division: search.division }),
+  staleTime: 30_000,
   loader: async ({ params, parentMatchPromise, deps }) => {
     const { eventId } = params
 
@@ -92,13 +93,20 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
       throw notFound()
     }
 
-    // Fetch event details, judging sheets, athlete's registered divisions,
-    // and event-division mappings in parallel
+    const divisions = parentDivisions ?? []
+    const divisionIds = divisions.map((d) => d.id)
+    const defaultDivisionId = divisions[0]?.id ?? null
+
+    // Fetch all primary data in parallel — these are independent of one another.
+    // getPublishedCompetitionWorkoutsFn returns the full workout list (heavy);
+    // it now runs alongside the rest instead of after.
     const [
       eventResult,
       judgingSheetsResult,
       athleteDivisionsResult,
       eventDivisionMappingResult,
+      allWorkoutsResult,
+      venueResult,
     ] = await Promise.all([
       getPublicEventDetailsFn({
         data: { eventId, competitionId: competition.id },
@@ -110,38 +118,19 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
       getPublicEventDivisionMappingsFn({
         data: { competitionId: competition.id },
       }),
+      getPublishedCompetitionWorkoutsFn({
+        data: { competitionId: competition.id },
+      }),
+      defaultDivisionId
+        ? getVenueForTrackWorkoutByDivisionFn({
+            data: { trackWorkoutId: eventId, divisionId: defaultDivisionId },
+          })
+        : Promise.resolve({ venue: null }),
     ])
 
     if (!eventResult.event) {
       throw notFound()
     }
-
-    // Use divisions from parent
-    const divisions = parentDivisions ?? []
-    let divisionDescriptions: Array<{
-      divisionId: string
-      divisionLabel: string
-      description: string | null
-      position: number
-    }> = []
-
-    if (divisions.length > 0) {
-      const descResult = await getWorkoutDivisionDescriptionsFn({
-        data: {
-          workoutId: eventResult.event.workoutId,
-          divisionIds: divisions.map((d) => d.id),
-        },
-      })
-      divisionDescriptions = descResult.descriptions
-    }
-
-    // Fetch venue for the first division (default)
-    const defaultDivisionId = divisions.length > 0 ? divisions[0].id : null
-    const venueResult = defaultDivisionId
-      ? await getVenueForTrackWorkoutByDivisionFn({
-          data: { trackWorkoutId: eventId, divisionId: defaultDivisionId },
-        })
-      : { venue: null }
 
     // Resolve athlete's registered divisions with labels
     const athleteRegisteredDivisionIds = athleteDivisionsResult.divisionIds
@@ -158,10 +147,6 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
         ? getPublicEventHeatsFn({ data: { trackWorkoutId: eventId } })
         : Promise.resolve({ heats: [] })
 
-    // Fetch all events - needed for child events and division-filtered "Event X of Y"
-    const allWorkoutsResult = await getPublishedCompetitionWorkoutsFn({
-      data: { competitionId: competition.id },
-    })
     const childEvents = allWorkoutsResult.workouts
       .filter((w) => w.parentEventId === eventId)
       .sort((a, b) => a.trackOrder - b.trackOrder)
@@ -196,51 +181,66 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
         ? deps.division
         : loaderMappedDivisionIds[0]) ?? undefined
     const hasChildEvents = childEvents.length > 0
+    const isOnline = competition.competitionType === "online"
 
-    // If event has children, fetch submissions per child; otherwise fetch for this event
-    let videoSubmissionResult: Awaited<
-      ReturnType<typeof getVideoSubmissionFn>
-    > | null = null
-    const childVideoSubmissions: Record<
-      string,
-      Awaited<ReturnType<typeof getVideoSubmissionFn>>
-    > = {}
+    // Workouts needing division descriptions: parent + each child
+    const descriptionWorkoutIds = [
+      eventResult.event.workoutId,
+      ...childEvents.map((c) => c.workoutId),
+    ]
 
-    if (competition.competitionType === "online") {
-      if (hasChildEvents) {
-        const childResults = await Promise.all(
-          childEvents.map((child) =>
-            getVideoSubmissionFn({
-              data: {
-                trackWorkoutId: child.id,
-                competitionId: competition.id,
-                divisionId: initialSubmissionDivisionId,
-              },
-            }),
+    // Fetch descriptions (single batch query) and video submissions in parallel
+    const [
+      descriptionsBatchResult,
+      parentVideoSubmission,
+      childVideoSubmissionResults,
+    ] = await Promise.all([
+      divisionIds.length > 0 && descriptionWorkoutIds.length > 0
+        ? getBatchWorkoutDivisionDescriptionsFn({
+            data: { workoutIds: descriptionWorkoutIds, divisionIds },
+          })
+        : Promise.resolve({
+            descriptionsByWorkout: {} as Record<
+              string,
+              Array<{
+                divisionId: string
+                divisionLabel: string
+                description: string | null
+                position: number
+              }>
+            >,
+          }),
+      isOnline && !hasChildEvents
+        ? getVideoSubmissionFn({
+            data: {
+              trackWorkoutId: eventId,
+              competitionId: competition.id,
+              divisionId: initialSubmissionDivisionId,
+            },
+          })
+        : Promise.resolve(null),
+      isOnline && hasChildEvents
+        ? Promise.all(
+            childEvents.map((child) =>
+              getVideoSubmissionFn({
+                data: {
+                  trackWorkoutId: child.id,
+                  competitionId: competition.id,
+                  divisionId: initialSubmissionDivisionId,
+                },
+              }),
+            ),
+          )
+        : Promise.resolve(
+            [] as Awaited<ReturnType<typeof getVideoSubmissionFn>>[],
           ),
-        )
-        for (let i = 0; i < childEvents.length; i++) {
-          childVideoSubmissions[childEvents[i].id] = childResults[i]
-        }
-      } else {
-        videoSubmissionResult = await getVideoSubmissionFn({
-          data: {
-            trackWorkoutId: eventId,
-            competitionId: competition.id,
-            divisionId: initialSubmissionDivisionId,
-          },
-        })
-      }
-    }
+    ])
 
-    // If this is a sub-event, find the parent event for context
-    const parentEvent = eventResult.event.parentEventId
-      ? (allWorkoutsResult.workouts.find(
-          (w) => w.id === eventResult.event.parentEventId,
-        ) ?? null)
-      : null
+    const divisionDescriptions =
+      descriptionsBatchResult.descriptionsByWorkout[
+        eventResult.event.workoutId
+      ] ?? []
 
-    // Fetch division descriptions for children
     const childDivisionDescriptions: Record<
       string,
       Array<{
@@ -250,20 +250,26 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
         position: number
       }>
     > = {}
-    if (childEvents.length > 0 && divisions.length > 0) {
-      const divisionIds = divisions.map((d) => d.id)
-      const results = await Promise.all(
-        childEvents.map((child) =>
-          getWorkoutDivisionDescriptionsFn({
-            data: { workoutId: child.workoutId, divisionIds },
-          }),
-        ),
-      )
-      for (let i = 0; i < childEvents.length; i++) {
-        childDivisionDescriptions[childEvents[i].workoutId] =
-          results[i].descriptions
-      }
+    for (const child of childEvents) {
+      childDivisionDescriptions[child.workoutId] =
+        descriptionsBatchResult.descriptionsByWorkout[child.workoutId] ?? []
     }
+
+    const videoSubmissionResult = parentVideoSubmission
+    const childVideoSubmissions: Record<
+      string,
+      Awaited<ReturnType<typeof getVideoSubmissionFn>>
+    > = {}
+    for (let i = 0; i < childEvents.length; i++) {
+      childVideoSubmissions[childEvents[i].id] = childVideoSubmissionResults[i]
+    }
+
+    // If this is a sub-event, find the parent event for context
+    const parentEvent = eventResult.event.parentEventId
+      ? (allWorkoutsResult.workouts.find(
+          (w) => w.id === eventResult.event.parentEventId,
+        ) ?? null)
+      : null
 
     // Determine if athlete's division is mapped to this event
     // Events with no mappings are visible to all divisions.
