@@ -284,9 +284,9 @@ const hyperdrive = await Hyperdrive(`hyperdrive-${stage}`, {
     disabled: true,
   },
   adopt: true,
-  // Local dev: connect directly to PlanetScale (bypassing Hyperdrive pooling)
+  // Local dev: connect via `pscale connect` proxy on localhost:3306
   dev: {
-    origin: `mysql://${psPassword.username}:${psPassword.password.unencrypted}@${psPassword.host}:3306/${psDbName}?sslaccept=strict`,
+    origin: `mysql://root@localhost:3306/${psDbName}`,
   },
 })
 

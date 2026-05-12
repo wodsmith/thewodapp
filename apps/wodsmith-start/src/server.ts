@@ -117,7 +117,16 @@ const startEntry = createServerEntry({
     // Must run before the TanStack handler so WebSocket upgrades are honored.
     const url = new URL(request.url)
     if (url.pathname.startsWith("/agents/")) {
-      const agentResponse = await routeAgentRequest(request, env)
+      // Miniflare doesn't expose ctx.id.name for DOs created via idFromName(),
+      // so forward the URL name segment as x-partykit-room — the Agent base
+      // class falls back to this header when ctx.id.name is undefined.
+      const parts = url.pathname.split("/").filter(Boolean)
+      let agentRequest = request
+      if (parts.length >= 3) {
+        agentRequest = new Request(request)
+        agentRequest.headers.set("x-partykit-room", parts[2])
+      }
+      const agentResponse = await routeAgentRequest(agentRequest, env)
       if (agentResponse) return agentResponse
     }
     return handler.fetch(request)
