@@ -1,6 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useAgent } from "agents/react"
-import { Check, Loader2, RotateCcw, Send, Sparkles, X } from "lucide-react"
+import {
+  Check,
+  Loader2,
+  Lock,
+  RotateCcw,
+  Send,
+  Sparkles,
+  X,
+} from "lucide-react"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import { z } from "zod"
@@ -19,6 +27,7 @@ import type {
   AgentState,
   EventContextDto,
   JudgeRosterEntry,
+  PriorRotationExample,
   ProposedRotation,
 } from "@/lib/judge-scheduler/schemas"
 import { computeCoverageFromProposals } from "@/lib/judge-scheduler/tools"
@@ -56,7 +65,7 @@ export const Route = createFileRoute(
     const events = eventsResult.workouts
 
     const initialWorkoutId = deps.workoutId ?? events[0]?.id ?? null
-    const initialContext = initialWorkoutId
+    const initialResult = initialWorkoutId
       ? await loadAiSchedulingContextFn({
           data: {
             trackWorkoutId: initialWorkoutId,
@@ -66,19 +75,42 @@ export const Route = createFileRoute(
         })
       : null
 
-    return { competition, events, initialContext, initialWorkoutId }
+    const hasAccess = initialResult ? initialResult.hasAccess : true
+    const initialContext =
+      initialResult && initialResult.hasAccess ? initialResult : null
+
+    return {
+      competition,
+      events,
+      hasAccess,
+      initialContext,
+      initialWorkoutId,
+    }
   },
   component: JudgesAiPage,
 })
 
+interface LoadedContext {
+  hasAccess: true
+  eventContext: EventContextDto
+  roster: JudgeRosterEntry[]
+  priorRotations: PriorRotationExample[]
+}
+
 function JudgesAiPage() {
-  const { competition, events, initialContext, initialWorkoutId } =
-    Route.useLoaderData()
+  const {
+    competition,
+    events,
+    hasAccess: initialHasAccess,
+    initialContext,
+    initialWorkoutId,
+  } = Route.useLoaderData()
   const search = Route.useSearch()
   const navigate = useNavigate()
   const session = useSession()
 
-  const [context, setContext] = useState(initialContext)
+  const [hasAccess, setHasAccess] = useState(initialHasAccess)
+  const [context, setContext] = useState<LoadedContext | null>(initialContext)
   const [selectedWorkoutId, setSelectedWorkoutId] = useState(
     search.workoutId ?? initialWorkoutId,
   )
@@ -138,7 +170,8 @@ function JudgesAiPage() {
           teamId: competition.organizingTeamId,
         },
       })
-      setContext(next)
+      setHasAccess(next.hasAccess)
+      setContext(next.hasAccess ? next : null)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to load event")
     }
@@ -192,7 +225,8 @@ function JudgesAiPage() {
           teamId: competition.organizingTeamId,
         },
       })
-      setContext(next)
+      setHasAccess(next.hasAccess)
+      setContext(next.hasAccess ? next : null)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to apply")
     } finally {
@@ -207,6 +241,32 @@ function JudgesAiPage() {
       0,
     ) ?? 0
   const totalHeats = context?.eventContext.totalHeats ?? 0
+
+  if (!hasAccess) {
+    return (
+      <section className="space-y-6">
+        <div>
+          <h2 className="flex items-center gap-2 text-xl font-semibold">
+            <Sparkles className="h-5 w-5 text-primary" />
+            AI Judge Scheduling
+          </h2>
+        </div>
+        <Card>
+          <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
+            <Lock className="h-10 w-10 text-muted-foreground" />
+            <h3 className="text-lg font-semibold">
+              AI Judge Scheduling is not enabled for this team
+            </h3>
+            <p className="max-w-md text-sm text-muted-foreground">
+              The AI scheduling assistant proposes judge rotations one at a time
+              based on each judge's availability and prior rotations. Contact
+              your account admin or upgrade your plan to turn it on.
+            </p>
+          </CardContent>
+        </Card>
+      </section>
+    )
+  }
 
   return (
     <section className="space-y-6">

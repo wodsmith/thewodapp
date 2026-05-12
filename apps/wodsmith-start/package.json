@@ -35,7 +35,6 @@
     "email:dev": "pnpm dlx react-email@latest dev -d src/react-email"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.26",
     "@atlaskit/pragmatic-drag-and-drop": "^1.7.4",
     "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
     "@atlaskit/pragmatic-drag-and-drop-react-accessibility": "^2.0.6",
@@ -126,6 +125,7 @@
     "tailwindcss-animate": "^1.0.7",
     "ua-parser-js": "^2.0.3",
     "ulid": "^3.0.2",
+    "workers-ai-provider": "^3.1.14",
     "zod": "^4.2.1",
     "zustand": "^5.0.5"
   },

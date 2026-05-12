@@ -1,10 +1,13 @@
 import "server-only"
 
-import { env } from "cloudflare:workers"
-import { createOpenAI } from "@ai-sdk/openai"
 import { Agent, callable } from "agents"
 import { generateText, stepCountIs, type Tool, tool } from "ai"
+import { eq } from "drizzle-orm"
+import { createWorkersAI } from "workers-ai-provider"
 import { z } from "zod"
+import { FEATURES } from "@/config/features"
+import { getDb } from "@/db"
+import { competitionsTable } from "@/db/schema"
 import {
   type AgentState,
   type EventContextDto,
@@ -20,13 +23,19 @@ import {
   computeCoverageFromProposals,
   validateProposal,
 } from "@/lib/judge-scheduler/tools"
+import { hasFeature } from "@/server/entitlements"
 import {
   loadEventContext,
   loadJudgeRoster,
   loadPriorRotations,
 } from "@/server/judge-scheduler/context"
 
-const MODEL_ID = "gpt-4o-mini"
+/**
+ * Cloudflare Workers AI model id. Kimi K2 is hosted on Cloudflare's edge AI
+ * platform; the AI SDK adapter accepts arbitrary model strings so this is
+ * typed as `(string & {})` under the hood.
+ */
+const MODEL_ID = "@cf/moonshotai/kimi-k2.6"
 const MAX_STEPS = 24
 
 const SYSTEM_PROMPT = `You are an assistant that drafts judge rotations for a single Functional Fitness-style competition workout.
@@ -67,6 +76,27 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
   async start(rawInput: unknown): Promise<{ ok: boolean; error?: string }> {
     const input = startSchedulingInputSchema.parse(rawInput)
 
+    // Defense in depth: the UI page already gates by hasFeature, but the
+    // agent's @callable() endpoint is reachable directly over WebSocket so
+    // we re-verify the organizing team has the AI_JUDGE_SCHEDULING feature
+    // before burning Workers AI tokens.
+    const organizingTeamId = await resolveOrganizingTeamId(input.competitionId)
+    const entitled = await hasFeature(
+      organizingTeamId,
+      FEATURES.AI_JUDGE_SCHEDULING,
+    )
+    if (!entitled) {
+      const msg =
+        "Your plan does not include AI Judge Scheduling. Ask an admin to enable it."
+      this.setState({
+        ...this.state,
+        status: "error",
+        errorMessage: msg,
+        completedAt: Date.now(),
+      })
+      return { ok: false, error: msg }
+    }
+
     this.setState({
       trackWorkoutId: input.trackWorkoutId,
       status: "thinking",
@@ -81,8 +111,13 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
       const ctx = await loadAllContext(input)
       const tools = buildTools(this, ctx)
 
+      // Alchemy's typed Ai<AiModelListType> and workers-ai-provider's Ai<AiModels>
+      // describe the same runtime binding; cast through unknown to bridge them.
+      const workersai = createWorkersAI({
+        binding: this.env.AI as unknown as Ai,
+      })
       const result = await generateText({
-        model: createOpenAI({ apiKey: env.OPENAI_API_KEY ?? "" })(MODEL_ID),
+        model: workersai(MODEL_ID),
         system: SYSTEM_PROMPT,
         prompt: buildKickoffPrompt(ctx),
         tools,
@@ -132,6 +167,18 @@ async function loadAllContext(input: {
     loadPriorRotations(input.competitionId, input.trackWorkoutId, 12),
   ])
   return { eventContext, roster, priors }
+}
+
+async function resolveOrganizingTeamId(competitionId: string): Promise<string> {
+  const db = getDb()
+  const [row] = await db
+    .select({ organizingTeamId: competitionsTable.organizingTeamId })
+    .from(competitionsTable)
+    .where(eq(competitionsTable.id, competitionId))
+  if (!row) {
+    throw new Error(`Competition not found: ${competitionId}`)
+  }
+  return row.organizingTeamId
 }
 
 function buildKickoffPrompt(ctx: BuildContextResult): string {

@@ -88,6 +88,7 @@
 
 import alchemy from "alchemy"
 import {
+  Ai,
   DurableObjectNamespace,
   Hyperdrive,
   KVNamespace,
@@ -97,11 +98,11 @@ import {
   Workflow,
 } from "alchemy/cloudflare"
 import { GitHubComment } from "alchemy/github"
-import { CloudflareStateStore } from "alchemy/state"
 import {
   Branch as PlanetScaleBranch,
   Password as PlanetScalePassword,
 } from "alchemy/planetscale"
+import { CloudflareStateStore } from "alchemy/state"
 import { WebhookEndpoint } from "alchemy/stripe"
 
 /**
@@ -516,6 +517,16 @@ const judgeSchedulerAgent = DurableObjectNamespace("judge-scheduler-agent", {
 })
 
 /**
+ * Cloudflare Workers AI binding for built-in LLM inference.
+ *
+ * Currently used by the judge-scheduling agent to call
+ * `@cf/moonshotai/kimi-k2.6` via the `workers-ai-provider` AI SDK adapter.
+ * Adding new AI features? Reuse this binding — there's no per-feature cost
+ * beyond Workers AI's pay-per-request pricing.
+ */
+const aiBinding = Ai()
+
+/**
  * Cloudflare Queue for async broadcast email delivery.
  *
  * When an organizer sends a broadcast, recipient batches are enqueued here.
@@ -608,6 +619,8 @@ const website = await TanStackStart("app", {
     BROADCAST_EMAIL_QUEUE: broadcastEmailQueue,
     /** Durable Object namespace for the AI judge-scheduling agent */
     JUDGE_SCHEDULER_AGENT: judgeSchedulerAgent,
+    /** Cloudflare Workers AI binding for LLM inference */
+    AI: aiBinding,
 
     // App configuration
     // biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time

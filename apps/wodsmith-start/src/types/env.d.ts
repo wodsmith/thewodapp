@@ -12,4 +12,12 @@ import type { Env } from "../../alchemy.run"
 
 declare global {
   interface CloudflareEnv extends Env {}
+  namespace Cloudflare {
+    // Augment the wrangler-generated Env with bindings declared in alchemy.run.ts
+    // that aren't included in `wrangler types` output (Durable Objects, AI, etc.).
+    interface Env {
+      JUDGE_SCHEDULER_AGENT: DurableObjectNamespace
+      AI: Ai
+    }
+  }
 }

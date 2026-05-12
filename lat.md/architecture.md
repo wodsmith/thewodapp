@@ -112,7 +112,15 @@ Wiring is split across three layers:
 
 Pure helpers and Zod schemas for each agent live under `src/lib/<agent-name>/` so they can be TDD-tested without spinning up the LLM. DB-backed context loaders sit under `src/server/<agent-name>/` and stay server-only.
 
-OpenAI is wired via `@ai-sdk/openai` with `OPENAI_API_KEY` already declared as an optional Alchemy secret. Add the key to `.dev.vars` for local dev.
+Inference goes through Cloudflare's built-in Workers AI binding (no third-party API keys). The `AI` binding is declared in `alchemy.run.ts` and adapted to the AI SDK via [`workers-ai-provider`](https://www.npmjs.com/package/workers-ai-provider): `createWorkersAI({ binding: env.AI })`.
+
+### Entitlement gating
+
+Every AI feature is gated by a `features` row in the database; access is granted per-team through the existing entitlements system. The check uses [[apps/wodsmith-start/src/server/entitlements.ts#hasFeature]] and is applied in three places for defense in depth:
+
+1. Page loader — calls `loadAi...ContextFn` which returns `{hasAccess: false}` when not entitled; UI renders an upgrade paywall instead of the feature
+2. Write server function — throws on missing entitlement so writes from a stale client are rejected
+3. Agent's `@callable()` entrypoint — re-verifies before burning Workers AI tokens, since the Durable Object's WebSocket is reachable independently of the page
 
 ### AI judge scheduling
 

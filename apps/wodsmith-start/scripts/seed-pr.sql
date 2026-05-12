@@ -135,6 +135,7 @@ INSERT IGNORE INTO features (id, `key`, name, description, category, is_active, 
 ('feat_custom_scaling_groups', 'custom_scaling_groups', 'Custom Scaling Groups', 'Create custom scaling groups for your gym', 'scaling', 1, NOW(), NOW(), 0),
 ('feat_ai_workout_generation', 'ai_workout_generation', 'AI Workout Generation', 'Generate workouts using AI', 'ai', 1, NOW(), NOW(), 0),
 ('feat_ai_programming_assistant', 'ai_programming_assistant', 'AI Programming Assistant', 'AI assistant for programming strategy', 'ai', 1, NOW(), NOW(), 0),
+('feat_ai_judge_scheduling', 'ai_judge_scheduling', 'AI Judge Scheduling', 'AI-augmented judge rotation suggestions for competition events', 'ai', 1, NOW(), NOW(), 0),
 ('feat_multi_team_management', 'multi_team_management', 'Multi-Team Management', 'Manage multiple teams from one account', 'team', 1, NOW(), NOW(), 0),
 ('feat_host_competitions', 'host_competitions', 'Host Competitions', 'Create and manage competitions and events', 'team', 1, NOW(), NOW(), 0),
 ('feat_workout_tracking', 'workout_tracking', 'Workout Tracking', 'Access to personal workout tracking features', 'workouts', 1, NOW(), NOW(), 0);
