@@ -8,6 +8,7 @@ import {
   getResendApiKey,
   getSiteUrl,
 } from "@/lib/env"
+import { CompetitionTeamMemberAddedEmail } from "@/react-email/competition-team-member-added"
 import { OrganizerRequestApprovedEmail } from "@/react-email/organizer/request-approved"
 import { OrganizerRequestRejectedEmail } from "@/react-email/organizer/request-rejected"
 import { PurchaseTransferEmail } from "@/react-email/purchase-transfer"
@@ -297,6 +298,51 @@ export async function sendCompetitionTeamInviteEmail({
       inviterName,
     }),
     tags: [{ name: "type", value: "competition-team-invitation" }],
+  })
+}
+
+/**
+ * Sends an "added to team" email to a teammate who already has a WODsmith
+ * account and was added directly to the athlete team during competition
+ * registration. The link points to the team roster page so the recipient can
+ * complete their registration questions and sign required waivers.
+ */
+export async function sendCompetitionTeamMemberAddedEmail({
+  email,
+  registrationId,
+  competitionSlug,
+  competitionName,
+  teamName,
+  divisionName,
+  inviterName,
+}: {
+  email: string
+  registrationId: string
+  competitionSlug: string
+  competitionName: string
+  teamName: string
+  divisionName: string
+  inviterName: string
+}): Promise<void> {
+  const siteUrl = getSiteUrl()
+  const rosterLink = `${siteUrl}/compete/${encodeURIComponent(competitionSlug)}/teams/${encodeURIComponent(registrationId)}?welcome=true`
+
+  if (!shouldSendEmail()) {
+    console.warn("\n\n\nTeam roster url: ", rosterLink)
+  }
+
+  await sendEmail({
+    to: email,
+    subject: `You've been added to ${teamName} for ${competitionName}`,
+    template: CompetitionTeamMemberAddedEmail({
+      rosterLink,
+      recipientEmail: email,
+      teamName,
+      competitionName,
+      divisionName,
+      inviterName,
+    }),
+    tags: [{ name: "type", value: "competition-team-member-added" }],
   })
 }
 
