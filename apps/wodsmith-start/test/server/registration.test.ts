@@ -22,10 +22,13 @@ vi.mock("@/lib/logging/posthog-otel-logger", () => ({
 // Mock email utilities
 const mockSendEmail = vi.fn()
 const mockSendCompetitionTeamInviteEmail = vi.fn()
+const mockSendCompetitionTeamMemberAddedEmail = vi.fn()
 vi.mock("@/utils/email", () => ({
 	sendEmail: (...args: unknown[]) => mockSendEmail(...args),
 	sendCompetitionTeamInviteEmail: (...args: unknown[]) =>
 		mockSendCompetitionTeamInviteEmail(...args),
+	sendCompetitionTeamMemberAddedEmail: (...args: unknown[]) =>
+		mockSendCompetitionTeamMemberAddedEmail(...args),
 }))
 
 // Mock KV session updates
@@ -538,6 +541,220 @@ describe("registerForCompetition", () => {
 			).rejects.toThrow(
 				"athlete@test.com is your own email. Please enter a different teammate's email.",
 			)
+		})
+
+		it("sends 'added to team' email to teammates who already have accounts", async () => {
+			const competition = makeCompetition()
+			const captain = makeUser({ id: "user-1", email: "athlete@test.com" })
+			const teammate1 = makeUser({
+				id: "user-tm-1",
+				email: "teammate1@test.com",
+				firstName: "Jane",
+			})
+			const teammate2 = makeUser({
+				id: "user-tm-2",
+				email: "teammate2@test.com",
+				firstName: "Bob",
+			})
+			const teamDivision = makeTeamDivision()
+
+			mockDb.query.competitionsTable = {
+				findFirst: vi.fn().mockResolvedValue(competition),
+				findMany: vi.fn().mockResolvedValue([]),
+			}
+			// Sequence: captain lookup, then each teammate existing-user check,
+			// then inviter lookup for each "added" email.
+			mockDb.query.userTable = {
+				findFirst: vi
+					.fn()
+					.mockResolvedValueOnce(captain) // initial captain lookup
+					.mockResolvedValueOnce(teammate1) // inviteUserToTeamInternal: existing-user check
+					.mockResolvedValueOnce(captain) // inviter lookup for teammate1 added email
+					.mockResolvedValueOnce(teammate2) // inviteUserToTeamInternal: existing-user check
+					.mockResolvedValueOnce(captain), // inviter lookup for teammate2 added email
+				findMany: vi.fn().mockResolvedValue([]),
+			}
+			mockDb.query.scalingLevelsTable = {
+				findFirst: vi.fn().mockResolvedValue(teamDivision),
+				findMany: vi.fn().mockResolvedValue([]),
+			}
+			mockDb.query.competitionRegistrationsTable = {
+				findFirst: vi
+					.fn()
+					.mockResolvedValueOnce(null) // duplicate check
+					.mockResolvedValueOnce(null) // team name unique check
+					.mockResolvedValueOnce({ id: "reg-team-existing" }), // re-fetch after insert
+				findMany: vi.fn().mockResolvedValue([]),
+			}
+			// All membership lookups return null (neither teammate is already a member)
+			mockDb.query.teamMembershipTable = {
+				findFirst: vi.fn().mockResolvedValue(null),
+				findMany: vi.fn().mockResolvedValue([]),
+			}
+			mockDb.query.teamTable = {
+				findFirst: vi.fn().mockResolvedValue(null),
+				findMany: vi.fn().mockResolvedValue([]),
+			}
+			mockDb.setMockReturnValue([])
+
+			await registerForCompetition({
+				competitionId: "comp-1",
+				userId: "user-1",
+				divisionId: "div-team",
+				teamName: "Alpha Squad",
+				teammates: [
+					{ email: "teammate1@test.com", firstName: "Jane" },
+					{ email: "teammate2@test.com", firstName: "Bob" },
+				],
+			})
+
+			// Existing-account teammates: get the new "added" email, NOT the invite email
+			expect(mockSendCompetitionTeamInviteEmail).not.toHaveBeenCalled()
+			expect(mockSendCompetitionTeamMemberAddedEmail).toHaveBeenCalledTimes(2)
+
+			const firstCall = mockSendCompetitionTeamMemberAddedEmail.mock.calls[0][0]
+			expect(firstCall.email).toBe("teammate1@test.com")
+			expect(firstCall.competitionName).toBe("Test Competition")
+			expect(firstCall.teamName).toBe("Alpha Squad")
+			expect(firstCall.divisionName).toBe("Team of 3")
+			expect(firstCall.registrationId).toBe("reg-team-existing")
+			expect(firstCall.competitionSlug).toBe("test-competition")
+		})
+
+		it("sends invite email to new teammates and 'added' email to existing-account teammates in same registration", async () => {
+			const competition = makeCompetition()
+			const captain = makeUser({ id: "user-1", email: "athlete@test.com" })
+			const existingTeammate = makeUser({
+				id: "user-tm-existing",
+				email: "existing@test.com",
+				firstName: "Jane",
+			})
+			const teamDivision = makeTeamDivision()
+
+			mockDb.query.competitionsTable = {
+				findFirst: vi.fn().mockResolvedValue(competition),
+				findMany: vi.fn().mockResolvedValue([]),
+			}
+			// Order: captain, then for teammate1 (existing): user-exists check + inviter lookup;
+			// then for teammate2 (new): user-exists check (null) + inviter lookup.
+			mockDb.query.userTable = {
+				findFirst: vi
+					.fn()
+					.mockResolvedValueOnce(captain)
+					.mockResolvedValueOnce(existingTeammate)
+					.mockResolvedValueOnce(captain)
+					.mockResolvedValueOnce(null)
+					.mockResolvedValueOnce(captain),
+				findMany: vi.fn().mockResolvedValue([]),
+			}
+			mockDb.query.scalingLevelsTable = {
+				findFirst: vi.fn().mockResolvedValue(teamDivision),
+				findMany: vi.fn().mockResolvedValue([]),
+			}
+			mockDb.query.competitionRegistrationsTable = {
+				findFirst: vi
+					.fn()
+					.mockResolvedValueOnce(null)
+					.mockResolvedValueOnce(null)
+					.mockResolvedValueOnce({ id: "reg-team-mixed" }),
+				findMany: vi.fn().mockResolvedValue([]),
+			}
+			mockDb.query.teamMembershipTable = {
+				findFirst: vi.fn().mockResolvedValue(null),
+				findMany: vi.fn().mockResolvedValue([]),
+			}
+			mockDb.query.teamTable = {
+				findFirst: vi.fn().mockResolvedValue(null),
+				findMany: vi.fn().mockResolvedValue([]),
+			}
+			mockDb.setMockReturnValue([])
+
+			await registerForCompetition({
+				competitionId: "comp-1",
+				userId: "user-1",
+				divisionId: "div-team",
+				teamName: "Alpha Squad",
+				teammates: [
+					{ email: "existing@test.com", firstName: "Jane" },
+					{ email: "new@test.com", firstName: "Bob" },
+				],
+			})
+
+			expect(mockSendCompetitionTeamMemberAddedEmail).toHaveBeenCalledTimes(1)
+			expect(
+				mockSendCompetitionTeamMemberAddedEmail.mock.calls[0][0].email,
+			).toBe("existing@test.com")
+			expect(mockSendCompetitionTeamInviteEmail).toHaveBeenCalledTimes(1)
+			expect(
+				mockSendCompetitionTeamInviteEmail.mock.calls[0][0].email,
+			).toBe("new@test.com")
+		})
+
+		it("does not send 'added' email when teammate is already a member of the team", async () => {
+			const competition = makeCompetition()
+			const captain = makeUser({ id: "user-1", email: "athlete@test.com" })
+			const teammate = makeUser({
+				id: "user-tm-existing",
+				email: "existing@test.com",
+				firstName: "Jane",
+			})
+			const newTeammate = makeUser({
+				id: "user-tm-new",
+				email: "newone@test.com",
+			})
+			const teamDivision = makeTeamDivision()
+
+			mockDb.query.competitionsTable = {
+				findFirst: vi.fn().mockResolvedValue(competition),
+				findMany: vi.fn().mockResolvedValue([]),
+			}
+			mockDb.query.userTable = {
+				findFirst: vi
+					.fn()
+					.mockResolvedValueOnce(captain)
+					.mockResolvedValueOnce(teammate) // teammate1 already exists
+					.mockResolvedValueOnce(newTeammate), // teammate2 also exists
+				findMany: vi.fn().mockResolvedValue([]),
+			}
+			mockDb.query.scalingLevelsTable = {
+				findFirst: vi.fn().mockResolvedValue(teamDivision),
+				findMany: vi.fn().mockResolvedValue([]),
+			}
+			mockDb.query.competitionRegistrationsTable = {
+				findFirst: vi
+					.fn()
+					.mockResolvedValueOnce(null)
+					.mockResolvedValueOnce(null)
+					.mockResolvedValueOnce({ id: "reg-team-allmembers" }),
+				findMany: vi.fn().mockResolvedValue([]),
+			}
+			// Both teammates are already members of the athlete team → early return
+			mockDb.query.teamMembershipTable = {
+				findFirst: vi
+					.fn()
+					.mockResolvedValue({ id: "existing-membership" }),
+				findMany: vi.fn().mockResolvedValue([]),
+			}
+			mockDb.query.teamTable = {
+				findFirst: vi.fn().mockResolvedValue(null),
+				findMany: vi.fn().mockResolvedValue([]),
+			}
+			mockDb.setMockReturnValue([])
+
+			await registerForCompetition({
+				competitionId: "comp-1",
+				userId: "user-1",
+				divisionId: "div-team",
+				teamName: "Alpha Squad",
+				teammates: [
+					{ email: "existing@test.com" },
+					{ email: "newone@test.com" },
+				],
+			})
+
+			// Neither email should be sent — both are already team members
+			expect(mockSendCompetitionTeamMemberAddedEmail).not.toHaveBeenCalled()
+			expect(mockSendCompetitionTeamInviteEmail).not.toHaveBeenCalled()
 		})
 
 		it("throws when team name already taken (case-insensitive)", async () => {
