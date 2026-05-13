@@ -11,21 +11,21 @@ import {
 import { SITE_DOMAIN } from "@/constants"
 
 interface CompetitionTeamMemberAddedEmailProps {
-  rosterLink?: string
-  recipientEmail?: string
-  teamName?: string
-  competitionName?: string
-  divisionName?: string
-  inviterName?: string
+  rosterLink: string
+  recipientEmail: string
+  teamName: string
+  competitionName: string
+  divisionName: string
+  inviterName: string
 }
 
 export const CompetitionTeamMemberAddedEmail = ({
-  rosterLink = "https://example.com/compete/test/teams/test",
-  recipientEmail = "user@example.com",
-  teamName = "Team",
-  competitionName = "Competition",
-  divisionName = "Division",
-  inviterName = "Your team captain",
+  rosterLink,
+  recipientEmail,
+  teamName,
+  competitionName,
+  divisionName,
+  inviterName,
 }: CompetitionTeamMemberAddedEmailProps) => {
   return (
     <Html>
