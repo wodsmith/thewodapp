@@ -19,7 +19,8 @@ import type {
 } from "@cloudflare/workers-types"
 import * as Sentry from "@sentry/cloudflare"
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry"
-import { routeAgentRequest } from "agents"
+import { getAgentByName } from "agents"
+import type { JudgeSchedulerAgent } from "./agents/judge-scheduler-agent"
 import { env, waitUntil } from "cloudflare:workers"
 import { sendBatchToPostHog } from "evlog/posthog"
 import { createWorkersLogger, initWorkersLogger } from "evlog/workers"
@@ -113,21 +114,26 @@ const SLOW_REQUEST_THRESHOLD_MS = 2000
 // Create the base TanStack Start entry with default fetch handling
 const startEntry = createServerEntry({
   async fetch(request) {
-    // Route /agents/* to the agents library (handles WS upgrade + RPC).
-    // Must run before the TanStack handler so WebSocket upgrades are honored.
+    // Route /agents/<namespace>/<name>/... to the matching Agent DO.
+    // We resolve the stub via getAgentByName (which calls setName under the
+    // hood and persists the name to DO storage) instead of routeAgentRequest
+    // — miniflare doesn't reliably expose ctx.id.name for idFromName() IDs,
+    // and persisting the name is also required for hibernating WS messages
+    // that re-instantiate the DO without the original Upgrade request.
     const url = new URL(request.url)
-    if (url.pathname.startsWith("/agents/")) {
-      // Miniflare doesn't expose ctx.id.name for DOs created via idFromName(),
-      // so forward the URL name segment as x-partykit-room — the Agent base
-      // class falls back to this header when ctx.id.name is undefined.
-      const parts = url.pathname.split("/").filter(Boolean)
-      let agentRequest = request
-      if (parts.length >= 3) {
-        agentRequest = new Request(request)
-        agentRequest.headers.set("x-partykit-room", parts[2])
+    const parts = url.pathname.split("/").filter(Boolean)
+    if (parts[0] === "agents" && parts.length >= 3) {
+      const namespace = parts[1]
+      const name = parts[2]
+      if (namespace === "judge-scheduler-agent") {
+        // The DO namespace is typed as <undefined> by the autogen env types
+        // because alchemy doesn't pipe the class through. Cast to the agent
+        // class for the agents library's name-persistence helper.
+        const ns =
+          env.JUDGE_SCHEDULER_AGENT as unknown as DurableObjectNamespace<JudgeSchedulerAgent>
+        const stub = await getAgentByName(ns, name)
+        return stub.fetch(request)
       }
-      const agentResponse = await routeAgentRequest(agentRequest, env)
-      if (agentResponse) return agentResponse
     }
     return handler.fetch(request)
   },

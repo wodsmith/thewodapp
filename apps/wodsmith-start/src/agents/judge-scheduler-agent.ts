@@ -23,6 +23,7 @@ import {
   computeCoverageFromProposals,
   validateProposal,
 } from "@/lib/judge-scheduler/tools"
+import { logError, logInfo, logWarning } from "@/lib/logging"
 import { hasFeature } from "@/server/entitlements"
 import {
   loadEventContext,
@@ -35,7 +36,7 @@ import {
  * platform; the AI SDK adapter accepts arbitrary model strings so this is
  * typed as `(string & {})` under the hood.
  */
-const MODEL_ID = "@cf/moonshotai/kimi-k2.6"
+const MODEL_ID = "@cf/moonshotai/kimi-k2.5"
 const MAX_STEPS = 24
 
 const SYSTEM_PROMPT = `You are an assistant that drafts judge rotations for a single Functional Fitness-style competition workout.
@@ -45,10 +46,14 @@ Your goal: cover every (heat, lane) slot once with a judge from the available ro
 Rules:
 - Always start by calling get_event_context, get_judge_roster, and get_prior_rotations once each. Use prior rotations as a style guide for heatsCount and laneShiftPattern.
 - Emit one proposal at a time via propose_rotation. Generate a fresh proposalId per proposal (e.g. "p1", "p2"). The system streams each proposal to the organizer as you call it, so they see your work in real time.
+- HARD rules (will be rejected if violated):
+  - startingLane must be <= the laneCount of every heat in the rotation. If a heat has 5 lanes, never propose lane 6. Coverage targets only existing (heat, lane) slots returned by get_event_context.
+  - membershipId must come from get_judge_roster.
+  - startingHeat + heatsCount - 1 must be <= totalHeats.
 - Prefer the event's defaultHeatsPerRotation and defaultLaneShiftPattern unless prior rotations or coverage gaps suggest otherwise.
 - Treat availability ('morning' / 'afternoon' / 'all_day') and minHeatBuffer as SOFT rules. If you must violate them to fill the schedule, set confidence='low' and list the specific violations in softViolations[]. Never silently break preferences.
 - After every 3-5 proposals, call check_coverage to inspect gaps and overlaps. Adjust subsequent proposals to fill gaps and avoid overlaps.
-- When coverage reaches 100% (or as close as the roster allows), call mark_complete with a 1-2 sentence summary.
+- When every (heat, lane) slot from get_event_context has been proposed once, STOP and call mark_complete with a 1-2 sentence summary. Do not invent extra slots.
 - Do NOT call propose_rotation for the same membershipId+startingHeat twice. If you change your mind, call revoke_proposal first.
 - Keep rationale strings under 240 characters, concrete and judge-specific. Avoid filler.`
 
@@ -76,6 +81,15 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
   async start(rawInput: unknown): Promise<{ ok: boolean; error?: string }> {
     const input = startSchedulingInputSchema.parse(rawInput)
 
+    logInfo({
+      message: "[JudgeAgent] start invoked",
+      attributes: {
+        trackWorkoutId: input.trackWorkoutId,
+        competitionId: input.competitionId,
+        reset: input.reset,
+      },
+    })
+
     // Defense in depth: the UI page already gates by hasFeature, but the
     // agent's @callable() endpoint is reachable directly over WebSocket so
     // we re-verify the organizing team has the AI_JUDGE_SCHEDULING feature
@@ -88,6 +102,13 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
     if (!entitled) {
       const msg =
         "Your plan does not include AI Judge Scheduling. Ask an admin to enable it."
+      logWarning({
+        message: "[JudgeAgent] entitlement check failed",
+        attributes: {
+          organizingTeamId,
+          feature: FEATURES.AI_JUDGE_SCHEDULING,
+        },
+      })
       this.setState({
         ...this.state,
         status: "error",
@@ -107,8 +128,18 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
       completedAt: null,
     })
 
+    const runStartedAt = Date.now()
     try {
       const ctx = await loadAllContext(input)
+      logInfo({
+        message: "[JudgeAgent] context loaded",
+        attributes: {
+          trackWorkoutId: input.trackWorkoutId,
+          totalHeats: ctx.eventContext.totalHeats,
+          rosterSize: ctx.roster.length,
+          priorRotations: ctx.priors.length,
+        },
+      })
       const tools = buildTools(this, ctx)
 
       // Alchemy's typed Ai<AiModelListType> and workers-ai-provider's Ai<AiModels>
@@ -124,6 +155,18 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
         stopWhen: stepCountIs(MAX_STEPS),
       })
 
+      logInfo({
+        message: "[JudgeAgent] generateText finished",
+        attributes: {
+          trackWorkoutId: input.trackWorkoutId,
+          durationMs: Date.now() - runStartedAt,
+          proposalCount: this.state.proposals.length,
+          stepCount: result.steps?.length ?? 0,
+          finishReason: result.finishReason,
+          status: this.state.status,
+        },
+      })
+
       if (this.state.status !== "done") {
         this.setState({
           ...this.state,
@@ -136,6 +179,15 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
       return { ok: true }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
+      logError({
+        message: "[JudgeAgent] start failed",
+        error: err,
+        attributes: {
+          trackWorkoutId: input.trackWorkoutId,
+          durationMs: Date.now() - runStartedAt,
+          proposalCount: this.state.proposals.length,
+        },
+      })
       this.setState({
         ...this.state,
         status: "error",
@@ -202,26 +254,46 @@ function buildTools(
 ): Record<string, Tool> {
   const { eventContext, roster, priors } = ctx
 
+  const trackWorkoutId = eventContext.trackWorkoutId
+
   return {
     get_event_context: tool({
       description:
         "Return the heats, lanes, occupancy, and event defaults for the workout being scheduled. Call once per run.",
       inputSchema: z.object({}),
-      execute: async () => eventContext,
+      execute: async () => {
+        logInfo({
+          message: "[JudgeAgent.tool] get_event_context",
+          attributes: { trackWorkoutId, heats: eventContext.heats.length },
+        })
+        return eventContext
+      },
     }),
 
     get_judge_roster: tool({
       description:
         "Return all eligible judges with their availability ('morning' | 'afternoon' | 'all_day' | null), credentials, and current rotation count. Call once per run.",
       inputSchema: z.object({}),
-      execute: async () => roster,
+      execute: async () => {
+        logInfo({
+          message: "[JudgeAgent.tool] get_judge_roster",
+          attributes: { trackWorkoutId, rosterSize: roster.length },
+        })
+        return roster
+      },
     }),
 
     get_prior_rotations: tool({
       description:
         "Return up to 12 recent rotations from other workouts in the same competition. Use them as a style guide for heatsCount and laneShiftPattern.",
       inputSchema: z.object({}),
-      execute: async () => priors,
+      execute: async () => {
+        logInfo({
+          message: "[JudgeAgent.tool] get_prior_rotations",
+          attributes: { trackWorkoutId, count: priors.length },
+        })
+        return priors
+      },
     }),
 
     propose_rotation: tool({
@@ -234,10 +306,37 @@ function buildTools(
           context: eventContext,
           roster,
         })
+        const hardViolations = violations.filter(
+          (v) =>
+            v.startsWith("Starting lane") ||
+            v.startsWith("Unknown membershipId") ||
+            v.startsWith("Rotation runs past"),
+        )
+        if (hardViolations.length > 0) {
+          logWarning({
+            message: "[JudgeAgent.tool] propose_rotation rejected",
+            attributes: {
+              trackWorkoutId,
+              proposalId: input.proposalId,
+              membershipId: input.membershipId,
+              startingHeat: input.startingHeat,
+              startingLane: input.startingLane,
+              heatsCount: input.heatsCount,
+              hardViolations: hardViolations.join(" | "),
+            },
+          })
+          return {
+            status: "rejected" as const,
+            hardViolations,
+          }
+        }
+        const softViolations = violations.filter(
+          (v) => !hardViolations.includes(v),
+        )
         const merged = {
           ...input,
           softViolations: dedupeStrings([
-            ...violations,
+            ...softViolations,
             ...input.softViolations,
           ]),
         }
@@ -246,9 +345,23 @@ function buildTools(
         )
         next.push(merged)
         agent.setState({ ...agent.state, proposals: next })
+        logInfo({
+          message: "[JudgeAgent.tool] propose_rotation recorded",
+          attributes: {
+            trackWorkoutId,
+            proposalId: input.proposalId,
+            membershipId: input.membershipId,
+            startingHeat: input.startingHeat,
+            startingLane: input.startingLane,
+            heatsCount: input.heatsCount,
+            confidence: input.confidence,
+            softViolationCount: merged.softViolations.length,
+            totalProposals: next.length,
+          },
+        })
         return {
           status: "recorded" as const,
-          autoDetectedViolations: violations,
+          autoDetectedViolations: softViolations,
         }
       },
     }),
@@ -258,10 +371,21 @@ function buildTools(
         "Withdraw a previously emitted proposal by id. Use when reconsidering.",
       inputSchema: revokeProposalInputSchema,
       execute: async (input) => {
+        const before = agent.state.proposals.length
         const next = agent.state.proposals.filter(
           (p) => p.proposalId !== input.proposalId,
         )
         agent.setState({ ...agent.state, proposals: next })
+        logInfo({
+          message: "[JudgeAgent.tool] revoke_proposal",
+          attributes: {
+            trackWorkoutId,
+            proposalId: input.proposalId,
+            reason: input.reason,
+            removed: before - next.length,
+            remaining: next.length,
+          },
+        })
         return { status: "revoked" as const, reason: input.reason }
       },
     }),
@@ -270,8 +394,22 @@ function buildTools(
       description:
         "Inspect coverage of the current proposal set. Returns gaps and overlaps so you can plug holes.",
       inputSchema: z.object({}),
-      execute: async () =>
-        computeCoverageFromProposals(agent.state.proposals, eventContext),
+      execute: async () => {
+        const coverage = computeCoverageFromProposals(
+          agent.state.proposals,
+          eventContext,
+        )
+        logInfo({
+          message: "[JudgeAgent.tool] check_coverage",
+          attributes: {
+            trackWorkoutId,
+            proposals: agent.state.proposals.length,
+            gaps: coverage.gaps?.length ?? 0,
+            overlaps: coverage.overlaps?.length ?? 0,
+          },
+        })
+        return coverage
+      },
     }),
 
     mark_complete: tool({
@@ -284,6 +422,14 @@ function buildTools(
           status: "done",
           summary: input.summary,
           completedAt: Date.now(),
+        })
+        logInfo({
+          message: "[JudgeAgent.tool] mark_complete",
+          attributes: {
+            trackWorkoutId,
+            proposalCount: agent.state.proposals.length,
+            summary: input.summary.slice(0, 200),
+          },
         })
         return { status: "complete" as const }
       },
