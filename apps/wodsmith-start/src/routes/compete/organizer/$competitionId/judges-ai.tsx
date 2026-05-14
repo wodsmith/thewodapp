@@ -35,7 +35,6 @@ import type {
   PriorRotationExample,
   ProposedRotation,
 } from "@/lib/judge-scheduler/schemas"
-import { computeCoverageFromProposals } from "@/lib/judge-scheduler/tools"
 import { getHeatsForCompetitionFn } from "@/server-fns/competition-heats-fns"
 import {
   type CompetitionWorkout,
@@ -118,10 +117,7 @@ export const Route = createFileRoute(
         },
       }),
       getJudgeVolunteersFn({
-        data: {
-          competitionId: competition.id,
-          teamId: competition.organizingTeamId,
-        },
+        data: { competitionTeamId: competition.competitionTeamId ?? "" },
       }),
       Promise.all(
         events.map((event) =>
@@ -242,14 +238,6 @@ function JudgesAiPage() {
     [proposals, rejectedIds],
   )
 
-  const coverage = useMemo(
-    () =>
-      context
-        ? computeCoverageFromProposals(acceptedProposals, context.eventContext)
-        : null,
-    [context, acceptedProposals],
-  )
-
   const judgesById = useMemo(() => {
     const map = new Map<string, JudgeRosterEntry>()
     for (const judge of context?.roster ?? []) {
@@ -344,25 +332,6 @@ function JudgesAiPage() {
     }
   }
 
-  const eventName = context?.eventContext.workoutName ?? ""
-  // Mirror coverage's "occupiedLanes when present, else laneCount" rule so
-  // the grid renders the same slot universe the coverage report tracks. A
-  // heat with athletes in lanes 6-10 is a 10-lane heat even if the venue
-  // says 5 — the grid should expose those slots, not hide them.
-  const totalLanes =
-    context?.eventContext.heats.reduce(
-      (
-        max: number,
-        h: { laneCount: number; occupiedLanes: number[] },
-      ) =>
-        Math.max(
-          max,
-          h.occupiedLanes.length > 0 ? Math.max(...h.occupiedLanes) : h.laneCount,
-        ),
-      0,
-    ) ?? 0
-  const totalHeats = context?.eventContext.totalHeats ?? 0
-
   if (!hasAccess) {
     return (
       <section className="space-y-6">
@@ -454,81 +423,24 @@ function JudgesAiPage() {
         <ActivityLog entries={thinkingLog} status={status} />
       )}
 
-      {context && coverage && (
-        <>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="text-base font-semibold">
-                {eventName} Coverage:{" "}
-                <span
-                  className={
-                    coverage.coveragePercent >= 100
-                      ? "text-green-600"
-                      : "text-orange-500"
-                  }
-                >
-                  {coverage.coveragePercent}%
-                </span>
-              </div>
-              <div className="text-sm text-muted-foreground">
-                {coverage.coveredSlots}/{coverage.totalSlots} slots covered
-                {acceptedProposals.length > 0 && (
-                  <> · {acceptedProposals.length} accepted proposal(s)</>
-                )}
-              </div>
-            </div>
-            <Button
-              onClick={handleApply}
-              disabled={isApplying || acceptedProposals.length === 0}
-            >
-              {isApplying ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="mr-2 h-4 w-4" />
-              )}
-              Save {acceptedProposals.length} Rotation
-              {acceptedProposals.length === 1 ? "" : "s"} as Draft
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[360px_1fr]">
-            <ProposalList
-              proposals={proposals}
-              rejectedIds={rejectedIds}
-              setRejectedIds={setRejectedIds}
-              judgesById={judgesById}
-              status={status}
-            />
-            <CoverageGrid
-              eventContext={context.eventContext}
-              proposals={acceptedProposals}
-              totalLanes={totalLanes}
-              totalHeats={totalHeats}
-              coverage={coverage}
-            />
-          </div>
-        </>
+      {proposals.length > 0 && (
+        <AiProposalsBar
+          proposals={proposals}
+          rejectedIds={rejectedIds}
+          setRejectedIds={setRejectedIds}
+          judgesById={judgesById}
+          status={status}
+          isApplying={isApplying}
+          onApply={handleApply}
+        />
       )}
 
-      {!context && (
-        <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            Select an event to begin.
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Manual judge scheduling editor — full edit/publish/versioning
-       * surface that the volunteers page also exposes. Lets organizers
-       * tweak AI proposals after saving them, add rotations the AI
-       * missed, and publish a final version without leaving the page.
-       * Shares the workout selection so the AI controls above and the
-       * manual editor below stay in sync. */}
+      {/* Unified scheduling grid — full edit / publish / versioning
+       * surface. AI proposals above stream live; when the organizer
+       * saves them the resulting drafts show up here in the same grid
+       * they'd use to add or edit rotations manually. */}
       {selectedWorkoutId && (
-        <div className="border-t pt-6">
-          <h3 className="mb-3 text-base font-semibold">
-            Manual edits &amp; publishing
-          </h3>
+        <div>
           <JudgeSchedulingContainer
             competitionId={competition.id}
             competitionSlug={competition.slug}
@@ -672,19 +584,26 @@ function activityClassName(kind: ActivityEntry["kind"]): string {
   }
 }
 
-function ProposalList({
+function AiProposalsBar({
   proposals,
   rejectedIds,
   setRejectedIds,
   judgesById,
   status,
+  isApplying,
+  onApply,
 }: {
   proposals: ProposedRotation[]
   rejectedIds: Set<string>
   setRejectedIds: (next: Set<string>) => void
   judgesById: Map<string, JudgeRosterEntry>
   status: AgentState["status"]
+  isApplying: boolean
+  onApply: () => void
 }) {
+  const [expanded, setExpanded] = useState(true)
+  const accepted = proposals.filter((p) => !rejectedIds.has(p.proposalId))
+
   function toggle(proposalId: string) {
     const next = new Set(rejectedIds)
     if (next.has(proposalId)) next.delete(proposalId)
@@ -693,24 +612,43 @@ function ProposalList({
   }
 
   return (
-    <Card className="lg:sticky lg:top-4 lg:self-start">
-      <CardContent className="space-y-3 p-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium">
-            AI Proposals ({proposals.length})
-          </h3>
-          {status === "thinking" && (
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-          )}
+    <Card>
+      <CardContent className="space-y-3 py-3">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="flex flex-1 items-center gap-2 text-left text-sm font-medium"
+          >
+            <Sparkles className="h-4 w-4 text-primary" />
+            <span>
+              {accepted.length} of {proposals.length} AI suggestion
+              {proposals.length === 1 ? "" : "s"} kept
+            </span>
+            {status === "thinking" && (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+            )}
+            {expanded ? (
+              <ChevronUp className="ml-auto h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground" />
+            )}
+          </button>
+          <Button
+            size="sm"
+            onClick={onApply}
+            disabled={isApplying || accepted.length === 0}
+          >
+            {isApplying ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="mr-2 h-4 w-4" />
+            )}
+            Save {accepted.length} to grid
+          </Button>
         </div>
-        {proposals.length === 0 ? (
-          <p className="py-4 text-center text-sm text-muted-foreground">
-            {status === "thinking"
-              ? "The agent is thinking…"
-              : "No proposals yet. Click Generate Suggestions to start."}
-          </p>
-        ) : (
-          <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
+        {expanded && (
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {proposals.map((p) => (
               <ProposalCard
                 key={p.proposalId}
@@ -811,141 +749,3 @@ function ConfidenceBadge({
   return <Badge variant={cfg.variant}>{cfg.label}</Badge>
 }
 
-function CoverageGrid({
-  eventContext,
-  proposals,
-  totalLanes,
-  totalHeats,
-  coverage,
-}: {
-  eventContext: EventContextDto
-  proposals: ProposedRotation[]
-  totalLanes: number
-  totalHeats: number
-  coverage: ReturnType<typeof computeCoverageFromProposals>
-}) {
-  const cellByKey = useMemo(() => {
-    const map = new Map<string, "covered" | "overlap" | "no-athlete">()
-    for (const heat of eventContext.heats) {
-      for (let lane = 1; lane <= totalLanes; lane++) {
-        if (
-          heat.occupiedLanes.length > 0 &&
-          !heat.occupiedLanes.includes(lane)
-        ) {
-          map.set(`${heat.heatNumber}:${lane}`, "no-athlete")
-        }
-      }
-    }
-    for (const overlap of coverage.overlaps) {
-      map.set(`${overlap.heatNumber}:${overlap.laneNumber}`, "overlap")
-    }
-    // Mark covered cells from proposals (skip if already overlap)
-    for (const p of proposals) {
-      const lastHeat = p.startingHeat + p.heatsCount - 1
-      for (let h = p.startingHeat; h <= lastHeat; h++) {
-        const heatInfo = eventContext.heats.find((x) => x.heatNumber === h)
-        if (!heatInfo) continue
-        let lane = p.startingLane
-        if (p.laneShiftPattern === LANE_SHIFT_PATTERN.SHIFT_RIGHT) {
-          const offset = h - p.startingHeat
-          lane = ((p.startingLane - 1 + offset) % heatInfo.laneCount) + 1
-        }
-        const key = `${h}:${lane}`
-        if (map.get(key) === "overlap") continue
-        if (map.get(key) === "no-athlete") continue
-        map.set(key, "covered")
-      }
-    }
-    return map
-  }, [eventContext, proposals, coverage, totalLanes])
-
-  return (
-    <Card>
-      <CardContent className="space-y-3 p-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium">
-            Coverage: {coverage.coveragePercent}% ({coverage.coveredSlots}/
-            {coverage.totalSlots})
-          </h3>
-          <div className="text-xs text-muted-foreground">
-            {totalHeats} heats × {totalLanes} lanes
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-xs">
-            <thead>
-              <tr>
-                <th className="border bg-muted/50 p-2 text-left">Lane</th>
-                {eventContext.heats.map((h) => (
-                  <th
-                    key={h.heatNumber}
-                    className="min-w-[60px] border bg-muted/50 p-2 text-center"
-                  >
-                    <div>H{h.heatNumber}</div>
-                    {h.startTime && (
-                      <div className="text-[10px] font-normal text-muted-foreground">
-                        {new Date(h.startTime).toLocaleTimeString([], {
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}
-                      </div>
-                    )}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {Array.from({ length: totalLanes }, (_, i) => i + 1).map(
-                (lane) => (
-                  <tr key={lane}>
-                    <td className="border bg-muted/30 p-2 font-medium">
-                      L{lane}
-                    </td>
-                    {eventContext.heats.map((h) => {
-                      const state = cellByKey.get(`${h.heatNumber}:${lane}`)
-                      const cls =
-                        state === "covered"
-                          ? "bg-emerald-200 dark:bg-emerald-900"
-                          : state === "overlap"
-                            ? "bg-orange-200 dark:bg-orange-900"
-                            : state === "no-athlete"
-                              ? "bg-muted bg-[length:6px_6px] bg-[image:repeating-linear-gradient(45deg,_transparent,_transparent_2px,_currentColor_2px,_currentColor_3px)] opacity-25"
-                              : ""
-                      return (
-                        <td
-                          key={h.heatNumber}
-                          className={`h-8 border p-0 ${cls}`}
-                        />
-                      )
-                    })}
-                  </tr>
-                ),
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-          <LegendChip color="bg-background border" label="Empty" />
-          <LegendChip
-            color="bg-emerald-200 dark:bg-emerald-900"
-            label="Covered"
-          />
-          <LegendChip
-            color="bg-orange-200 dark:bg-orange-900"
-            label="Overlap"
-          />
-          <LegendChip color="bg-muted opacity-25" label="No Athlete" />
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-function LegendChip({ color, label }: { color: string; label: string }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <span className={`inline-block h-3 w-3 rounded-sm border ${color}`} />
-      <span>{label}</span>
-    </div>
-  )
-}
