@@ -2,8 +2,9 @@ import "server-only"
 
 import { Agent, callable } from "agents"
 import { generateText, stepCountIs, type Tool, tool } from "ai"
+import { createAiGateway } from "ai-gateway-provider"
+import { createUnified } from "ai-gateway-provider/providers/unified"
 import { eq } from "drizzle-orm"
-import { createWorkersAI } from "workers-ai-provider"
 import { z } from "zod"
 import { FEATURES } from "@/config/features"
 import { getDb } from "@/db"
@@ -35,11 +36,11 @@ import {
 } from "@/server/judge-scheduler/context"
 
 /**
- * Cloudflare Workers AI model id. Kimi K2 is hosted on Cloudflare's edge AI
- * platform; the AI SDK adapter accepts arbitrary model strings so this is
- * typed as `(string & {})` under the hood.
+ * Cloudflare Workers AI model id, addressed via the AI Gateway. The gateway
+ * provider's `unified` adapter takes `<provider>/<model>` strings, so for
+ * Workers AI we prefix the standard `@cf/...` slug with `workers-ai/`.
  */
-const MODEL_ID = "@cf/moonshotai/kimi-k2.5"
+const MODEL_ID = "workers-ai/@cf/moonshotai/kimi-k2.5"
 const MAX_STEPS = 24
 
 const SYSTEM_PROMPT = `You are an assistant that drafts judge rotations for a single Functional Fitness-style competition workout.
@@ -171,13 +172,18 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
       })
       const tools = buildTools(this, ctx)
 
-      // Alchemy's typed Ai<AiModelListType> and workers-ai-provider's Ai<AiModels>
-      // describe the same runtime binding; cast through unknown to bridge them.
-      const workersai = createWorkersAI({
-        binding: this.env.AI as unknown as Ai,
+      // Route all AI traffic through the Cloudflare AI Gateway so we get
+      // logs/analytics/caching in the dashboard and a single integration
+      // point for adding non-CF providers later (OpenAI, Anthropic, etc).
+      console.log(this.env)
+      const aiGateway = createAiGateway({
+        accountId: this.env.CF_ACCOUNT_ID,
+        gateway: this.env.CF_AIG_GATEWAY,
+        apiKey: this.env.CF_AIG_TOKEN,
       })
+      const unified = createUnified()
       const result = await generateText({
-        model: workersai(MODEL_ID),
+        model: aiGateway(unified(MODEL_ID)),
         system: SYSTEM_PROMPT,
         prompt: buildKickoffPrompt(ctx),
         tools,

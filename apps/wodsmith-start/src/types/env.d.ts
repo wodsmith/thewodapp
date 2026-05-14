@@ -18,6 +18,12 @@ declare global {
     interface Env {
       JUDGE_SCHEDULER_AGENT: DurableObjectNamespace
       AI: Ai
+      /** Cloudflare account id — routed through AI Gateway by the agents */
+      CF_ACCOUNT_ID: string
+      /** AI Gateway name from alchemy.run.ts */
+      CF_AIG_GATEWAY: string
+      /** API token with AI Gateway permission */
+      CF_AIG_TOKEN: string
     }
   }
 }

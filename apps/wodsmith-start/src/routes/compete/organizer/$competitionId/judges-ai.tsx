@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router"
 import { useAgent } from "agents/react"
 import {
   Check,
@@ -24,7 +24,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import type { JudgeAssignmentVersion } from "@/db/schema"
 import { LANE_SHIFT_PATTERN } from "@/db/schema"
+import type { LaneShiftPattern } from "@/db/schemas/volunteers"
 import type {
   ActivityEntry,
   AgentState,
@@ -34,16 +36,33 @@ import type {
   ProposedRotation,
 } from "@/lib/judge-scheduler/schemas"
 import { computeCoverageFromProposals } from "@/lib/judge-scheduler/tools"
+import { getHeatsForCompetitionFn } from "@/server-fns/competition-heats-fns"
 import {
   type CompetitionWorkout,
   getCompetitionWorkoutsFn,
 } from "@/server-fns/competition-workouts-fns"
 import {
+  getActiveVersionFn,
+  getVersionHistoryFn,
+} from "@/server-fns/judge-assignment-fns"
+import {
   applyAiProposalsFn,
   loadAiSchedulingContextFn,
 } from "@/server-fns/judge-scheduler-ai-fns"
+import {
+  getJudgeHeatAssignmentsFn,
+  getJudgeVolunteersFn,
+  getRotationsForEventFn,
+} from "@/server-fns/judge-scheduling-fns"
 import { useSession } from "@/utils/auth-client"
 import { formatTrackOrder } from "@/utils/format-track-order"
+import { JudgeSchedulingContainer } from "./-components/judges"
+
+interface EventDefaults {
+  defaultHeatsCount: number | null
+  defaultLaneShiftPattern: LaneShiftPattern | null
+  minHeatBuffer: number | null
+}
 
 const searchParamsSchema = z.object({
   workoutId: z.string().optional(),
@@ -68,15 +87,83 @@ export const Route = createFileRoute(
     const events = eventsResult.workouts
 
     const initialWorkoutId = deps.workoutId ?? events[0]?.id ?? null
-    const initialResult = initialWorkoutId
-      ? await loadAiSchedulingContextFn({
-          data: {
-            trackWorkoutId: initialWorkoutId,
-            competitionId: competition.id,
-            teamId: competition.organizingTeamId,
-          },
-        })
-      : null
+
+    // Fetch the AI-specific context alongside everything the manual
+    // JudgeSchedulingContainer needs — heats, judges, current rotations,
+    // version history. Loading both in parallel keeps the initial render
+    // under one round trip and lets the manual editor work even before
+    // the agent has run.
+    const [
+      initialResult,
+      heatsResult,
+      judges,
+      allAssignments,
+      allRotationResults,
+      allVersionHistory,
+      allActiveVersions,
+    ] = await Promise.all([
+      initialWorkoutId
+        ? loadAiSchedulingContextFn({
+            data: {
+              trackWorkoutId: initialWorkoutId,
+              competitionId: competition.id,
+              teamId: competition.organizingTeamId,
+            },
+          })
+        : Promise.resolve(null),
+      getHeatsForCompetitionFn({
+        data: {
+          competitionId: competition.id,
+          teamId: competition.organizingTeamId,
+        },
+      }),
+      getJudgeVolunteersFn({
+        data: {
+          competitionId: competition.id,
+          teamId: competition.organizingTeamId,
+        },
+      }),
+      Promise.all(
+        events.map((event) =>
+          getJudgeHeatAssignmentsFn({ data: { trackWorkoutId: event.id } }),
+        ),
+      ),
+      Promise.all(
+        events.map((event) =>
+          getRotationsForEventFn({ data: { trackWorkoutId: event.id } }),
+        ),
+      ),
+      Promise.all(
+        events.map((event) =>
+          getVersionHistoryFn({ data: { trackWorkoutId: event.id } }),
+        ),
+      ),
+      Promise.all(
+        events.map((event) =>
+          getActiveVersionFn({ data: { trackWorkoutId: event.id } }),
+        ),
+      ),
+    ])
+
+    const heats = heatsResult.heats
+    const judgeAssignments = allAssignments.flat()
+    const rotations = allRotationResults.flatMap((r) => r.rotations)
+
+    const eventDefaultsMap = new Map<string, EventDefaults>()
+    const versionHistoryMap = new Map<string, JudgeAssignmentVersion[]>()
+    const activeVersionMap = new Map<string, JudgeAssignmentVersion | null>()
+    for (const [index, event] of events.entries()) {
+      const result = allRotationResults[index]
+      eventDefaultsMap.set(event.id, {
+        defaultHeatsCount: result?.eventDefaults?.defaultHeatsCount ?? null,
+        defaultLaneShiftPattern:
+          (result?.eventDefaults
+            ?.defaultLaneShiftPattern as LaneShiftPattern) ?? null,
+        minHeatBuffer: result?.eventDefaults?.minHeatBuffer ?? null,
+      })
+      versionHistoryMap.set(event.id, allVersionHistory[index] ?? [])
+      activeVersionMap.set(event.id, allActiveVersions[index] ?? null)
+    }
 
     const hasAccess = initialResult ? initialResult.hasAccess : true
     const initialContext =
@@ -88,6 +175,13 @@ export const Route = createFileRoute(
       hasAccess,
       initialContext,
       initialWorkoutId,
+      heats,
+      judges,
+      judgeAssignments,
+      rotations,
+      eventDefaultsMap,
+      versionHistoryMap,
+      activeVersionMap,
     }
   },
   component: JudgesAiPage,
@@ -107,9 +201,17 @@ function JudgesAiPage() {
     hasAccess: initialHasAccess,
     initialContext,
     initialWorkoutId,
+    heats,
+    judges,
+    judgeAssignments,
+    rotations,
+    eventDefaultsMap,
+    versionHistoryMap,
+    activeVersionMap,
   } = Route.useLoaderData()
   const search = Route.useSearch()
   const navigate = useNavigate()
+  const router = useRouter()
   const session = useSession()
 
   const [hasAccess, setHasAccess] = useState(initialHasAccess)
@@ -133,7 +235,6 @@ function JudgesAiPage() {
   const status = agent.state?.status ?? "idle"
   const proposals = agent.state?.proposals ?? []
   const thinkingLog = agent.state?.thinkingLog ?? []
-  const summary = agent.state?.summary
   const errorMessage = agent.state?.errorMessage
 
   const acceptedProposals = useMemo(
@@ -219,16 +320,21 @@ function JudgesAiPage() {
         },
       })
       toast.success(
-        `Saved ${result.appliedCount} rotation${result.appliedCount === 1 ? "" : "s"}. Open the Volunteers tab to publish.`,
+        `Saved ${result.appliedCount} rotation${result.appliedCount === 1 ? "" : "s"}. Edit or publish them below.`,
       )
-      // Refresh context so the existing rotations show updated counts
-      const next = await loadAiSchedulingContextFn({
-        data: {
-          trackWorkoutId: selectedWorkoutId,
-          competitionId: competition.id,
-          teamId: competition.organizingTeamId,
-        },
-      })
+      // Refresh context so the existing rotations show updated counts,
+      // and invalidate the route loader so the manual editor below
+      // picks up the newly-saved drafts.
+      const [next] = await Promise.all([
+        loadAiSchedulingContextFn({
+          data: {
+            trackWorkoutId: selectedWorkoutId,
+            competitionId: competition.id,
+            teamId: competition.organizingTeamId,
+          },
+        }),
+        router.invalidate(),
+      ])
       setHasAccess(next.hasAccess)
       setContext(next.hasAccess ? next : null)
     } catch (err) {
@@ -385,14 +491,6 @@ function JudgesAiPage() {
             </Button>
           </div>
 
-          {summary && status === "done" && (
-            <Card>
-              <CardContent className="py-3 text-sm">
-                <span className="font-medium">AI summary:</span> {summary}
-              </CardContent>
-            </Card>
-          )}
-
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[360px_1fr]">
             <ProposalList
               proposals={proposals}
@@ -418,6 +516,41 @@ function JudgesAiPage() {
             Select an event to begin.
           </CardContent>
         </Card>
+      )}
+
+      {/* Manual judge scheduling editor — full edit/publish/versioning
+       * surface that the volunteers page also exposes. Lets organizers
+       * tweak AI proposals after saving them, add rotations the AI
+       * missed, and publish a final version without leaving the page.
+       * Shares the workout selection so the AI controls above and the
+       * manual editor below stay in sync. */}
+      {selectedWorkoutId && (
+        <div className="border-t pt-6">
+          <h3 className="mb-3 text-base font-semibold">
+            Manual edits &amp; publishing
+          </h3>
+          <JudgeSchedulingContainer
+            competitionId={competition.id}
+            competitionSlug={competition.slug}
+            organizingTeamId={competition.organizingTeamId}
+            competitionType={competition.competitionType}
+            events={events}
+            heats={heats}
+            judges={judges}
+            judgeAssignments={judgeAssignments}
+            rotations={rotations}
+            eventDefaultsMap={eventDefaultsMap}
+            versionHistoryMap={versionHistoryMap}
+            activeVersionMap={activeVersionMap}
+            competitionDefaultHeats={competition.defaultHeatsPerRotation ?? 4}
+            competitionDefaultPattern={
+              (competition.defaultLaneShiftPattern as LaneShiftPattern) ??
+              "shift_right"
+            }
+            selectedEventId={selectedWorkoutId}
+            onEventChange={handleSelectEvent}
+          />
+        </div>
       )}
     </section>
   )
