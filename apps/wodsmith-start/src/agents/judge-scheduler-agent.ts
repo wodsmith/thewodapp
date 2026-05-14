@@ -8,12 +8,15 @@ import { z } from "zod"
 import { FEATURES } from "@/config/features"
 import { getDb } from "@/db"
 import { competitionsTable } from "@/db/schema"
+import { createId } from "@paralleldrive/cuid2"
 import {
+  type ActivityEntry,
   type AgentState,
   type EventContextDto,
   initialAgentState,
   type JudgeRosterEntry,
   markCompleteInputSchema,
+  MAX_THINKING_LOG_ENTRIES,
   type PriorRotationExample,
   proposeRotationInputSchema,
   revokeProposalInputSchema,
@@ -77,6 +80,26 @@ interface BuildContextResult {
 export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
   initialState: AgentState = initialAgentState
 
+  /**
+   * Append an entry to the activity log and broadcast via setState. The log
+   * is capped at MAX_THINKING_LOG_ENTRIES — older entries are dropped so DO
+   * storage doesn't grow unboundedly across long runs.
+   */
+  logActivity(kind: ActivityEntry["kind"], message: string): void {
+    const entry: ActivityEntry = {
+      id: createId(),
+      timestamp: Date.now(),
+      kind,
+      message,
+    }
+    const next = [...this.state.thinkingLog, entry]
+    const trimmed =
+      next.length > MAX_THINKING_LOG_ENTRIES
+        ? next.slice(next.length - MAX_THINKING_LOG_ENTRIES)
+        : next
+    this.setState({ ...this.state, thinkingLog: trimmed })
+  }
+
   @callable()
   async start(rawInput: unknown): Promise<{ ok: boolean; error?: string }> {
     const input = startSchedulingInputSchema.parse(rawInput)
@@ -122,15 +145,21 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
       trackWorkoutId: input.trackWorkoutId,
       status: "thinking",
       proposals: input.reset ? [] : this.state.proposals,
+      thinkingLog: input.reset ? [] : this.state.thinkingLog,
       summary: null,
       errorMessage: null,
       startedAt: Date.now(),
       completedAt: null,
     })
+    this.logActivity("thinking", "Starting scheduling run…")
 
     const runStartedAt = Date.now()
     try {
       const ctx = await loadAllContext(input)
+      this.logActivity(
+        "thinking",
+        `Loaded context: ${ctx.eventContext.totalHeats} heats, ${ctx.roster.length} eligible judges, ${ctx.priors.length} prior rotations.`,
+      )
       logInfo({
         message: "[JudgeAgent] context loaded",
         attributes: {
@@ -174,11 +203,16 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
           summary: result.text || this.state.summary || "Done.",
           completedAt: Date.now(),
         })
+        this.logActivity(
+          "done",
+          result.text || this.state.summary || "Finished without summary.",
+        )
       }
 
       return { ok: true }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
+      this.logActivity("error", `Run failed: ${message}`)
       logError({
         message: "[JudgeAgent] start failed",
         error: err,
@@ -262,6 +296,10 @@ function buildTools(
         "Return the heats, lanes, occupancy, and event defaults for the workout being scheduled. Call once per run.",
       inputSchema: z.object({}),
       execute: async () => {
+        agent.logActivity(
+          "tool",
+          `Inspecting event setup — ${eventContext.heats.length} heats, default ${eventContext.defaultHeatsPerRotation}-heat rotations.`,
+        )
         logInfo({
           message: "[JudgeAgent.tool] get_event_context",
           attributes: { trackWorkoutId, heats: eventContext.heats.length },
@@ -275,6 +313,10 @@ function buildTools(
         "Return all eligible judges with their availability ('morning' | 'afternoon' | 'all_day' | null), credentials, and current rotation count. Call once per run.",
       inputSchema: z.object({}),
       execute: async () => {
+        agent.logActivity(
+          "tool",
+          `Reviewing roster — ${roster.length} judges available.`,
+        )
         logInfo({
           message: "[JudgeAgent.tool] get_judge_roster",
           attributes: { trackWorkoutId, rosterSize: roster.length },
@@ -288,6 +330,12 @@ function buildTools(
         "Return up to 12 recent rotations from other workouts in the same competition. Use them as a style guide for heatsCount and laneShiftPattern.",
       inputSchema: z.object({}),
       execute: async () => {
+        agent.logActivity(
+          "tool",
+          priors.length > 0
+            ? `Studying ${priors.length} prior rotation${priors.length === 1 ? "" : "s"} for pattern cues.`
+            : "No prior rotations to reference — starting from scratch.",
+        )
         logInfo({
           message: "[JudgeAgent.tool] get_prior_rotations",
           attributes: { trackWorkoutId, count: priors.length },
@@ -308,11 +356,23 @@ function buildTools(
         })
         const hardViolations = violations.filter(
           (v) =>
-            v.startsWith("Starting lane") ||
+            v.startsWith("Starting lane ") ||
             v.startsWith("Unknown membershipId") ||
             v.startsWith("Rotation runs past"),
         )
+        const judge = roster.find((j) => j.membershipId === input.membershipId)
+        const judgeLabel = judge?.name ?? input.membershipId
+        const lastHeat = input.startingHeat + input.heatsCount - 1
+        const slotLabel =
+          input.heatsCount === 1
+            ? `H${input.startingHeat} L${input.startingLane}`
+            : `H${input.startingHeat}–H${lastHeat} L${input.startingLane}`
+
         if (hardViolations.length > 0) {
+          agent.logActivity(
+            "rejected",
+            `Skipped ${judgeLabel} at ${slotLabel}: ${hardViolations.join("; ")}`,
+          )
           logWarning({
             message: "[JudgeAgent.tool] propose_rotation rejected",
             attributes: {
@@ -345,6 +405,14 @@ function buildTools(
         )
         next.push(merged)
         agent.setState({ ...agent.state, proposals: next })
+        const violationsSuffix =
+          merged.softViolations.length > 0
+            ? ` (with ${merged.softViolations.length} soft warning${merged.softViolations.length === 1 ? "" : "s"})`
+            : ""
+        agent.logActivity(
+          "accepted",
+          `Proposed ${judgeLabel} at ${slotLabel}${violationsSuffix}.`,
+        )
         logInfo({
           message: "[JudgeAgent.tool] propose_rotation recorded",
           attributes: {
@@ -376,6 +444,10 @@ function buildTools(
           (p) => p.proposalId !== input.proposalId,
         )
         agent.setState({ ...agent.state, proposals: next })
+        agent.logActivity(
+          "thinking",
+          `Withdrew proposal ${input.proposalId} — ${input.reason}`,
+        )
         logInfo({
           message: "[JudgeAgent.tool] revoke_proposal",
           attributes: {
@@ -399,13 +471,21 @@ function buildTools(
           agent.state.proposals,
           eventContext,
         )
+        const gapCount = coverage.gaps?.length ?? 0
+        const overlapCount = coverage.overlaps?.length ?? 0
+        agent.logActivity(
+          "tool",
+          gapCount === 0 && overlapCount === 0
+            ? `Coverage check: ${coverage.coveragePercent}% — no gaps or overlaps.`
+            : `Coverage check: ${coverage.coveragePercent}% covered, ${gapCount} gap${gapCount === 1 ? "" : "s"}, ${overlapCount} overlap${overlapCount === 1 ? "" : "s"}.`,
+        )
         logInfo({
           message: "[JudgeAgent.tool] check_coverage",
           attributes: {
             trackWorkoutId,
             proposals: agent.state.proposals.length,
-            gaps: coverage.gaps?.length ?? 0,
-            overlaps: coverage.overlaps?.length ?? 0,
+            gaps: gapCount,
+            overlaps: overlapCount,
           },
         })
         return coverage
@@ -423,6 +503,7 @@ function buildTools(
           summary: input.summary,
           completedAt: Date.now(),
         })
+        agent.logActivity("done", input.summary)
         logInfo({
           message: "[JudgeAgent.tool] mark_complete",
           attributes: {

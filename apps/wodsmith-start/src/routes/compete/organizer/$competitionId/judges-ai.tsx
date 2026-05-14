@@ -2,6 +2,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useAgent } from "agents/react"
 import {
   Check,
+  ChevronDown,
+  ChevronUp,
   Loader2,
   Lock,
   RotateCcw,
@@ -9,7 +11,7 @@ import {
   Sparkles,
   X,
 } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 import { z } from "zod"
 import { Badge } from "@/components/ui/badge"
@@ -24,6 +26,7 @@ import {
 } from "@/components/ui/select"
 import { LANE_SHIFT_PATTERN } from "@/db/schema"
 import type {
+  ActivityEntry,
   AgentState,
   EventContextDto,
   JudgeRosterEntry,
@@ -129,6 +132,7 @@ function JudgesAiPage() {
 
   const status = agent.state?.status ?? "idle"
   const proposals = agent.state?.proposals ?? []
+  const thinkingLog = agent.state?.thinkingLog ?? []
   const summary = agent.state?.summary
   const errorMessage = agent.state?.errorMessage
 
@@ -235,9 +239,20 @@ function JudgesAiPage() {
   }
 
   const eventName = context?.eventContext.workoutName ?? ""
+  // Mirror coverage's "occupiedLanes when present, else laneCount" rule so
+  // the grid renders the same slot universe the coverage report tracks. A
+  // heat with athletes in lanes 6-10 is a 10-lane heat even if the venue
+  // says 5 — the grid should expose those slots, not hide them.
   const totalLanes =
     context?.eventContext.heats.reduce(
-      (max: number, h: { laneCount: number }) => Math.max(max, h.laneCount),
+      (
+        max: number,
+        h: { laneCount: number; occupiedLanes: number[] },
+      ) =>
+        Math.max(
+          max,
+          h.occupiedLanes.length > 0 ? Math.max(...h.occupiedLanes) : h.laneCount,
+        ),
       0,
     ) ?? 0
   const totalHeats = context?.eventContext.totalHeats ?? 0
@@ -329,6 +344,10 @@ function JudgesAiPage() {
         </Card>
       )}
 
+      {(status === "thinking" || thinkingLog.length > 0) && (
+        <ActivityLog entries={thinkingLog} status={status} />
+      )}
+
       {context && coverage && (
         <>
           <div className="flex items-start justify-between gap-4">
@@ -402,6 +421,122 @@ function JudgesAiPage() {
       )}
     </section>
   )
+}
+
+function ActivityLog({
+  entries,
+  status,
+}: {
+  entries: ActivityEntry[]
+  status: AgentState["status"]
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const recent = entries.slice(-30)
+  const latest = entries[entries.length - 1]
+  const scrollRef = useRef<HTMLOListElement>(null)
+
+  // When expanded and new entries arrive, keep the latest visible.
+  useEffect(() => {
+    if (!expanded) return
+    const el = scrollRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [expanded, entries.length])
+
+  const ribbonText =
+    latest?.message ??
+    (status === "thinking" ? "Warming up the model…" : "Waiting to start")
+
+  return (
+    <Card>
+      <CardContent className="py-0">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="flex w-full items-start gap-2 py-2.5 text-left text-sm"
+        >
+          {status === "thinking" ? (
+            <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />
+          ) : (
+            <span
+              className={`mt-1.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full ${
+                status === "error"
+                  ? "bg-destructive"
+                  : status === "done"
+                    ? "bg-green-500"
+                    : "bg-muted-foreground/40"
+              }`}
+            />
+          )}
+          <span
+            className={`min-w-0 flex-1 break-words ${
+              latest ? activityClassName(latest.kind) : "text-muted-foreground"
+            }`}
+          >
+            {ribbonText}
+          </span>
+          {entries.length > 0 && (
+            <span className="mt-0.5 shrink-0 text-xs text-muted-foreground">
+              {entries.length} step{entries.length === 1 ? "" : "s"}
+            </span>
+          )}
+          {expanded ? (
+            <ChevronUp className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+          )}
+        </button>
+        {expanded && (
+          <ol
+            ref={scrollRef}
+            className="max-h-64 space-y-1.5 overflow-y-auto border-t py-3 text-sm"
+          >
+            {recent.length === 0 ? (
+              <li className="text-muted-foreground">No activity yet.</li>
+            ) : (
+              recent.map((entry) => (
+                <li key={entry.id} className="flex items-start gap-2">
+                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground/70">
+                    {new Date(entry.timestamp).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      second: "2-digit",
+                    })}
+                  </span>
+                  <span
+                    className={`min-w-0 flex-1 break-words ${activityClassName(entry.kind)}`}
+                  >
+                    {entry.message}
+                  </span>
+                </li>
+              ))
+            )}
+            {entries.length > recent.length && (
+              <li className="text-xs italic text-muted-foreground">
+                …{entries.length - recent.length} earlier entries hidden
+              </li>
+            )}
+          </ol>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function activityClassName(kind: ActivityEntry["kind"]): string {
+  switch (kind) {
+    case "accepted":
+      return "text-green-700 dark:text-green-400"
+    case "rejected":
+      return "text-orange-600 dark:text-orange-400"
+    case "error":
+      return "text-destructive"
+    case "done":
+      return "font-medium"
+    case "tool":
+      return "text-muted-foreground"
+    default:
+      return ""
+  }
 }
 
 function ProposalList({

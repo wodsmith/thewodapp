@@ -57,10 +57,24 @@ export function validateProposal({
 
   for (const heat of context.heats) {
     if (
-      heat.heatNumber >= proposal.startingHeat &&
-      heat.heatNumber <= lastHeat &&
-      proposal.startingLane > heat.laneCount
+      heat.heatNumber < proposal.startingHeat ||
+      heat.heatNumber > lastHeat
     ) {
+      continue
+    }
+    // Coverage math (computeCoverageFromProposals → calculateCoverage) treats
+    // occupiedLanes as the source of truth when populated, falling back to
+    // laneCount only when no athletes are assigned yet. Mirror that here so
+    // the agent can fill any slot coverage reports as a gap and can't propose
+    // a slot coverage doesn't track.
+    if (heat.occupiedLanes.length > 0) {
+      if (!heat.occupiedLanes.includes(proposal.startingLane)) {
+        violations.push(
+          `Starting lane ${proposal.startingLane} is not an occupied lane in heat ${heat.heatNumber} (occupied: ${heat.occupiedLanes.join(", ")}).`,
+        )
+        break
+      }
+    } else if (proposal.startingLane > heat.laneCount) {
       violations.push(
         `Starting lane ${proposal.startingLane} exceeds heat ${heat.heatNumber}'s lane count (${heat.laneCount}).`,
       )

@@ -154,10 +154,29 @@ export const agentStatusSchema = z.enum(["idle", "thinking", "done", "error"])
 
 export type AgentStatus = z.infer<typeof agentStatusSchema>
 
+/**
+ * One entry in the agent's activity log. Streamed to the UI via the standard
+ * setState → WebSocket broadcast so organizers see a running narration of
+ * what the model is doing (loaded roster, proposed X for lane Y, rejected
+ * invalid slot, etc.) instead of just a spinner.
+ */
+export const activityEntrySchema = z.object({
+  id: z.string(),
+  timestamp: z.number(),
+  kind: z.enum(["thinking", "tool", "accepted", "rejected", "done", "error"]),
+  message: z.string(),
+})
+
+export type ActivityEntry = z.infer<typeof activityEntrySchema>
+
+/** Cap the persisted log so long runs don't bloat DO storage. */
+export const MAX_THINKING_LOG_ENTRIES = 200
+
 export const agentStateSchema = z.object({
   trackWorkoutId: z.string().nullable(),
   status: agentStatusSchema,
   proposals: z.array(proposedRotationSchema),
+  thinkingLog: z.array(activityEntrySchema).default([]),
   summary: z.string().nullable(),
   errorMessage: z.string().nullable(),
   startedAt: z.number().nullable(),
@@ -170,6 +189,7 @@ export const initialAgentState: AgentState = {
   trackWorkoutId: null,
   status: "idle",
   proposals: [],
+  thinkingLog: [],
   summary: null,
   errorMessage: null,
   startedAt: null,
