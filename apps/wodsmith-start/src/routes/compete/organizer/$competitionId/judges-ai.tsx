@@ -1,20 +1,16 @@
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router"
 import { useAgent } from "agents/react"
 import {
-  Check,
   ChevronDown,
   ChevronUp,
   Loader2,
   Lock,
   RotateCcw,
-  Send,
   Sparkles,
-  X,
 } from "lucide-react"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { z } from "zod"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -25,16 +21,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { JudgeAssignmentVersion } from "@/db/schema"
-import { LANE_SHIFT_PATTERN } from "@/db/schema"
 import type { LaneShiftPattern } from "@/db/schemas/volunteers"
-import type {
-  ActivityEntry,
-  AgentState,
-  EventContextDto,
-  JudgeRosterEntry,
-  PriorRotationExample,
-  ProposedRotation,
-} from "@/lib/judge-scheduler/schemas"
+import type { ActivityEntry, AgentState } from "@/lib/judge-scheduler/schemas"
 import { getHeatsForCompetitionFn } from "@/server-fns/competition-heats-fns"
 import {
   type CompetitionWorkout,
@@ -162,14 +150,11 @@ export const Route = createFileRoute(
     }
 
     const hasAccess = initialResult ? initialResult.hasAccess : true
-    const initialContext =
-      initialResult && initialResult.hasAccess ? initialResult : null
 
     return {
       competition,
       events,
       hasAccess,
-      initialContext,
       initialWorkoutId,
       heats,
       judges,
@@ -183,19 +168,11 @@ export const Route = createFileRoute(
   component: JudgesAiPage,
 })
 
-interface LoadedContext {
-  hasAccess: true
-  eventContext: EventContextDto
-  roster: JudgeRosterEntry[]
-  priorRotations: PriorRotationExample[]
-}
-
 function JudgesAiPage() {
   const {
     competition,
     events,
     hasAccess: initialHasAccess,
-    initialContext,
     initialWorkoutId,
     heats,
     judges,
@@ -211,12 +188,9 @@ function JudgesAiPage() {
   const session = useSession()
 
   const [hasAccess, setHasAccess] = useState(initialHasAccess)
-  const [context, setContext] = useState<LoadedContext | null>(initialContext)
   const [selectedWorkoutId, setSelectedWorkoutId] = useState(
     search.workoutId ?? initialWorkoutId,
   )
-  const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set())
-  const [isApplying, setIsApplying] = useState(false)
 
   const userId = session?.userId ?? "anonymous"
   const agentName = selectedWorkoutId
@@ -233,22 +207,62 @@ function JudgesAiPage() {
   const thinkingLog = agent.state?.thinkingLog ?? []
   const errorMessage = agent.state?.errorMessage
 
-  const acceptedProposals = useMemo(
-    () => proposals.filter((p) => !rejectedIds.has(p.proposalId)),
-    [proposals, rejectedIds],
-  )
+  // Auto-apply AI proposals as draft rotations as they stream in.
+  // Publishing is the real commit gate, so we treat each proposal as
+  // low-stakes: it lands in the grid the organizer is already looking
+  // at, and they can edit or delete it like any manual rotation.
+  // The ref tracks which proposalIds we've already persisted so we
+  // don't double-insert when the agent's state syncs again.
+  const appliedProposalIdsRef = useRef<Set<string>>(new Set())
 
-  const judgesById = useMemo(() => {
-    const map = new Map<string, JudgeRosterEntry>()
-    for (const judge of context?.roster ?? []) {
-      map.set(judge.membershipId, judge)
-    }
-    return map
-  }, [context])
+  useEffect(() => {
+    // Clear the applied-id tracker whenever the user switches workouts
+    // — the new agent instance starts a fresh proposal stream.
+    appliedProposalIdsRef.current = new Set()
+  }, [selectedWorkoutId])
+
+  useEffect(() => {
+    if (!selectedWorkoutId) return
+    if (proposals.length === 0) return
+    const pending = proposals.filter(
+      (p) => !appliedProposalIdsRef.current.has(p.proposalId),
+    )
+    if (pending.length === 0) return
+    // Debounce so a burst of streamed proposals turns into one batch
+    // insert + one route invalidation rather than N round trips.
+    const handle = setTimeout(async () => {
+      // Mark optimistically before the call so any state echo doesn't
+      // re-enqueue the same proposals.
+      for (const p of pending) {
+        appliedProposalIdsRef.current.add(p.proposalId)
+      }
+      try {
+        await applyAiProposalsFn({
+          data: {
+            teamId: competition.organizingTeamId,
+            competitionId: competition.id,
+            trackWorkoutId: selectedWorkoutId,
+            proposals: pending,
+          },
+        })
+        await router.invalidate()
+      } catch (err) {
+        // Roll back the optimistic markers so a retry can replay.
+        for (const p of pending) {
+          appliedProposalIdsRef.current.delete(p.proposalId)
+        }
+        toast.error(
+          err instanceof Error
+            ? err.message
+            : "Failed to save AI proposals to the grid",
+        )
+      }
+    }, 600)
+    return () => clearTimeout(handle)
+  }, [proposals, selectedWorkoutId, competition.id, competition.organizingTeamId, router])
 
   async function handleSelectEvent(workoutId: string) {
     setSelectedWorkoutId(workoutId)
-    setRejectedIds(new Set())
     navigate({
       to: "/compete/organizer/$competitionId/judges-ai",
       params: { competitionId: competition.id },
@@ -264,7 +278,6 @@ function JudgesAiPage() {
         },
       })
       setHasAccess(next.hasAccess)
-      setContext(next.hasAccess ? next : null)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to load event")
     }
@@ -272,7 +285,7 @@ function JudgesAiPage() {
 
   async function handleGenerate() {
     if (!selectedWorkoutId) return
-    setRejectedIds(new Set())
+    appliedProposalIdsRef.current = new Set()
     try {
       await agent.stub.start({
         trackWorkoutId: selectedWorkoutId,
@@ -287,48 +300,11 @@ function JudgesAiPage() {
   }
 
   async function handleReset() {
-    setRejectedIds(new Set())
+    appliedProposalIdsRef.current = new Set()
     try {
       await agent.stub.reset()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to reset")
-    }
-  }
-
-  async function handleApply() {
-    if (!selectedWorkoutId || acceptedProposals.length === 0) return
-    setIsApplying(true)
-    try {
-      const result = await applyAiProposalsFn({
-        data: {
-          teamId: competition.organizingTeamId,
-          competitionId: competition.id,
-          trackWorkoutId: selectedWorkoutId,
-          proposals: acceptedProposals,
-        },
-      })
-      toast.success(
-        `Saved ${result.appliedCount} rotation${result.appliedCount === 1 ? "" : "s"}. Edit or publish them below.`,
-      )
-      // Refresh context so the existing rotations show updated counts,
-      // and invalidate the route loader so the manual editor below
-      // picks up the newly-saved drafts.
-      const [next] = await Promise.all([
-        loadAiSchedulingContextFn({
-          data: {
-            trackWorkoutId: selectedWorkoutId,
-            competitionId: competition.id,
-            teamId: competition.organizingTeamId,
-          },
-        }),
-        router.invalidate(),
-      ])
-      setHasAccess(next.hasAccess)
-      setContext(next.hasAccess ? next : null)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to apply")
-    } finally {
-      setIsApplying(false)
     }
   }
 
@@ -423,22 +399,11 @@ function JudgesAiPage() {
         <ActivityLog entries={thinkingLog} status={status} />
       )}
 
-      {proposals.length > 0 && (
-        <AiProposalsBar
-          proposals={proposals}
-          rejectedIds={rejectedIds}
-          setRejectedIds={setRejectedIds}
-          judgesById={judgesById}
-          status={status}
-          isApplying={isApplying}
-          onApply={handleApply}
-        />
-      )}
-
       {/* Unified scheduling grid — full edit / publish / versioning
-       * surface. AI proposals above stream live; when the organizer
-       * saves them the resulting drafts show up here in the same grid
-       * they'd use to add or edit rotations manually. */}
+       * surface. AI proposals stream straight into this grid as draft
+       * rotations (auto-applied), so the organizer manipulates them
+       * the same way as anything they entered by hand. Publishing the
+       * draft version is the real commit gate. */}
       {selectedWorkoutId && (
         <div>
           <JudgeSchedulingContainer
@@ -582,170 +547,5 @@ function activityClassName(kind: ActivityEntry["kind"]): string {
     default:
       return ""
   }
-}
-
-function AiProposalsBar({
-  proposals,
-  rejectedIds,
-  setRejectedIds,
-  judgesById,
-  status,
-  isApplying,
-  onApply,
-}: {
-  proposals: ProposedRotation[]
-  rejectedIds: Set<string>
-  setRejectedIds: (next: Set<string>) => void
-  judgesById: Map<string, JudgeRosterEntry>
-  status: AgentState["status"]
-  isApplying: boolean
-  onApply: () => void
-}) {
-  const [expanded, setExpanded] = useState(true)
-  const accepted = proposals.filter((p) => !rejectedIds.has(p.proposalId))
-
-  function toggle(proposalId: string) {
-    const next = new Set(rejectedIds)
-    if (next.has(proposalId)) next.delete(proposalId)
-    else next.add(proposalId)
-    setRejectedIds(next)
-  }
-
-  return (
-    <Card>
-      <CardContent className="space-y-3 py-3">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            className="flex flex-1 items-center gap-2 text-left text-sm font-medium"
-          >
-            <Sparkles className="h-4 w-4 text-primary" />
-            <span>
-              {accepted.length} of {proposals.length} AI suggestion
-              {proposals.length === 1 ? "" : "s"} kept
-            </span>
-            {status === "thinking" && (
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-            )}
-            {expanded ? (
-              <ChevronUp className="ml-auto h-4 w-4 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground" />
-            )}
-          </button>
-          <Button
-            size="sm"
-            onClick={onApply}
-            disabled={isApplying || accepted.length === 0}
-          >
-            {isApplying ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="mr-2 h-4 w-4" />
-            )}
-            Save {accepted.length} to grid
-          </Button>
-        </div>
-        {expanded && (
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {proposals.map((p) => (
-              <ProposalCard
-                key={p.proposalId}
-                proposal={p}
-                judge={judgesById.get(p.membershipId)}
-                rejected={rejectedIds.has(p.proposalId)}
-                onToggle={() => toggle(p.proposalId)}
-              />
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
-
-function ProposalCard({
-  proposal,
-  judge,
-  rejected,
-  onToggle,
-}: {
-  proposal: ProposedRotation
-  judge?: JudgeRosterEntry
-  rejected: boolean
-  onToggle: () => void
-}) {
-  const lastHeat = proposal.startingHeat + proposal.heatsCount - 1
-  const range =
-    proposal.heatsCount === 1
-      ? `H${proposal.startingHeat} · L${proposal.startingLane}`
-      : `H${proposal.startingHeat}-${lastHeat} · L${proposal.startingLane}${
-          proposal.laneShiftPattern === LANE_SHIFT_PATTERN.SHIFT_RIGHT
-            ? "→"
-            : ""
-        }`
-  return (
-    <div
-      className={`rounded-md border p-3 transition-opacity ${
-        rejected ? "border-dashed opacity-50" : "border-border"
-      }`}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1">
-          <div className="text-sm font-medium">
-            {judge?.name ?? proposal.membershipId}
-          </div>
-          <div className="text-xs text-muted-foreground">{range}</div>
-        </div>
-        <ConfidenceBadge confidence={proposal.confidence} />
-      </div>
-      <p className="mt-2 text-xs text-muted-foreground">{proposal.rationale}</p>
-      {proposal.softViolations.length > 0 && (
-        <ul className="mt-2 space-y-1">
-          {proposal.softViolations.map((v) => (
-            <li
-              key={v}
-              className="text-xs text-orange-600 dark:text-orange-400"
-            >
-              ⚠ {v}
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="mt-2 flex justify-end">
-        <Button
-          size="sm"
-          variant={rejected ? "outline" : "ghost"}
-          onClick={onToggle}
-          className="h-7 text-xs"
-        >
-          {rejected ? (
-            <>
-              <Check className="mr-1 h-3 w-3" /> Restore
-            </>
-          ) : (
-            <>
-              <X className="mr-1 h-3 w-3" /> Reject
-            </>
-          )}
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-function ConfidenceBadge({
-  confidence,
-}: {
-  confidence: ProposedRotation["confidence"]
-}) {
-  const map = {
-    high: { label: "High", variant: "default" as const },
-    medium: { label: "Med", variant: "secondary" as const },
-    low: { label: "Low", variant: "destructive" as const },
-  }
-  const cfg = map[confidence]
-  return <Badge variant={cfg.variant}>{cfg.label}</Badge>
 }
 
