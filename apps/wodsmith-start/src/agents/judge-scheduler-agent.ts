@@ -359,6 +359,7 @@ function buildTools(
           proposal: input,
           context: eventContext,
           roster,
+          existingProposals: agent.state.proposals,
         })
         const hardViolations = violations.filter(
           (v) =>

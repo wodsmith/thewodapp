@@ -64,6 +64,17 @@ export async function loadEventContext(
 
   const competitionId = eventRow.competitionId
 
+  // Competition-level defaults are the fallback when the per-event
+  // columns are null. Without this, the agent gets a hardcoded code
+  // constant instead of the organizer's competition-wide setting.
+  const [competitionDefaults] = await db
+    .select({
+      defaultHeatsPerRotation: competitionsTable.defaultHeatsPerRotation,
+      defaultLaneShiftPattern: competitionsTable.defaultLaneShiftPattern,
+    })
+    .from(competitionsTable)
+    .where(eq(competitionsTable.id, competitionId))
+
   const heatRows = await db
     .select({
       id: competitionHeatsTable.id,
@@ -126,16 +137,30 @@ export async function loadEventContext(
     .leftJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
     .where(eq(competitionJudgeRotationsTable.trackWorkoutId, trackWorkoutId))
 
+  const totalHeats = heats.length
+
+  // Resolve defaults in order: event → competition → code constant.
+  // Clamp the rotation length to totalHeats so the model isn't told
+  // "default is 4 heats" on a 3-heat workout, which would otherwise
+  // burn steps producing rotations that fail the hard length check.
+  const rawDefaultHeats =
+    eventRow.defaultHeatsCount ??
+    competitionDefaults?.defaultHeatsPerRotation ??
+    DEFAULT_HEATS_PER_ROTATION
+  const defaultHeatsPerRotation =
+    totalHeats > 0 ? Math.min(rawDefaultHeats, totalHeats) : rawDefaultHeats
+  const defaultLaneShiftPattern =
+    (eventRow.defaultLaneShiftPattern as LaneShiftPattern | null) ??
+    (competitionDefaults?.defaultLaneShiftPattern as LaneShiftPattern | null) ??
+    DEFAULT_LANE_SHIFT_PATTERN
+
   return {
     trackWorkoutId,
     workoutName: eventRow.workoutName,
     competitionId,
-    totalHeats: heats.length,
-    defaultHeatsPerRotation:
-      eventRow.defaultHeatsCount ?? DEFAULT_HEATS_PER_ROTATION,
-    defaultLaneShiftPattern:
-      (eventRow.defaultLaneShiftPattern as LaneShiftPattern | null) ??
-      DEFAULT_LANE_SHIFT_PATTERN,
+    totalHeats,
+    defaultHeatsPerRotation,
+    defaultLaneShiftPattern,
     minHeatBuffer: eventRow.minHeatBuffer ?? DEFAULT_MIN_HEAT_BUFFER,
     heats,
     existingRotations: rotationRows.map((r) => ({

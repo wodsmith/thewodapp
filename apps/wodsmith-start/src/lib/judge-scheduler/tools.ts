@@ -23,6 +23,12 @@ interface ValidateProposalArgs {
   proposal: ProposedRotation
   context: EventContextDto
   roster: JudgeRosterEntry[]
+  /**
+   * Other proposals already accepted in this run, used to detect
+   * minHeatBuffer conflicts (a judge being assigned a second rotation
+   * within `minHeatBuffer` heats of one of their existing ones).
+   */
+  existingProposals?: ProposedRotation[]
 }
 
 interface ValidationResult {
@@ -38,6 +44,7 @@ export function validateProposal({
   proposal,
   context,
   roster,
+  existingProposals = [],
 }: ValidateProposalArgs): ValidationResult {
   const violations: string[] = []
 
@@ -102,6 +109,35 @@ export function validateProposal({
       violations.push(
         `${judge.name} prefers ${judgePartOfDay} but rotation includes ${heatList}.`,
       )
+    }
+  }
+
+  // minHeatBuffer: a judge shouldn't be assigned a second rotation within
+  // `minHeatBuffer` heats of an existing one. Same-judge proposals from
+  // this run are the ones we can actually see; pre-existing DB rotations
+  // are out of scope here (the manual editor enforces those visually).
+  if (context.minHeatBuffer > 0) {
+    const judgeProposals = existingProposals.filter(
+      (p) =>
+        p.membershipId === proposal.membershipId &&
+        p.proposalId !== proposal.proposalId,
+    )
+    for (const other of judgeProposals) {
+      const otherLast = other.startingHeat + other.heatsCount - 1
+      // Gap = number of heats strictly between the two rotations.
+      // Two adjacent rotations (e.g. H1-H3 and H4-H6) have gap 0.
+      const gap =
+        proposal.startingHeat > otherLast
+          ? proposal.startingHeat - otherLast - 1
+          : other.startingHeat > lastHeat
+            ? other.startingHeat - lastHeat - 1
+            : -1 // overlapping
+      if (gap >= 0 && gap < context.minHeatBuffer) {
+        const judgeName = judge?.name ?? proposal.membershipId
+        violations.push(
+          `${judgeName} has another rotation at H${other.startingHeat}-${otherLast}; only ${gap} heat${gap === 1 ? "" : "s"} of rest (minHeatBuffer is ${context.minHeatBuffer}).`,
+        )
+      }
     }
   }
 
