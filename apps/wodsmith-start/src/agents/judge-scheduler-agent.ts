@@ -103,59 +103,65 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
 
   @callable()
   async start(rawInput: unknown): Promise<{ ok: boolean; error?: string }> {
-    const input = startSchedulingInputSchema.parse(rawInput)
-
-    logInfo({
-      message: "[JudgeAgent] start invoked",
-      attributes: {
-        trackWorkoutId: input.trackWorkoutId,
-        competitionId: input.competitionId,
-        reset: input.reset,
-      },
-    })
-
-    // Defense in depth: the UI page already gates by hasFeature, but the
-    // agent's @callable() endpoint is reachable directly over WebSocket so
-    // we re-verify the organizing team has the AI_JUDGE_SCHEDULING feature
-    // before burning Workers AI tokens.
-    const organizingTeamId = await resolveOrganizingTeamId(input.competitionId)
-    const entitled = await hasFeature(
-      organizingTeamId,
-      FEATURES.AI_JUDGE_SCHEDULING,
-    )
-    if (!entitled) {
-      const msg =
-        "Your plan does not include AI Judge Scheduling. Ask an admin to enable it."
-      logWarning({
-        message: "[JudgeAgent] entitlement check failed",
-        attributes: {
-          organizingTeamId,
-          feature: FEATURES.AI_JUDGE_SCHEDULING,
-        },
-      })
-      this.setState({
-        ...this.state,
-        status: "error",
-        errorMessage: msg,
-        completedAt: Date.now(),
-      })
-      return { ok: false, error: msg }
-    }
-
-    this.setState({
-      trackWorkoutId: input.trackWorkoutId,
-      status: "thinking",
-      proposals: input.reset ? [] : this.state.proposals,
-      thinkingLog: input.reset ? [] : this.state.thinkingLog,
-      summary: null,
-      errorMessage: null,
-      startedAt: Date.now(),
-      completedAt: null,
-    })
-    this.logActivity("thinking", "Starting scheduling run…")
-
     const runStartedAt = Date.now()
     try {
+      // Validation and entitlement lookups can throw (zod parse errors,
+      // DB lookups). Doing them inside the try so any failure flows
+      // through the standard {ok:false, error} response + agent error
+      // state instead of escaping as an uncaught RPC error.
+      const input = startSchedulingInputSchema.parse(rawInput)
+
+      logInfo({
+        message: "[JudgeAgent] start invoked",
+        attributes: {
+          trackWorkoutId: input.trackWorkoutId,
+          competitionId: input.competitionId,
+          reset: input.reset,
+        },
+      })
+
+      // Defense in depth: the UI page already gates by hasFeature, but the
+      // agent's @callable() endpoint is reachable directly over WebSocket so
+      // we re-verify the organizing team has the AI_JUDGE_SCHEDULING feature
+      // before burning Workers AI tokens.
+      const organizingTeamId = await resolveOrganizingTeamId(
+        input.competitionId,
+      )
+      const entitled = await hasFeature(
+        organizingTeamId,
+        FEATURES.AI_JUDGE_SCHEDULING,
+      )
+      if (!entitled) {
+        const msg =
+          "Your plan does not include AI Judge Scheduling. Ask an admin to enable it."
+        logWarning({
+          message: "[JudgeAgent] entitlement check failed",
+          attributes: {
+            organizingTeamId,
+            feature: FEATURES.AI_JUDGE_SCHEDULING,
+          },
+        })
+        this.setState({
+          ...this.state,
+          status: "error",
+          errorMessage: msg,
+          completedAt: Date.now(),
+        })
+        return { ok: false, error: msg }
+      }
+
+      this.setState({
+        trackWorkoutId: input.trackWorkoutId,
+        status: "thinking",
+        proposals: input.reset ? [] : this.state.proposals,
+        thinkingLog: input.reset ? [] : this.state.thinkingLog,
+        summary: null,
+        errorMessage: null,
+        startedAt: Date.now(),
+        completedAt: null,
+      })
+      this.logActivity("thinking", "Starting scheduling run…")
+
       const ctx = await loadAllContext(input)
       this.logActivity(
         "thinking",
@@ -175,7 +181,6 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
       // Route all AI traffic through the Cloudflare AI Gateway so we get
       // logs/analytics/caching in the dashboard and a single integration
       // point for adding non-CF providers later (OpenAI, Anthropic, etc).
-      console.log(this.env)
       const aiGateway = createAiGateway({
         accountId: this.env.CF_ACCOUNT_ID,
         gateway: this.env.CF_AIG_GATEWAY,
@@ -223,7 +228,6 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
         message: "[JudgeAgent] start failed",
         error: err,
         attributes: {
-          trackWorkoutId: input.trackWorkoutId,
           durationMs: Date.now() - runStartedAt,
           proposalCount: this.state.proposals.length,
         },

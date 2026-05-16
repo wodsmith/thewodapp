@@ -10,11 +10,18 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
+import { and, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { FEATURES } from "@/config/features"
 import { getDb } from "@/db"
 import type { CompetitionJudgeRotation } from "@/db/schema"
-import { competitionJudgeRotationsTable } from "@/db/schema"
+import {
+  competitionJudgeRotationsTable,
+  competitionsTable,
+  programmingTracksTable,
+  teamMembershipTable,
+  trackWorkoutsTable,
+} from "@/db/schema"
 import { createJudgeRotationId } from "@/db/schemas/common"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import {
@@ -114,13 +121,66 @@ export const applyAiProposalsFn = createServerFn({ method: "POST" })
         throw new Error("Your plan does not include AI Judge Scheduling")
       }
 
+      const db = getDb()
+
+      // Defense in depth: the team-permission check above only validates
+      // the *caller's* team. The competitionId, trackWorkoutId, and
+      // every membershipId are user input — verify each one belongs to
+      // the authorized team before inserting any rotations.
+      const [competition] = await db
+        .select({
+          id: competitionsTable.id,
+          competitionTeamId: competitionsTable.competitionTeamId,
+          organizingTeamId: competitionsTable.organizingTeamId,
+        })
+        .from(competitionsTable)
+        .where(eq(competitionsTable.id, data.competitionId))
+      if (
+        !competition ||
+        (competition.organizingTeamId !== data.teamId &&
+          competition.competitionTeamId !== data.teamId)
+      ) {
+        throw new Error("Competition does not belong to this team")
+      }
+
+      const [workoutRow] = await db
+        .select({ competitionId: programmingTracksTable.competitionId })
+        .from(trackWorkoutsTable)
+        .innerJoin(
+          programmingTracksTable,
+          eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
+        )
+        .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
+      if (!workoutRow || workoutRow.competitionId !== data.competitionId) {
+        throw new Error("Track workout does not belong to this competition")
+      }
+
+      const proposals = data.proposals as ProposedRotation[]
+      const membershipIds = Array.from(
+        new Set(proposals.map((p) => p.membershipId)),
+      )
+      if (membershipIds.length > 0) {
+        const validMembers = await db
+          .select({ id: teamMembershipTable.id })
+          .from(teamMembershipTable)
+          .where(
+            and(
+              inArray(teamMembershipTable.id, membershipIds),
+              eq(teamMembershipTable.teamId, competition.competitionTeamId),
+            ),
+          )
+        if (validMembers.length !== membershipIds.length) {
+          throw new Error(
+            "One or more proposals reference judges outside this competition's volunteer roster",
+          )
+        }
+      }
+
       const inserts = proposalsToRotationInserts({
-        proposals: data.proposals as ProposedRotation[],
+        proposals,
         competitionId: data.competitionId,
         trackWorkoutId: data.trackWorkoutId,
       })
-
-      const db = getDb()
 
       const rotations = await db.transaction(async (tx) => {
         const ids: string[] = []

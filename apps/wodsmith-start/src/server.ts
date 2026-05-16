@@ -126,6 +126,15 @@ const startEntry = createServerEntry({
       const namespace = parts[1]
       const name = parts[2]
       if (namespace === "judge-scheduler-agent") {
+        // Agent instance names are `<trackWorkoutId>__<userId>` (or
+        // `idle__<userId>` for the placeholder before a workout is
+        // selected). Reject anything else so an attacker can't spawn /
+        // probe arbitrary DO identities by hitting the route directly
+        // — getAgentByName persists the name and would otherwise let
+        // callers materialize as many DOs as they like.
+        if (!/^[a-z0-9_-]{1,128}__[a-z0-9_-]{1,128}$/i.test(name)) {
+          return new Response("Invalid agent name", { status: 400 })
+        }
         // The DO namespace is typed as <undefined> by the autogen env types
         // because alchemy doesn't pipe the class through. Cast to the agent
         // class for the agents library's name-persistence helper.

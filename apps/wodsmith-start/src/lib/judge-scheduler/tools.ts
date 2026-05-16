@@ -7,6 +7,7 @@
  */
 
 import type { CompetitionJudgeRotation, LaneShiftPattern } from "@/db/schema"
+import { LANE_SHIFT_PATTERN } from "@/db/schemas/volunteers"
 import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
 import { calculateCoverage, type HeatInfo } from "@/lib/judge-rotation-utils"
 import type {
@@ -62,28 +63,34 @@ export function validateProposal({
     )
   }
 
-  for (const heat of context.heats) {
-    if (
-      heat.heatNumber < proposal.startingHeat ||
-      heat.heatNumber > lastHeat
-    ) {
-      continue
-    }
-    // Coverage math (computeCoverageFromProposals → calculateCoverage) treats
-    // occupiedLanes as the source of truth when populated, falling back to
-    // laneCount only when no athletes are assigned yet. Mirror that here so
-    // the agent can fill any slot coverage reports as a gap and can't propose
-    // a slot coverage doesn't track.
+  // Validate each (heat, lane) slot the rotation covers — not just the
+  // starting lane against every heat. With laneShiftPattern="shift_right"
+  // the judge moves to the next lane on each successive heat, so the
+  // lane to check changes per heat.
+  const heatsInRotation = context.heats.filter(
+    (h) => h.heatNumber >= proposal.startingHeat && h.heatNumber <= lastHeat,
+  )
+  for (const heat of heatsInRotation) {
+    const offset = heat.heatNumber - proposal.startingHeat
+    const lane =
+      proposal.laneShiftPattern === LANE_SHIFT_PATTERN.SHIFT_RIGHT
+        ? ((proposal.startingLane - 1 + offset) % Math.max(heat.laneCount, 1)) +
+          1
+        : proposal.startingLane
+    // Coverage math (computeCoverageFromProposals → calculateCoverage)
+    // treats occupiedLanes as the source of truth when populated, falling
+    // back to laneCount otherwise. Mirror that so the agent can fill any
+    // slot coverage reports as a gap and can't propose one it doesn't track.
     if (heat.occupiedLanes.length > 0) {
-      if (!heat.occupiedLanes.includes(proposal.startingLane)) {
+      if (!heat.occupiedLanes.includes(lane)) {
         violations.push(
-          `Starting lane ${proposal.startingLane} is not an occupied lane in heat ${heat.heatNumber} (occupied: ${heat.occupiedLanes.join(", ")}).`,
+          `Starting lane ${proposal.startingLane} lands on lane ${lane} in heat ${heat.heatNumber}, which has no athlete (occupied: ${heat.occupiedLanes.join(", ")}).`,
         )
         break
       }
-    } else if (proposal.startingLane > heat.laneCount) {
+    } else if (lane > heat.laneCount) {
       violations.push(
-        `Starting lane ${proposal.startingLane} exceeds heat ${heat.heatNumber}'s lane count (${heat.laneCount}).`,
+        `Starting lane ${proposal.startingLane} lands on lane ${lane} in heat ${heat.heatNumber}, which only has ${heat.laneCount} lanes.`,
       )
       break
     }
@@ -112,32 +119,39 @@ export function validateProposal({
     }
   }
 
-  // minHeatBuffer: a judge shouldn't be assigned a second rotation within
-  // `minHeatBuffer` heats of an existing one. Same-judge proposals from
-  // this run are the ones we can actually see; pre-existing DB rotations
-  // are out of scope here (the manual editor enforces those visually).
-  if (context.minHeatBuffer > 0) {
-    const judgeProposals = existingProposals.filter(
-      (p) =>
-        p.membershipId === proposal.membershipId &&
-        p.proposalId !== proposal.proposalId,
-    )
-    for (const other of judgeProposals) {
-      const otherLast = other.startingHeat + other.heatsCount - 1
-      // Gap = number of heats strictly between the two rotations.
-      // Two adjacent rotations (e.g. H1-H3 and H4-H6) have gap 0.
-      const gap =
-        proposal.startingHeat > otherLast
-          ? proposal.startingHeat - otherLast - 1
-          : other.startingHeat > lastHeat
-            ? other.startingHeat - lastHeat - 1
-            : -1 // overlapping
-      if (gap >= 0 && gap < context.minHeatBuffer) {
-        const judgeName = judge?.name ?? proposal.membershipId
-        violations.push(
-          `${judgeName} has another rotation at H${other.startingHeat}-${otherLast}; only ${gap} heat${gap === 1 ? "" : "s"} of rest (minHeatBuffer is ${context.minHeatBuffer}).`,
-        )
-      }
+  // Same-judge conflicts:
+  //   - Overlapping heat ranges → always flagged as a soft conflict
+  //   - Within minHeatBuffer (no rest) → flagged when minHeatBuffer > 0
+  // Pre-existing DB rotations are out of scope here (the manual editor
+  // enforces those visually).
+  const judgeProposals = existingProposals.filter(
+    (p) =>
+      p.membershipId === proposal.membershipId &&
+      p.proposalId !== proposal.proposalId,
+  )
+  for (const other of judgeProposals) {
+    const otherLast = other.startingHeat + other.heatsCount - 1
+    const judgeName = judge?.name ?? proposal.membershipId
+    // Gap = number of heats strictly between the two rotations.
+    // Adjacent (e.g. H1-H3 and H4-H6) → gap 0. Overlap → gap = -1.
+    let gap: number
+    if (proposal.startingHeat > otherLast) {
+      gap = proposal.startingHeat - otherLast - 1
+    } else if (other.startingHeat > lastHeat) {
+      gap = other.startingHeat - lastHeat - 1
+    } else {
+      gap = -1
+    }
+    if (gap < 0) {
+      violations.push(
+        `${judgeName} is also scheduled at H${other.startingHeat}-${otherLast}, which overlaps this rotation.`,
+      )
+      continue
+    }
+    if (context.minHeatBuffer > 0 && gap < context.minHeatBuffer) {
+      violations.push(
+        `${judgeName} has another rotation at H${other.startingHeat}-${otherLast}; only ${gap} heat${gap === 1 ? "" : "s"} of rest (minHeatBuffer is ${context.minHeatBuffer}).`,
+      )
     }
   }
 

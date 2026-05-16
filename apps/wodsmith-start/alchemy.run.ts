@@ -656,7 +656,13 @@ const website = await TanStackStart("app", {
      * get logs, analytics, and a single switchboard for adding non-CF
      * providers later.
      */
-    CF_ACCOUNT_ID: "317fb84f366ea1ab038ca90000953697",
+    // Cloudflare account id — defaults to the wodsmith production
+    // account if `CLOUDFLARE_ACCOUNT_ID` isn't set in the deploy env.
+    // Pulling from env lets forks / new deploys target their own
+    // Cloudflare account without code changes.
+    CF_ACCOUNT_ID:
+      process.env.CLOUDFLARE_ACCOUNT_ID ??
+      "317fb84f366ea1ab038ca90000953697",
     CF_AIG_GATEWAY: aiGatewayName,
     /** CF API token with AI Gateway run permission. Required by the gateway provider. */
     CF_AIG_TOKEN: alchemy.secret(process.env.CF_AIG_TOKEN!),
