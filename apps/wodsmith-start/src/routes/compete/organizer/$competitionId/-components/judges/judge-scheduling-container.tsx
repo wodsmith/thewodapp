@@ -1,7 +1,7 @@
 "use client"
 
 import { Link } from "@tanstack/react-router"
-import { ClipboardList, FileWarning, Search } from "lucide-react"
+import { ClipboardList, Search, Settings2 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -14,6 +14,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 import type {
   CompetitionJudgeRotation,
   JudgeAssignmentVersion,
@@ -129,6 +137,25 @@ interface JudgeSchedulingContainerProps {
   selectedEventId: string
   /** Callback when event selection changes */
   onEventChange: (eventId: string) => void
+  /**
+   * Hide the container's built-in event selector. Useful when the
+   * parent page already renders one (e.g. the AI judge scheduling page
+   * has its own selector that drives both the agent and this editor).
+   */
+  hideEventSelector?: boolean
+  /**
+   * Optional slot rendered above the Rotations section. The AI
+   * scheduling page uses this for the activity log narration that
+   * appears as the agent works.
+   */
+  rotationsHeaderSlot?: React.ReactNode
+  /**
+   * Optional slot rendered next to the Publish button in the rotation
+   * overview row. The AI scheduling page uses this for the
+   * "Generate AI suggestions" button so it sits next to Publish (the
+   * primary CTA) instead of floating above the section.
+   */
+  rotationOverviewActionsSlot?: React.ReactNode
   /** Optional override callbacks for cohost routes */
   overrides?: JudgeSchedulingOverrides
 }
@@ -154,6 +181,9 @@ export function JudgeSchedulingContainer({
   competitionDefaultPattern,
   selectedEventId,
   onEventChange,
+  hideEventSelector = false,
+  rotationsHeaderSlot,
+  rotationOverviewActionsSlot,
   overrides,
 }: JudgeSchedulingContainerProps) {
   const isOnline = competitionType === "online"
@@ -167,7 +197,7 @@ export function JudgeSchedulingContainer({
   )
   const [isRollingBack, setIsRollingBack] = useState(false)
   const [isFetchingAssignments, setIsFetchingAssignments] = useState(false)
-  const [filterEmptyLanes, setFilterEmptyLanes] = useState(false)
+  const [filterEmptyLanes, setFilterEmptyLanes] = useState(true)
   const [availableJudgeSearch, setAvailableJudgeSearch] = useState("")
 
   // Get heats for selected event
@@ -522,48 +552,41 @@ export function JudgeSchedulingContainer({
   return (
     <section className="space-y-8">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold">Judging Schedule</h2>
-          <p className="text-sm text-muted-foreground">
-            Manage judge assignments with manual or rotation-based scheduling
-          </p>
+      <div>
+        <h2 className="text-xl font-semibold">Judging Schedule</h2>
+        <p className="text-sm text-muted-foreground">
+          Manage judge assignments with manual or rotation-based scheduling
+        </p>
+      </div>
+
+      {/* Event Selector - Prominent placement (hidden when the parent
+       * page already renders one, e.g. the AI scheduling page). */}
+      {!hideEventSelector && (
+        <div className="flex items-center gap-3">
+          <label htmlFor="event-selector" className="text-sm font-medium">
+            Event:
+          </label>
+          <Select value={selectedEventId} onValueChange={onEventChange}>
+            <SelectTrigger id="event-selector" className="w-80">
+              <SelectValue placeholder="Select event" />
+            </SelectTrigger>
+            <SelectContent>
+              {events.map((event) => (
+                <SelectItem key={event.id} value={event.id}>
+                  {formatTrackOrder(event.trackOrder)} -{" "}
+                  {event.workout.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        {heats.length > 0 && (
-          <Button variant="outline" size="sm" asChild>
-            <Link
-              to="/compete/$slug/judges-schedule"
-              params={{ slug: competitionSlug }}
-            >
-              <ClipboardList className="mr-2 h-4 w-4" />
-              View Printable Schedule
-            </Link>
-          </Button>
-        )}
-      </div>
+      )}
 
-      {/* Event Selector - Prominent placement */}
-      <div className="flex items-center gap-3">
-        <label htmlFor="event-selector" className="text-sm font-medium">
-          Event:
-        </label>
-        <Select value={selectedEventId} onValueChange={onEventChange}>
-          <SelectTrigger id="event-selector" className="w-80">
-            <SelectValue placeholder="Select event" />
-          </SelectTrigger>
-          <SelectContent>
-            {events.map((event) => (
-              <SelectItem key={event.id} value={event.id}>
-                {formatTrackOrder(event.trackOrder)} -{" "}
-                {event.workout.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Published Assignments Section - Only for in-person competitions */}
-      {!isOnline && (
+      {/* Published Assignments Section — only renders once there's an
+       * active published version. Until the organizer publishes their
+       * first draft, the section is hidden entirely (no empty-state
+       * card) so the page focuses on building the schedule. */}
+      {!isOnline && eventActiveVersion && (
         <section className="space-y-6">
           <h3 className="text-lg font-semibold">Published Assignments</h3>
 
@@ -615,28 +638,10 @@ export function JudgeSchedulingContainer({
             </Card>
           )}
 
-          {/* Empty State when no version */}
-          {!eventActiveVersion && (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <FileWarning className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-                <h4 className="mb-2 text-lg font-semibold">
-                  No assignments published yet
-                </h4>
-                <p className="mb-4 text-muted-foreground">
-                  Create rotations in the Rotations section below, then publish
-                  them to generate assignments.
-                </p>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Show content when there's an active version */}
-          {eventActiveVersion && (
-            <>
-              {/* Overview */}
-              <JudgeOverview
-                events={events}
+          <>
+            {/* Overview */}
+            <JudgeOverview
+              events={events}
                 heats={heats}
                 judgeAssignments={assignments}
                 filterEmptyLanes={filterEmptyLanes}
@@ -754,30 +759,68 @@ export function JudgeSchedulingContainer({
                   )}
                 </div>
               </div>
-            </>
-          )}
+          </>
         </section>
       )}
 
       {/* Rotations Section - Only for in-person competitions */}
       {!isOnline && (
         <section className="space-y-6">
-          <h3 className="text-lg font-semibold">Rotations</h3>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className="text-lg font-semibold">Rotations</h3>
+            {/* Utilities cluster: event defaults (behind a drawer) +
+             * printable schedule link. Flex-wrap so they drop to the
+             * next row on narrow screens instead of cramping the heading. */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Settings2 className="mr-2 h-4 w-4" />
+                    Event defaults
+                  </Button>
+                </SheetTrigger>
+                <SheetContent className="w-full overflow-y-auto sm:max-w-md">
+                  <SheetHeader>
+                    <SheetTitle>Event defaults</SheetTitle>
+                    <SheetDescription>
+                      Defaults for new rotations on this event. Leave fields
+                      blank to inherit from the competition setting.
+                    </SheetDescription>
+                  </SheetHeader>
+                  <div className="mt-4">
+                    <EventDefaultsEditor
+                      teamId={organizingTeamId}
+                      competitionId={competitionId}
+                      trackWorkoutId={selectedEventId}
+                      defaultHeatsCount={
+                        selectedEventDefaults.rawDefaultHeatsCount
+                      }
+                      defaultLaneShiftPattern={
+                        selectedEventDefaults.rawDefaultLaneShiftPattern
+                      }
+                      minHeatBuffer={selectedEventDefaults.rawMinHeatBuffer}
+                      competitionDefaultHeats={competitionDefaultHeats}
+                      competitionDefaultPattern={competitionDefaultPattern}
+                      onUpdateEventDefaults={overrides?.updateEventDefaults}
+                    />
+                  </div>
+                </SheetContent>
+              </Sheet>
+              {heats.length > 0 && (
+                <Button variant="outline" size="sm" asChild>
+                  <Link
+                    to="/compete/$slug/judges-schedule"
+                    params={{ slug: competitionSlug }}
+                  >
+                    <ClipboardList className="mr-2 h-4 w-4" />
+                    View printable schedule
+                  </Link>
+                </Button>
+              )}
+            </div>
+          </div>
 
-          {/* Event Defaults Editor */}
-          <EventDefaultsEditor
-            teamId={organizingTeamId}
-            competitionId={competitionId}
-            trackWorkoutId={selectedEventId}
-            defaultHeatsCount={selectedEventDefaults.rawDefaultHeatsCount}
-            defaultLaneShiftPattern={
-              selectedEventDefaults.rawDefaultLaneShiftPattern
-            }
-            minHeatBuffer={selectedEventDefaults.rawMinHeatBuffer}
-            competitionDefaultHeats={competitionDefaultHeats}
-            competitionDefaultPattern={competitionDefaultPattern}
-            onUpdateEventDefaults={overrides?.updateEventDefaults}
-          />
+          {rotationsHeaderSlot}
 
           {/* Rotation Overview */}
           <RotationOverview
@@ -794,6 +837,7 @@ export function JudgeSchedulingContainer({
             }
             onPublishSuccess={refreshVersionData}
             onPublishRotations={overrides?.publishRotations}
+            leadingActions={rotationOverviewActionsSlot}
           />
 
           {/* Rotation Timeline */}

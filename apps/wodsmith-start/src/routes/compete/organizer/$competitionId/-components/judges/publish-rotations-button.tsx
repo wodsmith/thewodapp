@@ -96,7 +96,10 @@ export function PublishRotationsButton({
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button disabled={disabled || rotationsCount === 0}>
+        <Button
+          disabled={disabled || rotationsCount === 0}
+          className="bg-orange-500 text-white hover:bg-orange-600 dark:bg-orange-500 dark:text-white dark:hover:bg-orange-600"
+        >
           <Send className="mr-2 h-4 w-4" />
           Publish Rotations
         </Button>
