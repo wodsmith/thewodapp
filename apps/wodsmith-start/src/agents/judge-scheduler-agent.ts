@@ -84,6 +84,14 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
   initialState: AgentState = initialAgentState
 
   /**
+   * In-memory abort controller for the currently-running generateText
+   * call. Lives on the instance (not in state) because AbortController
+   * isn't serializable. Cleared in the start() finally block. Used by
+   * the stop() @callable to interrupt a long run.
+   */
+  #abortController: AbortController | null = null
+
+  /**
    * Append an entry to the activity log and broadcast via setState. The log
    * is capped at MAX_THINKING_LOG_ENTRIES — older entries are dropped so DO
    * storage doesn't grow unboundedly across long runs.
@@ -202,12 +210,14 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
         apiKey: this.env.CF_AIG_TOKEN,
       })
       const unified = createUnified()
+      this.#abortController = new AbortController()
       const result = await generateText({
         model: aiGateway(unified(MODEL_ID)),
         system: SYSTEM_PROMPT,
         prompt: buildKickoffPrompt(ctx, acceptedFromState),
         tools,
         stopWhen: stepCountIs(MAX_STEPS),
+        abortSignal: this.#abortController.signal,
       })
 
       logInfo({
@@ -238,6 +248,28 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
       return { ok: true }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
+      // Abort = the organizer pressed Stop. Land softly: keep whatever
+      // proposals streamed in so far, flip status back to idle, and log
+      // a friendly note instead of an error.
+      const isAbort =
+        err instanceof Error &&
+        (err.name === "AbortError" || message.toLowerCase().includes("abort"))
+      if (isAbort) {
+        this.logActivity(
+          "thinking",
+          `Run stopped by organizer after ${this.state.proposals.filter((p) => p.status !== "accepted").length} suggestion${
+            this.state.proposals.filter((p) => p.status !== "accepted").length === 1 ? "" : "s"
+          }.`,
+        )
+        this.setState({
+          ...this.state,
+          status: "idle",
+          summary: null,
+          errorMessage: null,
+          completedAt: Date.now(),
+        })
+        return { ok: true }
+      }
       this.logActivity("error", `Run failed: ${message}`)
       logError({
         message: "[JudgeAgent] start failed",
@@ -254,7 +286,23 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
         completedAt: Date.now(),
       })
       return { ok: false, error: message }
+    } finally {
+      this.#abortController = null
     }
+  }
+
+  /**
+   * Interrupt the in-flight run. The generateText abortSignal trips,
+   * generateText throws, and the catch handler flips status back to
+   * idle while preserving whatever proposals have already streamed.
+   */
+  @callable()
+  stop(): { ok: boolean; running: boolean } {
+    if (!this.#abortController) {
+      return { ok: false, running: false }
+    }
+    this.#abortController.abort()
+    return { ok: true, running: true }
   }
 
   /**

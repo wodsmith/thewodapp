@@ -6,9 +6,11 @@ import {
   ChevronUp,
   Loader2,
   Lock,
+  Plus,
   RotateCcw,
   Send,
   Sparkles,
+  Square,
   X,
 } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -305,8 +307,8 @@ function JudgesAiPage() {
     }
   }
 
-  async function handleApply() {
-    if (!selectedWorkoutId || acceptedProposals.length === 0) return
+  async function applyProposals(toApply: ProposedRotation[]) {
+    if (!selectedWorkoutId || toApply.length === 0) return
     setIsApplying(true)
     try {
       const result = await applyAiProposalsFn({
@@ -314,7 +316,7 @@ function JudgesAiPage() {
           teamId: competition.organizingTeamId,
           competitionId: competition.id,
           trackWorkoutId: selectedWorkoutId,
-          proposals: acceptedProposals,
+          proposals: toApply,
         },
       })
       toast.success(
@@ -323,12 +325,10 @@ function JudgesAiPage() {
       // Flip the saved proposals to accepted in the agent's state
       // (rather than wiping everything). On a subsequent Generate the
       // agent reads those accepted proposals as "already taken slots"
-      // and avoids re-suggesting them. Rejected/pending proposals are
-      // dropped — they're noise for the next run.
+      // and avoids re-suggesting them.
       await agent.stub.markAccepted({
-        proposalIds: acceptedProposals.map((p) => p.proposalId),
+        proposalIds: toApply.map((p) => p.proposalId),
       })
-      setRejectedIds(new Set())
       await router.invalidate()
     } catch (err) {
       toast.error(
@@ -338,6 +338,23 @@ function JudgesAiPage() {
       )
     } finally {
       setIsApplying(false)
+    }
+  }
+
+  async function handleApply() {
+    await applyProposals(acceptedProposals)
+    setRejectedIds(new Set())
+  }
+
+  async function handleApplyOne(proposal: ProposedRotation) {
+    await applyProposals([proposal])
+  }
+
+  async function handleStop() {
+    try {
+      await agent.stub.stop()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to stop")
     }
   }
 
@@ -462,6 +479,12 @@ function JudgesAiPage() {
                   ? "Thinking..."
                   : "Generate AI suggestions"}
               </Button>
+              {status === "thinking" && (
+                <Button variant="outline" onClick={handleStop}>
+                  <Square className="mr-2 h-3.5 w-3.5 fill-current" />
+                  Stop
+                </Button>
+              )}
               {pendingProposals.length > 0 && status !== "thinking" && (
                 <Button variant="outline" onClick={handleReset}>
                   <RotateCcw className="mr-2 h-4 w-4" />
@@ -484,6 +507,7 @@ function JudgesAiPage() {
                   status={status}
                   isApplying={isApplying}
                   onApply={handleApply}
+                  onApplyOne={handleApplyOne}
                 />
               )}
             </>
@@ -618,6 +642,7 @@ function AiProposalsBar({
   status,
   isApplying,
   onApply,
+  onApplyOne,
 }: {
   proposals: ProposedRotation[]
   rejectedIds: Set<string>
@@ -626,6 +651,7 @@ function AiProposalsBar({
   status: AgentState["status"]
   isApplying: boolean
   onApply: () => void
+  onApplyOne: (proposal: ProposedRotation) => void
 }) {
   const [expanded, setExpanded] = useState(true)
   const accepted = proposals.filter((p) => !rejectedIds.has(p.proposalId))
@@ -681,7 +707,9 @@ function AiProposalsBar({
                 proposal={p}
                 judge={judgesById.get(p.membershipId)}
                 rejected={rejectedIds.has(p.proposalId)}
+                isApplying={isApplying}
                 onToggle={() => toggle(p.proposalId)}
+                onAccept={() => onApplyOne(p)}
               />
             ))}
           </div>
@@ -695,12 +723,16 @@ function ProposalCard({
   proposal,
   judge,
   rejected,
+  isApplying,
   onToggle,
+  onAccept,
 }: {
   proposal: ProposedRotation
   judge?: JudgeRosterEntry
   rejected: boolean
+  isApplying: boolean
   onToggle: () => void
+  onAccept: () => void
 }) {
   const lastHeat = proposal.startingHeat + proposal.heatsCount - 1
   const range =
@@ -739,7 +771,7 @@ function ProposalCard({
           ))}
         </ul>
       )}
-      <div className="mt-2 flex justify-end">
+      <div className="mt-2 flex justify-end gap-1">
         <Button
           size="sm"
           variant={rejected ? "outline" : "ghost"}
@@ -756,6 +788,17 @@ function ProposalCard({
             </>
           )}
         </Button>
+        {!rejected && (
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={onAccept}
+            disabled={isApplying}
+            className="h-7 text-xs"
+          >
+            <Plus className="mr-1 h-3 w-3" /> Add to grid
+          </Button>
+        )}
       </div>
     </div>
   )
