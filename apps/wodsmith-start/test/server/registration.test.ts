@@ -834,7 +834,7 @@ describe("registerForCompetition", () => {
 				competitionId: "comp-1",
 				userId: "user-1",
 				divisionId: "div-rx",
-				affiliateName: "CrossFit Denver",
+				affiliateName: "Functional Fitness Denver",
 			})
 
 			expect(result.registrationId).toBe("reg-aff")

@@ -142,6 +142,18 @@ export async function seed(client: Connection): Promise<void> {
 			update_counter: 0,
 		},
 		{
+			id: "feat_ai_judge_scheduling",
+			key: "ai_judge_scheduling",
+			name: "AI Judge Scheduling",
+			description:
+				"AI-augmented judge rotation suggestions for competition events",
+			category: "ai",
+			is_active: 1,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
+		{
 			id: "feat_multi_team_management",
 			key: "multi_team_management",
 			name: "Multi-Team Management",

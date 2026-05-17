@@ -238,7 +238,7 @@ describe('Workout Remix Server Functions', () => {
         id: 'source-123',
         name: 'Original Fran',
         teamId: 'team-1',
-        teamName: 'CrossFit Games',
+        teamName: 'Functional Fitness Games',
       })
 
       // First query returns the workout with sourceWorkoutId
@@ -252,7 +252,7 @@ describe('Workout Remix Server Functions', () => {
       expect(result.sourceWorkout).not.toBeNull()
       expect(result.sourceWorkout?.id).toBe('source-123')
       expect(result.sourceWorkout?.name).toBe('Original Fran')
-      expect(result.sourceWorkout?.teamName).toBe('CrossFit Games')
+      expect(result.sourceWorkout?.teamName).toBe('Functional Fitness Games')
     })
 
     it('returns null when workout is not a remix', async () => {

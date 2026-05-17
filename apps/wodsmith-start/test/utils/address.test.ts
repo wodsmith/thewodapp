@@ -159,7 +159,7 @@ describe("address utilities", () => {
 
 	describe("hasAddressData", () => {
 		it("returns true when address has name", () => {
-			expect(hasAddressData({ name: "CrossFit Gym" })).toBe(true)
+			expect(hasAddressData({ name: "Functional Fitness Gym" })).toBe(true)
 		})
 
 		it("returns true when address has street", () => {
@@ -293,7 +293,7 @@ describe("address utilities", () => {
 	describe("formatFullAddress", () => {
 		it("formats complete address with all fields", () => {
 			const address: Partial<Address> = {
-				name: "CrossFit Central",
+				name: "Functional Fitness Central",
 				streetLine1: "123 Main St",
 				streetLine2: "Suite 100",
 				city: "Austin",
@@ -303,7 +303,7 @@ describe("address utilities", () => {
 			}
 
 			expect(formatFullAddress(address)).toBe(
-				"CrossFit Central\n123 Main St\nSuite 100\nAustin, TX 78701\nUnited States",
+				"Functional Fitness Central\n123 Main St\nSuite 100\nAustin, TX 78701\nUnited States",
 			)
 		})
 
@@ -338,10 +338,10 @@ describe("address utilities", () => {
 
 		it("formats address with venue name only", () => {
 			const address: Partial<Address> = {
-				name: "CrossFit Central",
+				name: "Functional Fitness Central",
 			}
 
-			expect(formatFullAddress(address)).toBe("CrossFit Central")
+			expect(formatFullAddress(address)).toBe("Functional Fitness Central")
 		})
 
 		it("returns null for null or undefined", () => {
@@ -445,19 +445,19 @@ describe("address utilities", () => {
 
 		it("uses venue name if no city data", () => {
 			const address: Partial<Address> = {
-				name: "CrossFit Central",
+				name: "Functional Fitness Central",
 			}
 			const result = formatLocationBadge(address, "in-person", null)
 			expect(result).toEqual({
-				text: "CrossFit Central",
+				text: "Functional Fitness Central",
 				icon: "map-pin",
 			})
 		})
 
 		it("falls back to organizing team name", () => {
-			const result = formatLocationBadge(null, "in-person", "CrossFit Austin")
+			const result = formatLocationBadge(null, "in-person", "Functional Fitness Austin")
 			expect(result).toEqual({
-				text: "CrossFit Austin",
+				text: "Functional Fitness Austin",
 				icon: "map-pin",
 			})
 		})
@@ -484,7 +484,7 @@ describe("address utilities", () => {
 
 		it("prefers city over venue name", () => {
 			const address: Partial<Address> = {
-				name: "CrossFit Central",
+				name: "Functional Fitness Central",
 				city: "Austin",
 				stateProvince: "TX",
 			}
@@ -497,15 +497,15 @@ describe("address utilities", () => {
 
 		it("ignores organizing team name if address has data", () => {
 			const address: Partial<Address> = {
-				name: "CrossFit Central",
+				name: "Functional Fitness Central",
 			}
 			const result = formatLocationBadge(
 				address,
 				"in-person",
-				"CrossFit Austin",
+				"Functional Fitness Austin",
 			)
 			expect(result).toEqual({
-				text: "CrossFit Central",
+				text: "Functional Fitness Central",
 				icon: "map-pin",
 			})
 		})
@@ -514,10 +514,10 @@ describe("address utilities", () => {
 			const result = formatLocationBadge(
 				null,
 				"in-person",
-				"  CrossFit Austin  ",
+				"  Functional Fitness Austin  ",
 			)
 			expect(result).toEqual({
-				text: "CrossFit Austin",
+				text: "Functional Fitness Austin",
 				icon: "map-pin",
 			})
 		})
@@ -546,7 +546,7 @@ describe("address utilities", () => {
 
 		it("preserves all other fields", () => {
 			const input: Partial<Address> = {
-				name: "CrossFit Central",
+				name: "Functional Fitness Central",
 				streetLine1: "123 Main St",
 				streetLine2: "Suite 100",
 				city: "Austin",
@@ -559,7 +559,7 @@ describe("address utilities", () => {
 			const result = normalizeAddressInput(input)
 
 			expect(result).toEqual({
-				name: "CrossFit Central",
+				name: "Functional Fitness Central",
 				streetLine1: "123 Main St",
 				streetLine2: "Suite 100",
 				city: "Austin",
@@ -720,7 +720,7 @@ describe("address utilities", () => {
 
 		it("ignores name field in URL generation", () => {
 			const address: Partial<Address> = {
-				name: "CrossFit Central",
+				name: "Functional Fitness Central",
 				city: "Austin",
 				stateProvince: "TX",
 			}

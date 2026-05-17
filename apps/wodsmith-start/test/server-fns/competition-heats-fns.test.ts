@@ -276,7 +276,7 @@ describe('Competition Heats Server Functions (TanStack)', () => {
         teamName: null,
         userId: 'user-1',
         divisionId: 'div-rx',
-        metadata: JSON.stringify({affiliates: {'user-1': 'CrossFit Box'}}),
+        metadata: JSON.stringify({affiliates: {'user-1': 'Functional Fitness Box'}}),
       }
 
       const user = {
@@ -315,7 +315,7 @@ describe('Competition Heats Server Functions (TanStack)', () => {
         result.heats[0]?.assignments[0]?.registration.division?.label,
       ).toBe('RX')
       expect(result.heats[0]?.assignments[0]?.registration.affiliate).toBe(
-        'CrossFit Box',
+        'Functional Fitness Box',
       )
     })
 

@@ -64,12 +64,12 @@ export const BroadcastNotificationEmail = ({
 }
 
 BroadcastNotificationEmail.PreviewProps = {
-	competitionName: "CrossFit Open 2026",
-	competitionSlug: "crossfit-open-2026",
+	competitionName: "Functional Fitness Open 2026",
+	competitionSlug: "functional-fitness-open-2026",
 	broadcastTitle: "Schedule Change for Saturday",
 	broadcastBody:
 		"Hey athletes! We've moved the start time for Saturday from 8:00 AM to 9:00 AM due to weather. Please plan accordingly. See you there!",
-	organizerTeamName: "CrossFit HQ",
+	organizerTeamName: "Functional Fitness HQ",
 } as BroadcastNotificationProps
 
 export default BroadcastNotificationEmail

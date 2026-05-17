@@ -126,7 +126,7 @@ describe("Video URL Validation", () => {
 
 			it("parses group video URL", () => {
 				const result = parseVideoUrl(
-					"https://vimeo.com/groups/crossfit/videos/123456789",
+					"https://vimeo.com/groups/functional-fitness/videos/123456789",
 				)
 				expect(result).not.toBeNull()
 				expect(result?.videoId).toBe("123456789")

@@ -80,8 +80,8 @@ export const PaymentExpiredEmail = ({
 
 PaymentExpiredEmail.PreviewProps = {
   athleteName: "John Smith",
-  competitionName: "CrossFit Open 2025",
-  competitionSlug: "crossfit-open-2025",
+  competitionName: "Functional Fitness Open 2025",
+  competitionSlug: "functional-fitness-open-2025",
   divisionName: "RX Male",
   registrationDeadline: "March 10, 2025",
 } as PaymentExpiredProps

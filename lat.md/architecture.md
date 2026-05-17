@@ -31,6 +31,7 @@ The primary web application containing all user-facing functionality.
 - `src/data/` — Data access layer for database queries
 - `src/schemas/` — Zod validation schemas for forms and API inputs
 - `src/workflows/` — Multi-step business processes (registration, checkout)
+- `src/agents/` — Cloudflare Agents (Durable Object classes) for AI-augmented features
 
 ### packages
 
@@ -98,3 +99,41 @@ Slug values are XML-escaped. `<lastmod>` is only emitted when `updatedAt` exists
 ### robots.txt
 
 Disallows `/api/`, `/_auth/`, `/admin/`, `/dashboard/` from crawlers. References the sitemap URL.
+
+## AI Agents
+
+AI features use Cloudflare Agents (npm `agents`), which are Durable Object subclasses with auto-syncing state and WebSocket transport.
+
+Wiring is split across three layers:
+
+- **Infrastructure**: `alchemy.run.ts` declares each agent as a `DurableObjectNamespace({ className, sqlite: true })` and adds it to the Worker bindings.
+- **Worker entry**: `src/server.ts` re-exports the agent class (Cloudflare requires DO classes on the entry module) and routes `/agents/*` to `routeAgentRequest(request, env)` *before* the TanStack handler so WebSocket upgrades complete.
+- **React client**: `useAgent({ agent: '<kebab-case-class>', name })` from `agents/react` opens a WebSocket and exposes `state` (auto-synced) and `stub` (typed RPC over `@callable()` methods).
+
+Pure helpers and Zod schemas for each agent live under `src/lib/<agent-name>/` so they can be TDD-tested without spinning up the LLM. DB-backed context loaders sit under `src/server/<agent-name>/` and stay server-only.
+
+Inference goes through Cloudflare's built-in Workers AI binding (no third-party API keys). The `AI` binding is declared in `alchemy.run.ts` and adapted to the AI SDK via [`workers-ai-provider`](https://www.npmjs.com/package/workers-ai-provider): `createWorkersAI({ binding: env.AI })`.
+
+### Entitlement gating
+
+Every AI feature is gated by a `features` row in the database; access is granted per-team through the existing entitlements system. The check uses [[apps/wodsmith-start/src/server/entitlements.ts#hasFeature]] and is applied in three places for defense in depth:
+
+1. Page loader — calls `loadAi...ContextFn` which returns `{hasAccess: false}` when not entitled; UI renders an upgrade paywall instead of the feature
+2. Write server function — throws on missing entitlement so writes from a stale client are rejected
+3. Agent's `@callable()` entrypoint — re-verifies before burning Workers AI tokens, since the Durable Object's WebSocket is reachable independently of the page
+
+### AI judge scheduling
+
+[[apps/wodsmith-start/src/agents/judge-scheduler-agent.ts#JudgeSchedulerAgent]] proposes judge rotations for one event at a time. The system prompt instructs it to treat volunteer availability and credentials as *soft* preferences — the agent emits `confidence='low'` and a `softViolations[]` list when it has to override a preference to fill coverage.
+
+Intent-based tools the agent calls (per Anthropic's "Building Effective Agents"):
+
+- `get_event_context` — heats with timing/lanes/occupancy + event defaults
+- `get_judge_roster` — eligible judges with availability/credentials/load
+- `get_prior_rotations` — recent rotations from other workouts in the same competition (style examples)
+- `propose_rotation` — emit one rotation; auto-merges with `validateProposal` violations and pushes to `state.proposals` so the client sees it stream in
+- `revoke_proposal` — withdraw a previous proposal
+- `check_coverage` — wraps [[apps/wodsmith-start/src/lib/judge-rotation-utils.ts#calculateCoverage]] over the current proposal set
+- `mark_complete` — final summary
+
+The organizer page at [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/judges-ai.tsx]] mirrors the existing rotation timeline visuals (heats × lanes grid, color-coded coverage). Each streamed proposal renders with its confidence badge, rationale, and any soft violations; the organizer toggles per-proposal Accept/Reject. "Save as Draft" calls [[apps/wodsmith-start/src/server-fns/judge-scheduler-ai-fns.ts#applyAiProposalsFn]], which writes accepted proposals to `competition_judge_rotations` — the organizer still publishes via the existing rotation timeline screen so versioning + materialization stay in one place.

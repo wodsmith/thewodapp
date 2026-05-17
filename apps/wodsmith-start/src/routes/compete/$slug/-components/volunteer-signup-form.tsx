@@ -264,7 +264,7 @@ export function VolunteerSignupForm({
             <Textarea
               id="credentials"
               name="credentials"
-              placeholder="e.g., CrossFit L1 Judge, CrossFit L2, EMT, First Aid/CPR certified..."
+              placeholder="e.g., Functional Fitness L1 Judge, Functional Fitness L2, EMT, First Aid/CPR certified..."
               rows={2}
               disabled={isPending}
             />
