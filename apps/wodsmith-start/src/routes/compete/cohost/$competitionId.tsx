@@ -56,22 +56,10 @@ export const Route = createFileRoute("/compete/cohost/$competitionId")({
       throw notFound()
     }
 
-    // Verify user is a cohost on the competition team or a site admin
-    const isCohost = !!session.teams?.find(
-      (t) =>
-        t.id === competition.competitionTeamId && t.role.id === "cohost",
-    )
-    const isSiteAdmin = session.user?.role === "admin"
-
-    if (!isSiteAdmin && !isCohost) {
-      throw redirect({
-        to: "/compete",
-        search: {},
-      })
-    }
-
-    // Get cohost permissions from DB via server function
-    // (can't import server/cohost.ts directly — it imports getDb which breaks client boundary)
+    // Fetch cohost permissions (DB-based, source of truth). Returns all-true
+    // for site admins, the cohost's metadata for cohosts, or null otherwise.
+    // We don't gate on session.teams here because KV can lag right after the
+    // user accepts a cohost invite, which would bounce them to /compete.
     const [permissions, hasCouponsEntitlement] = await Promise.all([
       cohostGetPermissionsFn({
         data: { competitionTeamId: competition.competitionTeamId! },
@@ -84,10 +72,18 @@ export const Route = createFileRoute("/compete/cohost/$competitionId")({
       }).catch(() => false),
     ])
 
+    if (!permissions) {
+      throw redirect({
+        to: "/compete",
+        search: {},
+      })
+    }
+
     // Mask coupons permission if team doesn't have the entitlement
-    const maskedPermissions = permissions
-      ? { ...permissions, coupons: permissions.coupons && hasCouponsEntitlement }
-      : null
+    const maskedPermissions = {
+      ...permissions,
+      coupons: permissions.coupons && hasCouponsEntitlement,
+    }
 
     return {
       competition,
@@ -104,25 +100,7 @@ function CohostCompetitionLayout() {
       competitionId={competition.id}
       competitionName={competition.name}
       competitionType={competition.competitionType}
-      permissions={
-        permissions ?? {
-          divisions: false,
-          editEvents: false,
-          scoringConfig: false,
-          viewRegistrations: false,
-          editRegistrations: false,
-          waivers: false,
-          schedule: false,
-          locations: false,
-          volunteers: false,
-          results: false,
-          leaderboardPreview: false,
-          pricing: false,
-          revenue: false,
-          coupons: false,
-          sponsors: false,
-        }
-      }
+      permissions={permissions}
     >
       <div className="flex flex-1 flex-col gap-4 p-4 sm:gap-6 sm:p-6">
         <Outlet />
