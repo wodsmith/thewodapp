@@ -39,6 +39,8 @@
     "@atlaskit/pragmatic-drag-and-drop-react-accessibility": "^2.0.6",
     "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.1",
     "@cloudflare/vite-plugin": "^1.19.0",
+    "@cloudflare/workers-oauth-provider": "^0.0.10",
+    "@modelcontextprotocol/sdk": "^1.26.0",
     "@fullcalendar/core": "^6.1.17",
     "@fullcalendar/daygrid": "^6.1.17",
     "@fullcalendar/interaction": "^6.1.17",
