@@ -307,7 +307,10 @@ function JudgesAiPage() {
     }
   }
 
-  async function applyProposals(toApply: ProposedRotation[]) {
+  async function applyProposals(
+    toApply: ProposedRotation[],
+    { clearOthers }: { clearOthers: boolean },
+  ) {
     if (!selectedWorkoutId || toApply.length === 0) return
     setIsApplying(true)
     try {
@@ -322,12 +325,14 @@ function JudgesAiPage() {
       toast.success(
         `Added ${result.appliedCount} draft rotation${result.appliedCount === 1 ? "" : "s"} to the grid.`,
       )
-      // Flip the saved proposals to accepted in the agent's state
-      // (rather than wiping everything). On a subsequent Generate the
-      // agent reads those accepted proposals as "already taken slots"
-      // and avoids re-suggesting them.
+      // Flip the saved proposals to accepted in agent state so the
+      // next Generate avoids their slots. Per-card accept keeps the
+      // other pending proposals visible (clearOthers=false); the
+      // batch "Save N as drafts" path drops the rest as the user is
+      // done with this run (clearOthers=true).
       await agent.stub.markAccepted({
         proposalIds: toApply.map((p) => p.proposalId),
+        clearOthers,
       })
       await router.invalidate()
     } catch (err) {
@@ -342,12 +347,12 @@ function JudgesAiPage() {
   }
 
   async function handleApply() {
-    await applyProposals(acceptedProposals)
+    await applyProposals(acceptedProposals, { clearOthers: true })
     setRejectedIds(new Set())
   }
 
   async function handleApplyOne(proposal: ProposedRotation) {
-    await applyProposals([proposal])
+    await applyProposals([proposal], { clearOthers: false })
   }
 
   async function handleStop() {

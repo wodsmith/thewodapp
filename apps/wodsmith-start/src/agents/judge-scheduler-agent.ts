@@ -328,27 +328,34 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
    * proposals as draft rotations in the DB. Keeping these in state
    * (rather than wiping them on save) lets a subsequent run see that
    * a (judge, heat, lane) slot is already taken and avoid
-   * re-suggesting it. Pending proposals not in the id list are
-   * cleared — they were either rejected or simply abandoned this run.
+   * re-suggesting it.
+   *
+   * `clearOthers` controls what happens to the pending/rejected
+   * proposals that AREN'T in the id list:
+   * - false (default, per-card accept): leave them alone so the
+   *   organizer can keep reviewing.
+   * - true (batch "Save N as drafts"): drop them — the user is done
+   *   with this run.
    */
   @callable()
   markAccepted(rawInput: unknown): { ok: true; acceptedCount: number } {
     const input = markAcceptedInputSchema.parse(rawInput)
     const acceptedSet = new Set(input.proposalIds)
-    const next = this.state.proposals
-      .filter((p) => p.status === "accepted" || acceptedSet.has(p.proposalId))
-      .map((p) =>
-        acceptedSet.has(p.proposalId)
-          ? { ...p, status: "accepted" as const }
-          : p,
-      )
+    const flipped = this.state.proposals.map((p) =>
+      acceptedSet.has(p.proposalId)
+        ? { ...p, status: "accepted" as const }
+        : p,
+    )
+    const next = input.clearOthers
+      ? flipped.filter((p) => p.status === "accepted")
+      : flipped
     this.setState({
       ...this.state,
       proposals: next,
-      // Coverage / activity log are still useful to the organizer, so
-      // we keep them. Status flips back to idle since the run is
-      // effectively done from the agent's perspective.
-      status: "idle",
+      // Coverage / activity log stay useful to the organizer. Status
+      // flips back to idle only when the user is wrapping up the run;
+      // per-card accepts during ongoing review shouldn't.
+      status: input.clearOthers ? "idle" : this.state.status,
     })
     this.logActivity(
       "done",

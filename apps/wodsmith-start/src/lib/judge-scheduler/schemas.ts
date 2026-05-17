@@ -82,6 +82,14 @@ export const markCompleteInputSchema = z.object({
 /** Input to the agent's @callable() markAccepted method. */
 export const markAcceptedInputSchema = z.object({
   proposalIds: z.array(z.string().min(1)).min(1),
+  /**
+   * When true, also remove proposals from agent state that aren't in
+   * `proposalIds` (used by the "Save N as drafts" batch path so the
+   * review surface clears once the user is done with this run).
+   * Defaults to false so per-card accepts keep the other pending
+   * suggestions visible.
+   */
+  clearOthers: z.boolean().default(false),
 })
 
 // ============================================================================
