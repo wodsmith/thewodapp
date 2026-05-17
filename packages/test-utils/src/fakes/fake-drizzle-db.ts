@@ -51,6 +51,8 @@ interface ChainableMock {
 	offset: Mock<(count: number) => ChainableMock>
 	orderBy: Mock<(column: unknown) => ChainableMock>
 	groupBy: Mock<(column: unknown) => ChainableMock>
+	// MySQL-specific: SELECT ... FOR UPDATE / LOCK IN SHARE MODE
+	for: Mock<(strength: "update" | "share", config?: unknown) => ChainableMock>
 
 	// Insert chain
 	insert: Mock<(table: unknown) => ChainableMock>
@@ -210,6 +212,7 @@ export class FakeDrizzleDb {
 			offset: this.createMockFn(() => mock),
 			orderBy: this.createMockFn(() => mock),
 			groupBy: this.createMockFn(() => mock),
+			for: this.createMockFn(() => mock),
 
 			// Insert chain
 			insert: this.createMockFn(() => mock),
@@ -236,6 +239,17 @@ export class FakeDrizzleDb {
 			all: this.createMockFn(() => Promise.resolve(self.mockReturnValue)),
 			run: this.createMockFn(() => Promise.resolve({ changes: self.mockChanges })),
 		} as ChainableMock
+
+		// When the chain mock is handed back as `tx` from a transaction
+		// callback, callers expect tx.query.tableName.findFirst/findMany to
+		// work the same as db.query.* (Drizzle's tx inherits the query API).
+		// Lazily proxy reads of `query` to the parent db's query API so that
+		// per-test reconfiguration of mockDb.query.X.findMany also takes
+		// effect inside transactions.
+		Object.defineProperty(mock, "query", {
+			get: () => self.query,
+			configurable: true,
+		})
 
 		return mock
 	}

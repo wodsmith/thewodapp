@@ -2,13 +2,15 @@
  * Fee Calculator for TanStack Start
  * Handles competition registration fee calculation and revenue statistics.
  */
-import { and, eq, sql } from "drizzle-orm"
+import { and, eq, inArray, sql } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
   COMMERCE_PURCHASE_STATUS,
   commercePurchaseTable,
   competitionDivisionFeesTable,
   competitionsTable,
+  FINANCIAL_EVENT_TYPE,
+  financialEventTable,
   scalingLevelsTable,
 } from "@/db/schema"
 
@@ -91,7 +93,13 @@ export async function getRegistrationFee(
 }
 
 /**
- * Revenue stats for a competition with fee breakdowns
+ * Revenue stats for a competition with fee breakdowns.
+ *
+ * `totalOrganizerNetCents` and `byDivision[].organizerNetCents` are the
+ * pre-refund net (sum of per-purchase organizerNetCents). Refunds are surfaced
+ * separately so the page can show a "Refunds" line/column and adjust the
+ * displayed Net = organizerNetCents − refundedCents without losing the
+ * pre-refund value used elsewhere in the dashboard.
  */
 export interface CompetitionRevenueStats {
   /** Total gross revenue collected from customers (in cents) */
@@ -100,8 +108,14 @@ export interface CompetitionRevenueStats {
   totalPlatformFeeCents: number
   /** Total Stripe processing fees */
   totalStripeFeeCents: number
-  /** Total net revenue for organizer after all fees */
+  /** Total net revenue for organizer after all fees, BEFORE refunds */
   totalOrganizerNetCents: number
+  /**
+   * Total cents refunded to athletes across this competition. Sourced from
+   * REFUND_INITIATED financial events; stored in cents as a positive number
+   * (events themselves are negative).
+   */
+  totalRefundedCents: number
   /** Number of completed purchases */
   purchaseCount: number
   /** Breakdown by division */
@@ -115,12 +129,136 @@ export interface CompetitionRevenueStats {
     platformFeeCents: number
     stripeFeeCents: number
     organizerNetCents: number
+    /** Cents refunded for purchases in this division (positive). */
+    refundedCents: number
   }>
 }
 
 /**
+ * Pure inputs for `aggregateRevenueStats`. Extracted so the rollup logic can
+ * be tested without going through Drizzle.
+ */
+export interface RevenueStatsInput {
+  purchases: Array<{
+    purchaseId: string
+    divisionId: string | null
+    totalCents: number
+    platformFeeCents: number
+    stripeFeeCents: number
+    organizerNetCents: number
+  }>
+  /**
+   * REFUND_INITIATED financial events. `amountCents` is signed (negative for
+   * refunds, per the financial_events sign convention) — this function
+   * tolerates either sign and rolls up the absolute value.
+   */
+  refundEvents: Array<{
+    purchaseId: string
+    amountCents: number
+  }>
+  divisionLabels: Map<string, string>
+  divisionFees: Map<string, number>
+  defaultFeeCents: number
+}
+
+/**
+ * Roll up purchases + refund events into a competition-level revenue stats
+ * shape, including per-division refund attribution.
+ *
+ * Refund events whose purchaseId isn't in `purchases` are ignored — they
+ * cannot be attributed to a division and would otherwise either crash or
+ * pollute an "Unknown" bucket.
+ */
+export function aggregateRevenueStats(
+  input: RevenueStatsInput,
+): CompetitionRevenueStats {
+  const purchaseIdToDivision = new Map<string, string>()
+  for (const p of input.purchases) {
+    purchaseIdToDivision.set(p.purchaseId, p.divisionId ?? "unknown")
+  }
+
+  // Sum refund cents per division (and overall). Skip events for unknown
+  // purchases; they have no division to attribute to.
+  let totalRefundedCents = 0
+  const refundedByDivision = new Map<string, number>()
+  for (const event of input.refundEvents) {
+    const divisionId = purchaseIdToDivision.get(event.purchaseId)
+    if (!divisionId) continue
+    const cents = Math.abs(event.amountCents)
+    totalRefundedCents += cents
+    refundedByDivision.set(
+      divisionId,
+      (refundedByDivision.get(divisionId) ?? 0) + cents,
+    )
+  }
+
+  let totalGrossCents = 0
+  let totalPlatformFeeCents = 0
+  let totalStripeFeeCents = 0
+  let totalOrganizerNetCents = 0
+
+  const divisionAggregates = new Map<
+    string,
+    {
+      purchaseCount: number
+      grossCents: number
+      platformFeeCents: number
+      stripeFeeCents: number
+      organizerNetCents: number
+    }
+  >()
+
+  for (const purchase of input.purchases) {
+    totalGrossCents += purchase.totalCents
+    totalPlatformFeeCents += purchase.platformFeeCents
+    totalStripeFeeCents += purchase.stripeFeeCents
+    totalOrganizerNetCents += purchase.organizerNetCents
+
+    const divisionId = purchase.divisionId ?? "unknown"
+    const existing = divisionAggregates.get(divisionId) ?? {
+      purchaseCount: 0,
+      grossCents: 0,
+      platformFeeCents: 0,
+      stripeFeeCents: 0,
+      organizerNetCents: 0,
+    }
+
+    divisionAggregates.set(divisionId, {
+      purchaseCount: existing.purchaseCount + 1,
+      grossCents: existing.grossCents + purchase.totalCents,
+      platformFeeCents: existing.platformFeeCents + purchase.platformFeeCents,
+      stripeFeeCents: existing.stripeFeeCents + purchase.stripeFeeCents,
+      organizerNetCents:
+        existing.organizerNetCents + purchase.organizerNetCents,
+    })
+  }
+
+  const byDivision = Array.from(divisionAggregates.entries()).map(
+    ([divisionId, stats]) => ({
+      divisionId,
+      divisionLabel: input.divisionLabels.get(divisionId) ?? "Unknown",
+      registrationFeeCents:
+        input.divisionFees.get(divisionId) ?? input.defaultFeeCents,
+      ...stats,
+      refundedCents: refundedByDivision.get(divisionId) ?? 0,
+    }),
+  )
+
+  return {
+    totalGrossCents,
+    totalPlatformFeeCents,
+    totalStripeFeeCents,
+    totalOrganizerNetCents,
+    totalRefundedCents,
+    purchaseCount: input.purchases.length,
+    byDivision,
+  }
+}
+
+/**
  * Get revenue stats for a competition
- * Aggregates all completed purchases with fee breakdowns
+ * Aggregates all completed purchases with fee breakdowns and per-division
+ * refunds (REFUND_INITIATED financial events).
  */
 export async function getCompetitionRevenueStats(
   competitionId: string,
@@ -130,6 +268,7 @@ export async function getCompetitionRevenueStats(
   // Get all completed purchases for this competition
   const purchases = await db
     .select({
+      purchaseId: commercePurchaseTable.id,
       divisionId: commercePurchaseTable.divisionId,
       totalCents: commercePurchaseTable.totalCents,
       platformFeeCents: commercePurchaseTable.platformFeeCents,
@@ -176,6 +315,31 @@ export async function getCompetitionRevenueStats(
           )
       : []
 
+  // Get refund events (REFUND_INITIATED) for the purchases in this comp.
+  // We use REFUND_INITIATED rather than REFUND_COMPLETED so the page reflects
+  // refunds the moment the organizer kicks them off, not after Stripe's
+  // settlement webhook lands. Both rows are eventually written; counting
+  // INITIATED avoids double-counting once COMPLETED arrives.
+  const purchaseIds = purchases.map((p) => p.purchaseId)
+  const refundEvents =
+    purchaseIds.length > 0
+      ? await db
+          .select({
+            purchaseId: financialEventTable.purchaseId,
+            amountCents: financialEventTable.amountCents,
+          })
+          .from(financialEventTable)
+          .where(
+            and(
+              inArray(financialEventTable.purchaseId, purchaseIds),
+              eq(
+                financialEventTable.eventType,
+                FINANCIAL_EVENT_TYPE.REFUND_INITIATED,
+              ),
+            ),
+          )
+      : []
+
   // Get competition default fee as fallback for divisions without specific fees
   const competition = await db.query.competitionsTable.findFirst({
     where: eq(competitionsTable.id, competitionId),
@@ -183,69 +347,11 @@ export async function getCompetitionRevenueStats(
   })
   const defaultFeeCents = competition?.defaultRegistrationFeeCents ?? 0
 
-  const divisionMap = new Map(divisions.map((d) => [d.id, d.label]))
-  const divisionFeeMap = new Map(
-    divisionFees.map((f) => [f.divisionId, f.feeCents]),
-  )
-
-  // Aggregate totals
-  let totalGrossCents = 0
-  let totalPlatformFeeCents = 0
-  let totalStripeFeeCents = 0
-  let totalOrganizerNetCents = 0
-
-  // Group by division
-  const divisionAggregates = new Map<
-    string,
-    {
-      purchaseCount: number
-      grossCents: number
-      platformFeeCents: number
-      stripeFeeCents: number
-      organizerNetCents: number
-    }
-  >()
-
-  for (const purchase of purchases) {
-    totalGrossCents += purchase.totalCents
-    totalPlatformFeeCents += purchase.platformFeeCents
-    totalStripeFeeCents += purchase.stripeFeeCents
-    totalOrganizerNetCents += purchase.organizerNetCents
-
-    const divisionId = purchase.divisionId ?? "unknown"
-    const existing = divisionAggregates.get(divisionId) ?? {
-      purchaseCount: 0,
-      grossCents: 0,
-      platformFeeCents: 0,
-      stripeFeeCents: 0,
-      organizerNetCents: 0,
-    }
-
-    divisionAggregates.set(divisionId, {
-      purchaseCount: existing.purchaseCount + 1,
-      grossCents: existing.grossCents + purchase.totalCents,
-      platformFeeCents: existing.platformFeeCents + purchase.platformFeeCents,
-      stripeFeeCents: existing.stripeFeeCents + purchase.stripeFeeCents,
-      organizerNetCents:
-        existing.organizerNetCents + purchase.organizerNetCents,
-    })
-  }
-
-  const byDivision = Array.from(divisionAggregates.entries()).map(
-    ([divisionId, stats]) => ({
-      divisionId,
-      divisionLabel: divisionMap.get(divisionId) ?? "Unknown",
-      registrationFeeCents: divisionFeeMap.get(divisionId) ?? defaultFeeCents,
-      ...stats,
-    }),
-  )
-
-  return {
-    totalGrossCents,
-    totalPlatformFeeCents,
-    totalStripeFeeCents,
-    totalOrganizerNetCents,
-    purchaseCount: purchases.length,
-    byDivision,
-  }
+  return aggregateRevenueStats({
+    purchases,
+    refundEvents,
+    divisionLabels: new Map(divisions.map((d) => [d.id, d.label])),
+    divisionFees: new Map(divisionFees.map((f) => [f.divisionId, f.feeCents])),
+    defaultFeeCents,
+  })
 }
