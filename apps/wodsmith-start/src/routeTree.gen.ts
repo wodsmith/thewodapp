@@ -20,6 +20,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as CompeteIndexRouteImport } from './routes/compete/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as TransferTransferIdRouteImport } from './routes/transfer/$transferId'
+import { Route as OauthAuthorizeRouteImport } from './routes/oauth/authorize'
 import { Route as CompeteOrganizerRouteImport } from './routes/compete/organizer'
 import { Route as CompeteCohostInviteRouteImport } from './routes/compete/cohost-invite'
 import { Route as CompeteCohostRouteImport } from './routes/compete/cohost'
@@ -258,6 +259,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
 const TransferTransferIdRoute = TransferTransferIdRouteImport.update({
   id: '/transfer/$transferId',
   path: '/transfer/$transferId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OauthAuthorizeRoute = OauthAuthorizeRouteImport.update({
+  id: '/oauth/authorize',
+  path: '/oauth/authorize',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompeteOrganizerRoute = CompeteOrganizerRouteImport.update({
@@ -1349,6 +1355,7 @@ export interface FileRoutesByFullPath {
   '/compete/cohost': typeof CompeteCohostRouteWithChildren
   '/compete/cohost-invite': typeof CompeteCohostInviteRouteWithChildren
   '/compete/organizer': typeof CompeteOrganizerDashboardRouteWithChildren
+  '/oauth/authorize': typeof OauthAuthorizeRoute
   '/transfer/$transferId': typeof TransferTransferIdRoute
   '/admin/': typeof AdminIndexRoute
   '/compete/': typeof CompeteIndexRoute
@@ -1541,6 +1548,7 @@ export interface FileRoutesByTo {
   '/compete/cohost': typeof CompeteCohostRouteWithChildren
   '/compete/cohost-invite': typeof CompeteCohostInviteRouteWithChildren
   '/compete/organizer': typeof CompeteOrganizerDashboardIndexRoute
+  '/oauth/authorize': typeof OauthAuthorizeRoute
   '/transfer/$transferId': typeof TransferTransferIdRoute
   '/admin': typeof AdminIndexRoute
   '/compete': typeof CompeteIndexRoute
@@ -1729,6 +1737,7 @@ export interface FileRoutesById {
   '/compete/cohost': typeof CompeteCohostRouteWithChildren
   '/compete/cohost-invite': typeof CompeteCohostInviteRouteWithChildren
   '/compete/organizer': typeof CompeteOrganizerRouteWithChildren
+  '/oauth/authorize': typeof OauthAuthorizeRoute
   '/transfer/$transferId': typeof TransferTransferIdRoute
   '/admin/': typeof AdminIndexRoute
   '/compete/': typeof CompeteIndexRoute
@@ -1928,6 +1937,7 @@ export interface FileRouteTypes {
     | '/compete/cohost'
     | '/compete/cohost-invite'
     | '/compete/organizer'
+    | '/oauth/authorize'
     | '/transfer/$transferId'
     | '/admin/'
     | '/compete/'
@@ -2120,6 +2130,7 @@ export interface FileRouteTypes {
     | '/compete/cohost'
     | '/compete/cohost-invite'
     | '/compete/organizer'
+    | '/oauth/authorize'
     | '/transfer/$transferId'
     | '/admin'
     | '/compete'
@@ -2307,6 +2318,7 @@ export interface FileRouteTypes {
     | '/compete/cohost'
     | '/compete/cohost-invite'
     | '/compete/organizer'
+    | '/oauth/authorize'
     | '/transfer/$transferId'
     | '/admin/'
     | '/compete/'
@@ -2495,6 +2507,7 @@ export interface RootRouteChildren {
   ApiGetSessionRoute: typeof ApiGetSessionRoute
   ApiSitemapRoute: typeof ApiSitemapRoute
   ApiUploadRoute: typeof ApiUploadRoute
+  OauthAuthorizeRoute: typeof OauthAuthorizeRoute
   TransferTransferIdRoute: typeof TransferTransferIdRoute
   ApiAuthTokenRoute: typeof ApiAuthTokenRouteWithChildren
   ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
@@ -2597,6 +2610,13 @@ declare module '@tanstack/react-router' {
       path: '/transfer/$transferId'
       fullPath: '/transfer/$transferId'
       preLoaderRoute: typeof TransferTransferIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/oauth/authorize': {
+      id: '/oauth/authorize'
+      path: '/oauth/authorize'
+      fullPath: '/oauth/authorize'
+      preLoaderRoute: typeof OauthAuthorizeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/compete/organizer': {
@@ -4576,6 +4596,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiGetSessionRoute: ApiGetSessionRoute,
   ApiSitemapRoute: ApiSitemapRoute,
   ApiUploadRoute: ApiUploadRoute,
+  OauthAuthorizeRoute: OauthAuthorizeRoute,
   TransferTransferIdRoute: TransferTransferIdRoute,
   ApiAuthTokenRoute: ApiAuthTokenRouteWithChildren,
   ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,

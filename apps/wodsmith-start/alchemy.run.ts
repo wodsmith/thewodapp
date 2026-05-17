@@ -312,6 +312,20 @@ const kvSession = await KVNamespace("wodsmith-sessions", {
 })
 
 /**
+ * Cloudflare KV namespace for the MCP OAuth provider.
+ *
+ * Stores OAuth clients, authorization grants, and access/refresh tokens issued
+ * to MCP clients. Used by `@cloudflare/workers-oauth-provider`, which expects a
+ * binding named `OAUTH_KV` on the env.
+ *
+ * Kept separate from `KV_SESSION` so cookie sessions and OAuth state can be
+ * inspected/cleared independently.
+ */
+const kvOAuth = await KVNamespace("wodsmith-oauth", {
+  adopt: true,
+})
+
+/**
  * Cloudflare R2 bucket for file uploads and media storage.
  *
  * R2 provides S3-compatible object storage with:
@@ -571,6 +585,8 @@ const website = await TanStackStart("app", {
   bindings: {
     /** KV namespace binding for session storage */
     KV_SESSION: kvSession,
+    /** KV namespace binding for the MCP OAuth provider (clients, grants, tokens) */
+    OAUTH_KV: kvOAuth,
     /** R2 bucket binding for file uploads */
     R2_BUCKET: r2Bucket,
     /** Hyperdrive binding for pooled PlanetScale connections */
