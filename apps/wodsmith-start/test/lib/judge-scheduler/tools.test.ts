@@ -59,6 +59,7 @@ function makeProposal(
     confidence: 'high',
     rationale: 'Default coverage block',
     softViolations: [],
+    status: 'pending',
     ...overrides,
   }
 }

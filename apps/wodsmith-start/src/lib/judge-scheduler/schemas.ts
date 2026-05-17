@@ -33,6 +33,18 @@ export const availabilitySchema = z.enum([
 // Proposal — the central artifact the agent produces
 // ============================================================================
 
+/**
+ * Lifecycle status of a proposed rotation in the agent's state.
+ *
+ * - `pending`: just streamed in by the LLM, awaiting organizer review.
+ * - `accepted`: organizer hit "Save as drafts" — the proposal has been
+ *   persisted to `competition_judge_rotations` and the slot is taken.
+ *   Kept in the agent's state so subsequent runs know the slot is
+ *   already filled and don't re-suggest it.
+ */
+export const proposalStatusSchema = z.enum(["pending", "accepted"])
+export type ProposalStatus = z.infer<typeof proposalStatusSchema>
+
 export const proposedRotationSchema = z.object({
   proposalId: z.string().min(1).max(64),
   membershipId: z.string().min(1),
@@ -43,6 +55,7 @@ export const proposedRotationSchema = z.object({
   confidence: confidenceSchema,
   rationale: z.string().min(1).max(280),
   softViolations: z.array(z.string().max(160)).max(10),
+  status: proposalStatusSchema.default("pending"),
 })
 
 export type ProposedRotation = z.infer<typeof proposedRotationSchema>
@@ -51,7 +64,11 @@ export type ProposedRotation = z.infer<typeof proposedRotationSchema>
 // Tool input schemas (what the LLM is allowed to send)
 // ============================================================================
 
-export const proposeRotationInputSchema = proposedRotationSchema
+// LLM only proposes new (pending) rotations. Status defaults at the
+// schema level so we don't need to require the model to send it.
+export const proposeRotationInputSchema = proposedRotationSchema.omit({
+  status: true,
+})
 
 export const revokeProposalInputSchema = z.object({
   proposalId: z.string().min(1),
@@ -60,6 +77,11 @@ export const revokeProposalInputSchema = z.object({
 
 export const markCompleteInputSchema = z.object({
   summary: z.string().min(1).max(600),
+})
+
+/** Input to the agent's @callable() markAccepted method. */
+export const markAcceptedInputSchema = z.object({
+  proposalIds: z.array(z.string().min(1)).min(1),
 })
 
 // ============================================================================

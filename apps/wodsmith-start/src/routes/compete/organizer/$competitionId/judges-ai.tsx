@@ -239,9 +239,17 @@ function JudgesAiPage() {
   const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set())
   const [isApplying, setIsApplying] = useState(false)
 
+  // Pending proposals are the ones the organizer is currently reviewing.
+  // Already-accepted ones live in agent state (so the agent knows their
+  // slots are taken on future runs) but shouldn't show up in the review
+  // card — they're already real draft rotations in the grid.
+  const pendingProposals = useMemo(
+    () => proposals.filter((p) => p.status !== "accepted"),
+    [proposals],
+  )
   const acceptedProposals = useMemo(
-    () => proposals.filter((p) => !rejectedIds.has(p.proposalId)),
-    [proposals, rejectedIds],
+    () => pendingProposals.filter((p) => !rejectedIds.has(p.proposalId)),
+    [pendingProposals, rejectedIds],
   )
 
   const judgesById = useMemo(() => {
@@ -312,9 +320,15 @@ function JudgesAiPage() {
       toast.success(
         `Added ${result.appliedCount} draft rotation${result.appliedCount === 1 ? "" : "s"} to the grid.`,
       )
-      // Clear the agent's proposal state so the card disappears now
-      // that the kept proposals live as real rotations in the grid.
-      await agent.stub.reset()
+      // Flip the saved proposals to accepted in the agent's state
+      // (rather than wiping everything). On a subsequent Generate the
+      // agent reads those accepted proposals as "already taken slots"
+      // and avoids re-suggesting them. Rejected/pending proposals are
+      // dropped — they're noise for the next run.
+      await agent.stub.markAccepted({
+        proposalIds: acceptedProposals.map((p) => p.proposalId),
+      })
+      setRejectedIds(new Set())
       await router.invalidate()
     } catch (err) {
       toast.error(
@@ -448,7 +462,7 @@ function JudgesAiPage() {
                   ? "Thinking..."
                   : "Generate AI suggestions"}
               </Button>
-              {proposals.length > 0 && status !== "thinking" && (
+              {pendingProposals.length > 0 && status !== "thinking" && (
                 <Button variant="outline" onClick={handleReset}>
                   <RotateCcw className="mr-2 h-4 w-4" />
                   Reset
@@ -461,9 +475,9 @@ function JudgesAiPage() {
               {(status === "thinking" || thinkingLog.length > 0) && (
                 <ActivityLog entries={thinkingLog} status={status} />
               )}
-              {proposals.length > 0 && (
+              {pendingProposals.length > 0 && (
                 <AiProposalsBar
-                  proposals={proposals}
+                  proposals={pendingProposals}
                   rejectedIds={rejectedIds}
                   setRejectedIds={setRejectedIds}
                   judgesById={judgesById}

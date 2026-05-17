@@ -16,9 +16,11 @@ import {
   type EventContextDto,
   initialAgentState,
   type JudgeRosterEntry,
+  markAcceptedInputSchema,
   markCompleteInputSchema,
   MAX_THINKING_LOG_ENTRIES,
   type PriorRotationExample,
+  type ProposedRotation,
   proposeRotationInputSchema,
   revokeProposalInputSchema,
   startSchedulingInputSchema,
@@ -150,10 +152,17 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
         return { ok: false, error: msg }
       }
 
+      // On reset we drop pending proposals (the previous run's
+      // unsaved suggestions) but PRESERVE accepted ones — the user
+      // already saved those to the grid, so the model needs to know
+      // those slots are taken and shouldn't be re-suggested.
+      const carriedProposals = input.reset
+        ? this.state.proposals.filter((p) => p.status === "accepted")
+        : this.state.proposals
       this.setState({
         trackWorkoutId: input.trackWorkoutId,
         status: "thinking",
-        proposals: input.reset ? [] : this.state.proposals,
+        proposals: carriedProposals,
         thinkingLog: input.reset ? [] : this.state.thinkingLog,
         summary: null,
         errorMessage: null,
@@ -176,7 +185,13 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
           priorRotations: ctx.priors.length,
         },
       })
-      const tools = buildTools(this, ctx)
+      // Slots already taken by accepted proposals from previous runs.
+      // The model treats these as off-limits — surfaced both in the
+      // kickoff prompt and via the get_accepted_slots tool.
+      const acceptedFromState = this.state.proposals.filter(
+        (p) => p.status === "accepted",
+      )
+      const tools = buildTools(this, ctx, acceptedFromState)
 
       // Route all AI traffic through the Cloudflare AI Gateway so we get
       // logs/analytics/caching in the dashboard and a single integration
@@ -190,7 +205,7 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
       const result = await generateText({
         model: aiGateway(unified(MODEL_ID)),
         system: SYSTEM_PROMPT,
-        prompt: buildKickoffPrompt(ctx),
+        prompt: buildKickoffPrompt(ctx, acceptedFromState),
         tools,
         stopWhen: stepCountIs(MAX_STEPS),
       })
@@ -243,13 +258,57 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
   }
 
   /**
-   * Allow the organizer to manually clear all proposals and reset the agent
-   * without starting a new run (e.g. before retrying with different settings).
+   * Clear the in-flight run (pending proposals, activity log, status)
+   * without dropping proposals the organizer has already accepted in
+   * previous runs — those represent real draft rotations on the grid
+   * and the next run still needs to avoid their slots.
    */
   @callable()
   reset(): { ok: true } {
-    this.setState({ ...initialAgentState })
+    const carried = this.state.proposals.filter((p) => p.status === "accepted")
+    this.setState({
+      ...initialAgentState,
+      proposals: carried,
+    })
     return { ok: true }
+  }
+
+  /**
+   * Mark the given proposalIds as accepted by the organizer.
+   *
+   * Called by the UI after `applyAiProposalsFn` has persisted the
+   * proposals as draft rotations in the DB. Keeping these in state
+   * (rather than wiping them on save) lets a subsequent run see that
+   * a (judge, heat, lane) slot is already taken and avoid
+   * re-suggesting it. Pending proposals not in the id list are
+   * cleared — they were either rejected or simply abandoned this run.
+   */
+  @callable()
+  markAccepted(rawInput: unknown): { ok: true; acceptedCount: number } {
+    const input = markAcceptedInputSchema.parse(rawInput)
+    const acceptedSet = new Set(input.proposalIds)
+    const next = this.state.proposals
+      .filter((p) => p.status === "accepted" || acceptedSet.has(p.proposalId))
+      .map((p) =>
+        acceptedSet.has(p.proposalId)
+          ? { ...p, status: "accepted" as const }
+          : p,
+      )
+    this.setState({
+      ...this.state,
+      proposals: next,
+      // Coverage / activity log are still useful to the organizer, so
+      // we keep them. Status flips back to idle since the run is
+      // effectively done from the agent's perspective.
+      status: "idle",
+    })
+    this.logActivity(
+      "done",
+      `Organizer saved ${input.proposalIds.length} suggestion${
+        input.proposalIds.length === 1 ? "" : "s"
+      } as drafts.`,
+    )
+    return { ok: true, acceptedCount: input.proposalIds.length }
   }
 }
 
@@ -277,24 +336,38 @@ async function resolveOrganizingTeamId(competitionId: string): Promise<string> {
   return row.organizingTeamId
 }
 
-function buildKickoffPrompt(ctx: BuildContextResult): string {
+function buildKickoffPrompt(
+  ctx: BuildContextResult,
+  accepted: ProposedRotation[],
+): string {
   const judgeCount = ctx.roster.length
   const slotCount = ctx.eventContext.heats.reduce(
     (acc, h) =>
       acc + (h.occupiedLanes.length > 0 ? h.occupiedLanes.length : h.laneCount),
     0,
   )
-  return [
+  const lines = [
     `Schedule judges for "${ctx.eventContext.workoutName}".`,
     `${ctx.eventContext.totalHeats} heats, ~${slotCount} lane-slots, ${judgeCount} eligible judges.`,
     `Default rotation length: ${ctx.eventContext.defaultHeatsPerRotation} heats; default lane pattern: ${ctx.eventContext.defaultLaneShiftPattern}.`,
-    `Begin by calling get_event_context, get_judge_roster, then get_prior_rotations.`,
-  ].join("\n")
+  ]
+  if (accepted.length > 0) {
+    lines.push(
+      `${accepted.length} suggestion${accepted.length === 1 ? " was" : "s were"} accepted by the organizer in earlier runs and ${accepted.length === 1 ? "is" : "are"} already a draft rotation — do NOT re-suggest those slots. Call get_accepted_slots first to see them, then fill the remaining gaps.`,
+    )
+  }
+  lines.push(
+    `Begin by calling get_event_context, get_judge_roster, get_prior_rotations${
+      accepted.length > 0 ? ", and get_accepted_slots" : ""
+    }.`,
+  )
+  return lines.join("\n")
 }
 
 function buildTools(
   agent: JudgeSchedulerAgent,
   ctx: BuildContextResult,
+  accepted: ProposedRotation[],
 ): Record<string, Tool> {
   const { eventContext, roster, priors } = ctx
 
@@ -354,13 +427,60 @@ function buildTools(
       },
     }),
 
+    get_accepted_slots: tool({
+      description:
+        "Return the (heat, lane) slots that the organizer already accepted in previous runs of this workout. These slots are locked in — do NOT re-propose them. Call once per run if the kickoff mentions accepted suggestions.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        agent.logActivity(
+          "tool",
+          accepted.length > 0
+            ? `Loaded ${accepted.length} already-accepted slot${accepted.length === 1 ? "" : "s"} from previous runs.`
+            : "No previously accepted slots.",
+        )
+        logInfo({
+          message: "[JudgeAgent.tool] get_accepted_slots",
+          attributes: { trackWorkoutId, count: accepted.length },
+        })
+        return accepted.map((p) => ({
+          membershipId: p.membershipId,
+          judgeName: roster.find((j) => j.membershipId === p.membershipId)
+            ?.name,
+          startingHeat: p.startingHeat,
+          startingLane: p.startingLane,
+          heatsCount: p.heatsCount,
+          laneShiftPattern: p.laneShiftPattern,
+        }))
+      },
+    }),
+
     propose_rotation: tool({
       description:
         "Emit ONE rotation proposal. The organizer sees it stream in immediately. Set confidence='low' and fill softViolations[] when overriding a soft preference.",
       inputSchema: proposeRotationInputSchema,
       execute: async (input) => {
+        // Build a slot occupancy map from the already-accepted
+        // proposals (previous runs the organizer kept). Any new
+        // proposal that lands on one of those slots is a hard reject
+        // — those rotations are already in the DB.
+        const acceptedSlots = new Set<string>()
+        for (const acc of accepted) {
+          const lastH = acc.startingHeat + acc.heatsCount - 1
+          for (let h = acc.startingHeat; h <= lastH; h++) {
+            const offset = h - acc.startingHeat
+            const heat = eventContext.heats.find((x) => x.heatNumber === h)
+            const lane =
+              acc.laneShiftPattern === "shift_right" && heat
+                ? ((acc.startingLane - 1 + offset) %
+                    Math.max(heat.laneCount, 1)) +
+                  1
+                : acc.startingLane
+            acceptedSlots.add(`${h}:${lane}`)
+          }
+        }
+
         const { violations } = validateProposal({
-          proposal: input,
+          proposal: { ...input, status: "pending" },
           context: eventContext,
           roster,
           existingProposals: agent.state.proposals,
@@ -371,6 +491,30 @@ function buildTools(
             v.startsWith("Unknown membershipId") ||
             v.startsWith("Rotation runs past"),
         )
+
+        // Reject any proposal that lands on a slot already owned by an
+        // accepted proposal from a prior run.
+        const slotConflicts: string[] = []
+        const proposalLast = input.startingHeat + input.heatsCount - 1
+        for (let h = input.startingHeat; h <= proposalLast; h++) {
+          const offset = h - input.startingHeat
+          const heat = eventContext.heats.find((x) => x.heatNumber === h)
+          const lane =
+            input.laneShiftPattern === "shift_right" && heat
+              ? ((input.startingLane - 1 + offset) %
+                  Math.max(heat.laneCount, 1)) +
+                1
+              : input.startingLane
+          if (acceptedSlots.has(`${h}:${lane}`)) {
+            slotConflicts.push(`H${h} L${lane}`)
+          }
+        }
+        if (slotConflicts.length > 0) {
+          hardViolations.push(
+            `Slot ${slotConflicts.join(", ")} is already filled by an accepted rotation; pick a different slot.`,
+          )
+        }
+
         const judge = roster.find((j) => j.membershipId === input.membershipId)
         const judgeLabel = judge?.name ?? input.membershipId
         const lastHeat = input.startingHeat + input.heatsCount - 1
@@ -404,8 +548,9 @@ function buildTools(
         const softViolations = violations.filter(
           (v) => !hardViolations.includes(v),
         )
-        const merged = {
+        const merged: ProposedRotation = {
           ...input,
+          status: "pending",
           softViolations: dedupeStrings([
             ...softViolations,
             ...input.softViolations,
