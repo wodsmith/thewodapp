@@ -41,14 +41,14 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import type { Waiver, WaiverSignature } from "@/db/schemas/waivers"
+import { getUserCompetitionRegistrationsFn } from "@/server-fns/competition-detail-fns"
 import {
   getRegistrationDetailsFn,
   getTeamRosterFn,
-  refreshCompetitionTeamInviteFn,
   type RegistrationDetails,
+  refreshCompetitionTeamInviteFn,
   type TeamRosterResult,
 } from "@/server-fns/registration-fns"
-import { getUserCompetitionRegistrationsFn } from "@/server-fns/competition-detail-fns"
 import {
   getCompetitionQuestionsFn,
   getRegistrationAnswersFn,
@@ -150,6 +150,20 @@ export const Route = createFileRoute("/compete/$slug/teams/$registrationId/")({
     }
 
     const { registration, members, pending, isTeamRegistration } = roster
+
+    if (
+      registration.competition?.slug &&
+      registration.competition.slug !== slug
+    ) {
+      throw redirect({
+        to: "/compete/$slug/teams/$registrationId",
+        params: {
+          slug: registration.competition.slug,
+          registrationId,
+        },
+        replace: true,
+      })
+    }
 
     // Check if user is authorized to view this registration
     const isTeamMember = members.some((m) => m.user?.id === session.userId)
@@ -709,8 +723,10 @@ function TeamManagementPage() {
                 <div className="space-y-2">
                   {pending.map((invite) => {
                     const pendingAffiliate = getPendingAffiliate(invite.email)
+                    const inviteToken = invite.token
                     const isExpired =
-                      invite.expiresAt && new Date(invite.expiresAt) < new Date()
+                      invite.expiresAt &&
+                      new Date(invite.expiresAt) < new Date()
                     return (
                       <div
                         key={invite.id}
@@ -753,18 +769,16 @@ function TeamManagementPage() {
                                 : "Resend Invite"}
                             </Button>
                           )}
-                          {isRegisteredUser &&
-                            !isExpired &&
-                            invite.token && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => copyInviteLink(invite.token!)}
-                              >
-                                <Copy className="w-4 h-4 mr-1" />
-                                Copy Link
-                              </Button>
-                            )}
+                          {isRegisteredUser && !isExpired && inviteToken && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => copyInviteLink(inviteToken)}
+                            >
+                              <Copy className="w-4 h-4 mr-1" />
+                              Copy Link
+                            </Button>
+                          )}
                           {isExpired ? (
                             <Badge
                               variant="outline"

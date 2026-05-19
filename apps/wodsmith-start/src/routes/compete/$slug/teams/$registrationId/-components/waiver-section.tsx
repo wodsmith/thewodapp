@@ -99,17 +99,17 @@ export function WaiverSection({
           <FileText className="w-5 h-5" />
           Competition Waivers
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="space-y-1">
+          <span className="block">For {competitionName}</span>
           {allRequiredSigned ? (
             <span className="flex items-center gap-1 text-green-600">
               <CheckCircle className="w-4 h-4" />
-              All required waivers signed
+              All required waivers signed for this competition
             </span>
           ) : (
             <span>
               {signedCount} of {requiredWaivers.length} required waiver
-              {requiredWaivers.length !== 1 ? "s" : ""} signed for{" "}
-              {competitionName}
+              {requiredWaivers.length !== 1 ? "s" : ""} signed
             </span>
           )}
         </CardDescription>
@@ -159,7 +159,8 @@ export function WaiverSection({
                               year: "numeric",
                               month: "long",
                               day: "numeric",
-                            })}
+                            })}{" "}
+                            for {competitionName}
                           </p>
                         )}
                       </div>

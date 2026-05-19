@@ -16,7 +16,9 @@ Session management functions live in `src/server-fns/session-fns.ts`. Auth middl
 
 ### Per-request session cache
 
-`getSessionFromCookie()` is memoized per HTTP request via `AsyncLocalStorage` so multiple calls within the same request lifecycle (e.g. handler + nested `requireTeamPermission`) share a single KV read. The `withSessionCache` wrapper is applied once at the fetch boundary in [[apps/wodsmith-start/src/server.ts]], and during SSR it deduplicates the session lookup across all loaders/server fns running in one request. See [[apps/wodsmith-start/src/utils/auth.ts#getSessionFromCookie]].
+`getSessionFromCookie()` is memoized per HTTP request via `AsyncLocalStorage` so repeated auth checks share one session lookup.
+
+This avoids duplicate KV reads when handlers call nested helpers such as `requireTeamPermission`. The `withSessionCache` wrapper is applied once at the fetch boundary in [[apps/wodsmith-start/src/server.ts]], and during SSR it deduplicates the session lookup across all loaders/server fns running in one request. See [[apps/wodsmith-start/src/utils/auth.ts#getSessionFromCookie]].
 
 ## Authorization
 
