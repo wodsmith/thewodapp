@@ -201,7 +201,7 @@ export function RegistrationSidebar({
 
   return (
     <div className="space-y-4">
-      {pendingTeamInvites.length > 0 && !isRegistered && (
+      {pendingTeamInvites.length > 0 && (
         <Card className="border-2 border-green-500/20 bg-white/5 backdrop-blur-md">
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center gap-2 text-green-600">
