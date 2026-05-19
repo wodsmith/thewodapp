@@ -5,21 +5,24 @@ import {
   useNavigate,
 } from "@tanstack/react-router"
 import { useEffect } from "react"
+import { toast } from "sonner"
 import { z } from "zod"
 import { CompetitionHero } from "@/components/competition-hero"
 import { CouponBanner } from "@/components/coupon-banner"
 import { JsonLd } from "@/components/json-ld"
 import { getAppUrlFn } from "@/lib/env"
-import { getCouponByCodeFn } from "@/server-fns/coupon-fns"
-import { toast } from "sonner"
-import { clearCouponSession, setCouponSession } from "@/utils/coupon-cookie"
 import { trackEvent } from "@/lib/posthog"
-import { getUserCompetitionRegistrationsFn } from "@/server-fns/competition-detail-fns"
+import {
+  getPendingTeamInvitesFn,
+  getUserCompetitionRegistrationsFn,
+} from "@/server-fns/competition-detail-fns"
 import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
-import { getCompetitionSponsorsFn } from "@/server-fns/sponsor-fns"
+import { getCouponByCodeFn } from "@/server-fns/coupon-fns"
 import { hasJudgesScheduleFn } from "@/server-fns/judge-scheduling-fns"
+import { getCompetitionSponsorsFn } from "@/server-fns/sponsor-fns"
 import { getTeamContactEmailFn } from "@/server-fns/team-fns"
+import { clearCouponSession, setCouponSession } from "@/utils/coupon-cookie"
 import {
   DEFAULT_TIMEZONE,
   hasDateStartedInTimezone,
@@ -76,8 +79,7 @@ export const Route = createFileRoute("/compete/$slug")({
       session && competition.competitionTeamId
         ? !!session.teams?.some(
             (t) =>
-              t.id === competition.competitionTeamId &&
-              t.role.id === "cohost",
+              t.id === competition.competitionTeamId && t.role.id === "cohost",
           )
         : false
 
@@ -97,6 +99,7 @@ export const Route = createFileRoute("/compete/$slug")({
       sponsorsResult,
       organizerContactEmail,
       userRegsResult,
+      pendingTeamInvitesResult,
       judgesScheduleResult,
     ] = await Promise.all([
       getPublicCompetitionDivisionsFn({
@@ -116,6 +119,13 @@ export const Route = createFileRoute("/compete/$slug")({
             },
           })
         : Promise.resolve({ registrations: [] }),
+      session?.user?.email
+        ? getPendingTeamInvitesFn({
+            data: {
+              competitionId: competition.id,
+            },
+          })
+        : Promise.resolve({ invitations: [] }),
       hasJudgesScheduleFn({
         data: { competitionId: competition.id },
       }),
@@ -159,6 +169,7 @@ export const Route = createFileRoute("/compete/$slug")({
       divisions,
       competitionCapacity,
       sponsors,
+      pendingTeamInvites: pendingTeamInvitesResult.invitations,
       userDivision,
       userDivisions,
       maxSpots: undefined as number | undefined,

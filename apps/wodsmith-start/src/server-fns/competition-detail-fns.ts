@@ -14,7 +14,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, count, eq, inArray, isNull, ne, sql } from "drizzle-orm"
+import { and, count, eq, gt, inArray, isNull, ne, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { addressesTable } from "@/db/schemas/addresses"
@@ -23,14 +23,14 @@ import {
   commercePurchaseTable,
 } from "@/db/schemas/commerce"
 import {
-  FINANCIAL_EVENT_TYPE,
-  financialEventTable,
-} from "@/db/schemas/financial-events"
-import {
   competitionRegistrationsTable,
   competitionsTable,
   REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
+import {
+  FINANCIAL_EVENT_TYPE,
+  financialEventTable,
+} from "@/db/schemas/financial-events"
 import {
   INVITATION_STATUS,
   type InvitationStatus,
@@ -67,7 +67,6 @@ const getUserRegistrationInputSchema = z.object({
 
 const getPendingTeamInvitesInputSchema = z.object({
   competitionId: z.string().min(1, "Competition ID is required"),
-  userId: z.string().min(1, "User ID is required"),
 })
 
 const checkCanManageInputSchema = z.object({
@@ -461,7 +460,10 @@ export const getUserCompetitionRegistrationsFn = createServerFn({
     // Merge and deduplicate by division.
     // Direct registrations (user's own rows) take priority.
     // Team query may return teammate rows in the same division — skip those.
-    const divisionMap = new Map<string | null, (typeof directRegistrations)[0]>()
+    const divisionMap = new Map<
+      string | null,
+      (typeof directRegistrations)[0]
+    >()
 
     for (const reg of directRegistrations) {
       divisionMap.set(reg.divisionId, reg)
@@ -491,24 +493,35 @@ export const getPendingTeamInvitesFn = createServerFn({ method: "GET" })
     getPendingTeamInvitesInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    const db = getDb()
-
-    // Get the competition to find the competitionTeamId
-    const competition = await db
-      .select({
-        id: competitionsTable.id,
-        competitionTeamId: competitionsTable.competitionTeamId,
-      })
-      .from(competitionsTable)
-      .where(eq(competitionsTable.id, data.competitionId))
-      .limit(1)
-
-    if (!competition[0]) {
+    const session = await getSessionFromCookie()
+    const email = session?.user?.email?.toLowerCase()
+    if (!email) {
       return { invitations: [] }
     }
 
-    // Find pending invitations for this user to teams related to this competition
-    // This includes both athlete team invites and competition team invites
+    const db = getDb()
+
+    const registrations = await db
+      .select({
+        athleteTeamId: competitionRegistrationsTable.athleteTeamId,
+      })
+      .from(competitionRegistrationsTable)
+      .where(
+        and(
+          eq(competitionRegistrationsTable.eventId, data.competitionId),
+          ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+        ),
+      )
+
+    const athleteTeamIds = registrations
+      .map((r) => r.athleteTeamId)
+      .filter((id): id is string => id !== null)
+
+    if (athleteTeamIds.length === 0) {
+      return { invitations: [] }
+    }
+
+    // Find unclaimed teammate invitations for this signed-in email on this competition.
     const invitations = await db
       .select({
         id: teamInvitationTable.id,
@@ -524,14 +537,16 @@ export const getPendingTeamInvitesFn = createServerFn({ method: "GET" })
       .from(teamInvitationTable)
       .where(
         and(
-          eq(teamInvitationTable.email, data.userId), // Assuming userId is email for now
+          inArray(teamInvitationTable.teamId, athleteTeamIds),
+          eq(teamInvitationTable.email, email),
+          eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.MEMBER),
+          eq(teamInvitationTable.isSystemRole, true),
           isNull(teamInvitationTable.acceptedAt),
-          eq(teamInvitationTable.status, INVITATION_STATUS.PENDING),
+          ne(teamInvitationTable.status, INVITATION_STATUS.CANCELLED),
+          gt(teamInvitationTable.expiresAt, new Date()),
         ),
       )
 
-    // Filter to competition-related invites
-    // This is a simplified version - in production we'd join with teams and check parent organization
     return { invitations }
   })
 
@@ -673,10 +688,8 @@ export function computeRefundsByPurchase(
   refundEvents: Array<{ purchaseId: string; amountCents: number }>,
   purchaseTotals: Map<string, number>,
 ): Record<string, { refundedCents: number; totalCents: number }> {
-  const result: Record<
-    string,
-    { refundedCents: number; totalCents: number }
-  > = {}
+  const result: Record<string, { refundedCents: number; totalCents: number }> =
+    {}
   for (const event of refundEvents) {
     const totalCents = purchaseTotals.get(event.purchaseId)
     if (totalCents === undefined) continue
@@ -1025,10 +1038,7 @@ export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
           if (inv.metadata) {
             try {
               const meta = JSON.parse(inv.metadata) as Record<string, unknown>
-              if (
-                canViewPendingAnswers &&
-                Array.isArray(meta.pendingAnswers)
-              ) {
+              if (canViewPendingAnswers && Array.isArray(meta.pendingAnswers)) {
                 pendingAnswers =
                   meta.pendingAnswers as PendingTeammateInvite["pendingAnswers"]
               }
@@ -1096,7 +1106,10 @@ export const updateCompetitionRotationSettingsFn = createServerFn({
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "update_rotation_settings", competition: { id: input.competitionId } })
+    getEvlog()?.set({
+      action: "update_rotation_settings",
+      competition: { id: input.competitionId },
+    })
 
     // Update competition
     await db
@@ -1140,7 +1153,11 @@ export const updateCompetitionScoringConfigFn = createServerFn({
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "update_scoring_config", competition: { id: input.competitionId }, scoring: { algorithm: input.scoringConfig.algorithm } })
+    getEvlog()?.set({
+      action: "update_scoring_config",
+      competition: { id: input.competitionId },
+      scoring: { algorithm: input.scoringConfig.algorithm },
+    })
 
     // Parse existing settings and merge with new scoring config
     let existingSettings: Record<string, unknown> = {}
@@ -1186,7 +1203,13 @@ export const deleteCompetitionFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "delete_competition", competition: { id: input.competitionId, organizingTeamId: input.organizingTeamId } })
+    getEvlog()?.set({
+      action: "delete_competition",
+      competition: {
+        id: input.competitionId,
+        organizingTeamId: input.organizingTeamId,
+      },
+    })
 
     // Get the competition to verify it exists and get the competitionTeamId
     const competition = await db.query.competitionsTable.findFirst({
