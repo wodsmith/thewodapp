@@ -7,13 +7,14 @@ import {
   HandHeart,
   MapPin,
   Plus,
+  UserPlus,
   Users,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import type { Competition, CompetitionGroup } from "@/db/schemas/competitions"
-import type { PublicCompetitionDivision } from "@/server-fns/competition-divisions-fns"
 import type { Team } from "@/db/schemas/teams"
+import type { PublicCompetitionDivision } from "@/server-fns/competition-divisions-fns"
 import { formatDateStringFull, isSameDateString } from "@/utils/date-utils"
 import {
   DEFAULT_TIMEZONE,
@@ -122,6 +123,11 @@ interface UserRegistrationEntry {
   division: PublicCompetitionDivision | null
 }
 
+interface PendingTeamInviteEntry {
+  id: string
+  token: string
+}
+
 interface RegistrationSidebarProps {
   competition: Competition & {
     organizingTeam: Team | null
@@ -136,6 +142,7 @@ interface RegistrationSidebarProps {
   isCaptain?: boolean
   isVolunteer?: boolean
   userRegistrations?: UserRegistrationEntry[]
+  pendingTeamInvites?: PendingTeamInviteEntry[]
   session?: { userId: string } | null
   competitionCapacity?: {
     spotsAvailable: number | null
@@ -173,6 +180,7 @@ export function RegistrationSidebar({
   isCaptain,
   isVolunteer = false,
   userRegistrations = [],
+  pendingTeamInvites = [],
   session,
   competitionCapacity,
 }: RegistrationSidebarProps) {
@@ -193,6 +201,34 @@ export function RegistrationSidebar({
 
   return (
     <div className="space-y-4">
+      {pendingTeamInvites.length > 0 && !isRegistered && (
+        <Card className="border-2 border-green-500/20 bg-white/5 backdrop-blur-md">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center gap-2 text-green-600">
+              <UserPlus className="h-5 w-5" />
+              <span className="font-semibold">Team invite waiting</span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              You've been invited to join a team for this competition.
+            </p>
+            <div className="space-y-2">
+              {pendingTeamInvites.map((invite, index) => (
+                <Button asChild key={invite.id} size="lg" className="w-full">
+                  <Link
+                    to="/compete/invite/$token"
+                    params={{ token: invite.token }}
+                  >
+                    {pendingTeamInvites.length > 1
+                      ? `Accept Team Invite ${index + 1}`
+                      : "Accept Team Invite"}
+                  </Link>
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Volunteer Dashboard Button */}
       {isVolunteer && (
         <Card className="border-2 border-blue-500/20 bg-white/5 backdrop-blur-md">
@@ -243,17 +279,23 @@ export function RegistrationSidebar({
             {competitionCapacity?.isFull && (
               <div className="flex items-center gap-2 text-amber-600">
                 <AlertTriangle className="h-4 w-4" />
-                <span className="text-sm font-semibold">Competition is full</span>
-              </div>
-            )}
-            {competitionCapacity && !competitionCapacity.isFull && competitionCapacity.spotsAvailable !== null && competitionCapacity.spotsAvailable <= 5 && (
-              <div className="flex items-center gap-2 text-amber-600">
-                <Users className="h-4 w-4" />
                 <span className="text-sm font-semibold">
-                  Only {competitionCapacity.spotsAvailable} spot{competitionCapacity.spotsAvailable === 1 ? '' : 's'} left!
+                  Competition is full
                 </span>
               </div>
             )}
+            {competitionCapacity &&
+              !competitionCapacity.isFull &&
+              competitionCapacity.spotsAvailable !== null &&
+              competitionCapacity.spotsAvailable <= 5 && (
+                <div className="flex items-center gap-2 text-amber-600">
+                  <Users className="h-4 w-4" />
+                  <span className="text-sm font-semibold">
+                    Only {competitionCapacity.spotsAvailable} spot
+                    {competitionCapacity.spotsAvailable === 1 ? "" : "s"} left!
+                  </span>
+                </div>
+              )}
 
             {/* Register Button */}
             {!competitionCapacity?.isFull && (
@@ -490,7 +532,6 @@ export function RegistrationSidebar({
           </div>
         </CardContent>
       </Card>
-
     </div>
   )
 }
