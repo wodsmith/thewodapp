@@ -13,7 +13,10 @@ import { JsonLd } from "@/components/json-ld"
 import { getAppUrlFn } from "@/lib/env"
 import { trackEvent } from "@/lib/posthog"
 import { cohostGetPermissionsFn } from "@/server-fns/cohost/cohost-competition-fns"
-import { getUserCompetitionRegistrationsFn } from "@/server-fns/competition-detail-fns"
+import {
+  getPendingTeamInvitesFn,
+  getUserCompetitionRegistrationsFn,
+} from "@/server-fns/competition-detail-fns"
 import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import { getCouponByCodeFn } from "@/server-fns/coupon-fns"
@@ -88,6 +91,7 @@ export const Route = createFileRoute("/compete/$slug")({
       sponsorsResult,
       organizerContactEmail,
       userRegsResult,
+      pendingTeamInvitesResult,
       judgesScheduleResult,
       cohostPermissions,
     ] = await Promise.all([
@@ -108,6 +112,13 @@ export const Route = createFileRoute("/compete/$slug")({
             },
           })
         : Promise.resolve({ registrations: [] }),
+      session?.user?.email
+        ? getPendingTeamInvitesFn({
+            data: {
+              competitionId: competition.id,
+            },
+          })
+        : Promise.resolve({ invitations: [] }),
       hasJudgesScheduleFn({
         data: { competitionId: competition.id },
       }),
@@ -157,6 +168,7 @@ export const Route = createFileRoute("/compete/$slug")({
       divisions,
       competitionCapacity,
       sponsors,
+      pendingTeamInvites: pendingTeamInvitesResult.invitations,
       userDivision,
       userDivisions,
       maxSpots: undefined as number | undefined,
