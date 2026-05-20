@@ -14,19 +14,14 @@ import type { KVSession } from "@/utils/kv-session"
 
 /**
  * Extract cohost permissions for a given competition team.
- * Checks session teams for cohost role, then queries DB for metadata
- * (session teams don't include the metadata field).
+ * Queries the DB directly because session.teams can be stale immediately after
+ * invite acceptance. The DB membership is the source of truth.
  * Returns null if user is not a cohost on that team.
  */
 export async function getCohostPermissions(
   session: KVSession,
   competitionTeamId: string,
 ): Promise<CohostMembershipMetadata | null> {
-  const team = session.teams?.find(
-    (t) => t.id === competitionTeamId && t.role.id === "cohost",
-  )
-  if (!team) return null
-
   const db = getDb()
   const membership = await db.query.teamMembershipTable.findFirst({
     where: and(
@@ -34,6 +29,7 @@ export async function getCohostPermissions(
       eq(teamMembershipTable.userId, session.userId),
       eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.COHOST),
       eq(teamMembershipTable.isSystemRole, true),
+      eq(teamMembershipTable.isActive, true),
     ),
     columns: { metadata: true },
   })
