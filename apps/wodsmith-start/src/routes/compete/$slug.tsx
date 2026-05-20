@@ -12,6 +12,7 @@ import { CouponBanner } from "@/components/coupon-banner"
 import { JsonLd } from "@/components/json-ld"
 import { getAppUrlFn } from "@/lib/env"
 import { trackEvent } from "@/lib/posthog"
+import { cohostGetPermissionsFn } from "@/server-fns/cohost/cohost-competition-fns"
 import {
   getPendingTeamInvitesFn,
   getUserCompetitionRegistrationsFn,
@@ -74,15 +75,6 @@ export const Route = createFileRoute("/compete/$slug")({
         )
       : false
 
-    // Compute isCohost from session (no DB query needed)
-    const isCohost =
-      session && competition.competitionTeamId
-        ? !!session.teams?.some(
-            (t) =>
-              t.id === competition.competitionTeamId && t.role.id === "cohost",
-          )
-        : false
-
     // Compute isVolunteer from session (no DB query needed)
     const isVolunteer =
       session && competition.competitionTeamId
@@ -101,6 +93,7 @@ export const Route = createFileRoute("/compete/$slug")({
       userRegsResult,
       pendingTeamInvitesResult,
       judgesScheduleResult,
+      cohostPermissions,
     ] = await Promise.all([
       getPublicCompetitionDivisionsFn({
         data: { competitionId: competition.id },
@@ -129,12 +122,18 @@ export const Route = createFileRoute("/compete/$slug")({
       hasJudgesScheduleFn({
         data: { competitionId: competition.id },
       }),
+      session && competition.competitionTeamId
+        ? cohostGetPermissionsFn({
+            data: { competitionTeamId: competition.competitionTeamId },
+          }).catch(() => null)
+        : Promise.resolve(null),
     ])
 
     const divisions = divisionsResult.divisions
     const competitionCapacity = divisionsResult.competitionCapacity ?? null
     const sponsors = sponsorsResult
     const userRegistrations = userRegsResult.registrations
+    const isCohost = !!cohostPermissions
 
     // Backward compatibility: first registration
     const userRegistration = userRegistrations[0] ?? null
@@ -226,7 +225,7 @@ function CompetitionDetailLayout() {
   const { coupon: couponCode } = Route.useSearch()
   const navigate = useNavigate()
 
-  const hasBanner = !!competition.bannerImageUrl
+  const bannerImageUrl = competition.bannerImageUrl
   const profileImage =
     competition.profileImageUrl ?? competition.organizingTeam?.avatarUrl
 
@@ -322,7 +321,7 @@ function CompetitionDetailLayout() {
       <JsonLd data={sportsEventSchema} />
       <JsonLd data={breadcrumbSchema} />
       {/* Full-bleed banner - absolutely positioned to extend behind the glass card */}
-      {hasBanner && (
+      {bannerImageUrl && (
         <div className="absolute left-1/2 top-0 h-[16rem] w-screen -translate-x-1/2 md:h-[20rem] lg:h-[22rem] print:hidden">
           {/* Profile image on mobile for better portrait fit */}
           {profileImage && (
@@ -334,7 +333,7 @@ function CompetitionDetailLayout() {
           )}
           {/* Banner image on desktop (or all screens if no profile image) */}
           <img
-            src={competition.bannerImageUrl!}
+            src={bannerImageUrl}
             alt=""
             className={`absolute inset-0 h-full w-full object-cover ${profileImage ? "hidden md:block" : ""}`}
           />
