@@ -58,6 +58,8 @@ CRM deploys through its own GitHub Actions workflow so app changes do not depend
 
 `.github/workflows/deploy-crm.yml` triggers on pushes to `main` that touch `apps/crm/**` or the workflow itself, and can also be run manually. It deploys `apps/crm` with Alchemy using `pnpm run crm-deploy`, binding the production app to `https://crm.wodsmith.com`.
 
+The CRM deploy workflow pins Bun to match the main WODsmith deploy workflow, avoiding unverified runtime updates during Alchemy deployment.
+
 ### packages
 
 Shared packages consumed by apps.
