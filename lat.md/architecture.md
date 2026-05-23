@@ -61,6 +61,8 @@ CRM deploys through its own GitHub Actions workflow so app changes do not depend
 
 The CRM deploy workflow pins Bun to match the main WODsmith deploy workflow, avoiding unverified runtime updates during Alchemy deployment.
 
+CRM pins `react` and `react-dom` to identical exact versions because Cloudflare Worker upload validation rejects bundles with mismatched React package versions.
+
 ### packages
 
 Shared packages consumed by apps.
