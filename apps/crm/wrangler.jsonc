@@ -31,11 +31,5 @@
 			"binding": "R2_BUCKET",
 			"bucket_name": "crm-files"
 		}
-	],
-	"hyperdrive": [
-		{
-			"binding": "HYPERDRIVE",
-			"id": "placeholder-set-after-deploy"
-		}
 	]
 }

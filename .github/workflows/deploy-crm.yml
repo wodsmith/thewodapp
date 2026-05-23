@@ -54,6 +54,5 @@ jobs:
           ALCHEMY_PASSWORD: ${{ secrets.ALCHEMY_PASSWORD }}
           ALCHEMY_STATE_TOKEN: ${{ secrets.ALCHEMY_STATE_TOKEN }}
           APP_URL: https://crm.wodsmith.com
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           CRM_AUTH_PASSWORD: ${{ secrets.CRM_AUTH_PASSWORD }}
           CRM_SESSION_SECRET: ${{ secrets.CRM_SESSION_SECRET }}
