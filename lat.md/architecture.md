@@ -32,6 +32,32 @@ The primary web application containing all user-facing functionality.
 - `src/schemas/` — Zod validation schemas for forms and API inputs
 - `src/workflows/` — Multi-step business processes (registration, checkout)
 
+### apps/crm
+
+The CRM app is a separate TanStack Start application shell for future customer relationship workflows.
+
+It keeps its own Cloudflare Worker, D1 database, R2 bucket, and Hyperdrive binding so CRM-specific data and files can evolve independently. The copied Ledger document, invoice, and financial-event surfaces were removed during the initial cleanup.
+
+#### CRM D1 Schema
+
+The CRM D1 schema mirrors the OpenClaw workspace object model using typed metadata tables plus EAV entry values.
+
+The schema defines objects, fields, entries, entry fields, entry relations, statuses, and documents in [[apps/crm/src/db/schema.ts]]. IDs are generated as 32-character nanoid-compatible strings in Drizzle runtime defaults. JSON-like field metadata is stored in D1 text columns, and timestamps use SQLite `CURRENT_TIMESTAMP` text defaults.
+
+Relation fields keep their metadata in `fields`, while normalized links live in `entry_relations`. This preserves EAV compatibility and gives many-to-one or many-to-many CRM relationships a queryable table.
+
+#### CRM Local Seed
+
+The CRM local seed imports OpenClaw workspace data into the app's local D1 database for development.
+
+`pnpm --filter crm db:seed:local` runs `apps/crm/scripts/seed-local-d1-from-duckdb.mjs`, which reads the OpenClaw DuckDB workspace, reapplies CRM D1 migrations, imports objects, fields, entries, field values, statuses, and documents, then derives normalized entry relations from relation fields.
+
+#### CRM Deployment
+
+CRM deploys through its own GitHub Actions workflow so app changes do not depend on the main WODsmith deploy path.
+
+`.github/workflows/deploy-crm.yml` triggers on pushes to `main` that touch `apps/crm/**` or the workflow itself, and can also be run manually. It deploys `apps/crm` with Alchemy using `pnpm run crm-deploy`, binding the production app to `https://crm.wodsmith.com`.
+
 ### packages
 
 Shared packages consumed by apps.
