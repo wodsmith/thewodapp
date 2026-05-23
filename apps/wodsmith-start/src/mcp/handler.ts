@@ -29,8 +29,8 @@ async function handleMcpRequest(
     enableJsonResponse: true,
   })
   const server = createMcpServer(props)
-  await server.connect(transport)
   try {
+    await server.connect(transport)
     return await transport.handleRequest(request)
   } finally {
     // Release the transport so the server doesn't hold onto a closed stream.

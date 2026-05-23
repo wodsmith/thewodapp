@@ -9,7 +9,7 @@ The MCP server is hosted in the same Cloudflare Worker as the rest of [[architec
 The provider intercepts the worker `fetch` and routes paths to:
 
 - `/mcp` — Streamable HTTP MCP endpoint. With a valid bearer token the request reaches [[apps/wodsmith-start/src/mcp/handler.ts#mcpApiHandler]] with `ctx.props` populated. Without a token it falls through the OAuth provider's defaultHandler, where `fetchWithLogging` in [[apps/wodsmith-start/src/server.ts]] hands it to [[apps/wodsmith-start/src/mcp/handler.ts#handleAnonymousMcpRequest]] so anonymous public browsing still works.
-- `/oauth/authorize` — Consent UI implemented in [[apps/wodsmith-start/src/routes/oauth/authorize.tsx]]. Reuses the existing cookie session; unauthenticated visitors are redirected to `/sign-in` and back.
+- `/oauth/authorize` — Consent UI implemented in [[apps/wodsmith-start/src/routes/oauth/authorize.tsx]]. Reuses the existing cookie session; unauthenticated visitors are redirected to `/sign-in` and back. Denials only redirect to the client's registered redirect URI.
 - `/oauth/token`, `/oauth/register`, `/.well-known/oauth-authorization-server`, `/.well-known/oauth-protected-resource` — Implemented by `@cloudflare/workers-oauth-provider` itself. Dynamic Client Registration is enabled so clients like Claude Desktop can self-register.
 
 The OAuth provider is wired in [[apps/wodsmith-start/src/server.ts]], wrapping the Sentry handler and the TanStack Start default handler.

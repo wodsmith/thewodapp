@@ -126,7 +126,17 @@ function AuthorizePage() {
       router.navigate({ to: "/" })
       return
     }
-    const url = new URL(redirectUri)
+    let url: URL
+    try {
+      url = new URL(redirectUri)
+    } catch {
+      router.navigate({ to: "/" })
+      return
+    }
+    if (!consent.client.redirectUris.includes(redirectUri)) {
+      router.navigate({ to: "/" })
+      return
+    }
     url.searchParams.set("error", "access_denied")
     if (search.state) url.searchParams.set("state", search.state)
     window.location.href = url.toString()
