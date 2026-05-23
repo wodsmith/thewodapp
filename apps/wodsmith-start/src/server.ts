@@ -27,6 +27,7 @@ import {
   logWarning,
   withRequestContext,
 } from "./lib/logging"
+import { runWithOAuthHelpers } from "./lib/oauth-context"
 import { getSentryOptions } from "./lib/sentry/server"
 import { handleAnonymousMcpRequest, mcpApiHandler } from "./mcp/handler"
 import { ALL_MCP_SCOPES } from "./mcp/scopes"
@@ -255,7 +256,15 @@ const defaultHandler = {
     env: unknown,
     ctx: ExecutionContext,
   ): Promise<Response> {
-    return fetchWithLogging(request, env as Env, ctx)
+    // The OAuth provider mutates `env` to add `OAUTH_PROVIDER` before calling
+    // us — capture it here so server functions can read it via AsyncLocalStorage
+    // (it's not visible through `cloudflare:workers`'s env import).
+    const helpers = (env as { OAUTH_PROVIDER?: unknown }).OAUTH_PROVIDER as
+      | import("@cloudflare/workers-oauth-provider").OAuthHelpers
+      | undefined
+    return runWithOAuthHelpers(helpers, () =>
+      fetchWithLogging(request, env as Env, ctx),
+    )
   },
 }
 

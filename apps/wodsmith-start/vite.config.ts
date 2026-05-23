@@ -17,7 +17,7 @@ const config = defineConfig({
         path: "./.alchemy/local/.wrangler/state",
       },
     }),
-    devtools(),
+    devtools({ eventBusConfig: { port: 41000 } }),
     // this is the plugin that enables path aliases
     viteTsConfigPaths({
       projects: ["./tsconfig.json"],

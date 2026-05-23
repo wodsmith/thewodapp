@@ -10,7 +10,13 @@ import "server-only"
 import { and, asc, desc, eq, inArray } from "drizzle-orm"
 import { getDb } from "@/db"
 import { competitionsTable } from "@/db/schemas/competitions"
-import { teamTable } from "@/db/schemas/teams"
+import {
+  SYSTEM_ROLES_ENUM,
+  TEAM_PERMISSIONS,
+  teamRoleTable,
+  teamTable,
+} from "@/db/schemas/teams"
+import { ROLES_ENUM, userTable } from "@/db/schemas/users"
 
 /**
  * Subset of competition fields that the MCP server exposes to clients. The
@@ -106,23 +112,25 @@ export async function getPublicCompetitionBySlug(
 
 /**
  * Competitions the user organizes — any visibility, any status (draft included).
- * "Organizes" means the user is a member of the organizing team. Today we
- * approximate this by matching the user's personal team and any team they
- * belong to; for v1 we keep it permissive and just match on team membership.
- *
- * For the demo MCP server we use a simpler rule: return competitions where
- * `organizingTeamId` is in the set of teams the user belongs to.
+ * "Organizes" matches the app's organizer surfaces: site admins can see all
+ * competitions, and team users need an active membership with
+ * `manage_competitions` permission on the organizing team.
  */
 export async function listOrganizerCompetitionsForUser(
   userId: string,
 ): Promise<McpCompetitionSummary[]> {
   const db = getDb()
 
-  const memberships = await db.query.teamMembershipTable.findMany({
-    where: (m, { eq: eqOp }) => eqOp(m.userId, userId),
-    columns: { teamId: true },
-  })
-  const teamIds = memberships.map((m) => m.teamId)
+  const teamIds = await listOrganizerTeamIdsForUser(userId)
+  if (teamIds === "all") {
+    const rows = await db
+      .select(competitionColumns)
+      .from(competitionsTable)
+      .leftJoin(teamTable, eq(competitionsTable.organizingTeamId, teamTable.id))
+      .orderBy(desc(competitionsTable.startDate))
+
+    return rows.map(toSummary)
+  }
   if (teamIds.length === 0) return []
 
   const rows = await db
@@ -145,12 +153,8 @@ export async function getOrganizerCompetitionBySlug(
 ): Promise<McpCompetitionSummary | null> {
   const db = getDb()
 
-  const memberships = await db.query.teamMembershipTable.findMany({
-    where: (m, { eq: eqOp }) => eqOp(m.userId, userId),
-    columns: { teamId: true },
-  })
-  const teamIds = new Set(memberships.map((m) => m.teamId))
-  if (teamIds.size === 0) return null
+  const teamIds = await listOrganizerTeamIdsForUser(userId)
+  if (teamIds !== "all" && teamIds.length === 0) return null
 
   const rows = await db
     .select(competitionColumns)
@@ -161,8 +165,72 @@ export async function getOrganizerCompetitionBySlug(
 
   const row = rows[0]
   if (!row) return null
-  if (!teamIds.has(row.organizingTeamId)) return null
+  if (teamIds !== "all" && !teamIds.includes(row.organizingTeamId)) return null
   return toSummary(row)
+}
+
+type OrganizerTeamIds = "all" | string[]
+
+async function listOrganizerTeamIdsForUser(
+  userId: string,
+): Promise<OrganizerTeamIds> {
+  const db = getDb()
+
+  const user = await db.query.userTable.findFirst({
+    where: eq(userTable.id, userId),
+    columns: { role: true },
+  })
+  if (user?.role === ROLES_ENUM.ADMIN) return "all"
+
+  const memberships = await db.query.teamMembershipTable.findMany({
+    where: (m, { and: andOp, eq: eqOp }) =>
+      andOp(eqOp(m.userId, userId), eqOp(m.isActive, true)),
+    columns: {
+      teamId: true,
+      roleId: true,
+      isSystemRole: true,
+    },
+  })
+  if (memberships.length === 0) return []
+
+  const organizerTeamIds = new Set<string>()
+  const customRoleIds = memberships
+    .filter((m) => !m.isSystemRole)
+    .map((m) => m.roleId)
+
+  const customRoles =
+    customRoleIds.length > 0
+      ? await db.query.teamRoleTable.findMany({
+          where: inArray(teamRoleTable.id, customRoleIds),
+          columns: {
+            id: true,
+            permissions: true,
+          },
+        })
+      : []
+  const customRolePermissions = new Map(
+    customRoles.map((role) => [role.id, role.permissions]),
+  )
+
+  for (const membership of memberships) {
+    if (
+      membership.isSystemRole &&
+      (membership.roleId === SYSTEM_ROLES_ENUM.OWNER ||
+        membership.roleId === SYSTEM_ROLES_ENUM.ADMIN)
+    ) {
+      organizerTeamIds.add(membership.teamId)
+      continue
+    }
+
+    if (!membership.isSystemRole) {
+      const permissions = customRolePermissions.get(membership.roleId) ?? []
+      if (permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS)) {
+        organizerTeamIds.add(membership.teamId)
+      }
+    }
+  }
+
+  return [...organizerTeamIds]
 }
 
 function toSummary(

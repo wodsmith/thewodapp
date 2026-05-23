@@ -2,7 +2,7 @@
 
 WODsmith exposes its public and organizer competition data over the Model Context Protocol (MCP) so AI clients can browse events without scraping the web UI.
 
-The MCP server is hosted in the same Cloudflare Worker as the rest of [[architecture#apps/wodsmith-start]] and is fronted by the Cloudflare workers-oauth-provider so authenticated requests can target an individual user's competitions.
+The MCP server is hosted in the same Cloudflare Worker as the rest of [[architecture#Monorepo Structure#apps/wodsmith-start]] and is fronted by the Cloudflare workers-oauth-provider so authenticated requests can target an individual user's competitions.
 
 ## Endpoints
 
@@ -13,6 +13,8 @@ The provider intercepts the worker `fetch` and routes paths to:
 - `/oauth/token`, `/oauth/register`, `/.well-known/oauth-authorization-server`, `/.well-known/oauth-protected-resource` — Implemented by `@cloudflare/workers-oauth-provider` itself. Dynamic Client Registration is enabled so clients like Claude Desktop can self-register.
 
 The OAuth provider is wired in [[apps/wodsmith-start/src/server.ts]], wrapping the Sentry handler and the TanStack Start default handler.
+
+The provider attaches its helpers to the `env` arg it passes into `defaultHandler.fetch`. That mutation is not visible through `import { env } from "cloudflare:workers"`, so the consent route's server fns can't read it from the global env. [[apps/wodsmith-start/src/lib/oauth-context.ts]] captures the helpers in AsyncLocalStorage at the handler boundary and [[apps/wodsmith-start/src/server-fns/oauth-fns.ts]] reads them back via `getOAuthHelpersFromContext()`.
 
 ## Scopes
 
@@ -43,7 +45,7 @@ Requires a bearer token whose grant includes the appropriate scope.
 - Tool `list_competitions` with `scope=organizer` — requires `events:list`.
 - Tool `get_competition` with `scope=organizer` — requires `events:read`.
 
-A user "organizes" a competition when the competition's `organizingTeamId` matches one of the teams the user is a member of. See [[apps/wodsmith-start/src/mcp/data.ts#listOrganizerCompetitionsForUser]].
+A user "organizes" a competition when they are a site admin or have an active organizing-team membership with `manage_competitions` permission. See [[apps/wodsmith-start/src/mcp/data.ts#listOrganizerCompetitionsForUser]].
 
 ## Storage
 

@@ -6,41 +6,15 @@
  * provider). Splitting this into its own module keeps the consent route lean.
  */
 
-import { env } from "cloudflare:workers"
+import type { OAuthHelpers } from "@cloudflare/workers-oauth-provider"
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
+import { getOAuthHelpersFromContext } from "@/lib/oauth-context"
 import { ALL_MCP_SCOPES, MCP_SCOPES, type McpScope } from "@/mcp/scopes"
 import { getSessionFromCookie } from "@/utils/auth"
 
-type OAuthHelpers = {
-  parseAuthRequest(request: Request): Promise<{
-    responseType: string
-    clientId: string
-    redirectUri: string
-    scope: string[]
-    state: string
-    codeChallenge?: string
-    codeChallengeMethod?: string
-  }>
-  lookupClient(clientId: string): Promise<{
-    clientId: string
-    clientName?: string
-    logoUri?: string
-    clientUri?: string
-    redirectUris: string[]
-  } | null>
-  completeAuthorization(options: {
-    request: unknown
-    userId: string
-    metadata: unknown
-    scope: string[]
-    props: unknown
-  }): Promise<{ redirectTo: string }>
-}
-
 function getOAuthProvider(): OAuthHelpers {
-  const provider = (env as unknown as { OAUTH_PROVIDER?: OAuthHelpers })
-    .OAUTH_PROVIDER
+  const provider = getOAuthHelpersFromContext()
   if (!provider) {
     throw new Error(
       "OAUTH_PROVIDER helpers are not available — this route must be served through the OAuth provider's defaultHandler.",
@@ -137,9 +111,13 @@ export const completeAuthorizeFn = createServerFn({ method: "POST" })
     const req = new Request(data.authorizeUrl)
     const parsed = await provider.parseAuthRequest(req)
 
-    // Defensive double-check: only grant scopes we actually support.
+    // Defensive double-check: only grant scopes that are both supported and
+    // present in the original client request.
     const supportedSet = new Set<string>(ALL_MCP_SCOPES)
-    const safeScopes = data.grantedScopes.filter((s) => supportedSet.has(s))
+    const requestedSet = new Set<string>(parsed.scope)
+    const safeScopes = data.grantedScopes.filter(
+      (s) => supportedSet.has(s) && requestedSet.has(s),
+    )
 
     const { redirectTo } = await provider.completeAuthorization({
       request: parsed,
