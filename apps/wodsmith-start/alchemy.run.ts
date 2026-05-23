@@ -254,6 +254,27 @@ const psPassword = await PlanetScalePassword(`ps-password-${stage}`, {
   role: "admin",
 })
 
+const ciDatabaseUrl = process.env.DATABASE_URL
+  ? new URL(process.env.DATABASE_URL)
+  : undefined
+const hyperdriveOrigin = ciDatabaseUrl
+  ? {
+      host: ciDatabaseUrl.hostname,
+      database: ciDatabaseUrl.pathname.slice(1),
+      user: decodeURIComponent(ciDatabaseUrl.username),
+      password: decodeURIComponent(ciDatabaseUrl.password),
+      port: ciDatabaseUrl.port ? Number(ciDatabaseUrl.port) : 3306,
+      scheme: "mysql" as const,
+    }
+  : {
+      host: psPassword.host,
+      database: psDbName,
+      user: psPassword.username,
+      password: psPassword.password.unencrypted,
+      port: 3306,
+      scheme: "mysql" as const,
+    }
+
 /**
  * Cloudflare Hyperdrive for PlanetScale connection pooling and caching.
  *
@@ -266,14 +287,10 @@ const psPassword = await PlanetScalePassword(`ps-password-${stage}`, {
  * which exposes a `connectionString` for use with standard MySQL drivers (mysql2).
  */
 const hyperdrive = await Hyperdrive(`hyperdrive-${stage}`, {
-  origin: {
-    host: psPassword.host,
-    database: psDbName,
-    user: psPassword.username,
-    password: psPassword.password.unencrypted,
-    port: 3306,
-    scheme: "mysql",
-  },
+  // CI creates a fresh PlanetScale branch password before deploy and verifies it
+  // with drizzle-kit. Prefer that URL so stale Alchemy password state cannot
+  // make Cloudflare reject Hyperdrive updates during credential validation.
+  origin: hyperdriveOrigin,
   caching: {
     disabled: true,
   },
