@@ -4,7 +4,7 @@
  * Builds on a base template with optional place-specific overrides.
  * Supports two base templates:
  * - traditional: Fixed step deduction
- * - winner_takes_more: Front-loaded points table (like CrossFit Games)
+ * - winner_takes_more: Front-loaded points table (like Functional Fitness Games)
  *
  * Note: P-Score cannot be used as a base template because it calculates
  * points dynamically based on performance gaps, not static positions.

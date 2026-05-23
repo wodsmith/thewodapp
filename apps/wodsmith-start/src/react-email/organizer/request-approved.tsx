@@ -18,7 +18,7 @@ interface OrganizerRequestApprovedEmailProps {
 }
 
 export const OrganizerRequestApprovedEmail = ({
-  teamName = "CrossFit Downtown",
+  teamName = "Functional Fitness Downtown",
   recipientName = "John",
   dashboardLink = "https://example.com/compete/organizer",
   adminNotes,
@@ -73,7 +73,7 @@ export const OrganizerRequestApprovedEmail = ({
 }
 
 OrganizerRequestApprovedEmail.PreviewProps = {
-  teamName: "CrossFit Downtown",
+  teamName: "Functional Fitness Downtown",
   recipientName: "John",
   dashboardLink: "https://example.com/compete/organizer",
   adminNotes:

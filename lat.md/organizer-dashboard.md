@@ -162,6 +162,16 @@ Assigns judges to heats with rotation patterns so judges move between lanes acro
 
 Fetches heats, events, judge volunteers, rotations, heat assignments, and version history. Uses the `JudgeSchedulingContainer` component tree (rotation editor, timeline, overview, publish button). Supports rotation patterns: stay, shift right, random. Judge assignment versions allow publishing/reverting schedules. The "adjust for occupied lanes" feature (`adjustRotationsForOccupiedLanesFn`) splits rotations to skip unoccupied lanes; cohost routes use `cohostAdjustRotationsForOccupiedLanesFn` via the `onAdjustRotationsForOccupiedLanes` override prop on `RotationTimeline`.
 
+### AI Judge Scheduling
+
+Optional AI-augmented entry point that proposes judge rotations for organizer review.
+
+The page lives at `/compete/organizer/$competitionId/judges-ai` and is backed by the [[apps/wodsmith-start/src/agents/judge-scheduler-agent.ts#JudgeSchedulerAgent]] Cloudflare Agent (Durable Object) running `@cf/moonshotai/kimi-k2.5` through Cloudflare AI Gateway. Each proposal streams to the page over a WebSocket as the LLM emits it; soft-rule violations (e.g. morning judge scheduled past noon) are surfaced as `confidence='low'` with explicit reasons.
+
+Accepted proposals write to `competition_judge_rotations` via [[apps/wodsmith-start/src/server-fns/judge-scheduler-ai-fns.ts#applyAiProposalsFn]], which revalidates organizer access, workout ownership, judge roster membership, hard lane/heat rules, and slot overlaps. The organizer still publishes through the standard timeline so versioning stays in one place.
+
+Gated by the `ai_judge_scheduling` feature (see [[apps/wodsmith-start/src/config/features.ts#FEATURES]] → `AI_JUDGE_SCHEDULING`). Teams without the entitlement see a paywall card instead of the scheduling UI. Admins can grant it manually from the platform admin entitlements panel.
+
 ### Volunteer Registration Rules
 
 Custom registration questions targeted at volunteers (separate from athlete registration questions).

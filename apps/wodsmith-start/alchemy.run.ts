@@ -88,6 +88,9 @@
 
 import alchemy from "alchemy"
 import {
+  Ai,
+  AiGateway,
+  DurableObjectNamespace,
   Hyperdrive,
   KVNamespace,
   Queue,
@@ -95,11 +98,11 @@ import {
   TanStackStart,
   Workflow,
 } from "alchemy/cloudflare"
-import { CloudflareStateStore } from "alchemy/state"
 import {
   Branch as PlanetScaleBranch,
   Password as PlanetScalePassword,
 } from "alchemy/planetscale"
+import { CloudflareStateStore } from "alchemy/state"
 import { WebhookEndpoint } from "alchemy/stripe"
 
 /**
@@ -275,9 +278,9 @@ const hyperdrive = await Hyperdrive(`hyperdrive-${stage}`, {
     disabled: true,
   },
   adopt: true,
-  // Local dev: connect directly to PlanetScale (bypassing Hyperdrive pooling)
+  // Local dev: connect via `pscale connect` proxy on localhost:3306
   dev: {
-    origin: `mysql://${psPassword.username}:${psPassword.password.unencrypted}@${psPassword.host}:3306/${psDbName}?sslaccept=strict`,
+    origin: `mysql://root@localhost:3306/${psDbName}`,
   },
 })
 
@@ -492,6 +495,58 @@ const manualRegistrationWorkflow = Workflow(
 )
 
 /**
+ * Durable Object namespace for the AI judge-scheduling agent.
+ *
+ * Each scheduling session is keyed by `${trackWorkoutId}:${userId}` so an
+ * organizer reconnecting (e.g. tab refresh) reattaches to the same Agent
+ * instance and resumes the in-flight stream of proposals.
+ *
+ * @see src/agents/judge-scheduler-agent.ts
+ */
+const judgeSchedulerAgent = DurableObjectNamespace("judge-scheduler-agent", {
+  className: "JudgeSchedulerAgent",
+  sqlite: true,
+})
+
+/**
+ * Cloudflare Workers AI binding for built-in LLM inference.
+ *
+ * Currently used by the judge-scheduling agent to call
+ * `@cf/moonshotai/kimi-k2.5` via the `workers-ai-provider` AI SDK adapter.
+ * Adding new AI features? Reuse this binding — there's no per-feature cost
+ * beyond Workers AI's pay-per-request pricing.
+ */
+const aiBinding = Ai()
+
+/**
+ * Cloudflare AI Gateway in front of all AI traffic.
+ *
+ * Routes Workers AI (and other providers via the unified adapter) through
+ * a managed gateway that adds:
+ * - Request/response logging and analytics in the CF dashboard
+ * - Optional caching (off by default — agent traffic is rarely identical)
+ * - Optional rate limiting per-key for future cost control
+ * - A single observability surface across providers if/when we mix
+ *   Workers AI with OpenAI/Anthropic/etc via `ai-gateway-provider`.
+ *
+ * For `dev` we skip the IaC-managed resource — the AI Gateway API requires
+ * an API token (not the OAuth/wrangler login) and many devs won't have one
+ * configured. Local dev points at a manually-created `wodsmith-gateway`
+ * instead via `CF_AIG_GATEWAY` below.
+ *
+ * @see src/agents/judge-scheduler-agent.ts
+ */
+const aiGateway =
+  stage === "dev"
+    ? undefined
+    : await AiGateway(`ai-gateway-${stage}`, {
+        gatewayName: `wodsmith-${stage}`,
+        collectLogs: true,
+        cacheTtl: 0,
+      })
+const aiGatewayName = aiGateway?.id ?? "wodsmith-gateway"
+
+/**
  * Cloudflare Queue for async broadcast email delivery.
  *
  * When an organizer sends a broadcast, recipient batches are enqueued here.
@@ -581,6 +636,26 @@ const website = await TanStackStart("app", {
     MANUAL_REGISTRATION_WORKFLOW: manualRegistrationWorkflow,
     /** Queue for async broadcast email delivery */
     BROADCAST_EMAIL_QUEUE: broadcastEmailQueue,
+    /** Durable Object namespace for the AI judge-scheduling agent */
+    JUDGE_SCHEDULER_AGENT: judgeSchedulerAgent,
+    /** Cloudflare Workers AI binding for LLM inference */
+    AI: aiBinding,
+    /**
+     * AI Gateway identifiers — the agent uses `ai-gateway-provider` to
+     * route Workers AI traffic through the managed gateway above so we
+     * get logs, analytics, and a single switchboard for adding non-CF
+     * providers later.
+     */
+    // Cloudflare account id — defaults to the wodsmith production
+    // account if `CLOUDFLARE_ACCOUNT_ID` isn't set in the deploy env.
+    // Pulling from env lets forks / new deploys target their own
+    // Cloudflare account without code changes.
+    CF_ACCOUNT_ID:
+      process.env.CLOUDFLARE_ACCOUNT_ID ??
+      "317fb84f366ea1ab038ca90000953697",
+    CF_AIG_GATEWAY: aiGatewayName,
+    /** CF API token with AI Gateway run permission. Required by the gateway provider. */
+    CF_AIG_TOKEN: alchemy.secret(process.env.CF_AIG_TOKEN!),
 
     // App configuration
     // biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time

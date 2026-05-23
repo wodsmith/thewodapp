@@ -178,7 +178,7 @@ describe("Video Validation Server Functions", () => {
 
 			it("validates Vimeo group URL", async () => {
 				const result = await validateVideoUrlFn({
-					data: { url: "https://vimeo.com/groups/crossfit/videos/123456789" },
+					data: { url: "https://vimeo.com/groups/functional-fitness/videos/123456789" },
 				})
 				expect(result.isValid).toBe(true)
 				expect(result.videoId).toBe("123456789")

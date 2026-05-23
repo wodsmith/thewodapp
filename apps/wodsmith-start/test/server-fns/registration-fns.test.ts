@@ -301,7 +301,7 @@ describe('registration-fns', () => {
             data: {
               registrationId: testRegistrationId,
               userId: registeredUserId,
-              affiliateName: 'CrossFit Canvas',
+              affiliateName: 'Functional Fitness Canvas',
             },
           }),
         ).rejects.toThrow('Unauthorized')
@@ -317,7 +317,7 @@ describe('registration-fns', () => {
             data: {
               registrationId: testRegistrationId,
               userId: 'different-user-id',
-              affiliateName: 'CrossFit Canvas',
+              affiliateName: 'Functional Fitness Canvas',
             },
           }),
         ).rejects.toThrow('You can only update your own affiliate')
@@ -337,7 +337,7 @@ describe('registration-fns', () => {
             data: {
               registrationId: testRegistrationId,
               userId: unauthorizedUserId,
-              affiliateName: 'CrossFit Canvas',
+              affiliateName: 'Functional Fitness Canvas',
             },
           }),
         ).rejects.toThrow('You must be a team member to update your affiliate')
@@ -350,7 +350,7 @@ describe('registration-fns', () => {
           data: {
             registrationId: testRegistrationId,
             userId: registeredUserId,
-            affiliateName: 'CrossFit Canvas',
+            affiliateName: 'Functional Fitness Canvas',
           },
         })
 
@@ -370,7 +370,7 @@ describe('registration-fns', () => {
           data: {
             registrationId: mockTeamRegistration.id,
             userId: teamMemberUserId,
-            affiliateName: 'CrossFit Portland',
+            affiliateName: 'Functional Fitness Portland',
           },
         })
 
@@ -386,7 +386,7 @@ describe('registration-fns', () => {
           data: {
             registrationId: testRegistrationId,
             userId: registeredUserId,
-            affiliateName: 'CrossFit Canvas',
+            affiliateName: 'Functional Fitness Canvas',
           },
         })
 
@@ -440,7 +440,7 @@ describe('registration-fns', () => {
           data: {
             registrationId: testRegistrationId,
             userId: registeredUserId,
-            affiliateName: 'CrossFit Canvas',
+            affiliateName: 'Functional Fitness Canvas',
           },
         })
 
@@ -457,7 +457,7 @@ describe('registration-fns', () => {
             data: {
               registrationId: 'nonexistent',
               userId: registeredUserId,
-              affiliateName: 'CrossFit Canvas',
+              affiliateName: 'Functional Fitness Canvas',
             },
           }),
         ).rejects.toThrow('Registration not found')
@@ -953,7 +953,7 @@ describe('registration-fns', () => {
                 teammates: [{email: 'teammate@test.com', firstName: 'Jane'}],
               },
             ],
-            affiliateName: 'CrossFit Denver',
+            affiliateName: 'Functional Fitness Denver',
           },
         })
 

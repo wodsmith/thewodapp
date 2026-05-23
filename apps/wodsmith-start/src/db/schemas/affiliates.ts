@@ -22,7 +22,7 @@ export const affiliatesTable = mysqlTable(
       .primaryKey()
       .$defaultFn(() => createAffiliateId())
       .notNull(),
-    name: varchar({ length: 255 }).notNull().unique(), // "CrossFit Downtown"
+    name: varchar({ length: 255 }).notNull().unique(), // "Functional Fitness Downtown"
     // Optional metadata
     location: varchar({ length: 255 }), // "Austin, TX"
     // Verification status: unverified (default), verified (admin verified), claimed (gym owner linked)
