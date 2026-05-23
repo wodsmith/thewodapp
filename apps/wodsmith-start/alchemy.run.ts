@@ -562,6 +562,7 @@ const aiGateway =
         gatewayName: `wodsmith-${stage}`,
         collectLogs: true,
         cacheTtl: 0,
+        apiToken: alchemy.secret(process.env.CLOUDFLARE_API_TOKEN!),
       })
 const aiGatewayName = aiGateway?.id ?? "wodsmith-gateway"
 
