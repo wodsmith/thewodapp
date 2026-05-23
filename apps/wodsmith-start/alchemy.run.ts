@@ -278,9 +278,11 @@ const hyperdrive = await Hyperdrive(`hyperdrive-${stage}`, {
     disabled: true,
   },
   adopt: true,
-  // Local dev: connect via `pscale connect` proxy on localhost:3306
+  // Keep local dev on the direct PlanetScale URL for now. The pscale proxy
+  // Hyperdrive tweak caused deploys to try updating the remote config, which
+  // fails when Cloudflare validates stale demo branch credentials.
   dev: {
-    origin: `mysql://root@localhost:3306/${psDbName}`,
+    origin: `mysql://${psPassword.username}:${psPassword.password.unencrypted}@${psPassword.host}:3306/${psDbName}?sslaccept=strict`,
   },
 })
 
