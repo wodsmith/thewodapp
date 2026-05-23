@@ -60,9 +60,6 @@ importers:
       lucide-react:
         specifier: ^0.544.0
         version: 0.544.0(react@19.2.4)
-      mysql2:
-        specifier: ^3.16.2
-        version: 3.16.2
       react:
         specifier: ^19.2.3
         version: 19.2.4

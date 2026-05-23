@@ -4,9 +4,7 @@ declare namespace Cloudflare {
   interface Env {
     DB: D1Database
     R2_BUCKET: R2Bucket
-    HYPERDRIVE: Hyperdrive
     APP_URL: string
-    DATABASE_URL: string
     NODE_ENV: string
     CRM_AUTH_PASSWORD: string
     CRM_SESSION_SECRET: string
