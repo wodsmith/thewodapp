@@ -107,12 +107,12 @@ AI features use Cloudflare Agents (npm `agents`), which are Durable Object subcl
 Wiring is split across three layers:
 
 - **Infrastructure**: `alchemy.run.ts` declares each agent as a `DurableObjectNamespace({ className, sqlite: true })` and adds it to the Worker bindings.
-- **Worker entry**: `src/server.ts` re-exports the agent class (Cloudflare requires DO classes on the entry module) and routes `/agents/*` to `routeAgentRequest(request, env)` *before* the TanStack handler so WebSocket upgrades complete.
+- **Worker entry**: `src/server.ts` re-exports the agent class (Cloudflare requires DO classes on the entry module), authenticates `/agents/*` connections, resolves the named Durable Object with `getAgentByName`, then forwards the request to the stub.
 - **React client**: `useAgent({ agent: '<kebab-case-class>', name })` from `agents/react` opens a WebSocket and exposes `state` (auto-synced) and `stub` (typed RPC over `@callable()` methods).
 
 Pure helpers and Zod schemas for each agent live under `src/lib/<agent-name>/` so they can be TDD-tested without spinning up the LLM. DB-backed context loaders sit under `src/server/<agent-name>/` and stay server-only.
 
-Inference goes through Cloudflare's built-in Workers AI binding (no third-party API keys). The `AI` binding is declared in `alchemy.run.ts` and adapted to the AI SDK via [`workers-ai-provider`](https://www.npmjs.com/package/workers-ai-provider): `createWorkersAI({ binding: env.AI })`.
+Inference goes through Cloudflare AI Gateway using the AI SDK gateway provider. `alchemy.run.ts` provisions the Durable Object namespace, Workers AI binding, and managed gateway name/token bindings used by the agent.
 
 ### Entitlement gating
 
@@ -120,11 +120,14 @@ Every AI feature is gated by a `features` row in the database; access is granted
 
 1. Page loader — calls `loadAi...ContextFn` which returns `{hasAccess: false}` when not entitled; UI renders an upgrade paywall instead of the feature
 2. Write server function — throws on missing entitlement so writes from a stale client are rejected
-3. Agent's `@callable()` entrypoint — re-verifies before burning Workers AI tokens, since the Durable Object's WebSocket is reachable independently of the page
+3. Agent WebSocket route — requires a valid session and an agent name ending in the current user id; because this route is handled before TanStack Start request context exists, [[apps/wodsmith-start/src/server.ts]] validates the raw request cookie via [[apps/wodsmith-start/src/utils/auth.ts#getSessionFromRequestCookie]]
+4. Agent's `@callable()` entrypoint — calls [[apps/wodsmith-start/src/server/judge-scheduler/access.ts#requireAiSchedulingAgentAccess]] with the user id from the authenticated agent name before loading roster context or burning Workers AI tokens; this path uses direct DB permission checks and avoids Start cookie helpers because Durable Objects do not have Start request context
 
 ### AI judge scheduling
 
-[[apps/wodsmith-start/src/agents/judge-scheduler-agent.ts#JudgeSchedulerAgent]] proposes judge rotations for one event at a time. The system prompt instructs it to treat volunteer availability and credentials as *soft* preferences — the agent emits `confidence='low'` and a `softViolations[]` list when it has to override a preference to fill coverage.
+[[apps/wodsmith-start/src/agents/judge-scheduler-agent.ts#JudgeSchedulerAgent]] proposes judge rotations for one event at a time.
+
+The system prompt instructs it to treat volunteer availability and credentials as *soft* preferences. The agent emits `confidence='low'` and a `softViolations[]` list when it has to override a preference to fill coverage.
 
 Intent-based tools the agent calls (per Anthropic's "Building Effective Agents"):
 
@@ -136,4 +139,4 @@ Intent-based tools the agent calls (per Anthropic's "Building Effective Agents")
 - `check_coverage` — wraps [[apps/wodsmith-start/src/lib/judge-rotation-utils.ts#calculateCoverage]] over the current proposal set
 - `mark_complete` — final summary
 
-The organizer page at [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/judges-ai.tsx]] mirrors the existing rotation timeline visuals (heats × lanes grid, color-coded coverage). Each streamed proposal renders with its confidence badge, rationale, and any soft violations; the organizer toggles per-proposal Accept/Reject. "Save as Draft" calls [[apps/wodsmith-start/src/server-fns/judge-scheduler-ai-fns.ts#applyAiProposalsFn]], which writes accepted proposals to `competition_judge_rotations` — the organizer still publishes via the existing rotation timeline screen so versioning + materialization stay in one place.
+The organizer page at [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/judges-ai.tsx]] mirrors the existing rotation timeline visuals (heats × lanes grid, color-coded coverage). Each streamed proposal renders with its confidence badge, rationale, and any soft violations; the organizer toggles per-proposal Accept/Reject. "Save as Draft" calls [[apps/wodsmith-start/src/server-fns/judge-scheduler-ai-fns.ts#applyAiProposalsFn]], which revalidates proposal membership, event ownership, lane bounds, and slot overlaps before writing `competition_judge_rotations`. The organizer still publishes via the existing rotation timeline screen so versioning + materialization stay in one place.

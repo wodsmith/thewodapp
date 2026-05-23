@@ -10,20 +10,12 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import { z } from "zod"
-import { FEATURES } from "@/config/features"
 import { getDb } from "@/db"
 import type { CompetitionJudgeRotation } from "@/db/schema"
-import {
-  competitionJudgeRotationsTable,
-  competitionsTable,
-  programmingTracksTable,
-  teamMembershipTable,
-  trackWorkoutsTable,
-} from "@/db/schema"
+import { competitionJudgeRotationsTable } from "@/db/schema"
 import { createJudgeRotationId } from "@/db/schemas/common"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import {
   type EventContextDto,
   type JudgeRosterEntry,
@@ -31,14 +23,20 @@ import {
   type ProposedRotation,
   proposedRotationSchema,
 } from "@/lib/judge-scheduler/schemas"
-import { proposalsToRotationInserts } from "@/lib/judge-scheduler/tools"
-import { hasFeature } from "@/server/entitlements"
+import {
+  computeCoverageFromProposals,
+  proposalsToRotationInserts,
+  validateProposal,
+} from "@/lib/judge-scheduler/tools"
+import {
+  loadAiSchedulingScope,
+  requireAiSchedulingTeamAccess,
+} from "@/server/judge-scheduler/access"
 import {
   loadEventContext,
   loadJudgeRoster,
   loadPriorRotations,
 } from "@/server/judge-scheduler/context"
-import { requireTeamPermission } from "@/utils/team-auth"
 
 const loadContextSchema = z.object({
   trackWorkoutId: z.string().min(1),
@@ -76,14 +74,14 @@ export type AiSchedulingContextResult =
 export const loadAiSchedulingContextFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => loadContextSchema.parse(data))
   .handler(async ({ data }): Promise<AiSchedulingContextResult> => {
-    await requireTeamPermission(
-      data.teamId,
-      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-    )
-
-    const entitled = await hasFeature(data.teamId, FEATURES.AI_JUDGE_SCHEDULING)
-    if (!entitled) {
-      return { hasAccess: false }
+    const scope = await loadAiSchedulingScope(data)
+    try {
+      await requireAiSchedulingTeamAccess({ teamId: data.teamId, scope })
+    } catch (err) {
+      if (err instanceof Error && err.message.includes("AI Judge Scheduling")) {
+        return { hasAccess: false }
+      }
+      throw err
     }
 
     const [eventContext, roster, priorRotations] = await Promise.all([
@@ -108,73 +106,12 @@ export const applyAiProposalsFn = createServerFn({ method: "POST" })
       rotations: CompetitionJudgeRotation[]
       appliedCount: number
     }> => {
-      await requireTeamPermission(
-        data.teamId,
-        TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
-      )
-
-      const entitled = await hasFeature(
-        data.teamId,
-        FEATURES.AI_JUDGE_SCHEDULING,
-      )
-      if (!entitled) {
-        throw new Error("Your plan does not include AI Judge Scheduling")
-      }
-
       const db = getDb()
-
-      // Defense in depth: the team-permission check above only validates
-      // the *caller's* team. The competitionId, trackWorkoutId, and
-      // every membershipId are user input — verify each one belongs to
-      // the authorized team before inserting any rotations.
-      const [competition] = await db
-        .select({
-          id: competitionsTable.id,
-          competitionTeamId: competitionsTable.competitionTeamId,
-          organizingTeamId: competitionsTable.organizingTeamId,
-        })
-        .from(competitionsTable)
-        .where(eq(competitionsTable.id, data.competitionId))
-      if (
-        !competition ||
-        (competition.organizingTeamId !== data.teamId &&
-          competition.competitionTeamId !== data.teamId)
-      ) {
-        throw new Error("Competition does not belong to this team")
-      }
-
-      const [workoutRow] = await db
-        .select({ competitionId: programmingTracksTable.competitionId })
-        .from(trackWorkoutsTable)
-        .innerJoin(
-          programmingTracksTable,
-          eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
-        )
-        .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
-      if (!workoutRow || workoutRow.competitionId !== data.competitionId) {
-        throw new Error("Track workout does not belong to this competition")
-      }
+      const scope = await loadAiSchedulingScope(data)
+      await requireAiSchedulingTeamAccess({ teamId: data.teamId, scope })
 
       const proposals = data.proposals as ProposedRotation[]
-      const membershipIds = Array.from(
-        new Set(proposals.map((p) => p.membershipId)),
-      )
-      if (membershipIds.length > 0) {
-        const validMembers = await db
-          .select({ id: teamMembershipTable.id })
-          .from(teamMembershipTable)
-          .where(
-            and(
-              inArray(teamMembershipTable.id, membershipIds),
-              eq(teamMembershipTable.teamId, competition.competitionTeamId),
-            ),
-          )
-        if (validMembers.length !== membershipIds.length) {
-          throw new Error(
-            "One or more proposals reference judges outside this competition's volunteer roster",
-          )
-        }
-      }
+      await validateAiProposalsForInsert(proposals, data.trackWorkoutId)
 
       const inserts = proposalsToRotationInserts({
         proposals,
@@ -200,3 +137,84 @@ export const applyAiProposalsFn = createServerFn({ method: "POST" })
       return { rotations, appliedCount: rotations.length }
     },
   )
+
+async function validateAiProposalsForInsert(
+  proposals: ProposedRotation[],
+  trackWorkoutId: string,
+): Promise<void> {
+  const proposalIds = proposals.map((p) => p.proposalId)
+  if (new Set(proposalIds).size !== proposalIds.length) {
+    throw new Error("Duplicate AI proposal ids are not allowed")
+  }
+  if (proposals.some((p) => p.status !== "pending")) {
+    throw new Error("Only pending AI proposals can be saved as drafts")
+  }
+
+  const db = getDb()
+  const eventContext = await loadEventContext(trackWorkoutId)
+  const roster = await loadJudgeRoster(eventContext.competitionId)
+  const rosterIds = new Set(roster.map((j) => j.membershipId))
+
+  const existingRows = await db
+    .select()
+    .from(competitionJudgeRotationsTable)
+    .where(eq(competitionJudgeRotationsTable.trackWorkoutId, trackWorkoutId))
+
+  const existingProposals: ProposedRotation[] = existingRows.map((r) => ({
+    proposalId: `existing:${r.id}`,
+    membershipId: r.membershipId,
+    startingHeat: r.startingHeat,
+    startingLane: r.startingLane,
+    heatsCount: r.heatsCount,
+    laneShiftPattern: r.laneShiftPattern,
+    confidence: "high",
+    rationale: "Existing draft rotation",
+    softViolations: [],
+    status: "accepted",
+  }))
+
+  const acceptedSoFar: ProposedRotation[] = [...existingProposals]
+  for (const proposal of proposals) {
+    if (!rosterIds.has(proposal.membershipId)) {
+      throw new Error(
+        "One or more proposals reference judges outside this competition's volunteer roster",
+      )
+    }
+
+    const { violations } = validateProposal({
+      proposal,
+      context: eventContext,
+      roster,
+      existingProposals: acceptedSoFar,
+    })
+    const blockingViolations = violations.filter(isBlockingProposalViolation)
+    if (blockingViolations.length > 0) {
+      throw new Error(
+        `AI proposal ${proposal.proposalId} is invalid: ${blockingViolations.join("; ")}`,
+      )
+    }
+
+    acceptedSoFar.push(proposal)
+  }
+
+  const coverage = computeCoverageFromProposals(acceptedSoFar, eventContext)
+  const proposalIdSet = new Set(proposalIds)
+  const overlappingNewProposals = coverage.overlaps.filter((overlap) =>
+    overlap.proposalIds.some((id) => proposalIdSet.has(id)),
+  )
+  if (overlappingNewProposals.length > 0) {
+    const first = overlappingNewProposals[0]
+    throw new Error(
+      `AI proposals overlap an existing or proposed slot at H${first?.heatNumber} L${first?.laneNumber}`,
+    )
+  }
+}
+
+function isBlockingProposalViolation(violation: string): boolean {
+  return (
+    violation.startsWith("Starting lane ") ||
+    violation.startsWith("Unknown membershipId") ||
+    violation.startsWith("Rotation runs past") ||
+    violation.includes("which overlaps this rotation")
+  )
+}

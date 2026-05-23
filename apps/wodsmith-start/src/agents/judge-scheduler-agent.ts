@@ -1,24 +1,20 @@
 import "server-only"
 
+import { createId } from "@paralleldrive/cuid2"
 import { Agent, callable } from "agents"
 import { generateText, stepCountIs, type Tool, tool } from "ai"
 import { createAiGateway } from "ai-gateway-provider"
 import { createUnified } from "ai-gateway-provider/providers/unified"
-import { eq } from "drizzle-orm"
 import { z } from "zod"
-import { FEATURES } from "@/config/features"
-import { getDb } from "@/db"
-import { competitionsTable } from "@/db/schema"
-import { createId } from "@paralleldrive/cuid2"
 import {
   type ActivityEntry,
   type AgentState,
   type EventContextDto,
   initialAgentState,
   type JudgeRosterEntry,
+  MAX_THINKING_LOG_ENTRIES,
   markAcceptedInputSchema,
   markCompleteInputSchema,
-  MAX_THINKING_LOG_ENTRIES,
   type PriorRotationExample,
   type ProposedRotation,
   proposeRotationInputSchema,
@@ -30,7 +26,7 @@ import {
   validateProposal,
 } from "@/lib/judge-scheduler/tools"
 import { logError, logInfo, logWarning } from "@/lib/logging"
-import { hasFeature } from "@/server/entitlements"
+import { requireAiSchedulingAgentAccess } from "@/server/judge-scheduler/access"
 import {
   loadEventContext,
   loadJudgeRoster,
@@ -130,35 +126,20 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
         },
       })
 
-      // Defense in depth: the UI page already gates by hasFeature, but the
-      // agent's @callable() endpoint is reachable directly over WebSocket so
-      // we re-verify the organizing team has the AI_JUDGE_SCHEDULING feature
-      // before burning Workers AI tokens.
-      const organizingTeamId = await resolveOrganizingTeamId(
-        input.competitionId,
-      )
-      const entitled = await hasFeature(
-        organizingTeamId,
-        FEATURES.AI_JUDGE_SCHEDULING,
-      )
-      if (!entitled) {
-        const msg =
-          "Your plan does not include AI Judge Scheduling. Ask an admin to enable it."
-        logWarning({
-          message: "[JudgeAgent] entitlement check failed",
-          attributes: {
-            organizingTeamId,
-            feature: FEATURES.AI_JUDGE_SCHEDULING,
-          },
-        })
-        this.setState({
-          ...this.state,
-          status: "error",
-          errorMessage: msg,
-          completedAt: Date.now(),
-        })
-        return { ok: false, error: msg }
-      }
+      // Defense in depth: the WebSocket route authenticates the connecting
+      // user, and the callable re-verifies the event belongs to an entitled
+      // organizer team the current request can manage before loading roster
+      // data or spending AI tokens.
+      const userId = getUserIdFromAgentName(this.name)
+      const scope = await requireAiSchedulingAgentAccess(input, userId)
+      logInfo({
+        message: "[JudgeAgent] access authorized",
+        attributes: {
+          trackWorkoutId: input.trackWorkoutId,
+          competitionId: input.competitionId,
+          organizingTeamId: scope.organizingTeamId,
+        },
+      })
 
       // On reset we drop pending proposals (the previous run's
       // unsaved suggestions) but PRESERVE accepted ones — the user
@@ -258,7 +239,10 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
         this.logActivity(
           "thinking",
           `Run stopped by organizer after ${this.state.proposals.filter((p) => p.status !== "accepted").length} suggestion${
-            this.state.proposals.filter((p) => p.status !== "accepted").length === 1 ? "" : "s"
+            this.state.proposals.filter((p) => p.status !== "accepted")
+              .length === 1
+              ? ""
+              : "s"
           }.`,
         )
         this.setState({
@@ -342,9 +326,7 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
     const input = markAcceptedInputSchema.parse(rawInput)
     const acceptedSet = new Set(input.proposalIds)
     const flipped = this.state.proposals.map((p) =>
-      acceptedSet.has(p.proposalId)
-        ? { ...p, status: "accepted" as const }
-        : p,
+      acceptedSet.has(p.proposalId) ? { ...p, status: "accepted" as const } : p,
     )
     const next = input.clearOthers
       ? flipped.filter((p) => p.status === "accepted")
@@ -367,6 +349,14 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
   }
 }
 
+function getUserIdFromAgentName(name: string): string {
+  const match = /^[a-z0-9_-]{1,128}__([a-z0-9_-]{1,128})$/i.exec(name)
+  if (!match?.[1]) {
+    throw new Error("Invalid agent name")
+  }
+  return match[1]
+}
+
 async function loadAllContext(input: {
   trackWorkoutId: string
   competitionId: string
@@ -377,18 +367,6 @@ async function loadAllContext(input: {
     loadPriorRotations(input.competitionId, input.trackWorkoutId, 12),
   ])
   return { eventContext, roster, priors }
-}
-
-async function resolveOrganizingTeamId(competitionId: string): Promise<string> {
-  const db = getDb()
-  const [row] = await db
-    .select({ organizingTeamId: competitionsTable.organizingTeamId })
-    .from(competitionsTable)
-    .where(eq(competitionsTable.id, competitionId))
-  if (!row) {
-    throw new Error(`Competition not found: ${competitionId}`)
-  }
-  return row.organizingTeamId
 }
 
 function buildKickoffPrompt(

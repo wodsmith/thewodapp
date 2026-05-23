@@ -16,7 +16,11 @@ Session management functions live in `src/server-fns/session-fns.ts`. Auth middl
 
 ### Per-request session cache
 
-`getSessionFromCookie()` is memoized per HTTP request via `AsyncLocalStorage` so multiple calls within the same request lifecycle (e.g. handler + nested `requireTeamPermission`) share a single KV read. The `withSessionCache` wrapper is applied once at the fetch boundary in [[apps/wodsmith-start/src/server.ts]], and during SSR it deduplicates the session lookup across all loaders/server fns running in one request. See [[apps/wodsmith-start/src/utils/auth.ts#getSessionFromCookie]].
+`getSessionFromCookie()` is memoized per HTTP request via `AsyncLocalStorage`.
+
+Multiple calls within the same request lifecycle (e.g. handler + nested `requireTeamPermission`) share a single KV read. The `withSessionCache` wrapper is applied once at the fetch boundary in [[apps/wodsmith-start/src/server.ts]], and during SSR it deduplicates the session lookup across all loaders/server fns running in one request. See [[apps/wodsmith-start/src/utils/auth.ts#getSessionFromCookie]].
+
+Custom Worker handlers that run before TanStack Start installs its request context must not call `getSessionFromCookie()`. They validate the raw `Cookie` header with [[apps/wodsmith-start/src/utils/auth.ts#getSessionFromRequestCookie]] instead, which uses the same session token validation without depending on Start's `AsyncLocalStorage`.
 
 ## Authorization
 

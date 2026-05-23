@@ -164,8 +164,7 @@ export const Route = createFileRoute(
     }
 
     const hasAccess = initialResult ? initialResult.hasAccess : true
-    const initialContext =
-      initialResult && initialResult.hasAccess ? initialResult : null
+    const initialContext = initialResult?.hasAccess ? initialResult : null
 
     return {
       competition,
@@ -265,6 +264,7 @@ function JudgesAiPage() {
   // Reset the rejected set when the user moves to a different workout
   // — the new run starts with a fresh slate.
   useEffect(() => {
+    if (!selectedWorkoutId) return
     setRejectedIds(new Set())
   }, [selectedWorkoutId])
 
@@ -533,14 +533,15 @@ function ActivityLog({
   const [expanded, setExpanded] = useState(false)
   const recent = entries.slice(-30)
   const latest = entries[entries.length - 1]
+  const entryCount = entries.length
   const scrollRef = useRef<HTMLOListElement>(null)
 
   // When expanded and new entries arrive, keep the latest visible.
   useEffect(() => {
-    if (!expanded) return
+    if (!expanded || entryCount === 0) return
     const el = scrollRef.current
     if (el) el.scrollTop = el.scrollHeight
-  }, [expanded, entries.length])
+  }, [expanded, entryCount])
 
   const ribbonText =
     latest?.message ??
@@ -822,4 +823,3 @@ function ConfidenceBadge({
   const cfg = map[confidence]
   return <Badge variant={cfg.variant}>{cfg.label}</Badge>
 }
-

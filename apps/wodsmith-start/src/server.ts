@@ -13,17 +13,14 @@
  * @see https://tanstack.com/start/latest/docs/framework/react/hosting#custom-server-entry
  */
 
-import type {
-  ExecutionContext,
-  MessageBatch,
-} from "@cloudflare/workers-types"
+import { env, waitUntil } from "cloudflare:workers"
+import type { ExecutionContext, MessageBatch } from "@cloudflare/workers-types"
 import * as Sentry from "@sentry/cloudflare"
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry"
 import { getAgentByName } from "agents"
-import type { JudgeSchedulerAgent } from "./agents/judge-scheduler-agent"
-import { env, waitUntil } from "cloudflare:workers"
 import { sendBatchToPostHog } from "evlog/posthog"
 import { createWorkersLogger, initWorkersLogger } from "evlog/workers"
+import type { JudgeSchedulerAgent } from "./agents/judge-scheduler-agent"
 import { withEvlog } from "./lib/evlog"
 import {
   extractRequestInfo,
@@ -32,7 +29,7 @@ import {
   withRequestContext,
 } from "./lib/logging"
 import { getSentryOptions } from "./lib/sentry/server"
-import { withSessionCache } from "./utils/auth"
+import { getSessionFromRequestCookie, withSessionCache } from "./utils/auth"
 
 // Sensitive field names to redact as a safety net in the drain.
 // This catches any PII that accidentally leaks through log.set().
@@ -48,9 +45,7 @@ const SENSITIVE_KEYS = [
   "captcha",
 ]
 
-function deepSanitize(
-  obj: Record<string, unknown>,
-): Record<string, unknown> {
+function deepSanitize(obj: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(obj)) {
     if (SENSITIVE_KEYS.some((k) => key.toLowerCase().includes(k))) {
@@ -101,12 +96,11 @@ initWorkersLogger({
   },
 })
 
-// Workers runtime requires Workflow classes to be exported from the entry point
-export { StripeCheckoutWorkflow } from "./workflows/stripe-checkout-workflow"
-export { ManualRegistrationWorkflow } from "./workflows/manual-registration-workflow"
-
 // Workers runtime requires Durable Object classes to be exported from the entry point
 export { JudgeSchedulerAgent } from "./agents/judge-scheduler-agent"
+export { ManualRegistrationWorkflow } from "./workflows/manual-registration-workflow"
+// Workers runtime requires Workflow classes to be exported from the entry point
+export { StripeCheckoutWorkflow } from "./workflows/stripe-checkout-workflow"
 
 // Threshold for logging slow requests (in ms)
 const SLOW_REQUEST_THRESHOLD_MS = 2000
@@ -132,8 +126,14 @@ const startEntry = createServerEntry({
         // probe arbitrary DO identities by hitting the route directly
         // — getAgentByName persists the name and would otherwise let
         // callers materialize as many DOs as they like.
-        if (!/^[a-z0-9_-]{1,128}__[a-z0-9_-]{1,128}$/i.test(name)) {
+        const match = /^([a-z0-9_-]{1,128})__([a-z0-9_-]{1,128})$/i.exec(name)
+        if (!match) {
           return new Response("Invalid agent name", { status: 400 })
+        }
+        const [, , userId] = match
+        const session = await getSessionFromRequestCookie(request)
+        if (!session?.userId || session.userId !== userId) {
+          return new Response("Unauthorized", { status: 401 })
         }
         // The DO namespace is typed as <undefined> by the autogen env types
         // because alchemy doesn't pipe the class through. Cast to the agent
@@ -255,9 +255,7 @@ async function fetchWithLogging(
             })
 
             // Emit the wide event with error context
-            log.error(
-              error instanceof Error ? error : new Error(String(error)),
-            )
+            log.error(error instanceof Error ? error : new Error(String(error)))
             log.emit({ status: 500 })
 
             throw error
@@ -281,11 +279,7 @@ export default Sentry.withSentry((env: Env) => getSentryOptions(env), {
 
   // Cloudflare Queue consumer for broadcast email delivery.
   // Messages are enqueued by sendBroadcastFn and processed here asynchronously.
-  async queue(
-    batch: MessageBatch,
-    _env: Env,
-    _ctx: ExecutionContext,
-  ) {
+  async queue(batch: MessageBatch, _env: Env, _ctx: ExecutionContext) {
     // Dynamic import to keep cold start fast
     const { handleBroadcastEmailQueue } = await import(
       "./server/broadcast-queue-consumer"
