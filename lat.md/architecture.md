@@ -37,7 +37,7 @@ The primary web application containing all user-facing functionality.
 
 The CRM app is a separate TanStack Start application shell for future customer relationship workflows.
 
-It keeps its own Cloudflare Worker, D1 database, R2 bucket, and Hyperdrive binding so CRM-specific data and files can evolve independently. The copied Ledger document, invoice, and financial-event surfaces were removed during the initial cleanup.
+It keeps its own Cloudflare Worker, D1 database, and R2 bucket so CRM-specific data and files can evolve independently. The copied Ledger document, invoice, and financial-event surfaces were removed during the initial cleanup.
 
 #### CRM D1 Schema
 
