@@ -314,6 +314,15 @@ function aggregateScoreValue(row: SeedRow): number | null {
 	return rounds.reduce((total, round) => total + round.value, 0)
 }
 
+function cappedRoundSecondaryValue(row: SeedRow): number | null {
+	const cappedRounds = roundValues(row).filter((round) => round.status === "cap")
+	if (cappedRounds.length === 0) return null
+	return cappedRounds.reduce(
+		(total, round) => total + (round.secondaryValue ?? 0),
+		0,
+	)
+}
+
 export async function seed(client: Connection): Promise<void> {
 	console.log("Seeding MWFC round-breakdown leaderboard validation data...")
 
@@ -492,6 +501,7 @@ export async function seed(client: Connection): Promise<void> {
 		scoredRows.map((row) => {
 			const value = aggregateScoreValue(row) as number
 			const status = row.cappedRoundCount > 0 ? "cap" : "scored"
+			const capSecondaryValue = cappedRoundSecondaryValue(row)
 			return {
 				id: scoreId(row),
 				user_id: row.userId,
@@ -512,6 +522,13 @@ export async function seed(client: Connection): Promise<void> {
 						scheme: "time-with-cap",
 						scoreType: "sum",
 						cappedRoundCount: row.cappedRoundCount,
+						timeCap:
+							capSecondaryValue !== null
+								? {
+										ms: TIME_CAP_MS,
+										secondaryValue: capSecondaryValue,
+									}
+								: undefined,
 					}),
 				),
 				scaling_level_id: DIVISION_ID,

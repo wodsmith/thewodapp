@@ -114,6 +114,36 @@ describe("computeSortKey", () => {
 			expect(sorted[2].name).toBe("worst") // 50 reps
 		})
 
+		it("should break multi-round cap ties by total reps completed at cap", () => {
+			const twinFalls: Pick<
+				Score,
+				"value" | "status" | "scheme" | "scoreType" | "timeCap" | "cappedRoundCount"
+			> = {
+				scheme: "time-with-cap",
+				scoreType: "sum",
+				value: 2_160_000,
+				status: "cap",
+				cappedRoundCount: 2,
+				timeCap: { ms: 1_080_000, secondaryValue: 363 },
+			}
+			const heavyBreathing: Pick<
+				Score,
+				"value" | "status" | "scheme" | "scoreType" | "timeCap" | "cappedRoundCount"
+			> = {
+				scheme: "time-with-cap",
+				scoreType: "sum",
+				value: 2_160_000,
+				status: "cap",
+				cappedRoundCount: 2,
+				timeCap: { ms: 1_080_000, secondaryValue: 292 },
+			}
+
+			const keyTwinFalls = computeSortKey(twinFalls)
+			const keyHeavyBreathing = computeSortKey(heavyBreathing)
+
+			expect(keyTwinFalls).toBeLessThan(keyHeavyBreathing)
+		})
+
 		it("should rank finished athletes before capped athletes regardless of reps", () => {
 			// Finished slow
 			const finished: Pick<Score, "value" | "status" | "scheme" | "scoreType"> = {

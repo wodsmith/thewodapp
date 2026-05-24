@@ -6,6 +6,16 @@ import { STATUS_ORDER } from "../constants"
 import type { Score } from "../types"
 import { getSortDirection } from "./direction"
 
+function getCapSecondaryValue(score: Score): number {
+  if (score.timeCap) return score.timeCap.secondaryValue
+
+  return (
+    score.rounds
+      ?.filter((round) => round.status === "cap")
+      .reduce((total, round) => total + (round.secondaryValue ?? 0), 0) ?? 0
+  )
+}
+
 /**
  * Compare two scores for sorting.
  *
@@ -37,10 +47,12 @@ export function compareScores(a: Score, b: Score): number {
   if (a.status === "cap" && b.status === "cap") {
     const aCapped =
       a.cappedRoundCount ??
-      (a.rounds?.filter((r) => r.status === "cap").length ?? 0)
+      a.rounds?.filter((r) => r.status === "cap").length ??
+      0
     const bCapped =
       b.cappedRoundCount ??
-      (b.rounds?.filter((r) => r.status === "cap").length ?? 0)
+      b.rounds?.filter((r) => r.status === "cap").length ??
+      0
     if (aCapped !== bCapped) {
       return aCapped - bCapped // Fewer capped rounds = better
     }
@@ -59,8 +71,8 @@ export function compareScores(a: Score, b: Score): number {
       return -1
     }
 
-    const aSecondary = a.timeCap?.secondaryValue ?? 0
-    const bSecondary = b.timeCap?.secondaryValue ?? 0
+    const aSecondary = getCapSecondaryValue(a)
+    const bSecondary = getCapSecondaryValue(b)
     const secondaryDiff = bSecondary - aSecondary // Higher is better
     if (secondaryDiff !== 0) {
       return secondaryDiff

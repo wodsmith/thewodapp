@@ -349,6 +349,21 @@ function formatRoundBreakdowns(
   })
 }
 
+function getRoundCapSecondaryValue(
+  summary: RoundCapSummary | undefined,
+): number | null {
+  if (!summary || summary.cappedRoundCount === 0) return null
+
+  let total = 0
+  for (const round of summary.rounds) {
+    if (round.status !== "cap") continue
+    if (round.secondaryValue === null) return null
+    total += round.secondaryValue
+  }
+
+  return total
+}
+
 /**
  * Map score status to EventScoreInput status
  */
@@ -1145,10 +1160,11 @@ export async function getCompetitionLeaderboard(params: {
       // trusting the stored `s.sortKey`. The stored value is only refreshed
       // when a score is written through `computeSortKey` — direct DB edits
       // to `scoreRoundsTable.status`, and any scores written before the
-      // cap-count tiebreaker was added to `computeSortKey`, leave the
-      // persisted key stale. Recomputing here with the freshly-fetched
-      // `cappedRoundCount` guarantees "fewer caps beats more caps" on the
-      // public leaderboard with no backfill required.
+      // cap-count/reps-at-cap tiebreakers were added to `computeSortKey`,
+      // leave the persisted key stale. Recomputing here with the
+      // freshly-fetched round summary guarantees "fewer caps beats more
+      // caps", then "more reps at cap beats fewer reps", on the public
+      // leaderboard with no backfill required.
       const eventScoreType =
         trackWorkout.workout.scoreType ||
         getDefaultScoreType(trackWorkout.workout.scheme)
@@ -1170,6 +1186,8 @@ export async function getCompetitionLeaderboard(params: {
         }
 
         const roundSummary = roundCapSummariesByScoreId.get(s.id)
+        const timeCapSecondaryValue =
+          s.secondaryValue ?? getRoundCapSecondaryValue(roundSummary)
         const recomputedSortKey = computeSortKey({
           scheme: s.scheme as WorkoutScheme,
           scoreType: eventScoreType,
@@ -1177,8 +1195,8 @@ export async function getCompetitionLeaderboard(params: {
           status: s.status as "scored" | "cap" | "dq" | "withdrawn",
           cappedRoundCount: roundSummary?.cappedRoundCount ?? 0,
           timeCap:
-            s.timeCapMs && s.secondaryValue !== null
-              ? { ms: s.timeCapMs, secondaryValue: s.secondaryValue }
+            s.timeCapMs && timeCapSecondaryValue !== null
+              ? { ms: s.timeCapMs, secondaryValue: timeCapSecondaryValue }
               : undefined,
           tiebreak:
             s.tiebreakValue !== null && s.tiebreakScheme
