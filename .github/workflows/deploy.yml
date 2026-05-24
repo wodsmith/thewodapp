@@ -219,7 +219,6 @@ jobs:
           # AI configuration (optional)
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
-          CF_AIG_TOKEN: ${{ env.STAGE == 'prod' && secrets.CF_AIG_TOKEN_PROD || secrets.CF_AIG_TOKEN_DEMO }}
           # Stripe secrets - prod and demo get their respective keys
           STRIPE_API_KEY: ${{ env.STAGE == 'prod' && secrets.STRIPE_SECRET_KEY || (env.STAGE == 'demo' && secrets.STRIPE_SECRET_KEY_DEMO || '') }}
           STRIPE_SECRET_KEY: ${{ env.STAGE == 'prod' && secrets.STRIPE_SECRET_KEY || (env.STAGE == 'demo' && secrets.STRIPE_SECRET_KEY_DEMO || '') }}
@@ -313,7 +312,6 @@ jobs:
           # AI configuration (optional)
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
-          CF_AIG_TOKEN: ${{ secrets.CF_AIG_TOKEN_DEMO }}
           # Both point to same secret - STRIPE_API_KEY is for Alchemy webhook creation,
           # STRIPE_SECRET_KEY is for runtime API calls
           STRIPE_API_KEY: ${{ secrets.STRIPE_SECRET_KEY_DEMO }}
