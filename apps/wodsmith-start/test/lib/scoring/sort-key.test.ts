@@ -117,25 +117,31 @@ describe("computeSortKey", () => {
 		it("should break multi-round cap ties by total reps completed at cap", () => {
 			const twinFalls: Pick<
 				Score,
-				"value" | "status" | "scheme" | "scoreType" | "timeCap" | "cappedRoundCount"
+				"value" | "status" | "scheme" | "scoreType" | "rounds" | "cappedRoundCount"
 			> = {
 				scheme: "time-with-cap",
 				scoreType: "sum",
 				value: 2_160_000,
 				status: "cap",
 				cappedRoundCount: 2,
-				timeCap: { ms: 1_080_000, secondaryValue: 363 },
+				rounds: [
+					{ roundNumber: 1, value: 1_080_000, status: "cap", secondaryValue: 182 },
+					{ roundNumber: 2, value: 1_080_000, status: "cap", secondaryValue: 181 },
+				],
 			}
 			const heavyBreathing: Pick<
 				Score,
-				"value" | "status" | "scheme" | "scoreType" | "timeCap" | "cappedRoundCount"
+				"value" | "status" | "scheme" | "scoreType" | "rounds" | "cappedRoundCount"
 			> = {
 				scheme: "time-with-cap",
 				scoreType: "sum",
 				value: 2_160_000,
 				status: "cap",
 				cappedRoundCount: 2,
-				timeCap: { ms: 1_080_000, secondaryValue: 292 },
+				rounds: [
+					{ roundNumber: 1, value: 1_080_000, status: "cap", secondaryValue: 146 },
+					{ roundNumber: 2, value: 1_080_000, status: "cap", secondaryValue: 146 },
+				],
 			}
 
 			const keyTwinFalls = computeSortKey(twinFalls)

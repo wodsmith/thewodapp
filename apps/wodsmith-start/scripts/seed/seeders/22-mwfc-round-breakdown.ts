@@ -13,7 +13,8 @@ const COMPETITION_EVENT_ID = "cevt_mwfc_oq_team_workout_2"
 const TIME_CAP_MS = 18 * 60 * 1000
 const REPS_PER_ROUND = 200
 
-type SeedRow = {
+// @lat: [[lat.md/domain#Domain Model#Scoring#Multi-round time caps]]
+interface SeedRow {
 	key: string
 	registrationId: string
 	userId: string
@@ -33,6 +34,7 @@ type SeedRow = {
 	isDirectlyModified?: boolean
 }
 
+// @lat: [[lat.md/domain#Domain Model#Scoring#Multi-round time caps]]
 // Captured from the public MWFC leaderboard on 2026-05-24:
 // https://wodsmith.com/compete/mwfc-mountain-west-fitness-championship-online-qualifier-2026/leaderboard?division=slvl_ll4ioe619mz9jru5wh9evg9g&event=trwk_01KNVZYB6R1CZ6YFFWB4ATP0AH
 const rows: SeedRow[] = [
@@ -237,7 +239,15 @@ function teamMemberId(row: SeedRow): string {
 	return `tmem_mwfc_oq2_${row.key}_captain`
 }
 
+function sqlPlaceholders(count: number): string {
+	return Array.from({ length: count }, () => "?").join(", ")
+}
+
 async function deleteSeedRows(client: Connection): Promise<void> {
+	const registrationIds = rows.map((row) => row.registrationId)
+	const teamIds = rows.map((row) => athleteTeamId(row))
+	const userIds = rows.flatMap((row) => [row.userId, teammateUserId(row)])
+
 	await client.execute(
 		"DELETE FROM `video_submissions` WHERE `track_workout_id` = ?",
 		[TRACK_WORKOUT_ID],
@@ -251,8 +261,8 @@ async function deleteSeedRows(client: Connection): Promise<void> {
 		[TRACK_WORKOUT_ID],
 	)
 	await client.execute(
-		`DELETE FROM \`competition_registrations\` WHERE \`id\` IN (${rows.map(() => "?").join(", ")})`,
-		rows.map((row) => row.registrationId),
+		`DELETE FROM \`competition_registrations\` WHERE \`id\` IN (${sqlPlaceholders(registrationIds.length)})`,
+		registrationIds,
 	)
 	await client.execute("DELETE FROM `competition_events` WHERE `id` = ?", [
 		COMPETITION_EVENT_ID,
@@ -264,6 +274,18 @@ async function deleteSeedRows(client: Connection): Promise<void> {
 	await client.execute("DELETE FROM `scaling_levels` WHERE `id` = ?", [
 		DIVISION_ID,
 	])
+	await client.execute(
+		`DELETE FROM \`team_memberships\` WHERE \`team_id\` IN (${sqlPlaceholders(teamIds.length)}) OR \`user_id\` IN (${sqlPlaceholders(userIds.length)})`,
+		[...teamIds, ...userIds],
+	)
+	await client.execute(
+		`DELETE FROM \`teams\` WHERE \`id\` IN (${sqlPlaceholders(teamIds.length)})`,
+		teamIds,
+	)
+	await client.execute(
+		`DELETE FROM \`users\` WHERE \`id\` IN (${sqlPlaceholders(userIds.length)})`,
+		userIds,
+	)
 }
 
 function roundValues(row: SeedRow): Array<{
@@ -311,6 +333,8 @@ function roundValues(row: SeedRow): Array<{
 function aggregateScoreValue(row: SeedRow): number | null {
 	const rounds = roundValues(row)
 	if (rounds.length === 0) return null
+	// Source `scoreValue` includes the old seconds-per-remaining-rep encoding;
+	// the seeded parent score stores the new ADR-0014 round-value aggregate.
 	return rounds.reduce((total, round) => total + round.value, 0)
 }
 
@@ -323,46 +347,50 @@ function cappedRoundSecondaryValue(row: SeedRow): number | null {
 	)
 }
 
+// @lat: [[lat.md/domain#Domain Model#Scoring#Multi-round time caps]]
 export async function seed(client: Connection): Promise<void> {
 	console.log("Seeding MWFC round-breakdown leaderboard validation data...")
 
 	const ts = now()
 	const reviewedAt = pastDatetime(0)
 
-	await deleteSeedRows(client)
+	await client.beginTransaction()
 
-	await batchInsert(
-		client,
-		"users",
-		rows.flatMap((row) => [
-			{
-				id: row.userId,
-				first_name: row.firstName,
-				last_name: row.lastName,
-				email: `${row.key}.captain@mwfc-seed.local`,
-				email_verified: reviewedAt,
-				role: "user",
-				current_credits: 0,
-				gender: "male",
-				created_at: ts,
-				updated_at: ts,
-				update_counter: 0,
-			},
-			{
-				id: teammateUserId(row),
-				first_name: `${row.firstName} Team`,
-				last_name: "Partner",
-				email: `${row.key}.partner@mwfc-seed.local`,
-				email_verified: reviewedAt,
-				role: "user",
-				current_credits: 0,
-				gender: "male",
-				created_at: ts,
-				updated_at: ts,
-				update_counter: 0,
-			},
-		]),
-	)
+	try {
+		await deleteSeedRows(client)
+
+		await batchInsert(
+			client,
+			"users",
+			rows.flatMap((row) => [
+				{
+					id: row.userId,
+					first_name: row.firstName,
+					last_name: row.lastName,
+					email: `${row.key}.captain@mwfc-seed.local`,
+					email_verified: reviewedAt,
+					role: "user",
+					current_credits: 0,
+					gender: "male",
+					created_at: ts,
+					updated_at: ts,
+					update_counter: 0,
+				},
+				{
+					id: teammateUserId(row),
+					first_name: `${row.firstName} Team`,
+					last_name: "Partner",
+					email: `${row.key}.partner@mwfc-seed.local`,
+					email_verified: reviewedAt,
+					role: "user",
+					current_credits: 0,
+					gender: "male",
+					created_at: ts,
+					updated_at: ts,
+					update_counter: 0,
+				},
+			]),
+		)
 
 	await batchInsert(client, "teams", [
 		...rows.map((row) => ({
@@ -602,7 +630,12 @@ export async function seed(client: Connection): Promise<void> {
 		}),
 	)
 
-	console.log(
-		`  Inserted ${scoredRows.length} MWFC scores with ${scoredRows.length * 2} round rows for ${rows.length} team registrations`,
-	)
+		console.log(
+			`  Inserted ${scoredRows.length} MWFC scores with ${scoredRows.length * 2} round rows for ${rows.length} team registrations`,
+		)
+		await client.commit()
+	} catch (error) {
+		await client.rollback()
+		throw error
+	}
 }

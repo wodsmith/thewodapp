@@ -43,6 +43,18 @@ const CAP_TIME_BITS = 32n
 const CAP_TIME_MASK = (1n << CAP_TIME_BITS) - 1n
 const CAP_COUNT_MAX = 255
 
+function getCapSecondaryValue(
+  score: Pick<Score, "timeCap" | "rounds">,
+): number {
+  if (score.timeCap) return score.timeCap.secondaryValue
+
+  return (
+    score.rounds
+      ?.filter((round) => round.status === "cap")
+      .reduce((total, round) => total + (round.secondaryValue ?? 0), 0) ?? 0
+  )
+}
+
 /**
  * Compute a sort key for database storage.
  *
@@ -70,16 +82,14 @@ export function computeSortKey(
   const direction = getSortDirection(score.scheme, score.scoreType)
 
   // Extract secondary value (reps at cap) if present
-  const secondaryValue = score.timeCap?.secondaryValue ?? 0
+  const secondaryValue = getCapSecondaryValue(score)
 
   // Derive capped-round count. Prefer the explicit field; otherwise fall
   // back to counting rounds with status "cap" when the full array is
   // available. This is the dominant tiebreaker inside the "cap" bucket.
   const cappedRoundCount =
     score.cappedRoundCount ??
-    (score.rounds
-      ? score.rounds.filter((r) => r.status === "cap").length
-      : 0)
+    (score.rounds ? score.rounds.filter((r) => r.status === "cap").length : 0)
 
   // Extract tiebreak value if present
   // For time-based tiebreaks, lower is better (use as-is)
@@ -214,9 +224,7 @@ export function extractFromSortKey(
 
   // Denormalize the primary value
   const value =
-    direction === "asc"
-      ? Number(timeBits)
-      : Number(SEGMENT_MAX - timeBits)
+    direction === "asc" ? Number(timeBits) : Number(SEGMENT_MAX - timeBits)
 
   return { statusOrder, value }
 }

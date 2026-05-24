@@ -36,6 +36,7 @@ import { seed as seedRegistrationQuestions } from "./seeders/18-registration-que
 import { seed as seedBroadcasts } from "./seeders/19-broadcasts"
 import { seed as seedCompetitionInvites } from "./seeders/20-competition-invites"
 import { seed as seedCohosts } from "./seeders/21-cohosts"
+// @lat: [[lat.md/domain#Domain Model#Scoring#Multi-round time caps]]
 import { seed as seedMwfcRoundBreakdown } from "./seeders/22-mwfc-round-breakdown"
 
 const seeders = [
@@ -61,6 +62,7 @@ const seeders = [
 	{ name: "19-broadcasts", fn: seedBroadcasts },
 	{ name: "20-competition-invites", fn: seedCompetitionInvites },
 	{ name: "21-cohosts", fn: seedCohosts },
+	// @lat: [[lat.md/domain#Domain Model#Scoring#Multi-round time caps]]
 	{ name: "22-mwfc-round-breakdown", fn: seedMwfcRoundBreakdown },
 ]
 

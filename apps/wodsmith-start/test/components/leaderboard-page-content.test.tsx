@@ -226,6 +226,7 @@ describe("LeaderboardPageContent", () => {
 			expect(screen.getAllByText("150 reps").length).toBeGreaterThan(0)
 		})
 
+		// @lat: [[lat.md/domain#Domain Model#Scoring#Multi-round time caps]]
 		it("displays multi-round score breakdowns under aggregate scores", async () => {
 			const entries = [
 				createMockEntry({
