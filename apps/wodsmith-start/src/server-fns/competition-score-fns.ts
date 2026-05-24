@@ -1622,8 +1622,24 @@ export const backfillMultiRoundCapScoresFn = createServerFn({ method: "POST" })
     const track = await db.query.programmingTracksTable.findFirst({
       where: eq(programmingTracksTable.competitionId, data.competitionId),
     })
+    const emptyBackfillResult = {
+      scanned: 0,
+      updated: 0,
+      skipped: 0,
+      dryRun: !!data.dryRun,
+      scoreTypeScoreRowFallbackCount: 0,
+      scoreTypeDefaultFallbackCount: 0,
+      warnings: [] as Array<{
+        scoreId: string
+        trackWorkoutId: string | null
+        fallback: "score-row" | "default"
+        message: string
+      }>,
+      changes: [],
+    }
+
     if (!track) {
-      return { scanned: 0, updated: 0, skipped: 0, changes: [] }
+      return emptyBackfillResult
     }
 
     const trackWorkoutRows = await db
@@ -1645,7 +1661,7 @@ export const backfillMultiRoundCapScoresFn = createServerFn({ method: "POST" })
       )
 
     if (trackWorkoutRows.length === 0) {
-      return { scanned: 0, updated: 0, skipped: 0, changes: [] }
+      return emptyBackfillResult
     }
 
     const trackWorkoutIds = trackWorkoutRows.map((tw) => tw.id)
@@ -1671,7 +1687,7 @@ export const backfillMultiRoundCapScoresFn = createServerFn({ method: "POST" })
       .where(inArray(scoresTable.competitionEventId, trackWorkoutIds))
 
     if (scores.length === 0) {
-      return { scanned: 0, updated: 0, skipped: 0, changes: [] }
+      return emptyBackfillResult
     }
 
     const scoreIds = scores.map((s) => s.id)
@@ -1709,6 +1725,14 @@ export const backfillMultiRoundCapScoresFn = createServerFn({ method: "POST" })
 
     let updated = 0
     let skipped = 0
+    let scoreTypeScoreRowFallbackCount = 0
+    let scoreTypeDefaultFallbackCount = 0
+    const warnings: Array<{
+      scoreId: string
+      trackWorkoutId: string | null
+      fallback: "score-row" | "default"
+      message: string
+    }> = []
 
     for (const score of scores) {
       const rounds = (roundsByScore.get(score.id) ?? []).sort(
@@ -1728,10 +1752,30 @@ export const backfillMultiRoundCapScoresFn = createServerFn({ method: "POST" })
 
       const capMs = tw.timeCap * 1000
       const roundValues = rounds.map((r) => r.value)
-      const effectiveScoreType =
-        (tw.scoreType as ScoreType) ||
-        (score.scoreType as ScoreType) ||
-        getDefaultScoreType("time-with-cap")
+      let effectiveScoreType: ScoreType
+      if (tw.scoreType) {
+        effectiveScoreType = tw.scoreType as ScoreType
+      } else if (score.scoreType) {
+        effectiveScoreType = score.scoreType as ScoreType
+        scoreTypeScoreRowFallbackCount++
+        warnings.push({
+          scoreId: score.id,
+          trackWorkoutId: score.competitionEventId,
+          fallback: "score-row",
+          message:
+            "Workout scoreType is missing; backfill used the score row scoreType.",
+        })
+      } else {
+        effectiveScoreType = getDefaultScoreType("time-with-cap")
+        scoreTypeDefaultFallbackCount++
+        warnings.push({
+          scoreId: score.id,
+          trackWorkoutId: score.competitionEventId,
+          fallback: "default",
+          message:
+            "Workout and score row scoreType are missing; backfill used the default time-with-cap scoreType.",
+        })
+      }
 
       const recomputedValue = aggregateValues(roundValues, effectiveScoreType)
       if (recomputedValue === null) {
@@ -1832,14 +1876,32 @@ export const backfillMultiRoundCapScoresFn = createServerFn({ method: "POST" })
         updated,
         skipped,
         dryRun: !!data.dryRun,
+        scoreTypeScoreRowFallbackCount,
+        scoreTypeDefaultFallbackCount,
       },
     })
+
+    if (warnings.length > 0) {
+      logWarning({
+        message: "[Score] Multi-round cap backfill used scoreType fallbacks",
+        attributes: {
+          competitionId: data.competitionId,
+          dryRun: !!data.dryRun,
+          scoreTypeScoreRowFallbackCount,
+          scoreTypeDefaultFallbackCount,
+          warningCount: warnings.length,
+        },
+      })
+    }
 
     return {
       scanned: scores.length,
       updated,
       skipped,
       dryRun: !!data.dryRun,
+      scoreTypeScoreRowFallbackCount,
+      scoreTypeDefaultFallbackCount,
+      warnings,
       changes,
     }
   })
