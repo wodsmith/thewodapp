@@ -102,6 +102,7 @@ import {
   Branch as PlanetScaleBranch,
   Password as PlanetScalePassword,
 } from "alchemy/planetscale"
+import { Exec } from "alchemy/os"
 import { CloudflareStateStore } from "alchemy/state"
 import { WebhookEndpoint } from "alchemy/stripe"
 
@@ -247,33 +248,25 @@ const psBranch =
         adopt: true,
       })
 
-const psPassword = await PlanetScalePassword(`ps-password-${stage}`, {
+const psPassword = await PlanetScalePassword(`ps-deploy-password-${stage}`, {
   organization: psOrg,
   database: psDbName,
   branch: psBranch ?? psBranchName,
   role: "admin",
 })
 
-const ciDatabaseUrl = process.env.DATABASE_URL
-  ? new URL(process.env.DATABASE_URL)
-  : undefined
-const hyperdriveOrigin = ciDatabaseUrl
-  ? {
-      host: ciDatabaseUrl.hostname,
-      database: ciDatabaseUrl.pathname.slice(1),
-      user: decodeURIComponent(ciDatabaseUrl.username),
-      password: decodeURIComponent(ciDatabaseUrl.password),
-      port: ciDatabaseUrl.port ? Number(ciDatabaseUrl.port) : 3306,
-      scheme: "mysql" as const,
-    }
-  : {
-      host: psPassword.host,
-      database: psDbName,
-      user: psPassword.username,
-      password: psPassword.password.unencrypted,
-      port: 3306,
-      scheme: "mysql" as const,
-    }
+const databaseUrl = alchemy.secret(
+  `mysql://${encodeURIComponent(psPassword.username)}:${encodeURIComponent(
+    psPassword.password.unencrypted,
+  )}@${psPassword.host}/${psDbName}`,
+)
+
+await Exec(`push-schema-${stage}`, {
+  command: "pnpm exec drizzle-kit push",
+  env: {
+    DATABASE_URL: databaseUrl,
+  },
+})
 
 /**
  * Cloudflare Hyperdrive for PlanetScale connection pooling and caching.
@@ -287,10 +280,14 @@ const hyperdriveOrigin = ciDatabaseUrl
  * which exposes a `connectionString` for use with standard MySQL drivers (mysql2).
  */
 const hyperdrive = await Hyperdrive(`hyperdrive-${stage}`, {
-  // CI creates a fresh PlanetScale branch password before deploy and verifies it
-  // with drizzle-kit. Prefer that URL so stale Alchemy password state cannot
-  // make Cloudflare reject Hyperdrive updates during credential validation.
-  origin: hyperdriveOrigin,
+  origin: {
+    host: psPassword.host,
+    database: psDbName,
+    user: psPassword.username,
+    password: psPassword.password.unencrypted,
+    port: 3306,
+    scheme: "mysql",
+  },
   caching: {
     disabled: true,
   },
