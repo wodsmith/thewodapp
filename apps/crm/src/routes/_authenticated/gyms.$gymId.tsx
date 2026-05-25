@@ -78,6 +78,7 @@ function GymDetailPage() {
             icon={<Handshake className="h-4 w-4" aria-hidden="true" />}
             value={gym.relationship}
             label="Relationship"
+            showLabel
           />
           <MetaItem
             icon={<Mail className="h-4 w-4" aria-hidden="true" />}
@@ -104,11 +105,13 @@ function GymDetailPage() {
             icon={<Clock3 className="h-4 w-4" aria-hidden="true" />}
             value={gym.lastContacted}
             label="Last contacted"
+            showLabel
           />
           <MetaItem
             icon={<Clock3 className="h-4 w-4" aria-hidden="true" />}
             value={gym.updatedAt}
             label="Updated"
+            showLabel
           />
         </div>
         {gym.notes ? <NoteBlock>{gym.notes}</NoteBlock> : null}
@@ -194,11 +197,13 @@ function MetaItem({
   label,
   value,
   href,
+  showLabel,
 }: {
   icon: React.ReactNode
   label: string
   value: string | null
   href?: string | null
+  showLabel?: boolean
 }) {
   if (!value) return null
 
@@ -208,6 +213,11 @@ function MetaItem({
       className="inline-flex min-w-0 items-center gap-2 rounded-md border border-border bg-background px-2.5 py-2 text-sm"
     >
       <span className="shrink-0 text-muted-foreground">{icon}</span>
+      {showLabel ? (
+        <span className="shrink-0 text-xs font-medium uppercase text-muted-foreground">
+          {label}
+        </span>
+      ) : null}
       {href ? (
         <a
           href={href.startsWith("http") ? href : `https://${href}`}
