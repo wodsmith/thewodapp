@@ -178,27 +178,35 @@ function InteractionsPage() {
                 </Td>
                 <Td>{interaction.date || "-"}</Td>
                 <Td>
-                  {interaction.companyId && interaction.companyName ? (
-                    <Link
-                      to="/gyms/$gymId"
-                      params={{ gymId: interaction.companyId }}
-                      className="underline-offset-4 hover:underline"
-                    >
-                      {interaction.companyName}
-                    </Link>
+                  {interaction.companyName ? (
+                    interaction.companyId ? (
+                      <Link
+                        to="/gyms/$gymId"
+                        params={{ gymId: interaction.companyId }}
+                        className="underline-offset-4 hover:underline"
+                      >
+                        {interaction.companyName}
+                      </Link>
+                    ) : (
+                      interaction.companyName
+                    )
                   ) : (
                     "-"
                   )}
                 </Td>
                 <Td>
-                  {interaction.contactId && interaction.contactName ? (
-                    <Link
-                      to="/contacts/$contactId"
-                      params={{ contactId: interaction.contactId }}
-                      className="underline-offset-4 hover:underline"
-                    >
-                      {interaction.contactName}
-                    </Link>
+                  {interaction.contactName ? (
+                    interaction.contactId ? (
+                      <Link
+                        to="/contacts/$contactId"
+                        params={{ contactId: interaction.contactId }}
+                        className="underline-offset-4 hover:underline"
+                      >
+                        {interaction.contactName}
+                      </Link>
+                    ) : (
+                      interaction.contactName
+                    )
                   ) : (
                     "-"
                   )}

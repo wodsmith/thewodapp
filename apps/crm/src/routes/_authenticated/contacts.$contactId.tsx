@@ -43,14 +43,16 @@ function ContactDetailPage() {
         </h2>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <Badge value={contact.status || "Lead"} />
-          {contact.companyId && contact.companyName ? (
+          {gym ? (
             <Link
               to="/gyms/$gymId"
-              params={{ gymId: contact.companyId }}
+              params={{ gymId: gym.id }}
               className="underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              {contact.companyName}
+              {gym.name}
             </Link>
+          ) : contact.companyName ? (
+            <span>{contact.companyName}</span>
           ) : null}
         </div>
       </header>

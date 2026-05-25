@@ -133,10 +133,10 @@ function GymDetailPage() {
       <RelatedSection
         icon={<Handshake className="h-4 w-4" />}
         title="Interactions"
-        summary={interactionSummary(
-          interactions.length,
-          latestInteraction?.date,
-        )}
+        summary={interactionSummary({
+          count: interactions.length,
+          latestDate: latestInteraction?.date,
+        })}
         empty="No interactions are linked to this gym yet."
       >
         {interactions.map((interaction) => (
@@ -274,10 +274,13 @@ function RelatedSection({
   )
 }
 
-function interactionSummary(
-  count: number,
-  latestDate: string | null | undefined,
-) {
+function interactionSummary({
+  count,
+  latestDate,
+}: {
+  count: number
+  latestDate: string | null | undefined
+}) {
   if (count === 0) return undefined
   const countLabel = count === 1 ? "1 interaction" : `${count} interactions`
   return latestDate ? `${countLabel} • latest ${latestDate}` : countLabel

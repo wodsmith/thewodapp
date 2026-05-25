@@ -97,7 +97,10 @@ function CrmBreadcrumbs() {
   if (pathParts.length === 0 || pathParts[0] === "dashboard") return null
 
   const section = pathParts[0]
-  const detailLabel = getDetailLabel(section, matches.at(-1)?.loaderData)
+  const detailLabel = getDetailLabel({
+    section,
+    loaderData: matches.at(-1)?.loaderData,
+  })
   const crumbs = [
     { label: "Dashboard", to: "/dashboard" as const },
     { label: sectionLabel(section), to: `/${section}` },
@@ -136,7 +139,13 @@ function sectionLabel(section: string) {
   return section
 }
 
-function getDetailLabel(section: string, loaderData: unknown) {
+function getDetailLabel({
+  section,
+  loaderData,
+}: {
+  section: string
+  loaderData: unknown
+}) {
   if (!loaderData || typeof loaderData !== "object") return null
   if (
     !(
