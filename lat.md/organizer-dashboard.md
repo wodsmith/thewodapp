@@ -166,7 +166,7 @@ Fetches heats, events, judge volunteers, rotations, heat assignments, and versio
 
 Optional AI-augmented entry point that proposes judge rotations for organizer review.
 
-The page lives at `/compete/organizer/$competitionId/judges-ai` and is backed by the [[apps/wodsmith-start/src/agents/judge-scheduler-agent.ts#JudgeSchedulerAgent]] Cloudflare Agent (Durable Object) running `@cf/moonshotai/kimi-k2.5` through Cloudflare AI Gateway. Each proposal streams to the page over a WebSocket as the LLM emits it; soft-rule violations (e.g. morning judge scheduled past noon) are surfaced as `confidence='low'` with explicit reasons.
+The page lives at `/compete/organizer/$competitionId/judges-ai` and is backed by the [[apps/wodsmith-start/src/agents/judge-scheduler-agent.ts#JudgeSchedulerAgent]] Cloudflare Agent (Durable Object) running `@cf/moonshotai/kimi-k2.6` through Cloudflare AI Gateway. Each proposal streams to the page over a WebSocket as the LLM emits it; soft-rule violations (e.g. morning judge scheduled past noon) are surfaced as `confidence='low'` with explicit reasons.
 
 Accepted proposals write to `competition_judge_rotations` via [[apps/wodsmith-start/src/server-fns/judge-scheduler-ai-fns.ts#applyAiProposalsFn]], which revalidates organizer access, workout ownership, judge roster membership, hard lane/heat rules, and slot overlaps. The organizer still publishes through the standard timeline so versioning stays in one place.
 

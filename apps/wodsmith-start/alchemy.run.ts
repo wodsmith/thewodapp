@@ -674,9 +674,6 @@ const website = await TanStackStart("app", {
       process.env.CLOUDFLARE_ACCOUNT_ID ??
       "317fb84f366ea1ab038ca90000953697",
     CF_AIG_GATEWAY: aiGatewayName,
-    /** CF API token with AI Gateway run permission. Required by the gateway provider. */
-    CF_AIG_TOKEN: alchemy.secret(process.env.CF_AIG_TOKEN!),
-
     // App configuration
     // biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time
     APP_URL: process.env.APP_URL!,
