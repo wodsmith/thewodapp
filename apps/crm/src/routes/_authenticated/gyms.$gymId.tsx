@@ -1,7 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router"
 import {
   Building2,
-  Clock3,
   Globe2,
   Handshake,
   Instagram,
@@ -102,14 +101,13 @@ function GymDetailPage() {
             value={gym.instagram}
             label="Instagram"
           />
-          <MetaItem
-            icon={<Clock3 className="h-4 w-4" aria-hidden="true" />}
-            value={gym.updatedAt}
-            label="Updated"
-            showLabel
-          />
         </div>
         {gym.notes ? <NoteBlock>{gym.notes}</NoteBlock> : null}
+        {gym.updatedAt ? (
+          <p className="border-t border-border pt-3 text-xs text-muted-foreground">
+            Record updated {gym.updatedAt}
+          </p>
+        ) : null}
       </section>
 
       <RelatedSection
