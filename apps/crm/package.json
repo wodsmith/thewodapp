@@ -14,8 +14,8 @@
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
-    "db:migrate:local": "wrangler d1 migrations apply crm-db-dev --local -c .alchemy/local/wrangler.jsonc",
-    "db:setup-local": "mkdir -p .alchemy/local/src/db && rm -f .alchemy/local/src/db/migrations && ln -sf ../../../../src/db/migrations .alchemy/local/src/db/migrations && pnpm db:migrate:local",
+    "db:migrate:local": "wrangler d1 migrations apply crm-db --local",
+    "db:setup-local": "pnpm db:migrate:local",
     "db:seed:local": "node scripts/seed-local-d1-from-duckdb.mjs",
     "alchemy:dev": "STAGE=dev bun alchemy.run.ts",
     "deploy": "bun alchemy.run.ts",
@@ -23,6 +23,7 @@
     "crm-deploy": "STAGE=prod bun alchemy.run.ts"
   },
   "dependencies": {
+    "@cloudflare/vite-plugin": "^1.19.0",
     "@tailwindcss/vite": "^4.0.6",
     "@tanstack/react-router": "^1.132.0",
     "@tanstack/react-start": "^1.132.0",

@@ -168,6 +168,31 @@ export const documentsTable = sqliteTable(
   (table) => [uniqueIndex("documents_file_path_unique").on(table.filePath)],
 )
 
+export const documentEntriesTable = sqliteTable(
+  "document_entries",
+  {
+    id: id(),
+    documentId: text("document_id")
+      .notNull()
+      .references(() => documentsTable.id, {
+        onDelete: "cascade",
+      }),
+    entryId: text("entry_id")
+      .notNull()
+      .references(() => entriesTable.id, {
+        onDelete: "cascade",
+      }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("document_entries_document_id_unique").on(table.documentId),
+    uniqueIndex("document_entries_entry_id_document_id_unique").on(
+      table.entryId,
+      table.documentId,
+    ),
+  ],
+)
+
 export type CrmObject = typeof objectsTable.$inferSelect
 export type NewCrmObject = typeof objectsTable.$inferInsert
 export type CrmField = typeof fieldsTable.$inferSelect
@@ -181,4 +206,6 @@ export type NewCrmEntryRelation = typeof entryRelationsTable.$inferInsert
 export type CrmStatus = typeof statusesTable.$inferSelect
 export type NewCrmStatus = typeof statusesTable.$inferInsert
 export type CrmDocument = typeof documentsTable.$inferSelect
+export type CrmDocumentEntry = typeof documentEntriesTable.$inferSelect
 export type NewCrmDocument = typeof documentsTable.$inferInsert
+export type NewCrmDocumentEntry = typeof documentEntriesTable.$inferInsert
