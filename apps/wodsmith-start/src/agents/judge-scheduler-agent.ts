@@ -38,7 +38,7 @@ import {
  * provider's `unified` adapter takes `<provider>/<model>` strings, so for
  * Workers AI we prefix the standard `@cf/...` slug with `workers-ai/`.
  */
-const MODEL_ID = "workers-ai/@cf/moonshotai/kimi-k2.5"
+const MODEL_ID = "workers-ai/@cf/moonshotai/kimi-k2.6"
 const MAX_STEPS = 24
 
 const SYSTEM_PROMPT = `You are an assistant that drafts judge rotations for a single Functional Fitness-style competition workout.
