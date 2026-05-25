@@ -19,7 +19,7 @@ const db = await D1Database("db", {
 
 const r2Bucket = await R2Bucket("crm-files", {
   adopt: true,
-  dev: { remote: true },
+  dev: { remote: false },
   devDomain: stage !== "prod",
 })
 

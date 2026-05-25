@@ -1,9 +1,15 @@
 import { createHash } from "node:crypto"
 import { existsSync, readdirSync, readFileSync } from "node:fs"
+import os from "node:os"
 import path from "node:path"
 import { spawnSync } from "node:child_process"
 
 const appRoot = process.cwd()
+const duckDbBin =
+	process.env.DUCKDB_BIN ??
+	(existsSync(path.join(os.homedir(), ".local/bin/duckdb"))
+		? path.join(os.homedir(), ".local/bin/duckdb")
+		: "duckdb")
 const workspaceDuckDb =
 	process.env.OPENCLAW_DUCKDB ??
 	"/Users/ianjones/.openclaw-dench/workspace/workspace.duckdb"
@@ -254,10 +260,14 @@ function findLocalD1(root) {
 }
 
 function queryDuckDb(query) {
-	const result = spawnSync("duckdb", [workspaceDuckDb, "-readonly", "-json", "-c", query], {
-		encoding: "utf8",
-		maxBuffer: 1024 * 1024 * 64,
-	})
+	const result = spawnSync(
+		duckDbBin,
+		[workspaceDuckDb, "-readonly", "-json", "-c", query],
+		{
+			encoding: "utf8",
+			maxBuffer: 1024 * 1024 * 64,
+		},
+	)
 
 	if (result.status !== 0) {
 		throw new Error(result.stderr || result.stdout)
