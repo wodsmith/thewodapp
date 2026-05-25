@@ -3,11 +3,14 @@ import {
   Link,
   Outlet,
   redirect,
+  useLocation,
+  useMatches,
   useNavigate,
 } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import {
   Building2,
+  ChevronRight,
   Handshake,
   LayoutDashboard,
   LogOut,
@@ -79,10 +82,97 @@ function AuthenticatedLayout() {
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-4 py-8">
+        <CrmBreadcrumbs />
         <Outlet />
       </main>
     </div>
   )
+}
+
+function CrmBreadcrumbs() {
+  const location = useLocation()
+  const matches = useMatches()
+  const pathParts = location.pathname.split("/").filter(Boolean)
+
+  if (pathParts.length === 0 || pathParts[0] === "dashboard") return null
+
+  const section = pathParts[0]
+  const detailLabel = getDetailLabel({
+    section,
+    loaderData: matches.at(-1)?.loaderData,
+  })
+  const crumbs = [
+    { label: "Dashboard", to: "/dashboard" as const },
+    { label: sectionLabel(section), to: `/${section}` },
+  ]
+
+  return (
+    <nav
+      aria-label="Breadcrumb"
+      className="mb-5 flex flex-wrap items-center gap-1 text-sm text-muted-foreground"
+    >
+      {crumbs.map((crumb, index) => (
+        <span key={crumb.to} className="inline-flex items-center gap-1">
+          {index > 0 ? <ChevronRight className="h-3.5 w-3.5" /> : null}
+          <Link
+            to={crumb.to}
+            className="rounded-sm transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {crumb.label}
+          </Link>
+        </span>
+      ))}
+      {detailLabel ? (
+        <span className="inline-flex min-w-0 items-center gap-1 text-foreground">
+          <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">{detailLabel}</span>
+        </span>
+      ) : null}
+    </nav>
+  )
+}
+
+function sectionLabel(section: string) {
+  if (section === "gyms") return "Gyms"
+  if (section === "contacts") return "Contacts"
+  if (section === "interactions") return "Interactions"
+  return section
+}
+
+function getDetailLabel({
+  section,
+  loaderData,
+}: {
+  section: string
+  loaderData: unknown
+}) {
+  if (!loaderData || typeof loaderData !== "object") return null
+  if (
+    !(
+      "gym" in loaderData ||
+      "contact" in loaderData ||
+      "interaction" in loaderData
+    )
+  ) {
+    return null
+  }
+
+  if (section === "gyms" && "gym" in loaderData) {
+    return (loaderData.gym as { name?: string } | undefined)?.name ?? null
+  }
+  if (section === "contacts" && "contact" in loaderData) {
+    return (
+      (loaderData.contact as { fullName?: string } | undefined)?.fullName ??
+      null
+    )
+  }
+  if (section === "interactions" && "interaction" in loaderData) {
+    return (
+      (loaderData.interaction as { title?: string } | undefined)?.title ?? null
+    )
+  }
+
+  return null
 }
 
 function NavLink({

@@ -15,6 +15,9 @@ import { Route as AuthenticatedInteractionsRouteImport } from './routes/_authent
 import { Route as AuthenticatedGymsRouteImport } from './routes/_authenticated/gyms'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedContactsRouteImport } from './routes/_authenticated/contacts'
+import { Route as AuthenticatedInteractionsInteractionIdRouteImport } from './routes/_authenticated/interactions.$interactionId'
+import { Route as AuthenticatedGymsGymIdRouteImport } from './routes/_authenticated/gyms.$gymId'
+import { Route as AuthenticatedContactsContactIdRouteImport } from './routes/_authenticated/contacts.$contactId'
 
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
@@ -46,35 +49,77 @@ const AuthenticatedContactsRoute = AuthenticatedContactsRouteImport.update({
   path: '/contacts',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedInteractionsInteractionIdRoute =
+  AuthenticatedInteractionsInteractionIdRouteImport.update({
+    id: '/$interactionId',
+    path: '/$interactionId',
+    getParentRoute: () => AuthenticatedInteractionsRoute,
+  } as any)
+const AuthenticatedGymsGymIdRoute = AuthenticatedGymsGymIdRouteImport.update({
+  id: '/$gymId',
+  path: '/$gymId',
+  getParentRoute: () => AuthenticatedGymsRoute,
+} as any)
+const AuthenticatedContactsContactIdRoute =
+  AuthenticatedContactsContactIdRouteImport.update({
+    id: '/$contactId',
+    path: '/$contactId',
+    getParentRoute: () => AuthenticatedContactsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/contacts': typeof AuthenticatedContactsRoute
+  '/contacts': typeof AuthenticatedContactsRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/gyms': typeof AuthenticatedGymsRoute
-  '/interactions': typeof AuthenticatedInteractionsRoute
+  '/gyms': typeof AuthenticatedGymsRouteWithChildren
+  '/interactions': typeof AuthenticatedInteractionsRouteWithChildren
+  '/contacts/$contactId': typeof AuthenticatedContactsContactIdRoute
+  '/gyms/$gymId': typeof AuthenticatedGymsGymIdRoute
+  '/interactions/$interactionId': typeof AuthenticatedInteractionsInteractionIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/contacts': typeof AuthenticatedContactsRoute
+  '/contacts': typeof AuthenticatedContactsRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/gyms': typeof AuthenticatedGymsRoute
-  '/interactions': typeof AuthenticatedInteractionsRoute
+  '/gyms': typeof AuthenticatedGymsRouteWithChildren
+  '/interactions': typeof AuthenticatedInteractionsRouteWithChildren
+  '/contacts/$contactId': typeof AuthenticatedContactsContactIdRoute
+  '/gyms/$gymId': typeof AuthenticatedGymsGymIdRoute
+  '/interactions/$interactionId': typeof AuthenticatedInteractionsInteractionIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
-  '/_authenticated/contacts': typeof AuthenticatedContactsRoute
+  '/_authenticated/contacts': typeof AuthenticatedContactsRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
-  '/_authenticated/gyms': typeof AuthenticatedGymsRoute
-  '/_authenticated/interactions': typeof AuthenticatedInteractionsRoute
+  '/_authenticated/gyms': typeof AuthenticatedGymsRouteWithChildren
+  '/_authenticated/interactions': typeof AuthenticatedInteractionsRouteWithChildren
+  '/_authenticated/contacts/$contactId': typeof AuthenticatedContactsContactIdRoute
+  '/_authenticated/gyms/$gymId': typeof AuthenticatedGymsGymIdRoute
+  '/_authenticated/interactions/$interactionId': typeof AuthenticatedInteractionsInteractionIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/contacts' | '/dashboard' | '/gyms' | '/interactions'
+  fullPaths:
+    | '/'
+    | '/contacts'
+    | '/dashboard'
+    | '/gyms'
+    | '/interactions'
+    | '/contacts/$contactId'
+    | '/gyms/$gymId'
+    | '/interactions/$interactionId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/contacts' | '/dashboard' | '/gyms' | '/interactions'
+  to:
+    | '/'
+    | '/contacts'
+    | '/dashboard'
+    | '/gyms'
+    | '/interactions'
+    | '/contacts/$contactId'
+    | '/gyms/$gymId'
+    | '/interactions/$interactionId'
   id:
     | '__root__'
     | '/'
@@ -83,6 +128,9 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/gyms'
     | '/_authenticated/interactions'
+    | '/_authenticated/contacts/$contactId'
+    | '/_authenticated/gyms/$gymId'
+    | '/_authenticated/interactions/$interactionId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -134,21 +182,81 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedContactsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/interactions/$interactionId': {
+      id: '/_authenticated/interactions/$interactionId'
+      path: '/$interactionId'
+      fullPath: '/interactions/$interactionId'
+      preLoaderRoute: typeof AuthenticatedInteractionsInteractionIdRouteImport
+      parentRoute: typeof AuthenticatedInteractionsRoute
+    }
+    '/_authenticated/gyms/$gymId': {
+      id: '/_authenticated/gyms/$gymId'
+      path: '/$gymId'
+      fullPath: '/gyms/$gymId'
+      preLoaderRoute: typeof AuthenticatedGymsGymIdRouteImport
+      parentRoute: typeof AuthenticatedGymsRoute
+    }
+    '/_authenticated/contacts/$contactId': {
+      id: '/_authenticated/contacts/$contactId'
+      path: '/$contactId'
+      fullPath: '/contacts/$contactId'
+      preLoaderRoute: typeof AuthenticatedContactsContactIdRouteImport
+      parentRoute: typeof AuthenticatedContactsRoute
+    }
   }
 }
 
+interface AuthenticatedContactsRouteChildren {
+  AuthenticatedContactsContactIdRoute: typeof AuthenticatedContactsContactIdRoute
+}
+
+const AuthenticatedContactsRouteChildren: AuthenticatedContactsRouteChildren = {
+  AuthenticatedContactsContactIdRoute: AuthenticatedContactsContactIdRoute,
+}
+
+const AuthenticatedContactsRouteWithChildren =
+  AuthenticatedContactsRoute._addFileChildren(
+    AuthenticatedContactsRouteChildren,
+  )
+
+interface AuthenticatedGymsRouteChildren {
+  AuthenticatedGymsGymIdRoute: typeof AuthenticatedGymsGymIdRoute
+}
+
+const AuthenticatedGymsRouteChildren: AuthenticatedGymsRouteChildren = {
+  AuthenticatedGymsGymIdRoute: AuthenticatedGymsGymIdRoute,
+}
+
+const AuthenticatedGymsRouteWithChildren =
+  AuthenticatedGymsRoute._addFileChildren(AuthenticatedGymsRouteChildren)
+
+interface AuthenticatedInteractionsRouteChildren {
+  AuthenticatedInteractionsInteractionIdRoute: typeof AuthenticatedInteractionsInteractionIdRoute
+}
+
+const AuthenticatedInteractionsRouteChildren: AuthenticatedInteractionsRouteChildren =
+  {
+    AuthenticatedInteractionsInteractionIdRoute:
+      AuthenticatedInteractionsInteractionIdRoute,
+  }
+
+const AuthenticatedInteractionsRouteWithChildren =
+  AuthenticatedInteractionsRoute._addFileChildren(
+    AuthenticatedInteractionsRouteChildren,
+  )
+
 interface AuthenticatedRouteChildren {
-  AuthenticatedContactsRoute: typeof AuthenticatedContactsRoute
+  AuthenticatedContactsRoute: typeof AuthenticatedContactsRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
-  AuthenticatedGymsRoute: typeof AuthenticatedGymsRoute
-  AuthenticatedInteractionsRoute: typeof AuthenticatedInteractionsRoute
+  AuthenticatedGymsRoute: typeof AuthenticatedGymsRouteWithChildren
+  AuthenticatedInteractionsRoute: typeof AuthenticatedInteractionsRouteWithChildren
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
-  AuthenticatedContactsRoute: AuthenticatedContactsRoute,
+  AuthenticatedContactsRoute: AuthenticatedContactsRouteWithChildren,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
-  AuthenticatedGymsRoute: AuthenticatedGymsRoute,
-  AuthenticatedInteractionsRoute: AuthenticatedInteractionsRoute,
+  AuthenticatedGymsRoute: AuthenticatedGymsRouteWithChildren,
+  AuthenticatedInteractionsRoute: AuthenticatedInteractionsRouteWithChildren,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
