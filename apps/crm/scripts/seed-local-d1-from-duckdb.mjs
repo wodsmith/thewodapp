@@ -15,8 +15,8 @@ const workspaceDuckDb =
 	"/Users/ianjones/.openclaw-dench/workspace/workspace.duckdb"
 const localD1 =
 	process.env.CRM_LOCAL_D1 ??
-	findLocalD1(path.join(appRoot, ".alchemy/local/.wrangler/state/v3/d1")) ??
-	findLocalD1(path.join(appRoot, ".wrangler/state/v3/d1"))
+	findLocalD1(path.join(appRoot, ".wrangler/state/v3/d1")) ??
+	findLocalD1(path.join(appRoot, ".alchemy/local/.wrangler/state/v3/d1"))
 
 if (!localD1) {
 	throw new Error("No local D1 sqlite file found. Run `pnpm alchemy:dev` first.")
@@ -145,13 +145,18 @@ const tables = {
 	},
 }
 
-const migrations = ["0000_initial-crm-schema.sql", "0001_entry-relations.sql"]
+const migrations = [
+  "0000_initial-crm-schema.sql",
+  "0001_entry-relations.sql",
+  "0002_document-entries.sql",
+]
 	.map((file) => readFileSync(path.join(appRoot, "src/db/migrations", file), "utf8"))
 	.join("\n")
 
 const sql = [
 	"PRAGMA foreign_keys = OFF;",
 	"DROP TABLE IF EXISTS entry_relations;",
+	"DROP TABLE IF EXISTS document_entries;",
 	"DROP TABLE IF EXISTS entry_fields;",
 	"DROP TABLE IF EXISTS statuses;",
 	"DROP TABLE IF EXISTS documents;",
@@ -232,6 +237,7 @@ const verification = runSqlite(
 		"UNION ALL SELECT 'entries', COUNT(*) FROM entries",
 		"UNION ALL SELECT 'entry_fields', COUNT(*) FROM entry_fields",
 		"UNION ALL SELECT 'entry_relations', COUNT(*) FROM entry_relations",
+		"UNION ALL SELECT 'document_entries', COUNT(*) FROM document_entries",
 		"UNION ALL SELECT 'statuses', COUNT(*) FROM statuses",
 		"UNION ALL SELECT 'documents', COUNT(*) FROM documents;",
 	].join("\n"),
