@@ -1,4 +1,10 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  Link,
+  Outlet,
+  useLocation,
+  useRouter,
+} from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { Plus, Search } from "lucide-react"
 import { useMemo, useState } from "react"
@@ -11,6 +17,7 @@ export const Route = createFileRoute("/_authenticated/contacts")({
 
 function ContactsPage() {
   const { contacts, gyms } = Route.useLoaderData()
+  const location = useLocation()
   const router = useRouter()
   const createContact = useServerFn(createContactFn)
   const [query, setQuery] = useState("")
@@ -25,6 +32,10 @@ function ContactsPage() {
         .some((value) => value.toLowerCase().includes(normalized)),
     )
   }, [contacts, query])
+
+  if (location.pathname !== "/contacts") {
+    return <Outlet />
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -125,12 +136,30 @@ function ContactsPage() {
             {filteredContacts.map((contact) => (
               <tr key={contact.id} className="align-top">
                 <Td>
-                  <p className="font-medium">{contact.fullName}</p>
+                  <Link
+                    to="/contacts/$contactId"
+                    params={{ contactId: contact.id }}
+                    className="font-medium text-foreground underline-offset-4 hover:underline"
+                  >
+                    {contact.fullName}
+                  </Link>
                   <p className="truncate text-muted-foreground">
                     {contact.email || "No email"}
                   </p>
                 </Td>
-                <Td>{contact.companyName || "-"}</Td>
+                <Td>
+                  {contact.companyId && contact.companyName ? (
+                    <Link
+                      to="/gyms/$gymId"
+                      params={{ gymId: contact.companyId }}
+                      className="underline-offset-4 hover:underline"
+                    >
+                      {contact.companyName}
+                    </Link>
+                  ) : (
+                    "-"
+                  )}
+                </Td>
                 <Td>{contact.status || "Lead"}</Td>
                 <Td>{contact.phone || "-"}</Td>
                 <Td>
