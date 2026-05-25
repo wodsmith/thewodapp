@@ -97,6 +97,13 @@ function GymDetailPage() {
             href={gym.website}
           />
           <MetaItem
+            icon={<Globe2 className="h-4 w-4" aria-hidden="true" />}
+            value={gym.crossfitPage}
+            label="CrossFit Page"
+            href={gym.crossfitPage}
+            showLabel
+          />
+          <MetaItem
             icon={<Instagram className="h-4 w-4" aria-hidden="true" />}
             value={gym.instagram}
             label="Instagram"

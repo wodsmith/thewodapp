@@ -23,6 +23,7 @@ export type CrmGym = {
   relationship: string | null
   location: string | null
   website: string | null
+  crossfitPage: string | null
   email: string | null
   phone: string | null
   instagram: string | null
@@ -64,6 +65,7 @@ const gymInputSchema = z.object({
   name: z.string().min(1, "Gym name is required").max(255),
   location: z.string().max(255).optional(),
   website: z.string().max(500).optional(),
+  crossfitPage: z.string().max(500).optional(),
   email: z.string().max(255).optional(),
   phone: z.string().max(100).optional(),
   instagram: z.string().max(255).optional(),
@@ -135,6 +137,28 @@ async function getFieldsByName(objectId: string) {
     .orderBy(asc(fieldsTable.sortOrder), asc(fieldsTable.name))
 
   return new Map(fields.map((field) => [field.name, field]))
+}
+
+async function ensureField(
+  objectId: string,
+  name: string,
+  type: string,
+  sortOrder: number,
+) {
+  const db = getDb()
+  await db
+    .insert(fieldsTable)
+    .values({
+      id: crmId(),
+      objectId,
+      name,
+      type,
+      sortOrder,
+      updatedAt: sql`CURRENT_TIMESTAMP`,
+    })
+    .onConflictDoNothing({
+      target: [fieldsTable.objectId, fieldsTable.name],
+    })
 }
 
 async function getFieldValues(entryIds: string[]) {
@@ -368,6 +392,7 @@ export async function getCrmData() {
       relationship: values.Relationship ?? null,
       location: values.Location ?? null,
       website: values.Website ?? null,
+      crossfitPage: values["CrossFit Page"] ?? null,
       email: values["Email Address"] ?? null,
       phone: values["Phone Number"] ?? null,
       instagram: values.Instagram ?? null,
@@ -463,6 +488,7 @@ export const createGymFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await requireAuth()
     const { entryId, object } = await createEntry("Company")
+    await ensureField(object.id, "CrossFit Page", "url", 70)
     const fields = await getFieldsByName(object.id)
 
     const updates: Array<[string, string | null]> = [
@@ -471,6 +497,7 @@ export const createGymFn = createServerFn({ method: "POST" })
       ["Type", "Prospect"],
       ["Location", clean(data.location)],
       ["Website", clean(data.website)],
+      ["CrossFit Page", clean(data.crossfitPage)],
       ["Email Address", clean(data.email)],
       ["Phone Number", clean(data.phone)],
       ["Instagram", clean(data.instagram)],

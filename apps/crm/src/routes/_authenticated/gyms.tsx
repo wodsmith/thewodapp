@@ -27,7 +27,14 @@ function GymsPage() {
     const normalized = query.trim().toLowerCase()
     if (!normalized) return gyms
     return gyms.filter((gym) =>
-      [gym.name, gym.location, gym.ownerManager, gym.status, gym.relationship]
+      [
+        gym.name,
+        gym.location,
+        gym.ownerManager,
+        gym.status,
+        gym.relationship,
+        gym.crossfitPage,
+      ]
         .filter((value): value is string => Boolean(value))
         .some((value) => value.toLowerCase().includes(normalized)),
     )
@@ -47,6 +54,7 @@ function GymsPage() {
           name: String(form.get("name") ?? ""),
           location: String(form.get("location") ?? ""),
           website: String(form.get("website") ?? ""),
+          crossfitPage: String(form.get("crossfitPage") ?? ""),
           email: String(form.get("email") ?? ""),
           phone: String(form.get("phone") ?? ""),
           instagram: String(form.get("instagram") ?? ""),
@@ -81,6 +89,7 @@ function GymsPage() {
           <TextInput name="ownerManager" label="Owner / Manager" />
           <TextInput name="relationship" label="Relationship" />
           <TextInput name="website" label="Website" />
+          <TextInput name="crossfitPage" label="CrossFit Page" />
           <TextInput name="email" label="Email" />
           <TextInput name="phone" label="Phone" />
           <TextInput name="instagram" label="Instagram" />
@@ -143,7 +152,10 @@ function GymsPage() {
                     {gym.name}
                   </Link>
                   <p className="truncate text-muted-foreground">
-                    {gym.website || gym.instagram || "No web presence saved"}
+                    {gym.website ||
+                      gym.crossfitPage ||
+                      gym.instagram ||
+                      "No web presence saved"}
                   </p>
                 </Td>
                 <Td>{gym.location || "-"}</Td>

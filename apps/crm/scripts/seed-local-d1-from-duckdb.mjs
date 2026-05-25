@@ -145,7 +145,10 @@ const tables = {
 	},
 }
 
-const migrations = ["0000_initial-crm-schema.sql", "0001_entry-relations.sql"]
+const schemaMigrations = ["0000_initial-crm-schema.sql", "0001_entry-relations.sql"]
+	.map((file) => readFileSync(path.join(appRoot, "src/db/migrations", file), "utf8"))
+	.join("\n")
+const dataMigrations = ["0002_company-crossfit-page-field.sql"]
 	.map((file) => readFileSync(path.join(appRoot, "src/db/migrations", file), "utf8"))
 	.join("\n")
 
@@ -158,7 +161,7 @@ const sql = [
 	"DROP TABLE IF EXISTS fields;",
 	"DROP TABLE IF EXISTS entries;",
 	"DROP TABLE IF EXISTS objects;",
-	migrations,
+	schemaMigrations,
 	"BEGIN TRANSACTION;",
 ]
 
@@ -212,6 +215,7 @@ for (const relation of relations) {
 }
 
 sql.push(
+	dataMigrations,
 	"COMMIT;",
 	"PRAGMA foreign_keys = ON;",
 )
