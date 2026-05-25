@@ -112,6 +112,14 @@ export interface CompetitionLeaderboardEntry {
     cappedRoundCount: number
     /** Total number of rounds persisted for this score (0 for single-round) */
     totalRoundCount: number
+    /** Ordered per-round breakdown for multi-round scores */
+    rounds: Array<{
+      roundNumber: number
+      value: number
+      formatted: string
+      status: "scored" | "cap" | null
+      secondaryValue: number | null
+    }>
     /**
      * Aggregate review status across all video submissions for this event.
      * Partner/team divisions can have multiple videos (one per teammate);
@@ -154,6 +162,13 @@ export interface EventReviewSummary {
 interface RoundCapSummary {
   cappedRoundCount: number
   totalRoundCount: number
+  rounds: Array<{
+    roundNumber: number
+    value: number
+    status: "scored" | "cap" | null
+    secondaryValue: number | null
+    schemeOverride: string | null
+  }>
 }
 
 /**
@@ -257,14 +272,14 @@ async function fetchScores(params: {
 }
 
 /**
- * For each score id, count how many rounds were persisted and how many
- * of those carry `status = "cap"`. Drives two things at once:
+ * For each score id, load persisted round state and count how many rounds carry
+ * `status = "cap"`. Drives three things at once:
  *
- * 1. The capped-rounds badge on multi-round leaderboard scores (without
- *    shipping the full round payload to the client).
+ * 1. The capped-rounds badge on multi-round leaderboard scores.
  * 2. The in-flight `computeSortKey` recomputation below, which uses
  *    `cappedRoundCount` as a dominant tiebreaker inside the cap bucket
  *    ("fewer caps beats more caps").
+ * 3. The public per-round breakdown shown underneath aggregate scores.
  */
 async function fetchRoundCapSummaries(
   scoreIds: string[],
@@ -276,7 +291,11 @@ async function fetchRoundCapSummaries(
   const rows = await db
     .select({
       scoreId: scoreRoundsTable.scoreId,
+      roundNumber: scoreRoundsTable.roundNumber,
+      value: scoreRoundsTable.value,
       status: scoreRoundsTable.status,
+      secondaryValue: scoreRoundsTable.secondaryValue,
+      schemeOverride: scoreRoundsTable.schemeOverride,
     })
     .from(scoreRoundsTable)
     .where(inArray(scoreRoundsTable.scoreId, scoreIds))
@@ -285,13 +304,64 @@ async function fetchRoundCapSummaries(
     const existing = summaries.get(row.scoreId) ?? {
       cappedRoundCount: 0,
       totalRoundCount: 0,
+      rounds: [],
     }
     existing.totalRoundCount += 1
     if (row.status === "cap") existing.cappedRoundCount += 1
+    existing.rounds.push({
+      roundNumber: row.roundNumber,
+      value: row.value,
+      status:
+        row.status === "scored" || row.status === "cap" ? row.status : null,
+      secondaryValue: row.secondaryValue,
+      schemeOverride: row.schemeOverride,
+    })
     summaries.set(row.scoreId, existing)
   }
 
+  for (const summary of summaries.values()) {
+    summary.rounds.sort((a, b) => a.roundNumber - b.roundNumber)
+  }
+
   return summaries
+}
+
+function formatRoundBreakdowns(
+  rounds: RoundCapSummary["rounds"],
+  parentScheme: WorkoutScheme,
+  timeCapMs: number | null,
+): CompetitionLeaderboardEntry["eventResults"][number]["rounds"] {
+  return rounds.map((round) => {
+    const scheme = (round.schemeOverride || parentScheme) as WorkoutScheme
+    const displayValue = isTimeBasedScheme(scheme)
+      ? round.status === "cap" && timeCapMs
+        ? timeCapMs
+        : Math.floor(round.value / 1000) * 1000
+      : round.value
+
+    return {
+      roundNumber: round.roundNumber,
+      value: round.value,
+      formatted: decodeScore(displayValue, scheme, { compact: true }),
+      status: round.status,
+      secondaryValue: round.secondaryValue,
+    }
+  })
+}
+
+function getRoundCapSecondaryValue(
+  summary: RoundCapSummary | undefined,
+): number | null {
+  if (!summary || summary.cappedRoundCount === 0) return null
+
+  let total = 0
+  for (const round of summary.rounds) {
+    if (round.status !== "cap") continue
+    if (round.secondaryValue === null) return null
+    total += round.secondaryValue
+  }
+
+  return total
 }
 
 /**
@@ -619,10 +689,7 @@ export async function getCompetitionLeaderboard(params: {
               )
               .where(
                 and(
-                  inArray(
-                    competitionHeatAssignmentsTable.heatId,
-                    mixedHeatIds,
-                  ),
+                  inArray(competitionHeatAssignmentsTable.heatId, mixedHeatIds),
                   ne(
                     competitionRegistrationsTable.status,
                     REGISTRATION_STATUS.REMOVED,
@@ -810,14 +877,11 @@ export async function getCompetitionLeaderboard(params: {
   // status tells us whether points get computed (only "scored"/"cap" earn
   // points in online scoring — "dns"/"dnf"/etc. are treated as inactive).
   // verificationStatus tells us review state (null = unreviewed).
-  const statusBreakdown = allScores.reduce<Record<string, number>>(
-    (acc, s) => {
-      const key = s.status ?? "null"
-      acc[key] = (acc[key] ?? 0) + 1
-      return acc
-    },
-    {},
-  )
+  const statusBreakdown = allScores.reduce<Record<string, number>>((acc, s) => {
+    const key = s.status ?? "null"
+    acc[key] = (acc[key] ?? 0) + 1
+    return acc
+  }, {})
   const verificationBreakdown = allScores.reduce<Record<string, number>>(
     (acc, s) => {
       const key = s.verificationStatus ?? "null"
@@ -922,12 +986,14 @@ export async function getCompetitionLeaderboard(params: {
 
     for (const sub of submissions) {
       statusSet.add(sub.reviewStatus)
-      if (sub.reviewStatus !== "pending" && sub.reviewStatus !== "under_review") {
+      if (
+        sub.reviewStatus !== "pending" &&
+        sub.reviewStatus !== "under_review"
+      ) {
         reviewedCount++
       }
       if (
-        REVIEW_STATUS_PRIORITY[sub.reviewStatus] >
-        REVIEW_STATUS_PRIORITY[worst]
+        REVIEW_STATUS_PRIORITY[sub.reviewStatus] > REVIEW_STATUS_PRIORITY[worst]
       ) {
         worst = sub.reviewStatus
       }
@@ -1094,10 +1160,11 @@ export async function getCompetitionLeaderboard(params: {
       // trusting the stored `s.sortKey`. The stored value is only refreshed
       // when a score is written through `computeSortKey` — direct DB edits
       // to `scoreRoundsTable.status`, and any scores written before the
-      // cap-count tiebreaker was added to `computeSortKey`, leave the
-      // persisted key stale. Recomputing here with the freshly-fetched
-      // `cappedRoundCount` guarantees "fewer caps beats more caps" on the
-      // public leaderboard with no backfill required.
+      // cap-count/reps-at-cap tiebreakers were added to `computeSortKey`,
+      // leave the persisted key stale. Recomputing here with the
+      // freshly-fetched round summary guarantees "fewer caps beats more
+      // caps", then "more reps at cap beats fewer reps", on the public
+      // leaderboard with no backfill required.
       const eventScoreType =
         trackWorkout.workout.scoreType ||
         getDefaultScoreType(trackWorkout.workout.scheme)
@@ -1119,6 +1186,8 @@ export async function getCompetitionLeaderboard(params: {
         }
 
         const roundSummary = roundCapSummariesByScoreId.get(s.id)
+        const timeCapSecondaryValue =
+          s.secondaryValue ?? getRoundCapSecondaryValue(roundSummary)
         const recomputedSortKey = computeSortKey({
           scheme: s.scheme as WorkoutScheme,
           scoreType: eventScoreType,
@@ -1126,8 +1195,8 @@ export async function getCompetitionLeaderboard(params: {
           status: s.status as "scored" | "cap" | "dq" | "withdrawn",
           cappedRoundCount: roundSummary?.cappedRoundCount ?? 0,
           timeCap:
-            s.timeCapMs && s.secondaryValue !== null
-              ? { ms: s.timeCapMs, secondaryValue: s.secondaryValue }
+            s.timeCapMs && timeCapSecondaryValue !== null
+              ? { ms: s.timeCapMs, secondaryValue: timeCapSecondaryValue }
               : undefined,
           tiebreak:
             s.tiebreakValue !== null && s.tiebreakScheme
@@ -1182,6 +1251,7 @@ export async function getCompetitionLeaderboard(params: {
         const roundSummary = roundCapSummariesByScoreId.get(score.id) ?? {
           cappedRoundCount: 0,
           totalRoundCount: 0,
+          rounds: [],
         }
 
         // DB `status` is wider than `formatScore`'s accepted union — it can
@@ -1203,13 +1273,6 @@ export async function getCompetitionLeaderboard(params: {
         } else if (score.status === "dnf") {
           formattedScore = "DNF"
         } else {
-          // Multi-round scores (partner/team relays, multi-round time, etc.)
-          // aggregate a real numeric total even when individual rounds hit the
-          // cap — the athlete logs cap time + 1s/missed-rep per round and we
-          // sum those into `scoreValue`. Rendering the literal "CAP" label
-          // would hide that aggregate. For multi-round entries we therefore
-          // force status to "scored" so `formatScore` emits the value, and
-          // surface the cap state through `CappedRoundsIndicator` instead.
           const isMultiRound = roundSummary.totalRoundCount > 1
           const isKnownFormatStatus =
             score.status === "scored" ||
@@ -1307,6 +1370,11 @@ export async function getCompetitionLeaderboard(params: {
           isParentEvent: false,
           cappedRoundCount: roundSummary.cappedRoundCount,
           totalRoundCount: roundSummary.totalRoundCount,
+          rounds: formatRoundBreakdowns(
+            roundSummary.rounds,
+            scoreScheme,
+            score.timeCapMs,
+          ),
           reviewSummary: buildReviewSummary(
             registration.registration.id,
             trackWorkout.id,
@@ -1374,6 +1442,7 @@ export async function getCompetitionLeaderboard(params: {
           isParentEvent: false,
           cappedRoundCount: 0,
           totalRoundCount: 0,
+          rounds: [],
           reviewSummary: buildReviewSummary(
             reg.registration.id,
             trackWorkout.id,
@@ -1432,6 +1501,7 @@ export async function getCompetitionLeaderboard(params: {
           isParentEvent: false,
           cappedRoundCount: 0,
           totalRoundCount: 0,
+          rounds: [],
           reviewSummary: isEventDivisionPublished(
             trackWorkout.id,
             entry.divisionId,

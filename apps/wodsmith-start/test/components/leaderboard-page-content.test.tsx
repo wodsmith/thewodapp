@@ -133,6 +133,7 @@ const createMockEntry = (
 			isParentEvent: false,
 			cappedRoundCount: 0,
 			totalRoundCount: 0,
+			rounds: [],
 			reviewSummary: null,
 		},
 		{
@@ -155,6 +156,7 @@ const createMockEntry = (
 			isParentEvent: false,
 			cappedRoundCount: 0,
 			totalRoundCount: 0,
+			rounds: [],
 			reviewSummary: null,
 		},
 	],
@@ -223,6 +225,76 @@ describe("LeaderboardPageContent", () => {
 			expect(screen.getAllByText("5:00").length).toBeGreaterThan(0)
 			expect(screen.getAllByText("150 reps").length).toBeGreaterThan(0)
 		})
+
+		// @lat: [[lat.md/domain#Domain Model#Scoring#Multi-round time caps]]
+		it("displays multi-round score breakdowns under aggregate scores", async () => {
+			const entries = [
+				createMockEntry({
+					eventResults: [
+						{
+							trackWorkoutId: "tw-1",
+							trackOrder: 1,
+							eventName: "Event 1",
+							scheme: "time-with-cap",
+							rank: 1,
+							points: 100,
+							rawScore: "1472000",
+							formattedScore: "24:32",
+							formattedTiebreak: null,
+							penaltyType: null,
+							penaltyPercentage: null,
+							isDirectlyModified: false,
+							videoUrl: null,
+							videoSubmissionId: null,
+							parentEventId: null,
+							parentEventName: null,
+							isParentEvent: false,
+							cappedRoundCount: 1,
+							totalRoundCount: 2,
+							rounds: [
+								{
+									roundNumber: 1,
+									value: 540000,
+									formatted: "9:00",
+									status: "scored",
+									secondaryValue: null,
+								},
+								{
+									roundNumber: 2,
+									value: 932000,
+									formatted: "15:32",
+									status: "cap",
+									secondaryValue: 42,
+								},
+							],
+							reviewSummary: null,
+						},
+					],
+				}),
+			]
+
+			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(mockLeaderboardResponse(entries))
+
+			render(<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={mockCompetition}
+				/>)
+
+			await waitFor(() => {
+				expect(screen.getAllByText("24:32").length).toBeGreaterThan(0)
+			})
+
+			expect(
+				screen.getAllByText((_, element) => element?.textContent === "R1: 9:00")
+					.length,
+			).toBeGreaterThan(0)
+			expect(
+				screen.getAllByText(
+					(_, element) => element?.textContent === "R2: CAP (15:32, 42 reps)",
+				).length,
+			).toBeGreaterThan(0)
+		})
 	})
 
 	describe("P-Score Display", () => {
@@ -252,6 +324,7 @@ describe("LeaderboardPageContent", () => {
 			isParentEvent: false,
 			cappedRoundCount: 0,
 			totalRoundCount: 0,
+			rounds: [],
 			reviewSummary: null,
 						},
 						{
@@ -274,6 +347,7 @@ describe("LeaderboardPageContent", () => {
 			isParentEvent: false,
 			cappedRoundCount: 0,
 			totalRoundCount: 0,
+			rounds: [],
 			reviewSummary: null,
 						},
 					],
@@ -322,6 +396,7 @@ describe("LeaderboardPageContent", () => {
 			isParentEvent: false,
 			cappedRoundCount: 0,
 			totalRoundCount: 0,
+			rounds: [],
 			reviewSummary: null,
 						},
 					],
@@ -498,6 +573,7 @@ describe("LeaderboardPageContent", () => {
 			isParentEvent: false,
 			cappedRoundCount: 0,
 			totalRoundCount: 0,
+			rounds: [],
 			reviewSummary: null,
 						},
 					],
@@ -544,6 +620,7 @@ describe("LeaderboardPageContent", () => {
 			isParentEvent: false,
 			cappedRoundCount: 0,
 			totalRoundCount: 0,
+			rounds: [],
 			reviewSummary: null,
 						},
 					],
@@ -590,6 +667,7 @@ describe("LeaderboardPageContent", () => {
 			isParentEvent: false,
 			cappedRoundCount: 0,
 			totalRoundCount: 0,
+			rounds: [],
 			reviewSummary: null,
 						},
 					],
@@ -636,6 +714,7 @@ describe("LeaderboardPageContent", () => {
 			isParentEvent: false,
 			cappedRoundCount: 0,
 			totalRoundCount: 0,
+			rounds: [],
 			reviewSummary: null,
 						},
 					],
@@ -687,6 +766,7 @@ describe("LeaderboardPageContent", () => {
 			isParentEvent: false,
 			cappedRoundCount: 0,
 			totalRoundCount: 0,
+			rounds: [],
 			reviewSummary: null,
 						},
 					],

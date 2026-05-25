@@ -46,6 +46,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { RoundBreakdown } from "@/components/leaderboard-round-breakdown"
 import { getSortDirection } from "@/lib/scoring"
 import type { WorkoutScheme } from "@/lib/scoring/types"
 import { cn } from "@/lib/utils"
@@ -173,8 +174,8 @@ function CappedRoundsIndicator({
       <PopoverContent className="w-auto max-w-[240px] p-3">
         <p className="text-sm font-medium">{label}</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          At least one round hit the per-round time cap. The summed total
-          above includes penalty time from each capped round.
+          At least one round hit the per-round time cap. The summed total above
+          includes penalty time from each capped round.
         </p>
       </PopoverContent>
     </Popover>
@@ -241,6 +242,7 @@ function EventResultCell({
           </span>
         )}
       </span>
+      <RoundBreakdown result={result} />
       {/* Secondary: Rank & points - lighter, smaller */}
       <span className="text-xs text-muted-foreground tabular-nums">
         <span className="font-medium">#{result.rank}</span>
@@ -438,30 +440,31 @@ function MobileLeaderboardRow({
                     </div>
                   )}
                   <div className="flex flex-col gap-0.5">
-                  <span className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground/70">
-                    {event.name}
-                  </span>
-                  {result && result.rank > 0 ? (
-                    <div className="flex flex-col gap-0.5">
-                      <span className="font-medium tabular-nums inline-flex items-center gap-1">
-                        {result.formattedScore}
-                        <CappedRoundsIndicator result={result} />
-                        <PenaltyIndicator result={result} />
-                        {result.formattedTiebreak && (
-                          <span className="text-muted-foreground font-normal ml-1">
-                            (TB: {result.formattedTiebreak})
-                          </span>
-                        )}
-                      </span>
-                      <span className="text-xs text-muted-foreground tabular-nums">
-                        #{result.rank}{" "}
-                        {formatPoints(result.points, scoringAlgorithm)}
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-muted-foreground italic">—</span>
-                  )}
-                </div>
+                    <span className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground/70">
+                      {event.name}
+                    </span>
+                    {result && result.rank > 0 ? (
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-medium tabular-nums inline-flex items-center gap-1">
+                          {result.formattedScore}
+                          <CappedRoundsIndicator result={result} />
+                          <PenaltyIndicator result={result} />
+                          {result.formattedTiebreak && (
+                            <span className="text-muted-foreground font-normal ml-1">
+                              (TB: {result.formattedTiebreak})
+                            </span>
+                          )}
+                        </span>
+                        <RoundBreakdown result={result} />
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                          #{result.rank}{" "}
+                          {formatPoints(result.points, scoringAlgorithm)}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground italic">—</span>
+                    )}
+                  </div>
                 </Fragment>
               )
             })}
@@ -598,16 +601,19 @@ export function CompetitionLeaderboardTable({
               return <span className="text-muted-foreground italic">—</span>
             }
             return (
-              <span className="font-medium tabular-nums inline-flex items-center gap-1">
-                {result.formattedScore}
-                <CappedRoundsIndicator result={result} />
-                <PenaltyIndicator result={result} />
-                {result.formattedTiebreak && (
-                  <span className="text-muted-foreground font-normal ml-1">
-                    (TB: {result.formattedTiebreak})
-                  </span>
-                )}
-              </span>
+              <div className="flex flex-col gap-0.5">
+                <span className="font-medium tabular-nums inline-flex items-center gap-1">
+                  {result.formattedScore}
+                  <CappedRoundsIndicator result={result} />
+                  <PenaltyIndicator result={result} />
+                  {result.formattedTiebreak && (
+                    <span className="text-muted-foreground font-normal ml-1">
+                      (TB: {result.formattedTiebreak})
+                    </span>
+                  )}
+                </span>
+                <RoundBreakdown result={result} />
+              </div>
             )
           },
         },
@@ -722,9 +728,7 @@ export function CompetitionLeaderboardTable({
   const parentGroupSpans = useMemo(() => {
     if (selectedEventId) return [] // No group headers in single-event view
 
-    const sortedEvents = [...events].sort(
-      (a, b) => a.trackOrder - b.trackOrder,
-    )
+    const sortedEvents = [...events].sort((a, b) => a.trackOrder - b.trackOrder)
     // Count leading non-event columns (rank, athlete, optionally affiliate)
     const leadingCols = hasAffiliates ? 3 : 2
     const hasAnyParent = sortedEvents.some((e) => e.parentEventId)

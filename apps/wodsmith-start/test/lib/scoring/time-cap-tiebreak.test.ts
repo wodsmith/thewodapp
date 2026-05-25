@@ -146,6 +146,38 @@ describe('Time Cap Scenarios', () => {
       expect(sorted[1]?.value).toBe(2460000)
     })
 
+    it('should use capped round reps when cap count and total time match', () => {
+      const fewerReps: Score = {
+        scheme: 'time-with-cap',
+        scoreType: 'sum',
+        value: 2160000, // 36:00
+        status: 'cap',
+        cappedRoundCount: 2,
+        totalRoundCount: 2,
+        rounds: [
+          {roundNumber: 1, value: 1080000, status: 'cap', secondaryValue: 140},
+          {roundNumber: 2, value: 1080000, status: 'cap', secondaryValue: 139},
+        ],
+      }
+      const moreReps: Score = {
+        scheme: 'time-with-cap',
+        scoreType: 'sum',
+        value: 2160000, // 36:00
+        status: 'cap',
+        cappedRoundCount: 2,
+        totalRoundCount: 2,
+        rounds: [
+          {roundNumber: 1, value: 1080000, status: 'cap', secondaryValue: 182},
+          {roundNumber: 2, value: 1080000, status: 'cap', secondaryValue: 181},
+        ],
+      }
+
+      const sorted = sortScores([fewerReps, moreReps])
+
+      expect(sorted[0]?.rounds?.[0]?.secondaryValue).toBe(182)
+      expect(sorted[1]?.rounds?.[0]?.secondaryValue).toBe(140)
+    })
+
     it('should sort multi-round capped scores below any fully-scored time', () => {
       const scores: Score[] = [
         // Multi-round capped: 41:00 total, at least one round capped
