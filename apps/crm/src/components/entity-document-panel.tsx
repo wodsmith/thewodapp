@@ -181,7 +181,7 @@ export function EntityDocumentPanel({
 
   return (
     <section className="overflow-hidden rounded-lg border border-border">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-4 py-4">
+      <div className="border-b border-border px-4 py-4">
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Documents
@@ -190,9 +190,6 @@ export function EntityDocumentPanel({
             Attachments for {label}
           </h3>
         </div>
-        <span className="inline-flex h-7 shrink-0 items-center rounded-full border border-border bg-secondary px-2.5 text-xs font-medium text-muted-foreground">
-          R2-backed
-        </span>
       </div>
 
       <form
