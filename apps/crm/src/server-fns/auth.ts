@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
-import { getAuthPassword, getSessionSecret } from "@/lib/env"
+import { getAuthPassword, getSessionSecret, isSecureAppUrl } from "@/lib/env"
 
 const SESSION_COOKIE = "crm_session"
 
@@ -118,7 +118,7 @@ export const loginFn = createServerFn({ method: "POST" })
 
     await setCookie(SESSION_COOKIE, signed, {
       httpOnly: true,
-      secure: true,
+      secure: isSecureAppUrl(),
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 30, // 30 days
@@ -132,7 +132,7 @@ export const logoutFn = createServerFn({ method: "POST" }).handler(async () => {
   const { setCookie } = await import("@tanstack/react-start/server")
   await setCookie(SESSION_COOKIE, "", {
     httpOnly: true,
-    secure: true,
+    secure: isSecureAppUrl(),
     sameSite: "lax",
     path: "/",
     maxAge: 0,
