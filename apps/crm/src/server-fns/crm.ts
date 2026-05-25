@@ -112,8 +112,24 @@ export function extractCrossFitAffiliateNumber(
   const normalized = clean(page)
   if (!normalized) return null
 
-  const match = normalized.match(
-    /(?:crossfit\.com\/(?:gym|affiliate)|games\.crossfit\.com\/affiliate)\/(\d+)(?:[/?#]|$)/i,
+  let url: URL
+  try {
+    url = new URL(normalized)
+  } catch {
+    return null
+  }
+
+  const hostname = url.hostname.toLowerCase()
+  const pathname = url.pathname.toLowerCase()
+  const allowedHosts = new Set(["www.crossfit.com", "crossfit.com"])
+  const isCrossFitHost = allowedHosts.has(hostname)
+  const isGamesHost = hostname === "games.crossfit.com"
+  if (!isCrossFitHost && !isGamesHost) return null
+
+  const match = pathname.match(
+    isGamesHost
+      ? /^\/affiliate\/(\d+)(?:\/|$)/
+      : /^\/(?:gym|affiliate)\/(\d+)(?:\/|$)/,
   )
 
   return match?.[1] ?? null
