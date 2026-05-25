@@ -1,5 +1,15 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router"
-import { Building2, Handshake, UserRound } from "lucide-react"
+import {
+  Building2,
+  Clock3,
+  Globe2,
+  Handshake,
+  Instagram,
+  Mail,
+  MapPin,
+  Phone,
+  UserRound,
+} from "lucide-react"
 import { getCrmDataFn } from "@/server-fns/crm"
 
 export const Route = createFileRoute("/_authenticated/gyms/$gymId")({
@@ -38,11 +48,15 @@ function GymDetailPage() {
           <h2 className="mt-1 text-3xl font-semibold tracking-tight">
             {gym.name}
           </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {[gym.location, gym.status, gym.priority]
-              .filter(Boolean)
-              .join(" • ")}
-          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <MetaInline
+              icon={<MapPin className="h-4 w-4" aria-hidden="true" />}
+              value={gym.location}
+              label="Location"
+            />
+            <Badge value={gym.status || "Prospect"} />
+            <Badge value={gym.priority} />
+          </div>
         </div>
         <Link
           to="/interactions"
@@ -54,17 +68,48 @@ function GymDetailPage() {
       </header>
 
       <section className="space-y-4 rounded-lg border border-border p-4">
-        <div className="flex flex-wrap gap-2">
-          <Fact label="Status" value={gym.status || "Prospect"} />
-          <Fact label="Priority" value={gym.priority} />
-          <Fact label="Owner" value={gym.ownerManager} />
-          <Fact label="Relationship" value={gym.relationship} />
-          <Fact label="Email" value={gym.email} />
-          <Fact label="Phone" value={gym.phone} />
-          <Fact label="Last touched" value={gym.lastContacted} />
-          <Fact label="Updated" value={gym.updatedAt} />
-          <Fact label="Instagram" value={gym.instagram} />
-          <Fact label="Website" value={gym.website} href={gym.website} />
+        <div className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-3">
+          <MetaItem
+            icon={<UserRound className="h-4 w-4" aria-hidden="true" />}
+            value={gym.ownerManager}
+            label="Owner or manager"
+          />
+          <MetaItem
+            icon={<Handshake className="h-4 w-4" aria-hidden="true" />}
+            value={gym.relationship}
+            label="Relationship"
+          />
+          <MetaItem
+            icon={<Mail className="h-4 w-4" aria-hidden="true" />}
+            value={gym.email}
+            label="Email"
+          />
+          <MetaItem
+            icon={<Phone className="h-4 w-4" aria-hidden="true" />}
+            value={gym.phone}
+            label="Phone"
+          />
+          <MetaItem
+            icon={<Globe2 className="h-4 w-4" aria-hidden="true" />}
+            value={gym.website}
+            label="Website"
+            href={gym.website}
+          />
+          <MetaItem
+            icon={<Instagram className="h-4 w-4" aria-hidden="true" />}
+            value={gym.instagram}
+            label="Instagram"
+          />
+          <MetaItem
+            icon={<Clock3 className="h-4 w-4" aria-hidden="true" />}
+            value={gym.lastContacted}
+            label="Last contacted"
+          />
+          <MetaItem
+            icon={<Clock3 className="h-4 w-4" aria-hidden="true" />}
+            value={gym.updatedAt}
+            label="Updated"
+          />
         </div>
         {gym.notes ? <NoteBlock>{gym.notes}</NoteBlock> : null}
       </section>
@@ -112,11 +157,45 @@ function GymDetailPage() {
   )
 }
 
-function Fact({
+function Badge({ value }: { value: string | null }) {
+  if (!value) return null
+
+  return (
+    <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+      {value}
+    </span>
+  )
+}
+
+function MetaInline({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string | null
+}) {
+  if (!value) return null
+
+  return (
+    <span
+      title={`${label}: ${value}`}
+      className="inline-flex min-w-0 items-center gap-1.5"
+    >
+      {icon}
+      <span className="truncate">{value}</span>
+    </span>
+  )
+}
+
+function MetaItem({
+  icon,
   label,
   value,
   href,
 }: {
+  icon: React.ReactNode
   label: string
   value: string | null
   href?: string | null
@@ -124,21 +203,22 @@ function Fact({
   if (!value) return null
 
   return (
-    <span className="inline-flex max-w-full items-center gap-1.5 rounded-md bg-secondary px-2.5 py-1 text-sm">
-      <span className="text-xs font-medium uppercase text-muted-foreground">
-        {label}
-      </span>
+    <span
+      title={`${label}: ${value}`}
+      className="inline-flex min-w-0 items-center gap-2 rounded-md border border-border bg-background px-2.5 py-2 text-sm"
+    >
+      <span className="shrink-0 text-muted-foreground">{icon}</span>
       {href ? (
         <a
           href={href.startsWith("http") ? href : `https://${href}`}
           target="_blank"
           rel="noreferrer"
-          className="truncate underline-offset-4 hover:underline"
+          className="min-w-0 truncate underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {value}
         </a>
       ) : (
-        <span className="truncate">{value}</span>
+        <span className="min-w-0 truncate">{value}</span>
       )}
     </span>
   )

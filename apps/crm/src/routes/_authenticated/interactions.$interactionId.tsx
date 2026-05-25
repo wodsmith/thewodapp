@@ -1,5 +1,12 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router"
-import { Building2, Handshake, UserRound } from "lucide-react"
+import {
+  Building2,
+  CalendarDays,
+  Clock3,
+  Handshake,
+  Send,
+  UserRound,
+} from "lucide-react"
 import { getCrmDataFn } from "@/server-fns/crm"
 
 export const Route = createFileRoute(
@@ -38,21 +45,39 @@ function InteractionDetailPage() {
         <h2 className="mt-1 text-3xl font-semibold tracking-tight">
           {interaction.title}
         </h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {[interaction.date, interaction.channel, interaction.status]
-            .filter(Boolean)
-            .join(" • ")}
-        </p>
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          <MetaInline
+            icon={<CalendarDays className="h-4 w-4" aria-hidden="true" />}
+            value={interaction.date}
+            label="Date"
+          />
+          <Badge value={interaction.channel} />
+          <Badge value={interaction.status} />
+        </div>
       </header>
 
       <section className="space-y-4 rounded-lg border border-border p-4">
-        <div className="flex flex-wrap gap-2">
-          <Fact label="Date" value={interaction.date} />
-          <Fact label="Channel" value={interaction.channel} />
-          <Fact label="Status" value={interaction.status} />
-          <Fact label="Gym" value={interaction.companyName} />
-          <Fact label="Contact" value={interaction.contactName} />
-          <Fact label="Updated" value={interaction.updatedAt} />
+        <div className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-3">
+          <MetaItem
+            icon={<Building2 className="h-4 w-4" aria-hidden="true" />}
+            value={interaction.companyName}
+            label="Gym"
+          />
+          <MetaItem
+            icon={<UserRound className="h-4 w-4" aria-hidden="true" />}
+            value={interaction.contactName}
+            label="Contact"
+          />
+          <MetaItem
+            icon={<Send className="h-4 w-4" aria-hidden="true" />}
+            value={interaction.channel}
+            label="Channel"
+          />
+          <MetaItem
+            icon={<Clock3 className="h-4 w-4" aria-hidden="true" />}
+            value={interaction.updatedAt}
+            label="Updated"
+          />
         </div>
         {interaction.notes ? <NoteBlock>{interaction.notes}</NoteBlock> : null}
         {interaction.content ? (
@@ -107,15 +132,56 @@ function InteractionDetailPage() {
   )
 }
 
-function Fact({ label, value }: { label: string; value: string | null }) {
+function Badge({ value }: { value: string | null }) {
   if (!value) return null
 
   return (
-    <span className="inline-flex max-w-full items-center gap-1.5 rounded-md bg-secondary px-2.5 py-1 text-sm">
-      <span className="text-xs font-medium uppercase text-muted-foreground">
-        {label}
-      </span>
+    <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+      {value}
+    </span>
+  )
+}
+
+function MetaInline({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string | null
+}) {
+  if (!value) return null
+
+  return (
+    <span
+      title={`${label}: ${value}`}
+      className="inline-flex min-w-0 items-center gap-1.5"
+    >
+      {icon}
       <span className="truncate">{value}</span>
+    </span>
+  )
+}
+
+function MetaItem({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string | null
+}) {
+  if (!value) return null
+
+  return (
+    <span
+      title={`${label}: ${value}`}
+      className="inline-flex min-w-0 items-center gap-2 rounded-md border border-border bg-background px-2.5 py-2 text-sm"
+    >
+      <span className="shrink-0 text-muted-foreground">{icon}</span>
+      <span className="min-w-0 truncate">{value}</span>
     </span>
   )
 }
