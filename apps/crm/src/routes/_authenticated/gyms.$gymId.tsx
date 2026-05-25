@@ -3,6 +3,7 @@ import {
   Building2,
   Globe2,
   Handshake,
+  Hash,
   Instagram,
   Mail,
   MapPin,
@@ -101,6 +102,12 @@ function GymDetailPage() {
             value={gym.crossfitPage}
             label="CrossFit Page"
             href={gym.crossfitPage}
+            showLabel
+          />
+          <MetaItem
+            icon={<Hash className="h-4 w-4" aria-hidden="true" />}
+            value={gym.crossfitAffiliateNumber}
+            label="Affiliate"
             showLabel
           />
           <MetaItem

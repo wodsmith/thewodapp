@@ -24,6 +24,7 @@ export type CrmGym = {
   location: string | null
   website: string | null
   crossfitPage: string | null
+  crossfitAffiliateNumber: string | null
   email: string | null
   phone: string | null
   instagram: string | null
@@ -103,6 +104,19 @@ function crmId() {
 function clean(value: string | null | undefined) {
   const trimmed = value?.trim()
   return trimmed ? trimmed : null
+}
+
+export function extractCrossFitAffiliateNumber(
+  page: string | null | undefined,
+) {
+  const normalized = clean(page)
+  if (!normalized) return null
+
+  const match = normalized.match(
+    /(?:crossfit\.com\/(?:gym|affiliate)|games\.crossfit\.com\/affiliate)\/(\d+)(?:[/?#]|$)/i,
+  )
+
+  return match?.[1] ?? null
 }
 
 function chunks<T>(values: T[], size: number) {
@@ -393,6 +407,9 @@ export async function getCrmData() {
       location: values.Location ?? null,
       website: values.Website ?? null,
       crossfitPage: values["CrossFit Page"] ?? null,
+      crossfitAffiliateNumber: extractCrossFitAffiliateNumber(
+        values["CrossFit Page"],
+      ),
       email: values["Email Address"] ?? null,
       phone: values["Phone Number"] ?? null,
       instagram: values.Instagram ?? null,

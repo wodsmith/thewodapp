@@ -34,6 +34,7 @@ function GymsPage() {
         gym.status,
         gym.relationship,
         gym.crossfitPage,
+        gym.crossfitAffiliateNumber,
       ]
         .filter((value): value is string => Boolean(value))
         .some((value) => value.toLowerCase().includes(normalized)),
