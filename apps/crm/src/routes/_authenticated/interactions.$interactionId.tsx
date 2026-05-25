@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router"
-import { Building2, CalendarDays, Handshake, UserRound } from "lucide-react"
+import { Building2, Handshake, UserRound } from "lucide-react"
 import { getCrmDataFn } from "@/server-fns/crm"
 
 export const Route = createFileRoute(
@@ -45,31 +45,20 @@ function InteractionDetailPage() {
         </p>
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_18rem]">
-        <section className="rounded-lg border border-border p-4">
-          <h3 className="text-sm font-semibold uppercase text-muted-foreground">
-            Details
-          </h3>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <Field label="Date" value={interaction.date} />
-            <Field label="Channel" value={interaction.channel} />
-            <Field label="Status" value={interaction.status} />
-            <Field label="Updated" value={interaction.updatedAt} />
-            <Field label="Notes" value={interaction.notes} wide />
-            <Field label="Content" value={interaction.content} wide />
-          </div>
-        </section>
-
-        <aside className="space-y-3 rounded-lg border border-border p-4">
-          <h3 className="text-sm font-semibold uppercase text-muted-foreground">
-            Timeline
-          </h3>
-          <div className="flex items-center gap-2 text-sm">
-            <CalendarDays className="h-4 w-4 text-muted-foreground" />
-            <span>{interaction.date || "No date"}</span>
-          </div>
-        </aside>
-      </div>
+      <section className="space-y-4 rounded-lg border border-border p-4">
+        <div className="flex flex-wrap gap-2">
+          <Fact label="Date" value={interaction.date} />
+          <Fact label="Channel" value={interaction.channel} />
+          <Fact label="Status" value={interaction.status} />
+          <Fact label="Gym" value={interaction.companyName} />
+          <Fact label="Contact" value={interaction.contactName} />
+          <Fact label="Updated" value={interaction.updatedAt} />
+        </div>
+        {interaction.notes ? <NoteBlock>{interaction.notes}</NoteBlock> : null}
+        {interaction.content ? (
+          <NoteBlock>{interaction.content}</NoteBlock>
+        ) : null}
+      </section>
 
       <section className="grid gap-4 md:grid-cols-2">
         <AssociationCard
@@ -118,21 +107,23 @@ function InteractionDetailPage() {
   )
 }
 
-function Field({
-  label,
-  value,
-  wide,
-}: {
-  label: string
-  value: string | null
-  wide?: boolean
-}) {
+function Fact({ label, value }: { label: string; value: string | null }) {
+  if (!value) return null
+
   return (
-    <div className={wide ? "md:col-span-2" : undefined}>
-      <dt className="text-xs font-medium uppercase text-muted-foreground">
+    <span className="inline-flex max-w-full items-center gap-1.5 rounded-md bg-secondary px-2.5 py-1 text-sm">
+      <span className="text-xs font-medium uppercase text-muted-foreground">
         {label}
-      </dt>
-      <dd className="mt-1 whitespace-pre-wrap text-sm">{value || "-"}</dd>
+      </span>
+      <span className="truncate">{value}</span>
+    </span>
+  )
+}
+
+function NoteBlock({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="whitespace-pre-wrap border-t border-border pt-4 text-sm leading-6 text-muted-foreground">
+      {children}
     </div>
   )
 }
