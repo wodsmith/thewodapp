@@ -36,6 +36,7 @@ export const Route = createFileRoute("/_authenticated/gyms/$gymId")({
 
 function GymDetailPage() {
   const { gym, contacts, interactions } = Route.useLoaderData()
+  const latestInteraction = interactions[0]
 
   return (
     <section className="space-y-6">
@@ -103,12 +104,6 @@ function GymDetailPage() {
           />
           <MetaItem
             icon={<Clock3 className="h-4 w-4" aria-hidden="true" />}
-            value={gym.lastContacted}
-            label="Last contacted"
-            showLabel
-          />
-          <MetaItem
-            icon={<Clock3 className="h-4 w-4" aria-hidden="true" />}
             value={gym.updatedAt}
             label="Updated"
             showLabel
@@ -140,6 +135,10 @@ function GymDetailPage() {
       <RelatedSection
         icon={<Handshake className="h-4 w-4" />}
         title="Interactions"
+        summary={interactionSummary(
+          interactions.length,
+          latestInteraction?.date,
+        )}
         empty="No interactions are linked to this gym yet."
       >
         {interactions.map((interaction) => (
@@ -245,19 +244,26 @@ function NoteBlock({ children }: { children: React.ReactNode }) {
 function RelatedSection({
   icon,
   title,
+  summary,
   empty,
   children,
 }: {
   icon: React.ReactNode
   title: string
+  summary?: string
   empty: string
   children: React.ReactNode[]
 }) {
   return (
     <section className="rounded-lg border border-border">
-      <div className="flex items-center gap-2 border-b border-border px-4 py-3 text-sm font-semibold">
-        {icon}
-        {title}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          {icon}
+          {title}
+        </div>
+        {summary ? (
+          <p className="text-xs font-normal text-muted-foreground">{summary}</p>
+        ) : null}
       </div>
       <div className="divide-y divide-border">
         {children.length > 0 ? (
@@ -268,6 +274,15 @@ function RelatedSection({
       </div>
     </section>
   )
+}
+
+function interactionSummary(
+  count: number,
+  latestDate: string | null | undefined,
+) {
+  if (count === 0) return undefined
+  const countLabel = count === 1 ? "1 interaction" : `${count} interactions`
+  return latestDate ? `${countLabel} • latest ${latestDate}` : countLabel
 }
 
 function RelatedRow({ children }: { children: React.ReactNode }) {
