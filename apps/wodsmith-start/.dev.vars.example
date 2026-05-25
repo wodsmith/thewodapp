@@ -25,9 +25,7 @@ VITE_APP_URL=http://localhost:5173
 ### Cloudflare AI Gateway
 # Required by the AI judge-scheduling agent (and any future AI features)
 # to route traffic through the managed gateway in alchemy.run.ts.
-# Create a token at https://dash.cloudflare.com/profile/api-tokens
-# with the "Workers AI" + "AI Gateway" permissions.
-CF_AIG_TOKEN=
+# Requests use the Cloudflare AI binding, so no runtime API token is needed.
 
 ### Other Cloudflare-specific secrets can be added here
 # TURNSTILE_SECRET_KEY=

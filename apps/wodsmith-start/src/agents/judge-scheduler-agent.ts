@@ -185,10 +185,14 @@ export class JudgeSchedulerAgent extends Agent<Env, AgentState> {
       // Route all AI traffic through the Cloudflare AI Gateway so we get
       // logs/analytics/caching in the dashboard and a single integration
       // point for adding non-CF providers later (OpenAI, Anthropic, etc).
+      const gatewayBinding = this.env.AI.gateway(this.env.CF_AIG_GATEWAY)
       const aiGateway = createAiGateway({
-        accountId: this.env.CF_ACCOUNT_ID,
-        gateway: this.env.CF_AIG_GATEWAY,
-        apiKey: this.env.CF_AIG_TOKEN,
+        binding: {
+          run: (data) =>
+            gatewayBinding.run(
+              data as Parameters<typeof gatewayBinding.run>[0],
+            ),
+        },
       })
       const unified = createUnified()
       this.#abortController = new AbortController()

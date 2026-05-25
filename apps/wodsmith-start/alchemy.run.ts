@@ -254,6 +254,27 @@ const psPassword = await PlanetScalePassword(`ps-password-${stage}`, {
   role: "admin",
 })
 
+const ciDatabaseUrl = process.env.DATABASE_URL
+  ? new URL(process.env.DATABASE_URL)
+  : undefined
+const hyperdriveOrigin = ciDatabaseUrl
+  ? {
+      host: ciDatabaseUrl.hostname,
+      database: ciDatabaseUrl.pathname.slice(1),
+      user: decodeURIComponent(ciDatabaseUrl.username),
+      password: decodeURIComponent(ciDatabaseUrl.password),
+      port: ciDatabaseUrl.port ? Number(ciDatabaseUrl.port) : 3306,
+      scheme: "mysql" as const,
+    }
+  : {
+      host: psPassword.host,
+      database: psDbName,
+      user: psPassword.username,
+      password: psPassword.password.unencrypted,
+      port: 3306,
+      scheme: "mysql" as const,
+    }
+
 /**
  * Cloudflare Hyperdrive for PlanetScale connection pooling and caching.
  *
@@ -266,21 +287,19 @@ const psPassword = await PlanetScalePassword(`ps-password-${stage}`, {
  * which exposes a `connectionString` for use with standard MySQL drivers (mysql2).
  */
 const hyperdrive = await Hyperdrive(`hyperdrive-${stage}`, {
-  origin: {
-    host: psPassword.host,
-    database: psDbName,
-    user: psPassword.username,
-    password: psPassword.password.unencrypted,
-    port: 3306,
-    scheme: "mysql",
-  },
+  // CI creates a fresh PlanetScale branch password before deploy and verifies it
+  // with drizzle-kit. Prefer that URL so stale Alchemy password state cannot
+  // make Cloudflare reject Hyperdrive updates during credential validation.
+  origin: hyperdriveOrigin,
   caching: {
     disabled: true,
   },
   adopt: true,
-  // Local dev: connect via `pscale connect` proxy on localhost:3306
+  // Keep local dev on the direct PlanetScale URL for now. The pscale proxy
+  // Hyperdrive tweak caused deploys to try updating the remote config, which
+  // fails when Cloudflare validates stale demo branch credentials.
   dev: {
-    origin: `mysql://root@localhost:3306/${psDbName}`,
+    origin: `mysql://${psPassword.username}:${psPassword.password.unencrypted}@${psPassword.host}:3306/${psDbName}?sslaccept=strict`,
   },
 })
 
@@ -543,6 +562,7 @@ const aiGateway =
         gatewayName: `wodsmith-${stage}`,
         collectLogs: true,
         cacheTtl: 0,
+        apiToken: alchemy.secret(process.env.CLOUDFLARE_API_TOKEN!),
       })
 const aiGatewayName = aiGateway?.id ?? "wodsmith-gateway"
 
@@ -654,9 +674,6 @@ const website = await TanStackStart("app", {
       process.env.CLOUDFLARE_ACCOUNT_ID ??
       "317fb84f366ea1ab038ca90000953697",
     CF_AIG_GATEWAY: aiGatewayName,
-    /** CF API token with AI Gateway run permission. Required by the gateway provider. */
-    CF_AIG_TOKEN: alchemy.secret(process.env.CF_AIG_TOKEN!),
-
     // App configuration
     // biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time
     APP_URL: process.env.APP_URL!,

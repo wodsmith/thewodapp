@@ -37,7 +37,7 @@ The primary web application containing all user-facing functionality.
 
 The CRM app is a separate TanStack Start application shell for future customer relationship workflows.
 
-It keeps its own Cloudflare Worker, D1 database, R2 bucket, and Hyperdrive binding so CRM-specific data and files can evolve independently. The copied Ledger document, invoice, and financial-event surfaces were removed during the initial cleanup.
+It keeps its own Cloudflare Worker, D1 database, and R2 bucket so CRM-specific data and files can evolve independently. The copied Ledger document, invoice, and financial-event surfaces were removed during the initial cleanup.
 
 #### CRM D1 Schema
 
@@ -60,6 +60,8 @@ CRM deploys through its own GitHub Actions workflow so app changes do not depend
 `.github/workflows/deploy-crm.yml` triggers on pushes to `main` that touch `apps/crm/**` or the workflow itself, and can also be run manually. It deploys `apps/crm` with Alchemy using `pnpm run crm-deploy`, binding the production app to `https://crm.wodsmith.com`.
 
 The CRM deploy workflow pins Bun to match the main WODsmith deploy workflow, avoiding unverified runtime updates during Alchemy deployment.
+
+CRM pins `react` and `react-dom` to identical exact versions because Cloudflare Worker upload validation rejects bundles with mismatched React package versions.
 
 ### packages
 
