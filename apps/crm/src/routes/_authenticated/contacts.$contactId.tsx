@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router"
-import { Building2, Handshake, Mail, Phone, UserRound } from "lucide-react"
+import { Building2, Handshake, UserRound } from "lucide-react"
 import { getCrmDataFn } from "@/server-fns/crm"
 
 export const Route = createFileRoute("/_authenticated/contacts/$contactId")({
@@ -39,32 +39,16 @@ function ContactDetailPage() {
         </p>
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_18rem]">
-        <section className="rounded-lg border border-border p-4">
-          <h3 className="text-sm font-semibold uppercase text-muted-foreground">
-            Details
-          </h3>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <Field label="Status" value={contact.status || "Lead"} />
-            <Field label="Updated" value={contact.updatedAt} />
-            <Field label="Notes" value={contact.notes} wide />
-          </div>
-        </section>
-
-        <aside className="space-y-3 rounded-lg border border-border p-4">
-          <h3 className="text-sm font-semibold uppercase text-muted-foreground">
-            Contact
-          </h3>
-          <ContactLine
-            icon={<Mail className="h-4 w-4" />}
-            value={contact.email}
-          />
-          <ContactLine
-            icon={<Phone className="h-4 w-4" />}
-            value={contact.phone}
-          />
-        </aside>
-      </div>
+      <section className="space-y-4 rounded-lg border border-border p-4">
+        <div className="flex flex-wrap gap-2">
+          <Fact label="Status" value={contact.status || "Lead"} />
+          <Fact label="Email" value={contact.email} />
+          <Fact label="Phone" value={contact.phone} />
+          <Fact label="Gym" value={contact.companyName} />
+          <Fact label="Updated" value={contact.updatedAt} />
+        </div>
+        {contact.notes ? <NoteBlock>{contact.notes}</NoteBlock> : null}
+      </section>
 
       <section className="rounded-lg border border-border">
         <div className="flex items-center gap-2 border-b border-border px-4 py-3 text-sm font-semibold">
@@ -124,36 +108,23 @@ function ContactDetailPage() {
   )
 }
 
-function Field({
-  label,
-  value,
-  wide,
-}: {
-  label: string
-  value: string | null
-  wide?: boolean
-}) {
+function Fact({ label, value }: { label: string; value: string | null }) {
+  if (!value) return null
+
   return (
-    <div className={wide ? "md:col-span-2" : undefined}>
-      <dt className="text-xs font-medium uppercase text-muted-foreground">
+    <span className="inline-flex max-w-full items-center gap-1.5 rounded-md bg-secondary px-2.5 py-1 text-sm">
+      <span className="text-xs font-medium uppercase text-muted-foreground">
         {label}
-      </dt>
-      <dd className="mt-1 text-sm">{value || "-"}</dd>
-    </div>
+      </span>
+      <span className="truncate">{value}</span>
+    </span>
   )
 }
 
-function ContactLine({
-  icon,
-  value,
-}: {
-  icon: React.ReactNode
-  value: string | null
-}) {
+function NoteBlock({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2 text-sm">
-      <span className="text-muted-foreground">{icon}</span>
-      <span>{value || "-"}</span>
+    <div className="border-t border-border pt-4 text-sm leading-6 text-muted-foreground">
+      {children}
     </div>
   )
 }

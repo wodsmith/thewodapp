@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router"
-import { Building2, Handshake, Mail, Phone, UserRound } from "lucide-react"
+import { Building2, Handshake, UserRound } from "lucide-react"
 import { getCrmDataFn } from "@/server-fns/crm"
 
 export const Route = createFileRoute("/_authenticated/gyms/$gymId")({
@@ -53,30 +53,21 @@ function GymDetailPage() {
         </Link>
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_18rem]">
-        <section className="rounded-lg border border-border p-4">
-          <h3 className="text-sm font-semibold uppercase text-muted-foreground">
-            Details
-          </h3>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <Field label="Owner / Manager" value={gym.ownerManager} />
-            <Field label="Relationship" value={gym.relationship} />
-            <Field label="Website" value={gym.website} href={gym.website} />
-            <Field label="Instagram" value={gym.instagram} />
-            <Field label="Last contacted" value={gym.lastContacted} />
-            <Field label="Updated" value={gym.updatedAt} />
-            <Field label="Notes" value={gym.notes} wide />
-          </div>
-        </section>
-
-        <aside className="space-y-3 rounded-lg border border-border p-4">
-          <h3 className="text-sm font-semibold uppercase text-muted-foreground">
-            Contact
-          </h3>
-          <ContactLine icon={<Mail className="h-4 w-4" />} value={gym.email} />
-          <ContactLine icon={<Phone className="h-4 w-4" />} value={gym.phone} />
-        </aside>
-      </div>
+      <section className="space-y-4 rounded-lg border border-border p-4">
+        <div className="flex flex-wrap gap-2">
+          <Fact label="Status" value={gym.status || "Prospect"} />
+          <Fact label="Priority" value={gym.priority} />
+          <Fact label="Owner" value={gym.ownerManager} />
+          <Fact label="Relationship" value={gym.relationship} />
+          <Fact label="Email" value={gym.email} />
+          <Fact label="Phone" value={gym.phone} />
+          <Fact label="Last touched" value={gym.lastContacted} />
+          <Fact label="Updated" value={gym.updatedAt} />
+          <Fact label="Instagram" value={gym.instagram} />
+          <Fact label="Website" value={gym.website} href={gym.website} />
+        </div>
+        {gym.notes ? <NoteBlock>{gym.notes}</NoteBlock> : null}
+      </section>
 
       <RelatedSection
         icon={<UserRound className="h-4 w-4" />}
@@ -121,51 +112,42 @@ function GymDetailPage() {
   )
 }
 
-function Field({
+function Fact({
   label,
   value,
   href,
-  wide,
 }: {
   label: string
   value: string | null
   href?: string | null
-  wide?: boolean
 }) {
+  if (!value) return null
+
   return (
-    <div className={wide ? "md:col-span-2" : undefined}>
-      <dt className="text-xs font-medium uppercase text-muted-foreground">
+    <span className="inline-flex max-w-full items-center gap-1.5 rounded-md bg-secondary px-2.5 py-1 text-sm">
+      <span className="text-xs font-medium uppercase text-muted-foreground">
         {label}
-      </dt>
-      <dd className="mt-1 text-sm">
-        {href && value ? (
-          <a
-            href={href.startsWith("http") ? href : `https://${href}`}
-            target="_blank"
-            rel="noreferrer"
-            className="underline-offset-4 hover:underline"
-          >
-            {value}
-          </a>
-        ) : (
-          value || "-"
-        )}
-      </dd>
-    </div>
+      </span>
+      {href ? (
+        <a
+          href={href.startsWith("http") ? href : `https://${href}`}
+          target="_blank"
+          rel="noreferrer"
+          className="truncate underline-offset-4 hover:underline"
+        >
+          {value}
+        </a>
+      ) : (
+        <span className="truncate">{value}</span>
+      )}
+    </span>
   )
 }
 
-function ContactLine({
-  icon,
-  value,
-}: {
-  icon: React.ReactNode
-  value: string | null
-}) {
+function NoteBlock({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2 text-sm">
-      <span className="text-muted-foreground">{icon}</span>
-      <span>{value || "-"}</span>
+    <div className="border-t border-border pt-4 text-sm leading-6 text-muted-foreground">
+      {children}
     </div>
   )
 }
