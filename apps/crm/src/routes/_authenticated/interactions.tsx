@@ -1,4 +1,10 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  Link,
+  Outlet,
+  useLocation,
+  useRouter,
+} from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { Plus, Search } from "lucide-react"
 import { useMemo, useState } from "react"
@@ -11,6 +17,7 @@ export const Route = createFileRoute("/_authenticated/interactions")({
 
 function InteractionsPage() {
   const { interactions, gyms, contacts } = Route.useLoaderData()
+  const location = useLocation()
   const router = useRouter()
   const createInteraction = useServerFn(createInteractionFn)
   const [query, setQuery] = useState("")
@@ -32,6 +39,10 @@ function InteractionsPage() {
         .some((value) => value.toLowerCase().includes(normalized)),
     )
   }, [interactions, query])
+
+  if (location.pathname !== "/interactions") {
+    return <Outlet />
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -154,14 +165,44 @@ function InteractionsPage() {
                 className="align-top"
               >
                 <Td>
-                  <p className="font-medium">{interaction.title}</p>
+                  <Link
+                    to="/interactions/$interactionId"
+                    params={{ interactionId: interaction.id }}
+                    className="font-medium text-foreground underline-offset-4 hover:underline"
+                  >
+                    {interaction.title}
+                  </Link>
                   <p className="truncate text-muted-foreground">
                     {interaction.channel || interaction.source}
                   </p>
                 </Td>
                 <Td>{interaction.date || "-"}</Td>
-                <Td>{interaction.companyName || "-"}</Td>
-                <Td>{interaction.contactName || "-"}</Td>
+                <Td>
+                  {interaction.companyId && interaction.companyName ? (
+                    <Link
+                      to="/gyms/$gymId"
+                      params={{ gymId: interaction.companyId }}
+                      className="underline-offset-4 hover:underline"
+                    >
+                      {interaction.companyName}
+                    </Link>
+                  ) : (
+                    "-"
+                  )}
+                </Td>
+                <Td>
+                  {interaction.contactId && interaction.contactName ? (
+                    <Link
+                      to="/contacts/$contactId"
+                      params={{ contactId: interaction.contactId }}
+                      className="underline-offset-4 hover:underline"
+                    >
+                      {interaction.contactName}
+                    </Link>
+                  ) : (
+                    "-"
+                  )}
+                </Td>
                 <Td>{interaction.status || "-"}</Td>
               </tr>
             ))}

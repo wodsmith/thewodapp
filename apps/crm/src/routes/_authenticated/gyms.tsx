@@ -1,4 +1,10 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  Link,
+  Outlet,
+  useLocation,
+  useRouter,
+} from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { Plus, Search } from "lucide-react"
 import { useMemo, useState } from "react"
@@ -11,6 +17,7 @@ export const Route = createFileRoute("/_authenticated/gyms")({
 
 function GymsPage() {
   const { gyms } = Route.useLoaderData()
+  const location = useLocation()
   const router = useRouter()
   const createGym = useServerFn(createGymFn)
   const [query, setQuery] = useState("")
@@ -25,6 +32,10 @@ function GymsPage() {
         .some((value) => value.toLowerCase().includes(normalized)),
     )
   }, [gyms, query])
+
+  if (location.pathname !== "/gyms") {
+    return <Outlet />
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -124,7 +135,13 @@ function GymsPage() {
             {filteredGyms.map((gym) => (
               <tr key={gym.id} className="align-top">
                 <Td>
-                  <p className="font-medium">{gym.name}</p>
+                  <Link
+                    to="/gyms/$gymId"
+                    params={{ gymId: gym.id }}
+                    className="font-medium text-foreground underline-offset-4 hover:underline"
+                  >
+                    {gym.name}
+                  </Link>
                   <p className="truncate text-muted-foreground">
                     {gym.website || gym.instagram || "No web presence saved"}
                   </p>
