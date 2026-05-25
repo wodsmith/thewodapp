@@ -10,6 +10,7 @@ import {
   Phone,
   UserRound,
 } from "lucide-react"
+import { EntityDocumentPanel } from "@/components/entity-document-panel"
 import { getCrmDataFn } from "@/server-fns/crm"
 
 export const Route = createFileRoute("/_authenticated/gyms/$gymId")({
@@ -167,6 +168,8 @@ function GymDetailPage() {
           </RelatedRow>
         ))}
       </RelatedSection>
+
+      <EntityDocumentPanel entryId={gym.id} label={gym.name} />
     </section>
   )
 }

@@ -1,0 +1,5 @@
+# Cloudflare Workers development variables
+# Copy this file to .dev.vars for local Vite dev.
+
+CRM_AUTH_PASSWORD=dev-password
+CRM_SESSION_SECRET=dev-session-secret-change-in-production

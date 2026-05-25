@@ -8,6 +8,7 @@ import {
   UserRound,
 } from "lucide-react"
 import { getCrmDataFn } from "@/server-fns/crm"
+import { EntityDocumentPanel } from "@/components/entity-document-panel"
 
 export const Route = createFileRoute(
   "/_authenticated/interactions/$interactionId",
@@ -128,6 +129,11 @@ function InteractionDetailPage() {
           ) : null}
         </AssociationCard>
       </section>
+
+      <EntityDocumentPanel
+        entryId={interaction.id}
+        label={interaction.title || interaction.source}
+      />
     </section>
   )
 }

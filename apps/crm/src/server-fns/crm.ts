@@ -3,17 +3,22 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
+  documentEntriesTable,
+  documentsTable,
   entriesTable,
   entryFieldsTable,
   entryRelationsTable,
   fieldsTable,
   objectsTable,
 } from "@/db/schema"
+import { getR2Bucket } from "@/lib/env"
 import { requireAuth } from "@/server-fns/auth"
 
 type FieldValueMap = Record<string, string | null>
 
 const SQLITE_IN_CHUNK_SIZE = 50
+const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024
+const MAX_DOCUMENT_BASE64_LENGTH = Math.ceil(MAX_DOCUMENT_BYTES / 3) * 4
 
 export type CrmGym = {
   id: string
@@ -62,6 +67,14 @@ export type CrmInteraction = {
   updatedAt: string | null
 }
 
+export type CrmDocument = {
+  id: string
+  title: string
+  filePath: string
+  createdAt: string | null
+  updatedAt: string | null
+}
+
 const gymInputSchema = z.object({
   name: z.string().min(1, "Gym name is required").max(255),
   location: z.string().max(255).optional(),
@@ -95,6 +108,23 @@ const interactionInputSchema = z.object({
   contactId: z.string().optional(),
   notes: z.string().max(4000).optional(),
   content: z.string().max(10000).optional(),
+})
+
+const documentUploadSchema = z.object({
+  entryId: z.string().min(1, "Entry ID is required"),
+  fileName: z.string().min(1, "File name is required"),
+  fileBase64: z.string().max(MAX_DOCUMENT_BASE64_LENGTH),
+  contentType: z.string().optional(),
+  fileSize: z.number().int().optional(),
+  title: z.string().max(255).optional(),
+})
+
+const entryDocumentListSchema = z.object({
+  entryId: z.string().min(1, "Entry ID is required"),
+})
+
+const documentIdSchema = z.object({
+  documentId: z.string().min(1, "Document ID is required"),
 })
 
 function crmId() {
@@ -133,6 +163,40 @@ export function extractCrossFitAffiliateNumber(
   )
 
   return match?.[1] ?? null
+}
+
+async function assertEntryExists(entryId: string) {
+  const db = getDb()
+  const [entry] = await db
+    .select({ id: entriesTable.id })
+    .from(entriesTable)
+    .where(eq(entriesTable.id, entryId))
+    .limit(1)
+
+  if (!entry) {
+    throw new Error(`CRM entry not found: ${entryId}`)
+  }
+
+  return entry
+}
+
+function sanitizeFileName(fileName: string) {
+  return (
+    fileName
+      .trim()
+      .replaceAll(/[^a-zA-Z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 120) || "document"
+  )
+}
+
+function decodeBase64(fileBase64: string) {
+  const binaryString = atob(fileBase64)
+  const bytes = new Uint8Array(binaryString.length)
+  for (let index = 0; index < binaryString.length; index += 1) {
+    bytes[index] = binaryString.charCodeAt(index)
+  }
+  return bytes
 }
 
 function chunks<T>(values: T[], size: number) {
@@ -289,6 +353,25 @@ async function getEntryDisplayNames(entryIds: string[]) {
   }
 
   return names
+}
+
+async function listDocumentsForEntry(entryId: string) {
+  const db = getDb()
+  return db
+    .select({
+      id: documentsTable.id,
+      title: documentsTable.title,
+      filePath: documentsTable.filePath,
+      createdAt: documentsTable.createdAt,
+      updatedAt: documentsTable.updatedAt,
+    })
+    .from(documentEntriesTable)
+    .innerJoin(
+      documentsTable,
+      eq(documentEntriesTable.documentId, documentsTable.id),
+    )
+    .where(eq(documentEntriesTable.entryId, entryId))
+    .orderBy(desc(documentEntriesTable.createdAt))
 }
 
 async function listEntries(objectName: string, limit = 250) {
@@ -607,4 +690,144 @@ export const createInteractionFn = createServerFn({ method: "POST" })
     await setRelation(entryId, personField.id, clean(data.contactId))
 
     return { id: entryId }
+  })
+
+export const listDocumentsForEntryFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => entryDocumentListSchema.parse(data))
+  .handler(async ({ data }) => {
+    await requireAuth()
+    return listDocumentsForEntry(data.entryId)
+  })
+
+export const uploadDocumentForEntryFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => documentUploadSchema.parse(data))
+  .handler(async ({ data }) => {
+    await requireAuth()
+    await assertEntryExists(data.entryId)
+
+    const bytes = decodeBase64(data.fileBase64)
+    if (data.fileSize && bytes.byteLength > MAX_DOCUMENT_BYTES) {
+      throw new Error("File too large (max 10 MB)")
+    }
+
+    const fileName = sanitizeFileName(data.fileName)
+    const datePrefix = new Date().toISOString().slice(0, 7)
+    const r2Key = `crm-documents/${datePrefix}/${crmId()}-${fileName}`
+
+    await getR2Bucket().put(r2Key, bytes.buffer, {
+      httpMetadata: {
+        contentType: data.contentType || "application/octet-stream",
+      },
+    })
+
+    const db = getDb()
+    const [document] = await db
+      .insert(documentsTable)
+      .values({
+        id: crmId(),
+        title: data.title || fileName,
+        filePath: r2Key,
+        updatedAt: sql`CURRENT_TIMESTAMP`,
+      })
+      .returning()
+
+    if (!document) {
+      throw new Error("Unable to create document")
+    }
+
+    await db.insert(documentEntriesTable).values({
+      id: crmId(),
+      documentId: document.id,
+      entryId: data.entryId,
+      updatedAt: sql`CURRENT_TIMESTAMP`,
+    })
+
+    return document
+  })
+
+export const deleteDocumentForEntryFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => {
+    return documentIdSchema
+      .extend({ entryId: z.string().min(1, "Entry ID is required") })
+      .parse(data)
+  })
+  .handler(async ({ data }) => {
+    await requireAuth()
+    const db = getDb()
+
+    const [documentRelation] = await db
+      .select({
+        filePath: documentsTable.filePath,
+      })
+      .from(documentEntriesTable)
+      .innerJoin(
+        documentsTable,
+        eq(documentEntriesTable.documentId, documentsTable.id),
+      )
+      .where(
+        and(
+          eq(documentEntriesTable.documentId, data.documentId),
+          eq(documentEntriesTable.entryId, data.entryId),
+        ),
+      )
+      .limit(1)
+
+    if (!documentRelation) {
+      throw new Error("Document link not found")
+    }
+
+    await db
+      .delete(documentEntriesTable)
+      .where(eq(documentEntriesTable.documentId, data.documentId))
+
+    await getR2Bucket().delete(documentRelation.filePath)
+    await db
+      .delete(documentsTable)
+      .where(eq(documentsTable.id, data.documentId))
+
+    return { success: true }
+  })
+
+export const getDocumentDownloadUrlForEntryFn = createServerFn({
+  method: "GET",
+})
+  .inputValidator((data: unknown) => documentIdSchema.parse(data))
+  .handler(async ({ data }) => {
+    await requireAuth()
+    const db = getDb()
+
+    const [document] = await db
+      .select({
+        fileName: documentsTable.title,
+        filePath: documentsTable.filePath,
+      })
+      .from(documentsTable)
+      .where(eq(documentsTable.id, data.documentId))
+      .limit(1)
+
+    if (!document) {
+      throw new Error("Document not found")
+    }
+
+    const object = await getR2Bucket().get(document.filePath)
+    if (!object) {
+      throw new Error("File not found in storage")
+    }
+
+    const arrayBuffer = await object.arrayBuffer()
+    const bytes = new Uint8Array(arrayBuffer)
+    const chunks: string[] = []
+    const chunkSize = 0x8000
+    for (let index = 0; index < bytes.length; index += chunkSize) {
+      chunks.push(
+        String.fromCharCode(...bytes.subarray(index, index + chunkSize)),
+      )
+    }
+
+    return {
+      base64: btoa(chunks.join("")),
+      fileName: document.fileName,
+      contentType:
+        object.httpMetadata?.contentType || "application/octet-stream",
+    }
   })

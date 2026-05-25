@@ -8,6 +8,7 @@ import {
   UserRound,
 } from "lucide-react"
 import { getCrmDataFn } from "@/server-fns/crm"
+import { EntityDocumentPanel } from "@/components/entity-document-panel"
 
 export const Route = createFileRoute("/_authenticated/contacts/$contactId")({
   loader: async ({ params }) => {
@@ -137,6 +138,8 @@ function ContactDetailPage() {
           )}
         </div>
       </section>
+
+      <EntityDocumentPanel entryId={contact.id} label={contact.fullName} />
     </section>
   )
 }
