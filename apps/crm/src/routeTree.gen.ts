@@ -11,7 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedInteractionsRouteImport } from './routes/_authenticated/interactions'
+import { Route as AuthenticatedGymsRouteImport } from './routes/_authenticated/gyms'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedContactsRouteImport } from './routes/_authenticated/contacts'
 
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
@@ -22,32 +25,64 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedInteractionsRoute =
+  AuthenticatedInteractionsRouteImport.update({
+    id: '/interactions',
+    path: '/interactions',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedGymsRoute = AuthenticatedGymsRouteImport.update({
+  id: '/gyms',
+  path: '/gyms',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedContactsRoute = AuthenticatedContactsRouteImport.update({
+  id: '/contacts',
+  path: '/contacts',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/contacts': typeof AuthenticatedContactsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/gyms': typeof AuthenticatedGymsRoute
+  '/interactions': typeof AuthenticatedInteractionsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/contacts': typeof AuthenticatedContactsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/gyms': typeof AuthenticatedGymsRoute
+  '/interactions': typeof AuthenticatedInteractionsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/_authenticated/contacts': typeof AuthenticatedContactsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/gyms': typeof AuthenticatedGymsRoute
+  '/_authenticated/interactions': typeof AuthenticatedInteractionsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dashboard'
+  fullPaths: '/' | '/contacts' | '/dashboard' | '/gyms' | '/interactions'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard'
-  id: '__root__' | '/' | '/_authenticated' | '/_authenticated/dashboard'
+  to: '/' | '/contacts' | '/dashboard' | '/gyms' | '/interactions'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/_authenticated/contacts'
+    | '/_authenticated/dashboard'
+    | '/_authenticated/gyms'
+    | '/_authenticated/interactions'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -71,6 +106,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/interactions': {
+      id: '/_authenticated/interactions'
+      path: '/interactions'
+      fullPath: '/interactions'
+      preLoaderRoute: typeof AuthenticatedInteractionsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/gyms': {
+      id: '/_authenticated/gyms'
+      path: '/gyms'
+      fullPath: '/gyms'
+      preLoaderRoute: typeof AuthenticatedGymsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -78,15 +127,28 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/contacts': {
+      id: '/_authenticated/contacts'
+      path: '/contacts'
+      fullPath: '/contacts'
+      preLoaderRoute: typeof AuthenticatedContactsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedContactsRoute: typeof AuthenticatedContactsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedGymsRoute: typeof AuthenticatedGymsRoute
+  AuthenticatedInteractionsRoute: typeof AuthenticatedInteractionsRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedContactsRoute: AuthenticatedContactsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedGymsRoute: AuthenticatedGymsRoute,
+  AuthenticatedInteractionsRoute: AuthenticatedInteractionsRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(

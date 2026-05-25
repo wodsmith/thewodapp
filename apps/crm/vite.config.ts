@@ -32,7 +32,7 @@ const config = defineConfig({
   },
   ssr: {
     optimizeDeps: {
-      include: ["clsx", "tailwind-merge", "class-variance-authority"],
+      include: ["clsx", "tailwind-merge"],
     },
   },
 })

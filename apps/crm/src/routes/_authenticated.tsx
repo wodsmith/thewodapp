@@ -1,11 +1,18 @@
 import {
   createFileRoute,
+  Link,
   Outlet,
   redirect,
   useNavigate,
 } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { LogOut } from "lucide-react"
+import {
+  Building2,
+  Handshake,
+  LayoutDashboard,
+  LogOut,
+  Users,
+} from "lucide-react"
 import { checkAuthFn, logoutFn } from "@/server-fns/auth"
 
 export const Route = createFileRoute("/_authenticated")({
@@ -30,7 +37,7 @@ function AuthenticatedLayout() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+        <div className="mx-auto flex min-h-14 max-w-6xl flex-col gap-3 px-4 py-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
             <img
               src="/wodsmith-logo-no-text.png"
@@ -40,6 +47,26 @@ function AuthenticatedLayout() {
             />
             <h1 className="text-base font-semibold">WODsmith CRM</h1>
           </div>
+          <nav className="flex flex-wrap items-center gap-1">
+            <NavLink
+              to="/dashboard"
+              icon={<LayoutDashboard className="h-4 w-4" />}
+            >
+              Dashboard
+            </NavLink>
+            <NavLink to="/gyms" icon={<Building2 className="h-4 w-4" />}>
+              Gyms
+            </NavLink>
+            <NavLink to="/contacts" icon={<Users className="h-4 w-4" />}>
+              Contacts
+            </NavLink>
+            <NavLink
+              to="/interactions"
+              icon={<Handshake className="h-4 w-4" />}
+            >
+              Interactions
+            </NavLink>
+          </nav>
           <button
             type="button"
             onClick={handleLogout}
@@ -55,5 +82,25 @@ function AuthenticatedLayout() {
         <Outlet />
       </main>
     </div>
+  )
+}
+
+function NavLink({
+  to,
+  icon,
+  children,
+}: {
+  to: "/dashboard" | "/gyms" | "/contacts" | "/interactions"
+  icon: React.ReactNode
+  children: React.ReactNode
+}) {
+  return (
+    <Link
+      to={to}
+      className="inline-flex h-9 items-center gap-2 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground [&.active]:bg-secondary [&.active]:text-foreground"
+    >
+      {icon}
+      {children}
+    </Link>
   )
 }
