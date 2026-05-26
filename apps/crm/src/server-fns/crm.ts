@@ -20,7 +20,7 @@ const SQLITE_IN_CHUNK_SIZE = 50
 const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024
 const MAX_DOCUMENT_BASE64_LENGTH = Math.ceil(MAX_DOCUMENT_BYTES / 3) * 4
 
-export type CrmGym = {
+export interface CrmGym {
   id: string
   name: string
   status: string | null
@@ -142,9 +142,15 @@ export function extractCrossFitAffiliateNumber(
   const normalized = clean(page)
   if (!normalized) return null
 
+  // `@lat`: [[crm-crossfit-metadata]]
+  const urlInput = /^[a-z][a-z\d+\-.]*:\/\//i.test(normalized)
+    ? normalized
+    : `https://${normalized}`
+
   let url: URL
   try {
-    url = new URL(normalized)
+    // `@lat`: [[crm-crossfit-metadata]]
+    url = new URL(urlInput)
   } catch {
     return null
   }
@@ -152,10 +158,12 @@ export function extractCrossFitAffiliateNumber(
   const hostname = url.hostname.toLowerCase()
   const pathname = url.pathname.toLowerCase()
   const allowedHosts = new Set(["www.crossfit.com", "crossfit.com"])
+  // `@lat`: [[crm-crossfit-metadata]]
   const isCrossFitHost = allowedHosts.has(hostname)
   const isGamesHost = hostname === "games.crossfit.com"
   if (!isCrossFitHost && !isGamesHost) return null
 
+  // `@lat`: [[crm-crossfit-metadata]]
   const match = pathname.match(
     isGamesHost
       ? /^\/affiliate\/(\d+)(?:\/|$)/
@@ -233,12 +241,17 @@ async function getFieldsByName(objectId: string) {
   return new Map(fields.map((field) => [field.name, field]))
 }
 
-async function ensureField(
-  objectId: string,
-  name: string,
-  type: string,
-  sortOrder: number,
-) {
+async function ensureField({
+  objectId,
+  name,
+  type,
+  sortOrder,
+}: {
+  objectId: string
+  name: string
+  type: string
+  sortOrder: number
+}) {
   const db = getDb()
   await db
     .insert(fieldsTable)
@@ -604,7 +617,12 @@ export const createGymFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await requireAuth()
     const { entryId, object } = await createEntry("Company")
-    await ensureField(object.id, "CrossFit Page", "url", 70)
+    await ensureField({
+      objectId: object.id,
+      name: "CrossFit Page",
+      type: "url",
+      sortOrder: 70,
+    })
     const fields = await getFieldsByName(object.id)
 
     const updates: Array<[string, string | null]> = [

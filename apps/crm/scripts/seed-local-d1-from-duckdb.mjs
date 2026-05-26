@@ -216,6 +216,45 @@ for (const relation of relations) {
 	)
 }
 
+sql.push(`
+INSERT INTO fields (
+	id,
+	object_id,
+	name,
+	description,
+	type,
+	required,
+	default_value,
+	related_object_id,
+	relationship_type,
+	enum_values,
+	enum_colors,
+	enum_multiple,
+	sort_order,
+	created_at,
+	updated_at
+)
+SELECT
+	'seed_field_company_crossfit_page_000',
+	id,
+	'CrossFit Page',
+	'Official CrossFit affiliate profile page.',
+	'url',
+	false,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	false,
+	70,
+	CURRENT_TIMESTAMP,
+	CURRENT_TIMESTAMP
+FROM objects
+WHERE name = 'Company'
+ON CONFLICT(object_id, name) DO NOTHING;
+`)
+
 sql.push(
 	"COMMIT;",
 	"PRAGMA foreign_keys = ON;",

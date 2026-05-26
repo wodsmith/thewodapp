@@ -33,6 +33,7 @@ function GymsPage() {
         gym.ownerManager,
         gym.status,
         gym.relationship,
+        // `@lat`: [[crm-crossfit-metadata]]
         gym.crossfitPage,
         gym.crossfitAffiliateNumber,
       ]
@@ -55,6 +56,7 @@ function GymsPage() {
           name: String(form.get("name") ?? ""),
           location: String(form.get("location") ?? ""),
           website: String(form.get("website") ?? ""),
+          // `@lat`: [[crm-crossfit-metadata]]
           crossfitPage: String(form.get("crossfitPage") ?? ""),
           email: String(form.get("email") ?? ""),
           phone: String(form.get("phone") ?? ""),
@@ -90,6 +92,7 @@ function GymsPage() {
           <TextInput name="ownerManager" label="Owner / Manager" />
           <TextInput name="relationship" label="Relationship" />
           <TextInput name="website" label="Website" />
+          {/* `@lat`: [[crm-crossfit-metadata]] */}
           <TextInput name="crossfitPage" label="CrossFit Page" />
           <TextInput name="email" label="Email" />
           <TextInput name="phone" label="Phone" />
@@ -154,6 +157,7 @@ function GymsPage() {
                   </Link>
                   <p className="truncate text-muted-foreground">
                     {gym.website ||
+                      // `@lat`: [[crm-crossfit-metadata]]
                       gym.crossfitPage ||
                       gym.instagram ||
                       "No web presence saved"}

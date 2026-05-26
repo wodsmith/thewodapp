@@ -98,6 +98,7 @@ function GymDetailPage() {
             label="Website"
             href={gym.website}
           />
+          {/* `@lat`: [[crm-crossfit-metadata]] */}
           <MetaItem
             icon={<Globe2 className="h-4 w-4" aria-hidden="true" />}
             value={gym.crossfitPage}
