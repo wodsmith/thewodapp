@@ -62,8 +62,27 @@ export type CrmInteraction = {
   companyName: string | null
   contactId: string | null
   contactName: string | null
+  campaignId: string | null
+  campaignName: string | null
+  owner: string | null
   notes: string | null
   content: string | null
+  updatedAt: string | null
+}
+
+export type CrmCampaign = {
+  id: string
+  name: string
+  status: string | null
+  owner: string | null
+  goal: string | null
+  startDate: string | null
+  endDate: string | null
+  audienceGymIds: string[]
+  audienceContactIds: string[]
+  audienceGymNames: string[]
+  audienceContactNames: string[]
+  touchCount: number
   updatedAt: string | null
 }
 
@@ -112,8 +131,10 @@ const interactionInputSchema = z.object({
   date: z.string().max(20).optional(),
   channel: z.string().max(100).optional(),
   status: z.string().max(100).optional(),
+  owner: z.enum(["Ian", "Zac"]).optional(),
   companyId: z.string().optional(),
   contactId: z.string().optional(),
+  campaignId: z.string().optional(),
   notes: z.string().max(4000).optional(),
   content: z.string().max(10000).optional(),
 })
@@ -121,6 +142,27 @@ const interactionInputSchema = z.object({
 const interactionUpdateSchema = interactionInputSchema.extend({
   id: z.string().min(1, "Interaction ID is required"),
   source: z.enum(["Meeting", "Outreach"]),
+})
+
+const campaignInputSchema = z.object({
+  name: z.string().min(1, "Campaign name is required").max(255),
+  status: z.string().max(100).optional(),
+  owner: z.enum(["Ian", "Zac"]).optional(),
+  goal: z.string().max(4000).optional(),
+  startDate: z.string().max(20).optional(),
+  endDate: z.string().max(20).optional(),
+  audienceGymIds: z.array(z.string()).default([]),
+  audienceContactIds: z.array(z.string()).default([]),
+})
+
+const campaignTouchInputSchema = z.object({
+  campaignId: z.string().min(1, "Campaign ID is required"),
+  title: z.string().min(1, "Touch title is required").max(255),
+  channel: z.string().max(100).optional(),
+  owner: z.enum(["Ian", "Zac"]).optional(),
+  status: z.string().max(100).optional(),
+  dueDate: z.string().max(20).optional(),
+  notes: z.string().max(4000).optional(),
 })
 
 export const documentUploadSchema = z.object({
@@ -276,11 +318,15 @@ async function ensureField({
   name,
   type,
   sortOrder,
+  relatedObjectId,
+  relationshipType,
 }: {
   objectId: string
   name: string
   type: string
   sortOrder: number
+  relatedObjectId?: string | null
+  relationshipType?: string | null
 }) {
   const db = getDb()
   await db
@@ -290,12 +336,131 @@ async function ensureField({
       objectId,
       name,
       type,
+      relatedObjectId,
+      relationshipType,
       sortOrder,
       updatedAt: sql`CURRENT_TIMESTAMP`,
     })
     .onConflictDoNothing({
       target: [fieldsTable.objectId, fieldsTable.name],
     })
+}
+
+async function ensureObject({
+  name,
+  description,
+  icon,
+  sortOrder,
+  displayField,
+}: {
+  name: string
+  description: string
+  icon: string
+  sortOrder: number
+  displayField: string
+}) {
+  const db = getDb()
+  await db
+    .insert(objectsTable)
+    .values({
+      id: crmId(),
+      name,
+      description,
+      icon,
+      sortOrder,
+      displayField,
+      updatedAt: sql`CURRENT_TIMESTAMP`,
+    })
+    .onConflictDoNothing({ target: objectsTable.name })
+
+  return getObject(name)
+}
+
+async function ensureCampaignSchema() {
+  const [companyObject, peopleObject] = await Promise.all([
+    getObject("Company"),
+    getObject("People"),
+  ])
+  const campaignObject = await ensureObject({
+    name: "Campaign",
+    description:
+      "Marketing campaign workspace for goals, audience, and manual touches.",
+    icon: "megaphone",
+    sortOrder: 40,
+    displayField: "Campaign Name",
+  })
+  const outreachObject = await getObject("Outreach")
+
+  await Promise.all([
+    ensureField({
+      objectId: campaignObject.id,
+      name: "Campaign Name",
+      type: "text",
+      sortOrder: 10,
+    }),
+    ensureField({
+      objectId: campaignObject.id,
+      name: "Status",
+      type: "select",
+      sortOrder: 20,
+    }),
+    ensureField({
+      objectId: campaignObject.id,
+      name: "Owner",
+      type: "select",
+      sortOrder: 30,
+    }),
+    ensureField({
+      objectId: campaignObject.id,
+      name: "Goal",
+      type: "longText",
+      sortOrder: 40,
+    }),
+    ensureField({
+      objectId: campaignObject.id,
+      name: "Start Date",
+      type: "date",
+      sortOrder: 50,
+    }),
+    ensureField({
+      objectId: campaignObject.id,
+      name: "End Date",
+      type: "date",
+      sortOrder: 60,
+    }),
+    ensureField({
+      objectId: campaignObject.id,
+      name: "Audience Gyms",
+      type: "relation",
+      relatedObjectId: companyObject.id,
+      relationshipType: "many",
+      sortOrder: 70,
+    }),
+    ensureField({
+      objectId: campaignObject.id,
+      name: "Audience Contacts",
+      type: "relation",
+      relatedObjectId: peopleObject.id,
+      relationshipType: "many",
+      sortOrder: 80,
+    }),
+    ensureField({
+      objectId: outreachObject.id,
+      name: "Campaign",
+      type: "relation",
+      relatedObjectId: campaignObject.id,
+      relationshipType: "one",
+      sortOrder: 80,
+    }),
+    ensureField({
+      objectId: outreachObject.id,
+      name: "Owner",
+      type: "select",
+      sortOrder: 90,
+    }),
+  ])
+
+  return { campaignObject }
 }
 
 async function getFieldValues(entryIds: string[]) {
@@ -385,7 +550,13 @@ async function getEntryDisplayNames(entryIds: string[]) {
     )
   ).flat()
 
-  const priority = ["Company Name", "Full Name", "Title", "Subject"]
+  const priority = [
+    "Company Name",
+    "Full Name",
+    "Campaign Name",
+    "Title",
+    "Subject",
+  ]
   const names = new Map<string, string>()
   for (const fieldName of priority) {
     for (const row of rows) {
@@ -536,6 +707,39 @@ async function setRelation(
   })
 }
 
+async function setRelations(
+  entryId: string,
+  fieldId: string,
+  targetEntryIds: string[],
+) {
+  const db = getDb()
+  const uniqueTargetIds = Array.from(new Set(targetEntryIds.map(clean))).filter(
+    (value): value is string => Boolean(value),
+  )
+
+  await db
+    .delete(entryRelationsTable)
+    .where(
+      and(
+        eq(entryRelationsTable.sourceEntryId, entryId),
+        eq(entryRelationsTable.fieldId, fieldId),
+      ),
+    )
+
+  await upsertFieldValue(entryId, fieldId, uniqueTargetIds.join(","))
+
+  for (const [index, targetEntryId] of uniqueTargetIds.entries()) {
+    await db.insert(entryRelationsTable).values({
+      id: crmId(),
+      sourceEntryId: entryId,
+      fieldId,
+      targetEntryId,
+      sortOrder: index,
+      updatedAt: sql`CURRENT_TIMESTAMP`,
+    })
+  }
+}
+
 async function touchEntry(entryId: string) {
   const db = getDb()
   await db
@@ -570,13 +774,15 @@ function requireField(
 
 export async function getCrmData() {
   await requireAuth()
+  await ensureCampaignSchema()
 
-  const [gymsData, contactsData, outreachData, meetingsData] =
+  const [gymsData, contactsData, outreachData, meetingsData, campaignsData] =
     await Promise.all([
       listEntries("Company"),
       listEntries("People"),
       listEntries("Outreach"),
       listEntries("Meeting"),
+      listEntries("Campaign"),
     ])
 
   const relationIds = [
@@ -586,10 +792,15 @@ export async function getCrmData() {
     ...outreachData.entries.flatMap((entry) => [
       ...(outreachData.relations.get(entry.id)?.Company ?? []),
       ...(outreachData.relations.get(entry.id)?.Person ?? []),
+      ...(outreachData.relations.get(entry.id)?.Campaign ?? []),
     ]),
     ...meetingsData.entries.flatMap((entry) => [
       ...(meetingsData.relations.get(entry.id)?.Company ?? []),
       ...(meetingsData.relations.get(entry.id)?.Contact ?? []),
+    ]),
+    ...campaignsData.entries.flatMap((entry) => [
+      ...(campaignsData.relations.get(entry.id)?.["Audience Gyms"] ?? []),
+      ...(campaignsData.relations.get(entry.id)?.["Audience Contacts"] ?? []),
     ]),
   ]
   const displayNames = await getEntryDisplayNames(relationIds)
@@ -643,6 +854,7 @@ export async function getCrmData() {
       const relations = outreachData.relations.get(entry.id) ?? {}
       const companyId = relations.Company?.[0] ?? values.Company ?? null
       const contactId = relations.Person?.[0] ?? values.Person ?? null
+      const campaignId = relations.Campaign?.[0] ?? values.Campaign ?? null
       return {
         id: entry.id,
         source: "Outreach",
@@ -654,6 +866,11 @@ export async function getCrmData() {
         companyName: companyId ? (displayNames.get(companyId) ?? null) : null,
         contactId,
         contactName: contactId ? (displayNames.get(contactId) ?? null) : null,
+        campaignId,
+        campaignName: campaignId
+          ? (displayNames.get(campaignId) ?? null)
+          : null,
+        owner: values.Owner ?? null,
         notes: values.Notes ?? null,
         content: values.Content ?? null,
         updatedAt: entry.updatedAt,
@@ -678,6 +895,9 @@ export async function getCrmData() {
         companyName: companyId ? (displayNames.get(companyId) ?? null) : null,
         contactId,
         contactName: contactId ? (displayNames.get(contactId) ?? null) : null,
+        campaignId: null,
+        campaignName: null,
+        owner: null,
         notes: values.Notes ?? values.Outcome ?? null,
         content: values.Outcome ?? null,
         updatedAt: entry.updatedAt,
@@ -691,7 +911,44 @@ export async function getCrmData() {
       new Date(a.date ?? a.updatedAt ?? 0).getTime(),
   )
 
-  return { gyms, contacts, interactions }
+  const campaignTouches = interactions.filter(
+    (interaction) =>
+      interaction.source === "Outreach" && interaction.campaignId,
+  )
+
+  const touchCounts = campaignTouches.reduce((counts, touch) => {
+    if (!touch.campaignId) return counts
+    counts.set(touch.campaignId, (counts.get(touch.campaignId) ?? 0) + 1)
+    return counts
+  }, new Map<string, number>())
+
+  const campaigns: CrmCampaign[] = campaignsData.entries.map((entry) => {
+    const values = campaignsData.values.get(entry.id) ?? {}
+    const relations = campaignsData.relations.get(entry.id) ?? {}
+    const audienceGymIds = relations["Audience Gyms"] ?? []
+    const audienceContactIds = relations["Audience Contacts"] ?? []
+    return {
+      id: entry.id,
+      name: values["Campaign Name"] ?? "Untitled campaign",
+      status: values.Status ?? null,
+      owner: values.Owner ?? null,
+      goal: values.Goal ?? null,
+      startDate: values["Start Date"] ?? null,
+      endDate: values["End Date"] ?? null,
+      audienceGymIds,
+      audienceContactIds,
+      audienceGymNames: audienceGymIds.map(
+        (id) => displayNames.get(id) ?? "Unknown gym",
+      ),
+      audienceContactNames: audienceContactIds.map(
+        (id) => displayNames.get(id) ?? "Unknown contact",
+      ),
+      touchCount: touchCounts.get(entry.id) ?? 0,
+      updatedAt: entry.updatedAt,
+    }
+  })
+
+  return { gyms, contacts, interactions, campaigns, campaignTouches }
 }
 
 export const getCrmDataFn = createServerFn({ method: "GET" }).handler(
@@ -844,6 +1101,7 @@ export const createInteractionFn = createServerFn({ method: "POST" })
       ["Date Sent", clean(data.date) ?? new Date().toISOString().slice(0, 10)],
       ["Channel", clean(data.channel) ?? "Email"],
       ["Status", clean(data.status) ?? "Sent"],
+      ["Owner", clean(data.owner)],
       ["Notes", clean(data.notes)],
       ["Content", clean(data.content)],
     ]
@@ -860,6 +1118,11 @@ export const createInteractionFn = createServerFn({ method: "POST" })
 
     const personField = requireField(fields, "Person", "Outreach")
     await setRelation(entryId, personField.id, clean(data.contactId))
+
+    const campaignField = fields.get("Campaign")
+    if (campaignField) {
+      await setRelation(entryId, campaignField.id, clean(data.campaignId))
+    }
 
     return { id: entryId }
   })
@@ -888,6 +1151,7 @@ export const updateInteractionFn = createServerFn({ method: "POST" })
             ["Date Sent", clean(data.date)],
             ["Channel", clean(data.channel)],
             ["Status", clean(data.status)],
+            ["Owner", clean(data.owner)],
             ["Notes", clean(data.notes)],
             ["Content", clean(data.content)],
           ]
@@ -909,8 +1173,80 @@ export const updateInteractionFn = createServerFn({ method: "POST" })
       await setRelation(data.id, contactField.id, clean(data.contactId))
     }
 
+    const campaignField = fields.get("Campaign")
+    if (campaignField) {
+      await setRelation(data.id, campaignField.id, clean(data.campaignId))
+    }
+
     await touchEntry(data.id)
     return { id: data.id }
+  })
+
+export const createCampaignFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => campaignInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    await requireAuth()
+    await ensureCampaignSchema()
+    const { entryId, object } = await createEntry("Campaign")
+    const fields = await getFieldsByName(object.id)
+
+    const updates: Array<[string, string | null]> = [
+      ["Campaign Name", data.name],
+      ["Status", clean(data.status) ?? "Planning"],
+      ["Owner", clean(data.owner) ?? "Ian"],
+      ["Goal", clean(data.goal)],
+      ["Start Date", clean(data.startDate)],
+      ["End Date", clean(data.endDate)],
+    ]
+
+    for (const [fieldName, value] of updates) {
+      const field = fields.get(fieldName)
+      if (field) await upsertFieldValue(entryId, field.id, value)
+    }
+
+    const audienceGymsField = requireField(fields, "Audience Gyms", "Campaign")
+    await setRelations(entryId, audienceGymsField.id, data.audienceGymIds)
+
+    const audienceContactsField = requireField(
+      fields,
+      "Audience Contacts",
+      "Campaign",
+    )
+    await setRelations(
+      entryId,
+      audienceContactsField.id,
+      data.audienceContactIds,
+    )
+
+    return { id: entryId }
+  })
+
+export const createCampaignTouchFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => campaignTouchInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    await requireAuth()
+    await ensureCampaignSchema()
+    const { entryId, object } = await createEntry("Outreach")
+    const fields = await getFieldsByName(object.id)
+
+    const updates: Array<[string, string | null]> = [
+      ["Subject", data.title],
+      ["Date Sent", clean(data.dueDate)],
+      ["Channel", clean(data.channel) ?? "Email"],
+      ["Owner", clean(data.owner) ?? "Ian"],
+      ["Status", clean(data.status) ?? "Planned"],
+      ["Notes", clean(data.notes)],
+    ]
+
+    for (const [fieldName, value] of updates) {
+      const field = fields.get(fieldName)
+      if (field) await upsertFieldValue(entryId, field.id, value)
+    }
+
+    const campaignField = requireField(fields, "Campaign", "Outreach")
+    await setRelation(entryId, campaignField.id, data.campaignId)
+
+    return { id: entryId }
   })
 
 export const listDocumentsForEntryFn = createServerFn({ method: "GET" })

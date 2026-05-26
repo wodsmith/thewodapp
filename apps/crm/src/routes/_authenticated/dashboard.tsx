@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { Building2, Handshake, Users } from "lucide-react"
+import { Building2, Handshake, Megaphone, Users } from "lucide-react"
 import { getCrmDataFn } from "@/server-fns/crm"
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -8,7 +8,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 })
 
 function DashboardPage() {
-  const { gyms, contacts, interactions } = Route.useLoaderData()
+  const { gyms, contacts, interactions, campaigns } = Route.useLoaderData()
   const activeGyms = gyms.filter((gym) => gym.status !== "Closed")
   const recentInteractions = interactions.slice(0, 6)
 
@@ -22,7 +22,7 @@ function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-4">
         <Metric
           icon={<Building2 className="h-5 w-5" />}
           label="Gyms"
@@ -37,6 +37,11 @@ function DashboardPage() {
           icon={<Handshake className="h-5 w-5" />}
           label="Interactions"
           value={interactions.length}
+        />
+        <Metric
+          icon={<Megaphone className="h-5 w-5" />}
+          label="Campaigns"
+          value={campaigns.length}
         />
       </div>
 
