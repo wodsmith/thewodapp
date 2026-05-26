@@ -201,6 +201,23 @@ async function assertEntryExists(entryId: string) {
   return entry
 }
 
+async function assertEntryInObject(entryId: string, objectId: string) {
+  const db = getDb()
+  const [entry] = await db
+    .select({ id: entriesTable.id })
+    .from(entriesTable)
+    .where(
+      and(eq(entriesTable.id, entryId), eq(entriesTable.objectId, objectId)),
+    )
+    .limit(1)
+
+  if (!entry) {
+    throw new Error(`CRM entry not found in expected object: ${entryId}`)
+  }
+
+  return entry
+}
+
 function sanitizeFileName(fileName: string) {
   return (
     fileName
@@ -723,8 +740,8 @@ export const updateGymFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => gymUpdateSchema.parse(data))
   .handler(async ({ data }) => {
     await requireAuth()
-    await assertEntryExists(data.id)
     const object = await getObject("Company")
+    await assertEntryInObject(data.id, object.id)
     await ensureField({
       objectId: object.id,
       name: "CrossFit Page",
@@ -789,8 +806,8 @@ export const updateContactFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => contactUpdateSchema.parse(data))
   .handler(async ({ data }) => {
     await requireAuth()
-    await assertEntryExists(data.id)
     const object = await getObject("People")
+    await assertEntryInObject(data.id, object.id)
     const fields = await getFieldsByName(object.id)
 
     const updates: Array<[string, string | null]> = [
@@ -851,9 +868,9 @@ export const updateInteractionFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => interactionUpdateSchema.parse(data))
   .handler(async ({ data }) => {
     await requireAuth()
-    await assertEntryExists(data.id)
     const objectName = data.source === "Meeting" ? "Meeting" : "Outreach"
     const object = await getObject(objectName)
+    await assertEntryInObject(data.id, object.id)
     const fields = await getFieldsByName(object.id)
 
     const updates: Array<[string, string | null]> =

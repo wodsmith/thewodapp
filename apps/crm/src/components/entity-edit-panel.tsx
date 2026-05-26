@@ -116,7 +116,7 @@ export function GymEditPanel({
       onSaved()
     } catch (caught) {
       setError(messageFor(caught))
-      setState("error")
+      setState("dirty")
     }
   }
 
@@ -225,7 +225,7 @@ export function ContactEditPanel({
       onSaved()
     } catch (caught) {
       setError(messageFor(caught))
-      setState("error")
+      setState("dirty")
     }
   }
 
@@ -320,7 +320,7 @@ export function InteractionEditPanel({
       onSaved()
     } catch (caught) {
       setError(messageFor(caught))
-      setState("error")
+      setState("dirty")
     }
   }
 
