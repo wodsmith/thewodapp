@@ -110,12 +110,12 @@ const interactionInputSchema = z.object({
   content: z.string().max(10000).optional(),
 })
 
-const documentUploadSchema = z.object({
+export const documentUploadSchema = z.object({
   entryId: z.string().min(1, "Entry ID is required"),
   fileName: z.string().min(1, "File name is required"),
   fileBase64: z.string().max(MAX_DOCUMENT_BASE64_LENGTH),
-  contentType: z.string().optional(),
-  fileSize: z.number().int().optional(),
+  contentType: z.string().min(1, "Content type is required"),
+  fileSize: z.number().int().nonnegative().max(MAX_DOCUMENT_BYTES),
   title: z.string().max(255).optional(),
 })
 
@@ -385,6 +385,54 @@ async function listDocumentsForEntry(entryId: string) {
     )
     .where(eq(documentEntriesTable.entryId, entryId))
     .orderBy(desc(documentEntriesTable.createdAt))
+}
+
+export async function uploadDocumentForEntry(
+  data: z.infer<typeof documentUploadSchema>,
+) {
+  await assertEntryExists(data.entryId)
+
+  const bytes = decodeBase64(data.fileBase64)
+  if (bytes.byteLength > MAX_DOCUMENT_BYTES) {
+    throw new Error("File too large (max 10 MB)")
+  }
+  if (bytes.byteLength !== data.fileSize) {
+    throw new Error("File size does not match payload")
+  }
+
+  const fileName = sanitizeFileName(data.fileName)
+  const datePrefix = new Date().toISOString().slice(0, 7)
+  const r2Key = `crm-documents/${datePrefix}/${crmId()}-${fileName}`
+
+  await getR2Bucket().put(r2Key, bytes.buffer, {
+    httpMetadata: {
+      contentType: data.contentType,
+    },
+  })
+
+  const db = getDb()
+  const [document] = await db
+    .insert(documentsTable)
+    .values({
+      id: crmId(),
+      title: data.title || fileName,
+      filePath: r2Key,
+      updatedAt: sql`CURRENT_TIMESTAMP`,
+    })
+    .returning()
+
+  if (!document) {
+    throw new Error("Unable to create document")
+  }
+
+  await db.insert(documentEntriesTable).values({
+    id: crmId(),
+    documentId: document.id,
+    entryId: data.entryId,
+    updatedAt: sql`CURRENT_TIMESTAMP`,
+  })
+
+  return document
 }
 
 async function listEntries(objectName: string, limit = 250) {
@@ -721,46 +769,7 @@ export const uploadDocumentForEntryFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => documentUploadSchema.parse(data))
   .handler(async ({ data }) => {
     await requireAuth()
-    await assertEntryExists(data.entryId)
-
-    const bytes = decodeBase64(data.fileBase64)
-    if (data.fileSize && bytes.byteLength > MAX_DOCUMENT_BYTES) {
-      throw new Error("File too large (max 10 MB)")
-    }
-
-    const fileName = sanitizeFileName(data.fileName)
-    const datePrefix = new Date().toISOString().slice(0, 7)
-    const r2Key = `crm-documents/${datePrefix}/${crmId()}-${fileName}`
-
-    await getR2Bucket().put(r2Key, bytes.buffer, {
-      httpMetadata: {
-        contentType: data.contentType || "application/octet-stream",
-      },
-    })
-
-    const db = getDb()
-    const [document] = await db
-      .insert(documentsTable)
-      .values({
-        id: crmId(),
-        title: data.title || fileName,
-        filePath: r2Key,
-        updatedAt: sql`CURRENT_TIMESTAMP`,
-      })
-      .returning()
-
-    if (!document) {
-      throw new Error("Unable to create document")
-    }
-
-    await db.insert(documentEntriesTable).values({
-      id: crmId(),
-      documentId: document.id,
-      entryId: data.entryId,
-      updatedAt: sql`CURRENT_TIMESTAMP`,
-    })
-
-    return document
+    return uploadDocumentForEntry(data)
   })
 
 export const deleteDocumentForEntryFn = createServerFn({ method: "POST" })

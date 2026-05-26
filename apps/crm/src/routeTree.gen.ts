@@ -15,6 +15,8 @@ import { Route as AuthenticatedInteractionsRouteImport } from './routes/_authent
 import { Route as AuthenticatedGymsRouteImport } from './routes/_authenticated/gyms'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedContactsRouteImport } from './routes/_authenticated/contacts'
+import { Route as ApiCrmDocumentsRouteImport } from './routes/api/crm/documents'
+import { Route as ApiCrmAgentCapabilitiesRouteImport } from './routes/api/crm/agent-capabilities'
 import { Route as AuthenticatedInteractionsInteractionIdRouteImport } from './routes/_authenticated/interactions.$interactionId'
 import { Route as AuthenticatedGymsGymIdRouteImport } from './routes/_authenticated/gyms.$gymId'
 import { Route as AuthenticatedContactsContactIdRouteImport } from './routes/_authenticated/contacts.$contactId'
@@ -49,6 +51,16 @@ const AuthenticatedContactsRoute = AuthenticatedContactsRouteImport.update({
   path: '/contacts',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const ApiCrmDocumentsRoute = ApiCrmDocumentsRouteImport.update({
+  id: '/api/crm/documents',
+  path: '/api/crm/documents',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCrmAgentCapabilitiesRoute = ApiCrmAgentCapabilitiesRouteImport.update({
+  id: '/api/crm/agent-capabilities',
+  path: '/api/crm/agent-capabilities',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedInteractionsInteractionIdRoute =
   AuthenticatedInteractionsInteractionIdRouteImport.update({
     id: '/$interactionId',
@@ -76,6 +88,8 @@ export interface FileRoutesByFullPath {
   '/contacts/$contactId': typeof AuthenticatedContactsContactIdRoute
   '/gyms/$gymId': typeof AuthenticatedGymsGymIdRoute
   '/interactions/$interactionId': typeof AuthenticatedInteractionsInteractionIdRoute
+  '/api/crm/agent-capabilities': typeof ApiCrmAgentCapabilitiesRoute
+  '/api/crm/documents': typeof ApiCrmDocumentsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -86,6 +100,8 @@ export interface FileRoutesByTo {
   '/contacts/$contactId': typeof AuthenticatedContactsContactIdRoute
   '/gyms/$gymId': typeof AuthenticatedGymsGymIdRoute
   '/interactions/$interactionId': typeof AuthenticatedInteractionsInteractionIdRoute
+  '/api/crm/agent-capabilities': typeof ApiCrmAgentCapabilitiesRoute
+  '/api/crm/documents': typeof ApiCrmDocumentsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -98,6 +114,8 @@ export interface FileRoutesById {
   '/_authenticated/contacts/$contactId': typeof AuthenticatedContactsContactIdRoute
   '/_authenticated/gyms/$gymId': typeof AuthenticatedGymsGymIdRoute
   '/_authenticated/interactions/$interactionId': typeof AuthenticatedInteractionsInteractionIdRoute
+  '/api/crm/agent-capabilities': typeof ApiCrmAgentCapabilitiesRoute
+  '/api/crm/documents': typeof ApiCrmDocumentsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -110,6 +128,8 @@ export interface FileRouteTypes {
     | '/contacts/$contactId'
     | '/gyms/$gymId'
     | '/interactions/$interactionId'
+    | '/api/crm/agent-capabilities'
+    | '/api/crm/documents'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -120,6 +140,8 @@ export interface FileRouteTypes {
     | '/contacts/$contactId'
     | '/gyms/$gymId'
     | '/interactions/$interactionId'
+    | '/api/crm/agent-capabilities'
+    | '/api/crm/documents'
   id:
     | '__root__'
     | '/'
@@ -131,11 +153,15 @@ export interface FileRouteTypes {
     | '/_authenticated/contacts/$contactId'
     | '/_authenticated/gyms/$gymId'
     | '/_authenticated/interactions/$interactionId'
+    | '/api/crm/agent-capabilities'
+    | '/api/crm/documents'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  ApiCrmAgentCapabilitiesRoute: typeof ApiCrmAgentCapabilitiesRoute
+  ApiCrmDocumentsRoute: typeof ApiCrmDocumentsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -181,6 +207,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/contacts'
       preLoaderRoute: typeof AuthenticatedContactsRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/api/crm/documents': {
+      id: '/api/crm/documents'
+      path: '/api/crm/documents'
+      fullPath: '/api/crm/documents'
+      preLoaderRoute: typeof ApiCrmDocumentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/crm/agent-capabilities': {
+      id: '/api/crm/agent-capabilities'
+      path: '/api/crm/agent-capabilities'
+      fullPath: '/api/crm/agent-capabilities'
+      preLoaderRoute: typeof ApiCrmAgentCapabilitiesRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/interactions/$interactionId': {
       id: '/_authenticated/interactions/$interactionId'
@@ -266,6 +306,8 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  ApiCrmAgentCapabilitiesRoute: ApiCrmAgentCapabilitiesRoute,
+  ApiCrmDocumentsRoute: ApiCrmDocumentsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
