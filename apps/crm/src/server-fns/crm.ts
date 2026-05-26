@@ -90,6 +90,10 @@ const gymInputSchema = z.object({
   notes: z.string().max(4000).optional(),
 })
 
+const gymUpdateSchema = gymInputSchema.extend({
+  id: z.string().min(1, "Gym ID is required"),
+})
+
 const contactInputSchema = z.object({
   fullName: z.string().min(1, "Name is required").max(255),
   email: z.string().max(255).optional(),
@@ -97,6 +101,10 @@ const contactInputSchema = z.object({
   status: z.string().max(100).optional(),
   companyId: z.string().optional(),
   notes: z.string().max(4000).optional(),
+})
+
+const contactUpdateSchema = contactInputSchema.extend({
+  id: z.string().min(1, "Contact ID is required"),
 })
 
 const interactionInputSchema = z.object({
@@ -108,6 +116,11 @@ const interactionInputSchema = z.object({
   contactId: z.string().optional(),
   notes: z.string().max(4000).optional(),
   content: z.string().max(10000).optional(),
+})
+
+const interactionUpdateSchema = interactionInputSchema.extend({
+  id: z.string().min(1, "Interaction ID is required"),
+  source: z.enum(["Meeting", "Outreach"]),
 })
 
 export const documentUploadSchema = z.object({
@@ -183,6 +196,23 @@ async function assertEntryExists(entryId: string) {
 
   if (!entry) {
     throw new Error(`CRM entry not found: ${entryId}`)
+  }
+
+  return entry
+}
+
+async function assertEntryInObject(entryId: string, objectId: string) {
+  const db = getDb()
+  const [entry] = await db
+    .select({ id: entriesTable.id })
+    .from(entriesTable)
+    .where(
+      and(eq(entriesTable.id, entryId), eq(entriesTable.objectId, objectId)),
+    )
+    .limit(1)
+
+  if (!entry) {
+    throw new Error(`CRM entry not found in expected object: ${entryId}`)
   }
 
   return entry
@@ -506,6 +536,14 @@ async function setRelation(
   })
 }
 
+async function touchEntry(entryId: string) {
+  const db = getDb()
+  await db
+    .update(entriesTable)
+    .set({ updatedAt: sql`CURRENT_TIMESTAMP` })
+    .where(eq(entriesTable.id, entryId))
+}
+
 async function createEntry(objectName: string) {
   const db = getDb()
   const object = await getObject(objectName)
@@ -698,6 +736,44 @@ export const createGymFn = createServerFn({ method: "POST" })
     return { id: entryId }
   })
 
+export const updateGymFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => gymUpdateSchema.parse(data))
+  .handler(async ({ data }) => {
+    await requireAuth()
+    const object = await getObject("Company")
+    await assertEntryInObject(data.id, object.id)
+    await ensureField({
+      objectId: object.id,
+      name: "CrossFit Page",
+      type: "url",
+      sortOrder: 70,
+    })
+    const fields = await getFieldsByName(object.id)
+
+    const updates: Array<[string, string | null]> = [
+      ["Company Name", data.name],
+      ["Location", clean(data.location)],
+      ["Website", clean(data.website)],
+      ["CrossFit Page", clean(data.crossfitPage)],
+      ["Email Address", clean(data.email)],
+      ["Phone Number", clean(data.phone)],
+      ["Instagram", clean(data.instagram)],
+      ["Owner/Manager", clean(data.ownerManager)],
+      ["Wodsmith Status", clean(data.status)],
+      ["Priority", clean(data.priority)],
+      ["Relationship", clean(data.relationship)],
+      ["Notes", clean(data.notes)],
+    ]
+
+    for (const [fieldName, value] of updates) {
+      const field = fields.get(fieldName)
+      if (field) await upsertFieldValue(data.id, field.id, value)
+    }
+
+    await touchEntry(data.id)
+    return { id: data.id }
+  })
+
 export const createContactFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => contactInputSchema.parse(data))
   .handler(async ({ data }) => {
@@ -724,6 +800,36 @@ export const createContactFn = createServerFn({ method: "POST" })
     }
 
     return { id: entryId }
+  })
+
+export const updateContactFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => contactUpdateSchema.parse(data))
+  .handler(async ({ data }) => {
+    await requireAuth()
+    const object = await getObject("People")
+    await assertEntryInObject(data.id, object.id)
+    const fields = await getFieldsByName(object.id)
+
+    const updates: Array<[string, string | null]> = [
+      ["Full Name", data.fullName],
+      ["Email Address", clean(data.email)],
+      ["Phone Number", clean(data.phone)],
+      ["Status", clean(data.status)],
+      ["Notes", clean(data.notes)],
+    ]
+
+    for (const [fieldName, value] of updates) {
+      const field = fields.get(fieldName)
+      if (field) await upsertFieldValue(data.id, field.id, value)
+    }
+
+    const companyField = fields.get("Company")
+    if (companyField) {
+      await setRelation(data.id, companyField.id, clean(data.companyId))
+    }
+
+    await touchEntry(data.id)
+    return { id: data.id }
   })
 
 export const createInteractionFn = createServerFn({ method: "POST" })
@@ -756,6 +862,55 @@ export const createInteractionFn = createServerFn({ method: "POST" })
     await setRelation(entryId, personField.id, clean(data.contactId))
 
     return { id: entryId }
+  })
+
+export const updateInteractionFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => interactionUpdateSchema.parse(data))
+  .handler(async ({ data }) => {
+    await requireAuth()
+    const objectName = data.source === "Meeting" ? "Meeting" : "Outreach"
+    const object = await getObject(objectName)
+    await assertEntryInObject(data.id, object.id)
+    const fields = await getFieldsByName(object.id)
+
+    const updates: Array<[string, string | null]> =
+      data.source === "Meeting"
+        ? [
+            ["Title", data.title],
+            ["Date", clean(data.date)],
+            ["Type", clean(data.channel)],
+            ["Status", clean(data.status)],
+            ["Notes", clean(data.notes)],
+            ["Outcome", clean(data.content)],
+          ]
+        : [
+            ["Subject", data.title],
+            ["Date Sent", clean(data.date)],
+            ["Channel", clean(data.channel)],
+            ["Status", clean(data.status)],
+            ["Notes", clean(data.notes)],
+            ["Content", clean(data.content)],
+          ]
+
+    for (const [fieldName, value] of updates) {
+      const field = fields.get(fieldName)
+      if (field) await upsertFieldValue(data.id, field.id, value)
+    }
+
+    const companyField = fields.get("Company")
+    if (companyField) {
+      await setRelation(data.id, companyField.id, clean(data.companyId))
+    }
+
+    const contactField = fields.get(
+      data.source === "Meeting" ? "Contact" : "Person",
+    )
+    if (contactField) {
+      await setRelation(data.id, contactField.id, clean(data.contactId))
+    }
+
+    await touchEntry(data.id)
+    return { id: data.id }
   })
 
 export const listDocumentsForEntryFn = createServerFn({ method: "GET" })

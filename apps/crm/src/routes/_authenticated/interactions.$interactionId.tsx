@@ -4,11 +4,14 @@ import {
   CalendarDays,
   Clock3,
   Handshake,
+  Pencil,
   Send,
   UserRound,
 } from "lucide-react"
-import { getCrmDataFn } from "@/server-fns/crm"
+import { useState } from "react"
 import { EntityDocumentPanel } from "@/components/entity-document-panel"
+import { InteractionEditPanel } from "@/components/entity-edit-panel"
+import { getCrmDataFn } from "@/server-fns/crm"
 
 export const Route = createFileRoute(
   "/_authenticated/interactions/$interactionId",
@@ -27,64 +30,94 @@ export const Route = createFileRoute(
       ? data.contacts.find((item) => item.id === interaction.contactId)
       : undefined
 
-    return { interaction, gym: gym ?? null, contact: contact ?? null }
+    return {
+      interaction,
+      gym: gym ?? null,
+      contact: contact ?? null,
+      gyms: data.gyms,
+      contacts: data.contacts,
+    }
   },
   notFoundComponent: () => <EntityNotFound label="Interaction" />,
   component: InteractionDetailPage,
 })
 
 function InteractionDetailPage() {
-  const { interaction, gym, contact } = Route.useLoaderData()
+  const { interaction, gym, contact, gyms, contacts } = Route.useLoaderData()
+  const [isEditing, setIsEditing] = useState(false)
 
   return (
     <section className="space-y-6">
-      <header>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Handshake className="h-4 w-4" />
-          {interaction.source}
+      <header className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Handshake className="h-4 w-4" />
+            {interaction.source}
+          </div>
+          <h2 className="mt-1 text-3xl font-semibold tracking-tight">
+            {interaction.title}
+          </h2>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <MetaInline
+              icon={<CalendarDays className="h-4 w-4" aria-hidden="true" />}
+              value={interaction.date}
+              label="Date"
+            />
+            <Badge value={interaction.channel} />
+            <Badge value={interaction.status} />
+          </div>
         </div>
-        <h2 className="mt-1 text-3xl font-semibold tracking-tight">
-          {interaction.title}
-        </h2>
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          <MetaInline
-            icon={<CalendarDays className="h-4 w-4" aria-hidden="true" />}
-            value={interaction.date}
-            label="Date"
-          />
-          <Badge value={interaction.channel} />
-          <Badge value={interaction.status} />
-        </div>
+        <button
+          type="button"
+          onClick={() => setIsEditing((current) => !current)}
+          aria-pressed={isEditing}
+          className="inline-flex h-10 items-center gap-2 rounded-md border border-input px-4 text-sm font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Pencil className="h-4 w-4" aria-hidden="true" />
+          {isEditing ? "Viewing" : "Edit"}
+        </button>
       </header>
 
-      <section className="space-y-4 rounded-lg border border-border p-4">
-        <div className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-3">
-          <MetaItem
-            icon={<Building2 className="h-4 w-4" aria-hidden="true" />}
-            value={interaction.companyName}
-            label="Gym"
-          />
-          <MetaItem
-            icon={<UserRound className="h-4 w-4" aria-hidden="true" />}
-            value={interaction.contactName}
-            label="Contact"
-          />
-          <MetaItem
-            icon={<Send className="h-4 w-4" aria-hidden="true" />}
-            value={interaction.channel}
-            label="Channel"
-          />
-          <MetaItem
-            icon={<Clock3 className="h-4 w-4" aria-hidden="true" />}
-            value={interaction.updatedAt}
-            label="Updated"
-          />
-        </div>
-        {interaction.notes ? <NoteBlock>{interaction.notes}</NoteBlock> : null}
-        {interaction.content ? (
-          <NoteBlock>{interaction.content}</NoteBlock>
-        ) : null}
-      </section>
+      {isEditing ? (
+        <InteractionEditPanel
+          interaction={interaction}
+          gyms={gyms}
+          contacts={contacts}
+          onCancel={() => setIsEditing(false)}
+          onSaved={() => setIsEditing(false)}
+        />
+      ) : (
+        <section className="space-y-4 rounded-lg border border-border p-4">
+          <div className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-3">
+            <MetaItem
+              icon={<Building2 className="h-4 w-4" aria-hidden="true" />}
+              value={interaction.companyName}
+              label="Gym"
+            />
+            <MetaItem
+              icon={<UserRound className="h-4 w-4" aria-hidden="true" />}
+              value={interaction.contactName}
+              label="Contact"
+            />
+            <MetaItem
+              icon={<Send className="h-4 w-4" aria-hidden="true" />}
+              value={interaction.channel}
+              label="Channel"
+            />
+            <MetaItem
+              icon={<Clock3 className="h-4 w-4" aria-hidden="true" />}
+              value={interaction.updatedAt}
+              label="Updated"
+            />
+          </div>
+          {interaction.notes ? (
+            <NoteBlock>{interaction.notes}</NoteBlock>
+          ) : null}
+          {interaction.content ? (
+            <NoteBlock>{interaction.content}</NoteBlock>
+          ) : null}
+        </section>
+      )}
 
       <section className="grid gap-4 md:grid-cols-2">
         <AssociationCard

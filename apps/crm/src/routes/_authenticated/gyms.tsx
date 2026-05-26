@@ -10,6 +10,34 @@ import { Plus, Search } from "lucide-react"
 import { useMemo, useState } from "react"
 import { createGymFn, getCrmDataFn } from "@/server-fns/crm"
 
+const GYM_STATUS_OPTIONS = [
+  "Prospect",
+  "Warm Prospect",
+  "Outreach Sent",
+  "Demo Scheduled",
+  "Demo Complete",
+  "Current User",
+  "Active Partner",
+  "Customer",
+  "Not Now",
+  "Closed/Lost",
+]
+
+const GYM_PRIORITY_OPTIONS = ["High", "Medium", "Low"]
+
+const GYM_RELATIONSHIP_OPTIONS = [
+  "Cold Lead",
+  "Warm Prospect",
+  "Intro Made",
+  "Outreach Sent",
+  "Demo Scheduled",
+  "Demo Complete",
+  "MWFC Host",
+  "Active Partner",
+  "Customer",
+  "Not Now",
+]
+
 export const Route = createFileRoute("/_authenticated/gyms")({
   loader: async () => getCrmDataFn(),
   component: GymsPage,
@@ -90,7 +118,11 @@ function GymsPage() {
           <TextInput name="name" label="Gym" required />
           <TextInput name="location" label="Location" />
           <TextInput name="ownerManager" label="Owner / Manager" />
-          <TextInput name="relationship" label="Relationship" />
+          <SelectInput
+            name="relationship"
+            label="Relationship"
+            options={GYM_RELATIONSHIP_OPTIONS}
+          />
           <TextInput name="website" label="Website" />
           {/* `@lat`: [[crm-crossfit-metadata]] */}
           <TextInput name="crossfitPage" label="CrossFit Page" />
@@ -100,12 +132,12 @@ function GymsPage() {
           <SelectInput
             name="status"
             label="Status"
-            options={["Prospect", "Outreach Sent", "Demo", "Customer"]}
+            options={GYM_STATUS_OPTIONS}
           />
           <SelectInput
             name="priority"
             label="Priority"
-            options={["HIGH", "MED", "LOW"]}
+            options={GYM_PRIORITY_OPTIONS}
           />
           <div className="md:col-span-2">
             <TextInput name="notes" label="Notes" />
@@ -118,7 +150,7 @@ function GymsPage() {
             className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"
           >
             <Plus className="h-4 w-4" />
-            {saving ? "Adding..." : "Add Gym"}
+            {saving ? "Adding…" : "Add Gym"}
           </button>
         </div>
       </form>
@@ -231,7 +263,7 @@ function SelectInput({
         name={name}
         className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
       >
-        <option value="">Choose</option>
+        <option value="">Choose…</option>
         {options.map((option) => (
           <option key={option} value={option}>
             {option}

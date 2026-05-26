@@ -7,10 +7,13 @@ import {
   Instagram,
   Mail,
   MapPin,
+  Pencil,
   Phone,
   UserRound,
 } from "lucide-react"
+import { useState } from "react"
 import { EntityDocumentPanel } from "@/components/entity-document-panel"
+import { GymEditPanel } from "@/components/entity-edit-panel"
 import { getCrmDataFn } from "@/server-fns/crm"
 
 export const Route = createFileRoute("/_authenticated/gyms/$gymId")({
@@ -37,6 +40,7 @@ export const Route = createFileRoute("/_authenticated/gyms/$gymId")({
 
 function GymDetailPage() {
   const { gym, contacts, interactions } = Route.useLoaderData()
+  const [isEditing, setIsEditing] = useState(false)
   const latestInteraction = interactions[0]
 
   return (
@@ -60,71 +64,90 @@ function GymDetailPage() {
             <Badge value={gym.priority} />
           </div>
         </div>
-        <Link
-          to="/interactions"
-          search={{}}
-          className="inline-flex h-10 items-center justify-center rounded-md border border-input px-4 text-sm font-medium hover:bg-accent"
-        >
-          View all interactions
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsEditing((current) => !current)}
+            aria-pressed={isEditing}
+            className="inline-flex h-10 items-center gap-2 rounded-md border border-input px-4 text-sm font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Pencil className="h-4 w-4" aria-hidden="true" />
+            {isEditing ? "Viewing" : "Edit"}
+          </button>
+          <Link
+            to="/interactions"
+            search={{}}
+            className="inline-flex h-10 items-center justify-center rounded-md border border-input px-4 text-sm font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            View All Interactions
+          </Link>
+        </div>
       </header>
 
-      <section className="space-y-4 rounded-lg border border-border p-4">
-        <div className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-3">
-          <MetaItem
-            icon={<UserRound className="h-4 w-4" aria-hidden="true" />}
-            value={gym.ownerManager}
-            label="Owner or manager"
-          />
-          <MetaItem
-            icon={<Handshake className="h-4 w-4" aria-hidden="true" />}
-            value={gym.relationship}
-            label="Relationship"
-            showLabel
-          />
-          <MetaItem
-            icon={<Mail className="h-4 w-4" aria-hidden="true" />}
-            value={gym.email}
-            label="Email"
-          />
-          <MetaItem
-            icon={<Phone className="h-4 w-4" aria-hidden="true" />}
-            value={gym.phone}
-            label="Phone"
-          />
-          <MetaItem
-            icon={<Globe2 className="h-4 w-4" aria-hidden="true" />}
-            value={gym.website}
-            label="Website"
-            href={gym.website}
-          />
-          {/* `@lat`: [[crm-crossfit-metadata]] */}
-          <MetaItem
-            icon={<Globe2 className="h-4 w-4" aria-hidden="true" />}
-            value={gym.crossfitPage}
-            label="CrossFit Page"
-            href={gym.crossfitPage}
-            showLabel
-          />
-          <MetaItem
-            icon={<Hash className="h-4 w-4" aria-hidden="true" />}
-            value={gym.crossfitAffiliateNumber}
-            label="Affiliate"
-            showLabel
-          />
-          <MetaItem
-            icon={<Instagram className="h-4 w-4" aria-hidden="true" />}
-            value={gym.instagram}
-            label="Instagram"
-          />
-        </div>
-        {gym.notes ? <NoteBlock>{gym.notes}</NoteBlock> : null}
-        {gym.updatedAt ? (
-          <p className="border-t border-border pt-3 text-xs text-muted-foreground">
-            Record updated {gym.updatedAt}
-          </p>
-        ) : null}
-      </section>
+      {isEditing ? (
+        <GymEditPanel
+          gym={gym}
+          onCancel={() => setIsEditing(false)}
+          onSaved={() => setIsEditing(false)}
+        />
+      ) : (
+        <section className="space-y-4 rounded-lg border border-border p-4">
+          <div className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-3">
+            <MetaItem
+              icon={<UserRound className="h-4 w-4" aria-hidden="true" />}
+              value={gym.ownerManager}
+              label="Owner or manager"
+            />
+            <MetaItem
+              icon={<Handshake className="h-4 w-4" aria-hidden="true" />}
+              value={gym.relationship}
+              label="Relationship"
+              showLabel
+            />
+            <MetaItem
+              icon={<Mail className="h-4 w-4" aria-hidden="true" />}
+              value={gym.email}
+              label="Email"
+            />
+            <MetaItem
+              icon={<Phone className="h-4 w-4" aria-hidden="true" />}
+              value={gym.phone}
+              label="Phone"
+            />
+            <MetaItem
+              icon={<Globe2 className="h-4 w-4" aria-hidden="true" />}
+              value={gym.website}
+              label="Website"
+              href={gym.website}
+            />
+            {/* `@lat`: [[crm-crossfit-metadata]] */}
+            <MetaItem
+              icon={<Globe2 className="h-4 w-4" aria-hidden="true" />}
+              value={gym.crossfitPage}
+              label="CrossFit Page"
+              href={gym.crossfitPage}
+              showLabel
+            />
+            <MetaItem
+              icon={<Hash className="h-4 w-4" aria-hidden="true" />}
+              value={gym.crossfitAffiliateNumber}
+              label="Affiliate"
+              showLabel
+            />
+            <MetaItem
+              icon={<Instagram className="h-4 w-4" aria-hidden="true" />}
+              value={gym.instagram}
+              label="Instagram"
+            />
+          </div>
+          {gym.notes ? <NoteBlock>{gym.notes}</NoteBlock> : null}
+          {gym.updatedAt ? (
+            <p className="border-t border-border pt-3 text-xs text-muted-foreground">
+              Record updated {gym.updatedAt}
+            </p>
+          ) : null}
+        </section>
+      )}
 
       <RelatedSection
         icon={<UserRound className="h-4 w-4" />}
