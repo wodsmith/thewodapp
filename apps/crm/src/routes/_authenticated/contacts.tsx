@@ -10,6 +10,16 @@ import { Plus, Search } from "lucide-react"
 import { useMemo, useState } from "react"
 import { createContactFn, getCrmDataFn } from "@/server-fns/crm"
 
+const CONTACT_STATUS_OPTIONS = [
+  "Lead",
+  "Contacted",
+  "Qualified",
+  "Active",
+  "Customer",
+  "Inactive",
+  "Do Not Contact",
+]
+
 export const Route = createFileRoute("/_authenticated/contacts")({
   loader: async () => getCrmDataFn(),
   component: ContactsPage,
@@ -93,7 +103,7 @@ function ContactsPage() {
           <SelectInput
             name="status"
             label="Status"
-            options={["Lead", "Contacted", "Qualified", "Customer"]}
+            options={CONTACT_STATUS_OPTIONS}
           />
           <div className="md:col-span-3">
             <TextInput name="notes" label="Notes" />
@@ -106,7 +116,7 @@ function ContactsPage() {
             className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"
           >
             <Plus className="h-4 w-4" />
-            {saving ? "Adding..." : "Add Contact"}
+            {saving ? "Adding…" : "Add Contact"}
           </button>
         </div>
       </form>
@@ -213,7 +223,7 @@ function SelectInput({
         name={name}
         className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
       >
-        <option value="">Choose</option>
+        <option value="">Choose…</option>
         {options.map((option) => (
           <option key={option} value={option}>
             {option}

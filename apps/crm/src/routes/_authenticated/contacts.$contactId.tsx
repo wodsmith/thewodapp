@@ -4,11 +4,14 @@ import {
   Clock3,
   Handshake,
   Mail,
+  Pencil,
   Phone,
   UserRound,
 } from "lucide-react"
-import { getCrmDataFn } from "@/server-fns/crm"
+import { useState } from "react"
 import { EntityDocumentPanel } from "@/components/entity-document-panel"
+import { ContactEditPanel } from "@/components/entity-edit-panel"
+import { getCrmDataFn } from "@/server-fns/crm"
 
 export const Route = createFileRoute("/_authenticated/contacts/$contactId")({
   loader: async ({ params }) => {
@@ -23,66 +26,87 @@ export const Route = createFileRoute("/_authenticated/contacts/$contactId")({
       (interaction) => interaction.contactId === contact.id,
     )
 
-    return { contact, gym: gym ?? null, interactions }
+    return { contact, gym: gym ?? null, interactions, gyms: data.gyms }
   },
   notFoundComponent: () => <EntityNotFound label="Contact" />,
   component: ContactDetailPage,
 })
 
 function ContactDetailPage() {
-  const { contact, gym, interactions } = Route.useLoaderData()
+  const { contact, gym, interactions, gyms } = Route.useLoaderData()
+  const [isEditing, setIsEditing] = useState(false)
 
   return (
     <section className="space-y-6">
-      <header>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <UserRound className="h-4 w-4" />
-          Contact
+      <header className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <UserRound className="h-4 w-4" />
+            Contact
+          </div>
+          <h2 className="mt-1 text-3xl font-semibold tracking-tight">
+            {contact.fullName}
+          </h2>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <Badge value={contact.status || "Lead"} />
+            {gym ? (
+              <Link
+                to="/gyms/$gymId"
+                params={{ gymId: gym.id }}
+                className="underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {gym.name}
+              </Link>
+            ) : contact.companyName ? (
+              <span>{contact.companyName}</span>
+            ) : null}
+          </div>
         </div>
-        <h2 className="mt-1 text-3xl font-semibold tracking-tight">
-          {contact.fullName}
-        </h2>
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          <Badge value={contact.status || "Lead"} />
-          {gym ? (
-            <Link
-              to="/gyms/$gymId"
-              params={{ gymId: gym.id }}
-              className="underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {gym.name}
-            </Link>
-          ) : contact.companyName ? (
-            <span>{contact.companyName}</span>
-          ) : null}
-        </div>
+        <button
+          type="button"
+          onClick={() => setIsEditing((current) => !current)}
+          aria-pressed={isEditing}
+          className="inline-flex h-10 items-center gap-2 rounded-md border border-input px-4 text-sm font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Pencil className="h-4 w-4" aria-hidden="true" />
+          {isEditing ? "Viewing" : "Edit"}
+        </button>
       </header>
 
-      <section className="space-y-4 rounded-lg border border-border p-4">
-        <div className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-3">
-          <MetaItem
-            icon={<Mail className="h-4 w-4" aria-hidden="true" />}
-            value={contact.email}
-            label="Email"
-          />
-          <MetaItem
-            icon={<Phone className="h-4 w-4" aria-hidden="true" />}
-            value={contact.phone}
-            label="Phone"
-          />
-          <MetaItem
-            icon={<Building2 className="h-4 w-4" aria-hidden="true" />}
-            value={contact.companyName}
-            label="Gym"
-          />
-          <MetaItem
-            icon={<Clock3 className="h-4 w-4" aria-hidden="true" />}
-            value={contact.updatedAt}
-            label="Updated"
-          />
-        </div>
-        {contact.notes ? <NoteBlock>{contact.notes}</NoteBlock> : null}
-      </section>
+      {isEditing ? (
+        <ContactEditPanel
+          contact={contact}
+          gyms={gyms}
+          onCancel={() => setIsEditing(false)}
+          onSaved={() => setIsEditing(false)}
+        />
+      ) : (
+        <section className="space-y-4 rounded-lg border border-border p-4">
+          <div className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-3">
+            <MetaItem
+              icon={<Mail className="h-4 w-4" aria-hidden="true" />}
+              value={contact.email}
+              label="Email"
+            />
+            <MetaItem
+              icon={<Phone className="h-4 w-4" aria-hidden="true" />}
+              value={contact.phone}
+              label="Phone"
+            />
+            <MetaItem
+              icon={<Building2 className="h-4 w-4" aria-hidden="true" />}
+              value={contact.companyName}
+              label="Gym"
+            />
+            <MetaItem
+              icon={<Clock3 className="h-4 w-4" aria-hidden="true" />}
+              value={contact.updatedAt}
+              label="Updated"
+            />
+          </div>
+          {contact.notes ? <NoteBlock>{contact.notes}</NoteBlock> : null}
+        </section>
+      )}
 
       <section className="rounded-lg border border-border">
         <div className="flex items-center gap-2 border-b border-border px-4 py-3 text-sm font-semibold">

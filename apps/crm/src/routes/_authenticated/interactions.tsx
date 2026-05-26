@@ -10,6 +10,27 @@ import { Plus, Search } from "lucide-react"
 import { useMemo, useState } from "react"
 import { createInteractionFn, getCrmDataFn } from "@/server-fns/crm"
 
+const INTERACTION_CHANNEL_OPTIONS = [
+  "Email",
+  "Call",
+  "Text",
+  "Instagram",
+  "In Person",
+  "Demo",
+  "Meeting",
+  "Referral",
+]
+
+const INTERACTION_STATUS_OPTIONS = [
+  "Planned",
+  "Sent",
+  "Completed",
+  "No Response",
+  "Replied",
+  "Follow Up",
+  "Not Interested",
+]
+
 export const Route = createFileRoute("/_authenticated/interactions")({
   loader: async () => getCrmDataFn(),
   component: InteractionsPage,
@@ -87,12 +108,12 @@ function InteractionsPage() {
           <SelectInput
             name="channel"
             label="Channel"
-            options={["Email", "Call", "Instagram", "In Person", "Demo"]}
+            options={INTERACTION_CHANNEL_OPTIONS}
           />
           <SelectInput
             name="status"
             label="Status"
-            options={["Planned", "Sent", "Completed", "No Response", "Replied"]}
+            options={INTERACTION_STATUS_OPTIONS}
           />
           <label className="space-y-1 text-sm font-medium">
             <span>Gym</span>
@@ -132,7 +153,7 @@ function InteractionsPage() {
             className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"
           >
             <Plus className="h-4 w-4" />
-            {saving ? "Adding..." : "Log Interaction"}
+            {saving ? "Adding…" : "Log Interaction"}
           </button>
         </div>
       </form>
@@ -261,7 +282,7 @@ function SelectInput({
         name={name}
         className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
       >
-        <option value="">Choose</option>
+        <option value="">Choose…</option>
         {options.map((option) => (
           <option key={option} value={option}>
             {option}
