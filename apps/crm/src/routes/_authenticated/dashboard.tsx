@@ -1,14 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { Building2, Handshake, Users } from "lucide-react"
+import { Building2, Handshake, Megaphone, Users } from "lucide-react"
+import { MetricCard } from "@/components/metric-card"
 import { getCrmDataFn } from "@/server-fns/crm"
 
+// `@lat`: [[crm-campaigns]]
 export const Route = createFileRoute("/_authenticated/dashboard")({
   loader: async () => getCrmDataFn(),
   component: DashboardPage,
 })
 
 function DashboardPage() {
-  const { gyms, contacts, interactions } = Route.useLoaderData()
+  const { gyms, contacts, interactions, campaigns } = Route.useLoaderData()
   const activeGyms = gyms.filter((gym) => gym.status !== "Closed")
   const recentInteractions = interactions.slice(0, 6)
 
@@ -22,21 +24,26 @@ function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-3">
-        <Metric
+      <div className="grid gap-3 md:grid-cols-4">
+        <MetricCard
           icon={<Building2 className="h-5 w-5" />}
           label="Gyms"
           value={activeGyms.length}
         />
-        <Metric
+        <MetricCard
           icon={<Users className="h-5 w-5" />}
           label="Contacts"
           value={contacts.length}
         />
-        <Metric
+        <MetricCard
           icon={<Handshake className="h-5 w-5" />}
           label="Interactions"
           value={interactions.length}
+        />
+        <MetricCard
+          icon={<Megaphone className="h-5 w-5" />}
+          label="Campaigns"
+          value={campaigns.length}
         />
       </div>
 
@@ -93,25 +100,5 @@ function DashboardPage() {
         </section>
       </div>
     </section>
-  )
-}
-
-function Metric({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: number
-}) {
-  return (
-    <div className="rounded-lg border border-border p-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-muted-foreground">{label}</p>
-        <span className="text-muted-foreground">{icon}</span>
-      </div>
-      <p className="mt-3 text-3xl font-semibold">{value}</p>
-    </div>
   )
 }

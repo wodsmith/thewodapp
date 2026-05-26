@@ -15,6 +15,7 @@ import { Route as AuthenticatedInteractionsRouteImport } from './routes/_authent
 import { Route as AuthenticatedGymsRouteImport } from './routes/_authenticated/gyms'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedContactsRouteImport } from './routes/_authenticated/contacts'
+import { Route as AuthenticatedCampaignsRouteImport } from './routes/_authenticated/campaigns'
 import { Route as ApiCrmDocumentsRouteImport } from './routes/api/crm/documents'
 import { Route as ApiCrmAgentCapabilitiesRouteImport } from './routes/api/crm/agent-capabilities'
 import { Route as AuthenticatedInteractionsInteractionIdRouteImport } from './routes/_authenticated/interactions.$interactionId'
@@ -51,6 +52,11 @@ const AuthenticatedContactsRoute = AuthenticatedContactsRouteImport.update({
   path: '/contacts',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedCampaignsRoute = AuthenticatedCampaignsRouteImport.update({
+  id: '/campaigns',
+  path: '/campaigns',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const ApiCrmDocumentsRoute = ApiCrmDocumentsRouteImport.update({
   id: '/api/crm/documents',
   path: '/api/crm/documents',
@@ -81,6 +87,7 @@ const AuthenticatedContactsContactIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/campaigns': typeof AuthenticatedCampaignsRoute
   '/contacts': typeof AuthenticatedContactsRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/gyms': typeof AuthenticatedGymsRouteWithChildren
@@ -93,6 +100,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/campaigns': typeof AuthenticatedCampaignsRoute
   '/contacts': typeof AuthenticatedContactsRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/gyms': typeof AuthenticatedGymsRouteWithChildren
@@ -107,6 +115,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/_authenticated/campaigns': typeof AuthenticatedCampaignsRoute
   '/_authenticated/contacts': typeof AuthenticatedContactsRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/gyms': typeof AuthenticatedGymsRouteWithChildren
@@ -121,6 +130,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/campaigns'
     | '/contacts'
     | '/dashboard'
     | '/gyms'
@@ -133,6 +143,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/campaigns'
     | '/contacts'
     | '/dashboard'
     | '/gyms'
@@ -146,6 +157,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/_authenticated/campaigns'
     | '/_authenticated/contacts'
     | '/_authenticated/dashboard'
     | '/_authenticated/gyms'
@@ -206,6 +218,13 @@ declare module '@tanstack/react-router' {
       path: '/contacts'
       fullPath: '/contacts'
       preLoaderRoute: typeof AuthenticatedContactsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/campaigns': {
+      id: '/_authenticated/campaigns'
+      path: '/campaigns'
+      fullPath: '/campaigns'
+      preLoaderRoute: typeof AuthenticatedCampaignsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/api/crm/documents': {
@@ -286,6 +305,7 @@ const AuthenticatedInteractionsRouteWithChildren =
   )
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedCampaignsRoute: typeof AuthenticatedCampaignsRoute
   AuthenticatedContactsRoute: typeof AuthenticatedContactsRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedGymsRoute: typeof AuthenticatedGymsRouteWithChildren
@@ -293,6 +313,7 @@ interface AuthenticatedRouteChildren {
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedCampaignsRoute: AuthenticatedCampaignsRoute,
   AuthenticatedContactsRoute: AuthenticatedContactsRouteWithChildren,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedGymsRoute: AuthenticatedGymsRouteWithChildren,

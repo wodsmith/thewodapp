@@ -14,6 +14,7 @@ import {
   Handshake,
   LayoutDashboard,
   LogOut,
+  Megaphone,
   Users,
 } from "lucide-react"
 import { checkAuthFn, logoutFn } from "@/server-fns/auth"
@@ -68,6 +69,10 @@ function AuthenticatedLayout() {
               icon={<Handshake className="h-4 w-4" />}
             >
               Interactions
+            </NavLink>
+            {/* // `@lat`: [[crm-campaigns]] */}
+            <NavLink to="/campaigns" icon={<Megaphone className="h-4 w-4" />}>
+              Campaigns
             </NavLink>
           </nav>
           <button
@@ -136,6 +141,8 @@ function sectionLabel(section: string) {
   if (section === "gyms") return "Gyms"
   if (section === "contacts") return "Contacts"
   if (section === "interactions") return "Interactions"
+  // `@lat`: [[crm-campaigns]]
+  if (section === "campaigns") return "Campaigns"
   return section
 }
 
@@ -180,7 +187,8 @@ function NavLink({
   icon,
   children,
 }: {
-  to: "/dashboard" | "/gyms" | "/contacts" | "/interactions"
+  // `@lat`: [[crm-campaigns]]
+  to: "/dashboard" | "/gyms" | "/contacts" | "/interactions" | "/campaigns"
   icon: React.ReactNode
   children: React.ReactNode
 }) {
