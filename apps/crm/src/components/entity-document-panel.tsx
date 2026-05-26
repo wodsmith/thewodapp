@@ -180,7 +180,12 @@ export function EntityDocumentPanel({
   }
 
   return (
-    <section className="overflow-hidden rounded-lg border border-border">
+    <section
+      className="overflow-hidden rounded-lg border border-border"
+      data-agent-capabilities="/api/crm/agent-capabilities"
+      data-agent-document-upload-api="/api/crm/documents"
+      data-agent-entry-id={entryId}
+    >
       <div className="border-b border-border px-4 py-4">
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -195,6 +200,8 @@ export function EntityDocumentPanel({
       <form
         onSubmit={handleUpload}
         className="space-y-3 border-b border-border bg-secondary/20 px-4 py-4"
+        data-agent-preferred-action="uploadCrmDocument"
+        data-agent-api="/api/crm/documents"
       >
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           Attach a file
