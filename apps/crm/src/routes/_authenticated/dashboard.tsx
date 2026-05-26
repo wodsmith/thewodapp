@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { Building2, Handshake, Megaphone, Users } from "lucide-react"
+import { MetricCard } from "@/components/metric-card"
 import { getCrmDataFn } from "@/server-fns/crm"
 
+// `@lat`: [[crm-campaigns]]
 export const Route = createFileRoute("/_authenticated/dashboard")({
   loader: async () => getCrmDataFn(),
   component: DashboardPage,
@@ -23,22 +25,22 @@ function DashboardPage() {
       </div>
 
       <div className="grid gap-3 md:grid-cols-4">
-        <Metric
+        <MetricCard
           icon={<Building2 className="h-5 w-5" />}
           label="Gyms"
           value={activeGyms.length}
         />
-        <Metric
+        <MetricCard
           icon={<Users className="h-5 w-5" />}
           label="Contacts"
           value={contacts.length}
         />
-        <Metric
+        <MetricCard
           icon={<Handshake className="h-5 w-5" />}
           label="Interactions"
           value={interactions.length}
         />
-        <Metric
+        <MetricCard
           icon={<Megaphone className="h-5 w-5" />}
           label="Campaigns"
           value={campaigns.length}
@@ -98,25 +100,5 @@ function DashboardPage() {
         </section>
       </div>
     </section>
-  )
-}
-
-function Metric({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: number
-}) {
-  return (
-    <div className="rounded-lg border border-border p-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-muted-foreground">{label}</p>
-        <span className="text-muted-foreground">{icon}</span>
-      </div>
-      <p className="mt-3 text-3xl font-semibold">{value}</p>
-    </div>
   )
 }

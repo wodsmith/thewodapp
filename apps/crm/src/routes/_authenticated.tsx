@@ -70,6 +70,7 @@ function AuthenticatedLayout() {
             >
               Interactions
             </NavLink>
+            {/* // `@lat`: [[crm-campaigns]] */}
             <NavLink to="/campaigns" icon={<Megaphone className="h-4 w-4" />}>
               Campaigns
             </NavLink>
@@ -140,6 +141,7 @@ function sectionLabel(section: string) {
   if (section === "gyms") return "Gyms"
   if (section === "contacts") return "Contacts"
   if (section === "interactions") return "Interactions"
+  // `@lat`: [[crm-campaigns]]
   if (section === "campaigns") return "Campaigns"
   return section
 }
@@ -185,6 +187,7 @@ function NavLink({
   icon,
   children,
 }: {
+  // `@lat`: [[crm-campaigns]]
   to: "/dashboard" | "/gyms" | "/contacts" | "/interactions" | "/campaigns"
   icon: React.ReactNode
   children: React.ReactNode

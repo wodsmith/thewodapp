@@ -2,6 +2,7 @@ import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { CalendarDays, Mail, Megaphone, Plus, Search, Send } from "lucide-react"
 import { useMemo, useState } from "react"
+import { MetricCard } from "@/components/metric-card"
 import {
   createCampaignFn,
   createCampaignTouchFn,
@@ -26,8 +27,11 @@ const TOUCH_STATUS_OPTIONS = [
   "Skipped",
 ]
 const OWNER_OPTIONS = ["Ian", "Zac"]
+const UPCOMING_TOUCH_STATUSES = new Set(["Planned", "Drafted", "Follow Up"])
 
+// `@lat`: [[crm-campaigns]]
 export const Route = createFileRoute("/_authenticated/campaigns")({
+  // `@lat`: [[crm-campaigns]]
   loader: async () => getCrmDataFn(),
   component: CampaignsPage,
 })
@@ -58,12 +62,15 @@ function CampaignsPage() {
     )
   }, [campaigns, query])
 
-  const nextTouches = campaignTouches
-    .filter(
-      (touch) => touch.status !== "Completed" && touch.status !== "Skipped",
+  // `@lat`: [[crm-campaigns]]
+  const nextTouches = [...campaignTouches]
+    .filter((touch) =>
+      touch.status ? UPCOMING_TOUCH_STATUSES.has(touch.status) : true,
     )
+    .sort((a, b) => touchDateValue(a.date) - touchDateValue(b.date))
     .slice(0, 8)
 
+  // `@lat`: [[crm-campaigns]]
   async function handleCampaignSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
@@ -88,6 +95,7 @@ function CampaignsPage() {
     }
   }
 
+  // `@lat`: [[crm-campaigns]]
   async function handleTouchSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
@@ -122,17 +130,17 @@ function CampaignsPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Metric
+        <MetricCard
           icon={<Megaphone className="h-5 w-5" />}
           label="Campaigns"
           value={campaigns.length}
         />
-        <Metric
+        <MetricCard
           icon={<Send className="h-5 w-5" />}
           label="Campaign interactions"
           value={campaignTouches.length}
         />
-        <Metric
+        <MetricCard
           icon={<CalendarDays className="h-5 w-5" />}
           label="Next up"
           value={nextTouches.length}
@@ -303,24 +311,10 @@ function CampaignsPage() {
   )
 }
 
-function Metric({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: number
-}) {
-  return (
-    <div className="rounded-lg border border-border p-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-muted-foreground">{label}</p>
-        <span className="text-muted-foreground">{icon}</span>
-      </div>
-      <p className="mt-3 text-3xl font-semibold">{value}</p>
-    </div>
-  )
+function touchDateValue(date: string | null) {
+  if (!date) return Number.MAX_SAFE_INTEGER
+  const value = new Date(date).getTime()
+  return Number.isNaN(value) ? Number.MAX_SAFE_INTEGER : value
 }
 
 function TextInput({

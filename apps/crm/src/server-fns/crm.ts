@@ -70,7 +70,7 @@ export type CrmInteraction = {
   updatedAt: string | null
 }
 
-export type CrmCampaign = {
+export interface CrmCampaign {
   id: string
   name: string
   status: string | null
@@ -144,6 +144,7 @@ const interactionUpdateSchema = interactionInputSchema.extend({
   source: z.enum(["Meeting", "Outreach"]),
 })
 
+// `@lat`: [[crm-campaigns]]
 const campaignInputSchema = z.object({
   name: z.string().min(1, "Campaign name is required").max(255),
   status: z.string().max(100).optional(),
@@ -155,6 +156,7 @@ const campaignInputSchema = z.object({
   audienceContactIds: z.array(z.string()).default([]),
 })
 
+// `@lat`: [[crm-campaigns]]
 const campaignTouchInputSchema = z.object({
   campaignId: z.string().min(1, "Campaign ID is required"),
   title: z.string().min(1, "Touch title is required").max(255),
@@ -258,6 +260,12 @@ async function assertEntryInObject(entryId: string, objectId: string) {
   }
 
   return entry
+}
+
+// `@lat`: [[crm-campaigns]]
+async function assertCampaignEntry(entryId: string) {
+  const campaignObject = await getObject("Campaign")
+  await assertEntryInObject(entryId, campaignObject.id)
 }
 
 function sanitizeFileName(fileName: string) {
@@ -376,6 +384,7 @@ async function ensureObject({
   return getObject(name)
 }
 
+// `@lat`: [[crm-campaigns]]
 async function ensureCampaignSchema() {
   const [companyObject, peopleObject] = await Promise.all([
     getObject("Company"),
@@ -1121,7 +1130,9 @@ export const createInteractionFn = createServerFn({ method: "POST" })
 
     const campaignField = fields.get("Campaign")
     if (campaignField) {
-      await setRelation(entryId, campaignField.id, clean(data.campaignId))
+      const campaignId = clean(data.campaignId)
+      if (campaignId) await assertCampaignEntry(campaignId)
+      await setRelation(entryId, campaignField.id, campaignId)
     }
 
     return { id: entryId }
@@ -1175,13 +1186,16 @@ export const updateInteractionFn = createServerFn({ method: "POST" })
 
     const campaignField = fields.get("Campaign")
     if (campaignField) {
-      await setRelation(data.id, campaignField.id, clean(data.campaignId))
+      const campaignId = clean(data.campaignId)
+      if (campaignId) await assertCampaignEntry(campaignId)
+      await setRelation(data.id, campaignField.id, campaignId)
     }
 
     await touchEntry(data.id)
     return { id: data.id }
   })
 
+// `@lat`: [[crm-campaigns]]
 export const createCampaignFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => campaignInputSchema.parse(data))
   .handler(async ({ data }) => {
@@ -1221,6 +1235,7 @@ export const createCampaignFn = createServerFn({ method: "POST" })
     return { id: entryId }
   })
 
+// `@lat`: [[crm-campaigns]]
 export const createCampaignTouchFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => campaignTouchInputSchema.parse(data))
   .handler(async ({ data }) => {
@@ -1244,6 +1259,7 @@ export const createCampaignTouchFn = createServerFn({ method: "POST" })
     }
 
     const campaignField = requireField(fields, "Campaign", "Outreach")
+    await assertCampaignEntry(data.campaignId)
     await setRelation(entryId, campaignField.id, data.campaignId)
 
     return { id: entryId }

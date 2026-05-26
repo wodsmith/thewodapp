@@ -9,3 +9,4 @@ This directory defines the high-level concepts, business logic, and architecture
 - [[series-event-templates]] — Series event templates: define once, sync to all competitions
 - [[competition-invites]] — Qualification sources, roster, and email-locked invite rounds (ADR-0011)
 - [[crm-crossfit-metadata]] — CRM gym CrossFit profile URLs and derived affiliate metadata
+- [[crm-campaigns]] — CRM marketing campaigns, audience selection, and campaign-linked Outreach interactions
