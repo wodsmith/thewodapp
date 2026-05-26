@@ -3,16 +3,16 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
+  documentEntriesTable,
+  documentsTable,
   entriesTable,
   entryFieldsTable,
   entryRelationsTable,
-  documentEntriesTable,
   fieldsTable,
   objectsTable,
-  documentsTable,
 } from "@/db/schema"
-import { requireAuth } from "@/server-fns/auth"
 import { getR2Bucket } from "@/lib/env"
+import { requireAuth } from "@/server-fns/auth"
 
 type FieldValueMap = Record<string, string | null>
 
@@ -20,7 +20,7 @@ const SQLITE_IN_CHUNK_SIZE = 50
 const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024
 const MAX_DOCUMENT_BASE64_LENGTH = Math.ceil(MAX_DOCUMENT_BYTES / 3) * 4
 
-export type CrmGym = {
+export interface CrmGym {
   id: string
   name: string
   status: string | null
@@ -28,6 +28,8 @@ export type CrmGym = {
   relationship: string | null
   location: string | null
   website: string | null
+  crossfitPage: string | null
+  crossfitAffiliateNumber: string | null
   email: string | null
   phone: string | null
   instagram: string | null
@@ -77,6 +79,7 @@ const gymInputSchema = z.object({
   name: z.string().min(1, "Gym name is required").max(255),
   location: z.string().max(255).optional(),
   website: z.string().max(500).optional(),
+  crossfitPage: z.string().max(500).optional(),
   email: z.string().max(255).optional(),
   phone: z.string().max(100).optional(),
   instagram: z.string().max(255).optional(),
@@ -133,6 +136,43 @@ function clean(value: string | null | undefined) {
   return trimmed ? trimmed : null
 }
 
+export function extractCrossFitAffiliateNumber(
+  page: string | null | undefined,
+) {
+  const normalized = clean(page)
+  if (!normalized) return null
+
+  // `@lat`: [[crm-crossfit-metadata]]
+  const urlInput = /^[a-z][a-z\d+\-.]*:\/\//i.test(normalized)
+    ? normalized
+    : `https://${normalized}`
+
+  let url: URL
+  try {
+    // `@lat`: [[crm-crossfit-metadata]]
+    url = new URL(urlInput)
+  } catch {
+    return null
+  }
+
+  const hostname = url.hostname.toLowerCase()
+  const pathname = url.pathname.toLowerCase()
+  const allowedHosts = new Set(["www.crossfit.com", "crossfit.com"])
+  // `@lat`: [[crm-crossfit-metadata]]
+  const isCrossFitHost = allowedHosts.has(hostname)
+  const isGamesHost = hostname === "games.crossfit.com"
+  if (!isCrossFitHost && !isGamesHost) return null
+
+  // `@lat`: [[crm-crossfit-metadata]]
+  const match = pathname.match(
+    isGamesHost
+      ? /^\/affiliate\/(\d+)(?:\/|$)/
+      : /^\/(?:gym|affiliate)\/(\d+)(?:\/|$)/,
+  )
+
+  return match?.[1] ?? null
+}
+
 async function assertEntryExists(entryId: string) {
   const db = getDb()
   const [entry] = await db
@@ -149,11 +189,13 @@ async function assertEntryExists(entryId: string) {
 }
 
 function sanitizeFileName(fileName: string) {
-  return fileName
-    .trim()
-    .replaceAll(/[^a-zA-Z0-9._-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 120) || "document"
+  return (
+    fileName
+      .trim()
+      .replaceAll(/[^a-zA-Z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 120) || "document"
+  )
 }
 
 function decodeBase64(fileBase64: string) {
@@ -197,6 +239,33 @@ async function getFieldsByName(objectId: string) {
     .orderBy(asc(fieldsTable.sortOrder), asc(fieldsTable.name))
 
   return new Map(fields.map((field) => [field.name, field]))
+}
+
+async function ensureField({
+  objectId,
+  name,
+  type,
+  sortOrder,
+}: {
+  objectId: string
+  name: string
+  type: string
+  sortOrder: number
+}) {
+  const db = getDb()
+  await db
+    .insert(fieldsTable)
+    .values({
+      id: crmId(),
+      objectId,
+      name,
+      type,
+      sortOrder,
+      updatedAt: sql`CURRENT_TIMESTAMP`,
+    })
+    .onConflictDoNothing({
+      target: [fieldsTable.objectId, fieldsTable.name],
+    })
 }
 
 async function getFieldValues(entryIds: string[]) {
@@ -449,6 +518,10 @@ export async function getCrmData() {
       relationship: values.Relationship ?? null,
       location: values.Location ?? null,
       website: values.Website ?? null,
+      crossfitPage: values["CrossFit Page"] ?? null,
+      crossfitAffiliateNumber: extractCrossFitAffiliateNumber(
+        values["CrossFit Page"],
+      ),
       email: values["Email Address"] ?? null,
       phone: values["Phone Number"] ?? null,
       instagram: values.Instagram ?? null,
@@ -544,6 +617,12 @@ export const createGymFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await requireAuth()
     const { entryId, object } = await createEntry("Company")
+    await ensureField({
+      objectId: object.id,
+      name: "CrossFit Page",
+      type: "url",
+      sortOrder: 70,
+    })
     const fields = await getFieldsByName(object.id)
 
     const updates: Array<[string, string | null]> = [
@@ -552,6 +631,7 @@ export const createGymFn = createServerFn({ method: "POST" })
       ["Type", "Prospect"],
       ["Location", clean(data.location)],
       ["Website", clean(data.website)],
+      ["CrossFit Page", clean(data.crossfitPage)],
       ["Email Address", clean(data.email)],
       ["Phone Number", clean(data.phone)],
       ["Instagram", clean(data.instagram)],
@@ -719,7 +799,9 @@ export const deleteDocumentForEntryFn = createServerFn({ method: "POST" })
       .where(eq(documentEntriesTable.documentId, data.documentId))
 
     await getR2Bucket().delete(documentRelation.filePath)
-    await db.delete(documentsTable).where(eq(documentsTable.id, data.documentId))
+    await db
+      .delete(documentsTable)
+      .where(eq(documentsTable.id, data.documentId))
 
     return { success: true }
   })
@@ -755,12 +837,15 @@ export const getDocumentDownloadUrlForEntryFn = createServerFn({
     const chunks: string[] = []
     const chunkSize = 0x8000
     for (let index = 0; index < bytes.length; index += chunkSize) {
-      chunks.push(String.fromCharCode(...bytes.subarray(index, index + chunkSize)))
+      chunks.push(
+        String.fromCharCode(...bytes.subarray(index, index + chunkSize)),
+      )
     }
 
     return {
       base64: btoa(chunks.join("")),
       fileName: document.fileName,
-      contentType: object.httpMetadata?.contentType || "application/octet-stream",
+      contentType:
+        object.httpMetadata?.contentType || "application/octet-stream",
     }
   })

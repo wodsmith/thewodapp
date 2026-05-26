@@ -3,14 +3,15 @@ import {
   Building2,
   Globe2,
   Handshake,
+  Hash,
   Instagram,
   Mail,
   MapPin,
   Phone,
   UserRound,
 } from "lucide-react"
-import { getCrmDataFn } from "@/server-fns/crm"
 import { EntityDocumentPanel } from "@/components/entity-document-panel"
+import { getCrmDataFn } from "@/server-fns/crm"
 
 export const Route = createFileRoute("/_authenticated/gyms/$gymId")({
   loader: async ({ params }) => {
@@ -96,6 +97,20 @@ function GymDetailPage() {
             value={gym.website}
             label="Website"
             href={gym.website}
+          />
+          {/* `@lat`: [[crm-crossfit-metadata]] */}
+          <MetaItem
+            icon={<Globe2 className="h-4 w-4" aria-hidden="true" />}
+            value={gym.crossfitPage}
+            label="CrossFit Page"
+            href={gym.crossfitPage}
+            showLabel
+          />
+          <MetaItem
+            icon={<Hash className="h-4 w-4" aria-hidden="true" />}
+            value={gym.crossfitAffiliateNumber}
+            label="Affiliate"
+            showLabel
           />
           <MetaItem
             icon={<Instagram className="h-4 w-4" aria-hidden="true" />}

@@ -17,6 +17,10 @@ export const getAuthPassword = createServerOnlyFn((): string => {
   return password
 })
 
+export const isSecureAppUrl = createServerOnlyFn((): boolean => {
+  return env.APP_URL?.startsWith("https://") ?? false
+})
+
 export const getR2Bucket = createServerOnlyFn(() => {
   return env.R2_BUCKET
 })
