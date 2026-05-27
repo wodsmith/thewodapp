@@ -161,7 +161,6 @@ const campaignInputSchema = z.object({
   audienceContactIds: z.array(z.string()).default([]),
 })
 
-// `@lat`: [[crm-campaigns]]
 const campaignUpdateSchema = campaignInputSchema
   .omit({
     audienceGymIds: true,
@@ -1270,7 +1269,6 @@ export const createCampaignFn = createServerFn({ method: "POST" })
     return { id: entryId }
   })
 
-// `@lat`: [[crm-campaigns]]
 export const updateCampaignFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => campaignUpdateSchema.parse(data))
   .handler(async ({ data }) => {
