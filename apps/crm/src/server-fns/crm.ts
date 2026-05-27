@@ -139,6 +139,11 @@ const interactionInputSchema = z.object({
   content: z.string().max(10000).optional(),
 })
 
+const ownerSchema = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.enum(["Ian", "Zac"]).optional(),
+)
+
 const interactionUpdateSchema = interactionInputSchema.extend({
   id: z.string().min(1, "Interaction ID is required"),
   source: z.enum(["Meeting", "Outreach"]),
@@ -148,13 +153,23 @@ const interactionUpdateSchema = interactionInputSchema.extend({
 const campaignInputSchema = z.object({
   name: z.string().min(1, "Campaign name is required").max(255),
   status: z.string().max(100).optional(),
-  owner: z.enum(["Ian", "Zac"]).optional(),
+  owner: ownerSchema,
   goal: z.string().max(4000).optional(),
   startDate: z.string().max(20).optional(),
   endDate: z.string().max(20).optional(),
   audienceGymIds: z.array(z.string()).default([]),
   audienceContactIds: z.array(z.string()).default([]),
 })
+
+// `@lat`: [[crm-campaigns]]
+const campaignUpdateSchema = campaignInputSchema
+  .omit({
+    audienceGymIds: true,
+    audienceContactIds: true,
+  })
+  .extend({
+    id: z.string().min(1, "Campaign ID is required"),
+  })
 
 // `@lat`: [[crm-campaigns]]
 const campaignAudienceUpdateSchema = z.object({
@@ -1253,6 +1268,35 @@ export const createCampaignFn = createServerFn({ method: "POST" })
     )
 
     return { id: entryId }
+  })
+
+// `@lat`: [[crm-campaigns]]
+export const updateCampaignFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => campaignUpdateSchema.parse(data))
+  .handler(async ({ data }) => {
+    await requireAuth()
+    await ensureCampaignSchema()
+    await assertCampaignEntry(data.id)
+
+    const campaignObject = await getObject("Campaign")
+    const fields = await getFieldsByName(campaignObject.id)
+
+    const updates: Array<[string, string | null]> = [
+      ["Campaign Name", data.name],
+      ["Status", clean(data.status)],
+      ["Owner", clean(data.owner)],
+      ["Goal", clean(data.goal)],
+      ["Start Date", clean(data.startDate)],
+      ["End Date", clean(data.endDate)],
+    ]
+
+    for (const [fieldName, value] of updates) {
+      const field = fields.get(fieldName)
+      if (field) await upsertFieldValue(data.id, field.id, value)
+    }
+
+    await touchEntry(data.id)
+    return { id: data.id }
   })
 
 // `@lat`: [[crm-campaigns]]

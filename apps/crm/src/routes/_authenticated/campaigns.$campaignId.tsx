@@ -14,11 +14,13 @@ import {
   Clipboard,
   Mail,
   Megaphone,
+  Pencil,
   Plus,
   Send,
   UsersRound,
 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
+import { CampaignEditPanel } from "@/components/entity-edit-panel"
 import { createCampaignTouchFn, getCrmDataFn } from "@/server-fns/crm"
 
 const TOUCH_CHANNEL_OPTIONS = ["Email", "Instagram", "Facebook", "LinkedIn"]
@@ -80,6 +82,7 @@ function CampaignDetailPage() {
     audienceContacts[0]?.id ?? audienceGyms[0]?.id ?? "",
   )
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
 
   const sources = useMemo(
     () => [
@@ -200,15 +203,34 @@ function CampaignDetailPage() {
             </span>
           </div>
         </div>
-        {/* `@lat`: [[crm-campaigns]] */}
-        <Link
-          to="/campaigns/$campaignId/audience"
-          params={{ campaignId: campaign.id }}
-          className="inline-flex h-10 items-center justify-center rounded-md border border-input px-4 text-sm font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          Build Audience
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsEditing((current) => !current)}
+            aria-pressed={isEditing}
+            className="inline-flex h-10 items-center gap-2 rounded-md border border-input px-4 text-sm font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Pencil className="h-4 w-4" aria-hidden="true" />
+            {isEditing ? "Viewing" : "Edit"}
+          </button>
+          {/* `@lat`: [[crm-campaigns]] */}
+          <Link
+            to="/campaigns/$campaignId/audience"
+            params={{ campaignId: campaign.id }}
+            className="inline-flex h-10 items-center justify-center rounded-md border border-input px-4 text-sm font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Build Audience
+          </Link>
+        </div>
       </header>
+
+      {isEditing ? (
+        <CampaignEditPanel
+          campaign={campaign}
+          onCancel={() => setIsEditing(false)}
+          onSaved={() => setIsEditing(false)}
+        />
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Metric
