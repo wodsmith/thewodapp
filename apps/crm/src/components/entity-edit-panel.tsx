@@ -3,9 +3,11 @@ import { useServerFn } from "@tanstack/react-start"
 import { Save, X } from "lucide-react"
 import { useEffect, useState } from "react"
 import {
+  type CrmCampaign,
   type CrmContact,
   type CrmGym,
   type CrmInteraction,
+  updateCampaignFn,
   updateContactFn,
   updateGymFn,
   updateInteractionFn,
@@ -71,6 +73,98 @@ const INTERACTION_STATUS_OPTIONS = [
   "Follow Up",
   "Not Interested",
 ]
+
+const CAMPAIGN_STATUS_OPTIONS = ["Planning", "Active", "Paused", "Completed"]
+
+const OWNER_OPTIONS = ["Ian", "Zac"]
+
+export function CampaignEditPanel({
+  campaign,
+  onCancel,
+  onSaved,
+}: {
+  campaign: CrmCampaign
+  onCancel: () => void
+  onSaved: () => void
+}) {
+  const router = useRouter()
+  const updateCampaign = useServerFn(updateCampaignFn)
+  const [state, setState] = useState<SaveState>("idle")
+  const [error, setError] = useState<string | null>(null)
+
+  useUnsavedChanges(state === "dirty")
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    setState("saving")
+    setError(null)
+    try {
+      await updateCampaign({
+        data: {
+          id: campaign.id,
+          name: field(form, "name"),
+          status: field(form, "status"),
+          owner: field(form, "owner") as "Ian" | "Zac",
+          goal: field(form, "goal"),
+          startDate: field(form, "startDate"),
+          endDate: field(form, "endDate"),
+        },
+      })
+      await router.invalidate()
+      setState("saved")
+      onSaved()
+    } catch (caught) {
+      setError(messageFor(caught))
+      setState("dirty")
+    }
+  }
+
+  return (
+    <EditPanel
+      title="Edit Campaign"
+      state={state}
+      error={error}
+      onSubmit={handleSubmit}
+      onChange={() => setState("dirty")}
+      onCancel={onCancel}
+    >
+      <TextField
+        name="name"
+        label="Campaign"
+        defaultValue={campaign.name}
+        required
+      />
+      <SelectField
+        name="status"
+        label="Status"
+        defaultValue={campaign.status}
+        emptyLabel="No Status"
+        options={optionsWithCurrent(CAMPAIGN_STATUS_OPTIONS, campaign.status)}
+      />
+      <SelectField
+        name="owner"
+        label="Owner"
+        defaultValue={campaign.owner}
+        emptyLabel="No Owner"
+        options={optionsWithCurrent(OWNER_OPTIONS, campaign.owner)}
+      />
+      <TextField
+        name="startDate"
+        label="Start"
+        type="date"
+        defaultValue={campaign.startDate}
+      />
+      <TextField
+        name="endDate"
+        label="End"
+        type="date"
+        defaultValue={campaign.endDate}
+      />
+      <TextareaField name="goal" label="Goal" defaultValue={campaign.goal} />
+    </EditPanel>
+  )
+}
 
 export function GymEditPanel({
   gym,
