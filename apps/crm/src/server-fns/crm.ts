@@ -157,6 +157,13 @@ const campaignInputSchema = z.object({
 })
 
 // `@lat`: [[crm-campaigns]]
+const campaignAudienceUpdateSchema = z.object({
+  campaignId: z.string().min(1, "Campaign ID is required"),
+  audienceGymIds: z.array(z.string()).default([]),
+  audienceContactIds: z.array(z.string()).default([]),
+})
+
+// `@lat`: [[crm-campaigns]]
 const campaignTouchInputSchema = z.object({
   campaignId: z.string().min(1, "Campaign ID is required"),
   title: z.string().min(1, "Touch title is required").max(255),
@@ -164,7 +171,10 @@ const campaignTouchInputSchema = z.object({
   owner: z.enum(["Ian", "Zac"]).optional(),
   status: z.string().max(100).optional(),
   dueDate: z.string().max(20).optional(),
+  companyId: z.string().optional(),
+  contactId: z.string().optional(),
   notes: z.string().max(4000).optional(),
+  content: z.string().max(10000).optional(),
 })
 
 export const documentUploadSchema = z.object({
@@ -266,6 +276,16 @@ async function assertEntryInObject(entryId: string, objectId: string) {
 async function assertCampaignEntry(entryId: string) {
   const campaignObject = await getObject("Campaign")
   await assertEntryInObject(entryId, campaignObject.id)
+}
+
+async function assertEntriesInObject(entryIds: string[], objectName: string) {
+  if (entryIds.length === 0) return
+  const object = await getObject(objectName)
+  await Promise.all(
+    Array.from(new Set(entryIds)).map((entryId) =>
+      assertEntryInObject(entryId, object.id),
+    ),
+  )
 }
 
 function sanitizeFileName(fileName: string) {
@@ -1236,6 +1256,40 @@ export const createCampaignFn = createServerFn({ method: "POST" })
   })
 
 // `@lat`: [[crm-campaigns]]
+export const updateCampaignAudienceFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => campaignAudienceUpdateSchema.parse(data))
+  .handler(async ({ data }) => {
+    await requireAuth()
+    await ensureCampaignSchema()
+    await assertCampaignEntry(data.campaignId)
+    await assertEntriesInObject(data.audienceGymIds, "Company")
+    await assertEntriesInObject(data.audienceContactIds, "People")
+
+    const campaignObject = await getObject("Campaign")
+    const fields = await getFieldsByName(campaignObject.id)
+    const audienceGymsField = requireField(fields, "Audience Gyms", "Campaign")
+    const audienceContactsField = requireField(
+      fields,
+      "Audience Contacts",
+      "Campaign",
+    )
+
+    await setRelations(
+      data.campaignId,
+      audienceGymsField.id,
+      data.audienceGymIds,
+    )
+    await setRelations(
+      data.campaignId,
+      audienceContactsField.id,
+      data.audienceContactIds,
+    )
+    await touchEntry(data.campaignId)
+
+    return { id: data.campaignId }
+  })
+
+// `@lat`: [[crm-campaigns]]
 export const createCampaignTouchFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => campaignTouchInputSchema.parse(data))
   .handler(async ({ data }) => {
@@ -1251,6 +1305,7 @@ export const createCampaignTouchFn = createServerFn({ method: "POST" })
       ["Owner", clean(data.owner) ?? "Ian"],
       ["Status", clean(data.status) ?? "Planned"],
       ["Notes", clean(data.notes)],
+      ["Content", clean(data.content)],
     ]
 
     for (const [fieldName, value] of updates) {
@@ -1261,6 +1316,20 @@ export const createCampaignTouchFn = createServerFn({ method: "POST" })
     const campaignField = requireField(fields, "Campaign", "Outreach")
     await assertCampaignEntry(data.campaignId)
     await setRelation(entryId, campaignField.id, data.campaignId)
+
+    const companyField = fields.get("Company")
+    if (companyField) {
+      const companyId = clean(data.companyId)
+      if (companyId) await assertEntriesInObject([companyId], "Company")
+      await setRelation(entryId, companyField.id, companyId)
+    }
+
+    const personField = fields.get("Person")
+    if (personField) {
+      const contactId = clean(data.contactId)
+      if (contactId) await assertEntriesInObject([contactId], "People")
+      await setRelation(entryId, personField.id, contactId)
+    }
 
     return { id: entryId }
   })
