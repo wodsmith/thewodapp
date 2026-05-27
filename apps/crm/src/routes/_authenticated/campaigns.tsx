@@ -1,4 +1,10 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  Link,
+  Outlet,
+  useLocation,
+  useRouter,
+} from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { CalendarDays, Mail, Megaphone, Plus, Search, Send } from "lucide-react"
 import { useMemo, useState } from "react"
@@ -37,7 +43,8 @@ export const Route = createFileRoute("/_authenticated/campaigns")({
 })
 
 function CampaignsPage() {
-  const { campaigns, campaignTouches, gyms, contacts } = Route.useLoaderData()
+  const { campaigns, campaignTouches } = Route.useLoaderData()
+  const location = useLocation()
   const router = useRouter()
   const createCampaign = useServerFn(createCampaignFn)
   const createCampaignTouch = useServerFn(createCampaignTouchFn)
@@ -69,6 +76,10 @@ function CampaignsPage() {
     )
     .sort((a, b) => touchDateValue(a.date) - touchDateValue(b.date))
     .slice(0, 8)
+
+  if (location.pathname !== "/campaigns") {
+    return <Outlet />
+  }
 
   // `@lat`: [[crm-campaigns]]
   async function handleCampaignSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -164,19 +175,6 @@ function CampaignsPage() {
           <div className="md:col-span-3">
             <TextArea name="goal" label="Goal" required />
           </div>
-          <MultiSelect
-            name="audienceGymIds"
-            label="Audience Gyms"
-            options={gyms.map((gym) => ({ value: gym.id, label: gym.name }))}
-          />
-          <MultiSelect
-            name="audienceContactIds"
-            label="Audience Contacts"
-            options={contacts.map((contact) => ({
-              value: contact.id,
-              label: contact.fullName,
-            }))}
-          />
         </div>
         <div className="mt-4 flex justify-end">
           <button
@@ -256,7 +254,13 @@ function CampaignsPage() {
             {filteredCampaigns.map((campaign) => (
               <tr key={campaign.id} className="align-top">
                 <Td>
-                  <p className="font-medium">{campaign.name}</p>
+                  <Link
+                    to="/campaigns/$campaignId"
+                    params={{ campaignId: campaign.id }}
+                    className="font-medium underline-offset-4 hover:underline"
+                  >
+                    {campaign.name}
+                  </Link>
                   <p className="text-muted-foreground">
                     {campaign.status || "Planning"}
                   </p>
@@ -267,6 +271,13 @@ function CampaignsPage() {
                   <p className="text-muted-foreground">
                     {campaign.audienceContactIds.length} contacts
                   </p>
+                  <Link
+                    to="/campaigns/$campaignId/audience"
+                    params={{ campaignId: campaign.id }}
+                    className="mt-1 inline-flex text-xs font-medium underline-offset-4 hover:underline"
+                  >
+                    Build audience
+                  </Link>
                 </Td>
                 <Td>{campaign.touchCount}</Td>
                 <Td>
@@ -391,33 +402,6 @@ function SelectInput({
             value={optionValues?.[index] ?? option}
           >
             {option}
-          </option>
-        ))}
-      </select>
-    </label>
-  )
-}
-
-function MultiSelect({
-  name,
-  label,
-  options,
-}: {
-  name: string
-  label: string
-  options: Array<{ value: string; label: string }>
-}) {
-  return (
-    <label className="space-y-1 text-sm font-medium md:col-span-2">
-      <span>{label}</span>
-      <select
-        multiple
-        name={name}
-        className="min-h-32 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
           </option>
         ))}
       </select>

@@ -21,6 +21,8 @@ import { Route as ApiCrmAgentCapabilitiesRouteImport } from './routes/api/crm/ag
 import { Route as AuthenticatedInteractionsInteractionIdRouteImport } from './routes/_authenticated/interactions.$interactionId'
 import { Route as AuthenticatedGymsGymIdRouteImport } from './routes/_authenticated/gyms.$gymId'
 import { Route as AuthenticatedContactsContactIdRouteImport } from './routes/_authenticated/contacts.$contactId'
+import { Route as AuthenticatedCampaignsCampaignIdRouteImport } from './routes/_authenticated/campaigns.$campaignId'
+import { Route as AuthenticatedCampaignsCampaignIdAudienceRouteImport } from './routes/_authenticated/campaigns.$campaignId.audience'
 
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
@@ -84,47 +86,65 @@ const AuthenticatedContactsContactIdRoute =
     path: '/$contactId',
     getParentRoute: () => AuthenticatedContactsRoute,
   } as any)
+const AuthenticatedCampaignsCampaignIdRoute =
+  AuthenticatedCampaignsCampaignIdRouteImport.update({
+    id: '/$campaignId',
+    path: '/$campaignId',
+    getParentRoute: () => AuthenticatedCampaignsRoute,
+  } as any)
+const AuthenticatedCampaignsCampaignIdAudienceRoute =
+  AuthenticatedCampaignsCampaignIdAudienceRouteImport.update({
+    id: '/audience',
+    path: '/audience',
+    getParentRoute: () => AuthenticatedCampaignsCampaignIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/campaigns': typeof AuthenticatedCampaignsRoute
+  '/campaigns': typeof AuthenticatedCampaignsRouteWithChildren
   '/contacts': typeof AuthenticatedContactsRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/gyms': typeof AuthenticatedGymsRouteWithChildren
   '/interactions': typeof AuthenticatedInteractionsRouteWithChildren
+  '/campaigns/$campaignId': typeof AuthenticatedCampaignsCampaignIdRouteWithChildren
   '/contacts/$contactId': typeof AuthenticatedContactsContactIdRoute
   '/gyms/$gymId': typeof AuthenticatedGymsGymIdRoute
   '/interactions/$interactionId': typeof AuthenticatedInteractionsInteractionIdRoute
   '/api/crm/agent-capabilities': typeof ApiCrmAgentCapabilitiesRoute
   '/api/crm/documents': typeof ApiCrmDocumentsRoute
+  '/campaigns/$campaignId/audience': typeof AuthenticatedCampaignsCampaignIdAudienceRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/campaigns': typeof AuthenticatedCampaignsRoute
+  '/campaigns': typeof AuthenticatedCampaignsRouteWithChildren
   '/contacts': typeof AuthenticatedContactsRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/gyms': typeof AuthenticatedGymsRouteWithChildren
   '/interactions': typeof AuthenticatedInteractionsRouteWithChildren
+  '/campaigns/$campaignId': typeof AuthenticatedCampaignsCampaignIdRouteWithChildren
   '/contacts/$contactId': typeof AuthenticatedContactsContactIdRoute
   '/gyms/$gymId': typeof AuthenticatedGymsGymIdRoute
   '/interactions/$interactionId': typeof AuthenticatedInteractionsInteractionIdRoute
   '/api/crm/agent-capabilities': typeof ApiCrmAgentCapabilitiesRoute
   '/api/crm/documents': typeof ApiCrmDocumentsRoute
+  '/campaigns/$campaignId/audience': typeof AuthenticatedCampaignsCampaignIdAudienceRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
-  '/_authenticated/campaigns': typeof AuthenticatedCampaignsRoute
+  '/_authenticated/campaigns': typeof AuthenticatedCampaignsRouteWithChildren
   '/_authenticated/contacts': typeof AuthenticatedContactsRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/gyms': typeof AuthenticatedGymsRouteWithChildren
   '/_authenticated/interactions': typeof AuthenticatedInteractionsRouteWithChildren
+  '/_authenticated/campaigns/$campaignId': typeof AuthenticatedCampaignsCampaignIdRouteWithChildren
   '/_authenticated/contacts/$contactId': typeof AuthenticatedContactsContactIdRoute
   '/_authenticated/gyms/$gymId': typeof AuthenticatedGymsGymIdRoute
   '/_authenticated/interactions/$interactionId': typeof AuthenticatedInteractionsInteractionIdRoute
   '/api/crm/agent-capabilities': typeof ApiCrmAgentCapabilitiesRoute
   '/api/crm/documents': typeof ApiCrmDocumentsRoute
+  '/_authenticated/campaigns/$campaignId/audience': typeof AuthenticatedCampaignsCampaignIdAudienceRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -135,11 +155,13 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/gyms'
     | '/interactions'
+    | '/campaigns/$campaignId'
     | '/contacts/$contactId'
     | '/gyms/$gymId'
     | '/interactions/$interactionId'
     | '/api/crm/agent-capabilities'
     | '/api/crm/documents'
+    | '/campaigns/$campaignId/audience'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -148,11 +170,13 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/gyms'
     | '/interactions'
+    | '/campaigns/$campaignId'
     | '/contacts/$contactId'
     | '/gyms/$gymId'
     | '/interactions/$interactionId'
     | '/api/crm/agent-capabilities'
     | '/api/crm/documents'
+    | '/campaigns/$campaignId/audience'
   id:
     | '__root__'
     | '/'
@@ -162,11 +186,13 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/gyms'
     | '/_authenticated/interactions'
+    | '/_authenticated/campaigns/$campaignId'
     | '/_authenticated/contacts/$contactId'
     | '/_authenticated/gyms/$gymId'
     | '/_authenticated/interactions/$interactionId'
     | '/api/crm/agent-capabilities'
     | '/api/crm/documents'
+    | '/_authenticated/campaigns/$campaignId/audience'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -262,8 +288,52 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedContactsContactIdRouteImport
       parentRoute: typeof AuthenticatedContactsRoute
     }
+    '/_authenticated/campaigns/$campaignId': {
+      id: '/_authenticated/campaigns/$campaignId'
+      path: '/$campaignId'
+      fullPath: '/campaigns/$campaignId'
+      preLoaderRoute: typeof AuthenticatedCampaignsCampaignIdRouteImport
+      parentRoute: typeof AuthenticatedCampaignsRoute
+    }
+    '/_authenticated/campaigns/$campaignId/audience': {
+      id: '/_authenticated/campaigns/$campaignId/audience'
+      path: '/audience'
+      fullPath: '/campaigns/$campaignId/audience'
+      preLoaderRoute: typeof AuthenticatedCampaignsCampaignIdAudienceRouteImport
+      parentRoute: typeof AuthenticatedCampaignsCampaignIdRoute
+    }
   }
 }
+
+interface AuthenticatedCampaignsCampaignIdRouteChildren {
+  AuthenticatedCampaignsCampaignIdAudienceRoute: typeof AuthenticatedCampaignsCampaignIdAudienceRoute
+}
+
+const AuthenticatedCampaignsCampaignIdRouteChildren: AuthenticatedCampaignsCampaignIdRouteChildren =
+  {
+    AuthenticatedCampaignsCampaignIdAudienceRoute:
+      AuthenticatedCampaignsCampaignIdAudienceRoute,
+  }
+
+const AuthenticatedCampaignsCampaignIdRouteWithChildren =
+  AuthenticatedCampaignsCampaignIdRoute._addFileChildren(
+    AuthenticatedCampaignsCampaignIdRouteChildren,
+  )
+
+interface AuthenticatedCampaignsRouteChildren {
+  AuthenticatedCampaignsCampaignIdRoute: typeof AuthenticatedCampaignsCampaignIdRouteWithChildren
+}
+
+const AuthenticatedCampaignsRouteChildren: AuthenticatedCampaignsRouteChildren =
+  {
+    AuthenticatedCampaignsCampaignIdRoute:
+      AuthenticatedCampaignsCampaignIdRouteWithChildren,
+  }
+
+const AuthenticatedCampaignsRouteWithChildren =
+  AuthenticatedCampaignsRoute._addFileChildren(
+    AuthenticatedCampaignsRouteChildren,
+  )
 
 interface AuthenticatedContactsRouteChildren {
   AuthenticatedContactsContactIdRoute: typeof AuthenticatedContactsContactIdRoute
@@ -305,7 +375,7 @@ const AuthenticatedInteractionsRouteWithChildren =
   )
 
 interface AuthenticatedRouteChildren {
-  AuthenticatedCampaignsRoute: typeof AuthenticatedCampaignsRoute
+  AuthenticatedCampaignsRoute: typeof AuthenticatedCampaignsRouteWithChildren
   AuthenticatedContactsRoute: typeof AuthenticatedContactsRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedGymsRoute: typeof AuthenticatedGymsRouteWithChildren
@@ -313,7 +383,7 @@ interface AuthenticatedRouteChildren {
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
-  AuthenticatedCampaignsRoute: AuthenticatedCampaignsRoute,
+  AuthenticatedCampaignsRoute: AuthenticatedCampaignsRouteWithChildren,
   AuthenticatedContactsRoute: AuthenticatedContactsRouteWithChildren,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedGymsRoute: AuthenticatedGymsRouteWithChildren,
