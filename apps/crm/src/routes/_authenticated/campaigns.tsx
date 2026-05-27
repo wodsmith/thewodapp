@@ -77,6 +77,7 @@ function CampaignsPage() {
     .sort((a, b) => touchDateValue(a.date) - touchDateValue(b.date))
     .slice(0, 8)
 
+  // `@lat`: [[crm-campaigns]]
   if (location.pathname !== "/campaigns") {
     return <Outlet />
   }
@@ -254,6 +255,7 @@ function CampaignsPage() {
             {filteredCampaigns.map((campaign) => (
               <tr key={campaign.id} className="align-top">
                 <Td>
+                  {/* `@lat`: [[crm-campaigns]] */}
                   <Link
                     to="/campaigns/$campaignId"
                     params={{ campaignId: campaign.id }}
@@ -271,6 +273,7 @@ function CampaignsPage() {
                   <p className="text-muted-foreground">
                     {campaign.audienceContactIds.length} contacts
                   </p>
+                  {/* `@lat`: [[crm-campaigns]] */}
                   <Link
                     to="/campaigns/$campaignId/audience"
                     params={{ campaignId: campaign.id }}

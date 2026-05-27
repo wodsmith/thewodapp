@@ -1,3 +1,4 @@
+// `@lat`: [[crm-campaigns]]
 import {
   createFileRoute,
   Link,
@@ -27,6 +28,7 @@ type AudienceCandidate =
 
 type CandidateType = "all" | "gyms" | "contacts"
 
+// `@lat`: [[crm-campaigns]]
 export const Route = createFileRoute(
   "/_authenticated/campaigns/$campaignId/audience",
 )({
@@ -66,6 +68,7 @@ function CampaignAudienceBuilderPage() {
         : null,
   )
   const [saving, setSaving] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const selectedGymSet = new Set(selectedGymIds)
   const selectedContactSet = new Set(selectedContactIds)
@@ -104,11 +107,9 @@ function CampaignAudienceBuilderPage() {
     selectedContactSet.has(contact.id),
   )
   const activeCandidate =
-    candidates.find(
+    filteredCandidates.find(
       (candidate) => candidateKey(candidate) === activeCandidateKey,
-    ) ??
-    filteredCandidates[0] ??
-    candidates[0]
+    ) ?? filteredCandidates[0]
 
   function toggleCandidate(candidate: AudienceCandidate) {
     if (candidate.type === "gym") {
@@ -128,6 +129,7 @@ function CampaignAudienceBuilderPage() {
   }
 
   async function handleSave() {
+    setErrorMessage(null)
     setSaving(true)
     try {
       await updateCampaignAudience({
@@ -138,6 +140,10 @@ function CampaignAudienceBuilderPage() {
         },
       })
       await router.invalidate()
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Audience could not be saved.",
+      )
     } finally {
       setSaving(false)
     }
@@ -178,6 +184,11 @@ function CampaignAudienceBuilderPage() {
           </button>
         </div>
       </header>
+      {errorMessage ? (
+        <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {errorMessage}
+        </p>
+      ) : null}
 
       <section className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-4">
@@ -224,11 +235,11 @@ function CampaignAudienceBuilderPage() {
             </div>
             <div className="max-h-[min(760px,calc(100vh-22rem))] divide-y divide-border overflow-y-auto">
               {filteredCandidates.map((candidate) => {
-                const selected = isSelected(
+                const selected = isSelected({
                   candidate,
                   selectedGymSet,
                   selectedContactSet,
-                )
+                })
                 return (
                   <button
                     key={candidateKey(candidate)}
@@ -274,11 +285,11 @@ function CampaignAudienceBuilderPage() {
             candidate={activeCandidate}
             selected={
               activeCandidate
-                ? isSelected(
-                    activeCandidate,
+                ? isSelected({
+                    candidate: activeCandidate,
                     selectedGymSet,
                     selectedContactSet,
-                  )
+                  })
                 : false
             }
             onToggle={() => activeCandidate && toggleCandidate(activeCandidate)}
@@ -491,11 +502,15 @@ function candidateDetails(
   ]
 }
 
-function isSelected(
-  candidate: AudienceCandidate,
-  selectedGymSet: Set<string>,
-  selectedContactSet: Set<string>,
-) {
+function isSelected({
+  candidate,
+  selectedGymSet,
+  selectedContactSet,
+}: {
+  candidate: AudienceCandidate
+  selectedGymSet: Set<string>
+  selectedContactSet: Set<string>
+}) {
   return candidate.type === "gym"
     ? selectedGymSet.has(candidate.item.id)
     : selectedContactSet.has(candidate.item.id)

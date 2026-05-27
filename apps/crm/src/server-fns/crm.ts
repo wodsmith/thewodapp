@@ -156,6 +156,7 @@ const campaignInputSchema = z.object({
   audienceContactIds: z.array(z.string()).default([]),
 })
 
+// `@lat`: [[crm-campaigns]]
 const campaignAudienceUpdateSchema = z.object({
   campaignId: z.string().min(1, "Campaign ID is required"),
   audienceGymIds: z.array(z.string()).default([]),
@@ -1254,6 +1255,7 @@ export const createCampaignFn = createServerFn({ method: "POST" })
     return { id: entryId }
   })
 
+// `@lat`: [[crm-campaigns]]
 export const updateCampaignAudienceFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => campaignAudienceUpdateSchema.parse(data))
   .handler(async ({ data }) => {
@@ -1317,12 +1319,16 @@ export const createCampaignTouchFn = createServerFn({ method: "POST" })
 
     const companyField = fields.get("Company")
     if (companyField) {
-      await setRelation(entryId, companyField.id, clean(data.companyId))
+      const companyId = clean(data.companyId)
+      if (companyId) await assertEntriesInObject([companyId], "Company")
+      await setRelation(entryId, companyField.id, companyId)
     }
 
     const personField = fields.get("Person")
     if (personField) {
-      await setRelation(entryId, personField.id, clean(data.contactId))
+      const contactId = clean(data.contactId)
+      if (contactId) await assertEntriesInObject([contactId], "People")
+      await setRelation(entryId, personField.id, contactId)
     }
 
     return { id: entryId }

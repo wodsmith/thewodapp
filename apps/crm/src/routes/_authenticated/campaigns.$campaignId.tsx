@@ -1,3 +1,4 @@
+// `@lat`: [[crm-campaigns]]
 import {
   createFileRoute,
   Link,
@@ -24,6 +25,7 @@ const TOUCH_CHANNEL_OPTIONS = ["Email", "Instagram", "Facebook", "LinkedIn"]
 const TOUCH_STATUS_OPTIONS = ["Planned", "Drafted", "Sent", "Posted"]
 const OWNER_OPTIONS = ["Ian", "Zac"]
 
+// `@lat`: [[crm-campaigns]]
 export const Route = createFileRoute("/_authenticated/campaigns/$campaignId")({
   loader: async ({ params }) => {
     const data = await getCrmDataFn()
@@ -72,6 +74,8 @@ function CampaignDetailPage() {
   const createCampaignTouch = useServerFn(createCampaignTouchFn)
   const [saving, setSaving] = useState(false)
   const [channel, setChannel] = useState("Email")
+  const [touchTitle, setTouchTitle] = useState(`Email: ${campaign.name}`)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [selectedSourceId, setSelectedSourceId] = useState(
     audienceContacts[0]?.id ?? audienceGyms[0]?.id ?? "",
   )
@@ -108,6 +112,7 @@ function CampaignDetailPage() {
     source: selectedSource,
   })
 
+  // `@lat`: [[crm-campaigns]]
   useEffect(() => {
     if (
       selectedSourceId &&
@@ -118,6 +123,11 @@ function CampaignDetailPage() {
     setSelectedSourceId(sources[0]?.id ?? "")
   }, [selectedSourceId, sources])
 
+  useEffect(() => {
+    setTouchTitle(`${channel}: ${campaign.name}`)
+  }, [campaign.name, channel])
+
+  // `@lat`: [[crm-campaigns]]
   if (location.pathname !== `/campaigns/${campaign.id}`) {
     return <Outlet />
   }
@@ -128,12 +138,18 @@ function CampaignDetailPage() {
     const source = sources.find(
       (item) => item.id === String(form.get("sourceId") ?? ""),
     )
+    if (!source) {
+      setSubmitError("Choose an audience source before scheduling.")
+      return
+    }
+
+    setSubmitError(null)
     setSaving(true)
     try {
       await createCampaignTouch({
         data: {
           campaignId: campaign.id,
-          title: String(form.get("title") ?? ""),
+          title: touchTitle,
           channel: String(form.get("channel") ?? ""),
           owner: String(form.get("owner") ?? "Ian") as "Ian" | "Zac",
           status: String(form.get("status") ?? ""),
@@ -152,10 +168,14 @@ function CampaignDetailPage() {
     }
   }
 
-  async function copyTemplate(key: string, value: string) {
-    await navigator.clipboard.writeText(value)
-    setCopiedKey(key)
-    window.setTimeout(() => setCopiedKey(null), 1400)
+  async function copyTemplate({ key, value }: { key: string; value: string }) {
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopiedKey(key)
+      window.setTimeout(() => setCopiedKey(null), 1400)
+    } catch {
+      setCopiedKey(null)
+    }
   }
 
   return (
@@ -172,9 +192,15 @@ function CampaignDetailPage() {
           <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             <Badge value={campaign.status || "Planning"} />
             <Badge value={campaign.owner || "Ian"} />
-            <span>{formatRange(campaign.startDate, campaign.endDate)}</span>
+            <span>
+              {formatRange({
+                startDate: campaign.startDate,
+                endDate: campaign.endDate,
+              })}
+            </span>
           </div>
         </div>
+        {/* `@lat`: [[crm-campaigns]] */}
         <Link
           to="/campaigns/$campaignId/audience"
           params={{ campaignId: campaign.id }}
@@ -224,11 +250,13 @@ function CampaignDetailPage() {
             onChange={setSelectedSourceId}
             options={sources.map((source) => source.label)}
             optionValues={sources.map((source) => source.id)}
+            required
           />
           <TextInput
             name="title"
             label="Touch"
-            defaultValue={`${channel}: ${campaign.name}`}
+            value={touchTitle}
+            onChange={setTouchTitle}
             required
           />
           <SelectInput
@@ -249,10 +277,13 @@ function CampaignDetailPage() {
             <TextInput name="notes" label="Notes" />
           </div>
         </div>
+        {submitError ? (
+          <p className="mt-3 text-sm text-destructive">{submitError}</p>
+        ) : null}
         <div className="mt-4 flex justify-end">
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || !selectedSourceId}
             className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"
           >
             <Plus className="h-4 w-4" />
@@ -318,14 +349,18 @@ function CampaignDetailPage() {
             {channel === "Email" ? (
               <CopyButton
                 copied={copiedKey === "subject"}
-                onClick={() => copyTemplate("subject", template.subject)}
+                onClick={() =>
+                  copyTemplate({ key: "subject", value: template.subject })
+                }
               >
                 Subject
               </CopyButton>
             ) : null}
             <CopyButton
               copied={copiedKey === "body"}
-              onClick={() => copyTemplate("body", template.body)}
+              onClick={() =>
+                copyTemplate({ key: "body", value: template.body })
+              }
             >
               Body
             </CopyButton>
@@ -404,7 +439,13 @@ function touchDateValue(date: string | null) {
   return Number.isNaN(value) ? Number.MAX_SAFE_INTEGER : value
 }
 
-function formatRange(startDate: string | null, endDate: string | null) {
+function formatRange({
+  startDate,
+  endDate,
+}: {
+  startDate: string | null
+  endDate: string | null
+}) {
   if (startDate && endDate) return `${startDate} to ${endDate}`
   return startDate ?? endDate ?? "No dates"
 }
@@ -442,12 +483,16 @@ function TextInput({
   required,
   type = "text",
   defaultValue,
+  value,
+  onChange,
 }: {
   name: string
   label: string
   required?: boolean
   type?: string
   defaultValue?: string
+  value?: string
+  onChange?: (value: string) => void
 }) {
   return (
     <label className="space-y-1 text-sm font-medium">
@@ -457,6 +502,8 @@ function TextInput({
         required={required}
         type={type}
         defaultValue={defaultValue}
+        value={value}
+        onChange={(event) => onChange?.(event.target.value)}
         className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
       />
     </label>
