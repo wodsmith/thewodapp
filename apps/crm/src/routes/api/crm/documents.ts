@@ -2,10 +2,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
 import { z } from "zod"
 import { requireAuth } from "@/server-fns/auth"
-import {
-  documentUploadSchema,
-  uploadDocumentForEntry,
-} from "@/server-fns/crm"
+import { documentUploadSchema, uploadDocumentForEntry } from "@/server-fns/crm"
 
 export const Route = createFileRoute("/api/crm/documents")({
   server: {

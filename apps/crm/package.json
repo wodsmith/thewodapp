@@ -24,9 +24,11 @@
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.19.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@tailwindcss/vite": "^4.0.6",
     "@tanstack/react-router": "^1.132.0",
     "@tanstack/react-start": "^1.132.0",
+    "agents": "^0.12.4",
     "alchemy": "catalog:",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.39.3",

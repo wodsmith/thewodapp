@@ -191,6 +191,10 @@ const campaignTouchInputSchema = z.object({
   content: z.string().max(10000).optional(),
 })
 
+const deleteCrmEntrySchema = z.object({
+  id: z.string().min(1, "Entry ID is required"),
+})
+
 export const documentUploadSchema = z.object({
   entryId: z.string().min(1, "Entry ID is required"),
   fileName: z.string().min(1, "File name is required"),
@@ -815,8 +819,51 @@ function requireField(
   return field
 }
 
-export async function getCrmData() {
-  await requireAuth()
+async function deleteEntryFromObject(entryId: string, objectName: string) {
+  const db = getDb()
+  const object = await getObject(objectName)
+  await assertEntryInObject(entryId, object.id)
+  await deleteDocumentsForEntries([entryId])
+
+  await db
+    .delete(entriesTable)
+    .where(
+      and(eq(entriesTable.id, entryId), eq(entriesTable.objectId, object.id)),
+    )
+
+  return { id: entryId, deleted: true }
+}
+
+async function deleteDocumentsForEntries(entryIds: string[]) {
+  if (entryIds.length === 0) return
+
+  const db = getDb()
+  const documents = await db
+    .select({
+      documentId: documentsTable.id,
+      filePath: documentsTable.filePath,
+    })
+    .from(documentEntriesTable)
+    .innerJoin(
+      documentsTable,
+      eq(documentEntriesTable.documentId, documentsTable.id),
+    )
+    .where(inArray(documentEntriesTable.entryId, entryIds))
+
+  if (documents.length === 0) return
+
+  await Promise.all(
+    documents.map((document) => getR2Bucket().delete(document.filePath)),
+  )
+  await db.delete(documentsTable).where(
+    inArray(
+      documentsTable.id,
+      documents.map((document) => document.documentId),
+    ),
+  )
+}
+
+export async function readCrmData() {
   await ensureCampaignSchema()
 
   const [gymsData, contactsData, outreachData, meetingsData, campaignsData] =
@@ -994,307 +1041,458 @@ export async function getCrmData() {
   return { gyms, contacts, interactions, campaigns, campaignTouches }
 }
 
+export async function getCrmData() {
+  await requireAuth()
+  return readCrmData()
+}
+
 export const getCrmDataFn = createServerFn({ method: "GET" }).handler(
   getCrmData,
 )
+
+export async function createGym(data: z.infer<typeof gymInputSchema>) {
+  const { entryId, object } = await createEntry("Company")
+  await ensureField({
+    objectId: object.id,
+    name: "CrossFit Page",
+    type: "url",
+    sortOrder: 70,
+  })
+  const fields = await getFieldsByName(object.id)
+
+  const updates: Array<[string, string | null]> = [
+    ["Company Name", data.name],
+    ["Industry", "Fitness"],
+    ["Type", "Prospect"],
+    ["Location", clean(data.location)],
+    ["Website", clean(data.website)],
+    ["CrossFit Page", clean(data.crossfitPage)],
+    ["Email Address", clean(data.email)],
+    ["Phone Number", clean(data.phone)],
+    ["Instagram", clean(data.instagram)],
+    ["Owner/Manager", clean(data.ownerManager)],
+    ["Wodsmith Status", clean(data.status) ?? "Prospect"],
+    ["Priority", clean(data.priority)],
+    ["Relationship", clean(data.relationship)],
+    ["Notes", clean(data.notes)],
+  ]
+
+  for (const [fieldName, value] of updates) {
+    const field = fields.get(fieldName)
+    if (field) await upsertFieldValue(entryId, field.id, value)
+  }
+
+  return { id: entryId }
+}
+
+export async function updateGym(data: z.infer<typeof gymUpdateSchema>) {
+  const object = await getObject("Company")
+  await assertEntryInObject(data.id, object.id)
+  await ensureField({
+    objectId: object.id,
+    name: "CrossFit Page",
+    type: "url",
+    sortOrder: 70,
+  })
+  const fields = await getFieldsByName(object.id)
+
+  const updates: Array<[string, string | null]> = [
+    ["Company Name", data.name],
+    ["Location", clean(data.location)],
+    ["Website", clean(data.website)],
+    ["CrossFit Page", clean(data.crossfitPage)],
+    ["Email Address", clean(data.email)],
+    ["Phone Number", clean(data.phone)],
+    ["Instagram", clean(data.instagram)],
+    ["Owner/Manager", clean(data.ownerManager)],
+    ["Wodsmith Status", clean(data.status)],
+    ["Priority", clean(data.priority)],
+    ["Relationship", clean(data.relationship)],
+    ["Notes", clean(data.notes)],
+  ]
+
+  for (const [fieldName, value] of updates) {
+    const field = fields.get(fieldName)
+    if (field) await upsertFieldValue(data.id, field.id, value)
+  }
+
+  await touchEntry(data.id)
+  return { id: data.id }
+}
 
 export const createGymFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => gymInputSchema.parse(data))
   .handler(async ({ data }) => {
     await requireAuth()
-    const { entryId, object } = await createEntry("Company")
-    await ensureField({
-      objectId: object.id,
-      name: "CrossFit Page",
-      type: "url",
-      sortOrder: 70,
-    })
-    const fields = await getFieldsByName(object.id)
-
-    const updates: Array<[string, string | null]> = [
-      ["Company Name", data.name],
-      ["Industry", "Fitness"],
-      ["Type", "Prospect"],
-      ["Location", clean(data.location)],
-      ["Website", clean(data.website)],
-      ["CrossFit Page", clean(data.crossfitPage)],
-      ["Email Address", clean(data.email)],
-      ["Phone Number", clean(data.phone)],
-      ["Instagram", clean(data.instagram)],
-      ["Owner/Manager", clean(data.ownerManager)],
-      ["Wodsmith Status", clean(data.status) ?? "Prospect"],
-      ["Priority", clean(data.priority)],
-      ["Relationship", clean(data.relationship)],
-      ["Notes", clean(data.notes)],
-    ]
-
-    for (const [fieldName, value] of updates) {
-      const field = fields.get(fieldName)
-      if (field) await upsertFieldValue(entryId, field.id, value)
-    }
-
-    return { id: entryId }
+    return createGym(data)
   })
 
 export const updateGymFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => gymUpdateSchema.parse(data))
   .handler(async ({ data }) => {
     await requireAuth()
-    const object = await getObject("Company")
-    await assertEntryInObject(data.id, object.id)
-    await ensureField({
-      objectId: object.id,
-      name: "CrossFit Page",
-      type: "url",
-      sortOrder: 70,
-    })
-    const fields = await getFieldsByName(object.id)
-
-    const updates: Array<[string, string | null]> = [
-      ["Company Name", data.name],
-      ["Location", clean(data.location)],
-      ["Website", clean(data.website)],
-      ["CrossFit Page", clean(data.crossfitPage)],
-      ["Email Address", clean(data.email)],
-      ["Phone Number", clean(data.phone)],
-      ["Instagram", clean(data.instagram)],
-      ["Owner/Manager", clean(data.ownerManager)],
-      ["Wodsmith Status", clean(data.status)],
-      ["Priority", clean(data.priority)],
-      ["Relationship", clean(data.relationship)],
-      ["Notes", clean(data.notes)],
-    ]
-
-    for (const [fieldName, value] of updates) {
-      const field = fields.get(fieldName)
-      if (field) await upsertFieldValue(data.id, field.id, value)
-    }
-
-    await touchEntry(data.id)
-    return { id: data.id }
+    return updateGym(data)
   })
+
+export async function createContact(data: z.infer<typeof contactInputSchema>) {
+  const { entryId, object } = await createEntry("People")
+  const fields = await getFieldsByName(object.id)
+
+  const updates: Array<[string, string | null]> = [
+    ["Full Name", data.fullName],
+    ["Email Address", clean(data.email)],
+    ["Phone Number", clean(data.phone)],
+    ["Status", clean(data.status) ?? "Lead"],
+    ["Notes", clean(data.notes)],
+  ]
+
+  for (const [fieldName, value] of updates) {
+    const field = fields.get(fieldName)
+    if (field) await upsertFieldValue(entryId, field.id, value)
+  }
+
+  const companyField = fields.get("Company")
+  if (companyField) {
+    await setRelation(entryId, companyField.id, clean(data.companyId))
+  }
+
+  return { id: entryId }
+}
+
+export async function updateContact(data: z.infer<typeof contactUpdateSchema>) {
+  const object = await getObject("People")
+  await assertEntryInObject(data.id, object.id)
+  const fields = await getFieldsByName(object.id)
+
+  const updates: Array<[string, string | null]> = [
+    ["Full Name", data.fullName],
+    ["Email Address", clean(data.email)],
+    ["Phone Number", clean(data.phone)],
+    ["Status", clean(data.status)],
+    ["Notes", clean(data.notes)],
+  ]
+
+  for (const [fieldName, value] of updates) {
+    const field = fields.get(fieldName)
+    if (field) await upsertFieldValue(data.id, field.id, value)
+  }
+
+  const companyField = fields.get("Company")
+  if (companyField) {
+    await setRelation(data.id, companyField.id, clean(data.companyId))
+  }
+
+  await touchEntry(data.id)
+  return { id: data.id }
+}
 
 export const createContactFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => contactInputSchema.parse(data))
   .handler(async ({ data }) => {
     await requireAuth()
-    const { entryId, object } = await createEntry("People")
-    const fields = await getFieldsByName(object.id)
-
-    const updates: Array<[string, string | null]> = [
-      ["Full Name", data.fullName],
-      ["Email Address", clean(data.email)],
-      ["Phone Number", clean(data.phone)],
-      ["Status", clean(data.status) ?? "Lead"],
-      ["Notes", clean(data.notes)],
-    ]
-
-    for (const [fieldName, value] of updates) {
-      const field = fields.get(fieldName)
-      if (field) await upsertFieldValue(entryId, field.id, value)
-    }
-
-    const companyField = fields.get("Company")
-    if (companyField) {
-      await setRelation(entryId, companyField.id, clean(data.companyId))
-    }
-
-    return { id: entryId }
+    return createContact(data)
   })
 
 export const updateContactFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => contactUpdateSchema.parse(data))
   .handler(async ({ data }) => {
     await requireAuth()
-    const object = await getObject("People")
-    await assertEntryInObject(data.id, object.id)
-    const fields = await getFieldsByName(object.id)
-
-    const updates: Array<[string, string | null]> = [
-      ["Full Name", data.fullName],
-      ["Email Address", clean(data.email)],
-      ["Phone Number", clean(data.phone)],
-      ["Status", clean(data.status)],
-      ["Notes", clean(data.notes)],
-    ]
-
-    for (const [fieldName, value] of updates) {
-      const field = fields.get(fieldName)
-      if (field) await upsertFieldValue(data.id, field.id, value)
-    }
-
-    const companyField = fields.get("Company")
-    if (companyField) {
-      await setRelation(data.id, companyField.id, clean(data.companyId))
-    }
-
-    await touchEntry(data.id)
-    return { id: data.id }
+    return updateContact(data)
   })
+
+export async function createInteraction(
+  data: z.infer<typeof interactionInputSchema>,
+) {
+  const { entryId, object } = await createEntry("Outreach")
+  const fields = await getFieldsByName(object.id)
+
+  const updates: Array<[string, string | null]> = [
+    ["Subject", data.title],
+    ["Date Sent", clean(data.date) ?? new Date().toISOString().slice(0, 10)],
+    ["Channel", clean(data.channel) ?? "Email"],
+    ["Status", clean(data.status) ?? "Sent"],
+    ["Owner", clean(data.owner)],
+    ["Notes", clean(data.notes)],
+    ["Content", clean(data.content)],
+  ]
+
+  for (const [fieldName, value] of updates) {
+    const field = fields.get(fieldName)
+    if (field) await upsertFieldValue(entryId, field.id, value)
+  }
+
+  const companyField = fields.get("Company")
+  if (companyField) {
+    await setRelation(entryId, companyField.id, clean(data.companyId))
+  }
+
+  const personField = requireField(fields, "Person", "Outreach")
+  await setRelation(entryId, personField.id, clean(data.contactId))
+
+  const campaignField = fields.get("Campaign")
+  if (campaignField) {
+    const campaignId = clean(data.campaignId)
+    if (campaignId) await assertCampaignEntry(campaignId)
+    await setRelation(entryId, campaignField.id, campaignId)
+  }
+
+  return { id: entryId }
+}
+
+export async function updateInteraction(
+  data: z.infer<typeof interactionUpdateSchema>,
+) {
+  const objectName = data.source === "Meeting" ? "Meeting" : "Outreach"
+  const object = await getObject(objectName)
+  await assertEntryInObject(data.id, object.id)
+  const fields = await getFieldsByName(object.id)
+
+  const updates: Array<[string, string | null]> =
+    data.source === "Meeting"
+      ? [
+          ["Title", data.title],
+          ["Date", clean(data.date)],
+          ["Type", clean(data.channel)],
+          ["Status", clean(data.status)],
+          ["Notes", clean(data.notes)],
+          ["Outcome", clean(data.content)],
+        ]
+      : [
+          ["Subject", data.title],
+          ["Date Sent", clean(data.date)],
+          ["Channel", clean(data.channel)],
+          ["Status", clean(data.status)],
+          ["Owner", clean(data.owner)],
+          ["Notes", clean(data.notes)],
+          ["Content", clean(data.content)],
+        ]
+
+  for (const [fieldName, value] of updates) {
+    const field = fields.get(fieldName)
+    if (field) await upsertFieldValue(data.id, field.id, value)
+  }
+
+  const companyField = fields.get("Company")
+  if (companyField) {
+    await setRelation(data.id, companyField.id, clean(data.companyId))
+  }
+
+  const contactField = fields.get(
+    data.source === "Meeting" ? "Contact" : "Person",
+  )
+  if (contactField) {
+    await setRelation(data.id, contactField.id, clean(data.contactId))
+  }
+
+  const campaignField = fields.get("Campaign")
+  if (campaignField) {
+    const campaignId = clean(data.campaignId)
+    if (campaignId) await assertCampaignEntry(campaignId)
+    await setRelation(data.id, campaignField.id, campaignId)
+  }
+
+  await touchEntry(data.id)
+  return { id: data.id }
+}
 
 export const createInteractionFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => interactionInputSchema.parse(data))
   .handler(async ({ data }) => {
     await requireAuth()
-    const { entryId, object } = await createEntry("Outreach")
-    const fields = await getFieldsByName(object.id)
-
-    const updates: Array<[string, string | null]> = [
-      ["Subject", data.title],
-      ["Date Sent", clean(data.date) ?? new Date().toISOString().slice(0, 10)],
-      ["Channel", clean(data.channel) ?? "Email"],
-      ["Status", clean(data.status) ?? "Sent"],
-      ["Owner", clean(data.owner)],
-      ["Notes", clean(data.notes)],
-      ["Content", clean(data.content)],
-    ]
-
-    for (const [fieldName, value] of updates) {
-      const field = fields.get(fieldName)
-      if (field) await upsertFieldValue(entryId, field.id, value)
-    }
-
-    const companyField = fields.get("Company")
-    if (companyField) {
-      await setRelation(entryId, companyField.id, clean(data.companyId))
-    }
-
-    const personField = requireField(fields, "Person", "Outreach")
-    await setRelation(entryId, personField.id, clean(data.contactId))
-
-    const campaignField = fields.get("Campaign")
-    if (campaignField) {
-      const campaignId = clean(data.campaignId)
-      if (campaignId) await assertCampaignEntry(campaignId)
-      await setRelation(entryId, campaignField.id, campaignId)
-    }
-
-    return { id: entryId }
+    return createInteraction(data)
   })
 
 export const updateInteractionFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => interactionUpdateSchema.parse(data))
   .handler(async ({ data }) => {
     await requireAuth()
-    const objectName = data.source === "Meeting" ? "Meeting" : "Outreach"
-    const object = await getObject(objectName)
-    await assertEntryInObject(data.id, object.id)
-    const fields = await getFieldsByName(object.id)
-
-    const updates: Array<[string, string | null]> =
-      data.source === "Meeting"
-        ? [
-            ["Title", data.title],
-            ["Date", clean(data.date)],
-            ["Type", clean(data.channel)],
-            ["Status", clean(data.status)],
-            ["Notes", clean(data.notes)],
-            ["Outcome", clean(data.content)],
-          ]
-        : [
-            ["Subject", data.title],
-            ["Date Sent", clean(data.date)],
-            ["Channel", clean(data.channel)],
-            ["Status", clean(data.status)],
-            ["Owner", clean(data.owner)],
-            ["Notes", clean(data.notes)],
-            ["Content", clean(data.content)],
-          ]
-
-    for (const [fieldName, value] of updates) {
-      const field = fields.get(fieldName)
-      if (field) await upsertFieldValue(data.id, field.id, value)
-    }
-
-    const companyField = fields.get("Company")
-    if (companyField) {
-      await setRelation(data.id, companyField.id, clean(data.companyId))
-    }
-
-    const contactField = fields.get(
-      data.source === "Meeting" ? "Contact" : "Person",
-    )
-    if (contactField) {
-      await setRelation(data.id, contactField.id, clean(data.contactId))
-    }
-
-    const campaignField = fields.get("Campaign")
-    if (campaignField) {
-      const campaignId = clean(data.campaignId)
-      if (campaignId) await assertCampaignEntry(campaignId)
-      await setRelation(data.id, campaignField.id, campaignId)
-    }
-
-    await touchEntry(data.id)
-    return { id: data.id }
+    return updateInteraction(data)
   })
+
+export async function createCampaign(
+  data: z.infer<typeof campaignInputSchema>,
+) {
+  await ensureCampaignSchema()
+  const { entryId, object } = await createEntry("Campaign")
+  const fields = await getFieldsByName(object.id)
+
+  const updates: Array<[string, string | null]> = [
+    ["Campaign Name", data.name],
+    ["Status", clean(data.status) ?? "Planning"],
+    ["Owner", clean(data.owner) ?? "Ian"],
+    ["Goal", clean(data.goal)],
+    ["Start Date", clean(data.startDate)],
+    ["End Date", clean(data.endDate)],
+  ]
+
+  for (const [fieldName, value] of updates) {
+    const field = fields.get(fieldName)
+    if (field) await upsertFieldValue(entryId, field.id, value)
+  }
+
+  const audienceGymsField = requireField(fields, "Audience Gyms", "Campaign")
+  await setRelations(entryId, audienceGymsField.id, data.audienceGymIds)
+
+  const audienceContactsField = requireField(
+    fields,
+    "Audience Contacts",
+    "Campaign",
+  )
+  await setRelations(entryId, audienceContactsField.id, data.audienceContactIds)
+
+  return { id: entryId }
+}
+
+export async function updateCampaign(
+  data: z.infer<typeof campaignUpdateSchema>,
+) {
+  await ensureCampaignSchema()
+  await assertCampaignEntry(data.id)
+
+  const campaignObject = await getObject("Campaign")
+  const fields = await getFieldsByName(campaignObject.id)
+
+  const updates: Array<[string, string | null]> = [
+    ["Campaign Name", data.name],
+    ["Status", clean(data.status)],
+    ["Owner", clean(data.owner)],
+    ["Goal", clean(data.goal)],
+    ["Start Date", clean(data.startDate)],
+    ["End Date", clean(data.endDate)],
+  ]
+
+  for (const [fieldName, value] of updates) {
+    const field = fields.get(fieldName)
+    if (field) await upsertFieldValue(data.id, field.id, value)
+  }
+
+  await touchEntry(data.id)
+  return { id: data.id }
+}
+
+export async function updateCampaignAudience(
+  data: z.infer<typeof campaignAudienceUpdateSchema>,
+) {
+  await ensureCampaignSchema()
+  await assertCampaignEntry(data.campaignId)
+  await assertEntriesInObject(data.audienceGymIds, "Company")
+  await assertEntriesInObject(data.audienceContactIds, "People")
+
+  const campaignObject = await getObject("Campaign")
+  const fields = await getFieldsByName(campaignObject.id)
+  const audienceGymsField = requireField(fields, "Audience Gyms", "Campaign")
+  const audienceContactsField = requireField(
+    fields,
+    "Audience Contacts",
+    "Campaign",
+  )
+
+  await setRelations(data.campaignId, audienceGymsField.id, data.audienceGymIds)
+  await setRelations(
+    data.campaignId,
+    audienceContactsField.id,
+    data.audienceContactIds,
+  )
+  await touchEntry(data.campaignId)
+
+  return { id: data.campaignId }
+}
+
+export async function createCampaignTouch(
+  data: z.infer<typeof campaignTouchInputSchema>,
+) {
+  await ensureCampaignSchema()
+  const { entryId, object } = await createEntry("Outreach")
+  const fields = await getFieldsByName(object.id)
+
+  const updates: Array<[string, string | null]> = [
+    ["Subject", data.title],
+    ["Date Sent", clean(data.dueDate)],
+    ["Channel", clean(data.channel) ?? "Email"],
+    ["Owner", clean(data.owner) ?? "Ian"],
+    ["Status", clean(data.status) ?? "Planned"],
+    ["Notes", clean(data.notes)],
+    ["Content", clean(data.content)],
+  ]
+
+  for (const [fieldName, value] of updates) {
+    const field = fields.get(fieldName)
+    if (field) await upsertFieldValue(entryId, field.id, value)
+  }
+
+  const campaignField = requireField(fields, "Campaign", "Outreach")
+  await assertCampaignEntry(data.campaignId)
+  await setRelation(entryId, campaignField.id, data.campaignId)
+
+  const companyField = fields.get("Company")
+  if (companyField) {
+    const companyId = clean(data.companyId)
+    if (companyId) await assertEntriesInObject([companyId], "Company")
+    await setRelation(entryId, companyField.id, companyId)
+  }
+
+  const personField = fields.get("Person")
+  if (personField) {
+    const contactId = clean(data.contactId)
+    if (contactId) await assertEntriesInObject([contactId], "People")
+    await setRelation(entryId, personField.id, contactId)
+  }
+
+  return { id: entryId }
+}
+
+export async function deleteGym(data: z.infer<typeof deleteCrmEntrySchema>) {
+  return deleteEntryFromObject(data.id, "Company")
+}
+
+export async function deleteContact(
+  data: z.infer<typeof deleteCrmEntrySchema>,
+) {
+  return deleteEntryFromObject(data.id, "People")
+}
+
+export async function deleteInteraction(
+  data: z.infer<typeof deleteCrmEntrySchema>,
+) {
+  const db = getDb()
+  const [entry] = await db
+    .select({
+      id: entriesTable.id,
+      objectName: objectsTable.name,
+    })
+    .from(entriesTable)
+    .innerJoin(objectsTable, eq(entriesTable.objectId, objectsTable.id))
+    .where(eq(entriesTable.id, data.id))
+    .limit(1)
+
+  if (!entry || !["Meeting", "Outreach"].includes(entry.objectName)) {
+    throw new Error(`CRM interaction not found: ${data.id}`)
+  }
+
+  await deleteDocumentsForEntries([data.id])
+  await db.delete(entriesTable).where(eq(entriesTable.id, data.id))
+  return { id: data.id, deleted: true }
+}
+
+export async function deleteCampaign(
+  data: z.infer<typeof deleteCrmEntrySchema>,
+) {
+  return deleteEntryFromObject(data.id, "Campaign")
+}
 
 // `@lat`: [[crm-campaigns]]
 export const createCampaignFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => campaignInputSchema.parse(data))
   .handler(async ({ data }) => {
     await requireAuth()
-    await ensureCampaignSchema()
-    const { entryId, object } = await createEntry("Campaign")
-    const fields = await getFieldsByName(object.id)
-
-    const updates: Array<[string, string | null]> = [
-      ["Campaign Name", data.name],
-      ["Status", clean(data.status) ?? "Planning"],
-      ["Owner", clean(data.owner) ?? "Ian"],
-      ["Goal", clean(data.goal)],
-      ["Start Date", clean(data.startDate)],
-      ["End Date", clean(data.endDate)],
-    ]
-
-    for (const [fieldName, value] of updates) {
-      const field = fields.get(fieldName)
-      if (field) await upsertFieldValue(entryId, field.id, value)
-    }
-
-    const audienceGymsField = requireField(fields, "Audience Gyms", "Campaign")
-    await setRelations(entryId, audienceGymsField.id, data.audienceGymIds)
-
-    const audienceContactsField = requireField(
-      fields,
-      "Audience Contacts",
-      "Campaign",
-    )
-    await setRelations(
-      entryId,
-      audienceContactsField.id,
-      data.audienceContactIds,
-    )
-
-    return { id: entryId }
+    return createCampaign(data)
   })
 
 export const updateCampaignFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => campaignUpdateSchema.parse(data))
   .handler(async ({ data }) => {
     await requireAuth()
-    await ensureCampaignSchema()
-    await assertCampaignEntry(data.id)
-
-    const campaignObject = await getObject("Campaign")
-    const fields = await getFieldsByName(campaignObject.id)
-
-    const updates: Array<[string, string | null]> = [
-      ["Campaign Name", data.name],
-      ["Status", clean(data.status)],
-      ["Owner", clean(data.owner)],
-      ["Goal", clean(data.goal)],
-      ["Start Date", clean(data.startDate)],
-      ["End Date", clean(data.endDate)],
-    ]
-
-    for (const [fieldName, value] of updates) {
-      const field = fields.get(fieldName)
-      if (field) await upsertFieldValue(data.id, field.id, value)
-    }
-
-    await touchEntry(data.id)
-    return { id: data.id }
+    return updateCampaign(data)
   })
 
 // `@lat`: [[crm-campaigns]]
@@ -1302,33 +1500,7 @@ export const updateCampaignAudienceFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => campaignAudienceUpdateSchema.parse(data))
   .handler(async ({ data }) => {
     await requireAuth()
-    await ensureCampaignSchema()
-    await assertCampaignEntry(data.campaignId)
-    await assertEntriesInObject(data.audienceGymIds, "Company")
-    await assertEntriesInObject(data.audienceContactIds, "People")
-
-    const campaignObject = await getObject("Campaign")
-    const fields = await getFieldsByName(campaignObject.id)
-    const audienceGymsField = requireField(fields, "Audience Gyms", "Campaign")
-    const audienceContactsField = requireField(
-      fields,
-      "Audience Contacts",
-      "Campaign",
-    )
-
-    await setRelations(
-      data.campaignId,
-      audienceGymsField.id,
-      data.audienceGymIds,
-    )
-    await setRelations(
-      data.campaignId,
-      audienceContactsField.id,
-      data.audienceContactIds,
-    )
-    await touchEntry(data.campaignId)
-
-    return { id: data.campaignId }
+    return updateCampaignAudience(data)
   })
 
 // `@lat`: [[crm-campaigns]]
@@ -1336,44 +1508,35 @@ export const createCampaignTouchFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => campaignTouchInputSchema.parse(data))
   .handler(async ({ data }) => {
     await requireAuth()
-    await ensureCampaignSchema()
-    const { entryId, object } = await createEntry("Outreach")
-    const fields = await getFieldsByName(object.id)
+    return createCampaignTouch(data)
+  })
 
-    const updates: Array<[string, string | null]> = [
-      ["Subject", data.title],
-      ["Date Sent", clean(data.dueDate)],
-      ["Channel", clean(data.channel) ?? "Email"],
-      ["Owner", clean(data.owner) ?? "Ian"],
-      ["Status", clean(data.status) ?? "Planned"],
-      ["Notes", clean(data.notes)],
-      ["Content", clean(data.content)],
-    ]
+export const deleteGymFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => deleteCrmEntrySchema.parse(data))
+  .handler(async ({ data }) => {
+    await requireAuth()
+    return deleteGym(data)
+  })
 
-    for (const [fieldName, value] of updates) {
-      const field = fields.get(fieldName)
-      if (field) await upsertFieldValue(entryId, field.id, value)
-    }
+export const deleteContactFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => deleteCrmEntrySchema.parse(data))
+  .handler(async ({ data }) => {
+    await requireAuth()
+    return deleteContact(data)
+  })
 
-    const campaignField = requireField(fields, "Campaign", "Outreach")
-    await assertCampaignEntry(data.campaignId)
-    await setRelation(entryId, campaignField.id, data.campaignId)
+export const deleteInteractionFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => deleteCrmEntrySchema.parse(data))
+  .handler(async ({ data }) => {
+    await requireAuth()
+    return deleteInteraction(data)
+  })
 
-    const companyField = fields.get("Company")
-    if (companyField) {
-      const companyId = clean(data.companyId)
-      if (companyId) await assertEntriesInObject([companyId], "Company")
-      await setRelation(entryId, companyField.id, companyId)
-    }
-
-    const personField = fields.get("Person")
-    if (personField) {
-      const contactId = clean(data.contactId)
-      if (contactId) await assertEntriesInObject([contactId], "People")
-      await setRelation(entryId, personField.id, contactId)
-    }
-
-    return { id: entryId }
+export const deleteCampaignFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => deleteCrmEntrySchema.parse(data))
+  .handler(async ({ data }) => {
+    await requireAuth()
+    return deleteCampaign(data)
   })
 
 export const listDocumentsForEntryFn = createServerFn({ method: "GET" })

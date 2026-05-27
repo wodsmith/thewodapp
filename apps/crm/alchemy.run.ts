@@ -1,5 +1,10 @@
 import alchemy from "alchemy"
-import { D1Database, R2Bucket, TanStackStart } from "alchemy/cloudflare"
+import {
+  D1Database,
+  DurableObjectNamespace,
+  R2Bucket,
+  TanStackStart,
+} from "alchemy/cloudflare"
 import { CloudflareStateStore } from "alchemy/state"
 
 const stage = process.env.STAGE ?? "dev"
@@ -23,6 +28,11 @@ const r2Bucket = await R2Bucket("crm-files", {
   devDomain: stage !== "prod",
 })
 
+const crmMcp = DurableObjectNamespace("crm-mcp", {
+  className: "CrmMcp",
+  sqlite: true,
+})
+
 function getDomains(currentStage: string): string[] | undefined {
   if (currentStage === "prod") {
     return ["crm.wodsmith.com"]
@@ -33,6 +43,7 @@ function getDomains(currentStage: string): string[] | undefined {
 const website = await TanStackStart("app", {
   bindings: {
     DB: db,
+    CRM_MCP: crmMcp,
     R2_BUCKET: r2Bucket,
     // biome-ignore lint/style/noNonNullAssertion: Set at deploy time
     APP_URL: process.env.APP_URL!,

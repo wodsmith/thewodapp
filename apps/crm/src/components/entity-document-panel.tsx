@@ -1,5 +1,13 @@
 import { useServerFn } from "@tanstack/react-start"
-import { Download, Eye, FileText, Loader2, Trash2, Upload, X } from "lucide-react"
+import {
+  Download,
+  Eye,
+  FileText,
+  Loader2,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-react"
 import { useCallback, useEffect, useId, useRef, useState } from "react"
 import {
   deleteDocumentForEntryFn,
@@ -22,7 +30,14 @@ type DocumentPreview = {
   content: string
 }
 
-const PREVIEWABLE_EXTENSIONS = new Set(["csv", "json", "md", "markdown", "txt", "text"])
+const PREVIEWABLE_EXTENSIONS = new Set([
+  "csv",
+  "json",
+  "md",
+  "markdown",
+  "txt",
+  "text",
+])
 const PREVIEWABLE_CONTENT_TYPES = [
   "text/",
   "application/csv",
@@ -289,7 +304,10 @@ export function EntityDocumentPanel({
                   <p className="truncate text-sm font-medium text-foreground">
                     {document.title}
                   </p>
-                  <p className="truncate text-xs text-muted-foreground" translate="no">
+                  <p
+                    className="truncate text-xs text-muted-foreground"
+                    translate="no"
+                  >
                     {document.filePath}
                   </p>
                 </div>
@@ -306,7 +324,10 @@ export function EntityDocumentPanel({
                     className="inline-flex h-9 items-center justify-center gap-1 rounded-md border border-input bg-background px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
                   >
                     {previewingId === document.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                      <Loader2
+                        className="h-4 w-4 animate-spin"
+                        aria-hidden="true"
+                      />
                     ) : (
                       <Eye className="h-4 w-4" aria-hidden="true" />
                     )}
@@ -315,7 +336,9 @@ export function EntityDocumentPanel({
                 ) : null}
                 <button
                   type="button"
-                  onClick={() => void handleDownload(document.id, document.title)}
+                  onClick={() =>
+                    void handleDownload(document.id, document.title)
+                  }
                   className="inline-flex h-9 items-center justify-center gap-1 rounded-md border border-input bg-background px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   <Download className="h-4 w-4" aria-hidden="true" />
@@ -328,7 +351,10 @@ export function EntityDocumentPanel({
                   className="inline-flex h-9 items-center justify-center gap-1 rounded-md border border-destructive/30 bg-background px-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2 disabled:opacity-50"
                 >
                   {removingId === document.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    <Loader2
+                      className="h-4 w-4 animate-spin"
+                      aria-hidden="true"
+                    />
                   ) : (
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
                   )}

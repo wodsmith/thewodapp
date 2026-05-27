@@ -3,6 +3,7 @@
 declare namespace Cloudflare {
   interface Env {
     DB: D1Database
+    CRM_MCP: DurableObjectNamespace
     R2_BUCKET: R2Bucket
     APP_URL: string
     NODE_ENV: string
