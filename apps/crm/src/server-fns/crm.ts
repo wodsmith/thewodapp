@@ -1487,7 +1487,10 @@ export async function deleteInteraction(
     .where(eq(entriesTable.id, data.id))
     .limit(1)
 
-  if (!entry || !["Meeting", "Outreach"].includes(entry.objectName)) {
+  if (
+    !entry ||
+    !["meeting", "outreach"].includes(entry.objectName.toLowerCase())
+  ) {
     throw new Error(`CRM interaction not found: ${data.id}`)
   }
 
