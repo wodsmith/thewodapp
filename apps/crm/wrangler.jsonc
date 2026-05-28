@@ -2,7 +2,7 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"account_id": "317fb84f366ea1ab038ca90000953697",
 	"name": "crm",
-	"main": "src/server.ts",
+	"main": "@tanstack/react-start/server-entry",
 	"compatibility_date": "2025-09-02",
 	"compatibility_flags": [
 		"nodejs_compat",
@@ -15,22 +15,6 @@
 	"placement": {
 		"mode": "smart"
 	},
-	"durable_objects": {
-		"bindings": [
-			{
-				"name": "CRM_MCP",
-				"class_name": "CrmMcp"
-			}
-		]
-	},
-	"migrations": [
-		{
-			"tag": "v1",
-			"new_sqlite_classes": [
-				"CrmMcp"
-			]
-		}
-	],
 	"vars": {
 		"APP_URL": "http://localhost:3001"
 	},

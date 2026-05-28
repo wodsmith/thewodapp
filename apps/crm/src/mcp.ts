@@ -1,5 +1,4 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
-import { McpAgent } from "agents/mcp"
 import { z } from "zod"
 import {
   createCampaign,
@@ -201,214 +200,214 @@ async function applyCampaignInteractionActions({
   return results
 }
 
-export class CrmMcp extends McpAgent {
-  server = new McpServer({
+export function createCrmMcpServer() {
+  const server = new McpServer({
     name: "wodsmith-crm",
     version: "1.0.0",
   })
 
-  async init() {
-    // `@lat`: [[architecture]]
-    this.server.tool(
-      "get_crm_context",
-      "List CRM records and navigation targets. Use query to narrow results before updating records.",
-      {
-        query: z.string().optional(),
-        includeCampaignTouches: z.boolean().optional(),
-      },
-      async ({ query, includeCampaignTouches }) => {
-        const data = await readCrmData()
-        const filtered = filterCrmData(data, query)
-        return jsonResponse({
-          ...filtered,
-          campaignTouches: includeCampaignTouches
-            ? data.campaignTouches
-            : undefined,
-          navigation: {
-            dashboard: "/dashboard",
-            gyms: "/gyms",
-            contacts: "/contacts",
-            interactions: "/interactions",
-            campaigns: "/campaigns",
-            gymDetail: "/gyms/:gymId",
-            contactDetail: "/contacts/:contactId",
-            interactionDetail: "/interactions/:interactionId",
-            campaignDetail: "/campaigns/:campaignId",
-            campaignAudience: "/campaigns/:campaignId/audience",
-          },
-        })
-      },
-    )
+  // `@lat`: [[architecture]]
+  server.tool(
+    "get_crm_context",
+    "List CRM records and navigation targets. Use query to narrow results before updating records.",
+    {
+      query: z.string().optional(),
+      includeCampaignTouches: z.boolean().optional(),
+    },
+    async ({ query, includeCampaignTouches }) => {
+      const data = await readCrmData()
+      const filtered = filterCrmData(data, query)
+      return jsonResponse({
+        ...filtered,
+        campaignTouches: includeCampaignTouches
+          ? data.campaignTouches
+          : undefined,
+        navigation: {
+          dashboard: "/dashboard",
+          gyms: "/gyms",
+          contacts: "/contacts",
+          interactions: "/interactions",
+          campaigns: "/campaigns",
+          gymDetail: "/gyms/:gymId",
+          contactDetail: "/contacts/:contactId",
+          interactionDetail: "/interactions/:interactionId",
+          campaignDetail: "/campaigns/:campaignId",
+          campaignAudience: "/campaigns/:campaignId/audience",
+        },
+      })
+    },
+  )
 
-    // `@lat`: [[architecture]]
-    this.server.tool(
-      "manage_gym",
-      "Create, update, or delete a gym/company based on the user's intent.",
-      gymSchema.shape,
-      async (input) => {
-        if (input.action === "delete") {
-          return jsonResponse(
-            await deleteGym({ id: requireValue(input.id, "id") }),
-          )
-        }
-        if (input.action === "create") {
-          return jsonResponse(
-            await createGym({
-              ...input,
-              name: requireValue(input.name, "name"),
-            }),
-          )
-        }
+  // `@lat`: [[architecture]]
+  server.tool(
+    "manage_gym",
+    "Create, update, or delete a gym/company based on the user's intent.",
+    gymSchema.shape,
+    async (input) => {
+      if (input.action === "delete") {
         return jsonResponse(
-          await updateGym({
+          await deleteGym({ id: requireValue(input.id, "id") }),
+        )
+      }
+      if (input.action === "create") {
+        return jsonResponse(
+          await createGym({
             ...input,
-            id: requireValue(input.id, "id"),
             name: requireValue(input.name, "name"),
           }),
         )
-      },
-    )
+      }
+      return jsonResponse(
+        await updateGym({
+          ...input,
+          id: requireValue(input.id, "id"),
+          name: requireValue(input.name, "name"),
+        }),
+      )
+    },
+  )
 
-    // `@lat`: [[architecture]]
-    this.server.tool(
-      "manage_contact",
-      "Create, update, or delete a contact based on the user's intent.",
-      contactSchema.shape,
-      async (input) => {
-        if (input.action === "delete") {
-          return jsonResponse(
-            await deleteContact({ id: requireValue(input.id, "id") }),
-          )
-        }
-        if (input.action === "create") {
-          return jsonResponse(
-            await createContact({
-              ...input,
-              fullName: requireValue(input.fullName, "fullName"),
-            }),
-          )
-        }
+  // `@lat`: [[architecture]]
+  server.tool(
+    "manage_contact",
+    "Create, update, or delete a contact based on the user's intent.",
+    contactSchema.shape,
+    async (input) => {
+      if (input.action === "delete") {
         return jsonResponse(
-          await updateContact({
+          await deleteContact({ id: requireValue(input.id, "id") }),
+        )
+      }
+      if (input.action === "create") {
+        return jsonResponse(
+          await createContact({
             ...input,
-            id: requireValue(input.id, "id"),
             fullName: requireValue(input.fullName, "fullName"),
           }),
         )
-      },
-    )
+      }
+      return jsonResponse(
+        await updateContact({
+          ...input,
+          id: requireValue(input.id, "id"),
+          fullName: requireValue(input.fullName, "fullName"),
+        }),
+      )
+    },
+  )
 
-    // `@lat`: [[architecture]]
-    this.server.tool(
-      "manage_interaction",
-      "Create, update, or delete a meeting/outreach interaction based on the user's intent.",
-      interactionSchema.shape,
-      async (input) => {
-        if (input.action === "delete") {
-          return jsonResponse(
-            await deleteInteraction({ id: requireValue(input.id, "id") }),
-          )
-        }
-        if (input.action === "create") {
-          const source = input.source ?? "Outreach"
-          return jsonResponse(
-            await createInteraction({
-              ...input,
-              source,
-              title: requireValue(input.title, "title"),
-            }),
-          )
-        }
+  // `@lat`: [[architecture]]
+  server.tool(
+    "manage_interaction",
+    "Create, update, or delete a meeting/outreach interaction based on the user's intent.",
+    interactionSchema.shape,
+    async (input) => {
+      if (input.action === "delete") {
         return jsonResponse(
-          await updateInteraction({
+          await deleteInteraction({ id: requireValue(input.id, "id") }),
+        )
+      }
+      if (input.action === "create") {
+        const source = input.source ?? "Outreach"
+        return jsonResponse(
+          await createInteraction({
             ...input,
-            id: requireValue(input.id, "id"),
-            source: requireValue(input.source, "source"),
+            source,
             title: requireValue(input.title, "title"),
           }),
         )
-      },
-    )
+      }
+      return jsonResponse(
+        await updateInteraction({
+          ...input,
+          id: requireValue(input.id, "id"),
+          source: requireValue(input.source, "source"),
+          title: requireValue(input.title, "title"),
+        }),
+      )
+    },
+  )
 
-    // `@lat`: [[crm-campaigns]]
-    this.server.tool(
-      "manage_campaign",
-      "Create, update, delete, assign audiences, and bulk create/update/delete campaign interactions based on the user's intent.",
-      campaignSchema.shape,
-      async (input) => {
-        if (input.action === "delete") {
-          return jsonResponse(
-            await deleteCampaign({ id: requireValue(input.id, "id") }),
-          )
-        }
+  // `@lat`: [[crm-campaigns]]
+  server.tool(
+    "manage_campaign",
+    "Create, update, delete, assign audiences, and bulk create/update/delete campaign interactions based on the user's intent.",
+    campaignSchema.shape,
+    async (input) => {
+      if (input.action === "delete") {
+        return jsonResponse(
+          await deleteCampaign({ id: requireValue(input.id, "id") }),
+        )
+      }
 
-        const shouldUpdateAudience =
-          input.action === "update_audience" ||
-          input.audienceGymIds !== undefined ||
-          input.audienceContactIds !== undefined
+      const shouldUpdateAudience =
+        input.action === "update_audience" ||
+        input.audienceGymIds !== undefined ||
+        input.audienceContactIds !== undefined
 
-        if (input.action === "create") {
-          const campaign = await createCampaign({
-            ...input,
-            name: requireValue(input.name, "name"),
+      if (input.action === "create") {
+        const campaign = await createCampaign({
+          ...input,
+          name: requireValue(input.name, "name"),
+          audienceGymIds: input.audienceGymIds ?? [],
+          audienceContactIds: input.audienceContactIds ?? [],
+        })
+        const interactions = await applyCampaignInteractionActions({
+          campaignId: campaign.id,
+          interactions: input.interactions ?? [],
+        })
+        return jsonResponse({ campaign, interactions })
+      }
+
+      const campaignId = requireValue(input.id, "id")
+      const campaign =
+        input.action === "update" || input.name !== undefined
+          ? await updateCampaign({
+              ...input,
+              id: campaignId,
+              name: requireValue(input.name, "name"),
+            })
+          : { id: campaignId }
+
+      const audience = shouldUpdateAudience
+        ? await updateCampaignAudience({
+            campaignId,
             audienceGymIds: input.audienceGymIds ?? [],
             audienceContactIds: input.audienceContactIds ?? [],
           })
-          const interactions = await applyCampaignInteractionActions({
-            campaignId: campaign.id,
-            interactions: input.interactions ?? [],
-          })
-          return jsonResponse({ campaign, interactions })
-        }
+        : undefined
 
-        const campaignId = requireValue(input.id, "id")
-        const campaign =
-          input.action === "update" || input.name !== undefined
-            ? await updateCampaign({
-                ...input,
-                id: campaignId,
-                name: requireValue(input.name, "name"),
-              })
-            : { id: campaignId }
+      const interactions = await applyCampaignInteractionActions({
+        campaignId,
+        interactions: input.interactions ?? [],
+      })
 
-        const audience = shouldUpdateAudience
-          ? await updateCampaignAudience({
-              campaignId,
-              audienceGymIds: input.audienceGymIds ?? [],
-              audienceContactIds: input.audienceContactIds ?? [],
-            })
-          : undefined
+      return jsonResponse({
+        campaign,
+        audience,
+        interactions,
+      })
+    },
+  )
 
-        const interactions = await applyCampaignInteractionActions({
-          campaignId,
-          interactions: input.interactions ?? [],
-        })
+  // `@lat`: [[crm-campaigns]]
+  server.tool(
+    "plan_campaign_touch",
+    "Add a planned outreach touch to a campaign, optionally tied to a gym/contact.",
+    {
+      campaignId: z.string().min(1),
+      title: z.string().min(1).max(255),
+      channel: optionalText(100),
+      owner: ownerSchema.optional(),
+      status: optionalStatus,
+      dueDate: optionalDate,
+      companyId: optionalId,
+      contactId: optionalId,
+      notes: optionalText(4000),
+      content: optionalText(10000),
+    },
+    async (input) => jsonResponse(await createCampaignTouch(input)),
+  )
 
-        return jsonResponse({
-          campaign,
-          audience,
-          interactions,
-        })
-      },
-    )
-
-    // `@lat`: [[crm-campaigns]]
-    this.server.tool(
-      "plan_campaign_touch",
-      "Add a planned outreach touch to a campaign, optionally tied to a gym/contact.",
-      {
-        campaignId: z.string().min(1),
-        title: z.string().min(1).max(255),
-        channel: optionalText(100),
-        owner: ownerSchema.optional(),
-        status: optionalStatus,
-        dueDate: optionalDate,
-        companyId: optionalId,
-        contactId: optionalId,
-        notes: optionalText(4000),
-        content: optionalText(10000),
-      },
-      async (input) => jsonResponse(await createCampaignTouch(input)),
-    )
-  }
+  return server
 }
