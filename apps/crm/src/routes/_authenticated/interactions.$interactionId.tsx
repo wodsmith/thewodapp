@@ -2,8 +2,11 @@ import { createFileRoute, Link, notFound } from "@tanstack/react-router"
 import {
   Building2,
   CalendarDays,
+  Check,
+  Clipboard,
   Clock3,
   Handshake,
+  Mail,
   Pencil,
   Send,
   UserRound,
@@ -45,6 +48,19 @@ export const Route = createFileRoute(
 function InteractionDetailPage() {
   const { interaction, gym, contact, gyms, contacts } = Route.useLoaderData()
   const [isEditing, setIsEditing] = useState(false)
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
+
+  async function copyValue(key: string, value: string | null) {
+    if (!value) return
+
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopiedKey(key)
+      window.setTimeout(() => setCopiedKey(null), 1400)
+    } catch {
+      setCopiedKey(null)
+    }
+  }
 
   return (
     <section className="space-y-6">
@@ -115,6 +131,21 @@ function InteractionDetailPage() {
           ) : null}
           {interaction.content ? (
             <NoteBlock>{interaction.content}</NoteBlock>
+          ) : null}
+          {interaction.source === "Outreach" ? (
+            <div className="flex flex-wrap gap-2 border-t border-border pt-4">
+              <CopyButton
+                label="Subject"
+                copied={copiedKey === "subject"}
+                onClick={() => copyValue("subject", interaction.title)}
+              />
+              <CopyButton
+                label="Body"
+                copied={copiedKey === "body"}
+                onClick={() => copyValue("body", interaction.content)}
+                disabled={!interaction.content}
+              />
+            </div>
           ) : null}
         </section>
       )}
@@ -252,6 +283,36 @@ function AssociationCard({
       </h3>
       <div className="mt-4 text-sm">{children || empty}</div>
     </section>
+  )
+}
+
+function CopyButton({
+  label,
+  copied,
+  disabled,
+  onClick,
+}: {
+  label: "Subject" | "Body"
+  copied: boolean
+  disabled?: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="inline-flex h-9 items-center gap-2 rounded-md border border-input px-3 text-sm font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+    >
+      {copied ? (
+        <Check className="h-4 w-4" />
+      ) : label === "Subject" ? (
+        <Mail className="h-4 w-4" />
+      ) : (
+        <Clipboard className="h-4 w-4" />
+      )}
+      {copied ? "Copied" : `Copy ${label}`}
+    </button>
   )
 }
 

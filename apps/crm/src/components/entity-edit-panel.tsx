@@ -107,6 +107,8 @@ export function CampaignEditPanel({
           status: field(form, "status"),
           owner: field(form, "owner") as "Ian" | "Zac",
           goal: field(form, "goal"),
+          templateSubject: field(form, "templateSubject"),
+          templateBody: field(form, "templateBody"),
           startDate: field(form, "startDate"),
           endDate: field(form, "endDate"),
         },
@@ -162,6 +164,16 @@ export function CampaignEditPanel({
         defaultValue={campaign.endDate}
       />
       <TextareaField name="goal" label="Goal" defaultValue={campaign.goal} />
+      <TextareaField
+        name="templateSubject"
+        label="Template Subject"
+        defaultValue={campaign.templateSubject}
+      />
+      <TextareaField
+        name="templateBody"
+        label="Template Body"
+        defaultValue={campaign.templateBody}
+      />
     </EditPanel>
   )
 }
