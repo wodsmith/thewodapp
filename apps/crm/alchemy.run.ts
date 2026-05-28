@@ -28,6 +28,7 @@ const r2Bucket = await R2Bucket("crm-files", {
   devDomain: stage !== "prod",
 })
 
+// `@lat`: [[architecture]]
 const crmMcp = DurableObjectNamespace("crm-mcp", {
   className: "CrmMcp",
   sqlite: true,
@@ -43,6 +44,7 @@ function getDomains(currentStage: string): string[] | undefined {
 const website = await TanStackStart("app", {
   bindings: {
     DB: db,
+    // `@lat`: [[architecture]]
     CRM_MCP: crmMcp,
     R2_BUCKET: r2Bucket,
     // biome-ignore lint/style/noNonNullAssertion: Set at deploy time

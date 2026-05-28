@@ -20,63 +20,66 @@ import {
 } from "@/server-fns/crm"
 
 const ownerSchema = z.enum(["Ian", "Zac"])
-const nullableString = z.string().optional()
+const optionalId = z.string().min(1).optional()
+const optionalText = (max: number) => z.string().max(max).optional()
+const optionalDate = optionalText(20)
+const optionalStatus = optionalText(100)
 
 const gymSchema = z.object({
   action: z.enum(["create", "update", "delete"]),
-  id: z.string().optional(),
-  name: nullableString,
-  location: nullableString,
-  website: nullableString,
-  crossfitPage: nullableString,
-  email: nullableString,
-  phone: nullableString,
-  instagram: nullableString,
-  ownerManager: nullableString,
-  status: nullableString,
-  priority: nullableString,
-  relationship: nullableString,
-  notes: nullableString,
+  id: optionalId,
+  name: optionalText(255),
+  location: optionalText(255),
+  website: optionalText(500),
+  crossfitPage: optionalText(500),
+  email: optionalText(255),
+  phone: optionalText(100),
+  instagram: optionalText(255),
+  ownerManager: optionalText(500),
+  status: optionalStatus,
+  priority: optionalText(50),
+  relationship: optionalText(255),
+  notes: optionalText(4000),
 })
 
 const contactSchema = z.object({
   action: z.enum(["create", "update", "delete"]),
-  id: z.string().optional(),
-  fullName: nullableString,
-  email: nullableString,
-  phone: nullableString,
-  status: nullableString,
-  companyId: nullableString,
-  notes: nullableString,
+  id: optionalId,
+  fullName: optionalText(255),
+  email: optionalText(255),
+  phone: optionalText(100),
+  status: optionalStatus,
+  companyId: optionalId,
+  notes: optionalText(4000),
 })
 
 const interactionSchema = z.object({
   action: z.enum(["create", "update", "delete"]),
-  id: z.string().optional(),
+  id: optionalId,
   source: z.enum(["Meeting", "Outreach"]).optional(),
-  title: nullableString,
-  date: nullableString,
-  channel: nullableString,
-  status: nullableString,
+  title: optionalText(255),
+  date: optionalDate,
+  channel: optionalText(100),
+  status: optionalStatus,
   owner: ownerSchema.optional(),
-  companyId: nullableString,
-  contactId: nullableString,
-  campaignId: nullableString,
-  notes: nullableString,
-  content: nullableString,
+  companyId: optionalId,
+  contactId: optionalId,
+  campaignId: optionalId,
+  notes: optionalText(4000),
+  content: optionalText(10000),
 })
 
 const campaignSchema = z.object({
   action: z.enum(["create", "update", "delete", "update_audience"]),
-  id: z.string().optional(),
-  name: nullableString,
-  status: nullableString,
+  id: optionalId,
+  name: optionalText(255),
+  status: optionalStatus,
   owner: ownerSchema.optional(),
-  goal: nullableString,
-  startDate: nullableString,
-  endDate: nullableString,
-  audienceGymIds: z.array(z.string()).optional(),
-  audienceContactIds: z.array(z.string()).optional(),
+  goal: optionalText(4000),
+  startDate: optionalDate,
+  endDate: optionalDate,
+  audienceGymIds: z.array(z.string().min(1)).optional(),
+  audienceContactIds: z.array(z.string().min(1)).optional(),
 })
 
 function jsonResponse(value: unknown) {
@@ -150,6 +153,7 @@ export class CrmMcp extends McpAgent {
   })
 
   async init() {
+    // `@lat`: [[architecture]]
     this.server.tool(
       "get_crm_context",
       "List CRM records and navigation targets. Use query to narrow results before updating records.",
@@ -181,6 +185,7 @@ export class CrmMcp extends McpAgent {
       },
     )
 
+    // `@lat`: [[architecture]]
     this.server.tool(
       "manage_gym",
       "Create, update, or delete a gym/company based on the user's intent.",
@@ -209,6 +214,7 @@ export class CrmMcp extends McpAgent {
       },
     )
 
+    // `@lat`: [[architecture]]
     this.server.tool(
       "manage_contact",
       "Create, update, or delete a contact based on the user's intent.",
@@ -237,6 +243,7 @@ export class CrmMcp extends McpAgent {
       },
     )
 
+    // `@lat`: [[architecture]]
     this.server.tool(
       "manage_interaction",
       "Create, update, or delete a meeting/outreach interaction based on the user's intent.",
@@ -248,9 +255,11 @@ export class CrmMcp extends McpAgent {
           )
         }
         if (input.action === "create") {
+          const source = input.source ?? "Outreach"
           return jsonResponse(
             await createInteraction({
               ...input,
+              source,
               title: requireValue(input.title, "title"),
             }),
           )
@@ -266,6 +275,7 @@ export class CrmMcp extends McpAgent {
       },
     )
 
+    // `@lat`: [[crm-campaigns]]
     this.server.tool(
       "manage_campaign",
       "Create, update, delete, or change campaign audience based on the user's intent.",
@@ -305,20 +315,21 @@ export class CrmMcp extends McpAgent {
       },
     )
 
+    // `@lat`: [[crm-campaigns]]
     this.server.tool(
       "plan_campaign_touch",
       "Add a planned outreach touch to a campaign, optionally tied to a gym/contact.",
       {
-        campaignId: z.string(),
-        title: z.string(),
-        channel: z.string().optional(),
+        campaignId: z.string().min(1),
+        title: z.string().min(1).max(255),
+        channel: optionalText(100),
         owner: ownerSchema.optional(),
-        status: z.string().optional(),
-        dueDate: z.string().optional(),
-        companyId: z.string().optional(),
-        contactId: z.string().optional(),
-        notes: z.string().optional(),
-        content: z.string().optional(),
+        status: optionalStatus,
+        dueDate: optionalDate,
+        companyId: optionalId,
+        contactId: optionalId,
+        notes: optionalText(4000),
+        content: optionalText(10000),
       },
       async (input) => jsonResponse(await createCampaignTouch(input)),
     )

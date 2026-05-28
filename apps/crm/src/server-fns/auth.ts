@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
 import { getAuthPassword, getSessionSecret, isSecureAppUrl } from "@/lib/env"
 
+// `@lat`: [[auth]]
 export const SESSION_COOKIE = "crm_session"
 
 const MAX_LOGIN_ATTEMPTS = 5
@@ -62,6 +63,7 @@ async function signToken(token: string): Promise<string> {
   return `${token}.${sigHex}`
 }
 
+// `@lat`: [[auth]]
 export async function verifySessionToken(cookie: string): Promise<boolean> {
   const dotIndex = cookie.lastIndexOf(".")
   if (dotIndex === -1) return false

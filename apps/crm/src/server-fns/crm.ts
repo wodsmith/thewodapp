@@ -127,6 +127,7 @@ const contactUpdateSchema = contactInputSchema.extend({
 })
 
 const interactionInputSchema = z.object({
+  source: z.enum(["Meeting", "Outreach"]).optional(),
   title: z.string().min(1, "Subject is required").max(255),
   date: z.string().max(20).optional(),
   channel: z.string().max(100).optional(),
@@ -819,12 +820,16 @@ function requireField(
   return field
 }
 
+// `@lat`: [[architecture]]
 async function deleteEntryFromObject(entryId: string, objectName: string) {
   const db = getDb()
   const object = await getObject(objectName)
+  // `@lat`: [[architecture]]
   await assertEntryInObject(entryId, object.id)
+  // `@lat`: [[architecture]]
   await deleteDocumentsForEntries([entryId])
 
+  // `@lat`: [[architecture]]
   await db
     .delete(entriesTable)
     .where(
@@ -834,6 +839,7 @@ async function deleteEntryFromObject(entryId: string, objectName: string) {
   return { id: entryId, deleted: true }
 }
 
+// `@lat`: [[architecture]]
 async function deleteDocumentsForEntries(entryIds: string[]) {
   if (entryIds.length === 0) return
 
@@ -852,14 +858,14 @@ async function deleteDocumentsForEntries(entryIds: string[]) {
 
   if (documents.length === 0) return
 
-  await Promise.all(
-    documents.map((document) => getR2Bucket().delete(document.filePath)),
-  )
   await db.delete(documentsTable).where(
     inArray(
       documentsTable.id,
       documents.map((document) => document.documentId),
     ),
+  )
+  await Promise.allSettled(
+    documents.map((document) => getR2Bucket().delete(document.filePath)),
   )
 }
 
@@ -1203,18 +1209,32 @@ export const updateContactFn = createServerFn({ method: "POST" })
 export async function createInteraction(
   data: z.infer<typeof interactionInputSchema>,
 ) {
-  const { entryId, object } = await createEntry("Outreach")
+  const source = data.source ?? "Outreach"
+  const { entryId, object } = await createEntry(source)
   const fields = await getFieldsByName(object.id)
 
-  const updates: Array<[string, string | null]> = [
-    ["Subject", data.title],
-    ["Date Sent", clean(data.date) ?? new Date().toISOString().slice(0, 10)],
-    ["Channel", clean(data.channel) ?? "Email"],
-    ["Status", clean(data.status) ?? "Sent"],
-    ["Owner", clean(data.owner)],
-    ["Notes", clean(data.notes)],
-    ["Content", clean(data.content)],
-  ]
+  const updates: Array<[string, string | null]> =
+    source === "Meeting"
+      ? [
+          ["Title", data.title],
+          ["Date", clean(data.date) ?? new Date().toISOString().slice(0, 10)],
+          ["Type", clean(data.channel)],
+          ["Status", clean(data.status)],
+          ["Notes", clean(data.notes)],
+          ["Outcome", clean(data.content)],
+        ]
+      : [
+          ["Subject", data.title],
+          [
+            "Date Sent",
+            clean(data.date) ?? new Date().toISOString().slice(0, 10),
+          ],
+          ["Channel", clean(data.channel) ?? "Email"],
+          ["Status", clean(data.status) ?? "Sent"],
+          ["Owner", clean(data.owner)],
+          ["Notes", clean(data.notes)],
+          ["Content", clean(data.content)],
+        ]
 
   for (const [fieldName, value] of updates) {
     const field = fields.get(fieldName)
@@ -1226,8 +1246,10 @@ export async function createInteraction(
     await setRelation(entryId, companyField.id, clean(data.companyId))
   }
 
-  const personField = requireField(fields, "Person", "Outreach")
-  await setRelation(entryId, personField.id, clean(data.contactId))
+  const contactField = fields.get(source === "Meeting" ? "Contact" : "Person")
+  if (contactField) {
+    await setRelation(entryId, contactField.id, clean(data.contactId))
+  }
 
   const campaignField = fields.get("Campaign")
   if (campaignField) {
