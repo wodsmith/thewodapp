@@ -69,8 +69,12 @@ const interactionSchema = z.object({
   content: optionalText(10000),
 })
 
+const campaignInteractionSchema = interactionSchema.extend({
+  action: z.enum(["create", "update", "delete"]),
+})
+
 const campaignSchema = z.object({
-  action: z.enum(["create", "update", "delete", "update_audience"]),
+  action: z.enum(["create", "update", "delete", "update_audience", "manage"]),
   id: optionalId,
   name: optionalText(255),
   status: optionalStatus,
@@ -80,6 +84,7 @@ const campaignSchema = z.object({
   endDate: optionalDate,
   audienceGymIds: z.array(z.string().min(1)).optional(),
   audienceContactIds: z.array(z.string().min(1)).optional(),
+  interactions: z.array(campaignInteractionSchema).max(100).optional(),
 })
 
 function jsonResponse(value: unknown) {
@@ -144,6 +149,56 @@ function filterCrmData(
       ]),
     ),
   }
+}
+
+async function applyCampaignInteractionActions({
+  campaignId,
+  interactions,
+}: {
+  campaignId: string
+  interactions: z.infer<typeof campaignInteractionSchema>[]
+}) {
+  const results: Array<{
+    action: "create" | "update" | "delete"
+    id: string
+    deleted?: boolean
+  }> = []
+
+  for (const interaction of interactions) {
+    if (interaction.action === "delete") {
+      const result = await deleteInteraction({
+        id: requireValue(interaction.id, "interaction id"),
+      })
+      results.push({
+        action: "delete",
+        id: result.id,
+        deleted: result.deleted,
+      })
+      continue
+    }
+
+    if (interaction.action === "create") {
+      const result = await createInteraction({
+        ...interaction,
+        source: interaction.source ?? "Outreach",
+        title: requireValue(interaction.title, "interaction title"),
+        campaignId,
+      })
+      results.push({ action: "create", id: result.id })
+      continue
+    }
+
+    const result = await updateInteraction({
+      ...interaction,
+      id: requireValue(interaction.id, "interaction id"),
+      source: interaction.source ?? "Outreach",
+      title: requireValue(interaction.title, "interaction title"),
+      campaignId,
+    })
+    results.push({ action: "update", id: result.id })
+  }
+
+  return results
 }
 
 export class CrmMcp extends McpAgent {
@@ -278,7 +333,7 @@ export class CrmMcp extends McpAgent {
     // `@lat`: [[crm-campaigns]]
     this.server.tool(
       "manage_campaign",
-      "Create, update, delete, or change campaign audience based on the user's intent.",
+      "Create, update, delete, assign audiences, and bulk create/update/delete campaign interactions based on the user's intent.",
       campaignSchema.shape,
       async (input) => {
         if (input.action === "delete") {
@@ -286,32 +341,54 @@ export class CrmMcp extends McpAgent {
             await deleteCampaign({ id: requireValue(input.id, "id") }),
           )
         }
-        if (input.action === "update_audience") {
-          return jsonResponse(
-            await updateCampaignAudience({
-              campaignId: requireValue(input.id, "id"),
-              audienceGymIds: input.audienceGymIds ?? [],
-              audienceContactIds: input.audienceContactIds ?? [],
-            }),
-          )
-        }
+
+        const shouldUpdateAudience =
+          input.action === "update_audience" ||
+          input.audienceGymIds !== undefined ||
+          input.audienceContactIds !== undefined
+
         if (input.action === "create") {
-          return jsonResponse(
-            await createCampaign({
-              ...input,
-              name: requireValue(input.name, "name"),
+          const campaign = await createCampaign({
+            ...input,
+            name: requireValue(input.name, "name"),
+            audienceGymIds: input.audienceGymIds ?? [],
+            audienceContactIds: input.audienceContactIds ?? [],
+          })
+          const interactions = await applyCampaignInteractionActions({
+            campaignId: campaign.id,
+            interactions: input.interactions ?? [],
+          })
+          return jsonResponse({ campaign, interactions })
+        }
+
+        const campaignId = requireValue(input.id, "id")
+        const campaign =
+          input.action === "update" || input.name !== undefined
+            ? await updateCampaign({
+                ...input,
+                id: campaignId,
+                name: requireValue(input.name, "name"),
+              })
+            : { id: campaignId }
+
+        const audience = shouldUpdateAudience
+          ? await updateCampaignAudience({
+              campaignId,
               audienceGymIds: input.audienceGymIds ?? [],
               audienceContactIds: input.audienceContactIds ?? [],
-            }),
-          )
-        }
-        return jsonResponse(
-          await updateCampaign({
-            ...input,
-            id: requireValue(input.id, "id"),
-            name: requireValue(input.name, "name"),
-          }),
-        )
+            })
+          : undefined
+
+        const interactions = await applyCampaignInteractionActions({
+          campaignId,
+          interactions: input.interactions ?? [],
+        })
+
+        return jsonResponse({
+          campaign,
+          audience,
+          interactions,
+        })
       },
     )
 
