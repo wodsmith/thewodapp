@@ -107,7 +107,7 @@ The second example is invalid because `Bad Section` has no leading paragraph. `l
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **thewodapp** (9659 symbols, 18781 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **thewodapp** (10991 symbols, 21699 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -205,3 +205,49 @@ To check whether embeddings exist, inspect `.gitnexus/meta.json` — the `stats.
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
 
 <!-- gitnexus:end -->
+
+## CRM Agent APIs
+
+The CRM exposes authenticated JSON endpoints for automation. Agents should prefer these endpoints over native browser file-picker automation.
+
+### Discover Capabilities
+
+`GET /api/crm/agent-capabilities`
+
+Requires an authenticated CRM session cookie. Returns machine-readable capabilities, including the document upload endpoint and request body shape.
+
+### Upload CRM Documents
+
+`POST /api/crm/documents`
+
+Requires an authenticated CRM session cookie. Use this endpoint to attach local files to CRM entries, especially transcript files referenced in interaction notes.
+
+Body:
+
+- `entryId`: CRM entry id, such as an interaction id.
+- `fileName`: original file name.
+- `fileBase64`: base64-encoded file contents.
+- `fileSize`: byte size.
+- `contentType`: MIME type, usually `text/markdown` for transcripts.
+- `title`: optional display label.
+
+Example:
+
+```json
+{
+  "entryId": "meet_nathan_cff_20260403_000",
+  "fileName": "2026-04-03-nathan-crossfit-fullerton.md",
+  "fileBase64": "...",
+  "fileSize": 50732,
+  "contentType": "text/markdown",
+  "title": "2026-04-03 Nathan CrossFit Fullerton transcript"
+}
+```
+
+The CRM document panel also exposes DOM hints:
+
+- `data-agent-capabilities="/api/crm/agent-capabilities"`
+- `data-agent-document-upload-api="/api/crm/documents"`
+- `data-agent-entry-id="<current entry id>"`
+- `data-agent-preferred-action="uploadCrmDocument"` on the upload form.
+- `data-agent-api="/api/crm/documents"` on the upload form.

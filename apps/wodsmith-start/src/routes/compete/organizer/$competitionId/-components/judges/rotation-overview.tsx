@@ -20,6 +20,12 @@ interface RotationOverviewProps {
   onPublishRotations?: (args: {
     data: Record<string, unknown>
   }) => Promise<import("@/db/schema").JudgeAssignmentVersion>
+  /**
+   * Optional content rendered just before the Publish button. Lets
+   * callers (e.g. the AI scheduling page) drop secondary actions like
+   * "Generate AI suggestions" alongside the primary Publish CTA.
+   */
+  leadingActions?: React.ReactNode
 }
 
 /**
@@ -36,6 +42,7 @@ export function RotationOverview({
   nextVersionNumber = 1,
   onPublishSuccess,
   onPublishRotations,
+  leadingActions,
 }: RotationOverviewProps) {
   const hasGaps = coverage.gaps.length > 0
   const hasOverlaps = coverage.overlaps.length > 0
@@ -100,7 +107,8 @@ export function RotationOverview({
           </div>
         </div>
         <div className="flex-1" />
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {leadingActions}
           <PublishRotationsButton
             teamId={teamId}
             trackWorkoutId={trackWorkoutId}

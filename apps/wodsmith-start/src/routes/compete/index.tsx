@@ -48,7 +48,7 @@ export const Route = createFileRoute("/compete/")({
       {
         name: "description",
         content:
-          "Browse and register for functional fitness competitions. Find upcoming CrossFit throwdowns, see leaderboards, and sign up on WODsmith.",
+          "Browse and register for functional fitness competitions. Find upcoming Functional Fitness throwdowns, see leaderboards, and sign up on WODsmith.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://wodsmith.com/compete" },
@@ -59,7 +59,7 @@ export const Route = createFileRoute("/compete/")({
       {
         property: "og:description",
         content:
-          "Browse and register for functional fitness competitions. Find upcoming CrossFit throwdowns, see leaderboards, and sign up.",
+          "Browse and register for functional fitness competitions. Find upcoming Functional Fitness throwdowns, see leaderboards, and sign up.",
       },
       { property: "og:site_name", content: "WODsmith" },
       { name: "twitter:card", content: "summary" },

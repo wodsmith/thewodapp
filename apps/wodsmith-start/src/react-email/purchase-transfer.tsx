@@ -67,7 +67,7 @@ export const PurchaseTransferEmail = ({
 
 PurchaseTransferEmail.PreviewProps = {
   sourceAthleteName: "Jane Smith",
-  competitionName: "CrossFit Open 2025",
+  competitionName: "Functional Fitness Open 2025",
   divisionName: "RX Female",
   transferId: "transfer_mbwft7k18l8niqu9s39zv1hf",
   appUrl: `https://${SITE_DOMAIN}`,

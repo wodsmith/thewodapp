@@ -162,6 +162,16 @@ Assigns judges to heats with rotation patterns so judges move between lanes acro
 
 Fetches heats, events, judge volunteers, rotations, heat assignments, and version history. Uses the `JudgeSchedulingContainer` component tree (rotation editor, timeline, overview, publish button). Supports rotation patterns: stay, shift right, random. Judge assignment versions allow publishing/reverting schedules. The "adjust for occupied lanes" feature (`adjustRotationsForOccupiedLanesFn`) splits rotations to skip unoccupied lanes; cohost routes use `cohostAdjustRotationsForOccupiedLanesFn` via the `onAdjustRotationsForOccupiedLanes` override prop on `RotationTimeline`.
 
+### AI Judge Scheduling
+
+Optional AI-augmented entry point that proposes judge rotations for organizer review.
+
+The page lives at `/compete/organizer/$competitionId/judges-ai` and is backed by the [[apps/wodsmith-start/src/agents/judge-scheduler-agent.ts#JudgeSchedulerAgent]] Cloudflare Agent (Durable Object) running `@cf/moonshotai/kimi-k2.6` through Cloudflare AI Gateway. Each proposal streams to the page over a WebSocket as the LLM emits it; soft-rule violations (e.g. morning judge scheduled past noon) are surfaced as `confidence='low'` with explicit reasons.
+
+Accepted proposals write to `competition_judge_rotations` via [[apps/wodsmith-start/src/server-fns/judge-scheduler-ai-fns.ts#applyAiProposalsFn]], which revalidates organizer access, workout ownership, judge roster membership, hard lane/heat rules, and slot overlaps. The organizer still publishes through the standard timeline so versioning stays in one place.
+
+Gated by the `ai_judge_scheduling` feature (see [[apps/wodsmith-start/src/config/features.ts#FEATURES]] → `AI_JUDGE_SCHEDULING`). Teams without the entitlement see a paywall card instead of the scheduling UI. Admins can grant it manually from the platform admin entitlements panel.
+
 ### Volunteer Registration Rules
 
 Custom registration questions targeted at volunteers (separate from athlete registration questions).
@@ -290,7 +300,7 @@ The organizer selects which competitions to invite to via a multi-select combobo
 
 Cohosts are team members with a `cohost` role on the competition team, granted granular permissions per feature area.
 
-The layout route verifies the user is a cohost (or site admin) on the competition team, then fetches permissions via `cohostGetPermissionsFn`. Permission keys include: `divisions`, `events`, `scoring`, `viewRegistrations`, `editRegistrations`, `waivers`, `schedule`, `locations`, `volunteers`, `results`, `leaderboardPreview`, `pricing`, `revenue`, `coupons`, `sponsors`. The sidebar hides links for features the cohost lacks permission for. Permissions are also masked by team entitlements: the layout checks `PRODUCT_COUPONS` via [[apps/wodsmith-start/src/server-fns/entitlements.ts#checkTeamHasFeatureFn]] and forces `coupons` to `false` when the organizing team lacks the entitlement. Organizers can edit cohost permissions after the initial invite via `EditCohostPermissionsDialog`, which calls `updateCohostPermissionsFn` (competition level) or `updateSeriesCohostPermissionsFn` (series level, updates all memberships for that email across the series). Both dialogs accept a `hiddenPermissions` prop to hide permission checkboxes for features the team doesn't have (e.g. coupons without `PRODUCT_COUPONS` entitlement). Both are available from the dedicated co-hosts page (`/compete/organizer/{competitionId}/co-hosts`) or the series detail page.
+The layout route verifies cohost access through `cohostGetPermissionsFn`, which reads active DB memberships rather than `session.teams` so invite acceptance works immediately despite KV session lag. The public competition detail route also uses that DB-backed check for its "Manage as Co-Host" CTA. Permission keys include: `divisions`, `events`, `scoring`, `viewRegistrations`, `editRegistrations`, `waivers`, `schedule`, `locations`, `volunteers`, `results`, `leaderboardPreview`, `pricing`, `revenue`, `coupons`, `sponsors`. The sidebar hides links for features the cohost lacks permission for. Permissions are also masked by team entitlements: the layout checks `PRODUCT_COUPONS` via [[apps/wodsmith-start/src/server-fns/entitlements.ts#checkTeamHasFeatureFn]] and forces `coupons` to `false` when the organizing team lacks the entitlement. Organizers can edit cohost permissions after the initial invite via `EditCohostPermissionsDialog`, which calls `updateCohostPermissionsFn` (competition level) or `updateSeriesCohostPermissionsFn` (series level, updates all memberships for that email across the series). Both dialogs accept a `hiddenPermissions` prop to hide permission checkboxes for features the team doesn't have (e.g. coupons without `PRODUCT_COUPONS` entitlement). Both are available from the dedicated co-hosts page (`/compete/organizer/{competitionId}/co-hosts`) or the series detail page.
 
 ## Cohost Server Functions
 

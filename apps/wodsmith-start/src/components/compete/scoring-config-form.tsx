@@ -554,7 +554,7 @@ export function ScoringConfigForm({
                 {displayAlgorithm === "winner_takes_more" && (
                   <p className="ml-6 text-xs text-muted-foreground">
                     Top positions get disproportionately more points. Similar to
-                    CrossFit Games scoring where 1st place is worth
+                    Functional Fitness Games scoring where 1st place is worth
                     significantly more than 2nd.
                   </p>
                 )}

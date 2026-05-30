@@ -557,6 +557,58 @@ async function computeSessionFromCookie(): Promise<SessionValidationResult | nul
   return session
 }
 
+function getCookieFromHeader(
+  cookieHeader: string | null,
+  name: string,
+): string | null {
+  if (!cookieHeader) return null
+
+  const prefix = `${name}=`
+  for (const part of cookieHeader.split(";")) {
+    const trimmed = part.trim()
+    if (!trimmed.startsWith(prefix)) continue
+    const value = trimmed.slice(prefix.length)
+    try {
+      return decodeURIComponent(value)
+    } catch {
+      return value
+    }
+  }
+
+  return null
+}
+
+/**
+ * Validate the session cookie from a raw Request.
+ *
+ * Use this in custom Worker/Agent handlers that run before TanStack Start has
+ * installed its StartEvent AsyncLocalStorage context. Start route handlers and
+ * server functions should continue using getSessionFromCookie().
+ */
+export async function getSessionFromRequestCookie(
+  request: Request,
+): Promise<SessionValidationResult | null> {
+  const sessionCookie = getCookieFromHeader(
+    request.headers.get("Cookie"),
+    SESSION_COOKIE_NAME,
+  )
+
+  if (!sessionCookie) {
+    return null
+  }
+
+  const decoded = decodeSessionCookie(sessionCookie)
+  if (!decoded || !decoded.token || !decoded.userId) {
+    return null
+  }
+
+  const session = await validateSessionToken(decoded.token, decoded.userId)
+  if (session?.userId) {
+    setEvlogUser(session.userId)
+  }
+  return session
+}
+
 /**
  * This function can only be called in a Server Components, Server Action or Route Handler
  */

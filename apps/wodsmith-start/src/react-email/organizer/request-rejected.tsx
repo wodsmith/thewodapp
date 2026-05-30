@@ -18,7 +18,7 @@ interface OrganizerRequestRejectedEmailProps {
 }
 
 export const OrganizerRequestRejectedEmail = ({
-  teamName = "CrossFit Downtown",
+  teamName = "Functional Fitness Downtown",
   recipientName = "John",
   adminNotes,
   supportEmail = "support@wodsmith.com",
@@ -70,7 +70,7 @@ export const OrganizerRequestRejectedEmail = ({
 }
 
 OrganizerRequestRejectedEmail.PreviewProps = {
-  teamName: "CrossFit Downtown",
+  teamName: "Functional Fitness Downtown",
   recipientName: "John",
   adminNotes:
     "We need more information about your planned events and experience with competition organization. Please reach out to discuss further.",

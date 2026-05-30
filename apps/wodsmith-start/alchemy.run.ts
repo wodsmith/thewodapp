@@ -88,6 +88,9 @@
 
 import alchemy from "alchemy"
 import {
+  Ai,
+  AiGateway,
+  DurableObjectNamespace,
   Hyperdrive,
   KVNamespace,
   Queue,
@@ -95,11 +98,11 @@ import {
   TanStackStart,
   Workflow,
 } from "alchemy/cloudflare"
-import { CloudflareStateStore } from "alchemy/state"
 import {
   Branch as PlanetScaleBranch,
   Password as PlanetScalePassword,
 } from "alchemy/planetscale"
+import { CloudflareStateStore } from "alchemy/state"
 import { WebhookEndpoint } from "alchemy/stripe"
 
 /**
@@ -251,6 +254,27 @@ const psPassword = await PlanetScalePassword(`ps-password-${stage}`, {
   role: "admin",
 })
 
+const ciDatabaseUrl = process.env.DATABASE_URL
+  ? new URL(process.env.DATABASE_URL)
+  : undefined
+const hyperdriveOrigin = ciDatabaseUrl
+  ? {
+      host: ciDatabaseUrl.hostname,
+      database: ciDatabaseUrl.pathname.slice(1),
+      user: decodeURIComponent(ciDatabaseUrl.username),
+      password: decodeURIComponent(ciDatabaseUrl.password),
+      port: ciDatabaseUrl.port ? Number(ciDatabaseUrl.port) : 3306,
+      scheme: "mysql" as const,
+    }
+  : {
+      host: psPassword.host,
+      database: psDbName,
+      user: psPassword.username,
+      password: psPassword.password.unencrypted,
+      port: 3306,
+      scheme: "mysql" as const,
+    }
+
 /**
  * Cloudflare Hyperdrive for PlanetScale connection pooling and caching.
  *
@@ -263,19 +287,17 @@ const psPassword = await PlanetScalePassword(`ps-password-${stage}`, {
  * which exposes a `connectionString` for use with standard MySQL drivers (mysql2).
  */
 const hyperdrive = await Hyperdrive(`hyperdrive-${stage}`, {
-  origin: {
-    host: psPassword.host,
-    database: psDbName,
-    user: psPassword.username,
-    password: psPassword.password.unencrypted,
-    port: 3306,
-    scheme: "mysql",
-  },
+  // CI creates a fresh PlanetScale branch password before deploy and verifies it
+  // with drizzle-kit. Prefer that URL so stale Alchemy password state cannot
+  // make Cloudflare reject Hyperdrive updates during credential validation.
+  origin: hyperdriveOrigin,
   caching: {
     disabled: true,
   },
   adopt: true,
-  // Local dev: connect directly to PlanetScale (bypassing Hyperdrive pooling)
+  // Keep local dev on the direct PlanetScale URL for now. The pscale proxy
+  // Hyperdrive tweak caused deploys to try updating the remote config, which
+  // fails when Cloudflare validates stale demo branch credentials.
   dev: {
     origin: `mysql://${psPassword.username}:${psPassword.password.unencrypted}@${psPassword.host}:3306/${psDbName}?sslaccept=strict`,
   },
@@ -506,6 +528,59 @@ const manualRegistrationWorkflow = Workflow(
 )
 
 /**
+ * Durable Object namespace for the AI judge-scheduling agent.
+ *
+ * Each scheduling session is keyed by `${trackWorkoutId}:${userId}` so an
+ * organizer reconnecting (e.g. tab refresh) reattaches to the same Agent
+ * instance and resumes the in-flight stream of proposals.
+ *
+ * @see src/agents/judge-scheduler-agent.ts
+ */
+const judgeSchedulerAgent = DurableObjectNamespace("judge-scheduler-agent", {
+  className: "JudgeSchedulerAgent",
+  sqlite: true,
+})
+
+/**
+ * Cloudflare Workers AI binding for built-in LLM inference.
+ *
+ * Currently used by the judge-scheduling agent to call
+ * `@cf/moonshotai/kimi-k2.5` via the `workers-ai-provider` AI SDK adapter.
+ * Adding new AI features? Reuse this binding — there's no per-feature cost
+ * beyond Workers AI's pay-per-request pricing.
+ */
+const aiBinding = Ai()
+
+/**
+ * Cloudflare AI Gateway in front of all AI traffic.
+ *
+ * Routes Workers AI (and other providers via the unified adapter) through
+ * a managed gateway that adds:
+ * - Request/response logging and analytics in the CF dashboard
+ * - Optional caching (off by default — agent traffic is rarely identical)
+ * - Optional rate limiting per-key for future cost control
+ * - A single observability surface across providers if/when we mix
+ *   Workers AI with OpenAI/Anthropic/etc via `ai-gateway-provider`.
+ *
+ * For `dev` we skip the IaC-managed resource — the AI Gateway API requires
+ * an API token (not the OAuth/wrangler login) and many devs won't have one
+ * configured. Local dev points at a manually-created `wodsmith-gateway`
+ * instead via `CF_AIG_GATEWAY` below.
+ *
+ * @see src/agents/judge-scheduler-agent.ts
+ */
+const aiGateway =
+  stage === "dev"
+    ? undefined
+    : await AiGateway(`ai-gateway-${stage}`, {
+        gatewayName: `wodsmith-${stage}`,
+        collectLogs: true,
+        cacheTtl: 0,
+        apiToken: alchemy.secret(process.env.CLOUDFLARE_API_TOKEN!),
+      })
+const aiGatewayName = aiGateway?.id ?? "wodsmith-gateway"
+
+/**
  * Cloudflare Queue for async broadcast email delivery.
  *
  * When an organizer sends a broadcast, recipient batches are enqueued here.
@@ -597,7 +672,24 @@ const website = await TanStackStart("app", {
     MANUAL_REGISTRATION_WORKFLOW: manualRegistrationWorkflow,
     /** Queue for async broadcast email delivery */
     BROADCAST_EMAIL_QUEUE: broadcastEmailQueue,
-
+    /** Durable Object namespace for the AI judge-scheduling agent */
+    JUDGE_SCHEDULER_AGENT: judgeSchedulerAgent,
+    /** Cloudflare Workers AI binding for LLM inference */
+    AI: aiBinding,
+    /**
+     * AI Gateway identifiers — the agent uses `ai-gateway-provider` to
+     * route Workers AI traffic through the managed gateway above so we
+     * get logs, analytics, and a single switchboard for adding non-CF
+     * providers later.
+     */
+    // Cloudflare account id — defaults to the wodsmith production
+    // account if `CLOUDFLARE_ACCOUNT_ID` isn't set in the deploy env.
+    // Pulling from env lets forks / new deploys target their own
+    // Cloudflare account without code changes.
+    CF_ACCOUNT_ID:
+      process.env.CLOUDFLARE_ACCOUNT_ID ??
+      "317fb84f366ea1ab038ca90000953697",
+    CF_AIG_GATEWAY: aiGatewayName,
     // App configuration
     // biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time
     APP_URL: process.env.APP_URL!,

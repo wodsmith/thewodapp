@@ -235,7 +235,7 @@ function OrganizerOnboardPage() {
             Host Your Next Competition
           </h1>
           <p className="mt-4 text-lg text-muted-foreground">
-            Everything you need to run professional CrossFit competitions. From
+            Everything you need to run professional Functional Fitness competitions. From
             registration to results, we've got you covered.
           </p>
         </div>
@@ -442,7 +442,7 @@ function OrganizerRequestForm({ teams }: { teams: TeamInfo[] }) {
               <FormItem>
                 <FormLabel>Team Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., CrossFit Downtown" {...field} />
+                  <Input placeholder="e.g., Functional Fitness Downtown" {...field} />
                 </FormControl>
                 <FormDescription>
                   This will be your organizing team's name

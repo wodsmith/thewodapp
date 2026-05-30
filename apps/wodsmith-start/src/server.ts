@@ -18,8 +18,10 @@ import { OAuthProvider } from "@cloudflare/workers-oauth-provider"
 import type { ExecutionContext, MessageBatch } from "@cloudflare/workers-types"
 import * as Sentry from "@sentry/cloudflare"
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry"
+import { getAgentByName } from "agents"
 import { sendBatchToPostHog } from "evlog/posthog"
 import { createWorkersLogger, initWorkersLogger } from "evlog/workers"
+import type { JudgeSchedulerAgent } from "./agents/judge-scheduler-agent"
 import { withEvlog } from "./lib/evlog"
 import {
   extractRequestInfo,
@@ -31,7 +33,7 @@ import { runWithOAuthHelpers } from "./lib/oauth-context"
 import { getSentryOptions } from "./lib/sentry/server"
 import { handleAnonymousMcpRequest, mcpApiHandler } from "./mcp/handler"
 import { ALL_MCP_SCOPES } from "./mcp/scopes"
-import { withSessionCache } from "./utils/auth"
+import { getSessionFromRequestCookie, withSessionCache } from "./utils/auth"
 
 // Sensitive field names to redact as a safety net in the drain.
 // This catches any PII that accidentally leaks through log.set().
@@ -98,6 +100,8 @@ initWorkersLogger({
   },
 })
 
+// Workers runtime requires Durable Object classes to be exported from the entry point
+export { JudgeSchedulerAgent } from "./agents/judge-scheduler-agent"
 export { ManualRegistrationWorkflow } from "./workflows/manual-registration-workflow"
 // Workers runtime requires Workflow classes to be exported from the entry point
 export { StripeCheckoutWorkflow } from "./workflows/stripe-checkout-workflow"
@@ -107,7 +111,43 @@ const SLOW_REQUEST_THRESHOLD_MS = 2000
 
 // Create the base TanStack Start entry with default fetch handling
 const startEntry = createServerEntry({
-  fetch(request) {
+  async fetch(request) {
+    // Route /agents/<namespace>/<name>/... to the matching Agent DO.
+    // We resolve the stub via getAgentByName (which calls setName under the
+    // hood and persists the name to DO storage) instead of routeAgentRequest
+    // — miniflare doesn't reliably expose ctx.id.name for idFromName() IDs,
+    // and persisting the name is also required for hibernating WS messages
+    // that re-instantiate the DO without the original Upgrade request.
+    const url = new URL(request.url)
+    const parts = url.pathname.split("/").filter(Boolean)
+    if (parts[0] === "agents" && parts.length >= 3) {
+      const namespace = parts[1]
+      const name = parts[2]
+      if (namespace === "judge-scheduler-agent") {
+        // Agent instance names are `<trackWorkoutId>__<userId>` (or
+        // `idle__<userId>` for the placeholder before a workout is
+        // selected). Reject anything else so an attacker can't spawn /
+        // probe arbitrary DO identities by hitting the route directly
+        // — getAgentByName persists the name and would otherwise let
+        // callers materialize as many DOs as they like.
+        const match = /^([a-z0-9_-]{1,128})__([a-z0-9_-]{1,128})$/i.exec(name)
+        if (!match) {
+          return new Response("Invalid agent name", { status: 400 })
+        }
+        const [, , userId] = match
+        const session = await getSessionFromRequestCookie(request)
+        if (!session?.userId || session.userId !== userId) {
+          return new Response("Unauthorized", { status: 401 })
+        }
+        // The DO namespace is typed as <undefined> by the autogen env types
+        // because alchemy doesn't pipe the class through. Cast to the agent
+        // class for the agents library's name-persistence helper.
+        const ns =
+          env.JUDGE_SCHEDULER_AGENT as unknown as DurableObjectNamespace<JudgeSchedulerAgent>
+        const stub = await getAgentByName(ns, name)
+        return stub.fetch(request)
+      }
+    }
     return handler.fetch(request)
   },
 })

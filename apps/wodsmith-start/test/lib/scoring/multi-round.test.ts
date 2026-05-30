@@ -200,7 +200,7 @@ describe('Multi-Round Workouts', () => {
     })
   })
 
-  describe('CrossFit Total (load, 3 lifts)', () => {
+  describe('Functional Fitness Total (load, 3 lifts)', () => {
     // Back Squat, Press, Deadlift - each with best of 3 attempts
 
     it('should handle nested aggregation (best of each, then sum)', () => {

@@ -7,7 +7,7 @@ WODsmith's domain centers on organizing and running functional fitness competiti
 Teams are the primary organizational unit. Every user belongs to at least one team (their auto-created personal team).
 
 Team types (`TEAM_TYPE_ENUM`):
-- **gym** — An organizing entity (CrossFit box, fitness studio). Can create competitions and programming tracks.
+- **gym** — An organizing entity (Functional Fitness box, fitness studio). Can create competitions and programming tracks.
 - **competition_event** — Auto-created when a competition is made. Holds registered athletes as members. Has a `parentOrganizationId` linking to the organizing gym.
 - **competition_team** — Athlete squads for team-division competitions (e.g., a team of 3 competing together).
 - **personal** — Auto-created per user for personal workout logging.
