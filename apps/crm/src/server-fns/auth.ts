@@ -2,7 +2,8 @@ import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
 import { getAuthPassword, getSessionSecret, isSecureAppUrl } from "@/lib/env"
 
-const SESSION_COOKIE = "crm_session"
+// `@lat`: [[auth]]
+export const SESSION_COOKIE = "crm_session"
 
 const MAX_LOGIN_ATTEMPTS = 5
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000 // 15 minutes
@@ -62,7 +63,8 @@ async function signToken(token: string): Promise<string> {
   return `${token}.${sigHex}`
 }
 
-async function verifyToken(cookie: string): Promise<boolean> {
+// `@lat`: [[auth]]
+export async function verifySessionToken(cookie: string): Promise<boolean> {
   const dotIndex = cookie.lastIndexOf(".")
   if (dotIndex === -1) return false
 
@@ -72,19 +74,54 @@ async function verifyToken(cookie: string): Promise<boolean> {
   return timingSafeEqual(cookie, expected)
 }
 
+function getCookieValue(request: Request, name: string) {
+  const cookie = request.headers.get("Cookie")
+  if (!cookie) return null
+
+  for (const part of cookie.split(";")) {
+    const [key, ...valueParts] = part.trim().split("=")
+    if (key !== name) continue
+
+    try {
+      return decodeURIComponent(valueParts.join("="))
+    } catch {
+      return null
+    }
+  }
+
+  return null
+}
+
+function getBearerToken(request: Request) {
+  const authorization = request.headers.get("Authorization")
+  const match = authorization?.match(/^Bearer\s+(.+)$/i)
+  return match?.[1] ?? null
+}
+
+// `@lat`: [[auth]]
+export async function isAuthenticatedRequest(request: Request) {
+  const bearerToken = getBearerToken(request)
+  if (bearerToken && (await verifySessionToken(bearerToken))) {
+    return true
+  }
+
+  const cookieToken = getCookieValue(request, SESSION_COOKIE)
+  return cookieToken ? verifySessionToken(cookieToken) : false
+}
+
 export const checkAuthFn = createServerFn({ method: "GET" }).handler(
   async () => {
     const { getCookie } = await import("@tanstack/react-start/server")
     const cookie = await getCookie(SESSION_COOKIE)
     if (!cookie) return false
-    return verifyToken(cookie)
+    return verifySessionToken(cookie)
   },
 )
 
 export async function requireAuth() {
   const { getCookie } = await import("@tanstack/react-start/server")
   const cookie = await getCookie(SESSION_COOKIE)
-  if (!cookie || !(await verifyToken(cookie))) {
+  if (!cookie || !(await verifySessionToken(cookie))) {
     throw new Error("Unauthorized")
   }
 }
