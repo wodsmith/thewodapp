@@ -59,7 +59,8 @@ function parseJson<T>(value: unknown): T | null {
 
 function formatDate(value: Date | string | null | undefined): string {
   if (!value) return ""
-  return new Date(value).toISOString()
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString()
 }
 
 function formatCents(value: number | null | undefined): string {
@@ -69,7 +70,7 @@ function formatCents(value: number | null | undefined): string {
 
 function csvCell(value: unknown): string {
   const text = String(value ?? "").replace(/"/g, '""')
-  const sanitized = /^[=+\-@]/.test(text) ? `'${text}` : text
+  const sanitized = /^[=+\-@\t\r\n]/.test(text) ? `'${text}` : text
   return `"${sanitized}"`
 }
 
@@ -102,11 +103,11 @@ export const exportSeriesRegistrationsCsvFn = createServerFn({ method: "GET" })
       (session.teams ?? []).some(
         (team) =>
           team.id === group.organizingTeamId &&
-          team.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING),
+          team.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS),
       )
     if (!hasPermission) {
       throw new Error(
-        `Missing required permission: ${TEAM_PERMISSIONS.MANAGE_PROGRAMMING}`,
+        `Missing required permission: ${TEAM_PERMISSIONS.MANAGE_COMPETITIONS}`,
       )
     }
 
