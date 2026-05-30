@@ -1,14 +1,11 @@
 "use client"
 
-import { DollarSign, Download, TrendingUp, Users } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { DollarSign, TrendingUp, Users } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { SeriesRevenueStats } from "@/server-fns/commerce-fns"
 
 interface SeriesRevenueSummaryProps {
   stats: SeriesRevenueStats
-  onExportCsv: () => void
-  isExporting?: boolean
 }
 
 function formatCents(cents: number): string {
@@ -18,11 +15,7 @@ function formatCents(cents: number): string {
   })
 }
 
-export function SeriesRevenueSummary({
-  stats,
-  onExportCsv,
-  isExporting = false,
-}: SeriesRevenueSummaryProps) {
+export function SeriesRevenueSummary({ stats }: SeriesRevenueSummaryProps) {
   if (stats.totalPurchaseCount === 0) {
     return null
   }
@@ -71,17 +64,6 @@ export function SeriesRevenueSummary({
           </CardContent>
         </Card>
       </div>
-
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={onExportCsv}
-        disabled={isExporting}
-        className="self-start"
-      >
-        <Download className="h-4 w-4" />
-        {isExporting ? "Exporting..." : "Export CSV"}
-      </Button>
     </div>
   )
 }
