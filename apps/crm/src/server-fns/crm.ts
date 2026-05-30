@@ -76,6 +76,8 @@ export interface CrmCampaign {
   status: string | null
   owner: string | null
   goal: string | null
+  templateSubject: string | null
+  templateBody: string | null
   startDate: string | null
   endDate: string | null
   audienceGymIds: string[]
@@ -156,6 +158,8 @@ const campaignInputSchema = z.object({
   status: z.string().max(100).optional(),
   owner: ownerSchema,
   goal: z.string().max(4000).optional(),
+  templateSubject: z.string().max(500).optional(),
+  templateBody: z.string().max(10000).optional(),
   startDate: z.string().max(20).optional(),
   endDate: z.string().max(20).optional(),
   audienceGymIds: z.array(z.string()).default([]),
@@ -475,6 +479,18 @@ async function ensureCampaignSchema() {
       name: "End Date",
       type: "date",
       sortOrder: 60,
+    }),
+    ensureField({
+      objectId: campaignObject.id,
+      name: "Template Subject",
+      type: "text",
+      sortOrder: 65,
+    }),
+    ensureField({
+      objectId: campaignObject.id,
+      name: "Template Body",
+      type: "longText",
+      sortOrder: 66,
     }),
     ensureField({
       objectId: campaignObject.id,
@@ -1029,6 +1045,8 @@ export async function readCrmData() {
       status: values.Status ?? null,
       owner: values.Owner ?? null,
       goal: values.Goal ?? null,
+      templateSubject: values["Template Subject"] ?? null,
+      templateBody: values["Template Body"] ?? null,
       startDate: values["Start Date"] ?? null,
       endDate: values["End Date"] ?? null,
       audienceGymIds,
@@ -1343,6 +1361,8 @@ export async function createCampaign(
     ["Status", clean(data.status) ?? "Planning"],
     ["Owner", clean(data.owner) ?? "Ian"],
     ["Goal", clean(data.goal)],
+    ["Template Subject", clean(data.templateSubject)],
+    ["Template Body", clean(data.templateBody)],
     ["Start Date", clean(data.startDate)],
     ["End Date", clean(data.endDate)],
   ]
@@ -1379,6 +1399,8 @@ export async function updateCampaign(
     ["Status", clean(data.status)],
     ["Owner", clean(data.owner)],
     ["Goal", clean(data.goal)],
+    ["Template Subject", clean(data.templateSubject)],
+    ["Template Body", clean(data.templateBody)],
     ["Start Date", clean(data.startDate)],
     ["End Date", clean(data.endDate)],
   ]

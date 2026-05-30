@@ -77,6 +77,7 @@ function CampaignDetailPage() {
   const [saving, setSaving] = useState(false)
   const [channel, setChannel] = useState("Email")
   const [touchTitle, setTouchTitle] = useState(`Email: ${campaign.name}`)
+  const [context, setContext] = useState("")
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [selectedSourceId, setSelectedSourceId] = useState(
     audienceContacts[0]?.id ?? audienceGyms[0]?.id ?? "",
@@ -93,6 +94,7 @@ function CampaignDetailPage() {
         companyId: contact.companyId,
         companyName: contact.companyName,
         email: contact.email,
+        notes: contact.notes,
       })),
       ...audienceGyms.map((gym) => ({
         id: gym.id,
@@ -101,6 +103,8 @@ function CampaignDetailPage() {
         companyId: gym.id,
         companyName: gym.name,
         email: gym.email,
+        notes: gym.notes,
+        location: gym.location,
       })),
     ],
     [audienceContacts, audienceGyms],
@@ -110,9 +114,9 @@ function CampaignDetailPage() {
   )
   const template = buildTemplate({
     channel,
-    campaignName: campaign.name,
-    campaignGoal: campaign.goal,
+    campaign,
     source: selectedSource,
+    context,
   })
 
   // `@lat`: [[crm-campaigns]]
@@ -127,8 +131,8 @@ function CampaignDetailPage() {
   }, [selectedSourceId, sources])
 
   useEffect(() => {
-    setTouchTitle(`${channel}: ${campaign.name}`)
-  }, [campaign.name, channel])
+    setTouchTitle(template.subject)
+  }, [template.subject])
 
   // `@lat`: [[crm-campaigns]]
   if (location.pathname !== `/campaigns/${campaign.id}`) {
@@ -165,6 +169,7 @@ function CampaignDetailPage() {
       })
       event.currentTarget.reset()
       setSelectedSourceId(sources[0]?.id ?? "")
+      setContext("")
       await router.invalidate()
     } finally {
       setSaving(false)
@@ -298,6 +303,16 @@ function CampaignDetailPage() {
           <div className="md:col-span-2">
             <TextInput name="notes" label="Notes" />
           </div>
+          <label className="space-y-1 text-sm font-medium md:col-span-4">
+            <span>Interaction Context</span>
+            <textarea
+              name="context"
+              value={context}
+              onChange={(event) => setContext(event.target.value)}
+              rows={3}
+              className="min-h-24 w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+            />
+          </label>
         </div>
         {submitError ? (
           <p className="mt-3 text-sm text-destructive">{submitError}</p>
@@ -423,36 +438,69 @@ function CampaignDetailPage() {
 
 function buildTemplate({
   channel,
-  campaignName,
-  campaignGoal,
+  campaign,
   source,
+  context,
 }: {
   channel: string
-  campaignName: string
-  campaignGoal: string | null
+  campaign: {
+    name: string
+    goal: string | null
+    templateSubject: string | null
+    templateBody: string | null
+  }
   source:
     | {
         type: "contact" | "gym"
         label: string
         companyName: string | null
+        email: string | null
+        notes?: string | null
+        location?: string | null
       }
     | undefined
+  context: string
 }) {
   const firstName = source?.label.split(" ")[0] ?? "there"
   const gymName = source?.companyName ?? source?.label ?? "your gym"
-  const goalLine = campaignGoal ? `\n\nContext: ${campaignGoal}` : ""
+  const fallback =
+    channel === "Email"
+      ? {
+          subject: `{{campaignName}} for {{gymName}}`,
+          body: "Hey {{firstName}},\n\nI wanted to reach out about {{campaignName}}. I think it could be a strong fit for {{gymName}} and wanted to see if it is worth a quick conversation.\n\n{{campaignGoal}}\n\nWould you be open to taking a look?\n\nIan",
+        }
+      : {
+          subject: "{{campaignName}}",
+          body: "Hey {{firstName}}, wanted to share {{campaignName}} with {{gymName}}. I think it could be a good fit. Open to a quick chat?",
+        }
 
-  if (channel === "Email") {
-    return {
-      subject: `${campaignName} for ${gymName}`,
-      body: `Hey ${firstName},\n\nI wanted to reach out about ${campaignName}. I think it could be a strong fit for ${gymName} and wanted to see if it is worth a quick conversation.${goalLine}\n\nWould you be open to taking a look?\n\nIan`,
-    }
+  const variables = {
+    campaignName: campaign.name,
+    campaignGoal: campaign.goal ?? "",
+    firstName,
+    sourceName: source?.label ?? "",
+    gymName,
+    email: source?.email ?? "",
+    notes: source?.notes ?? "",
+    location: source?.location ?? "",
   }
+
+  const body = renderTemplate(campaign.templateBody || fallback.body, variables)
+  const trimmedContext = context.trim()
 
   return {
-    subject: campaignName,
-    body: `Hey ${firstName}, wanted to share ${campaignName} with ${gymName}. I think it could be a good fit. Open to a quick chat?`,
+    subject: renderTemplate(
+      campaign.templateSubject || fallback.subject,
+      variables,
+    ),
+    body: trimmedContext ? `${body}\n\n${trimmedContext}` : body,
   }
+}
+
+function renderTemplate(template: string, values: Record<string, string>) {
+  return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_match, key: string) => {
+    return values[key] ?? ""
+  })
 }
 
 function touchDateValue(date: string | null) {
