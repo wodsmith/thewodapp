@@ -23,13 +23,13 @@ export function FinalCTA({ session }: FinalCTAProps) {
 
           {/* Headline */}
           <h2 className="mb-4 font-mono text-3xl font-bold tracking-tight sm:text-4xl">
-            Ready to run your next comp without the chaos?
+            Ready to see your competition take shape?
           </h2>
 
           {/* Promise */}
           <p className="mb-8 text-lg text-background/70 dark:text-muted-foreground">
-            Get started with a demo. We'll help you migrate from spreadsheets
-            and make sure your athletes trust the results.
+            Create a free draft, review the readiness checklist, and share a
+            public preview before you open paid registration.
           </p>
 
           {/* CTAs */}
@@ -46,7 +46,7 @@ export function FinalCTA({ session }: FinalCTAProps) {
                     : "/compete/organizer/onboard"
                 }
               >
-                Request Access
+                Create a Free Draft Competition
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
@@ -62,8 +62,8 @@ export function FinalCTA({ session }: FinalCTAProps) {
 
           {/* Friction clarifier */}
           <p className="mt-6 text-sm text-background/50 dark:text-muted-foreground">
-            No credit card required. Platform fee applies to paid registrations.
-            Concierge onboarding included.
+            No credit card required. Approval only gates paid registration when
+            needed.
           </p>
         </div>
       </div>

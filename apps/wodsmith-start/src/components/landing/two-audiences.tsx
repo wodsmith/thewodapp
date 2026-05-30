@@ -9,6 +9,7 @@ import {
   ClipboardCheck,
   FileText,
   Filter,
+  type LucideIcon,
   Trophy,
   Users,
 } from "lucide-react"
@@ -16,7 +17,16 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { SessionValidationResult } from "@/types"
 
-const athleteFeatures = [
+interface AudienceFeature {
+  icon: LucideIcon
+  title: string
+  description: string
+  available: boolean
+  label?: string
+  labelNote?: string
+}
+
+const athleteFeatures: AudienceFeature[] = [
   {
     icon: Filter,
     title: "My Division View",
@@ -42,30 +52,29 @@ const athleteFeatures = [
   },
 ]
 
-const organizerFeatures = [
+const organizerFeatures: AudienceFeature[] = [
   {
     icon: ClipboardCheck,
-    title: "Score Verification",
+    title: "Draft Readiness Checklist",
     description:
-      "Validation checks catch common mistakes. Publish controls per event/division.",
+      "See what is complete, what is missing, and how confident the setup is before athletes register.",
     available: true,
-    labelNote: "Photo evidence coming",
+    labelNote: "Appears as soon as you start",
   },
   {
     icon: Users,
-    title: "Volunteer and Judge scheduling",
+    title: "Public Preview",
     description:
-      "Assign judges by availability with conflict detection. Rotation patterns built in.",
+      "Generate a shareable competition page from the draft before registration opens.",
     available: true,
-    labelNote: "Verified credentials coming",
+    labelNote: "Free while you refine",
   },
   {
     icon: FileText,
-    title: "Audit Trail",
+    title: "Paid Registration Controls",
     description:
-      "Track who entered, edited, and verified scores. Complete history of changes.",
-    available: false,
-    label: "Coming soon",
+      "Keep registration closed until pricing, payout, and organizer approval are ready.",
+    available: true,
   },
 ]
 
@@ -156,7 +165,7 @@ export function TwoAudiences({ session }: TwoAudiencesProps) {
                   For Organizers
                 </span>
                 <h3 className="font-mono text-2xl font-bold">
-                  Run smooth operations
+                  Start with a draft
                 </h3>
               </div>
             </div>
@@ -206,7 +215,7 @@ export function TwoAudiences({ session }: TwoAudiencesProps) {
                       : "/compete/organizer/onboard"
                   }
                 >
-                  Host Your Competition
+                  Create a Free Draft Competition
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>

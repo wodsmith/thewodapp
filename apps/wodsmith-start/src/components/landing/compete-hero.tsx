@@ -24,20 +24,21 @@ export function CompeteHero({ session }: CompeteHeroProps) {
         {/* Proof nugget - visible above the fold */}
         <div className="mb-8 inline-flex items-center rounded-full border border-border bg-secondary px-4 py-1.5 font-medium text-sm">
           <span className="mr-2 h-2 w-2 animate-pulse rounded-full bg-amber-500" />
-          Built with comp organizers running multi-location series
+          Free drafts, public previews, paid registration when you are ready
         </div>
 
         {/* Headline - names the villain */}
         <h1 className="mb-12 font-mono text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl text-balance">
-          Run a smooth competition
+          Draft a competition
           <br className="hidden md:block" />
           <span className="text-primary">without spreadsheet ops</span>
         </h1>
 
         {/* Subheadline - the promise */}
         <p className="mx-auto mb-10 max-w-2xl text-lg text-muted-foreground md:text-xl text-balance">
-          No more volunteer scheduling chaos. WODsmith Compete handles the
-          backend nightmare so you can focus on what matters.
+          Build the shell for free, generate a public preview, and see your
+          setup confidence right away. Approval only gates paid registration
+          when it applies.
         </p>
 
         {/* CTAs */}
@@ -48,7 +49,7 @@ export function CompeteHero({ session }: CompeteHeroProps) {
                 isLoggedIn ? "/compete/organizer" : "/compete/organizer/onboard"
               }
             >
-              Request Access
+              Create a Free Draft Competition
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
@@ -68,7 +69,7 @@ export function CompeteHero({ session }: CompeteHeroProps) {
 
         {/* Friction clarifier */}
         <p className="mt-4 text-sm text-muted-foreground">
-          No credit card required. Platform fee applies to paid registrations.
+          No credit card required. Drafts and previews are free.
         </p>
       </div>
     </section>

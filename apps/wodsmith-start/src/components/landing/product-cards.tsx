@@ -14,10 +14,12 @@ const athleteFeatures = [
 ]
 
 const organizerFeatures = [
+  "Create a free draft competition before approval",
+  "Generate a public preview while registration stays closed",
+  "Use readiness checks to see what is missing",
   "Heat scheduling with venues and lane assignments",
   "Score entry and leaderboards by division",
-  "Athlete registration with Stripe payments",
-  "Track registration revenue and platform fees",
+  "Open paid registration after approval and payout setup",
 ]
 
 interface ProductCardsProps {
@@ -54,7 +56,7 @@ export function ProductCards({ session }: ProductCardsProps) {
             One Platform, Two Powerful Tools
           </h2>
           <p className="text-lg text-muted-foreground">
-            Whether you are chasing a new PR or hosting the next big throwdown,
+            Whether you are chasing a new PR or drafting the next big throwdown,
             we have the specialized tools you need.
           </p>
         </div>
@@ -167,7 +169,7 @@ export function ProductCards({ session }: ProductCardsProps) {
                       : "/compete/organizer/onboard"
                   }
                 >
-                  Host Your Competition
+                  Create a Free Draft Competition
                   <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
                 </Link>
               </Button>
