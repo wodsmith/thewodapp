@@ -112,7 +112,7 @@ Public pages use per-route `head` configs for metadata, Open Graph, Twitter card
 
 The homepage presents WODsmith Compete as a self-serve draft-first workflow for organizers.
 
-The primary public CTA is "Create a Free Draft Competition" in [[apps/wodsmith-start/src/components/landing/compete-hero.tsx#CompeteHero]] and [[apps/wodsmith-start/src/components/landing/final-cta.tsx#FinalCTA]]. The page explains that anyone can create a free draft and public preview, while approval applies only before opening paid registration when needed.
+The primary public CTA is "Create your First Draft Competition" in [[apps/wodsmith-start/src/components/landing/compete-hero.tsx#CompeteHero]] and [[apps/wodsmith-start/src/components/landing/final-cta.tsx#FinalCTA]]. The page explains that anyone can create a free draft and public preview, while approval applies only before opening paid registration when needed.
 
 Organizer support sections, including [[apps/wodsmith-start/src/components/landing/two-audiences.tsx#TwoAudiences]], reinforce the immediate checklist and confidence state so first use feels self-serve instead of gated by a demo request.
 

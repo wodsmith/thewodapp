@@ -49,7 +49,7 @@ export function CompeteHero({ session }: CompeteHeroProps) {
                 isLoggedIn ? "/compete/organizer" : "/compete/organizer/onboard"
               }
             >
-              Create a Free Draft Competition
+              Create your First Draft Competition
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>

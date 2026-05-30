@@ -169,7 +169,7 @@ export function ProductCards({ session }: ProductCardsProps) {
                       : "/compete/organizer/onboard"
                   }
                 >
-                  Create a Free Draft Competition
+                  Create your First Draft Competition
                   <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
                 </Link>
               </Button>
