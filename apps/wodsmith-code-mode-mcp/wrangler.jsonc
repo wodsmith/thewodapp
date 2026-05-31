@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "account_id": "317fb84f366ea1ab038ca90000953697",
+  "name": "wodsmith-code-mode-mcp-dev",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-12-17",
+  "compatibility_flags": ["nodejs_compat"],
+  "kv_namespaces": [
+    {
+      "binding": "KV_SESSION",
+      "id": "e971afc3bbb149bd93cbd5a4f993869a",
+      "preview_id": "e971afc3bbb149bd93cbd5a4f993869a",
+      "remote": true
+    }
+  ],
+  "services": [
+    {
+      "binding": "WODSMITH_APP",
+      "service": "wodsmith-app-dev",
+      "entrypoint": "WodsmithMcpOperations"
+    }
+  ],
+  "worker_loaders": [
+    {
+      "binding": "MCP_CODE_LOADER"
+    }
+  ]
+}

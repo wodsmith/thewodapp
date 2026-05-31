@@ -1,0 +1,28 @@
+{
+  "name": "wodsmith-code-mode-mcp",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --config wrangler.jsonc --port 8788 --local --persist-to ../wodsmith-start/.alchemy/local/.wrangler/state",
+    "deploy": "bun alchemy.run.ts",
+    "deploy:staging": "STAGE=staging bun alchemy.run.ts",
+    "deploy:destroy": "bun alchemy.run.ts --destroy",
+    "test": "vitest run",
+    "type-check": "tsc --noEmit",
+    "cf-typegen": "wrangler types"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "agents": "^0.12.4",
+    "alchemy": "catalog:",
+    "zod": "^4.2.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.0.6",
+    "@cloudflare/workers-types": "^4.20250508.0",
+    "@repo/typescript-config": "workspace:*",
+    "typescript": "^5.8.3",
+    "vitest": "^3.0.5",
+    "wrangler": "^4.56.0"
+  }
+}

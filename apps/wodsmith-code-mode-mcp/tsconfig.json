@@ -1,0 +1,10 @@
+{
+  "extends": "@repo/typescript-config/base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["@cloudflare/workers-types", "vitest/globals"],
+    "tsBuildInfoFile": ".tsbuildinfo"
+  },
+  "include": ["src", "test", "vitest.config.ts", "alchemy.run.ts"],
+  "exclude": ["node_modules", "dist", "build"]
+}

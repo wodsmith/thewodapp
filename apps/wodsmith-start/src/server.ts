@@ -99,6 +99,7 @@ initWorkersLogger({
 // Workers runtime requires Durable Object classes to be exported from the entry point
 export { JudgeSchedulerAgent } from "./agents/judge-scheduler-agent"
 export { ManualRegistrationWorkflow } from "./workflows/manual-registration-workflow"
+export { WodsmithMcpOperations } from "./mcp/rpc"
 // Workers runtime requires Workflow classes to be exported from the entry point
 export { StripeCheckoutWorkflow } from "./workflows/stripe-checkout-workflow"
 
