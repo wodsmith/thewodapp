@@ -17,6 +17,24 @@ function json(value: unknown, init?: ResponseInit): Response {
   })
 }
 
+function describeValue(value: unknown): Record<string, unknown> {
+  if (value === null) return { type: "null" }
+  if (value === undefined) return { type: "undefined" }
+  if (Array.isArray(value)) return { type: "array", length: value.length }
+  if (value instanceof Response) {
+    return {
+      type: "response",
+      status: value.status,
+      contentType: value.headers.get("Content-Type"),
+      serialized: value.headers.has("x-tss-serialized"),
+    }
+  }
+  if (typeof value === "object") {
+    return { type: "object", keys: Object.keys(value).slice(0, 20) }
+  }
+  return { type: typeof value }
+}
+
 export async function handleMcpOperationOutbound(
   request: Request,
   env: Env,
@@ -58,12 +76,21 @@ export async function handleMcpOperationOutbound(
   }
 
   try {
+    console.info("[MCP outbound] Calling WODsmith operation", {
+      operation,
+      input: describeValue(input ?? {}),
+      credentialKind: credential.kind,
+    })
     const result = await callCompetitionOperation(
       env,
       credential,
       operation,
       input ?? {},
     )
+    console.info("[MCP outbound] WODsmith operation returned", {
+      operation,
+      result: describeValue(result),
+    })
     return json({ result })
   } catch (error) {
     console.error("[MCP] Operation failed", error)

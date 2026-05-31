@@ -36,9 +36,11 @@ Sandboxed code cannot import app modules directly; it calls a narrow MCP worker 
 
 [[apps/wodsmith-code-mode-mcp/src/index.ts]] exports `WodsmithCodeModeOutbound`, a Worker entrypoint used as the Worker Loader isolate's global outbound binding. [[apps/wodsmith-code-mode-mcp/src/mcp/outbound.ts]] accepts only `POST https://wodsmith-mcp.internal/operation`, validates the request shape, and forwards the call through [[apps/wodsmith-code-mode-mcp/src/wodsmith-service.ts]], which invokes the `WODSMITH_APP` service binding instead of HTTP.
 
-[[apps/wodsmith-start/src/mcp/competition-operations.ts#callCompetitionOperation]] invokes compiled TanStack server functions through `__executeServer` under a minimal Start context, so MCP calls stay on the server execution path outside normal `_serverFn` requests.
+[[apps/wodsmith-start/src/mcp/competition-operations.ts#callCompetitionOperation]] invokes the imported server function directly under a minimal Start context, so MCP calls stay on the server execution path outside normal `_serverFn` requests. If direct execution is unavailable for a compiled handler, the dispatcher falls back to `__executeServer`.
 
 Compiled TanStack server functions can return a Start-serialized JSON `Response` rather than a plain `{ result }` object. The MCP operation wrapper unwraps that response before it crosses the service-binding boundary so Code Mode receives the actual operation result instead of `undefined`.
+
+The operation path logs bounded diagnostics at every boundary so undefined-result bugs can be traced without exposing payload values. Logs identify the operation id, credential kind, input/result shape, response status, content type, and serialized-response flag across [[apps/wodsmith-code-mode-mcp/src/mcp/outbound.ts]], [[apps/wodsmith-code-mode-mcp/src/wodsmith-service.ts]], [[apps/wodsmith-start/src/mcp/rpc.ts]], and [[apps/wodsmith-start/src/mcp/competition-operations.ts]].
 
 This keeps the MCP surface broad but still routed through the same validation, database writes, audit behavior, and permission checks used by the organizer dashboard without an addressable internal HTTP endpoint.
 

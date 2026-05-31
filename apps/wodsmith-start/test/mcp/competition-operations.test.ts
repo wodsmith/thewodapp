@@ -24,10 +24,13 @@ vi.mock("@tanstack/react-start", () => {
 
 vi.mock("@/server-fns/movement-fns", () => {
   const getAllMovementsFn = Object.assign(
-    async () => {
+    vi.fn(async ({ data }: { data: unknown }) => {
       movementFnState.directCalls += 1
-      throw new Error("compiled server function fetcher was called directly")
-    },
+      return {
+        ok: true,
+        data,
+      }
+    }),
     {
       __executeServer: async (opts: { data: unknown }) => {
         movementFnState.serverCalls += 1
@@ -85,6 +88,7 @@ import {
   callCompetitionOperation,
   competitionOperationSpecs,
 } from "@/mcp/competition-operations"
+import { getAllMovementsFn } from "@/server-fns/movement-fns"
 
 describe("competition MCP operation catalog", () => {
   beforeEach(() => {
@@ -135,7 +139,7 @@ describe("competition MCP operation catalog", () => {
     )
   })
 
-  it("executes compiled TanStack server functions through the server entrypoint", async () => {
+  it("executes imported server functions directly in the MCP server context", async () => {
     const input = { probe: true }
 
     await expect(
@@ -145,14 +149,18 @@ describe("competition MCP operation catalog", () => {
       data: input,
     })
 
-    expect(movementFnState.directCalls).toBe(0)
-    expect(movementFnState.serverCalls).toBe(1)
-    expect(movementFnState.serverData).toEqual([input])
+    expect(movementFnState.directCalls).toBe(1)
+    expect(movementFnState.serverCalls).toBe(0)
+    expect(movementFnState.serverData).toEqual([])
   })
 
-  it("unwraps serialized Response values from compiled TanStack server functions", async () => {
+  it("falls back to compiled TanStack server entrypoints when direct execution fails", async () => {
     const input = { serialized: true }
     movementFnState.responseMode = "serialized-response"
+    const directError = new Error("direct execution unavailable")
+    const directImplementation = vi
+      .mocked(getAllMovementsFn)
+      .mockRejectedValueOnce(directError)
 
     await expect(
       callCompetitionOperation("movements.getAllMovements", input),
@@ -161,7 +169,7 @@ describe("competition MCP operation catalog", () => {
       data: input,
     })
 
-    expect(movementFnState.directCalls).toBe(0)
+    expect(directImplementation).toHaveBeenCalledOnce()
     expect(movementFnState.serverCalls).toBe(1)
     expect(movementFnState.serverData).toEqual([input])
   })

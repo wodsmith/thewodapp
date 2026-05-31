@@ -645,6 +645,39 @@ const operationsById = new Map(
   operations.map((operation) => [operation.id, operation]),
 )
 
+function describeMcpValue(value: unknown): Record<string, unknown> {
+  if (value === null) return { type: "null" }
+  if (value === undefined) return { type: "undefined" }
+  if (Array.isArray(value)) return { type: "array", length: value.length }
+  if (value instanceof Response) {
+    return {
+      type: "response",
+      status: value.status,
+      ok: value.ok,
+      contentType: value.headers.get("Content-Type"),
+      serialized: value.headers.has("x-tss-serialized"),
+    }
+  }
+  if (typeof value === "object") {
+    return { type: "object", keys: Object.keys(value).slice(0, 20) }
+  }
+  return { type: typeof value }
+}
+
+function describeServerFnEnvelope(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || value instanceof Response) {
+    return describeMcpValue(value)
+  }
+
+  const envelope = value as Record<string, unknown>
+  return {
+    ...describeMcpValue(value),
+    result: describeMcpValue(envelope.result),
+    error: describeMcpValue(envelope.error),
+    context: describeMcpValue(envelope.context),
+  }
+}
+
 function createMcpStartContext(request?: Request) {
   return {
     getRouter: async () => {
@@ -670,7 +703,38 @@ async function callServerFunction(
   request?: Request,
 ): Promise<unknown> {
   const executeServer = handler.__executeServer
+  try {
+    console.info("[MCP operations] Executing direct server function handler", {
+      handler: handler.name || "<anonymous>",
+      input: describeMcpValue(input ?? {}),
+      hasRequest: Boolean(request),
+    })
+    const result = await runWithStartContext(
+      createMcpStartContext(request),
+      () => handler({ data: input ?? {} }),
+    )
+    console.info("[MCP operations] Direct server function handler returned", {
+      handler: handler.name || "<anonymous>",
+      result: describeMcpValue(result),
+    })
+    return result
+  } catch (error) {
+    if (typeof executeServer !== "function") {
+      throw error
+    }
+
+    console.info("[MCP operations] Direct handler failed; falling back to compiled server entrypoint", {
+      handler: handler.name || "<anonymous>",
+      error: describeMcpValue(error),
+    })
+  }
+
   if (typeof executeServer === "function") {
+    console.info("[MCP operations] Executing TanStack server function", {
+      handler: handler.name || "<anonymous>",
+      input: describeMcpValue(input ?? {}),
+      hasRequest: Boolean(request),
+    })
     const abortController = new AbortController()
     const response = await runWithStartContext(
       createMcpStartContext(request),
@@ -683,15 +747,27 @@ async function callServerFunction(
         }),
     )
 
-    return unwrapServerFunctionResponse(response)
+    console.info("[MCP operations] Server function raw response", {
+      handler: handler.name || "<anonymous>",
+      response: describeServerFnEnvelope(response),
+    })
+    const result = await unwrapServerFunctionResponse(response)
+    console.info("[MCP operations] Server function unwrapped result", {
+      handler: handler.name || "<anonymous>",
+      result: describeMcpValue(result),
+    })
+    return result
   }
 
-  return handler({ data: input ?? {} })
+  throw new Error("Server function has no executable handler")
 }
 
 async function unwrapServerFunctionResponse(
   response: ServerFnResult | Response | unknown,
 ): Promise<unknown> {
+  console.info("[MCP operations] Unwrapping server function response", {
+    response: describeServerFnEnvelope(response),
+  })
   if (response instanceof Response) {
     if (!response.ok) {
       throw new Error(`Server function failed with status ${response.status}`)
@@ -702,12 +778,19 @@ async function unwrapServerFunctionResponse(
 
     if (isSerialized && contentType.includes("application/json")) {
       const payload = await response.json()
+      console.info("[MCP operations] Decoding serialized server response", {
+        payload: describeMcpValue(payload),
+      })
       const unwrapped = fromSimpleCrossJson(payload as CrossJsonNode)
       return unwrapServerFunctionResponse(unwrapped)
     }
 
     if (contentType.includes("application/json")) {
-      return response.json()
+      const json = await response.json()
+      console.info("[MCP operations] Decoded JSON server response", {
+        json: describeMcpValue(json),
+      })
+      return json
     }
 
     return response
@@ -770,5 +853,18 @@ export async function callCompetitionOperation(
     throw new Error(`Unknown competition operation: ${operationId}`)
   }
 
-  return callServerFunction(operation.handler, input, request)
+  console.info("[MCP operations] Dispatching competition operation", {
+    operationId,
+    exportName: operation.exportName,
+    mode: operation.mode,
+    input: describeMcpValue(input ?? {}),
+    hasRequest: Boolean(request),
+  })
+  const result = await callServerFunction(operation.handler, input, request)
+  console.info("[MCP operations] Competition operation completed", {
+    operationId,
+    exportName: operation.exportName,
+    result: describeMcpValue(result),
+  })
+  return result
 }
