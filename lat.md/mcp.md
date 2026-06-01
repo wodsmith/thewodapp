@@ -8,6 +8,8 @@ The MCP protocol endpoint lives in a standalone Worker app.
 
 [[apps/wodsmith-code-mode-mcp/src/index.ts]] serves `/mcp` and `/api/mcp` without going through the TanStack Start router. [[apps/wodsmith-code-mode-mcp/src/auth.ts]] accepts WODsmith bearer session tokens or the normal WODsmith cookie, validates the shared `KV_SESSION` record, and keeps the original credential for downstream operation calls.
 
+[[apps/wodsmith-code-mode-mcp/src/oauth-resource.ts]] advertises the MCP worker as an OAuth protected resource. [[apps/wodsmith-start/src/mcp/oauth.ts]] makes WODsmith Start the OAuth authorization server with discovery metadata, dynamic client registration, authorization-code-with-PKCE issuance, and token exchange backed by the existing session KV store. The issued OAuth access token is the same opaque `{userId}:{sessionToken}` bearer format that the MCP worker and Start RPC already validate.
+
 The server registers two tools in [[apps/wodsmith-code-mode-mcp/src/mcp/server.ts]]:
 - `search` runs isolated JavaScript over the operation catalog only, for discovery and filtering.
 - `execute` runs isolated JavaScript with `wodsmith.call(operationId, input)`, so agents can sequence multiple organizer operations in one sandboxed script.

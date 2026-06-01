@@ -27,6 +27,7 @@ vi.mock("../../src/mcp/executor", () => ({
 }))
 
 const { createWodsmithMcpServer } = await import("../../src/mcp/server")
+const { protectedResourceMetadata } = await import("../../src/oauth-resource")
 
 const operationSpecs: CompetitionOperationSpec[] = [
   {
@@ -164,5 +165,22 @@ describe("WODsmith code mode MCP protocol server", () => {
 
     await client.close()
     await server.close()
+  })
+
+  it("advertises the WODsmith authorization server as its OAuth resource metadata", async () => {
+    const response = protectedResourceMetadata(
+      new Request(
+        "https://mcp.wodsmith.com/.well-known/oauth-protected-resource",
+      ),
+      {
+        WODSMITH_AUTHORIZATION_SERVER_URL: "https://wodsmith.com",
+      } as Env,
+    )
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toMatchObject({
+      resource: "https://mcp.wodsmith.com",
+      authorization_servers: ["https://wodsmith.com"],
+    })
   })
 })

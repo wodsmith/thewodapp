@@ -136,5 +136,14 @@ export async function authenticateMcpRequest(
 }
 
 export function unauthorizedResponse(): Response {
-  return Response.json({ error: "Unauthorized" }, { status: 401 })
+  return Response.json(
+    { error: "Unauthorized" },
+    {
+      status: 401,
+      headers: {
+        "WWW-Authenticate":
+          'Bearer error="invalid_token", error_description="Missing or invalid OAuth access token"',
+      },
+    },
+  )
 }

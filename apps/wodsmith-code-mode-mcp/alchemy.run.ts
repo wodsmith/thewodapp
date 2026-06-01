@@ -34,6 +34,14 @@ function getDomains(currentStage: string): string[] | undefined {
   return undefined
 }
 
+function getAuthorizationServerUrl(currentStage: string): string {
+  if (process.env.WODSMITH_AUTHORIZATION_SERVER_URL) {
+    return process.env.WODSMITH_AUTHORIZATION_SERVER_URL
+  }
+  if (currentStage === "demo") return "https://demo.wodsmith.com"
+  return "https://wodsmith.com"
+}
+
 const worker = await Worker("app", {
   name: `wodsmith-code-mode-mcp-${stage}`,
   entrypoint: "./src/index.ts",
@@ -46,6 +54,7 @@ const worker = await Worker("app", {
       WorkerRef({ service: getWodsmithServiceName(stage) }),
       "WodsmithMcpOperations",
     ),
+    WODSMITH_AUTHORIZATION_SERVER_URL: getAuthorizationServerUrl(stage),
   },
   domains: getDomains(stage),
   adopt: true,
