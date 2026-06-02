@@ -37,7 +37,7 @@ function unique(values) {
 }
 
 function cleanPdfUrl(url) {
-  return decodeHtml(url).replace(/=$/, "")
+  return decodeHtml(url)
 }
 
 function extractWorkoutSummary(lines) {
@@ -191,7 +191,15 @@ const workouts = []
 
 for (const year of DEFAULT_YEARS) {
   for (let week = 1; week <= WORKOUTS_PER_YEAR; week += 1) {
-    workouts.push(await fetchWorkout(year, week))
+    try {
+      workouts.push(await fetchWorkout(year, week))
+    } catch (error) {
+      console.error(
+        `Skipping CrossFit Open ${year}.${week}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      )
+    }
   }
 }
 

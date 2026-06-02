@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router"
+import { createFileRoute, Link } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { CheckSquare, Eye, EyeOff, Loader2, Search, Square } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
@@ -101,7 +101,6 @@ function statusBadge(status: EventStatus | null) {
 function SeriesPublishWorkoutsPage() {
   const { groupId } = Route.useParams()
   const loaderData = Route.useLoaderData()
-  const router = useRouter()
   const bulkUpdateStatus = useServerFn(bulkUpdateSeriesCompetitionEventStatusFn)
 
   const [competitions, setCompetitions] = useState(loaderData.competitions)
@@ -180,7 +179,6 @@ function SeriesPublishWorkoutsPage() {
   )
 
   const refreshData = async () => {
-    await router.invalidate()
     const result = await getSeriesCompetitionEventPublishStatusFn({
       data: { groupId },
     })

@@ -635,17 +635,21 @@ export const bulkUpdateSeriesCompetitionEventStatusFn = createServerFn({
         .where(inArray(trackWorkoutsTable.parentEventId, uniqueTrackWorkoutIds))
 
       const updatedAt = new Date()
-      await db
-        .update(trackWorkoutsTable)
-        .set({ eventStatus: data.eventStatus, updatedAt })
-        .where(inArray(trackWorkoutsTable.id, uniqueTrackWorkoutIds))
-
-      if (childEvents.length > 0) {
-        await db
+      await db.transaction(async (tx) => {
+        await tx
           .update(trackWorkoutsTable)
           .set({ eventStatus: data.eventStatus, updatedAt })
-          .where(inArray(trackWorkoutsTable.parentEventId, uniqueTrackWorkoutIds))
-      }
+          .where(inArray(trackWorkoutsTable.id, uniqueTrackWorkoutIds))
+
+        if (childEvents.length > 0) {
+          await tx
+            .update(trackWorkoutsTable)
+            .set({ eventStatus: data.eventStatus, updatedAt })
+            .where(
+              inArray(trackWorkoutsTable.parentEventId, uniqueTrackWorkoutIds),
+            )
+        }
+      })
 
       return {
         success: true,
@@ -1399,17 +1403,19 @@ function filterTemplateEventsForSync<
     return templateEvents
   }
 
-  const allowedIds = new Set(templateEventIds)
+  const selectedIds = new Set(templateEventIds)
+  const ancestorIds = new Set<string>()
   for (const event of templateEvents) {
-    if (event.parentEventId && allowedIds.has(event.id)) {
-      allowedIds.add(event.parentEventId)
+    if (event.parentEventId && selectedIds.has(event.id)) {
+      ancestorIds.add(event.parentEventId)
     }
   }
 
   return templateEvents.filter(
     (event) =>
-      allowedIds.has(event.id) ||
-      (event.parentEventId && allowedIds.has(event.parentEventId)),
+      selectedIds.has(event.id) ||
+      ancestorIds.has(event.id) ||
+      (event.parentEventId && selectedIds.has(event.parentEventId)),
   )
 }
 
