@@ -70,6 +70,14 @@ The picker starts with no competitions selected so organizers explicitly choose 
 
 Changes include field-level diffs (e.g., "name: Old Name → New Name"), order changes, "movements updated", "N resources to add", "N judging sheets to add", and whether sync will create a new event or save a mapping to an existing unmapped event.
 
+## Competition Workout Publishing
+
+Series workout publishing manages visibility for real competition events, not template events.
+
+The dedicated `/series/{groupId}/publish-workouts` page loads each child competition's top-level `track_workouts` and current `eventStatus` via [[apps/wodsmith-start/src/server-fns/series-event-template-fns.ts#getSeriesCompetitionEventPublishStatusFn]]. Organizers can search by competition or workout name, filter by draft/published status, select visible draft workouts, and bulk publish or unpublish selected parent workouts.
+
+Bulk updates use [[apps/wodsmith-start/src/server-fns/series-event-template-fns.ts#bulkUpdateSeriesCompetitionEventStatusFn]], which validates that every selected event belongs to a competition in the series and is a top-level event. The update writes the selected parent `eventStatus` and cascades the same status to child sub-events so public workout visibility stays aligned with the competition event hierarchy.
+
 ## Event Matching
 
 Event matching connects each competition's events to the series template for leaderboard scoring.
@@ -122,6 +130,8 @@ All defined in `src/server-fns/series-event-template-fns.ts`:
 - `syncTemplateEventsToCompetitionsFn` — Sync template to competitions
 - `previewSyncEventsToCompetitionsFn` — Preview sync changes
 - `getCompetitionEventSyncStatusFn` — Per-competition sync status
+- `getSeriesCompetitionEventPublishStatusFn` — Load actual competition event publish status for the series
+- `bulkUpdateSeriesCompetitionEventStatusFn` — Bulk publish or unpublish actual competition events in the series
 - `syncResourcesAndSheetsToCompetitionsFn` — Standalone resource/sheet sync
 
 ## Routes
@@ -131,3 +141,4 @@ Series event template routes are nested under the organizer series layout at `/c
 - `/series/{groupId}/events` — Layout route with `<Outlet />`
 - `/series/{groupId}/events/` — Single page with event template editor + sync button, followed by the event matching card below
 - `/series/{groupId}/events/{eventId}` — Full event edit page (standalone or parent with tabbed sub-events)
+- `/series/{groupId}/publish-workouts` — Bulk publish/unpublish page for actual competition event visibility

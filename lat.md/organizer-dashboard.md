@@ -278,7 +278,13 @@ Fetches organizer-eligible teams, competition groups, and series template divisi
 
 Series (competition groups) aggregate scores across multiple competitions.
 
-The series listing and creation pages live under `_dashboard/series/` (with the standard dashboard nav/container). Individual series detail pages at `/compete/organizer/series/{groupId}` use a dedicated sidebar layout (outside the dashboard wrapper), matching the competition organizer sidebar pattern — including team authorization in the layout loader. The sidebar provides navigation to overview, edit, divisions, registration questions, event template, and leaderboard pages. The series detail page also supports managing co-hosts across all competitions in the series via `getSeriesCohostsFn`, `inviteSeriesCohostFn`, and `removeSeriesCohostFn` from `@/server-fns/series-cohost-fns`.
+The series listing and creation pages live under `_dashboard/series/` (with the standard dashboard nav/container). Individual series detail pages at `/compete/organizer/series/{groupId}` use a dedicated sidebar layout (outside the dashboard wrapper), matching the competition organizer sidebar pattern — including team authorization in the layout loader. The sidebar provides navigation to overview, edit, divisions, registration questions, event template, publish workouts, and leaderboard pages. The series detail page also supports managing co-hosts across all competitions in the series via `getSeriesCohostsFn`, `inviteSeriesCohostFn`, and `removeSeriesCohostFn` from `@/server-fns/series-cohost-fns`.
+
+### Series Workout Publishing
+
+Series workout publishing lets organizers change public workout visibility across child competitions.
+
+The page at [[apps/wodsmith-start/src/routes/compete/organizer/series/$groupId/publish-workouts.tsx]] is separate from the event template UI so organizers do not confuse canonical template editing with actual competition event visibility. It reads top-level competition events and bulk updates selected parent `eventStatus` values, cascading the same publish state to child sub-events.
 
 The series overview exposes "Export Revenue Data" and "Export Registration Data" actions under the Series Details slug. Registration export is backed by [[apps/wodsmith-start/src/server-fns/series-registration-export-fns.ts#exportSeriesRegistrationsCsvFn]], requires `MANAGE_COMPETITIONS` on the organizing team, and returns one CSV row per athlete, teammate, or pending invite across every competition in the series, including division/team fields, user profile fields, registration timestamps/status, payment totals and fees, series and competition question answers, and waiver signature timestamps.
 

@@ -178,6 +178,7 @@ import { Route as ProtectedLogIdEditIndexRouteImport } from './routes/_protected
 import { Route as ProtectedAdminTeamsScalingIndexRouteImport } from './routes/_protected/admin/teams/scaling/index'
 import { Route as ProtectedAdminTeamsProgrammingIndexRouteImport } from './routes/_protected/admin/teams/programming/index'
 import { Route as CompeteOrganizerSeriesGroupIdRegistrationQuestionsRouteImport } from './routes/compete/organizer/series/$groupId/registration-questions'
+import { Route as CompeteOrganizerSeriesGroupIdPublishWorkoutsRouteImport } from './routes/compete/organizer/series/$groupId/publish-workouts'
 import { Route as CompeteOrganizerSeriesGroupIdLeaderboardRouteImport } from './routes/compete/organizer/series/$groupId/leaderboard'
 import { Route as CompeteOrganizerSeriesGroupIdEventsRouteImport } from './routes/compete/organizer/series/$groupId/events'
 import { Route as CompeteOrganizerSeriesGroupIdEventMappingsRouteImport } from './routes/compete/organizer/series/$groupId/event-mappings'
@@ -1151,6 +1152,12 @@ const CompeteOrganizerSeriesGroupIdRegistrationQuestionsRoute =
     path: '/registration-questions',
     getParentRoute: () => CompeteOrganizerSeriesGroupIdRoute,
   } as any)
+const CompeteOrganizerSeriesGroupIdPublishWorkoutsRoute =
+  CompeteOrganizerSeriesGroupIdPublishWorkoutsRouteImport.update({
+    id: '/publish-workouts',
+    path: '/publish-workouts',
+    getParentRoute: () => CompeteOrganizerSeriesGroupIdRoute,
+  } as any)
 const CompeteOrganizerSeriesGroupIdLeaderboardRoute =
   CompeteOrganizerSeriesGroupIdLeaderboardRouteImport.update({
     id: '/leaderboard',
@@ -1497,6 +1504,7 @@ export interface FileRoutesByFullPath {
   '/compete/organizer/series/$groupId/event-mappings': typeof CompeteOrganizerSeriesGroupIdEventMappingsRoute
   '/compete/organizer/series/$groupId/events': typeof CompeteOrganizerSeriesGroupIdEventsRouteWithChildren
   '/compete/organizer/series/$groupId/leaderboard': typeof CompeteOrganizerSeriesGroupIdLeaderboardRoute
+  '/compete/organizer/series/$groupId/publish-workouts': typeof CompeteOrganizerSeriesGroupIdPublishWorkoutsRoute
   '/compete/organizer/series/$groupId/registration-questions': typeof CompeteOrganizerSeriesGroupIdRegistrationQuestionsRoute
   '/admin/teams/programming': typeof ProtectedAdminTeamsProgrammingIndexRoute
   '/admin/teams/scaling': typeof ProtectedAdminTeamsScalingIndexRoute
@@ -1681,6 +1689,7 @@ export interface FileRoutesByTo {
   '/compete/organizer/series/$groupId/edit': typeof CompeteOrganizerSeriesGroupIdEditRoute
   '/compete/organizer/series/$groupId/event-mappings': typeof CompeteOrganizerSeriesGroupIdEventMappingsRoute
   '/compete/organizer/series/$groupId/leaderboard': typeof CompeteOrganizerSeriesGroupIdLeaderboardRoute
+  '/compete/organizer/series/$groupId/publish-workouts': typeof CompeteOrganizerSeriesGroupIdPublishWorkoutsRoute
   '/compete/organizer/series/$groupId/registration-questions': typeof CompeteOrganizerSeriesGroupIdRegistrationQuestionsRoute
   '/admin/teams/programming': typeof ProtectedAdminTeamsProgrammingIndexRoute
   '/admin/teams/scaling': typeof ProtectedAdminTeamsScalingIndexRoute
@@ -1880,6 +1889,7 @@ export interface FileRoutesById {
   '/compete/organizer/series/$groupId/event-mappings': typeof CompeteOrganizerSeriesGroupIdEventMappingsRoute
   '/compete/organizer/series/$groupId/events': typeof CompeteOrganizerSeriesGroupIdEventsRouteWithChildren
   '/compete/organizer/series/$groupId/leaderboard': typeof CompeteOrganizerSeriesGroupIdLeaderboardRoute
+  '/compete/organizer/series/$groupId/publish-workouts': typeof CompeteOrganizerSeriesGroupIdPublishWorkoutsRoute
   '/compete/organizer/series/$groupId/registration-questions': typeof CompeteOrganizerSeriesGroupIdRegistrationQuestionsRoute
   '/_protected/admin/teams/programming/': typeof ProtectedAdminTeamsProgrammingIndexRoute
   '/_protected/admin/teams/scaling/': typeof ProtectedAdminTeamsScalingIndexRoute
@@ -2079,6 +2089,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/series/$groupId/event-mappings'
     | '/compete/organizer/series/$groupId/events'
     | '/compete/organizer/series/$groupId/leaderboard'
+    | '/compete/organizer/series/$groupId/publish-workouts'
     | '/compete/organizer/series/$groupId/registration-questions'
     | '/admin/teams/programming'
     | '/admin/teams/scaling'
@@ -2263,6 +2274,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/series/$groupId/edit'
     | '/compete/organizer/series/$groupId/event-mappings'
     | '/compete/organizer/series/$groupId/leaderboard'
+    | '/compete/organizer/series/$groupId/publish-workouts'
     | '/compete/organizer/series/$groupId/registration-questions'
     | '/admin/teams/programming'
     | '/admin/teams/scaling'
@@ -2461,6 +2473,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/series/$groupId/event-mappings'
     | '/compete/organizer/series/$groupId/events'
     | '/compete/organizer/series/$groupId/leaderboard'
+    | '/compete/organizer/series/$groupId/publish-workouts'
     | '/compete/organizer/series/$groupId/registration-questions'
     | '/_protected/admin/teams/programming/'
     | '/_protected/admin/teams/scaling/'
@@ -3718,6 +3731,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompeteOrganizerSeriesGroupIdRegistrationQuestionsRouteImport
       parentRoute: typeof CompeteOrganizerSeriesGroupIdRoute
     }
+    '/compete/organizer/series/$groupId/publish-workouts': {
+      id: '/compete/organizer/series/$groupId/publish-workouts'
+      path: '/publish-workouts'
+      fullPath: '/compete/organizer/series/$groupId/publish-workouts'
+      preLoaderRoute: typeof CompeteOrganizerSeriesGroupIdPublishWorkoutsRouteImport
+      parentRoute: typeof CompeteOrganizerSeriesGroupIdRoute
+    }
     '/compete/organizer/series/$groupId/leaderboard': {
       id: '/compete/organizer/series/$groupId/leaderboard'
       path: '/leaderboard'
@@ -4491,6 +4511,7 @@ interface CompeteOrganizerSeriesGroupIdRouteChildren {
   CompeteOrganizerSeriesGroupIdEventMappingsRoute: typeof CompeteOrganizerSeriesGroupIdEventMappingsRoute
   CompeteOrganizerSeriesGroupIdEventsRoute: typeof CompeteOrganizerSeriesGroupIdEventsRouteWithChildren
   CompeteOrganizerSeriesGroupIdLeaderboardRoute: typeof CompeteOrganizerSeriesGroupIdLeaderboardRoute
+  CompeteOrganizerSeriesGroupIdPublishWorkoutsRoute: typeof CompeteOrganizerSeriesGroupIdPublishWorkoutsRoute
   CompeteOrganizerSeriesGroupIdRegistrationQuestionsRoute: typeof CompeteOrganizerSeriesGroupIdRegistrationQuestionsRoute
   CompeteOrganizerSeriesGroupIdIndexRoute: typeof CompeteOrganizerSeriesGroupIdIndexRoute
 }
@@ -4507,6 +4528,8 @@ const CompeteOrganizerSeriesGroupIdRouteChildren: CompeteOrganizerSeriesGroupIdR
       CompeteOrganizerSeriesGroupIdEventsRouteWithChildren,
     CompeteOrganizerSeriesGroupIdLeaderboardRoute:
       CompeteOrganizerSeriesGroupIdLeaderboardRoute,
+    CompeteOrganizerSeriesGroupIdPublishWorkoutsRoute:
+      CompeteOrganizerSeriesGroupIdPublishWorkoutsRoute,
     CompeteOrganizerSeriesGroupIdRegistrationQuestionsRoute:
       CompeteOrganizerSeriesGroupIdRegistrationQuestionsRoute,
     CompeteOrganizerSeriesGroupIdIndexRoute:

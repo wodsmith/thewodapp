@@ -84,6 +84,27 @@ export interface SeriesTemplateEvent {
   scoreType: string | null
 }
 
+export interface SeriesCompetitionPublishEvent {
+  id: string
+  name: string
+  trackOrder: number
+  eventStatus: "draft" | "published" | null
+  childEvents: Array<{
+    id: string
+    name: string
+    trackOrder: number
+    eventStatus: "draft" | "published" | null
+  }>
+}
+
+export interface SeriesCompetitionPublishStatus {
+  competition: {
+    id: string
+    name: string
+  }
+  events: SeriesCompetitionPublishEvent[]
+}
+
 // ============================================================================
 // Helpers
 // ============================================================================
@@ -401,6 +422,236 @@ export const getSeriesCompetitionsForTemplateFn = createServerFn({
         result.push({ id: comp.id, name: comp.name, eventCount })
       }
       return { competitions: result }
+    },
+  )
+
+/**
+ * Get publish visibility for actual competition events across a series.
+ * This reads competition track_workouts, not the series template track.
+ */
+export const getSeriesCompetitionEventPublishStatusFn = createServerFn({
+  method: "GET",
+})
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        groupId: z.string().min(1),
+      })
+      .parse(data),
+  )
+  .handler(
+    async ({
+      data,
+    }): Promise<{ competitions: SeriesCompetitionPublishStatus[] }> => {
+      const db = getDb()
+      const session = await getSessionFromCookie()
+      if (!session?.userId) throw new Error("Not authenticated")
+
+      const [group] = await db
+        .select()
+        .from(competitionGroupsTable)
+        .where(eq(competitionGroupsTable.id, data.groupId))
+      if (!group) throw new Error("Series group not found")
+
+      await requireTeamPermission(
+        group.organizingTeamId,
+        TEAM_PERMISSIONS.ACCESS_DASHBOARD,
+      )
+
+      const comps = await db
+        .select({
+          id: competitionsTable.id,
+          name: competitionsTable.name,
+        })
+        .from(competitionsTable)
+        .where(eq(competitionsTable.groupId, data.groupId))
+
+      if (comps.length === 0) return { competitions: [] }
+
+      const compIds = comps.map((comp) => comp.id)
+      const compTracks = await db
+        .select({
+          id: programmingTracksTable.id,
+          competitionId: programmingTracksTable.competitionId,
+        })
+        .from(programmingTracksTable)
+        .where(inArray(programmingTracksTable.competitionId, compIds))
+
+      const trackIds = compTracks.map((track) => track.id)
+      const events =
+        trackIds.length > 0
+          ? await db
+              .select({
+                id: trackWorkoutsTable.id,
+                trackId: trackWorkoutsTable.trackId,
+                trackOrder: trackWorkoutsTable.trackOrder,
+                parentEventId: trackWorkoutsTable.parentEventId,
+                eventStatus: trackWorkoutsTable.eventStatus,
+                workoutName: workouts.name,
+              })
+              .from(trackWorkoutsTable)
+              .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+              .where(inArray(trackWorkoutsTable.trackId, trackIds))
+              .orderBy(asc(trackWorkoutsTable.trackOrder))
+          : []
+
+      const trackIdByCompetitionId = new Map(
+        compTracks
+          .filter((track) => track.competitionId !== null)
+          .map((track) => [track.competitionId as string, track.id]),
+      )
+      const eventsByTrackId = new Map<string, typeof events>()
+      for (const event of events) {
+        const trackEvents = eventsByTrackId.get(event.trackId) ?? []
+        trackEvents.push(event)
+        eventsByTrackId.set(event.trackId, trackEvents)
+      }
+
+      const competitions = comps.map((competition) => {
+        const trackId = trackIdByCompetitionId.get(competition.id)
+        const competitionEvents = trackId
+          ? [...(eventsByTrackId.get(trackId) ?? [])].sort(
+              (a, b) => Number(a.trackOrder) - Number(b.trackOrder),
+            )
+          : []
+        const childrenByParent = new Map<string, typeof competitionEvents>()
+        for (const event of competitionEvents) {
+          if (!event.parentEventId) continue
+          const children = childrenByParent.get(event.parentEventId) ?? []
+          children.push(event)
+          childrenByParent.set(event.parentEventId, children)
+        }
+
+        return {
+          competition: {
+            id: competition.id,
+            name: competition.name,
+          },
+          events: competitionEvents
+            .filter((event) => !event.parentEventId)
+            .map((event) => ({
+              id: event.id,
+              name: event.workoutName,
+              trackOrder: Number(event.trackOrder),
+              eventStatus: event.eventStatus,
+              childEvents: (childrenByParent.get(event.id) ?? []).map(
+                (childEvent) => ({
+                  id: childEvent.id,
+                  name: childEvent.workoutName,
+                  trackOrder: Number(childEvent.trackOrder),
+                  eventStatus: childEvent.eventStatus,
+                }),
+              ),
+            })),
+        }
+      })
+
+      return { competitions }
+    },
+  )
+
+/**
+ * Bulk publish or unpublish actual competition events across a series.
+ * Only top-level events may be selected; child sub-events are cascaded.
+ */
+export const bulkUpdateSeriesCompetitionEventStatusFn = createServerFn({
+  method: "POST",
+})
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        groupId: z.string().min(1),
+        trackWorkoutIds: z
+          .array(z.string().min(1))
+          .min(1, "At least one event is required"),
+        eventStatus: z.enum(["draft", "published"]),
+      })
+      .parse(data),
+  )
+  .handler(
+    async ({
+      data,
+    }): Promise<{ success: true; parentUpdated: number; childUpdated: number }> => {
+      const db = getDb()
+      const session = await getSessionFromCookie()
+      if (!session?.userId) throw new Error("Not authenticated")
+
+      const [group] = await db
+        .select()
+        .from(competitionGroupsTable)
+        .where(eq(competitionGroupsTable.id, data.groupId))
+      if (!group) throw new Error("Series group not found")
+
+      await requireTeamPermission(
+        group.organizingTeamId,
+        TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+      )
+
+      const uniqueTrackWorkoutIds = [...new Set(data.trackWorkoutIds)]
+      const comps = await db
+        .select({ id: competitionsTable.id })
+        .from(competitionsTable)
+        .where(eq(competitionsTable.groupId, data.groupId))
+
+      if (comps.length === 0) throw new Error("No competitions in this series")
+
+      const compIds = comps.map((comp) => comp.id)
+      const compTracks = await db
+        .select({ id: programmingTracksTable.id })
+        .from(programmingTracksTable)
+        .where(inArray(programmingTracksTable.competitionId, compIds))
+
+      const validTrackIds = new Set(compTracks.map((track) => track.id))
+      if (validTrackIds.size === 0) {
+        throw new Error("No competition event tracks found in this series")
+      }
+
+      const selectedEvents = await db
+        .select({
+          id: trackWorkoutsTable.id,
+          trackId: trackWorkoutsTable.trackId,
+          parentEventId: trackWorkoutsTable.parentEventId,
+        })
+        .from(trackWorkoutsTable)
+        .where(inArray(trackWorkoutsTable.id, uniqueTrackWorkoutIds))
+
+      if (selectedEvents.length !== uniqueTrackWorkoutIds.length) {
+        throw new Error("One or more selected events could not be found")
+      }
+
+      const invalidEvent = selectedEvents.find(
+        (event) =>
+          !validTrackIds.has(event.trackId) || event.parentEventId !== null,
+      )
+      if (invalidEvent) {
+        throw new Error(
+          "Selected events must be top-level events in this series",
+        )
+      }
+
+      const childEvents = await db
+        .select({ id: trackWorkoutsTable.id })
+        .from(trackWorkoutsTable)
+        .where(inArray(trackWorkoutsTable.parentEventId, uniqueTrackWorkoutIds))
+
+      const updatedAt = new Date()
+      await db
+        .update(trackWorkoutsTable)
+        .set({ eventStatus: data.eventStatus, updatedAt })
+        .where(inArray(trackWorkoutsTable.id, uniqueTrackWorkoutIds))
+
+      if (childEvents.length > 0) {
+        await db
+          .update(trackWorkoutsTable)
+          .set({ eventStatus: data.eventStatus, updatedAt })
+          .where(inArray(trackWorkoutsTable.parentEventId, uniqueTrackWorkoutIds))
+      }
+
+      return {
+        success: true,
+        parentUpdated: selectedEvents.length,
+        childUpdated: childEvents.length,
+      }
     },
   )
 

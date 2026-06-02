@@ -57,6 +57,7 @@ const routeLabels: Record<string, string> = {
   edit: "Edit Series",
   divisions: "Divisions",
   events: "Event Template",
+  "publish-workouts": "Publish Workouts",
   "registration-questions": "Registration Questions",
   leaderboard: "Global Leaderboard",
 }
