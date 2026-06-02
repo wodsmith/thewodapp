@@ -49,9 +49,11 @@ Sync behavior by data type:
 
 The `templateEventIds` optional parameter filters which template events to sync. When provided, only those events are synced. If a child event is selected without its parent, the parent is auto-included to maintain the hierarchy.
 
-The `/series/{groupId}/events` page exposes this as a top-of-page workout selection toolbar. Organizers select any number of template workouts before opening the competition picker.
+The `/series/{groupId}/events` page exposes this as a top-of-page event selection toolbar. The toolbar starts with no events selected, and organizers select any number of parent template events before opening the competition picker. Sub-events are displayed under their parent but are not selectable on their own; selecting the parent syncs its sub-events with it.
 
 The competition picker shows selected-workout status for each competition: already synced, will resync, will map an existing unmapped event, or will create a new event. It also lists the competition's existing events so organizers can avoid duplicating individual-only or team-only programming.
+
+The picker starts with no competitions selected so organizers explicitly choose sync targets. Search normalizes case, accents, punctuation, and spacing, then matches whole tokens from competition names, division labels, team/individual aliases, status, existing event names, mapped competition event names, and event action status. "Select Visible with Changes" selects only currently visible matching competitions.
 
 ### Sync Status Detection
 
@@ -60,7 +62,7 @@ The competition picker shows selected-workout status for each competition: alrea
 - **in-sync** — All mapped events match the template (workout fields, track fields, movements, resources, judging sheets)
 - **behind** — At least one mapped event differs from the template
 - **custom** — Competition has events not in any mapping
-- **unmapped** — Competition has no event mappings at all
+- **unmapped** — Competition has no event mappings for the selected template events, including partial mappings where other template events are already synced
 
 ### Sync Preview
 
@@ -72,7 +74,11 @@ Changes include field-level diffs (e.g., "name: Old Name → New Name"), order c
 
 Event matching connects each competition's events to the series template for leaderboard scoring.
 
-The UI lives on the "Event Match" tab of the consolidated events page at `/series/{groupId}/events`, using `SeriesEventMapper` — an interactive matrix with competitions as rows and template events as columns.
+The UI lives on the "Event Match" tab of the consolidated events page at `/series/{groupId}/events`, using `SeriesEventMapper` — an interactive matrix with competitions as rows and parent template events as columns.
+
+Parent events are the only mapping control surface. Sub-events are displayed under their parent column for context, and saving a parent event mapping expands it into child mappings when matching child events exist under the selected competition parent.
+
+Competition names in the mapper render as wrapping row links so long competition titles remain fully visible while the matrix scrolls horizontally.
 
 ### Auto-Matching
 

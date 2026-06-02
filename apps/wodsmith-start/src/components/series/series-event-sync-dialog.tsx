@@ -1,8 +1,15 @@
 "use client"
 
 import { useServerFn } from "@tanstack/react-start"
-import { CheckCircle2, Link2, Loader2, PlusCircle, RotateCw } from "lucide-react"
-import { useEffect, useState } from "react"
+import {
+  CheckCircle2,
+  Link2,
+  Loader2,
+  PlusCircle,
+  RotateCw,
+  Search,
+} from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import {
   AlertDialog,
@@ -16,6 +23,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
 import {
   type CompetitionEventSyncStatus,
   getCompetitionEventSyncStatusFn,
@@ -33,7 +41,74 @@ interface SeriesEventSyncDialogProps {
   selectedTemplateEvents: Array<{
     id: string
     name: string
+    childEvents?: Array<{
+      id: string
+      name: string
+    }>
   }>
+}
+
+function normalizeSearchText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ")
+}
+
+function tokenizeSearchText(value: string): string[] {
+  const normalized = normalizeSearchText(value)
+  return normalized ? normalized.split(" ") : []
+}
+
+function expandSearchToken(token: string): string[] {
+  switch (token) {
+    case "individual":
+      return ["individual", "indy"]
+    case "indy":
+      return ["indy", "individual"]
+    case "team":
+      return ["team", "partner"]
+    case "partner":
+      return ["partner", "team"]
+    default:
+      return [token]
+  }
+}
+
+function addSearchTokens(tokens: Set<string>, value: string) {
+  for (const token of tokenizeSearchText(value)) {
+    for (const expandedToken of expandSearchToken(token)) {
+      tokens.add(expandedToken)
+    }
+  }
+}
+
+function buildCompetitionSearchTokens(comp: CompetitionEventSyncStatus) {
+  const tokens = new Set<string>()
+
+  addSearchTokens(tokens, comp.competitionName)
+  addSearchTokens(tokens, comp.status)
+  for (const division of comp.divisions) {
+    addSearchTokens(tokens, division.label)
+    addSearchTokens(
+      tokens,
+      division.teamSize === 1 ? "individual indy" : "team partner",
+    )
+  }
+  for (const event of comp.existingEvents) {
+    addSearchTokens(tokens, event.name)
+  }
+  for (const event of comp.eventStatuses) {
+    if (event.competitionEventName) {
+      addSearchTokens(tokens, event.competitionEventName)
+    }
+    addSearchTokens(tokens, event.status)
+  }
+
+  return tokens
 }
 
 export function SeriesEventSyncDialog({
@@ -53,6 +128,7 @@ export function SeriesEventSyncDialog({
   >(new Set())
   const [syncPreview, setSyncPreview] =
     useState<SyncEventsPreviewResult | null>(null)
+  const [competitionSearch, setCompetitionSearch] = useState("")
   const [isLoadingStatus, setIsLoadingStatus] = useState(false)
   const [isLoadingPreview, setIsLoadingPreview] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
@@ -67,6 +143,7 @@ export function SeriesEventSyncDialog({
       setSyncStep("select")
       setSyncPreview(null)
       setSelectedCompetitionIds(new Set())
+      setCompetitionSearch("")
       return
     }
 
@@ -76,15 +153,7 @@ export function SeriesEventSyncDialog({
     })
       .then((result) => {
         setSyncStatuses(result.competitions)
-        setSelectedCompetitionIds(
-          new Set(
-            result.competitions
-              .filter((c) =>
-                c.eventStatuses.some((event) => event.status !== "synced"),
-              )
-              .map((c) => c.competitionId),
-          ),
-        )
+        setSelectedCompetitionIds(new Set())
       })
       .catch((e) => {
         toast.error(
@@ -101,10 +170,28 @@ export function SeriesEventSyncDialog({
     onOpenChange,
   ])
 
+  const competitionSearchTokens = useMemo(
+    () => tokenizeSearchText(competitionSearch),
+    [competitionSearch],
+  )
+  const filteredSyncStatuses = useMemo(() => {
+    if (competitionSearchTokens.length === 0) return syncStatuses
+
+    return syncStatuses.filter((comp) => {
+      const searchTokens = buildCompetitionSearchTokens(comp)
+
+      return competitionSearchTokens.every((token) =>
+        expandSearchToken(token).some((expandedToken) =>
+          searchTokens.has(expandedToken),
+        ),
+      )
+    })
+  }, [competitionSearchTokens, syncStatuses])
+
   const handleSelectAllActionable = () => {
     setSelectedCompetitionIds(
       new Set(
-        syncStatuses
+        filteredSyncStatuses
           .filter((c) =>
             c.eventStatuses.some((event) => event.status !== "synced"),
           )
@@ -273,7 +360,7 @@ export function SeriesEventSyncDialog({
               <AlertDialogTitle>Select Competitions to Sync</AlertDialogTitle>
               <AlertDialogDescription>
                 Choose which competitions should receive{" "}
-                {selectedTemplateEvents.length} selected template workout
+                {selectedTemplateEvents.length} selected parent template workout
                 {selectedTemplateEvents.length !== 1 ? "s" : ""}.
               </AlertDialogDescription>
             </AlertDialogHeader>
@@ -283,9 +370,25 @@ export function SeriesEventSyncDialog({
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {selectedTemplateEvents.map((event) => (
-                  <Badge key={event.id} variant="secondary">
-                    {event.name}
-                  </Badge>
+                  <span
+                    key={event.id}
+                    className="rounded-md border bg-background px-2.5 py-2"
+                  >
+                    <span className="text-sm font-medium">{event.name}</span>
+                    {event.childEvents && event.childEvents.length > 0 ? (
+                      <span className="mt-1 flex flex-wrap gap-1">
+                        {event.childEvents.map((childEvent) => (
+                          <Badge
+                            key={childEvent.id}
+                            variant="outline"
+                            className="text-xs font-normal"
+                          >
+                            {childEvent.name}
+                          </Badge>
+                        ))}
+                      </span>
+                    ) : null}
+                  </span>
                 ))}
               </div>
             </div>
@@ -304,10 +407,32 @@ export function SeriesEventSyncDialog({
                   size="sm"
                   onClick={handleSelectAllActionable}
                 >
-                  Select Competitions with Changes
+                  Select Visible with Changes
                 </Button>
+                <div className="space-y-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={competitionSearch}
+                      onChange={(event) =>
+                        setCompetitionSearch(event.target.value)
+                      }
+                      placeholder="Search competitions..."
+                      className="pl-9"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Showing {filteredSyncStatuses.length} of{" "}
+                    {syncStatuses.length} competitions
+                  </p>
+                </div>
                 <div className="space-y-2">
-                  {syncStatuses.map((comp) => (
+                  {filteredSyncStatuses.length === 0 ? (
+                    <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                      No competitions match your search.
+                    </p>
+                  ) : null}
+                  {filteredSyncStatuses.map((comp) => (
                     // biome-ignore lint/a11y/noLabelWithoutControl: Radix Checkbox renders internal input
                     <label
                       key={comp.competitionId}

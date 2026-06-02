@@ -11,6 +11,7 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, asc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
+import { competitionDivisionsTable } from "@/db/schemas/commerce"
 import {
   createEventJudgingSheetId,
   createEventResourceId,
@@ -22,14 +23,15 @@ import {
   competitionGroupsTable,
   competitionsTable,
 } from "@/db/schemas/competitions"
-import { eventJudgingSheetsTable } from "@/db/schemas/judging-sheets"
 import { eventResourcesTable } from "@/db/schemas/event-resources"
+import { eventJudgingSheetsTable } from "@/db/schemas/judging-sheets"
 import {
   PROGRAMMING_TRACK_TYPE,
   programmingTracksTable,
   trackWorkoutsTable,
 } from "@/db/schemas/programming"
 import {
+  scalingLevelsTable,
   workoutScalingDescriptionsTable,
 } from "@/db/schemas/scaling"
 import {
@@ -44,6 +46,7 @@ import {
   workoutMovements,
   workouts,
 } from "@/db/schemas/workouts"
+import { deriveCompetitionEventSyncStatus } from "@/lib/series-event-sync-status"
 import {
   parseSeriesSettings,
   stringifySeriesSettings,
@@ -1457,15 +1460,19 @@ export const getSeriesEventMappingsFn = createServerFn({ method: "GET" })
           })
         } else if (template) {
           // Auto-map using fuzzy matching
-          const templateEventItems = template.events.map((te) => ({
-            trackWorkoutId: te.id,
-            workoutName: te.workout.name,
-          }))
+          const templateEventItems = template.events
+            .filter((te) => !te.parentEventId)
+            .map((te) => ({
+              trackWorkoutId: te.id,
+              workoutName: te.workout.name,
+            }))
           const autoMapped = autoMapEvents(
-            compEvents.map((e) => ({
-              trackWorkoutId: e.id,
-              workoutName: e.workoutName,
-            })),
+            compEvents
+              .filter((e) => !e.parentEventId)
+              .map((e) => ({
+                trackWorkoutId: e.id,
+                workoutName: e.workoutName,
+              })),
             templateEventItems,
           )
           competitionMappings.push({
@@ -1528,15 +1535,160 @@ export const saveSeriesEventMappingsFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
+    const expandedMappings = [...data.mappings]
+    if (data.mappings.length > 0) {
+      const submittedEventIds = [
+        ...new Set(
+          data.mappings.flatMap((mapping) => [
+            mapping.templateEventId,
+            mapping.competitionEventId,
+          ]),
+        ),
+      ]
+
+      const submittedEvents = await db
+        .select({
+          id: trackWorkoutsTable.id,
+          parentEventId: trackWorkoutsTable.parentEventId,
+          workout: {
+            name: workouts.name,
+          },
+        })
+        .from(trackWorkoutsTable)
+        .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+        .where(inArray(trackWorkoutsTable.id, submittedEventIds))
+      const submittedEventById = new Map(
+        submittedEvents.map((event) => [event.id, event]),
+      )
+
+      const parentMappings = data.mappings.filter((mapping) => {
+        const templateEvent = submittedEventById.get(mapping.templateEventId)
+        const competitionEvent = submittedEventById.get(
+          mapping.competitionEventId,
+        )
+        return (
+          templateEvent &&
+          competitionEvent &&
+          !templateEvent.parentEventId &&
+          !competitionEvent.parentEventId
+        )
+      })
+
+      const templateParentIds = [
+        ...new Set(parentMappings.map((mapping) => mapping.templateEventId)),
+      ]
+      const competitionParentIds = [
+        ...new Set(parentMappings.map((mapping) => mapping.competitionEventId)),
+      ]
+
+      const [templateChildEvents, competitionChildEvents] = await Promise.all([
+        templateParentIds.length > 0
+          ? db
+              .select({
+                id: trackWorkoutsTable.id,
+                parentEventId: trackWorkoutsTable.parentEventId,
+                trackOrder: trackWorkoutsTable.trackOrder,
+                workout: {
+                  name: workouts.name,
+                },
+              })
+              .from(trackWorkoutsTable)
+              .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+              .where(inArray(trackWorkoutsTable.parentEventId, templateParentIds))
+              .orderBy(asc(trackWorkoutsTable.trackOrder))
+          : [],
+        competitionParentIds.length > 0
+          ? db
+              .select({
+                id: trackWorkoutsTable.id,
+                parentEventId: trackWorkoutsTable.parentEventId,
+                trackOrder: trackWorkoutsTable.trackOrder,
+                workout: {
+                  name: workouts.name,
+                },
+              })
+              .from(trackWorkoutsTable)
+              .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+              .where(
+                inArray(trackWorkoutsTable.parentEventId, competitionParentIds),
+              )
+              .orderBy(asc(trackWorkoutsTable.trackOrder))
+          : [],
+      ])
+
+      const templateChildrenByParent = new Map<
+        string,
+        typeof templateChildEvents
+      >()
+      for (const event of templateChildEvents) {
+        if (!event.parentEventId) continue
+        const children = templateChildrenByParent.get(event.parentEventId) ?? []
+        children.push(event)
+        templateChildrenByParent.set(event.parentEventId, children)
+      }
+
+      const competitionChildrenByParent = new Map<
+        string,
+        typeof competitionChildEvents
+      >()
+      for (const event of competitionChildEvents) {
+        if (!event.parentEventId) continue
+        const children =
+          competitionChildrenByParent.get(event.parentEventId) ?? []
+        children.push(event)
+        competitionChildrenByParent.set(event.parentEventId, children)
+      }
+
+      const mappedTemplateKeys = new Set(
+        expandedMappings.map(
+          (mapping) => `${mapping.competitionId}:${mapping.templateEventId}`,
+        ),
+      )
+
+      for (const mapping of parentMappings) {
+        const templateChildren =
+          templateChildrenByParent.get(mapping.templateEventId) ?? []
+        const competitionChildren =
+          competitionChildrenByParent.get(mapping.competitionEventId) ?? []
+        const claimedCompetitionChildIds = new Set<string>()
+
+        for (let i = 0; i < templateChildren.length; i++) {
+          const templateChild = templateChildren[i]
+          const matchedChild =
+            findMatchingCompetitionEvent(
+              templateChild.workout.name,
+              competitionChildren,
+              claimedCompetitionChildIds,
+            ) ??
+            competitionChildren.find(
+              (child, childIndex) =>
+                childIndex === i && !claimedCompetitionChildIds.has(child.id),
+            )
+
+          if (!matchedChild) continue
+          const templateKey = `${mapping.competitionId}:${templateChild.id}`
+          if (mappedTemplateKeys.has(templateKey)) continue
+
+          claimedCompetitionChildIds.add(matchedChild.id)
+          mappedTemplateKeys.add(templateKey)
+          expandedMappings.push({
+            competitionId: mapping.competitionId,
+            competitionEventId: matchedChild.id,
+            templateEventId: templateChild.id,
+          })
+        }
+      }
+    }
+
     // Delete all existing mappings and insert new ones atomically
     await db.transaction(async (tx) => {
       await tx
         .delete(seriesEventMappingsTable)
         .where(eq(seriesEventMappingsTable.groupId, data.groupId))
 
-      if (data.mappings.length > 0) {
+      if (expandedMappings.length > 0) {
         await tx.insert(seriesEventMappingsTable).values(
-          data.mappings.map((m) => ({
+          expandedMappings.map((m) => ({
             groupId: data.groupId,
             competitionId: m.competitionId,
             competitionEventId: m.competitionEventId,
@@ -1546,7 +1698,7 @@ export const saveSeriesEventMappingsFn = createServerFn({ method: "POST" })
       }
     })
 
-    return { success: true, mappingCount: data.mappings.length }
+    return { success: true, mappingCount: expandedMappings.length }
   })
 
 /**
@@ -1601,10 +1753,12 @@ export const autoMapSeriesEventsFn = createServerFn({ method: "GET" })
         .where(eq(trackWorkoutsTable.trackId, templateTrackId))
         .orderBy(asc(trackWorkoutsTable.trackOrder))
 
-      const templateEventItems = templateTrackWorkouts.map((te) => ({
-        trackWorkoutId: te.id,
-        workoutName: te.workoutName,
-      }))
+      const templateEventItems = templateTrackWorkouts
+        .filter((te) => !te.parentEventId)
+        .map((te) => ({
+          trackWorkoutId: te.id,
+          workoutName: te.workoutName,
+        }))
 
       // Load competitions
       const comps = await db
@@ -1673,10 +1827,12 @@ export const autoMapSeriesEventsFn = createServerFn({ method: "GET" })
 
         // Auto-map only unmapped events; preserve existing mappings
         const autoMapped = autoMapEvents(
-          compEvents.map((e) => ({
-            trackWorkoutId: e.id,
-            workoutName: e.workoutName,
-          })),
+          compEvents
+            .filter((e) => !e.parentEventId)
+            .map((e) => ({
+              trackWorkoutId: e.id,
+              workoutName: e.workoutName,
+            })),
           templateEventItems,
         )
         const merged = autoMapped.map((m) => {
@@ -2968,6 +3124,7 @@ export interface CompetitionEventSyncStatus {
   status: "in-sync" | "behind" | "custom" | "unmapped"
   mappedCount: number
   totalTemplateEvents: number
+  divisions: Array<{ id: string; label: string; teamSize: number }>
   existingEvents: Array<{ id: string; name: string }>
   eventStatuses: Array<{
     templateEventId: string
@@ -3020,6 +3177,37 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
 
     if (comps.length === 0) return { competitions: [] }
 
+    const compIds = comps.map((c) => c.id)
+    const allCompDivisions =
+      compIds.length > 0
+        ? await db
+            .select({
+              competitionId: competitionDivisionsTable.competitionId,
+              id: scalingLevelsTable.id,
+              label: scalingLevelsTable.label,
+              teamSize: scalingLevelsTable.teamSize,
+            })
+            .from(competitionDivisionsTable)
+            .innerJoin(
+              scalingLevelsTable,
+              eq(competitionDivisionsTable.divisionId, scalingLevelsTable.id),
+            )
+            .where(inArray(competitionDivisionsTable.competitionId, compIds))
+        : []
+    const divisionsByComp = new Map<
+      string,
+      Array<{ id: string; label: string; teamSize: number }>
+    >()
+    for (const division of allCompDivisions) {
+      const divisions = divisionsByComp.get(division.competitionId) ?? []
+      divisions.push({
+        id: division.id,
+        label: division.label,
+        teamSize: division.teamSize,
+      })
+      divisionsByComp.set(division.competitionId, divisions)
+    }
+
     // If no template track, all competitions are unmapped
     if (!templateTrackId) {
       return {
@@ -3029,6 +3217,7 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
           status: "unmapped" as const,
           mappedCount: 0,
           totalTemplateEvents: 0,
+          divisions: divisionsByComp.get(c.id) ?? [],
           existingEvents: [],
           eventStatuses: [],
         })),
@@ -3071,7 +3260,6 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
       .where(eq(seriesEventMappingsTable.groupId, data.groupId))
 
     // Batch-load all competition programming tracks
-    const compIds = comps.map((c) => c.id)
     const compTracks = await db
       .select({
         id: programmingTracksTable.id,
@@ -3246,6 +3434,7 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
           status: "unmapped",
           mappedCount: 0,
           totalTemplateEvents,
+          divisions: divisionsByComp.get(comp.id) ?? [],
           existingEvents,
           eventStatuses,
         })
@@ -3267,8 +3456,9 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
         (id) => !mappedCompEventIds.has(id),
       )
 
-      // Check if any mapped event is behind (different from template)
-      let hasDifferences = false
+      // Check if any saved mapped event is behind (different from template).
+      // Missing selected mappings are actionable, but they are not "behind".
+      let hasMappedDifferences = false
 
       // Build lookup: templateEventId -> competitionEventId
       const templateToCompEvent = new Map(
@@ -3295,7 +3485,6 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
             competitionEventName: match?.workout.name ?? null,
             status: match ? "will-map-existing" : "will-create",
           })
-          hasDifferences = true
           continue
         }
 
@@ -3308,7 +3497,7 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
             competitionEventName: null,
             status: "will-create",
           })
-          hasDifferences = true
+          hasMappedDifferences = true
           continue
         }
 
@@ -3370,7 +3559,7 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
         }
 
         if (eventHasDifferences) {
-          hasDifferences = true
+          hasMappedDifferences = true
         }
         eventStatuses.push({
           templateEventId: templateTw.id,
@@ -3381,14 +3570,12 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
         })
       }
 
-      let status: CompetitionEventSyncStatus["status"]
-      if (hasDifferences) {
-        status = "behind"
-      } else if (hasCustomEvents) {
-        status = "custom"
-      } else {
-        status = "in-sync"
-      }
+      const status = deriveCompetitionEventSyncStatus({
+        hasMappedDifferences,
+        hasCustomEvents,
+        mappedCount,
+        totalTemplateEvents,
+      })
 
       results.push({
         competitionId: comp.id,
@@ -3396,6 +3583,7 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
         status,
         mappedCount,
         totalTemplateEvents,
+        divisions: divisionsByComp.get(comp.id) ?? [],
         existingEvents,
         eventStatuses,
       })

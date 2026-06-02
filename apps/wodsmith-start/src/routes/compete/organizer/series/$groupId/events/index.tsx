@@ -1,10 +1,10 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { CheckSquare, RefreshCw, Square } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
-import { SeriesEventMapper } from "@/components/series-event-mapper"
 import { EventTemplateCreator } from "@/components/series/event-template-creator"
 import { SeriesEventSyncDialog } from "@/components/series/series-event-sync-dialog"
 import { SeriesTemplateEventEditor } from "@/components/series/series-template-event-editor"
+import { SeriesEventMapper } from "@/components/series-event-mapper"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -116,31 +116,46 @@ function SeriesEventsPage() {
 	const [templateTrack, setTemplateTrack] = useState(loaderData.templateTrack)
 	const [events, setEvents] = useState(loaderData.events)
 	const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false)
+	const parentTemplateEvents = useMemo(
+		() => events.filter((event) => !event.parentEventId),
+		[events],
+	)
+	const childTemplateEventsByParent = useMemo(() => {
+		const childrenByParent = new Map<string, typeof events>()
+		for (const event of events) {
+			if (!event.parentEventId) continue
+			const children = childrenByParent.get(event.parentEventId) ?? []
+			children.push(event)
+			childrenByParent.set(event.parentEventId, children)
+		}
+		return childrenByParent
+	}, [events])
 	const [selectedTemplateEventIds, setSelectedTemplateEventIds] = useState<
 		Set<string>
-	>(() => new Set(loaderData.events.map((event) => event.id)))
+	>(() => new Set())
 	const [competitionMappings, setCompetitionMappings] = useState(
 		loaderData.competitionMappings,
 	)
 
 	useEffect(() => {
 		setSelectedTemplateEventIds((previous) => {
-			const availableIds = new Set(events.map((event) => event.id))
+			const availableIds = new Set(
+				parentTemplateEvents.map((event) => event.id),
+			)
 			const next = new Set(
 				[...previous].filter((eventId) => availableIds.has(eventId)),
 			)
 
-			if (next.size === 0 && events.length > 0) {
-				return availableIds
-			}
-
 			return next
 		})
-	}, [events])
+	}, [parentTemplateEvents])
 
 	const selectedTemplateEventList = useMemo(
-		() => events.filter((event) => selectedTemplateEventIds.has(event.id)),
-		[events, selectedTemplateEventIds],
+		() =>
+			parentTemplateEvents.filter((event) =>
+				selectedTemplateEventIds.has(event.id),
+			),
+		[parentTemplateEvents, selectedTemplateEventIds],
 	)
 
 	const selectedTemplateEventIdList = useMemo(
@@ -161,7 +176,9 @@ function SeriesEventsPage() {
 	}
 
 	const selectAllTemplateEvents = () => {
-		setSelectedTemplateEventIds(new Set(events.map((event) => event.id)))
+		setSelectedTemplateEventIds(
+			new Set(parentTemplateEvents.map((event) => event.id)),
+		)
 	}
 
 	const clearSelectedTemplateEvents = () => {
@@ -202,9 +219,9 @@ function SeriesEventsPage() {
 					<CardHeader className="gap-3">
 						<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 							<div>
-								<CardTitle>Sync Workouts</CardTitle>
+								<CardTitle>Sync Events</CardTitle>
 								<CardDescription>
-									Select template workouts, then choose competitions to receive
+									Select template events, then choose competitions to receive
 									them.
 								</CardDescription>
 							</div>
@@ -233,32 +250,50 @@ function SeriesEventsPage() {
 									disabled={selectedTemplateEventIds.size === 0}
 								>
 									<RefreshCw className="h-4 w-4 mr-2" />
-									Sync to Competitions
+									Sync Events
 								</Button>
 							</div>
 						</div>
 					</CardHeader>
 					<CardContent>
-						<div className="flex flex-wrap gap-2">
-							{events.map((event) => (
-								// biome-ignore lint/a11y/noLabelWithoutControl: Radix Checkbox renders internal input
-								<label
-									key={event.id}
-									className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-muted/50"
-								>
-									<Checkbox
-										checked={selectedTemplateEventIds.has(event.id)}
-										onCheckedChange={() => toggleTemplateEvent(event.id)}
-									/>
-									<span className="font-medium">{event.name}</span>
-									{event.parentEventId ? (
-										<Badge variant="outline">Sub-event</Badge>
-									) : null}
-								</label>
-							))}
+						<div className="flex flex-col items-start gap-2">
+							{parentTemplateEvents.map((event) => {
+								const childEvents =
+									childTemplateEventsByParent.get(event.id) ?? []
+								return (
+									// biome-ignore lint/a11y/noLabelWithoutControl: Radix Checkbox renders internal input
+									<label
+										key={event.id}
+										className="flex min-h-10 w-full max-w-full cursor-pointer items-start gap-2 rounded-md border px-3 py-2 text-sm hover:bg-muted/50 sm:w-[32rem]"
+									>
+										<Checkbox
+											checked={selectedTemplateEventIds.has(event.id)}
+											onCheckedChange={() => toggleTemplateEvent(event.id)}
+											className="mt-0.5"
+										/>
+										<span className="flex flex-col gap-1">
+											<span className="font-medium">{event.name}</span>
+											{childEvents.length > 0 ? (
+												<span className="flex flex-wrap gap-1 text-xs text-muted-foreground">
+													{childEvents.map((child) => (
+														<Badge
+															key={child.id}
+															variant="outline"
+															className="font-normal"
+														>
+															{child.name}
+														</Badge>
+													))}
+												</span>
+											) : null}
+										</span>
+									</label>
+								)
+							})}
 						</div>
 						<p className="mt-3 text-sm text-muted-foreground">
-							{selectedTemplateEventIds.size} of {events.length} selected
+							{selectedTemplateEventIds.size} of{" "}
+							{parentTemplateEvents.length} parent events selected
 						</p>
 					</CardContent>
 				</Card>
@@ -286,6 +321,12 @@ function SeriesEventsPage() {
 				selectedTemplateEvents={selectedTemplateEventList.map((event) => ({
 					id: event.id,
 					name: event.name,
+					childEvents: (childTemplateEventsByParent.get(event.id) ?? []).map(
+						(child) => ({
+							id: child.id,
+							name: child.name,
+						}),
+					),
 				}))}
 			/>
 
@@ -318,6 +359,7 @@ function SeriesEventsPage() {
 										name: e.name,
 										order: e.order,
 										scoreType: e.scoreType,
+										parentEventId: e.parentEventId,
 									})),
 								}}
 								initialMappings={competitionMappings}

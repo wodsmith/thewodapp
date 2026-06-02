@@ -2,14 +2,14 @@
 
 import { Link } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { ExternalLink, Minus, Sparkles } from "lucide-react"
+import { Minus, Sparkles } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
-  type SeriesEventMappingData,
   autoMapSeriesEventsFn,
+  type SeriesEventMappingData,
   saveSeriesEventMappingsFn,
 } from "@/server-fns/series-event-template-fns"
 
@@ -27,7 +27,21 @@ interface SeriesTemplateEventData {
     name: string
     order: number
     scoreType: string | null
+    parentEventId: string | null
   }>
+}
+
+type SeriesTemplateEvent = SeriesTemplateEventData["events"][number]
+
+function groupChildTemplateEvents(events: SeriesTemplateEvent[]) {
+  const childrenByParent = new Map<string, SeriesTemplateEvent[]>()
+  for (const event of events) {
+    if (!event.parentEventId) continue
+    const children = childrenByParent.get(event.parentEventId) ?? []
+    children.push(event)
+    childrenByParent.set(event.parentEventId, children)
+  }
+  return childrenByParent
 }
 
 interface Props {
@@ -81,16 +95,34 @@ export function SeriesEventMapper({
     }
     setDirtyComps(dirty)
     // Turn off filter if no comps have unmapped events anymore
+    const parentTemplateEventIds = new Set(
+      template.events
+        .filter((event) => !event.parentEventId)
+        .map((event) => event.id),
+    )
     const stillHasUnmapped = initialMappings.some(
-      (comp) => comp.events.length > comp.mappings.length,
+      (comp) =>
+        parentTemplateEventIds.size >
+        comp.mappings.filter(
+          (mapping) =>
+            mapping.templateEventId &&
+            parentTemplateEventIds.has(mapping.templateEventId),
+        ).length,
     )
     if (!stillHasUnmapped) {
       setShowOnlyUnmapped(false)
     }
-  }, [initialMappings])
+  }, [initialMappings, template.events])
 
   const saveMappings = useServerFn(saveSeriesEventMappingsFn)
   const autoMap = useServerFn(autoMapSeriesEventsFn)
+  const templateParentEvents = template.events.filter(
+    (event) => !event.parentEventId,
+  )
+  const templateParentEventIds = new Set(
+    templateParentEvents.map((event) => event.id),
+  )
+  const childTemplateEventsByParent = groupChildTemplateEvents(template.events)
 
   const handleAutoMap = async () => {
     setIsAutoMapping(true)
@@ -107,9 +139,7 @@ export function SeriesEventMapper({
       )
       toast.success("Auto-matched events")
     } catch (e) {
-      toast.error(
-        e instanceof Error ? e.message : "Failed to auto-map events",
-      )
+      toast.error(e instanceof Error ? e.message : "Failed to auto-map events")
     } finally {
       setIsAutoMapping(false)
     }
@@ -163,18 +193,31 @@ export function SeriesEventMapper({
 
   // Stats
   const totalSlots = mappings.reduce(
-    (sum, _c) => sum + template.events.length,
+    (sum, _c) => sum + templateParentEvents.length,
     0,
   )
   const mappedCount = mappings.reduce(
-    (sum, _c) => sum + _c.mappings.length,
+    (sum, _c) =>
+      sum +
+      _c.mappings.filter(
+        (mapping) =>
+          mapping.templateEventId &&
+          templateParentEventIds.has(mapping.templateEventId),
+      ).length,
     0,
   )
 
   // Comps that have at least one template event without a mapping
   const hasUnmappedEvents = (comp: SeriesEventMappingData) => {
-    const mappedTemplateIds = new Set(comp.mappings.map((m) => m.templateEventId))
-    return template.events.some((te) => !mappedTemplateIds.has(te.id))
+    const mappedTemplateIds = new Set(
+      comp.mappings
+        .map((m) => m.templateEventId)
+        .filter(
+          (templateEventId): templateEventId is string =>
+            !!templateEventId && templateParentEventIds.has(templateEventId),
+        ),
+    )
+    return templateParentEvents.some((te) => !mappedTemplateIds.has(te.id))
   }
   const compsWithUnmapped = mappings.filter(hasUnmappedEvents).length
 
@@ -238,24 +281,37 @@ export function SeriesEventMapper({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
-                <th className="text-left font-medium px-3 py-2 min-w-[180px] sticky left-0 bg-muted/50">
+                <th className="text-left font-medium px-3 py-2 w-[22rem] min-w-[22rem] max-w-[22rem] sticky left-0 bg-muted/50">
                   Competition
                 </th>
-                {template.events.map((te) => (
-                  <th
-                    key={te.id}
-                    className="text-center font-medium px-2 py-2 min-w-[150px]"
-                  >
-                    <div className="text-xs leading-tight">
-                      {te.name}
-                      {te.scoreType && (
-                        <span className="block text-[10px] text-muted-foreground">
-                          {te.scoreType}
-                        </span>
-                      )}
-                    </div>
-                  </th>
-                ))}
+                {templateParentEvents.map((te) => {
+                  const childEvents =
+                    childTemplateEventsByParent.get(te.id) ?? []
+                  return (
+                    <th
+                      key={te.id}
+                      className="text-center font-medium px-2 py-2 min-w-[150px]"
+                    >
+                      <div className="text-xs leading-tight">
+                        {te.name}
+                        {te.scoreType && (
+                          <span className="block text-[10px] text-muted-foreground">
+                            {te.scoreType}
+                          </span>
+                        )}
+                        {childEvents.length > 0 ? (
+                          <span className="mt-1 block space-y-0.5 text-[10px] font-normal text-muted-foreground">
+                            {childEvents.map((childEvent) => (
+                              <span key={childEvent.id} className="block">
+                                {childEvent.name}
+                              </span>
+                            ))}
+                          </span>
+                        ) : null}
+                      </div>
+                    </th>
+                  )
+                })}
                 <th className="text-center font-medium px-2 py-2 min-w-[80px]">
                   <div className="text-xs text-muted-foreground">Unmatched</div>
                 </th>
@@ -268,7 +324,8 @@ export function SeriesEventMapper({
                   <CompetitionRow
                     key={`${comp.competition.id}-${revision}`}
                     comp={comp}
-                    template={template}
+                    templateEvents={templateParentEvents}
+                    childTemplateEventsByParent={childTemplateEventsByParent}
                     onDirtyChange={(dirty) => {
                       setDirtyComps((prev) => {
                         const next = new Set(prev)
@@ -299,20 +356,38 @@ export function SeriesEventMapper({
  */
 function CompetitionRow({
   comp,
-  template,
+  templateEvents,
+  childTemplateEventsByParent,
   onDirtyChange,
   hidden,
 }: {
   comp: SeriesEventMappingData
-  template: SeriesTemplateEventData
+  templateEvents: SeriesTemplateEvent[]
+  childTemplateEventsByParent: Map<string, SeriesTemplateEvent[]>
   onDirtyChange: (dirty: boolean) => void
   hidden?: boolean
 }) {
+  const templateEventIds = new Set(templateEvents.map((event) => event.id))
+  const parentCompetitionEvents = comp.events.filter(
+    (event) => !event.parentEventId,
+  )
+  const childCompetitionEventsByParent = new Map<
+    string,
+    SeriesEventMappingData["events"]
+  >()
+  for (const event of comp.events) {
+    if (!event.parentEventId) continue
+    const children =
+      childCompetitionEventsByParent.get(event.parentEventId) ?? []
+    children.push(event)
+    childCompetitionEventsByParent.set(event.parentEventId, children)
+  }
+
   // Build initial state: templateEventId -> competitionEventId
   const initialSelections = () => {
     const map = new Map<string, string>()
     for (const m of comp.mappings) {
-      if (m.templateEventId) {
+      if (m.templateEventId && templateEventIds.has(m.templateEventId)) {
         map.set(m.templateEventId, m.competitionEventId)
       }
     }
@@ -323,7 +398,11 @@ function CompetitionRow({
   const initialSaved = () => {
     const map = new Map<string, string>()
     for (const m of comp.mappings) {
-      if (m.saved && m.templateEventId) {
+      if (
+        m.saved &&
+        m.templateEventId &&
+        templateEventIds.has(m.templateEventId)
+      ) {
         map.set(m.templateEventId, m.competitionEventId)
       }
     }
@@ -361,29 +440,29 @@ function CompetitionRow({
 
   // Count competition events not mapped to any template event
   const unmappedCount = comp.events.filter(
-    (e) => !usedCompEventIds.has(e.id),
+    (e) => !e.parentEventId && !usedCompEventIds.has(e.id),
   ).length
 
   return (
     <tr
       className={`border-b last:border-b-0 hover:bg-muted/30 ${hidden ? "hidden" : ""}`}
     >
-      <td className="px-3 py-2 sticky left-0 bg-background">
-        <div className="flex items-center gap-1.5">
-          <span className="font-medium text-xs truncate max-w-[160px]">
-            {comp.competition.name}
-          </span>
-          <Link
-            to="/compete/organizer/$competitionId/events"
-            params={{ competitionId: comp.competition.id }}
-            className="text-muted-foreground hover:text-foreground shrink-0"
-          >
-            <ExternalLink className="h-3 w-3" />
-          </Link>
-        </div>
+      <td className="px-3 py-2 w-[22rem] min-w-[22rem] max-w-[22rem] sticky left-0 bg-background align-top">
+        <Link
+          to="/compete/organizer/$competitionId/events"
+          params={{ competitionId: comp.competition.id }}
+          className="block w-full whitespace-normal break-words text-xs font-medium leading-snug text-foreground underline-offset-2 hover:underline"
+        >
+          {comp.competition.name}
+        </Link>
       </td>
-      {template.events.map((te) => {
+      {templateEvents.map((te) => {
         const selectedCompEventId = selections.get(te.id) ?? "__none__"
+        const childTemplateEvents = childTemplateEventsByParent.get(te.id) ?? []
+        const selectedCompetitionChildren =
+          selectedCompEventId !== "__none__"
+            ? (childCompetitionEventsByParent.get(selectedCompEventId) ?? [])
+            : []
 
         return (
           <td key={te.id} className="px-1 py-1.5 text-center">
@@ -391,9 +470,11 @@ function CompetitionRow({
               value={selectedCompEventId}
               onChange={(e) => handleChange(te.id, e.target.value)}
               className={`h-7 text-xs rounded-md border px-1.5 py-0.5 w-full max-w-[140px] mx-auto block focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer ${
-                selectedCompEventId === "__none__" && !savedSelections.has(te.id)
+                selectedCompEventId === "__none__" &&
+                !savedSelections.has(te.id)
                   ? "border-dashed border-muted-foreground/30 text-muted-foreground"
-                  : selectedCompEventId === "__none__" && savedSelections.has(te.id)
+                  : selectedCompEventId === "__none__" &&
+                      savedSelections.has(te.id)
                     ? "border-orange-300 bg-orange-50 text-orange-800 dark:bg-orange-950/30 dark:text-orange-300"
                     : savedSelections.get(te.id) === selectedCompEventId
                       ? "border-green-300 bg-green-50 text-green-800 dark:bg-green-950/30 dark:text-green-300"
@@ -403,23 +484,44 @@ function CompetitionRow({
               data-template-event-id={te.id}
             >
               <option value="__none__">—</option>
-              {comp.events.map((ce) => {
+              {parentCompetitionEvents.map((ce) => {
                 const isUsedElsewhere =
-                  usedCompEventIds.has(ce.id) &&
-                  selectedCompEventId !== ce.id
+                  usedCompEventIds.has(ce.id) && selectedCompEventId !== ce.id
                 return (
-                  <option
-                    key={ce.id}
-                    value={ce.id}
-                    disabled={isUsedElsewhere}
-                  >
+                  <option key={ce.id} value={ce.id} disabled={isUsedElsewhere}>
                     {ce.name}
                     {ce.scoreType ? ` (${ce.scoreType})` : ""}
+                    {childCompetitionEventsByParent.get(ce.id)?.length
+                      ? ` (+${childCompetitionEventsByParent.get(ce.id)?.length} sub)`
+                      : ""}
                     {isUsedElsewhere ? " (used)" : ""}
                   </option>
                 )
               })}
             </select>
+            {childTemplateEvents.length > 0 ||
+            selectedCompetitionChildren.length > 0 ? (
+              <div className="mx-auto mt-1 max-w-[140px] space-y-0.5 text-left text-[10px] leading-tight text-muted-foreground">
+                {childTemplateEvents.length > 0 ? (
+                  <div>
+                    <span className="font-medium text-foreground/70">
+                      Template:
+                    </span>{" "}
+                    {childTemplateEvents.map((child) => child.name).join(", ")}
+                  </div>
+                ) : null}
+                {selectedCompetitionChildren.length > 0 ? (
+                  <div>
+                    <span className="font-medium text-foreground/70">
+                      Competition:
+                    </span>{" "}
+                    {selectedCompetitionChildren
+                      .map((child) => child.name)
+                      .join(", ")}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </td>
         )
       })}
