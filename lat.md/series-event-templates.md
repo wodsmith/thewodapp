@@ -101,7 +101,7 @@ Each template event can only be claimed once (no duplicate mappings).
 
 Mappings are stored in `series_event_mappings` with four keys: groupId, competitionId, competitionEventId, templateEventId.
 
-`saveSeriesEventMappingsFn` validates submitted template and competition event IDs against the series template track and child competition tracks before doing a full replace, then deletes all existing mappings for the group and inserts the new set atomically in a transaction.
+`saveSeriesEventMappingsFn` validates submitted template event IDs against the series template track and competition event IDs against the selected competition in the series before doing a full replace, then deletes all existing mappings for the group and inserts the new set atomically in a transaction.
 
 ## Competition Creation Integration
 

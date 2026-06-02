@@ -1813,11 +1813,12 @@ export const saveSeriesEventMappingsFn = createServerFn({ method: "POST" })
         ),
       ]
 
-      const [submittedEvents, submittedCompetitionTracks] = await Promise.all([
+      const [submittedEvents, submittedCompetitions] = await Promise.all([
         db
           .select({
             id: trackWorkoutsTable.id,
             trackId: trackWorkoutsTable.trackId,
+            trackCompetitionId: programmingTracksTable.competitionId,
             parentEventId: trackWorkoutsTable.parentEventId,
             workout: {
               name: workouts.name,
@@ -1825,17 +1826,14 @@ export const saveSeriesEventMappingsFn = createServerFn({ method: "POST" })
           })
           .from(trackWorkoutsTable)
           .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
-          .where(inArray(trackWorkoutsTable.id, submittedEventIds)),
-        db
-          .select({
-            competitionId: competitionsTable.id,
-            trackId: programmingTracksTable.id,
-          })
-          .from(competitionsTable)
           .innerJoin(
             programmingTracksTable,
-            eq(programmingTracksTable.competitionId, competitionsTable.id),
+            eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
           )
+          .where(inArray(trackWorkoutsTable.id, submittedEventIds)),
+        db
+          .select({ competitionId: competitionsTable.id })
+          .from(competitionsTable)
           .where(
             and(
               eq(competitionsTable.groupId, data.groupId),
@@ -1846,18 +1844,12 @@ export const saveSeriesEventMappingsFn = createServerFn({ method: "POST" })
       const submittedEventById = new Map(
         submittedEvents.map((event) => [event.id, event]),
       )
-      const trackIdByCompetitionId = new Map(
-        submittedCompetitionTracks.map((track) => [
-          track.competitionId,
-          track.trackId,
-        ]),
+      const validCompetitionIds = new Set(
+        submittedCompetitions.map((competition) => competition.competitionId),
       )
 
       for (const mapping of data.mappings) {
-        const competitionTrackId = trackIdByCompetitionId.get(
-          mapping.competitionId,
-        )
-        if (!competitionTrackId) {
+        if (!validCompetitionIds.has(mapping.competitionId)) {
           throw new Error("Mapping competition is not part of this series")
         }
 
@@ -1871,7 +1863,7 @@ export const saveSeriesEventMappingsFn = createServerFn({ method: "POST" })
         )
         if (
           !competitionEvent ||
-          competitionEvent.trackId !== competitionTrackId
+          competitionEvent.trackCompetitionId !== mapping.competitionId
         ) {
           throw new Error(
             "Mapping competition event is not part of the selected competition",
