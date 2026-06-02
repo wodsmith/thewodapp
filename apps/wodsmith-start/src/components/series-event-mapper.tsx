@@ -458,6 +458,16 @@ function CompetitionRow({
       </td>
       {templateEvents.map((te) => {
         const selectedCompEventId = selections.get(te.id) ?? "__none__"
+        const selectedCompetitionEvent = comp.events.find(
+          (event) => event.id === selectedCompEventId,
+        )
+        const competitionOptions =
+          selectedCompetitionEvent?.parentEventId &&
+          !parentCompetitionEvents.some(
+            (event) => event.id === selectedCompetitionEvent.id,
+          )
+            ? [...parentCompetitionEvents, selectedCompetitionEvent]
+            : parentCompetitionEvents
         const childTemplateEvents = childTemplateEventsByParent.get(te.id) ?? []
         const selectedCompetitionChildren =
           selectedCompEventId !== "__none__"
@@ -484,9 +494,10 @@ function CompetitionRow({
               data-template-event-id={te.id}
             >
               <option value="__none__">—</option>
-              {parentCompetitionEvents.map((ce) => {
+              {competitionOptions.map((ce) => {
                 const isUsedElsewhere =
                   usedCompEventIds.has(ce.id) && selectedCompEventId !== ce.id
+                const isLegacyChildSelection = !!ce.parentEventId
                 return (
                   <option key={ce.id} value={ce.id} disabled={isUsedElsewhere}>
                     {ce.name}
@@ -494,6 +505,7 @@ function CompetitionRow({
                     {childCompetitionEventsByParent.get(ce.id)?.length
                       ? ` (+${childCompetitionEventsByParent.get(ce.id)?.length} sub)`
                       : ""}
+                    {isLegacyChildSelection ? " (legacy sub-event)" : ""}
                     {isUsedElsewhere ? " (used)" : ""}
                   </option>
                 )

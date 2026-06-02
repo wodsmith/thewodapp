@@ -84,7 +84,7 @@ Event matching connects each competition's events to the series template for lea
 
 The UI lives on the "Event Match" tab of the consolidated events page at `/series/{groupId}/events`, using `SeriesEventMapper` — an interactive matrix with competitions as rows and parent template events as columns.
 
-Parent events are the only mapping control surface. Sub-events are displayed under their parent column for context, and saving a parent event mapping expands it into child mappings when matching child events exist under the selected competition parent.
+Parent events are the primary mapping control surface. Sub-events are displayed under their parent column for context, legacy child selections remain visible, and saving a parent event mapping expands it into child mappings only when unclaimed child events match by name under the selected competition parent.
 
 Competition names in the mapper render as wrapping row links so long competition titles remain fully visible while the matrix scrolls horizontally.
 
@@ -101,7 +101,7 @@ Each template event can only be claimed once (no duplicate mappings).
 
 Mappings are stored in `series_event_mappings` with four keys: groupId, competitionId, competitionEventId, templateEventId.
 
-`saveSeriesEventMappingsFn` does a full replace — deletes all existing mappings for the group, then inserts the new set atomically in a transaction.
+`saveSeriesEventMappingsFn` validates submitted template and competition event IDs against the series template track and child competition tracks before doing a full replace, then deletes all existing mappings for the group and inserts the new set atomically in a transaction.
 
 ## Competition Creation Integration
 

@@ -1786,8 +1786,18 @@ export const saveSeriesEventMappingsFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
+    const seriesSettings = parseSeriesSettings(group.settings)
+    const templateTrackId = seriesSettings?.templateTrackId
+
     const expandedMappings = [...data.mappings]
     if (data.mappings.length > 0) {
+      if (!templateTrackId) {
+        throw new Error("Series has no template track")
+      }
+
+      const submittedCompetitionIds = [
+        ...new Set(data.mappings.map((mapping) => mapping.competitionId)),
+      ]
       const submittedEventIds = [
         ...new Set(
           data.mappings.flatMap((mapping) => [
@@ -1797,20 +1807,71 @@ export const saveSeriesEventMappingsFn = createServerFn({ method: "POST" })
         ),
       ]
 
-      const submittedEvents = await db
-        .select({
-          id: trackWorkoutsTable.id,
-          parentEventId: trackWorkoutsTable.parentEventId,
-          workout: {
-            name: workouts.name,
-          },
-        })
-        .from(trackWorkoutsTable)
-        .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
-        .where(inArray(trackWorkoutsTable.id, submittedEventIds))
+      const [submittedEvents, submittedCompetitionTracks] = await Promise.all([
+        db
+          .select({
+            id: trackWorkoutsTable.id,
+            trackId: trackWorkoutsTable.trackId,
+            parentEventId: trackWorkoutsTable.parentEventId,
+            workout: {
+              name: workouts.name,
+            },
+          })
+          .from(trackWorkoutsTable)
+          .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+          .where(inArray(trackWorkoutsTable.id, submittedEventIds)),
+        db
+          .select({
+            competitionId: competitionsTable.id,
+            trackId: programmingTracksTable.id,
+          })
+          .from(competitionsTable)
+          .innerJoin(
+            programmingTracksTable,
+            eq(programmingTracksTable.competitionId, competitionsTable.id),
+          )
+          .where(
+            and(
+              eq(competitionsTable.groupId, data.groupId),
+              inArray(competitionsTable.id, submittedCompetitionIds),
+            ),
+          ),
+      ])
       const submittedEventById = new Map(
         submittedEvents.map((event) => [event.id, event]),
       )
+      const trackIdByCompetitionId = new Map(
+        submittedCompetitionTracks.map((track) => [
+          track.competitionId,
+          track.trackId,
+        ]),
+      )
+
+      for (const mapping of data.mappings) {
+        const competitionTrackId = trackIdByCompetitionId.get(
+          mapping.competitionId,
+        )
+        if (!competitionTrackId) {
+          throw new Error("Mapping competition is not part of this series")
+        }
+
+        const templateEvent = submittedEventById.get(mapping.templateEventId)
+        if (!templateEvent || templateEvent.trackId !== templateTrackId) {
+          throw new Error("Mapping template event is not part of this series")
+        }
+
+        const competitionEvent = submittedEventById.get(
+          mapping.competitionEventId,
+        )
+        if (
+          !competitionEvent ||
+          competitionEvent.trackId !== competitionTrackId
+        ) {
+          throw new Error(
+            "Mapping competition event is not part of the selected competition",
+          )
+        }
+      }
 
       const parentMappings = data.mappings.filter((mapping) => {
         const templateEvent = submittedEventById.get(mapping.templateEventId)
@@ -1901,24 +1962,30 @@ export const saveSeriesEventMappingsFn = createServerFn({ method: "POST" })
           templateChildrenByParent.get(mapping.templateEventId) ?? []
         const competitionChildren =
           competitionChildrenByParent.get(mapping.competitionEventId) ?? []
-        const claimedCompetitionChildIds = new Set<string>()
-
-        for (let i = 0; i < templateChildren.length; i++) {
-          const templateChild = templateChildren[i]
-          const matchedChild =
-            findMatchingCompetitionEvent(
-              templateChild.workout.name,
-              competitionChildren,
-              claimedCompetitionChildIds,
-            ) ??
-            competitionChildren.find(
-              (child, childIndex) =>
-                childIndex === i && !claimedCompetitionChildIds.has(child.id),
+        const competitionChildIds = new Set(
+          competitionChildren.map((child) => child.id),
+        )
+        const claimedCompetitionChildIds = new Set(
+          expandedMappings
+            .filter(
+              (existingMapping) =>
+                existingMapping.competitionId === mapping.competitionId &&
+                competitionChildIds.has(existingMapping.competitionEventId),
             )
+            .map((existingMapping) => existingMapping.competitionEventId),
+        )
 
-          if (!matchedChild) continue
+        for (const templateChild of templateChildren) {
           const templateKey = `${mapping.competitionId}:${templateChild.id}`
           if (mappedTemplateKeys.has(templateKey)) continue
+
+          const matchedChild = findMatchingCompetitionEvent(
+            templateChild.workout.name,
+            competitionChildren,
+            claimedCompetitionChildIds,
+          )
+
+          if (!matchedChild) continue
 
           claimedCompetitionChildIds.add(matchedChild.id)
           mappedTemplateKeys.add(templateKey)
