@@ -1138,6 +1138,52 @@ function sortedEventKey(name: string): string {
   return normalizeEventName(name).split(" ").sort().join(" ")
 }
 
+function filterTemplateEventsForSync<
+  T extends { id: string; parentEventId: string | null },
+>(templateEvents: T[], templateEventIds?: string[]): T[] {
+  if (!templateEventIds || templateEventIds.length === 0) {
+    return templateEvents
+  }
+
+  const allowedIds = new Set(templateEventIds)
+  for (const event of templateEvents) {
+    if (event.parentEventId && allowedIds.has(event.id)) {
+      allowedIds.add(event.parentEventId)
+    }
+  }
+
+  return templateEvents.filter(
+    (event) =>
+      allowedIds.has(event.id) ||
+      (event.parentEventId && allowedIds.has(event.parentEventId)),
+  )
+}
+
+function findMatchingCompetitionEvent<
+  T extends { id: string; workout: { name: string } },
+>(templateEventName: string, candidates: T[], claimedIds: Set<string>): T | null {
+  const available = candidates.filter((event) => !claimedIds.has(event.id))
+  const templateLower = templateEventName.toLowerCase().trim()
+
+  const exactMatch = available.find(
+    (event) => event.workout.name.toLowerCase().trim() === templateLower,
+  )
+  if (exactMatch) return exactMatch
+
+  const templateNormalized = normalizeEventName(templateEventName)
+  const normalizedMatch = available.find(
+    (event) => normalizeEventName(event.workout.name) === templateNormalized,
+  )
+  if (normalizedMatch) return normalizedMatch
+
+  const templateSorted = sortedEventKey(templateEventName)
+  return (
+    available.find(
+      (event) => sortedEventKey(event.workout.name) === templateSorted,
+    ) ?? null
+  )
+}
+
 /**
  * Auto-map competition events to series template events by workout name.
  * Two-pass: exact case-insensitive, then normalized token matching.
@@ -1798,31 +1844,18 @@ export const syncTemplateEventsToCompetitionsFn = createServerFn({
         ),
       )
 
-    // Sort template events: parents first (parentEventId is null), then children
-    let parentTemplates = templateTrackWorkouts.filter(
-      (tw) => !tw.parentEventId,
-    )
-    let childTemplates = templateTrackWorkouts.filter(
-      (tw) => !!tw.parentEventId,
+    const filteredTemplateTrackWorkouts = filterTemplateEventsForSync(
+      templateTrackWorkouts,
+      data.templateEventIds,
     )
 
-    // Filter to specific template events if requested
-    if (data.templateEventIds && data.templateEventIds.length > 0) {
-      const allowedIds = new Set(data.templateEventIds)
-      // Auto-include parents of any selected child events
-      for (const child of childTemplates) {
-        if (allowedIds.has(child.id) && child.parentEventId) {
-          allowedIds.add(child.parentEventId)
-        }
-      }
-      parentTemplates = parentTemplates.filter((tw) => allowedIds.has(tw.id))
-      // Include child events whose parent is in the allowed set
-      childTemplates = childTemplates.filter(
-        (tw) =>
-          allowedIds.has(tw.id) ||
-          (tw.parentEventId && allowedIds.has(tw.parentEventId)),
-      )
-    }
+    // Sort template events: parents first (parentEventId is null), then children
+    const parentTemplates = filteredTemplateTrackWorkouts.filter(
+      (tw) => !tw.parentEventId,
+    )
+    const childTemplates = filteredTemplateTrackWorkouts.filter(
+      (tw) => !!tw.parentEventId,
+    )
 
     let synced = 0
 
@@ -1854,6 +1887,21 @@ export const syncTemplateEventsToCompetitionsFn = createServerFn({
       const templateToCompEvent = new Map(
         compMappings.map((m) => [m.templateEventId, m.competitionEventId]),
       )
+      const claimedCompetitionEventIds = new Set(
+        compMappings.map((m) => m.competitionEventId),
+      )
+
+      const compTrackWorkouts = await db
+        .select({
+          id: trackWorkoutsTable.id,
+          workoutId: trackWorkoutsTable.workoutId,
+          workout: {
+            name: workouts.name,
+          },
+        })
+        .from(trackWorkoutsTable)
+        .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+        .where(eq(trackWorkoutsTable.trackId, compTrack.id))
 
       // Division mapping for this competition: seriesDivisionId -> competitionDivisionId
       const compDivMappings = divisionMappings.filter(
@@ -1869,6 +1917,38 @@ export const syncTemplateEventsToCompetitionsFn = createServerFn({
       // Track mapping from template parent trackWorkoutId -> competition parent trackWorkoutId
       // Needed for child events to reference the correct parent
       const templateParentToCompParent = new Map<string, string>()
+
+      const saveEventMapping = async (
+        templateEventId: string,
+        competitionEventId: string,
+      ) => {
+        const existingCompetitionEventId =
+          templateToCompEvent.get(templateEventId)
+
+        if (existingCompetitionEventId === competitionEventId) {
+          return
+        }
+
+        await db
+          .delete(seriesEventMappingsTable)
+          .where(
+            and(
+              eq(seriesEventMappingsTable.groupId, data.groupId),
+              eq(seriesEventMappingsTable.competitionId, comp.id),
+              eq(seriesEventMappingsTable.templateEventId, templateEventId),
+            ),
+          )
+
+        await db.insert(seriesEventMappingsTable).values({
+          groupId: data.groupId,
+          competitionId: comp.id,
+          competitionEventId,
+          templateEventId,
+        })
+
+        templateToCompEvent.set(templateEventId, competitionEventId)
+        claimedCompetitionEventIds.add(competitionEventId)
+      }
 
       // Helper to sync per-division descriptions for a workout
       const syncDivisionDescriptions = async (
@@ -1948,6 +2028,63 @@ export const syncTemplateEventsToCompetitionsFn = createServerFn({
         }
       }
 
+      const updateCompetitionEventFromTemplate = async (
+        templateTw: (typeof templateTrackWorkouts)[number],
+        compTw: { id: string; workoutId: string },
+        compParentEventId: string | null,
+      ) => {
+        await db
+          .update(workouts)
+          .set({
+            name: templateTw.workout.name,
+            description: templateTw.workout.description ?? "",
+            scheme: templateTw.workout.scheme,
+            scoreType: templateTw.workout.scoreType,
+            timeCap: templateTw.workout.timeCap,
+            repsPerRound: templateTw.workout.repsPerRound,
+            updatedAt: new Date(),
+          })
+          .where(eq(workouts.id, compTw.workoutId))
+
+        const twUpdate: Record<string, unknown> = {
+          updatedAt: new Date(),
+          trackOrder: Number(templateTw.trackOrder),
+        }
+        if (templateTw.pointsMultiplier !== null) {
+          twUpdate.pointsMultiplier = templateTw.pointsMultiplier
+        }
+        if (templateTw.notes !== undefined) {
+          twUpdate.notes = templateTw.notes
+        }
+        if (compParentEventId !== undefined) {
+          twUpdate.parentEventId = compParentEventId
+        }
+        await db
+          .update(trackWorkoutsTable)
+          .set(twUpdate)
+          .where(eq(trackWorkoutsTable.id, compTw.id))
+
+        await syncDivisionDescriptions(templateTw.workout.id, compTw.workoutId)
+        await syncMovementsForWorkout(templateTw.workout.id, compTw.workoutId)
+        await syncEventResourcesForMapping(
+          db,
+          templateTw.id,
+          compTw.id,
+          comp.id,
+        )
+        await syncJudgingSheetsForMapping(
+          db,
+          templateTw.id,
+          compTw.id,
+          comp.id,
+          session.userId,
+        )
+
+        templateParentToCompParent.set(templateTw.id, compTw.id)
+        claimedCompetitionEventIds.add(compTw.id)
+        synced++
+      }
+
       // Helper to sync a single template event
       const syncEvent = async (
         templateTw: (typeof templateTrackWorkouts)[number],
@@ -1956,7 +2093,6 @@ export const syncTemplateEventsToCompetitionsFn = createServerFn({
         const compEventId = templateToCompEvent.get(templateTw.id)
 
         if (compEventId) {
-          // UPDATE existing competition event
           const [compTw] = await db
             .select({
               id: trackWorkoutsTable.id,
@@ -1966,72 +2102,41 @@ export const syncTemplateEventsToCompetitionsFn = createServerFn({
             .where(eq(trackWorkoutsTable.id, compEventId))
 
           if (compTw) {
-            // Update workout fields
-            await db
-              .update(workouts)
-              .set({
-                name: templateTw.workout.name,
-                description: templateTw.workout.description ?? "",
-                scheme: templateTw.workout.scheme,
-                scoreType: templateTw.workout.scoreType,
-                timeCap: templateTw.workout.timeCap,
-                repsPerRound: templateTw.workout.repsPerRound,
-                updatedAt: new Date(),
-              })
-              .where(eq(workouts.id, compTw.workoutId))
-
-            // Update track_workout fields
-            const twUpdate: Record<string, unknown> = {
-              updatedAt: new Date(),
-              trackOrder: Number(templateTw.trackOrder),
-            }
-            if (templateTw.pointsMultiplier !== null) {
-              twUpdate.pointsMultiplier = templateTw.pointsMultiplier
-            }
-            if (templateTw.notes !== undefined) {
-              twUpdate.notes = templateTw.notes
-            }
-            if (compParentEventId !== undefined) {
-              twUpdate.parentEventId = compParentEventId
-            }
-            await db
-              .update(trackWorkoutsTable)
-              .set(twUpdate)
-              .where(eq(trackWorkoutsTable.id, compTw.id))
-
-            // Sync per-division descriptions
-            await syncDivisionDescriptions(
-              templateTw.workout.id,
-              compTw.workoutId,
+            await updateCompetitionEventFromTemplate(
+              templateTw,
+              compTw,
+              compParentEventId,
             )
-
-            // Sync movements
-            await syncMovementsForWorkout(
-              templateTw.workout.id,
-              compTw.workoutId,
-            )
-
-            // Sync resources and judging sheets
-            await syncEventResourcesForMapping(
-              db,
-              templateTw.id,
-              compTw.id,
-              comp.id,
-            )
-            await syncJudgingSheetsForMapping(
-              db,
-              templateTw.id,
-              compTw.id,
-              comp.id,
-              session.userId,
-            )
-
-            // Track parent mapping for children
-            templateParentToCompParent.set(templateTw.id, compTw.id)
-            synced++
+            return
           }
+
+          await db
+            .delete(seriesEventMappingsTable)
+            .where(
+              and(
+                eq(seriesEventMappingsTable.groupId, data.groupId),
+                eq(seriesEventMappingsTable.competitionId, comp.id),
+                eq(seriesEventMappingsTable.templateEventId, templateTw.id),
+              ),
+            )
+          templateToCompEvent.delete(templateTw.id)
+          claimedCompetitionEventIds.delete(compEventId)
+        }
+
+        const matchingCompEvent = findMatchingCompetitionEvent(
+          templateTw.workout.name,
+          compTrackWorkouts,
+          claimedCompetitionEventIds,
+        )
+
+        if (matchingCompEvent) {
+          await updateCompetitionEventFromTemplate(
+            templateTw,
+            matchingCompEvent,
+            compParentEventId,
+          )
+          await saveEventMapping(templateTw.id, matchingCompEvent.id)
         } else {
-          // CLONE: create new workout + track_workout on competition track
           const newWorkoutId = `workout_${createId()}`
           const newTrackWorkoutId = createTrackWorkoutId()
 
@@ -2057,13 +2162,7 @@ export const syncTemplateEventsToCompetitionsFn = createServerFn({
             parentEventId: compParentEventId,
           })
 
-          // Create the event mapping
-          await db.insert(seriesEventMappingsTable).values({
-            groupId: data.groupId,
-            competitionId: comp.id,
-            competitionEventId: newTrackWorkoutId,
-            templateEventId: templateTw.id,
-          })
+          await saveEventMapping(templateTw.id, newTrackWorkoutId)
 
           // Sync per-division descriptions
           await syncDivisionDescriptions(templateTw.workout.id, newWorkoutId)
@@ -2439,6 +2538,8 @@ export interface SyncEventsPreviewResult {
     events: Array<{
       eventName: string
       isNew: boolean
+      mappingStatus: "mapped" | "existing-unmapped" | "new"
+      competitionEventName?: string
       changes: string[]
     }>
   }>
@@ -2458,6 +2559,7 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
       .object({
         groupId: z.string().min(1),
         competitionIds: z.array(z.string().min(1)).optional(),
+        templateEventIds: z.array(z.string().min(1)).optional(),
       })
       .parse(data),
   )
@@ -2510,6 +2612,11 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
     if (templateTrackWorkouts.length === 0) {
       return { competitions: [], totalEvents: 0 }
     }
+
+    const filteredTemplateTrackWorkouts = filterTemplateEventsForSync(
+      templateTrackWorkouts,
+      data.templateEventIds,
+    )
 
     // Load existing event mappings for this group
     const existingMappings = await db
@@ -2589,7 +2696,7 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
 
     // Batch-load movements for comparison
     const previewWorkoutIds = [
-      ...templateTrackWorkouts.map((tw) => tw.workoutId),
+      ...filteredTemplateTrackWorkouts.map((tw) => tw.workoutId),
       ...allCompTrackWorkouts.map((tw) => tw.workoutId),
     ]
     const previewMovements =
@@ -2616,7 +2723,7 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
 
     // Batch-load resources and judging sheets for preview comparison
     const previewTwIds = [
-      ...templateTrackWorkouts.map((tw) => tw.id),
+      ...filteredTemplateTrackWorkouts.map((tw) => tw.id),
       ...allCompTrackWorkouts.map((tw) => tw.id),
     ]
     const previewResources =
@@ -2673,46 +2780,60 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
       const templateToCompEvent = new Map(
         compMappings.map((m) => [m.templateEventId, m.competitionEventId]),
       )
+      const claimedCompetitionEventIds = new Set(
+        compMappings.map((m) => m.competitionEventId),
+      )
 
       const events: SyncEventsPreviewResult["competitions"][number]["events"] =
         []
 
-      for (const templateTw of templateTrackWorkouts) {
+      for (const templateTw of filteredTemplateTrackWorkouts) {
         const compEventId = templateToCompEvent.get(templateTw.id)
+        const previewCompTw =
+          compEventId != null
+            ? compTwMap.get(compEventId)
+            : findMatchingCompetitionEvent(
+                templateTw.workout.name,
+                allCompTrackWorkouts.filter((tw) => {
+                  const track = compTracks.find((t) => t.id === tw.trackId)
+                  return track?.competitionId === compId
+                }),
+                claimedCompetitionEventIds,
+              )
 
-        if (compEventId) {
-          // Existing mapping — compare fields
-          const compTw = compTwMap.get(compEventId)
-          if (!compTw) continue
+        if (previewCompTw) {
+          if (!compEventId) {
+            claimedCompetitionEventIds.add(previewCompTw.id)
+          }
 
           const changes: string[] = []
 
           // Workout field comparisons
-          if (compTw.workout.name !== templateTw.workout.name) {
+          if (previewCompTw.workout.name !== templateTw.workout.name) {
             changes.push(
-              `name: "${compTw.workout.name}" \u2192 "${templateTw.workout.name}"`,
+              `name: "${previewCompTw.workout.name}" \u2192 "${templateTw.workout.name}"`,
             )
           }
           if (
-            (compTw.workout.description ?? "") !==
+            (previewCompTw.workout.description ?? "") !==
             (templateTw.workout.description ?? "")
           ) {
             changes.push("description updated")
           }
-          if (compTw.workout.scheme !== templateTw.workout.scheme) {
+          if (previewCompTw.workout.scheme !== templateTw.workout.scheme) {
             changes.push(
-              `scheme: ${compTw.workout.scheme ?? "none"} \u2192 ${templateTw.workout.scheme ?? "none"}`,
+              `scheme: ${previewCompTw.workout.scheme ?? "none"} \u2192 ${templateTw.workout.scheme ?? "none"}`,
             )
           }
-          if (compTw.workout.scoreType !== templateTw.workout.scoreType) {
+          if (previewCompTw.workout.scoreType !== templateTw.workout.scoreType) {
             changes.push(
-              `scoreType: ${compTw.workout.scoreType ?? "none"} \u2192 ${templateTw.workout.scoreType ?? "none"}`,
+              `scoreType: ${previewCompTw.workout.scoreType ?? "none"} \u2192 ${templateTw.workout.scoreType ?? "none"}`,
             )
           }
-          if (compTw.workout.timeCap !== templateTw.workout.timeCap) {
+          if (previewCompTw.workout.timeCap !== templateTw.workout.timeCap) {
             const fromStr =
-              compTw.workout.timeCap != null
-                ? `${compTw.workout.timeCap}s`
+              previewCompTw.workout.timeCap != null
+                ? `${previewCompTw.workout.timeCap}s`
                 : "none"
             const toStr =
               templateTw.workout.timeCap != null
@@ -2721,11 +2842,11 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
             changes.push(`timeCap: ${fromStr} \u2192 ${toStr}`)
           }
           if (
-            compTw.workout.repsPerRound !== templateTw.workout.repsPerRound
+            previewCompTw.workout.repsPerRound !== templateTw.workout.repsPerRound
           ) {
             const fromStr =
-              compTw.workout.repsPerRound != null
-                ? String(compTw.workout.repsPerRound)
+              previewCompTw.workout.repsPerRound != null
+                ? String(previewCompTw.workout.repsPerRound)
                 : "none"
             const toStr =
               templateTw.workout.repsPerRound != null
@@ -2737,27 +2858,27 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
           // Track workout field comparisons
           if (
             templateTw.pointsMultiplier !== null &&
-            compTw.pointsMultiplier !== templateTw.pointsMultiplier
+            previewCompTw.pointsMultiplier !== templateTw.pointsMultiplier
           ) {
             changes.push(
-              `pointsMultiplier: ${compTw.pointsMultiplier} \u2192 ${templateTw.pointsMultiplier}`,
+              `pointsMultiplier: ${previewCompTw.pointsMultiplier} \u2192 ${templateTw.pointsMultiplier}`,
             )
           }
           if (
             templateTw.notes !== undefined &&
-            (compTw.notes ?? null) !== (templateTw.notes ?? null)
+            (previewCompTw.notes ?? null) !== (templateTw.notes ?? null)
           ) {
             changes.push("notes updated")
           }
           if (
-            Number(compTw.trackOrder) !== Number(templateTw.trackOrder)
+            Number(previewCompTw.trackOrder) !== Number(templateTw.trackOrder)
           ) {
             changes.push(
-              `order: #${Math.floor(Number(compTw.trackOrder))} → #${Math.floor(Number(templateTw.trackOrder))}`,
+              `order: #${Math.floor(Number(previewCompTw.trackOrder))} → #${Math.floor(Number(templateTw.trackOrder))}`,
             )
           }
           const tmplMvmts = previewMvmtByWorkout.get(templateTw.workoutId) ?? ""
-          const cmpMvmts = previewMvmtByWorkout.get(compTw.workoutId) ?? ""
+          const cmpMvmts = previewMvmtByWorkout.get(previewCompTw.workoutId) ?? ""
           if (tmplMvmts !== cmpMvmts) {
             changes.push("movements updated")
           }
@@ -2765,7 +2886,8 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
           // Check resources
           const tmplRes = previewResourcesByEvent.get(templateTw.id)
           if (tmplRes && tmplRes.size > 0) {
-            const cmpRes = previewResourcesByEvent.get(compTw.id) ?? new Set()
+            const cmpRes =
+              previewResourcesByEvent.get(previewCompTw.id) ?? new Set()
             const missing = [...tmplRes].filter((t) => !cmpRes.has(t))
             if (missing.length > 0) {
               changes.push(`${missing.length} resource${missing.length !== 1 ? "s" : ""} to add`)
@@ -2775,17 +2897,24 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
           // Check judging sheets
           const tmplSheets = previewSheetsByEvent.get(templateTw.id)
           if (tmplSheets && tmplSheets.size > 0) {
-            const cmpSheets = previewSheetsByEvent.get(compTw.id) ?? new Set()
+            const cmpSheets =
+              previewSheetsByEvent.get(previewCompTw.id) ?? new Set()
             const missing = [...tmplSheets].filter((t) => !cmpSheets.has(t))
             if (missing.length > 0) {
               changes.push(`${missing.length} judging sheet${missing.length !== 1 ? "s" : ""} to add`)
             }
           }
 
+          if (!compEventId) {
+            changes.unshift("mapping will be saved")
+          }
+
           if (changes.length > 0) {
             events.push({
               eventName: templateTw.workout.name,
               isNew: false,
+              mappingStatus: compEventId ? "mapped" : "existing-unmapped",
+              competitionEventName: previewCompTw.workout.name,
               changes,
             })
             totalEvents++
@@ -2809,6 +2938,7 @@ export const previewSyncEventsToCompetitionsFn = createServerFn({
           events.push({
             eventName: templateTw.workout.name,
             isNew: true,
+            mappingStatus: "new",
             changes:
               changes.length > 0 ? changes : ["new event (default values)"],
           })
@@ -2838,6 +2968,14 @@ export interface CompetitionEventSyncStatus {
   status: "in-sync" | "behind" | "custom" | "unmapped"
   mappedCount: number
   totalTemplateEvents: number
+  existingEvents: Array<{ id: string; name: string }>
+  eventStatuses: Array<{
+    templateEventId: string
+    templateEventName: string
+    competitionEventId: string | null
+    competitionEventName: string | null
+    status: "synced" | "will-resync" | "will-map-existing" | "will-create"
+  }>
 }
 
 /**
@@ -2851,6 +2989,7 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
     z
       .object({
         groupId: z.string().min(1),
+        templateEventIds: z.array(z.string().min(1)).optional(),
       })
       .parse(data),
   )
@@ -2890,6 +3029,8 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
           status: "unmapped" as const,
           mappedCount: 0,
           totalTemplateEvents: 0,
+          existingEvents: [],
+          eventStatuses: [],
         })),
       }
     }
@@ -2898,6 +3039,7 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
     const templateTrackWorkouts = await db
       .select({
         id: trackWorkoutsTable.id,
+        parentEventId: trackWorkoutsTable.parentEventId,
         trackOrder: trackWorkoutsTable.trackOrder,
         notes: trackWorkoutsTable.notes,
         pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
@@ -2916,7 +3058,11 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
       .where(eq(trackWorkoutsTable.trackId, templateTrackId))
       .orderBy(asc(trackWorkoutsTable.trackOrder))
 
-    const totalTemplateEvents = templateTrackWorkouts.length
+    const filteredTemplateTrackWorkouts = filterTemplateEventsForSync(
+      templateTrackWorkouts,
+      data.templateEventIds,
+    )
+    const totalTemplateEvents = filteredTemplateTrackWorkouts.length
 
     // Load all event mappings for this group
     const allMappings = await db
@@ -2934,7 +3080,9 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
       .from(programmingTracksTable)
       .where(inArray(programmingTracksTable.competitionId, compIds))
     const compTrackMap = new Map(
-      compTracks.map((t) => [t.competitionId!, t.id]),
+      compTracks
+        .filter((t) => t.competitionId !== null)
+        .map((t) => [t.competitionId, t.id]),
     )
 
     // Batch-load all competition track_workouts + workouts
@@ -2948,6 +3096,7 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
               trackOrder: trackWorkoutsTable.trackOrder,
               notes: trackWorkoutsTable.notes,
               pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
+              workoutId: trackWorkoutsTable.workoutId,
               workout: {
                 id: workouts.id,
                 name: workouts.name,
@@ -2987,7 +3136,7 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
 
     // Batch-load movements for all template and competition workouts
     const allWorkoutIds = [
-      ...templateTrackWorkouts.map((tw) => tw.workout.id),
+      ...filteredTemplateTrackWorkouts.map((tw) => tw.workout.id),
       ...allCompTrackWorkouts.map((tw) => tw.workout.id),
     ]
     const allMovementsData =
@@ -3015,7 +3164,7 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
 
     // Batch-load resources and judging sheets counts for comparison
     const allTrackWorkoutIds = [
-      ...templateTrackWorkouts.map((tw) => tw.id),
+      ...filteredTemplateTrackWorkouts.map((tw) => tw.id),
       ...allCompTrackWorkouts.map((tw) => tw.id),
     ]
     const allResourcesData =
@@ -3061,22 +3210,53 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
 
     for (const comp of comps) {
       const compMappings = mappingsByComp.get(comp.id) ?? []
+      const compTrackId = compTrackMap.get(comp.id)
+      const compEvents = compTrackId
+        ? allCompTrackWorkouts
+            .filter((tw) => tw.trackId === compTrackId)
+            .sort((a, b) => Number(a.trackOrder) - Number(b.trackOrder))
+        : []
+      const existingEvents = compEvents.map((event) => ({
+        id: event.id,
+        name: event.workout.name,
+      }))
 
       if (compMappings.length === 0) {
+        const claimedIds = new Set<string>()
+        const eventStatuses = filteredTemplateTrackWorkouts.map((templateTw) => {
+          const match = findMatchingCompetitionEvent(
+            templateTw.workout.name,
+            compEvents,
+            claimedIds,
+          )
+          if (match) {
+            claimedIds.add(match.id)
+          }
+          return {
+            templateEventId: templateTw.id,
+            templateEventName: templateTw.workout.name,
+            competitionEventId: match?.id ?? null,
+            competitionEventName: match?.workout.name ?? null,
+            status: match ? "will-map-existing" as const : "will-create" as const,
+          }
+        })
         results.push({
           competitionId: comp.id,
           competitionName: comp.name,
           status: "unmapped",
           mappedCount: 0,
           totalTemplateEvents,
+          existingEvents,
+          eventStatuses,
         })
         continue
       }
 
-      const mappedCount = compMappings.length
+      const mappedCount = filteredTemplateTrackWorkouts.filter((templateTw) =>
+        compMappings.some((mapping) => mapping.templateEventId === templateTw.id),
+      ).length
 
       // Check for custom events (competition events not in any mapping)
-      const compTrackId = compTrackMap.get(comp.id)
       const mappedCompEventIds = new Set(
         compMappings.map((m) => m.competitionEventId),
       )
@@ -3094,20 +3274,45 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
       const templateToCompEvent = new Map(
         compMappings.map((m) => [m.templateEventId, m.competitionEventId]),
       )
+      const claimedCompEventIds = new Set(mappedCompEventIds)
+      const eventStatuses: CompetitionEventSyncStatus["eventStatuses"] = []
 
-      for (const templateTw of templateTrackWorkouts) {
+      for (const templateTw of filteredTemplateTrackWorkouts) {
         const compEventId = templateToCompEvent.get(templateTw.id)
         if (!compEventId) {
-          // Template event not mapped to this competition — behind
+          const match = findMatchingCompetitionEvent(
+            templateTw.workout.name,
+            compEvents,
+            claimedCompEventIds,
+          )
+          if (match) {
+            claimedCompEventIds.add(match.id)
+          }
+          eventStatuses.push({
+            templateEventId: templateTw.id,
+            templateEventName: templateTw.workout.name,
+            competitionEventId: match?.id ?? null,
+            competitionEventName: match?.workout.name ?? null,
+            status: match ? "will-map-existing" : "will-create",
+          })
           hasDifferences = true
-          break
+          continue
         }
 
         const compTw = compTwMap.get(compEventId)
         if (!compTw) {
+          eventStatuses.push({
+            templateEventId: templateTw.id,
+            templateEventName: templateTw.workout.name,
+            competitionEventId: compEventId,
+            competitionEventName: null,
+            status: "will-create",
+          })
           hasDifferences = true
-          break
+          continue
         }
+
+        let eventHasDifferences = false
 
         // Compare workout fields
         if (
@@ -3119,8 +3324,7 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
           compTw.workout.timeCap !== templateTw.workout.timeCap ||
           compTw.workout.repsPerRound !== templateTw.workout.repsPerRound
         ) {
-          hasDifferences = true
-          break
+          eventHasDifferences = true
         }
 
         // Compare track workout fields
@@ -3131,16 +3335,14 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
             (compTw.notes ?? null) !== (templateTw.notes ?? null)) ||
           Number(compTw.trackOrder) !== Number(templateTw.trackOrder)
         ) {
-          hasDifferences = true
-          break
+          eventHasDifferences = true
         }
 
         // Compare movements
         const templateMvmts = movementsByWorkout.get(templateTw.workout.id) ?? ""
         const compMvmts = movementsByWorkout.get(compTw.workout.id) ?? ""
         if (templateMvmts !== compMvmts) {
-          hasDifferences = true
-          break
+          eventHasDifferences = true
         }
 
         // Compare resources (check if template has resources missing from competition)
@@ -3149,11 +3351,10 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
           const compResources = resourceTitlesByEvent.get(compTw.id) ?? new Set()
           for (const title of templateResources) {
             if (!compResources.has(title)) {
-              hasDifferences = true
+              eventHasDifferences = true
               break
             }
           }
-          if (hasDifferences) break
         }
 
         // Compare judging sheets (check if template has sheets missing from competition)
@@ -3162,19 +3363,29 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
           const compSheets = sheetTitlesByEvent.get(compTw.id) ?? new Set()
           for (const title of templateSheets) {
             if (!compSheets.has(title)) {
-              hasDifferences = true
+              eventHasDifferences = true
               break
             }
           }
-          if (hasDifferences) break
         }
+
+        if (eventHasDifferences) {
+          hasDifferences = true
+        }
+        eventStatuses.push({
+          templateEventId: templateTw.id,
+          templateEventName: templateTw.workout.name,
+          competitionEventId: compTw.id,
+          competitionEventName: compTw.workout.name,
+          status: eventHasDifferences ? "will-resync" : "synced",
+        })
       }
 
       let status: CompetitionEventSyncStatus["status"]
-      if (hasCustomEvents) {
-        status = "custom"
-      } else if (hasDifferences) {
+      if (hasDifferences) {
         status = "behind"
+      } else if (hasCustomEvents) {
+        status = "custom"
       } else {
         status = "in-sync"
       }
@@ -3185,6 +3396,8 @@ export const getCompetitionEventSyncStatusFn = createServerFn({
         status,
         mappedCount,
         totalTemplateEvents,
+        existingEvents,
+        eventStatuses,
       })
     }
 

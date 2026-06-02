@@ -35,7 +35,8 @@ The event list uses `SeriesTemplateEventEditor` with `SeriesEventRow` components
 `syncTemplateEventsToCompetitionsFn` pushes template event data to mapped competitions. For each template event:
 
 - **Existing mapped event** (UPDATE path): Updates workout fields (name, description, scheme, scoreType, timeCap, repsPerRound, tiebreakScheme), track workout fields (pointsMultiplier, notes, trackOrder, parentEventId), division descriptions, movements, resources, and judging sheets.
-- **Unmapped template event** (CLONE path): Creates a new workout + track_workout on the competition's track, creates the event mapping, then syncs division descriptions, movements, resources, and judging sheets.
+- **Unmapped template event with an existing match** (MAP path): Matches an unmapped competition event by name, updates it from the template, saves the event mapping, then syncs division descriptions, movements, resources, and judging sheets.
+- **Unmapped template event without an existing match** (CLONE path): Creates a new workout + track_workout on the competition's track, creates the event mapping, then syncs division descriptions, movements, resources, and judging sheets.
 
 Sync behavior by data type:
 - **Workout/track fields** — Overwritten to match template
@@ -48,9 +49,13 @@ Sync behavior by data type:
 
 The `templateEventIds` optional parameter filters which template events to sync. When provided, only those events are synced. If a child event is selected without its parent, the parent is auto-included to maintain the hierarchy.
 
+The `/series/{groupId}/events` page exposes this as a top-of-page workout selection toolbar. Organizers select any number of template workouts before opening the competition picker.
+
+The competition picker shows selected-workout status for each competition: already synced, will resync, will map an existing unmapped event, or will create a new event. It also lists the competition's existing events so organizers can avoid duplicating individual-only or team-only programming.
+
 ### Sync Status Detection
 
-`getCompetitionEventSyncStatusFn` compares template events against each competition's events to determine status:
+`getCompetitionEventSyncStatusFn` compares the selected template events against each competition's events to determine status:
 
 - **in-sync** — All mapped events match the template (workout fields, track fields, movements, resources, judging sheets)
 - **behind** — At least one mapped event differs from the template
@@ -61,7 +66,7 @@ The `templateEventIds` optional parameter filters which template events to sync.
 
 `previewSyncEventsToCompetitionsFn` generates a detailed diff showing what would change per competition per event before applying.
 
-Changes include field-level diffs (e.g., "name: Old Name → New Name"), order changes, "movements updated", "N resources to add", "N judging sheets to add".
+Changes include field-level diffs (e.g., "name: Old Name → New Name"), order changes, "movements updated", "N resources to add", "N judging sheets to add", and whether sync will create a new event or save a mapping to an existing unmapped event.
 
 ## Event Matching
 
