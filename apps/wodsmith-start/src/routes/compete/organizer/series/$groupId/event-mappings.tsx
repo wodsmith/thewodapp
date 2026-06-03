@@ -112,6 +112,7 @@ function SeriesEventMappingsPage() {
                       name: e.name,
                       order: e.order,
                       scoreType: e.scoreType,
+                      parentEventId: e.parentEventId,
                     })),
                   }}
                   initialMappings={competitionMappings}

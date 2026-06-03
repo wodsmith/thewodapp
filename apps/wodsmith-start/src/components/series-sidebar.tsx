@@ -5,6 +5,7 @@ import { Link, useRouterState } from "@tanstack/react-router"
 import {
   Calendar,
   ClipboardList,
+  Eye,
   Home,
   Layers,
   Moon,
@@ -71,6 +72,11 @@ const getNavigation = (
           label: "Event Template",
           href: `${basePath}/events`,
           icon: Calendar,
+        },
+        {
+          label: "Publish Workouts",
+          href: `${basePath}/publish-workouts`,
+          icon: Eye,
         },
       ],
     },
