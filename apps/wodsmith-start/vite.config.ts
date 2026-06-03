@@ -17,6 +17,12 @@ const config = defineConfig({
       persistState: {
         path: "./.alchemy/local/.wrangler/state",
       },
+      remoteBindings: process.env.CLOUDFLARE_VITE_REMOTE_BINDINGS !== "false",
+      auxiliaryWorkers: [
+        {
+          configPath: "../wodsmith-code-mode-mcp/wrangler.jsonc",
+        },
+      ],
     }),
     // Transforms TC39 decorators (e.g. @callable() in src/agents/*) since
     // Oxc — Vite's default TS transformer — doesn't yet support them.

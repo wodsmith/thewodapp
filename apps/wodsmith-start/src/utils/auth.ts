@@ -537,6 +537,13 @@ export function withSessionCache<T>(fn: () => T): T {
   return sessionCacheStorage.run({}, fn)
 }
 
+export function withSessionOverride<T>(
+  session: NonNullable<SessionValidationResult>,
+  fn: () => T,
+): T {
+  return sessionCacheStorage.run({ session: Promise.resolve(session) }, fn)
+}
+
 async function computeSessionFromCookie(): Promise<SessionValidationResult | null> {
   const sessionCookie = getCookie(SESSION_COOKIE_NAME)
 

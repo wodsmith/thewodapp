@@ -1,0 +1,2 @@
+# Local development uses wrangler.jsonc bindings. No .dev.vars values are
+# required for the Code Mode MCP worker by default.

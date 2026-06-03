@@ -29,6 +29,7 @@ import {
   withRequestContext,
 } from "./lib/logging"
 import { getSentryOptions } from "./lib/sentry/server"
+import { handleMcpOAuthRequest } from "./mcp/oauth"
 import { getSessionFromRequestCookie, withSessionCache } from "./utils/auth"
 
 // Sensitive field names to redact as a safety net in the drain.
@@ -98,6 +99,7 @@ initWorkersLogger({
 
 // Workers runtime requires Durable Object classes to be exported from the entry point
 export { JudgeSchedulerAgent } from "./agents/judge-scheduler-agent"
+export { WodsmithMcpOperations } from "./mcp/rpc"
 export { ManualRegistrationWorkflow } from "./workflows/manual-registration-workflow"
 // Workers runtime requires Workflow classes to be exported from the entry point
 export { StripeCheckoutWorkflow } from "./workflows/stripe-checkout-workflow"
@@ -108,6 +110,9 @@ const SLOW_REQUEST_THRESHOLD_MS = 2000
 // Create the base TanStack Start entry with default fetch handling
 const startEntry = createServerEntry({
   async fetch(request) {
+    const oauthResponse = handleMcpOAuthRequest(request)
+    if (oauthResponse) return oauthResponse
+
     // Route /agents/<namespace>/<name>/... to the matching Agent DO.
     // We resolve the stub via getAgentByName (which calls setName under the
     // hood and persists the name to DO storage) instead of routeAgentRequest

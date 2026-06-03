@@ -6,6 +6,7 @@ This directory defines the high-level concepts, business logic, and architecture
 - [[commerce]] — Stripe payments, registration checkout, coupons, entitlements
 - [[registration]] — Registration flow, payment, capacity, team formation, workflows
 - [[organizer-dashboard]] — Competition organizer dashboard pages and features
+- [[mcp]] — Code Mode MCP server for organizer and cohost competition operations
 - [[series-event-templates]] — Series event templates: define once, sync to all competitions
 - [[competition-invites]] — Qualification sources, roster, and email-locked invite rounds (ADR-0011)
 - [[crm-crossfit-metadata]] — CRM gym CrossFit profile URLs and derived affiliate metadata
