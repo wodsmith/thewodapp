@@ -27,7 +27,19 @@ function formatCurrency(cents: number | null, currency: string): string {
 
 function formatDate(dateStr: string | null): string {
 	if (!dateStr) return "-"
-	return new Date(dateStr).toLocaleDateString("en-US", {
+
+	const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr)
+	const date = dateOnlyMatch
+		? new Date(
+				Number(dateOnlyMatch[1]),
+				Number(dateOnlyMatch[2]) - 1,
+				Number(dateOnlyMatch[3]),
+			)
+		: new Date(dateStr)
+
+	if (Number.isNaN(date.getTime())) return "-"
+
+	return date.toLocaleDateString("en-US", {
 		month: "short",
 		day: "numeric",
 		year: "numeric",
