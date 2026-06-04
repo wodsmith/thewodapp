@@ -81,6 +81,7 @@ import {
 	syncTemplateEventsToCompetitionsFn,
 	type SeriesTemplateEvent,
 } from "@/server-fns/series-event-template-fns"
+import { deriveCompetitionEventSyncStatus } from "@/lib/series-event-sync-status"
 
 import {
 	WORKOUT_SCHEME_VALUES,
@@ -1227,6 +1228,45 @@ describe("Series Event Template Server Functions", () => {
 			// When templateEventIds is empty, the real code skips filtering entirely
 			// and processes all templates. Verify that behavior.
 			expect(templateEventIds.length).toBe(0)
+		})
+	})
+
+	// ========================================================================
+	// Competition event sync status classification
+	// ========================================================================
+
+	describe("deriveCompetitionEventSyncStatus", () => {
+		it("marks partially mapped selected events as unmapped, not behind", () => {
+			const status = deriveCompetitionEventSyncStatus({
+				hasMappedDifferences: false,
+				hasCustomEvents: false,
+				mappedCount: 1,
+				totalTemplateEvents: 2,
+			})
+
+			expect(status).toBe("unmapped")
+		})
+
+		it("marks mapped event drift as behind", () => {
+			const status = deriveCompetitionEventSyncStatus({
+				hasMappedDifferences: true,
+				hasCustomEvents: false,
+				mappedCount: 2,
+				totalTemplateEvents: 2,
+			})
+
+			expect(status).toBe("behind")
+		})
+
+		it("keeps fully mapped competitions with extra events custom", () => {
+			const status = deriveCompetitionEventSyncStatus({
+				hasMappedDifferences: false,
+				hasCustomEvents: true,
+				mappedCount: 2,
+				totalTemplateEvents: 2,
+			})
+
+			expect(status).toBe("custom")
 		})
 	})
 

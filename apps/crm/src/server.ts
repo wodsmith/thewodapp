@@ -7,5 +7,7 @@ const startEntry = createServerEntry({
 })
 
 export default {
-  fetch: startEntry.fetch,
+  fetch(request: Request) {
+    return startEntry.fetch(request)
+  },
 }

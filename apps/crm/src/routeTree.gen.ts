@@ -9,8 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as McpRouteImport } from './routes/mcp'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiMcpRouteImport } from './routes/api/mcp'
 import { Route as AuthenticatedInteractionsRouteImport } from './routes/_authenticated/interactions'
 import { Route as AuthenticatedGymsRouteImport } from './routes/_authenticated/gyms'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -24,6 +26,11 @@ import { Route as AuthenticatedContactsContactIdRouteImport } from './routes/_au
 import { Route as AuthenticatedCampaignsCampaignIdRouteImport } from './routes/_authenticated/campaigns.$campaignId'
 import { Route as AuthenticatedCampaignsCampaignIdAudienceRouteImport } from './routes/_authenticated/campaigns.$campaignId.audience'
 
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
@@ -31,6 +38,11 @@ const AuthenticatedRoute = AuthenticatedRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMcpRoute = ApiMcpRouteImport.update({
+  id: '/api/mcp',
+  path: '/api/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedInteractionsRoute =
@@ -101,11 +113,13 @@ const AuthenticatedCampaignsCampaignIdAudienceRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/mcp': typeof McpRoute
   '/campaigns': typeof AuthenticatedCampaignsRouteWithChildren
   '/contacts': typeof AuthenticatedContactsRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/gyms': typeof AuthenticatedGymsRouteWithChildren
   '/interactions': typeof AuthenticatedInteractionsRouteWithChildren
+  '/api/mcp': typeof ApiMcpRoute
   '/campaigns/$campaignId': typeof AuthenticatedCampaignsCampaignIdRouteWithChildren
   '/contacts/$contactId': typeof AuthenticatedContactsContactIdRoute
   '/gyms/$gymId': typeof AuthenticatedGymsGymIdRoute
@@ -116,11 +130,13 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/mcp': typeof McpRoute
   '/campaigns': typeof AuthenticatedCampaignsRouteWithChildren
   '/contacts': typeof AuthenticatedContactsRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/gyms': typeof AuthenticatedGymsRouteWithChildren
   '/interactions': typeof AuthenticatedInteractionsRouteWithChildren
+  '/api/mcp': typeof ApiMcpRoute
   '/campaigns/$campaignId': typeof AuthenticatedCampaignsCampaignIdRouteWithChildren
   '/contacts/$contactId': typeof AuthenticatedContactsContactIdRoute
   '/gyms/$gymId': typeof AuthenticatedGymsGymIdRoute
@@ -133,11 +149,13 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/mcp': typeof McpRoute
   '/_authenticated/campaigns': typeof AuthenticatedCampaignsRouteWithChildren
   '/_authenticated/contacts': typeof AuthenticatedContactsRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/gyms': typeof AuthenticatedGymsRouteWithChildren
   '/_authenticated/interactions': typeof AuthenticatedInteractionsRouteWithChildren
+  '/api/mcp': typeof ApiMcpRoute
   '/_authenticated/campaigns/$campaignId': typeof AuthenticatedCampaignsCampaignIdRouteWithChildren
   '/_authenticated/contacts/$contactId': typeof AuthenticatedContactsContactIdRoute
   '/_authenticated/gyms/$gymId': typeof AuthenticatedGymsGymIdRoute
@@ -150,11 +168,13 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/mcp'
     | '/campaigns'
     | '/contacts'
     | '/dashboard'
     | '/gyms'
     | '/interactions'
+    | '/api/mcp'
     | '/campaigns/$campaignId'
     | '/contacts/$contactId'
     | '/gyms/$gymId'
@@ -165,11 +185,13 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/mcp'
     | '/campaigns'
     | '/contacts'
     | '/dashboard'
     | '/gyms'
     | '/interactions'
+    | '/api/mcp'
     | '/campaigns/$campaignId'
     | '/contacts/$contactId'
     | '/gyms/$gymId'
@@ -181,11 +203,13 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/mcp'
     | '/_authenticated/campaigns'
     | '/_authenticated/contacts'
     | '/_authenticated/dashboard'
     | '/_authenticated/gyms'
     | '/_authenticated/interactions'
+    | '/api/mcp'
     | '/_authenticated/campaigns/$campaignId'
     | '/_authenticated/contacts/$contactId'
     | '/_authenticated/gyms/$gymId'
@@ -198,12 +222,21 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  McpRoute: typeof McpRoute
+  ApiMcpRoute: typeof ApiMcpRoute
   ApiCrmAgentCapabilitiesRoute: typeof ApiCrmAgentCapabilitiesRoute
   ApiCrmDocumentsRoute: typeof ApiCrmDocumentsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated': {
       id: '/_authenticated'
       path: ''
@@ -216,6 +249,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mcp': {
+      id: '/api/mcp'
+      path: '/api/mcp'
+      fullPath: '/api/mcp'
+      preLoaderRoute: typeof ApiMcpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/interactions': {
@@ -397,6 +437,8 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  McpRoute: McpRoute,
+  ApiMcpRoute: ApiMcpRoute,
   ApiCrmAgentCapabilitiesRoute: ApiCrmAgentCapabilitiesRoute,
   ApiCrmDocumentsRoute: ApiCrmDocumentsRoute,
 }
