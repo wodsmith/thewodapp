@@ -645,6 +645,81 @@ export function RegistrationQuestionsSection({
   )
 }
 
+export function CouponCodeSection({
+  value,
+  activeCoupon,
+  onChange,
+  onApply,
+  onRemove,
+  disabled,
+  isApplying,
+}: {
+  value: string
+  activeCoupon: { code: string; amountOffCents: number } | null
+  onChange: (value: string) => void
+  onApply: () => void
+  onRemove: () => void
+  disabled?: boolean
+  isApplying: boolean
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Coupon Code</CardTitle>
+        <CardDescription>
+          Have a WODsmith coupon code? Apply it before checkout.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {activeCoupon ? (
+          <div className="flex items-center justify-between gap-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
+            <span className="flex items-center gap-2">
+              <Tag className="h-4 w-4" />
+              <span>
+                <span className="font-semibold">{activeCoupon.code}</span>{" "}
+                applied (${(activeCoupon.amountOffCents / 100).toFixed(2)} off)
+              </span>
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onRemove}
+              disabled={disabled}
+            >
+              Remove
+            </Button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <Label htmlFor="registration-coupon-code" className="sr-only">
+                Coupon code
+              </Label>
+              <Input
+                id="registration-coupon-code"
+                value={value}
+                onChange={(event) => onChange(event.target.value)}
+                placeholder="Enter coupon code"
+                disabled={disabled || isApplying}
+                autoCapitalize="characters"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onApply}
+              disabled={disabled || isApplying || !value.trim()}
+            >
+              {isApplying ? "Applying..." : "Apply"}
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 export function FeeSummarySection({
   competitionId,
   selectedDivisionIds,

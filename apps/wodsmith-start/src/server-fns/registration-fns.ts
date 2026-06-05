@@ -906,7 +906,6 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
       cancel_url: `${appUrl}/compete/${competition.slug}/register?canceled=true`,
       expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
       customer_email: session.user.email ?? undefined,
-      allow_promotion_codes: true,
     }
 
     // Add transfer_data if organizer has verified Stripe connection
@@ -938,10 +937,6 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
         max_redemptions: 1,
         metadata: { couponId: validatedCoupon.id, purchaseId: purchaseIds[0] },
       })
-      // Stripe Checkout only supports one discount path per session. If WODsmith
-      // pre-applies an app coupon, hide the promo-code entry box to avoid users
-      // stacking a second Stripe-hosted promotion code.
-      sessionParams.allow_promotion_codes = false
       sessionParams.discounts = [{ coupon: stripeCouponId }]
       sessionParams.metadata = {
         ...sessionParams.metadata,
