@@ -19,6 +19,7 @@ import {
 } from "@/server-fns/competition-detail-fns"
 import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
+import { listMyPendingCompetitionInvitesFn } from "@/server-fns/competition-invite-fns"
 import { getCouponByCodeFn } from "@/server-fns/coupon-fns"
 import { hasJudgesScheduleFn } from "@/server-fns/judge-scheduling-fns"
 import { getCompetitionSponsorsFn } from "@/server-fns/sponsor-fns"
@@ -92,6 +93,7 @@ export const Route = createFileRoute("/compete/$slug")({
       organizerContactEmail,
       userRegsResult,
       pendingTeamInvitesResult,
+      pendingCompetitionInvitesResult,
       judgesScheduleResult,
       cohostPermissions,
     ] = await Promise.all([
@@ -119,6 +121,13 @@ export const Route = createFileRoute("/compete/$slug")({
             },
           })
         : Promise.resolve({ invitations: [] }),
+      session
+        ? listMyPendingCompetitionInvitesFn({
+            data: {
+              championshipCompetitionId: competition.id,
+            },
+          })
+        : Promise.resolve({ invites: [] }),
       hasJudgesScheduleFn({
         data: { competitionId: competition.id },
       }),
@@ -169,6 +178,7 @@ export const Route = createFileRoute("/compete/$slug")({
       competitionCapacity,
       sponsors,
       pendingTeamInvites: pendingTeamInvitesResult.invitations,
+      pendingCompetitionInvites: pendingCompetitionInvitesResult.invites,
       userDivision,
       userDivisions,
       maxSpots: undefined as number | undefined,
