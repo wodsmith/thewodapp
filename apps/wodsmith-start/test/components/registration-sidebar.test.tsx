@@ -14,11 +14,9 @@ vi.mock("@tanstack/react-router", () => ({
     to: string
     params?: Record<string, string>
   }) => {
-    const href = params?.token
-      ? to.replace("$token", params.token)
-      : params?.slug
-        ? to.replace("$slug", params.slug)
-        : to
+    let href = to
+    if (params?.slug) href = href.replace("$slug", params.slug)
+    if (params?.token) href = href.replace("$token", params.token)
     return (
       <a href={href} {...rest}>
         {children}
@@ -71,6 +69,53 @@ function renderSidebar(
     />,
   )
 }
+
+describe("RegistrationSidebar pending competition invites", () => {
+  it("shows an accept invite CTA in place of the public registration CTA", () => {
+    renderSidebar({
+      registrationOpen: true,
+      pendingCompetitionInvites: [
+        {
+          id: "comp_invite_1",
+          token: "claim_token_abc",
+          divisionLabel: "Individual RX",
+          expiresAt: "2026-05-15",
+        },
+      ],
+    })
+
+    const link = screen.getByRole("link", { name: "Accept Invite" })
+    expect(screen.getByText("Competition invite waiting")).toBeInTheDocument()
+    expect(screen.getByText(/Individual RX/)).toBeInTheDocument()
+    expect(link).toHaveAttribute(
+      "href",
+      "/compete/test-comp/claim/claim_token_abc",
+    )
+    expect(
+      screen.queryByRole("link", { name: "Register Now" }),
+    ).not.toBeInTheDocument()
+  })
+
+  it("shows the invite CTA even when public registration is closed", () => {
+    renderSidebar({
+      registrationOpen: false,
+      pendingCompetitionInvites: [
+        {
+          id: "comp_invite_1",
+          token: "claim_token_abc",
+          divisionLabel: "Individual RX",
+          expiresAt: null,
+        },
+      ],
+    })
+
+    expect(screen.getByRole("link", { name: "Accept Invite" })).toHaveAttribute(
+      "href",
+      "/compete/test-comp/claim/claim_token_abc",
+    )
+    expect(screen.queryByText("Registration closed")).not.toBeInTheDocument()
+  })
+})
 
 describe("RegistrationSidebar pending team invites", () => {
   it("shows an accept team invite CTA when a pending invite exists", () => {

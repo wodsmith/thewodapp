@@ -18,7 +18,7 @@
 import { env } from "cloudflare:workers"
 import { render } from "@react-email/render"
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray, ne, sql } from "drizzle-orm"
+import { and, eq, inArray, isNotNull, ne, or, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -221,6 +221,10 @@ const listBespokeInvitesInputSchema = z.object({
    *  picked a target championship division yet — the choice is deferred to
    *  send time). */
   championshipDivisionId: z.string().min(1).optional(),
+})
+
+const listMyPendingCompetitionInvitesInputSchema = z.object({
+  championshipCompetitionId: z.string().min(1),
 })
 
 const bespokeBulkInviteInputSchema = z.object({
@@ -1441,6 +1445,14 @@ export const createBespokeInvitesBulkFn = createServerFn({ method: "POST" })
  * uses this to distinguish drafts from sent invites without exposing
  * raw token columns.
  */
+export interface MyPendingCompetitionInviteSummary {
+  id: string
+  token: string
+  championshipDivisionId: string
+  divisionLabel: string
+  expiresAt: Date | null
+}
+
 export interface ActiveInviteSummary {
   id: string
   email: string
@@ -1511,6 +1523,76 @@ export interface AuditInviteSummary extends ActiveInviteSummary {
  * regardless of origin so the UI can classify. Returns a minimal DTO so
  * the raw token columns never reach the client.
  */
+export const listMyPendingCompetitionInvitesFn = createServerFn({
+  method: "GET",
+})
+  .inputValidator((data: unknown) =>
+    listMyPendingCompetitionInvitesInputSchema.parse(data),
+  )
+  .handler(
+    async ({
+      data,
+    }): Promise<{ invites: MyPendingCompetitionInviteSummary[] }> => {
+      const session = await getSessionFromCookie()
+      if (!session?.userId) return { invites: [] }
+
+      const db = getDb()
+      const normalizedEmail = session.user.email
+        ? normalizeInviteEmail(session.user.email)
+        : null
+      const identityPredicate = normalizedEmail
+        ? or(
+            eq(competitionInvitesTable.userId, session.userId),
+            eq(competitionInvitesTable.email, normalizedEmail),
+          )
+        : eq(competitionInvitesTable.userId, session.userId)
+
+      const rows = await db
+        .select({
+          id: competitionInvitesTable.id,
+          token: competitionInvitesTable.claimToken,
+          championshipDivisionId:
+            competitionInvitesTable.championshipDivisionId,
+          divisionLabel: scalingLevelsTable.label,
+          expiresAt: competitionInvitesTable.expiresAt,
+        })
+        .from(competitionInvitesTable)
+        .leftJoin(
+          scalingLevelsTable,
+          eq(
+            scalingLevelsTable.id,
+            competitionInvitesTable.championshipDivisionId,
+          ),
+        )
+        .where(
+          and(
+            eq(
+              competitionInvitesTable.championshipCompetitionId,
+              data.championshipCompetitionId,
+            ),
+            identityPredicate,
+            eq(
+              competitionInvitesTable.status,
+              COMPETITION_INVITE_STATUS.PENDING,
+            ),
+            eq(
+              competitionInvitesTable.activeMarker,
+              COMPETITION_INVITE_ACTIVE_MARKER,
+            ),
+            isNotNull(competitionInvitesTable.claimToken),
+          ),
+        )
+
+      return {
+        invites: rows.map((row) => ({
+          ...row,
+          token: row.token ?? "",
+          divisionLabel: row.divisionLabel ?? "Invited division",
+        })),
+      }
+    },
+  )
+
 export const listActiveInvitesFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => listBespokeInvitesInputSchema.parse(data))
   .handler(async ({ data }): Promise<{ invites: ActiveInviteSummary[] }> => {
