@@ -23,6 +23,8 @@ For **free** competitions (or fully discounted by coupon): calls `registerForCom
 
 For **paid** competitions: creates `commercePurchaseTable` records (one per division), builds Stripe Checkout line items with fee breakdown, creates a Stripe Checkout Session, and redirects the athlete. Registration is finalized asynchronously by the [[registration#Stripe Checkout Workflow]].
 
+Coupon codes are resolved before redirecting to Stripe; see [[commerce#Coupons#Registration coupon entry]] for the shared link/manual entry behavior.
+
 ### Organizer Manual Registration
 
 Organizers register athletes from the dashboard via `createManualRegistrationFn`, bypassing the registration window.

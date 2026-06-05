@@ -22,6 +22,12 @@ Discount codes that reduce registration fees, defined in `src/db/schemas/coupons
 
 Organizers create coupons per competition with percentage or fixed-amount discounts, usage limits, and expiration dates. Athletes can apply a coupon link or manually enter the code on registration before checkout.
 
+### Registration coupon entry
+
+Athletes enter WODsmith coupon codes before leaving for Stripe Checkout.
+
+[[apps/wodsmith-start/src/components/registration/registration-sections.tsx#CouponCodeSection]] renders the manual entry field on public and invite registration forms. It calls [[apps/wodsmith-start/src/server-fns/coupon-fns.ts#validateCouponForCheckoutFn]] through the registration form hook, stores the same session coupon payload used by coupon links, and passes the validated code to [[apps/wodsmith-start/src/server-fns/registration-fns.ts#initiateRegistrationPaymentFn]]. This keeps link-based and manual coupon application on the same server-side discount path.
+
 ## Purchase Transfers
 
 Registered athletes can transfer their registration to another person.
