@@ -45,6 +45,8 @@ Sync behavior by data type:
 - **Resources** — Additive only, deduplicated by title match (case-insensitive)
 - **Judging sheets** — Additive only, deduplicated by title match (case-insensitive)
 
+Template asset selection uses [[apps/wodsmith-start/src/lib/series-template-asset-sync.ts#selectTemplateAssetsMissingByTitle]] for both resources and judging sheets. The helper filters titles already present in the competition and deduplicates repeated template titles after trim/case normalization, including empty or whitespace-only titles.
+
 ### Selective Sync
 
 The `templateEventIds` optional parameter filters which template events to sync. When provided, only those events are synced. If a child event is selected without its parent, the parent is auto-included to maintain the hierarchy.

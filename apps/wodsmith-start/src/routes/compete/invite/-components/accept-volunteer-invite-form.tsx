@@ -21,6 +21,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
 import type { Waiver } from "@/db/schemas/waivers"
 import { useTrackEvent } from "@/lib/posthog/hooks"
+import {
+  haveAllVolunteerWaiversBeenAgreed,
+  toggleVolunteerWaiverAgreement,
+} from "@/lib/volunteer-waiver-agreements"
 import { acceptVolunteerInviteFn } from "@/server-fns/invite-fns"
 import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
 
@@ -72,10 +76,7 @@ export function AcceptVolunteerInviteForm({
       }
     }
 
-    const allVolunteerWaiversAgreed = waivers.every((waiver) =>
-      agreedWaivers.has(waiver.id),
-    )
-    if (!allVolunteerWaiversAgreed) {
+    if (!haveAllVolunteerWaiversBeenAgreed(waivers, agreedWaivers)) {
       setError("Please agree to all required waivers before accepting")
       setIsPending(false)
       return
@@ -247,12 +248,13 @@ export function AcceptVolunteerInviteForm({
                   id={`volunteer-waiver-${waiver.id}`}
                   checked={agreedWaivers.has(waiver.id)}
                   onCheckedChange={(checked) => {
-                    setAgreedWaivers((prev) => {
-                      const next = new Set(prev)
-                      if (checked === true) next.add(waiver.id)
-                      else next.delete(waiver.id)
-                      return next
-                    })
+                    setAgreedWaivers((prev) =>
+                      toggleVolunteerWaiverAgreement(
+                        prev,
+                        waiver.id,
+                        checked === true,
+                      ),
+                    )
                   }}
                   disabled={isPending}
                 />

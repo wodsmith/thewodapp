@@ -241,14 +241,14 @@ function VolunteerWaiverStatusBadge({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Badge
-          variant="secondary"
-          className="w-fit max-w-full cursor-pointer bg-amber-100 text-xs text-amber-900 hover:bg-amber-200"
+        <button
+          type="button"
+          className="inline-flex w-fit max-w-full items-center rounded-md bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <AlertCircle className="mr-1 h-3 w-3" />
           {showTitle && <span className="mr-1 truncate">{status.title}:</span>}
           Missing
-        </Badge>
+        </button>
       </PopoverTrigger>
       <PopoverContent className="w-72" align="start">
         <div className="space-y-2">

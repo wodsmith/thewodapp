@@ -34,11 +34,8 @@ import type {
 } from "@/db/schemas/teams"
 import type { VolunteerMembershipMetadata } from "@/db/schemas/volunteers"
 import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
-import {
-  createWaiverSignatureId,
-  waiverSignaturesTable,
-  waiversTable,
-} from "@/db/schemas/waivers"
+import { waiverSignaturesTable, waiversTable } from "@/db/schemas/waivers"
+import { signRequiredVolunteerWaivers } from "@/server/volunteer-waivers"
 import { getSessionFromCookie } from "@/utils/auth"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 
@@ -1059,55 +1056,6 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
     }
   })
 
-async function signVolunteerInviteWaivers({
-  userId,
-  competitionTeamId,
-  waiverIds = [],
-}: {
-  userId: string
-  competitionTeamId: string
-  waiverIds?: string[]
-}) {
-  const db = getDb()
-  const competition = await db.query.competitionsTable.findFirst({
-    where: eq(competitionsTable.competitionTeamId, competitionTeamId),
-  })
-
-  if (!competition) return
-
-  const requiredWaivers = await db.query.waiversTable.findMany({
-    where: and(
-      eq(waiversTable.competitionId, competition.id),
-      eq(waiversTable.requiredForVolunteers, true),
-    ),
-  })
-  const signedIds = new Set(waiverIds)
-
-  for (const waiver of requiredWaivers) {
-    if (!signedIds.has(waiver.id)) {
-      throw new Error("Please agree to all required waivers before accepting")
-    }
-  }
-
-  for (const waiver of requiredWaivers) {
-    const existingSignature = await db.query.waiverSignaturesTable.findFirst({
-      where: and(
-        eq(waiverSignaturesTable.waiverId, waiver.id),
-        eq(waiverSignaturesTable.userId, userId),
-      ),
-    })
-    if (existingSignature) continue
-
-    await db.insert(waiverSignaturesTable).values({
-      id: createWaiverSignatureId(),
-      waiverId: waiver.id,
-      userId,
-      registrationId: null,
-      signedAt: new Date(),
-    })
-  }
-}
-
 /**
  * Accept a direct volunteer invitation with additional volunteer data
  */
@@ -1216,51 +1164,56 @@ export const acceptVolunteerInviteFn = createServerFn({ method: "POST" })
       status: "approved",
     }
 
-    await signVolunteerInviteWaivers({
-      userId: session.userId,
-      competitionTeamId: invitation.teamId,
-      waiverIds: data.waiverIds,
-    })
-
-    // Add user to the team with merged metadata
-    await db.insert(teamMembershipTable).values({
-      teamId: invitation.teamId,
-      userId: session.userId,
-      roleId: invitation.roleId,
-      isSystemRole: invitation.isSystemRole,
-      invitedBy: invitation.invitedBy ?? undefined,
-      invitedAt: invitation.createdAt
-        ? new Date(invitation.createdAt)
-        : new Date(),
-      joinedAt: new Date(),
-      isActive: true,
-      metadata: JSON.stringify(mergedMetadata),
-    })
-
-    // Mark invitation as accepted (with account)
-    await db
-      .update(teamInvitationTable)
-      .set({
-        acceptedAt: new Date(),
-        acceptedBy: session.userId,
-        status: INVITATION_STATUS.ACCEPTED,
-        updatedAt: new Date(),
+    await db.transaction(async (tx) => {
+      await signRequiredVolunteerWaivers({
+        db: tx,
+        userId: session.userId,
+        competitionTeamId: invitation.teamId,
+        waiverIds: data.waiverIds,
+        missingWaiverMessage:
+          "Please agree to all required waivers before accepting",
       })
-      .where(eq(teamInvitationTable.id, invitation.id))
 
-    // Save registration question answers if provided
-    if (data.answers && data.answers.length > 0) {
-      for (const { questionId, answer } of data.answers) {
-        await db
-          .insert(volunteerRegistrationAnswersTable)
-          .values({
-            questionId,
-            invitationId: invitation.id,
-            answer,
-          })
-          .onDuplicateKeyUpdate({ set: { answer } })
+      // Add user to the team with merged metadata
+      await tx.insert(teamMembershipTable).values({
+        teamId: invitation.teamId,
+        userId: session.userId,
+        roleId: invitation.roleId,
+        isSystemRole: invitation.isSystemRole,
+        invitedBy: invitation.invitedBy ?? undefined,
+        invitedAt: invitation.createdAt
+          ? new Date(invitation.createdAt)
+          : new Date(),
+        joinedAt: new Date(),
+        isActive: true,
+        metadata: JSON.stringify(mergedMetadata),
+      })
+
+      // Mark invitation as accepted (with account)
+      await tx
+        .update(teamInvitationTable)
+        .set({
+          acceptedAt: new Date(),
+          acceptedBy: session.userId,
+          status: INVITATION_STATUS.ACCEPTED,
+          updatedAt: new Date(),
+        })
+        .where(eq(teamInvitationTable.id, invitation.id))
+
+      // Save registration question answers if provided
+      if (data.answers && data.answers.length > 0) {
+        for (const { questionId, answer } of data.answers) {
+          await tx
+            .insert(volunteerRegistrationAnswersTable)
+            .values({
+              questionId,
+              invitationId: invitation.id,
+              answer,
+            })
+            .onDuplicateKeyUpdate({ set: { answer } })
+        }
       }
-    }
+    })
 
     // Update the user's session to include this team
     await updateAllSessionsOfUser(session.userId)

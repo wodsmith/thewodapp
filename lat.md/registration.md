@@ -25,7 +25,7 @@ For **paid** competitions: creates `commercePurchaseTable` records (one per divi
 
 Coupon codes are resolved before redirecting to Stripe; see [[commerce#Coupons#Registration coupon entry]] for the shared link/manual entry behavior.
 
-The registration form always shows the fee summary card. Before a division is selected, fee and total amounts render as dashes so the pricing area remains stable without implying a charge.
+The registration form always shows the fee summary card. Before a division is selected, fee and total amounts render as dashes so the pricing area remains stable without implying a charge. Aggregate totals only use currently selected divisions so stale fee loads from a previous selection cannot briefly appear.
 
 ### Organizer Manual Registration
 
@@ -75,9 +75,11 @@ Volunteer-required waivers are collected before volunteer signup or direct invit
 
 Athlete registration and teammate invite flows only display waivers where the athlete-required flag (`required`) is selected. Waivers that are only volunteer-required or fully optional do not appear on athlete registration pages.
 
-The public volunteer route loads competition waivers marked `requiredForVolunteers` and requires agreement before submitting an application. Direct volunteer invite acceptance loads the same waiver set and stores signatures before accepting the team invitation.
+The public volunteer route loads competition waivers marked `requiredForVolunteers` and requires agreement before submitting an application. Direct volunteer invite acceptance loads the same waiver set and stores signatures before accepting the team invitation. Both client forms share waiver agreement helpers in [[apps/wodsmith-start/src/lib/volunteer-waiver-agreements.ts#haveAllVolunteerWaiversBeenAgreed]].
 
 [[apps/wodsmith-start/src/server-fns/volunteer-fns.ts#submitVolunteerSignupFn]] validates that signed-in volunteer applicants have agreed to all volunteer-required waivers before persisting signatures. [[apps/wodsmith-start/src/server-fns/invite-fns.ts#acceptVolunteerInviteFn]] performs the same required-waiver check before accepting a direct volunteer team invitation.
+
+Volunteer waiver signing is centralized in [[apps/wodsmith-start/src/server/volunteer-waivers.ts#signRequiredVolunteerWaivers]]. Signup/application writes and direct invite acceptance writes call it inside the same database transaction as their invitation, membership, and answer writes so a waiver failure rolls back the whole volunteer action.
 
 ## Capacity Management
 
