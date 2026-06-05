@@ -14,13 +14,19 @@ Athletes pay registration fees via Stripe Checkout, handled by `src/workflows/st
 
 Competitions set a `defaultRegistrationFeeCents` (default $0 = free). Division-specific fees can override the default. The checkout flow creates a Stripe session, redirects the athlete, and a webhook confirms payment.
 
-Stripe Checkout sessions allow Stripe promotion codes by default so athletes can enter hosted promo codes at payment time. If a WODsmith coupon is pre-applied, the session disables promotion-code entry and attaches that discount directly.
+Stripe Checkout sessions do not enable Stripe-hosted promotion-code entry. WODsmith coupons are collected before checkout and, when applied, are attached to the session as a transient Stripe coupon discount.
 
 ## Coupons
 
 Discount codes that reduce registration fees, defined in `src/db/schemas/coupons.ts`.
 
-Organizers create coupons per competition with percentage or fixed-amount discounts, usage limits, and expiration dates. Applied during checkout.
+Organizers create coupons per competition with percentage or fixed-amount discounts, usage limits, and expiration dates. Athletes can apply a coupon link or manually enter the code on registration before checkout.
+
+### Registration coupon entry
+
+Athletes enter WODsmith coupon codes before leaving for Stripe Checkout.
+
+[[apps/wodsmith-start/src/components/registration/registration-sections.tsx#CouponCodeSection]] renders the manual entry field on public and invite registration forms. It calls [[apps/wodsmith-start/src/server-fns/coupon-fns.ts#validateCouponForCheckoutFn]] through the registration form hook, stores the same session coupon payload used by coupon links, and passes the validated code to [[apps/wodsmith-start/src/server-fns/registration-fns.ts#initiateRegistrationPaymentFn]]. This keeps link-based and manual coupon application on the same server-side discount path.
 
 ## Purchase Transfers
 
