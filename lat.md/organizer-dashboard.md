@@ -150,6 +150,8 @@ Lists confirmed volunteers with their roles and capabilities (e.g., can input sc
 
 Uses `getCompetitionVolunteersFn` and `getDirectVolunteerInvitesFn`. Features invite dialog, role management, and activation/deactivation. Also shows `InvitedVolunteersList` for pending invitations.
 
+The roster displays one status column per volunteer-required waiver, with each column titled from the waiver. Status data comes from [[apps/wodsmith-start/src/server-fns/volunteer-fns.ts#getVolunteerWaiverStatusesFn]]. Pending applications resolve signatures by invite email when a user account exists; approved volunteers resolve by membership user id.
+
 ### Volunteer Shifts
 
 Time-based work assignments for volunteers independent of heats.
@@ -174,15 +176,17 @@ Gated by the `ai_judge_scheduling` feature (see [[apps/wodsmith-start/src/config
 
 ### Volunteer Registration Rules
 
-Custom registration questions targeted at volunteers (separate from athlete registration questions).
+Custom registration questions and waivers targeted at volunteers (separate from athlete registration requirements).
 
-Uses `RegistrationQuestionsEditor` with `questionTarget: "volunteer"`.
+Uses `RegistrationQuestionsEditor` with `questionTarget: "volunteer"`. Waivers marked required for volunteers are shown on the public volunteer signup page and during direct volunteer invite acceptance through [[apps/wodsmith-start/src/routes/compete/$slug/-components/volunteer-signup-form.tsx#VolunteerSignupForm]] and [[apps/wodsmith-start/src/routes/compete/invite/-components/accept-volunteer-invite-form.tsx#AcceptVolunteerInviteForm]].
 
 ## Waivers
 
-Manages legal waiver documents that athletes must sign before competing.
+Manages legal waiver documents that athletes or volunteers must sign before participating.
 
-Uses `getCompetitionWaiversFn`. `WaiverList` and `WaiverFormDialog` handle CRUD with reordering. Each waiver has a title, content (rich text), and required/optional flag.
+Uses `getCompetitionWaiversFn`. `WaiverList` and `WaiverFormDialog` handle CRUD with reordering. Each waiver has a title, content (rich text), a required-for-athletes flag, and a required-for-volunteers flag.
+
+[[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/-components/waiver-form-dialog.tsx#WaiverFormDialog]] labels the existing athlete checkbox "Required for athletes" and adds a separate "Required for volunteers" checkbox. Organizer and cohost waiver mutations persist both flags. Unchecked athlete-required waivers remain manageable in the dashboard but are hidden from athlete registration pages.
 
 ## Pricing
 

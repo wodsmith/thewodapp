@@ -53,14 +53,16 @@ export function WaiverSigningStep({
   // Use useServerFn for TanStack Start pattern
   const signWaiver = useServerFn(signWaiverFn)
 
-  // If no waivers, don't render anything
-  if (waivers.length === 0) {
+  const athleteWaivers = waivers.filter((w) => w.required)
+
+  // If no athlete-required waivers, don't render anything
+  if (athleteWaivers.length === 0) {
     return null
   }
 
-  const allRequiredWaiversSigned = waivers
-    .filter((w) => w.required)
-    .every((w) => checkedWaivers.has(w.id))
+  const allRequiredWaiversSigned = athleteWaivers.every((w) =>
+    checkedWaivers.has(w.id),
+  )
 
   const handleCheckboxChange = (waiverId: string, checked: boolean) => {
     if (checked) {
@@ -83,7 +85,7 @@ export function WaiverSigningStep({
 
     try {
       // Sign all checked waivers that haven't been signed yet
-      const unsignedWaivers = waivers.filter(
+      const unsignedWaivers = athleteWaivers.filter(
         (w) => checkedWaivers.has(w.id) && !signedWaiverIds.has(w.id),
       )
 
@@ -124,7 +126,7 @@ export function WaiverSigningStep({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {waivers.map((waiver) => (
+          {athleteWaivers.map((waiver) => (
             <Card key={waiver.id} className="border-2">
               <CardHeader>
                 <CardTitle className="text-lg">

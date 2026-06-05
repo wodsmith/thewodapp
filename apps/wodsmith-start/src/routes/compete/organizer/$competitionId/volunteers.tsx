@@ -1,8 +1,6 @@
-import { useEffect } from "react"
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router"
+import { useEffect } from "react"
 import { z } from "zod"
-import type { JudgeAssignmentVersion } from "@/db/schema"
-import type { LaneShiftPattern } from "@/db/schemas/volunteers"
 import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
 import {
   Select,
@@ -12,6 +10,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import type { JudgeAssignmentVersion } from "@/db/schema"
+import type { LaneShiftPattern } from "@/db/schemas/volunteers"
 import { getHeatsForCompetitionFn } from "@/server-fns/competition-heats-fns"
 import { getCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
 import {
@@ -33,6 +33,7 @@ import {
   getDirectVolunteerInvitesFn,
   getPendingVolunteerInvitationsFn,
   getVolunteerAssignmentsFn,
+  getVolunteerWaiverStatusesFn,
 } from "@/server-fns/volunteer-fns"
 import { getCompetitionShiftsFn } from "@/server-fns/volunteer-shift-fns"
 import { InvitedVolunteersList } from "./-components/invited-volunteers-list"
@@ -64,7 +65,11 @@ export const Route = createFileRoute(
   validateSearch: searchParamsSchema,
   loader: async ({ parentMatchPromise }) => {
     const parentMatch = await parentMatchPromise
-    const { competition } = parentMatch.loaderData!
+    const competition = parentMatch.loaderData?.competition
+
+    if (!competition) {
+      throw new Error("Competition not found")
+    }
 
     if (!competition.competitionTeamId) {
       throw new Error("Competition team not found")
@@ -83,6 +88,7 @@ export const Route = createFileRoute(
       volunteerAssignments,
       volunteerQuestionsResult,
       volunteerAnswersResult,
+      volunteerWaiverStatus,
     ] = await Promise.all([
       getPendingVolunteerInvitationsFn({
         data: { competitionTeamId },
@@ -113,6 +119,13 @@ export const Route = createFileRoute(
       }),
       getVolunteerAnswersFn({
         data: {
+          competitionTeamId,
+          organizingTeamId: competition.organizingTeamId,
+        },
+      }),
+      getVolunteerWaiverStatusesFn({
+        data: {
+          competitionId: competition.id,
           competitionTeamId,
           organizingTeamId: competition.organizingTeamId,
         },
@@ -230,6 +243,7 @@ export const Route = createFileRoute(
       volunteerQuestions,
       answersByInvitation,
       emailToInvitationId,
+      volunteerWaiverStatus,
     }
   },
   component: VolunteersPage,
@@ -255,6 +269,7 @@ function VolunteersPage() {
     volunteerQuestions,
     answersByInvitation,
     emailToInvitationId,
+    volunteerWaiverStatus,
   } = Route.useLoaderData()
 
   const { tab, event: eventFromUrl } = Route.useSearch()
@@ -382,6 +397,7 @@ function VolunteersPage() {
             volunteerQuestions={volunteerQuestions}
             answersByInvitation={answersByInvitation}
             emailToInvitationId={emailToInvitationId}
+            volunteerWaiverStatus={volunteerWaiverStatus}
           />
         </section>
       </TabsContent>
@@ -433,7 +449,6 @@ function VolunteersPage() {
           questionTarget="volunteer"
         />
       </TabsContent>
-
     </Tabs>
   )
 }

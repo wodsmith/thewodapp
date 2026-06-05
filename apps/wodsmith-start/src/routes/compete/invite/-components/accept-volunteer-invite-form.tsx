@@ -5,7 +5,9 @@ import { useServerFn } from "@tanstack/react-start"
 import { CheckCircle, Loader2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
+import { WaiverViewer } from "@/components/compete/waiver-viewer"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -17,6 +19,7 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
+import type { Waiver } from "@/db/schemas/waivers"
 import { useTrackEvent } from "@/lib/posthog/hooks"
 import { acceptVolunteerInviteFn } from "@/server-fns/invite-fns"
 import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
@@ -27,6 +30,7 @@ interface AcceptVolunteerInviteFormProps {
   competitionName?: string
   competitionId?: string
   questions?: RegistrationQuestion[]
+  waivers?: Waiver[]
 }
 
 /**
@@ -39,11 +43,13 @@ export function AcceptVolunteerInviteForm({
   competitionName,
   competitionId,
   questions = [],
+  waivers = [],
 }: AcceptVolunteerInviteFormProps) {
   const navigate = useNavigate()
   const [isPending, setIsPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [agreedWaivers, setAgreedWaivers] = useState<Set<string>>(new Set())
   const acceptInvite = useServerFn(acceptVolunteerInviteFn)
   const trackEvent = useTrackEvent()
 
@@ -66,6 +72,15 @@ export function AcceptVolunteerInviteForm({
       }
     }
 
+    const allVolunteerWaiversAgreed = waivers.every((waiver) =>
+      agreedWaivers.has(waiver.id),
+    )
+    if (!allVolunteerWaiversAgreed) {
+      setError("Please agree to all required waivers before accepting")
+      setIsPending(false)
+      return
+    }
+
     const answersArray = Object.entries(answers)
       .filter(([_, value]) => value && value.trim() !== "")
       .map(([questionId, answer]) => ({ questionId, answer }))
@@ -83,6 +98,7 @@ export function AcceptVolunteerInviteForm({
           credentials: (formData.get("credentials") as string) || undefined,
           signupPhone: (formData.get("phone") as string) || undefined,
           answers: answersArray.length > 0 ? answersArray : undefined,
+          waiverIds: Array.from(agreedWaivers),
         },
       })
 
@@ -212,6 +228,46 @@ export function AcceptVolunteerInviteForm({
           disabled={isPending}
         />
       </div>
+
+      {/* Volunteer Waivers */}
+      {waivers.length > 0 && (
+        <div className="space-y-4 border-t pt-4">
+          <p className="text-sm font-medium">Required Waivers</p>
+          {waivers.map((waiver) => (
+            <div key={waiver.id} className="space-y-3 rounded-lg border p-4">
+              <h3 className="font-medium">{waiver.title}</h3>
+              <div className="max-h-64 overflow-y-auto rounded-lg border bg-muted/10 p-4">
+                <WaiverViewer
+                  content={waiver.content}
+                  className="prose prose-sm max-w-none dark:prose-invert"
+                />
+              </div>
+              <div className="flex items-start gap-3 rounded-lg bg-muted/20 p-4">
+                <Checkbox
+                  id={`volunteer-waiver-${waiver.id}`}
+                  checked={agreedWaivers.has(waiver.id)}
+                  onCheckedChange={(checked) => {
+                    setAgreedWaivers((prev) => {
+                      const next = new Set(prev)
+                      if (checked === true) next.add(waiver.id)
+                      else next.delete(waiver.id)
+                      return next
+                    })
+                  }}
+                  disabled={isPending}
+                />
+                <Label
+                  htmlFor={`volunteer-waiver-${waiver.id}`}
+                  className="cursor-pointer text-sm font-medium leading-none"
+                >
+                  I have read and agree to this waiver
+                  <span className="text-destructive ml-1">*</span>
+                </Label>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Volunteer Registration Questions */}
       {questions.length > 0 && (

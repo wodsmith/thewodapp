@@ -1,8 +1,9 @@
 "use client"
 
+import { useServerFn } from "@tanstack/react-start"
 import { CheckCircle2, Loader2 } from "lucide-react"
 import { useState } from "react"
-import { useServerFn } from "@tanstack/react-start"
+import { WaiverViewer } from "@/components/compete/waiver-viewer"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -11,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -22,6 +24,7 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
+import type { Waiver } from "@/db/schemas/waivers"
 import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
 import {
   createAccountAndApplyAsVolunteerFn,
@@ -36,6 +39,7 @@ interface VolunteerSignupFormProps {
   }
   competitionTeamId: string
   questions?: RegistrationQuestion[]
+  waivers?: Waiver[]
   currentUser: { name: string; email: string } | null
 }
 
@@ -49,12 +53,14 @@ export function VolunteerSignupForm({
   competition,
   competitionTeamId,
   questions = [],
+  waivers = [],
   currentUser,
 }: VolunteerSignupFormProps) {
   const [submitted, setSubmitted] = useState(false)
   const [isPending, setIsPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [agreedWaivers, setAgreedWaivers] = useState<Set<string>>(new Set())
 
   const submitVolunteerSignup = useServerFn(submitVolunteerSignupFn)
   const createAccountAndApply = useServerFn(createAccountAndApplyAsVolunteerFn)
@@ -76,6 +82,15 @@ export function VolunteerSignupForm({
         setIsPending(false)
         return
       }
+    }
+
+    const allVolunteerWaiversAgreed = waivers.every((waiver) =>
+      agreedWaivers.has(waiver.id),
+    )
+    if (!allVolunteerWaiversAgreed) {
+      setError("Please agree to all required waivers before volunteering")
+      setIsPending(false)
+      return
     }
 
     const answersArray = Object.entries(answers)
@@ -101,6 +116,7 @@ export function VolunteerSignupForm({
         (formData.get("availabilityNotes") as string) || undefined,
       website: (formData.get("website") as string) || undefined,
       answers: answersArray.length > 0 ? answersArray : undefined,
+      waiverIds: Array.from(agreedWaivers),
     }
 
     try {
@@ -337,6 +353,49 @@ export function VolunteerSignupForm({
               disabled={isPending}
             />
           </div>
+
+          {/* Volunteer Waivers */}
+          {waivers.length > 0 && (
+            <div className="space-y-4 border-t pt-4">
+              <p className="text-sm font-medium">Required Waivers</p>
+              {waivers.map((waiver) => (
+                <div
+                  key={waiver.id}
+                  className="space-y-3 rounded-lg border p-4"
+                >
+                  <h3 className="font-medium">{waiver.title}</h3>
+                  <div className="max-h-64 overflow-y-auto rounded-lg border bg-muted/10 p-4">
+                    <WaiverViewer
+                      content={waiver.content}
+                      className="prose prose-sm max-w-none dark:prose-invert"
+                    />
+                  </div>
+                  <div className="flex items-start gap-3 rounded-lg bg-muted/20 p-4">
+                    <Checkbox
+                      id={`waiver-${waiver.id}`}
+                      checked={agreedWaivers.has(waiver.id)}
+                      onCheckedChange={(checked) => {
+                        setAgreedWaivers((prev) => {
+                          const next = new Set(prev)
+                          if (checked === true) next.add(waiver.id)
+                          else next.delete(waiver.id)
+                          return next
+                        })
+                      }}
+                      disabled={isPending}
+                    />
+                    <Label
+                      htmlFor={`waiver-${waiver.id}`}
+                      className="cursor-pointer text-sm font-medium leading-none"
+                    >
+                      I have read and agree to this waiver
+                      <span className="text-destructive ml-1">*</span>
+                    </Label>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Volunteer Registration Questions */}
           {questions.length > 0 && (

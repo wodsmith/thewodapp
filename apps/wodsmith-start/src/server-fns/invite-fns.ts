@@ -34,7 +34,11 @@ import type {
 } from "@/db/schemas/teams"
 import type { VolunteerMembershipMetadata } from "@/db/schemas/volunteers"
 import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
-import { waiverSignaturesTable, waiversTable } from "@/db/schemas/waivers"
+import {
+  createWaiverSignatureId,
+  waiverSignaturesTable,
+  waiversTable,
+} from "@/db/schemas/waivers"
 import { getSessionFromCookie } from "@/utils/auth"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 
@@ -143,6 +147,7 @@ const acceptVolunteerInviteSchema = z.object({
       }),
     )
     .optional(),
+  waiverIds: z.array(z.string().startsWith("waiv_")).optional(),
 })
 
 const submitPendingInviteDataSchema = z.object({
@@ -1054,6 +1059,55 @@ export const acceptTeamInvitationFn = createServerFn({ method: "POST" })
     }
   })
 
+async function signVolunteerInviteWaivers({
+  userId,
+  competitionTeamId,
+  waiverIds = [],
+}: {
+  userId: string
+  competitionTeamId: string
+  waiverIds?: string[]
+}) {
+  const db = getDb()
+  const competition = await db.query.competitionsTable.findFirst({
+    where: eq(competitionsTable.competitionTeamId, competitionTeamId),
+  })
+
+  if (!competition) return
+
+  const requiredWaivers = await db.query.waiversTable.findMany({
+    where: and(
+      eq(waiversTable.competitionId, competition.id),
+      eq(waiversTable.requiredForVolunteers, true),
+    ),
+  })
+  const signedIds = new Set(waiverIds)
+
+  for (const waiver of requiredWaivers) {
+    if (!signedIds.has(waiver.id)) {
+      throw new Error("Please agree to all required waivers before accepting")
+    }
+  }
+
+  for (const waiver of requiredWaivers) {
+    const existingSignature = await db.query.waiverSignaturesTable.findFirst({
+      where: and(
+        eq(waiverSignaturesTable.waiverId, waiver.id),
+        eq(waiverSignaturesTable.userId, userId),
+      ),
+    })
+    if (existingSignature) continue
+
+    await db.insert(waiverSignaturesTable).values({
+      id: createWaiverSignatureId(),
+      waiverId: waiver.id,
+      userId,
+      registrationId: null,
+      signedAt: new Date(),
+    })
+  }
+}
+
 /**
  * Accept a direct volunteer invitation with additional volunteer data
  */
@@ -1161,6 +1215,12 @@ export const acceptVolunteerInviteFn = createServerFn({ method: "POST" })
       // Mark as approved since user is accepting a direct invite
       status: "approved",
     }
+
+    await signVolunteerInviteWaivers({
+      userId: session.userId,
+      competitionTeamId: invitation.teamId,
+      waiverIds: data.waiverIds,
+    })
 
     // Add user to the team with merged metadata
     await db.insert(teamMembershipTable).values({

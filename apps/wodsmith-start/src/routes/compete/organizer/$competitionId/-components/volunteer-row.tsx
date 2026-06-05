@@ -1,8 +1,14 @@
 "use client"
 
 import { useRouter } from "@tanstack/react-router"
-import { useSession } from "@/utils/auth-client"
-import { Calendar, Check, ClipboardList, X } from "lucide-react"
+import {
+  AlertCircle,
+  Calendar,
+  Check,
+  CheckCircle2,
+  ClipboardList,
+  X,
+} from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -44,6 +50,7 @@ import {
   revokeScoreAccessFn,
   updateVolunteerMetadataFn,
 } from "@/server-fns/volunteer-fns"
+import { useSession } from "@/utils/auth-client"
 
 interface VolunteerWithAccess {
   id: string
@@ -72,6 +79,8 @@ interface VolunteerRowProps {
   onToggleSelect?: (shiftKey: boolean) => void
   answers: Array<{ id: string; questionId: string; answer: string }>
   questions: RegistrationQuestion[]
+  showWaiverStatus?: boolean
+  waiverStatuses?: VolunteerWaiverStatus[]
   variant?: "row" | "card"
   assignments: {
     shifts: Array<{
@@ -95,15 +104,42 @@ interface VolunteerRowProps {
     }>
   }
   /** Optional callback to add a role type. Defaults to organizer server fn. */
-  onAddRoleType?: (params: { membershipId: string; competitionId: string; roleType: string }) => Promise<{ success: boolean }>
+  onAddRoleType?: (params: {
+    membershipId: string
+    competitionId: string
+    roleType: string
+  }) => Promise<{ success: boolean }>
   /** Optional callback to remove a role type. Defaults to organizer server fn. */
-  onRemoveRoleType?: (params: { membershipId: string; competitionId: string; roleType: string }) => Promise<{ success: boolean }>
+  onRemoveRoleType?: (params: {
+    membershipId: string
+    competitionId: string
+    roleType: string
+  }) => Promise<{ success: boolean }>
   /** Optional callback to update volunteer metadata. Defaults to organizer server fn. */
-  onUpdateMetadata?: (params: { membershipId: string; competitionId: string; metadata: Record<string, unknown> }) => Promise<{ success: boolean }>
+  onUpdateMetadata?: (params: {
+    membershipId: string
+    competitionId: string
+    metadata: Record<string, unknown>
+  }) => Promise<{ success: boolean }>
   /** Optional callback to grant score access. Defaults to organizer server fn. */
-  onGrantScoreAccess?: (params: { volunteerId: string; competitionTeamId: string; competitionId: string; grantedBy: string }) => Promise<{ success: boolean }>
+  onGrantScoreAccess?: (params: {
+    volunteerId: string
+    competitionTeamId: string
+    competitionId: string
+    grantedBy: string
+  }) => Promise<{ success: boolean }>
   /** Optional callback to revoke score access. Defaults to organizer server fn. */
-  onRevokeScoreAccess?: (params: { userId: string; competitionTeamId: string; competitionId: string }) => Promise<{ success: boolean }>
+  onRevokeScoreAccess?: (params: {
+    userId: string
+    competitionTeamId: string
+    competitionId: string
+  }) => Promise<{ success: boolean }>
+}
+
+type VolunteerWaiverStatus = {
+  id: string
+  title: string
+  signed: boolean
 }
 
 function getAvailabilityLabel(availability?: string): string | null {
@@ -185,6 +221,50 @@ function formatShiftTimeCompact(startTime: Date, endTime: Date): string {
   return `${startStr} - ${endStr}`
 }
 
+function VolunteerWaiverStatusBadge({
+  status,
+  showTitle = false,
+}: {
+  status: VolunteerWaiverStatus
+  showTitle?: boolean
+}) {
+  if (status.signed) {
+    return (
+      <Badge className="w-fit max-w-full bg-green-600 text-xs hover:bg-green-700">
+        <CheckCircle2 className="mr-1 h-3 w-3" />
+        {showTitle && <span className="mr-1 truncate">{status.title}:</span>}
+        Signed
+      </Badge>
+    )
+  }
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Badge
+          variant="secondary"
+          className="w-fit max-w-full cursor-pointer bg-amber-100 text-xs text-amber-900 hover:bg-amber-200"
+        >
+          <AlertCircle className="mr-1 h-3 w-3" />
+          {showTitle && <span className="mr-1 truncate">{status.title}:</span>}
+          Missing
+        </Badge>
+      </PopoverTrigger>
+      <PopoverContent className="w-72" align="start">
+        <div className="space-y-2">
+          <p className="text-sm font-semibold">Missing volunteer waivers</p>
+          <ul className="space-y-1 text-sm text-muted-foreground">
+            <li className="flex items-start gap-2">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+              <span>{status.title}</span>
+            </li>
+          </ul>
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 export function VolunteerRow({
   volunteer,
   competitionId,
@@ -195,6 +275,8 @@ export function VolunteerRow({
   assignments,
   answers,
   questions,
+  showWaiverStatus = false,
+  waiverStatuses = [],
   variant = "row",
   onAddRoleType,
   onRemoveRoleType,
@@ -496,6 +578,14 @@ export function VolunteerRow({
               {availabilityLabel}
             </Badge>
           )}
+          {showWaiverStatus &&
+            waiverStatuses.map((status) => (
+              <VolunteerWaiverStatusBadge
+                key={status.id}
+                status={status}
+                showTitle
+              />
+            ))}
           {Array.from(selectedRoles).map((roleType) => (
             <Badge key={roleType} variant="outline" className="text-xs">
               {VOLUNTEER_ROLE_LABELS[roleType]}
@@ -678,6 +768,12 @@ export function VolunteerRow({
           )}
         </div>
       </TableCell>
+      {showWaiverStatus &&
+        waiverStatuses.map((status) => (
+          <TableCell key={status.id}>
+            <VolunteerWaiverStatusBadge status={status} />
+          </TableCell>
+        ))}
       <TableCell>
         {assignments.shifts.length === 0 &&
         assignments.judgeHeats.length === 0 ? (

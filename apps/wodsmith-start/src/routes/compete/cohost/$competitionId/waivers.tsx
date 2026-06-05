@@ -6,8 +6,8 @@
  * Passes override callbacks to WaiverList so mutations use cohost auth.
  */
 
-import { useMemo } from "react"
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
+import { useMemo } from "react"
 import {
   cohostCreateWaiverFn,
   cohostDeleteWaiverFn,
@@ -21,9 +21,7 @@ import { WaiverList } from "../../organizer/$competitionId/-components/waiver-li
 // Get parent route API to access its loader data
 const parentRoute = getRouteApi("/compete/cohost/$competitionId")
 
-export const Route = createFileRoute(
-  "/compete/cohost/$competitionId/waivers",
-)({
+export const Route = createFileRoute("/compete/cohost/$competitionId/waivers")({
   staleTime: 10_000,
   loader: async ({ params, parentMatchPromise }) => {
     const parentMatch = await parentMatchPromise
@@ -60,6 +58,7 @@ function CohostWaiversPage() {
             title: opts.data.title,
             content: opts.data.content,
             required: opts.data.required,
+            requiredForVolunteers: opts.data.requiredForVolunteers,
           },
         }),
       updateWaiver: async (opts) =>
@@ -71,6 +70,7 @@ function CohostWaiversPage() {
             title: opts.data.title,
             content: opts.data.content,
             required: opts.data.required,
+            requiredForVolunteers: opts.data.requiredForVolunteers,
           },
         }),
       deleteWaiver: async (opts) =>

@@ -25,6 +25,8 @@ For **paid** competitions: creates `commercePurchaseTable` records (one per divi
 
 Coupon codes are resolved before redirecting to Stripe; see [[commerce#Coupons#Registration coupon entry]] for the shared link/manual entry behavior.
 
+The registration form always shows the fee summary card. Before a division is selected, fee and total amounts render as dashes so the pricing area remains stable without implying a charge.
+
 ### Organizer Manual Registration
 
 Organizers register athletes from the dashboard via `createManualRegistrationFn`, bypassing the registration window.
@@ -66,6 +68,16 @@ The public competition page surfaces unclaimed teammate invites for the signed-i
 Tests cover both halves of this recovery path: the server lookup requires a signed-in email and returns invite rows only after resolving competition athlete teams, while the sidebar renders the CTA even when the athlete is already registered elsewhere.
 
 Organizers manage roster composition from the [[organizer-dashboard#Registrations (Athletes)#Athlete Detail Page]] without captaincy: [[apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts#addTeammateToRegistrationFn]] creates a pending invite directly (bypasses the captain-only `INVITE_MEMBERS` check by inlining the invite insert + email send), [[apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts#removeTeammateFromRegistrationFn]] deactivates a single athlete-team membership (and the matching event-team membership) without touching the captain, [[apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts#cancelPendingTeamInviteFn]] sets a pending invite to `CANCELLED`, and [[apps/wodsmith-start/src/server-fns/organizer-athlete-fns.ts#resendTeamInviteAsOrganizerFn]] resends any pending invite regardless of expiry (vs. the captain-only fn which only permits *expired* refreshes).
+
+## Volunteer Waiver Collection
+
+Volunteer-required waivers are collected before volunteer signup or direct invite acceptance completes.
+
+Athlete registration and teammate invite flows only display waivers where the athlete-required flag (`required`) is selected. Waivers that are only volunteer-required or fully optional do not appear on athlete registration pages.
+
+The public volunteer route loads competition waivers marked `requiredForVolunteers` and requires agreement before submitting an application. Direct volunteer invite acceptance loads the same waiver set and stores signatures before accepting the team invitation.
+
+[[apps/wodsmith-start/src/server-fns/volunteer-fns.ts#submitVolunteerSignupFn]] validates that signed-in volunteer applicants have agreed to all volunteer-required waivers before persisting signatures. [[apps/wodsmith-start/src/server-fns/invite-fns.ts#acceptVolunteerInviteFn]] performs the same required-waiver check before accepting a direct volunteer team invitation.
 
 ## Capacity Management
 

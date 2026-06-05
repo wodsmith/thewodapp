@@ -174,9 +174,11 @@ Each scaling group contains ordered scaling levels. Workouts and scores can refe
 
 ## Waivers
 
-Legal documents that athletes must sign before competing.
+Legal documents that athletes and volunteers must sign before participating.
 
-Organizers create waiver templates per competition. Athletes sign waivers during registration. Signature and acceptance timestamps are recorded.
+Organizers create waiver templates per competition. Waivers can be required for athletes, volunteers, or both. Only athlete-required waivers appear in athlete registration and invite flows. Volunteers sign volunteer-required waivers during public signup or direct invite acceptance. Signature and acceptance timestamps are recorded.
+
+The waiver schema stores the athlete requirement as `required` and volunteer requirement as `requiredForVolunteers` / `required_for_volunteers` on [[apps/wodsmith-start/src/db/schemas/waivers.ts#waiversTable]].
 
 ## Video Submissions
 
