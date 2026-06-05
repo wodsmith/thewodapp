@@ -64,9 +64,16 @@ export function FeeBreakdown({
 
   if (!divisionId) {
     return (
-      <p className="text-muted-foreground text-sm">
-        Select a division to see pricing
-      </p>
+      <div className="space-y-2 text-sm text-muted-foreground">
+        <div className="flex justify-between">
+          <span>Registration Fee</span>
+          <span className="font-medium">—</span>
+        </div>
+        <div className="flex justify-between font-medium pt-2 border-t">
+          <span>Total</span>
+          <span className="text-lg">—</span>
+        </div>
+      </div>
     )
   }
 

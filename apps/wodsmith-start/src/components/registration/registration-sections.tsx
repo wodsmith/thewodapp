@@ -738,14 +738,21 @@ export function FeeSummarySection({
   ) => void
   activeCoupon: { code: string; amountOffCents: number } | null
 }) {
-  if (selectedDivisionIds.length === 0) return null
   const isMulti = selectedDivisionIds.length > 1
+  const hasSelectedDivisions = selectedDivisionIds.length > 0
   return (
     <Card>
       <CardHeader>
         <CardTitle>Registration Fee{isMulti ? "s" : ""}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
+        {!hasSelectedDivisions ? (
+          <FeeBreakdown
+            competitionId={competitionId}
+            divisionId={null}
+            onFeesLoaded={onFeesLoaded}
+          />
+        ) : null}
         {selectedDivisionIds.map((divisionId) => {
           const division = getDivision(divisionId)
           const hideDivTotal = isMulti || !!activeCoupon
