@@ -11,10 +11,15 @@ import type {
 } from "@/db/schema"
 import { trackEvent } from "@/lib/posthog"
 import type { PublicCompetitionDivision } from "@/server-fns/competition-divisions-fns"
+import { validateCouponForCheckoutFn } from "@/server-fns/coupon-fns"
 import { initiateRegistrationPaymentFn } from "@/server-fns/registration-fns"
 import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
 import { signWaiverFn } from "@/server-fns/waiver-fns"
-import { clearCouponSession, getCouponSession } from "@/utils/coupon-cookie"
+import {
+  clearCouponSession,
+  getCouponSession,
+  setCouponSession,
+} from "@/utils/coupon-cookie"
 
 export interface Teammate {
   email: string
@@ -84,10 +89,13 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
 
   const navigate = useNavigate()
   const signWaiver = useServerFn(signWaiverFn)
+  const validateCouponForCheckout = useServerFn(validateCouponForCheckoutFn)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false)
+  const [couponCodeInput, setCouponCodeInput] = useState("")
 
-  // Active coupon from sessionStorage
-  const [activeCoupon] = useState(() => {
+  // Active coupon from sessionStorage or manual entry.
+  const [activeCoupon, setActiveCoupon] = useState(() => {
     const coupon = getCouponSession()
     return coupon?.competitionSlug === competition.slug ? coupon : null
   })
@@ -308,6 +316,46 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
     )
   }
 
+  const handleApplyCoupon = async () => {
+    const code = couponCodeInput.trim()
+    if (!code) {
+      toast.error("Enter a coupon code")
+      return
+    }
+
+    setIsApplyingCoupon(true)
+    try {
+      const result = await validateCouponForCheckout({
+        data: { code, competitionId: competition.id },
+      })
+
+      if (!result.valid || !result.coupon) {
+        toast.error("Invalid or expired coupon code")
+        return
+      }
+
+      const couponSession = {
+        code: result.coupon.code,
+        competitionSlug: competition.slug,
+        competitionName: competition.name,
+        amountOffCents: result.amountOffCents,
+      }
+      setCouponSession(couponSession)
+      setActiveCoupon(couponSession)
+      setCouponCodeInput("")
+      toast.success("Coupon applied")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to apply coupon")
+    } finally {
+      setIsApplyingCoupon(false)
+    }
+  }
+
+  const handleRemoveCoupon = () => {
+    clearCouponSession()
+    setActiveCoupon(null)
+  }
+
   const buildRegistrationItems = () =>
     selectedDivisionIds.map((divisionId) => {
       const division = getDivision(divisionId)
@@ -474,13 +522,16 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
 
     // state
     isSubmitting,
+    isApplyingCoupon,
     activeCoupon,
+    couponCodeInput,
     invitedDivision,
     selectedDivisionIds,
     selectedTeamDivisions,
     hasSelectedDivisions,
     affiliateName,
     setAffiliateName,
+    setCouponCodeInput,
     teamEntries,
     divisionFees,
     answers,
@@ -494,6 +545,8 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
     getDivision,
     handleDivisionToggle,
     handleFeesLoaded,
+    handleApplyCoupon,
+    handleRemoveCoupon,
     updateTeamEntry,
     updateTeammate,
     handleWaiverCheckChange,

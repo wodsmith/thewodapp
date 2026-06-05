@@ -902,7 +902,7 @@ describe('registration-fns', () => {
         expect(mockStripeCheckoutCreate).toHaveBeenCalledTimes(1)
         const stripeArgs = mockStripeCheckoutCreate.mock.calls[0]?.[0] as any
         expect(stripeArgs.line_items).toHaveLength(2)
-        expect(stripeArgs.allow_promotion_codes).toBe(true)
+        expect(stripeArgs.allow_promotion_codes).toBeUndefined()
         expect(stripeArgs.metadata.multiDivision).toBe('true')
         expect(stripeArgs.metadata.purchaseIds).toContain(',')
 

@@ -17,7 +17,7 @@ The flow validates in order:
 4. Competition-wide capacity not exceeded
 5. Required registration questions answered
 6. Fee calculated per division (division-specific fee overrides competition default)
-7. Coupon applied if provided
+7. Coupon applied if provided by link session data or manual entry
 
 For **free** competitions (or fully discounted by coupon): calls `registerForCompetition` directly and returns immediately.
 

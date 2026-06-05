@@ -17,6 +17,7 @@ import {
   CapacityBanners,
   ClosedRegistrationBanner,
   CompetitionDetailsCard,
+  CouponCodeSection,
   DivisionPickerSection,
   FeeSummarySection,
   PageHeader,
@@ -136,6 +137,15 @@ export function PublicRegistrationForm(props: PublicProps) {
           answers={r.answers}
           onAnswerChange={r.updateAnswer}
           disabled={fieldsDisabled}
+        />
+        <CouponCodeSection
+          value={r.couponCodeInput}
+          activeCoupon={r.activeCoupon}
+          onChange={r.setCouponCodeInput}
+          onApply={r.handleApplyCoupon}
+          onRemove={r.handleRemoveCoupon}
+          disabled={fieldsDisabled}
+          isApplying={r.isApplyingCoupon}
         />
         <FeeSummarySection
           competitionId={props.competition.id}
@@ -263,6 +273,15 @@ export function InviteRegistrationForm(props: InviteProps) {
           answers={r.answers}
           onAnswerChange={r.updateAnswer}
           disabled={fieldsDisabled}
+        />
+        <CouponCodeSection
+          value={r.couponCodeInput}
+          activeCoupon={r.activeCoupon}
+          onChange={r.setCouponCodeInput}
+          onApply={r.handleApplyCoupon}
+          onRemove={r.handleRemoveCoupon}
+          disabled={fieldsDisabled}
+          isApplying={r.isApplyingCoupon}
         />
         <FeeSummarySection
           competitionId={props.competition.id}
