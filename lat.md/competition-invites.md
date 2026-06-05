@@ -223,7 +223,7 @@ The claim landing page also surfaces a secondary "Decline this invite" link dire
 
 Signed-in athletes with a live pending invite see an accept-invite card on the public competition page sidebar.
 
-The parent `/compete/$slug` loader calls [[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#listMyPendingCompetitionInvitesFn]] for the current session and passes matching pending invite tokens into [[apps/wodsmith-start/src/components/registration-sidebar.tsx#RegistrationSidebar]]. Matches are scoped to the championship and the signed-in identity (`userId` or normalized email), require `status = pending`, `activeMarker = active`, and a non-null claim token.
+The parent `/compete/$slug` loader calls [[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#listMyPendingCompetitionInvitesFn]] for the current session and passes matching pending invite tokens into [[apps/wodsmith-start/src/components/registration-sidebar.tsx#RegistrationSidebar]]. Matches are scoped to the championship and the signed-in identity (`userId` or normalized email), require `status = pending`, `activeMarker = active`, a non-null claim token, and either no `expiresAt` value or an `expiresAt` later than the lookup time. Expired-but-still-pending rows are hidden even before [[apps/wodsmith-start/src/server/competition-invites/expiry.ts#sweepExpiredInvites]] transitions them.
 
 [[apps/wodsmith-start/src/routes/compete/$slug.tsx]] owns the signed-in lookup so every public child tab receives the same pending-invite state from the parent route. [[apps/wodsmith-start/src/routes/compete/$slug/index.tsx#CompetitionOverviewPage]] threads that state into the sidebar on the overview page.
 

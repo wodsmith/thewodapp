@@ -18,7 +18,17 @@
 import { env } from "cloudflare:workers"
 import { render } from "@react-email/render"
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray, isNotNull, ne, or, sql } from "drizzle-orm"
+import {
+  and,
+  eq,
+  gt,
+  inArray,
+  isNotNull,
+  isNull,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -1517,12 +1527,11 @@ export interface AuditInviteSummary extends ActiveInviteSummary {
 }
 
 /**
- * List all active invites for a championship+division. Used by the
- * organizer invites route to render the bespoke section + invite state
- * overlays on source roster rows. Phase 2: returns every active row
- * regardless of origin so the UI can classify. Returns a minimal DTO so
- * the raw token columns never reach the client.
+ * List claimable pending competition invites for the signed-in athlete on
+ * the public competition page. Mirrors the claim guard's expiry semantics so
+ * a still-pending row stops producing a sidebar CTA once its deadline passes.
  */
+// @lat: [[competition-invites#Competition page invite card]]
 export const listMyPendingCompetitionInvitesFn = createServerFn({
   method: "GET",
 })
@@ -1546,6 +1555,7 @@ export const listMyPendingCompetitionInvitesFn = createServerFn({
             eq(competitionInvitesTable.email, normalizedEmail),
           )
         : eq(competitionInvitesTable.userId, session.userId)
+      const now = new Date()
 
       const rows = await db
         .select({
@@ -1580,6 +1590,10 @@ export const listMyPendingCompetitionInvitesFn = createServerFn({
               COMPETITION_INVITE_ACTIVE_MARKER,
             ),
             isNotNull(competitionInvitesTable.claimToken),
+            or(
+              isNull(competitionInvitesTable.expiresAt),
+              gt(competitionInvitesTable.expiresAt, now),
+            ),
           ),
         )
 
