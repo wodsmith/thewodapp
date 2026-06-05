@@ -14,6 +14,8 @@ Athletes pay registration fees via Stripe Checkout, handled by `src/workflows/st
 
 Competitions set a `defaultRegistrationFeeCents` (default $0 = free). Division-specific fees can override the default. The checkout flow creates a Stripe session, redirects the athlete, and a webhook confirms payment.
 
+Stripe Checkout sessions allow Stripe promotion codes by default so athletes can enter hosted promo codes at payment time. If a WODsmith coupon is pre-applied, the session disables promotion-code entry and attaches that discount directly.
+
 ## Coupons
 
 Discount codes that reduce registration fees, defined in `src/db/schemas/coupons.ts`.
