@@ -177,6 +177,14 @@ const createMockMembership = (overrides?: Partial<{
   updateCounter: null,
 })
 
+const mockCompetitionWithoutRequiredVolunteerWaivers = () => {
+  mockDb.query.competitionsTable.findFirst.mockResolvedValueOnce({
+    id: 'comp_test123',
+    competitionTeamId: 'team_comp123',
+  })
+  mockDb.query.waiversTable.findMany.mockResolvedValueOnce([])
+}
+
 describe('Volunteer Server Functions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -192,6 +200,8 @@ describe('Volunteer Server Functions', () => {
     mockDb.registerTable('competitionHeatsTable')
     mockDb.registerTable('judgeHeatAssignmentsTable')
     mockDb.registerTable('teamTable')
+    mockDb.registerTable('waiversTable')
+    mockDb.registerTable('waiverSignaturesTable')
     setMockSession(mockOrganizerSession)
   })
 
@@ -324,6 +334,7 @@ describe('Volunteer Server Functions', () => {
   // ============================================================================
   describe('submitVolunteerSignupFn', () => {
     it('should create a volunteer signup invitation', async () => {
+      mockCompetitionWithoutRequiredVolunteerWaivers()
       // findMany must return [] for duplicate check
       mockDb.query.teamInvitationTable.findMany.mockResolvedValueOnce([])
       mockDb.setMockSingleValue(null) // No existing user
@@ -359,6 +370,7 @@ describe('Volunteer Server Functions', () => {
     })
 
     it('should reject duplicate email signups', async () => {
+      mockCompetitionWithoutRequiredVolunteerWaivers()
       // Return existing invitation with same email
       mockDb.setMockReturnValue([
         createMockInvitation({email: 'duplicate@example.com'}),
@@ -376,6 +388,7 @@ describe('Volunteer Server Functions', () => {
     })
 
     it('should reject when user already has volunteer membership', async () => {
+      mockCompetitionWithoutRequiredVolunteerWaivers()
       // No existing invitations with matching email
       mockDb.setMockReturnValue([])
       // User exists
@@ -933,6 +946,7 @@ describe('Volunteer Server Functions', () => {
     })
 
     it('should create a new user account and volunteer application', async () => {
+      mockCompetitionWithoutRequiredVolunteerWaivers()
       // No existing user in account creation check
       mockDb.query.userTable.findFirst.mockResolvedValueOnce(null)
       // No duplicate invitations in createVolunteerApplication
@@ -954,6 +968,7 @@ describe('Volunteer Server Functions', () => {
     })
 
     it('should upgrade an existing placeholder user and create volunteer application', async () => {
+      mockCompetitionWithoutRequiredVolunteerWaivers()
       const placeholderUser = {
         id: 'user_placeholder123',
         email: 'jane@example.com',
