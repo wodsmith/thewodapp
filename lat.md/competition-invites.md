@@ -219,6 +219,18 @@ The claim landing page also surfaces a secondary "Decline this invite" link dire
 
 `invite-pending.tsx` is a fallback landing for visitors who arrive without a token (e.g. a stale bookmark) — it tells them to re-open the email rather than guessing a URL. The claim route's `wrong_account` branch no longer routes through it; the post-logout redirect goes straight to `/sign-in` with the original claim URL pinned as `redirect`.
 
+## Competition page invite card
+
+Signed-in athletes with a live pending invite see an accept-invite card on the public competition page sidebar.
+
+The parent `/compete/$slug` loader calls [[apps/wodsmith-start/src/server-fns/competition-invite-fns.ts#listMyPendingCompetitionInvitesFn]] for the current session and passes matching pending invite tokens into [[apps/wodsmith-start/src/components/registration-sidebar.tsx#RegistrationSidebar]]. Matches are scoped to the championship and the signed-in identity (`userId` or normalized email), require `status = pending`, `activeMarker = active`, a non-null claim token, and either no `expiresAt` value or an `expiresAt` later than the lookup time. Expired-but-still-pending rows are hidden even before [[apps/wodsmith-start/src/server/competition-invites/expiry.ts#sweepExpiredInvites]] transitions them.
+
+[[apps/wodsmith-start/src/routes/compete/$slug.tsx]] owns the signed-in lookup so every public child tab receives the same pending-invite state from the parent route. [[apps/wodsmith-start/src/routes/compete/$slug/index.tsx#CompetitionOverviewPage]] threads that state into the sidebar on the overview page.
+
+The sidebar renders an "Accept Invite" CTA to `/compete/$slug/claim/$token` with the invited division label and RSVP deadline. When this card is present it suppresses the public Register Now / Registration closed / Registration opens soon card because the invite route is the athlete's registration authority and can bypass the public window.
+
+The card stays opaque in light mode (`bg-card` with a soft emerald border/shadow) so dark competition banners cannot bleed through the sidebar. Dark mode keeps the existing translucent glass treatment.
+
 ## Email delivery
 
 Invite emails ride the existing broadcast queue binding (`BROADCAST_EMAIL_QUEUE`) with a discriminator.

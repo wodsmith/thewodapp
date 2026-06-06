@@ -116,6 +116,7 @@ function CompetitionOverviewPage() {
     competitionCapacity,
     sponsors,
     pendingTeamInvites,
+    pendingCompetitionInvites,
     userDivision,
     userDivisions,
     maxSpots,
@@ -285,6 +286,7 @@ function CompetitionOverviewPage() {
           isVolunteer={isVolunteer}
           userRegistrations={userDivisions}
           pendingTeamInvites={pendingTeamInvites}
+          pendingCompetitionInvites={pendingCompetitionInvites}
           session={session}
           competitionCapacity={competitionCapacity}
         />

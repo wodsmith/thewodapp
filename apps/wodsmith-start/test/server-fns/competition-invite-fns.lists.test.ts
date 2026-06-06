@@ -31,12 +31,16 @@ vi.mock("@tanstack/react-start", () => ({
 }))
 
 const lookupQueue: Array<unknown[]> = []
+const whereCalls: unknown[] = []
 vi.mock("@/db", () => ({
   getDb: () => {
     const chain = {
       select: vi.fn(() => chain),
       from: vi.fn(() => chain),
-      where: vi.fn(() => chain),
+      where: vi.fn((condition: unknown) => {
+        whereCalls.push(condition)
+        return chain
+      }),
       orderBy: vi.fn(() => chain),
       groupBy: vi.fn(() => chain),
       innerJoin: vi.fn(() => chain),
@@ -103,6 +107,65 @@ async function getMocks() {
 
 beforeEach(() => {
   lookupQueue.length = 0
+  whereCalls.length = 0
+})
+
+function collectSqlFragments(value: unknown, fragments: string[] = []): string[] {
+  if (!value || typeof value !== "object") return fragments
+
+  const node = value as {
+    name?: unknown
+    queryChunks?: unknown[]
+    value?: unknown
+  }
+
+  if (typeof node.name === "string") fragments.push(node.name)
+  if (Array.isArray(node.value)) {
+    for (const chunk of node.value) {
+      if (typeof chunk === "string") fragments.push(chunk)
+    }
+  }
+  if (Array.isArray(node.queryChunks)) {
+    for (const chunk of node.queryChunks) {
+      collectSqlFragments(chunk, fragments)
+    }
+  }
+
+  return fragments
+}
+
+// ============================================================================
+// listMyPendingCompetitionInvitesFn
+// ============================================================================
+
+describe("listMyPendingCompetitionInvitesFn", () => {
+  it("only returns pending invite cards that are still claimable by expiry", async () => {
+    const { auth } = await getMocks()
+    vi.mocked(auth.getSessionFromCookie).mockResolvedValue(
+      sessionStub as unknown as Awaited<
+        ReturnType<typeof auth.getSessionFromCookie>
+      >,
+    )
+    lookupQueue.push([])
+
+    const { listMyPendingCompetitionInvitesFn } = await import(
+      "@/server-fns/competition-invite-fns"
+    )
+
+    await (
+      listMyPendingCompetitionInvitesFn as unknown as (ctx: {
+        data: unknown
+      }) => Promise<unknown>
+    )({
+      data: { championshipCompetitionId: "comp_champ" },
+    })
+
+    expect(whereCalls).toHaveLength(1)
+    const whereSql = collectSqlFragments(whereCalls[0]).join(" ")
+    expect(whereSql).toContain("expiresAt")
+    expect(whereSql).toContain(" is null")
+    expect(whereSql).toContain(" > ")
+  })
 })
 
 // ============================================================================
