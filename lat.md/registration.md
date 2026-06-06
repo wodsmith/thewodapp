@@ -83,6 +83,8 @@ The public volunteer route loads competition waivers marked `requiredForVoluntee
 
 Volunteer waiver signing is centralized in [[apps/wodsmith-start/src/server/volunteer-waivers.ts#signRequiredVolunteerWaivers]]. Signup/application writes and direct invite acceptance writes call it inside the same database transaction as their invitation, membership, and answer writes so a waiver failure rolls back the whole volunteer action.
 
+Volunteer server-function tests stub a competition with no volunteer-required waivers when they assert signup duplicate detection and account/application creation behavior.
+
 ## Capacity Management
 
 Both division-level and competition-wide capacity are enforced at registration time and again at payment completion.
