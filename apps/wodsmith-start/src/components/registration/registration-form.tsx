@@ -89,6 +89,7 @@ export function PublicRegistrationForm(props: PublicProps) {
     !props.registrationOpen ||
     competitionFull ||
     !r.hasSelectedDivisions ||
+    r.hasTeammateEmailErrors ||
     !r.affiliateName.trim() ||
     (athleteWaivers.length > 0 && !r.allRequiredWaiversAgreed)
 
@@ -164,6 +165,7 @@ export function PublicRegistrationForm(props: PublicProps) {
           userFirstName={props.userFirstName}
           userLastName={props.userLastName}
           userEmail={props.userEmail}
+          teammateEmailErrors={r.teammateEmailErrors}
           disabled={fieldsDisabled}
         />
         <WaiversSection
@@ -187,6 +189,8 @@ export function PublicRegistrationForm(props: PublicProps) {
               "Select a Division"
             ) : athleteWaivers.length > 0 && !r.allRequiredWaiversAgreed ? (
               "Agree to Waivers to Continue"
+            ) : r.hasTeammateEmailErrors ? (
+              "Fix Teammate Emails"
             ) : r.selectedDivisionIds.length > 1 ? (
               `Register for ${r.selectedDivisionIds.length} Divisions`
             ) : r.selectedTeamDivisions.length > 0 ? (
@@ -243,6 +247,7 @@ export function InviteRegistrationForm(props: InviteProps) {
 
   const submitDisabled =
     r.isSubmitting ||
+    r.hasTeammateEmailErrors ||
     !r.affiliateName.trim() ||
     (athleteWaivers.length > 0 && !r.allRequiredWaiversAgreed)
   const fieldsDisabled = r.isSubmitting
@@ -301,6 +306,7 @@ export function InviteRegistrationForm(props: InviteProps) {
           userFirstName={props.userFirstName}
           userLastName={props.userLastName}
           userEmail={props.userEmail}
+          teammateEmailErrors={r.teammateEmailErrors}
           disabled={fieldsDisabled}
         />
         <WaiversSection
@@ -318,6 +324,8 @@ export function InviteRegistrationForm(props: InviteProps) {
               </>
             ) : athleteWaivers.length > 0 && !r.allRequiredWaiversAgreed ? (
               "Agree to Waivers to Continue"
+            ) : r.hasTeammateEmailErrors ? (
+              "Fix Teammate Emails"
             ) : r.selectedTeamDivisions.length > 0 ? (
               "Confirm Team Spot"
             ) : (
