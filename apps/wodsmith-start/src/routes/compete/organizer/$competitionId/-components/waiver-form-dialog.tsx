@@ -28,6 +28,7 @@ export interface WaiverFormDialogOverrides {
       title: string
       content: string
       required: boolean
+      requiredForVolunteers: boolean
     }
   }) => Promise<{ success: true; waiver: Waiver }>
   updateWaiver?: (opts: {
@@ -38,6 +39,7 @@ export interface WaiverFormDialogOverrides {
       title?: string
       content?: string
       required?: boolean
+      requiredForVolunteers?: boolean
     }
   }) => Promise<{ success: true; waiver: Waiver }>
 }
@@ -66,6 +68,9 @@ export function WaiverFormDialog({
     waiver?.content ? JSON.parse(waiver.content) : undefined,
   )
   const [required, setRequired] = useState(waiver?.required ?? true)
+  const [requiredForVolunteers, setRequiredForVolunteers] = useState(
+    waiver?.requiredForVolunteers ?? false,
+  )
   const [isPending, setIsPending] = useState(false)
 
   // Use overrides if provided, otherwise default organizer server fns via useServerFn
@@ -102,6 +107,7 @@ export function WaiverFormDialog({
             title,
             content: contentString,
             required,
+            requiredForVolunteers,
           },
         })
 
@@ -117,6 +123,7 @@ export function WaiverFormDialog({
             title,
             content: contentString,
             required,
+            requiredForVolunteers,
           },
         })
 
@@ -142,7 +149,7 @@ export function WaiverFormDialog({
           <DialogDescription>
             {isEditing
               ? "Update waiver details and content"
-              : "Create a new waiver for athletes to sign"}
+              : "Create a new waiver for athletes or volunteers to sign"}
           </DialogDescription>
         </DialogHeader>
 
@@ -179,7 +186,24 @@ export function WaiverFormDialog({
               htmlFor="required"
               className="cursor-pointer text-sm font-normal"
             >
-              Required (athletes must sign to register)
+              Required for athletes
+            </Label>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="requiredForVolunteers"
+              checked={requiredForVolunteers}
+              onCheckedChange={(checked) =>
+                setRequiredForVolunteers(checked === true)
+              }
+              disabled={isPending}
+            />
+            <Label
+              htmlFor="requiredForVolunteers"
+              className="cursor-pointer text-sm font-normal"
+            >
+              Required for volunteers
             </Label>
           </div>
 

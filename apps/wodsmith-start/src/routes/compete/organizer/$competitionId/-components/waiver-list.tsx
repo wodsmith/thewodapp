@@ -199,12 +199,18 @@ function WaiverItem({
                 {waiver.required ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900/30 dark:text-red-400">
                     <AlertTriangle className="h-3 w-3" />
-                    Required
+                    Athlete required
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                     <CheckCircle2 className="h-3 w-3" />
-                    Optional
+                    Athlete optional
+                  </span>
+                )}
+                {waiver.requiredForVolunteers && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                    <AlertTriangle className="h-3 w-3" />
+                    Volunteer required
                   </span>
                 )}
               </div>
@@ -379,7 +385,14 @@ export function WaiverList({
         competitionId={competitionId}
         teamId={teamId}
         onSuccess={handleWaiverCreated}
-        overrides={overrides ? { createWaiver: overrides.createWaiver, updateWaiver: overrides.updateWaiver } : undefined}
+        overrides={
+          overrides
+            ? {
+                createWaiver: overrides.createWaiver,
+                updateWaiver: overrides.updateWaiver,
+              }
+            : undefined
+        }
       />
 
       {/* Edit Dialog */}
@@ -391,7 +404,14 @@ export function WaiverList({
           teamId={teamId}
           waiver={editingWaiver}
           onSuccess={handleWaiverUpdated}
-          overrides={overrides ? { createWaiver: overrides.createWaiver, updateWaiver: overrides.updateWaiver } : undefined}
+          overrides={
+            overrides
+              ? {
+                  createWaiver: overrides.createWaiver,
+                  updateWaiver: overrides.updateWaiver,
+                }
+              : undefined
+          }
         />
       )}
 

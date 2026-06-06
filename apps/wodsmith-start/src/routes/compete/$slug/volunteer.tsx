@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { getVolunteerQuestionsFn } from "@/server-fns/registration-questions-fns"
+import { getCompetitionWaiversFn } from "@/server-fns/waiver-fns"
 import { VolunteerSignupForm } from "./-components/volunteer-signup-form"
 
 export const Route = createFileRoute("/compete/$slug/volunteer")({
@@ -12,21 +13,28 @@ export const Route = createFileRoute("/compete/$slug/volunteer")({
       throw new Error("Competition not found")
     }
 
-    const volunteerQuestionsResult = await getVolunteerQuestionsFn({
-      data: { competitionId: competition.id },
-    })
+    const [volunteerQuestionsResult, waiversResult] = await Promise.all([
+      getVolunteerQuestionsFn({
+        data: { competitionId: competition.id },
+      }),
+      getCompetitionWaiversFn({
+        data: { competitionId: competition.id },
+      }),
+    ])
 
-    const currentUser =
-      session?.user.email
-        ? {
-            name: `${session.user.firstName || ""} ${session.user.lastName || ""}`.trim(),
-            email: session.user.email,
-          }
-        : null
+    const currentUser = session?.user.email
+      ? {
+          name: `${session.user.firstName || ""} ${session.user.lastName || ""}`.trim(),
+          email: session.user.email,
+        }
+      : null
 
     return {
       competition,
       volunteerQuestions: volunteerQuestionsResult.questions,
+      volunteerWaivers: waiversResult.waivers.filter(
+        (waiver) => waiver.requiredForVolunteers,
+      ),
       currentUser,
     }
   },
@@ -51,7 +59,8 @@ export const Route = createFileRoute("/compete/$slug/volunteer")({
 })
 
 function VolunteerSignupPage() {
-  const { competition, volunteerQuestions, currentUser } = Route.useLoaderData()
+  const { competition, volunteerQuestions, volunteerWaivers, currentUser } =
+    Route.useLoaderData()
 
   // Check if competition has a team (required for volunteer signups)
   if (!competition.competitionTeamId) {
@@ -79,6 +88,7 @@ function VolunteerSignupPage() {
         }}
         competitionTeamId={competition.competitionTeamId}
         questions={volunteerQuestions}
+        waivers={volunteerWaivers}
         currentUser={currentUser}
       />
     </div>

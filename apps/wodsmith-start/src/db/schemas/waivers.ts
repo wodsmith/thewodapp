@@ -2,13 +2,13 @@ import { createId } from "@paralleldrive/cuid2"
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
 import {
+  boolean,
+  datetime,
   index,
   int,
-  varchar,
-  datetime,
-  boolean,
   mysqlTable,
   text,
+  varchar,
 } from "drizzle-orm/mysql-core"
 import { commonColumns } from "./common"
 import {
@@ -40,8 +40,12 @@ export const waiversTable = mysqlTable(
     title: varchar({ length: 255 }).notNull(),
     // Rich text content stored as Lexical JSON
     content: text().notNull(),
-    // Whether this waiver is required for registration
+    // Whether this waiver is required for athlete registration
     required: boolean().default(true).notNull(),
+    // Whether this waiver is required for volunteer signup/invite acceptance
+    requiredForVolunteers: boolean("required_for_volunteers")
+      .default(false)
+      .notNull(),
     // Display order (for showing multiple waivers in sequence)
     position: int().default(0).notNull(),
   },
@@ -53,7 +57,7 @@ export const waiversTable = mysqlTable(
 
 /**
  * Waiver Signatures Table
- * Tracks when athletes sign waivers during registration or invite acceptance.
+ * Tracks when athletes and volunteers sign waivers during registration or invite acceptance.
  */
 export const waiverSignaturesTable = mysqlTable(
   "waiver_signatures",

@@ -49,6 +49,7 @@ const createWaiverInputSchema = z.object({
     .min(1, "Content is required")
     .max(50000, "Content is too long"),
   required: z.boolean().default(true),
+  requiredForVolunteers: z.boolean().default(false),
 })
 
 const updateWaiverInputSchema = z.object({
@@ -66,6 +67,7 @@ const updateWaiverInputSchema = z.object({
     .max(50000, "Content is too long")
     .optional(),
   required: z.boolean().optional(),
+  requiredForVolunteers: z.boolean().optional(),
 })
 
 const deleteWaiverInputSchema = z.object({
@@ -345,6 +347,7 @@ export const createWaiverFn = createServerFn({ method: "POST" })
       title: data.title,
       content: data.content,
       required: data.required,
+      requiredForVolunteers: data.requiredForVolunteers,
       position: maxPosition + 1,
     })
 
@@ -406,6 +409,9 @@ export const updateWaiverFn = createServerFn({ method: "POST" })
     if (data.title !== undefined) updateData.title = data.title
     if (data.content !== undefined) updateData.content = data.content
     if (data.required !== undefined) updateData.required = data.required
+    if (data.requiredForVolunteers !== undefined) {
+      updateData.requiredForVolunteers = data.requiredForVolunteers
+    }
 
     // Update waiver with compound where clause
     await db

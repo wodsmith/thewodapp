@@ -6,7 +6,7 @@
 import { createServerFn } from "@tanstack/react-start"
 import { and, eq, gt, inArray, isNull, or } from "drizzle-orm"
 import { z } from "zod"
-import { getDb } from "@/db"
+import { type Database, getDb } from "@/db"
 import type { TeamMembership, User } from "@/db/schema"
 import {
   competitionHeatsTable,
@@ -34,9 +34,10 @@ import { volunteerRegistrationAnswersTable } from "@/db/schemas/competitions"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import type { VolunteerMembershipMetadata } from "@/db/schemas/volunteers"
 import { VOLUNTEER_AVAILABILITY } from "@/db/schemas/volunteers"
+import { waiverSignaturesTable, waiversTable } from "@/db/schemas/waivers"
 import { createEntitlement } from "@/server/entitlements"
 import { inviteUserToTeam } from "@/server/team-members"
-import { sendVolunteerDirectInviteEmail } from "@/utils/email"
+import { signRequiredVolunteerWaivers } from "@/server/volunteer-waivers"
 import {
   calculateInviteStatus,
   isDirectInvite,
@@ -47,6 +48,7 @@ import {
   createAndStoreSession,
   getSessionFromCookie,
 } from "@/utils/auth"
+import { sendVolunteerDirectInviteEmail } from "@/utils/email"
 import { hashPassword } from "@/utils/password-hasher"
 
 import { requireTeamPermission } from "@/utils/team-auth"
@@ -78,6 +80,12 @@ export type DirectVolunteerInvite = {
   createdAt: Date
   expiresAt: Date | null
   acceptedAt: Date | null
+}
+
+export type VolunteerWaiverStatusResult = {
+  requiredWaivers: Array<{ id: string; title: string }>
+  signedWaiverIdsByUserId: Record<string, string[]>
+  userIdByEmail: Record<string, string>
 }
 
 // ============================================================================
@@ -155,6 +163,144 @@ export const getCompetitionVolunteersFn = createServerFn({ method: "GET" })
         user: true,
       },
     }) as unknown as Promise<TeamMembershipWithUser[]>
+  })
+
+/**
+ * Get volunteer-required waiver signature status for the volunteer roster.
+ */
+export const getVolunteerWaiverStatusesFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        competitionId: z.string().startsWith("comp_", "Invalid competition ID"),
+        competitionTeamId: competitionTeamIdSchema,
+        organizingTeamId: competitionTeamIdSchema,
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }): Promise<VolunteerWaiverStatusResult> => {
+    await requireTeamPermission(
+      data.organizingTeamId,
+      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+    )
+
+    const db = getDb()
+    const competition = await db.query.competitionsTable.findFirst({
+      where: eq(competitionsTable.id, data.competitionId),
+      columns: { competitionTeamId: true, organizingTeamId: true },
+    })
+
+    if (!competition) {
+      throw new Error("Competition not found")
+    }
+
+    if (
+      competition.competitionTeamId !== data.competitionTeamId ||
+      competition.organizingTeamId !== data.organizingTeamId
+    ) {
+      throw new Error("Competition does not match this team")
+    }
+
+    const requiredWaivers = await db.query.waiversTable.findMany({
+      where: and(
+        eq(waiversTable.competitionId, data.competitionId),
+        eq(waiversTable.requiredForVolunteers, true),
+      ),
+      columns: {
+        id: true,
+        title: true,
+      },
+      orderBy: (table, { asc }) => [asc(table.position)],
+    })
+
+    if (requiredWaivers.length === 0) {
+      return {
+        requiredWaivers: [],
+        signedWaiverIdsByUserId: {},
+        userIdByEmail: {},
+      }
+    }
+
+    const volunteerMemberships = await db.query.teamMembershipTable.findMany({
+      where: and(
+        eq(teamMembershipTable.teamId, data.competitionTeamId),
+        eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+        eq(teamMembershipTable.isSystemRole, true),
+      ),
+      columns: {
+        userId: true,
+      },
+    })
+    const volunteerInvitations = await db.query.teamInvitationTable.findMany({
+      where: and(
+        eq(teamInvitationTable.teamId, data.competitionTeamId),
+        eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+        eq(teamInvitationTable.isSystemRole, true),
+      ),
+      columns: {
+        email: true,
+      },
+    })
+
+    const invitationEmails = [
+      ...new Set(
+        volunteerInvitations
+          .map((invitation) => invitation.email?.toLowerCase())
+          .filter((email): email is string => Boolean(email)),
+      ),
+    ]
+    const invitationUsers =
+      invitationEmails.length > 0
+        ? await db.query.userTable.findMany({
+            where: inArray(userTable.email, invitationEmails),
+            columns: {
+              id: true,
+              email: true,
+            },
+          })
+        : []
+
+    const userIdSet = new Set(volunteerMemberships.map((m) => m.userId))
+    const userIdByEmail: Record<string, string> = {}
+
+    for (const user of invitationUsers) {
+      if (!user.email) continue
+      userIdSet.add(user.id)
+      userIdByEmail[user.email.toLowerCase()] = user.id
+    }
+
+    const userIds = [...userIdSet]
+    if (userIds.length === 0) {
+      return {
+        requiredWaivers,
+        signedWaiverIdsByUserId: {},
+        userIdByEmail,
+      }
+    }
+
+    const waiverIds = requiredWaivers.map((waiver) => waiver.id)
+    const signatures = await db.query.waiverSignaturesTable.findMany({
+      where: and(
+        inArray(waiverSignaturesTable.waiverId, waiverIds),
+        inArray(waiverSignaturesTable.userId, userIds),
+      ),
+      columns: {
+        userId: true,
+        waiverId: true,
+      },
+    })
+
+    const signedWaiverIdsByUserId: Record<string, string[]> = {}
+    for (const signature of signatures) {
+      signedWaiverIdsByUserId[signature.userId] ??= []
+      signedWaiverIdsByUserId[signature.userId]?.push(signature.waiverId)
+    }
+
+    return {
+      requiredWaivers,
+      signedWaiverIdsByUserId,
+      userIdByEmail,
+    }
   })
 
 /**
@@ -281,9 +427,11 @@ const volunteerApplicationSchema = z.object({
       }),
     )
     .optional(),
+  waiverIds: z.array(z.string().startsWith("waiv_")).optional(),
 })
 
 type VolunteerApplicationInput = z.infer<typeof volunteerApplicationSchema>
+type VolunteerDb = Pick<Database, "insert" | "query" | "update">
 
 /**
  * Creates a volunteer application (team invitation) and saves any question answers.
@@ -291,9 +439,8 @@ type VolunteerApplicationInput = z.infer<typeof volunteerApplicationSchema>
  */
 async function createVolunteerApplication(
   data: VolunteerApplicationInput,
+  db: VolunteerDb = getDb(),
 ): Promise<{ membershipId: string }> {
-  const db = getDb()
-
   // Check for duplicate email sign-up
   const existingInvitations = await db.query.teamInvitationTable.findMany({
     where: and(
@@ -394,7 +541,22 @@ export const submitVolunteerSignupFn = createServerFn({ method: "POST" })
     if (data.website && data.website.trim() !== "") {
       return { success: true }
     }
-    const { membershipId } = await createVolunteerApplication(data)
+    const session = await getSessionFromCookie()
+    if (!session) {
+      throw new Error("NOT_AUTHORIZED: You must be logged in to volunteer")
+    }
+
+    const db = getDb()
+    const { membershipId } = await db.transaction(async (tx) => {
+      await signRequiredVolunteerWaivers({
+        db: tx,
+        userId: session.userId,
+        competitionTeamId: data.competitionTeamId,
+        waiverIds: data.waiverIds,
+      })
+      return createVolunteerApplication(data, tx)
+    })
+
     return { success: true, membershipId }
   })
 
@@ -442,65 +604,73 @@ export const createAccountAndApplyAsVolunteerFn = createServerFn({
 
     const hashedPassword = await hashPassword({ password: data.password })
 
-    let userId: string
+    const { userId, membershipId } = await db.transaction(async (tx) => {
+      let userId: string
 
-    if (existingUser) {
-      // Fully verified account — ask them to sign in instead
-      if (existingUser.emailVerified && existingUser.passwordHash) {
-        throw new Error(
-          "An account with this email already exists. Please sign in to apply as a volunteer.",
-        )
-      }
-      // Placeholder or unverified — upgrade with password and auto-verify
-      userId = existingUser.id
-      await db
-        .update(userTable)
-        .set({
-          passwordHash: hashedPassword,
+      if (existingUser) {
+        // Fully verified account — ask them to sign in instead
+        if (existingUser.emailVerified && existingUser.passwordHash) {
+          throw new Error(
+            "An account with this email already exists. Please sign in to apply as a volunteer.",
+          )
+        }
+        // Placeholder or unverified — upgrade with password and auto-verify
+        userId = existingUser.id
+        await tx
+          .update(userTable)
+          .set({
+            passwordHash: hashedPassword,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            emailVerified: new Date(),
+          })
+          .where(eq(userTable.id, existingUser.id))
+      } else {
+        // Brand-new user
+        const newUserId = createUserId()
+        const teamId = createTeamId()
+        userId = newUserId
+
+        await tx.insert(userTable).values({
+          id: newUserId,
+          email: data.signupEmail,
           firstName: data.firstName,
           lastName: data.lastName,
+          passwordHash: hashedPassword,
           emailVerified: new Date(),
         })
-        .where(eq(userTable.id, existingUser.id))
-    } else {
-      // Brand-new user
-      const newUserId = createUserId()
-      const teamId = createTeamId()
-      userId = newUserId
 
-      await db.insert(userTable).values({
-        id: newUserId,
-        email: data.signupEmail,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        passwordHash: hashedPassword,
-        emailVerified: new Date(),
+        // Create personal team
+        await tx.insert(teamTable).values({
+          id: teamId,
+          name: `${data.firstName}'s Team (personal)`,
+          slug: `${data.firstName.toLowerCase()}-${newUserId.slice(-6)}`,
+          description:
+            "Personal team for individual programming track subscriptions",
+          isPersonalTeam: true,
+          personalTeamOwnerId: newUserId,
+        })
+
+        await tx.insert(teamMembershipTable).values({
+          teamId,
+          userId: newUserId,
+          roleId: "owner",
+          isSystemRole: true,
+          joinedAt: new Date(),
+          isActive: true,
+        })
+      }
+
+      await signRequiredVolunteerWaivers({
+        db: tx,
+        userId,
+        competitionTeamId: data.competitionTeamId,
+        waiverIds: data.waiverIds,
       })
+      const { membershipId } = await createVolunteerApplication(data, tx)
 
-      // Create personal team
-      await db.insert(teamTable).values({
-        id: teamId,
-        name: `${data.firstName}'s Team (personal)`,
-        slug: `${data.firstName.toLowerCase()}-${newUserId.slice(-6)}`,
-        description:
-          "Personal team for individual programming track subscriptions",
-        isPersonalTeam: true,
-        personalTeamOwnerId: newUserId,
-      })
-
-      await db.insert(teamMembershipTable).values({
-        teamId,
-        userId: newUserId,
-        roleId: "owner",
-        isSystemRole: true,
-        joinedAt: new Date(),
-        isActive: true,
-      })
-    }
-
-    // Submit the volunteer application first — if this fails, no session is
-    // created and the user can safely retry without hitting "account exists"
-    const { membershipId } = await createVolunteerApplication(data)
+      return { userId, membershipId }
+    })
 
     // Log user in only after the application is successfully persisted
     await createAndStoreSession(userId, "password")
