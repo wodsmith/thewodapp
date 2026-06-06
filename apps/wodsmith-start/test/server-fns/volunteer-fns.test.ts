@@ -372,7 +372,7 @@ describe('Volunteer Server Functions', () => {
     it('should reject duplicate email signups', async () => {
       mockCompetitionWithoutRequiredVolunteerWaivers()
       // Return existing invitation with same email
-      mockDb.setMockReturnValue([
+      mockDb.query.teamInvitationTable.findMany.mockResolvedValueOnce([
         createMockInvitation({email: 'duplicate@example.com'}),
       ])
 
@@ -390,25 +390,17 @@ describe('Volunteer Server Functions', () => {
     it('should reject when user already has volunteer membership', async () => {
       mockCompetitionWithoutRequiredVolunteerWaivers()
       // No existing invitations with matching email
-      mockDb.setMockReturnValue([])
+      mockDb.query.teamInvitationTable.findMany.mockResolvedValueOnce([])
       // User exists
-      mockDb.setMockSingleValue({id: 'user-existing', email: 'existing@example.com'})
+      mockDb.query.userTable.findFirst.mockResolvedValueOnce({
+        id: 'user-existing',
+        email: 'existing@example.com',
+      })
       // Membership exists for this user
-      // The function queries for user first, then checks membership
-      // After setMockSingleValue for user, the next findFirst needs to return a membership
-      // But FakeDrizzleDb only has one mockSingleValue... so this tests the first path
+      mockDb.query.teamMembershipTable.findFirst.mockResolvedValueOnce(
+        createMockMembership({userId: 'user-existing'}),
+      )
 
-      // Actually, the function flow:
-      // 1. findMany invitations -> [] (no dup)
-      // 2. findFirst user by email -> user
-      // 3. findFirst membership -> membership exists
-      // Since mockSingleValue returns the same value for all findFirst calls,
-      // we need to work with the mock's limitations
-
-      // For the duplicate membership path, we need the user lookup to succeed
-      // and then the membership lookup to also succeed.
-      // Both use findFirst which shares mockSingleValue.
-      // Let's test that the error is thrown for the general duplicate case
       await expect(
         submitVolunteerSignupFn({
           data: {

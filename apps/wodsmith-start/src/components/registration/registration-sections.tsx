@@ -835,6 +835,7 @@ export function TeamDetailsSection({
   userFirstName,
   userLastName,
   userEmail,
+  teammateEmailErrors,
   disabled,
 }: {
   selectedTeamDivisions: ScalingLevel[]
@@ -853,6 +854,7 @@ export function TeamDetailsSection({
   userFirstName?: string | null
   userLastName?: string | null
   userEmail?: string | null
+  teammateEmailErrors: Map<string, Map<number, string>>
   disabled: boolean
 }) {
   if (selectedTeamDivisions.length === 0) return null
@@ -940,88 +942,106 @@ export function TeamDetailsSection({
                     </p>
                   </div>
                 </Card>
-                {teamEntry.teammates.map((teammate, index) => (
-                  <Card
-                    key={`${division.id}-teammate-${index}`}
-                    className="p-4"
-                  >
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4 text-muted-foreground" />
-                        <span className="font-medium">
-                          Teammate {index + 2}
-                        </span>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Email *</Label>
-                        <Input
-                          type="email"
-                          placeholder="teammate@email.com"
-                          value={teammate.email}
-                          onChange={(e) =>
-                            updateTeammate(
-                              division.id,
-                              index,
-                              "email",
-                              e.target.value,
-                            )
-                          }
-                          disabled={disabled}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
+                {teamEntry.teammates.map((teammate, index) => {
+                  const emailError = teammateEmailErrors
+                    .get(division.id)
+                    ?.get(index)
+                  const errorId = `${division.id}-teammate-${index}-email-error`
+                  return (
+                    <Card
+                      key={`${division.id}-teammate-${index}`}
+                      className="p-4"
+                    >
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2">
+                          <Users className="w-4 h-4 text-muted-foreground" />
+                          <span className="font-medium">
+                            Teammate {index + 2}
+                          </span>
+                        </div>
                         <div className="space-y-2">
-                          <Label>First Name</Label>
+                          <Label>Email *</Label>
                           <Input
-                            placeholder="First name"
-                            value={teammate.firstName}
+                            type="email"
+                            placeholder="teammate@email.com"
+                            value={teammate.email}
                             onChange={(e) =>
                               updateTeammate(
                                 division.id,
                                 index,
-                                "firstName",
+                                "email",
                                 e.target.value,
                               )
                             }
                             disabled={disabled}
+                            aria-invalid={!!emailError}
+                            aria-describedby={emailError ? errorId : undefined}
+                            className={cn(emailError && "border-destructive")}
                           />
+                          {emailError ? (
+                            <p
+                              id={errorId}
+                              className="text-xs text-destructive"
+                              role="alert"
+                            >
+                              {emailError}
+                            </p>
+                          ) : null}
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label>First Name</Label>
+                            <Input
+                              placeholder="First name"
+                              value={teammate.firstName}
+                              onChange={(e) =>
+                                updateTeammate(
+                                  division.id,
+                                  index,
+                                  "firstName",
+                                  e.target.value,
+                                )
+                              }
+                              disabled={disabled}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Last Name</Label>
+                            <Input
+                              placeholder="Last name"
+                              value={teammate.lastName}
+                              onChange={(e) =>
+                                updateTeammate(
+                                  division.id,
+                                  index,
+                                  "lastName",
+                                  e.target.value,
+                                )
+                              }
+                              disabled={disabled}
+                            />
+                          </div>
                         </div>
                         <div className="space-y-2">
-                          <Label>Last Name</Label>
-                          <Input
-                            placeholder="Last name"
-                            value={teammate.lastName}
-                            onChange={(e) =>
+                          <Label>Affiliate (Optional)</Label>
+                          <AffiliateCombobox
+                            value={teammate.affiliateName}
+                            onChange={(val) =>
                               updateTeammate(
                                 division.id,
                                 index,
-                                "lastName",
-                                e.target.value,
+                                "affiliateName",
+                                val,
                               )
                             }
+                            placeholder="Search or enter affiliate..."
                             disabled={disabled}
                           />
                         </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label>Affiliate (Optional)</Label>
-                        <AffiliateCombobox
-                          value={teammate.affiliateName}
-                          onChange={(val) =>
-                            updateTeammate(
-                              division.id,
-                              index,
-                              "affiliateName",
-                              val,
-                            )
-                          }
-                          placeholder="Search or enter affiliate..."
-                          disabled={disabled}
-                        />
-                      </div>
-                    </div>
-                  </Card>
-                ))}
+                    </Card>
+                  )
+                })}
                 <p className="text-sm text-muted-foreground">
                   Teammates will receive an email invitation to join your team.
                   They must accept the invite to complete their registration.

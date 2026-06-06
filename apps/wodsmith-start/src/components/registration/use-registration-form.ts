@@ -28,6 +28,9 @@ export interface Teammate {
   affiliateName: string
 }
 
+export const OWN_TEAMMATE_EMAIL_ERROR =
+  "This is your account email. Enter your teammate's email instead."
+
 export interface TeamEntry {
   divisionId: string
   teamName: string
@@ -66,6 +69,40 @@ export interface UseRegistrationFormInput {
   prefillTeammates?: Teammate[]
   /** Prior team name from the source competition; pre-fills `teamName`. */
   prefillTeamName?: string
+  /** Logged-in athlete email, used to prevent self-inviting as a teammate. */
+  userEmail?: string | null
+}
+
+const normalizeEmail = (email: string | null | undefined) =>
+  email?.trim().toLowerCase() ?? ""
+
+export function buildTeammateEmailErrors({
+  teamEntries,
+  selectedTeamDivisions,
+  userEmail,
+}: {
+  teamEntries: Map<string, TeamEntry>
+  selectedTeamDivisions: ScalingLevel[]
+  userEmail?: string | null
+}) {
+  const normalizedUserEmail = normalizeEmail(userEmail)
+  const errors = new Map<string, Map<number, string>>()
+  if (!normalizedUserEmail) return errors
+
+  for (const division of selectedTeamDivisions) {
+    const teamEntry = teamEntries.get(division.id)
+    if (!teamEntry?.teammates) continue
+
+    for (const [index, teammate] of teamEntry.teammates.entries()) {
+      if (normalizeEmail(teammate.email) !== normalizedUserEmail) continue
+
+      const divisionErrors = errors.get(division.id) ?? new Map()
+      divisionErrors.set(index, OWN_TEAMMATE_EMAIL_ERROR)
+      errors.set(division.id, divisionErrors)
+    }
+  }
+
+  return errors
 }
 
 export function useRegistrationForm(input: UseRegistrationFormInput) {
@@ -85,6 +122,7 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
     inviteToken,
     prefillTeammates = [],
     prefillTeamName = "",
+    userEmail,
   } = input
 
   const navigate = useNavigate()
@@ -368,6 +406,18 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
       }
     })
 
+  const hasSelectedDivisions = selectedDivisionIds.length > 0
+  const competitionFull = false // capacity gating happens at the variant level
+  const selectedTeamDivisions = selectedDivisionIds
+    .map((id) => getDivision(id))
+    .filter((d): d is ScalingLevel => d !== undefined && d.teamSize > 1)
+  const teammateEmailErrors = buildTeammateEmailErrors({
+    teamEntries,
+    selectedTeamDivisions,
+    userEmail,
+  })
+  const hasTeammateEmailErrors = teammateEmailErrors.size > 0
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -399,9 +449,16 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
         )
         return
       }
-      for (const teammate of teamEntry.teammates) {
+      for (const [index, teammate] of teamEntry.teammates.entries()) {
         if (!teammate.email?.trim()) {
           toast.error(`All teammate emails are required for ${division.label}`)
+          return
+        }
+        const teammateEmailError = teammateEmailErrors
+          .get(divisionId)
+          ?.get(index)
+        if (teammateEmailError) {
+          toast.error(teammateEmailError)
           return
         }
       }
@@ -506,12 +563,6 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
     }
   }
 
-  const hasSelectedDivisions = selectedDivisionIds.length > 0
-  const competitionFull = false // capacity gating happens at the variant level
-  const selectedTeamDivisions = selectedDivisionIds
-    .map((id) => getDivision(id))
-    .filter((d): d is ScalingLevel => d !== undefined && d.teamSize > 1)
-
   return {
     // pass-throughs (so variants don't need to re-pass everything)
     competition,
@@ -529,6 +580,8 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
     selectedDivisionIds,
     selectedTeamDivisions,
     hasSelectedDivisions,
+    teammateEmailErrors,
+    hasTeammateEmailErrors,
     affiliateName,
     setAffiliateName,
     setCouponCodeInput,
