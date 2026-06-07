@@ -117,7 +117,7 @@ function SeriesSidebarHeader() {
   return (
     <SidebarHeader className="h-14 flex-row items-center border-b px-3 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:justify-center">
       <Link
-        to="/compete"
+        to="/"
         className="flex items-center gap-2 min-w-0 group-data-[collapsible=icon]:hidden"
       >
         <img
@@ -135,7 +135,7 @@ function SeriesSidebarHeader() {
         </h1>
       </Link>
       <Link
-        to="/compete"
+        to="/"
         className="hidden group-data-[collapsible=icon]:block"
       >
         <img
@@ -293,7 +293,7 @@ export function SeriesSidebar({
       <SidebarInset>
         <header className="fixed top-0 left-0 right-0 z-40 flex h-14 items-center gap-2 border-b bg-background px-3 md:hidden">
           <SidebarTrigger className="-ml-1" />
-          <Link to="/compete" className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2">
             <img
               src="/wodsmith-logo-no-text.png"
               alt="wodsmith compete"

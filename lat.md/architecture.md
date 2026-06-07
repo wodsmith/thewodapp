@@ -84,7 +84,8 @@ Authenticated routes requiring a valid session. Contains the main app dashboard,
 
 ### compete
 
-Public-facing competition pages. Athletes browse, register for, and view results of competitions at `/compete/{slug}`.
+Public-facing competition pages.
+The competition discovery index moved to `/`; competition detail pages remain at `/compete/{slug}`.
 
 The event details view ([[apps/wodsmith-start/src/components/event-details-content.tsx]]) groups divisions by price tier, each tier collapsible (default open) with a chevron toggle.
 

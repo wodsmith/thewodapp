@@ -80,7 +80,7 @@ export function AcceptInviteButton({
           params: { slug: result.competitionSlug },
         })
       } else {
-        navigate({ to: "/compete" })
+        navigate({ to: "/" })
       }
     } catch (err) {
       const message =

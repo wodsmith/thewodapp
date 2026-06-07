@@ -4,7 +4,7 @@ import { Link } from "@tanstack/react-router"
 
 export function CompeteNavBrand() {
   return (
-    <Link to="/compete" className="flex items-center gap-2">
+    <Link to="/" className="flex items-center gap-2">
       <img
         src="/wodsmith-logo-no-text.png"
         alt="wodsmith compete"

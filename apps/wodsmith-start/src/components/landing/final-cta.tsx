@@ -56,7 +56,7 @@ export function FinalCTA({ session }: FinalCTAProps) {
               className="border-background/20 text-background hover:bg-background/10 dark:border-border dark:text-foreground dark:hover:bg-secondary"
               asChild
             >
-              <Link to="/compete">Browse Competitions</Link>
+              <Link to="/">Browse Competitions</Link>
             </Button>
           </div>
 

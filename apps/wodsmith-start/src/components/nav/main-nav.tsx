@@ -34,7 +34,7 @@ export default function MainNav({
             session?.user
               ? hasWorkoutTracking
                 ? "/workouts"
-                : "/compete"
+                : "/"
               : "/"
           }
           className="flex items-center gap-2"
@@ -86,7 +86,7 @@ export default function MainNav({
                 </>
               )}
               <a
-                href="/compete"
+                href="/"
                 className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
               >
                 Compete
@@ -112,7 +112,7 @@ export default function MainNav({
           ) : (
             <div className="flex items-center gap-2">
               <a
-                href="/compete"
+                href="/"
                 className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
               >
                 Compete

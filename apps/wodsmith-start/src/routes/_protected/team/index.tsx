@@ -5,7 +5,7 @@ export const Route = createFileRoute("/_protected/team/")({
   component: TeamPage,
   beforeLoad: async ({ context }) => {
     if (!context.hasWorkoutTracking) {
-      throw redirect({ to: "/compete" })
+      throw redirect({ to: "/" })
     }
   },
 })

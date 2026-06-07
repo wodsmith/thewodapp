@@ -42,7 +42,7 @@ export const Route = createFileRoute(
 
     if (!canManage) {
       throw redirect({
-        to: "/compete",
+        to: "/",
         search: {},
       })
     }

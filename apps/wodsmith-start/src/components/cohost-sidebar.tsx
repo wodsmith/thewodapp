@@ -216,7 +216,7 @@ function CohostSidebarHeader({ competitionName }: { competitionName: string }) {
   return (
     <SidebarHeader className="border-b px-3 py-3 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3 group-data-[collapsible=icon]:justify-center">
       <Link
-        to="/compete"
+        to="/"
         className="flex items-center gap-2 min-w-0 group-data-[collapsible=icon]:hidden"
       >
         <img
@@ -239,7 +239,7 @@ function CohostSidebarHeader({ competitionName }: { competitionName: string }) {
         </div>
       </Link>
       <Link
-        to="/compete"
+        to="/"
         className="hidden group-data-[collapsible=icon]:block"
       >
         <img
@@ -334,7 +334,7 @@ export function CohostSidebar({
             <Menu className="h-5 w-5" />
           </SidebarTrigger>
           <div className="flex items-center gap-2 min-w-0">
-            <Link to="/compete" className="flex items-center gap-2 shrink-0">
+            <Link to="/" className="flex items-center gap-2 shrink-0">
               <img
                 src="/wodsmith-logo-no-text.png"
                 alt="wodsmith compete"

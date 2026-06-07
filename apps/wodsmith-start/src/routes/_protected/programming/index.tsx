@@ -39,7 +39,7 @@ export const Route = createFileRoute("/_protected/programming/")({
   component: PublicProgrammingPage,
   beforeLoad: async ({ context }) => {
     if (!context.hasWorkoutTracking) {
-      throw redirect({ to: "/compete" })
+      throw redirect({ to: "/" })
     }
   },
   loader: async ({ context }): Promise<LoaderData> => {

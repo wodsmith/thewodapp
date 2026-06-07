@@ -26,7 +26,7 @@ export const Route = createFileRoute("/_protected/dashboard")({
   component: DashboardPage,
   beforeLoad: async ({ context }) => {
     if (!context.hasWorkoutTracking) {
-      throw redirect({ to: "/compete" })
+      throw redirect({ to: "/" })
     }
   },
   loader: async ({ context }) => {

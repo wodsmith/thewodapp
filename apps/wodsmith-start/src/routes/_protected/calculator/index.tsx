@@ -284,7 +284,7 @@ export const Route = createFileRoute("/_protected/calculator/")({
   component: BarbellCalculatorPage,
   beforeLoad: async ({ context }) => {
     if (!context.hasWorkoutTracking) {
-      throw redirect({ to: "/compete" })
+      throw redirect({ to: "/" })
     }
   },
   validateSearch: (search: Record<string, unknown>): CalculatorSearch => {

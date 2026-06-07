@@ -399,7 +399,7 @@ function CompetitiveHistory({ registrations }: { registrations: any[] }) {
               history
             </p>
             <Button asChild className="mt-4">
-              <Link to="/compete">Browse Competitions</Link>
+              <Link to="/">Browse Competitions</Link>
             </Button>
           </div>
         </CardContent>

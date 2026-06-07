@@ -73,6 +73,8 @@ function RootComponent() {
   // Hide MainNav if EITHER current OR target route is compete/admin
   // This prevents layout flash during transitions in both directions
   const isCompeteRoute =
+    currentPath === "/" ||
+    (isNavigating && targetPath === "/") ||
     currentPath.startsWith("/compete") ||
     (isNavigating && targetPath.startsWith("/compete"))
   const isAdminRoute =

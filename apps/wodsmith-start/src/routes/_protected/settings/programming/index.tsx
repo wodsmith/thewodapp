@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_protected/settings/programming/")({
   component: ProgrammingTracksPage,
   beforeLoad: async ({ context }) => {
     if (!context.hasWorkoutTracking) {
-      throw redirect({ to: "/compete" })
+      throw redirect({ to: "/" })
     }
   },
   loader: async ({ context }) => {

@@ -8,7 +8,7 @@ export const Route = createFileRoute("/_protected/log/")({
   component: LogPage,
   beforeLoad: async ({ context }) => {
     if (!context.hasWorkoutTracking) {
-      throw redirect({ to: "/compete" })
+      throw redirect({ to: "/" })
     }
   },
   loader: async ({ context }) => {

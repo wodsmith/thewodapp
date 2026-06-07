@@ -82,7 +82,7 @@ export const Route = createFileRoute("/compete/$slug/register/success")({
     const parentMatch = await parentMatchPromise
     const competition = parentMatch.loaderData?.competition
     if (!competition) {
-      throw redirect({ to: "/compete" })
+      throw redirect({ to: "/" })
     }
 
     // Check for registration

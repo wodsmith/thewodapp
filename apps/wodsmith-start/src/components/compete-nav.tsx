@@ -26,7 +26,7 @@ export default function CompeteNav({ session, canOrganize }: CompeteNavProps) {
           {session?.user ? (
             <>
               <Link
-                to="/compete"
+                to="/"
                 className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
               >
                 Events
@@ -55,21 +55,21 @@ export default function CompeteNav({ session, canOrganize }: CompeteNavProps) {
           ) : (
             <div className="flex items-center gap-2">
               <Link
-                to="/compete"
+                to="/"
                 className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
               >
                 Events
               </Link>
               <Link
                 to="/sign-in"
-                search={{ redirect: "/compete" }}
+                search={{ redirect: "/" }}
                 className="btn-outline"
               >
                 Login
               </Link>
               <Link
                 to="/sign-up"
-                search={{ redirect: "/compete" }}
+                search={{ redirect: "/" }}
                 className="btn"
               >
                 Sign Up

@@ -95,7 +95,7 @@ export default function MobileNav({
                 </>
               )}
               <a
-                href="/compete"
+                href="/"
                 className="hover:text-primary"
                 onClick={handleLinkClick}
               >
@@ -108,7 +108,7 @@ export default function MobileNav({
           ) : (
             <>
               <a
-                href="/compete"
+                href="/"
                 className="hover:text-primary"
                 onClick={handleLinkClick}
               >

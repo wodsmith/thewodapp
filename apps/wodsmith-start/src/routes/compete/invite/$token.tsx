@@ -223,7 +223,7 @@ function InvitePage() {
               This invitation link is invalid or has expired.
             </p>
             <Button asChild variant="outline">
-              <Link to="/compete">Browse Competitions</Link>
+              <Link to="/">Browse Competitions</Link>
             </Button>
           </CardContent>
         </Card>
@@ -271,7 +271,7 @@ function InvitePage() {
               a new invite.
             </p>
             <Button asChild variant="outline">
-              <Link to="/compete">Browse Competitions</Link>
+              <Link to="/">Browse Competitions</Link>
             </Button>
           </CardContent>
         </Card>
@@ -630,7 +630,7 @@ function VolunteerApplicationStatus({ invite }: { invite: VolunteerInvite }) {
           )}
 
           <Button asChild variant="outline" className="w-full">
-            <Link to="/compete">Browse Competitions</Link>
+            <Link to="/">Browse Competitions</Link>
           </Button>
         </CardContent>
       </Card>
@@ -697,7 +697,7 @@ function DirectVolunteerInvite({
               organizer for a new invite.
             </p>
             <Button asChild variant="outline">
-              <Link to="/compete">Browse Competitions</Link>
+              <Link to="/">Browse Competitions</Link>
             </Button>
           </CardContent>
         </Card>

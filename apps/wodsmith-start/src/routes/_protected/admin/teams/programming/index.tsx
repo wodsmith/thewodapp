@@ -24,7 +24,7 @@ export const Route = createFileRoute("/_protected/admin/teams/programming/")({
   component: AdminProgrammingPage,
   beforeLoad: async ({ context }) => {
     if (!context.hasWorkoutTracking) {
-      throw redirect({ to: "/compete" })
+      throw redirect({ to: "/" })
     }
   },
   loader: async ({ context }) => {

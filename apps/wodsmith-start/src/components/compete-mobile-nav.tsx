@@ -97,7 +97,7 @@ export default function CompeteMobileNav({
         <nav className="grid gap-6 font-medium text-lg">
           {!shouldHideBrand(pathname) && (
             <Link
-              to="/compete"
+              to="/"
               className="mb-4 flex items-center gap-2 font-semibold text-lg"
               onClick={handleLinkClick}
             >
@@ -126,7 +126,7 @@ export default function CompeteMobileNav({
           {session?.user ? (
             <>
               <Link
-                to="/compete"
+                to="/"
                 className="hover:text-primary"
                 onClick={handleLinkClick}
               >
@@ -200,7 +200,7 @@ export default function CompeteMobileNav({
           ) : (
             <>
               <Link
-                to="/compete"
+                to="/"
                 className="hover:text-primary"
                 onClick={handleLinkClick}
               >
