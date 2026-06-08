@@ -26,9 +26,15 @@ export default function CompeteNav({
     select: (state) => state.location.pathname,
   })
   const isCompetitionIndex = pathname === "/"
+  const isManageCompetitionsActive =
+    pathname === "/compete/organizer" ||
+    pathname.startsWith("/compete/organizer/")
   const competitionsLinkClass = isCompetitionIndex
-    ? "font-bold text-primary uppercase underline underline-offset-4 dark:text-primary"
+    ? "font-bold text-foreground uppercase underline decoration-primary decoration-2 underline-offset-4 dark:text-dark-foreground"
     : "font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
+  const manageCompetitionsLinkClass = isManageCompetitionsActive
+    ? "flex items-center gap-1 font-bold text-foreground underline decoration-primary decoration-2 underline-offset-4 dark:text-dark-foreground"
+    : "flex items-center gap-1 font-bold text-foreground hover:underline dark:text-dark-foreground"
   const showManageCompetitionsLink = hasOrganizerApplication || canOrganize
 
   return (
@@ -51,7 +57,10 @@ export default function CompeteNav({
                   <div className="h-6 border-black border-l-2 dark:border-dark-border" />
                   <Link
                     to="/compete/organizer"
-                    className="flex items-center gap-1 font-bold text-foreground hover:underline dark:text-dark-foreground"
+                    aria-current={
+                      isManageCompetitionsActive ? "page" : undefined
+                    }
+                    className={manageCompetitionsLinkClass}
                   >
                     MANAGE COMPETITIONS
                   </Link>

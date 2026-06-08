@@ -72,9 +72,15 @@ export default function CompeteMobileNav({
   const router = useRouterState()
   const pathname = router.location.pathname
   const isCompetitionIndex = pathname === "/"
+  const isManageCompetitionsActive =
+    pathname === "/compete/organizer" ||
+    pathname.startsWith("/compete/organizer/")
   const competitionsLinkClass = isCompetitionIndex
-    ? "font-semibold text-primary"
+    ? "font-semibold text-foreground underline decoration-primary decoration-2 underline-offset-4 dark:text-dark-foreground"
     : "hover:text-primary"
+  const manageCompetitionsLinkClass = isManageCompetitionsActive
+    ? "flex items-center gap-2 font-semibold text-foreground underline decoration-primary decoration-2 underline-offset-4 dark:text-dark-foreground"
+    : "flex items-center gap-2 hover:text-primary"
   const showManageCompetitionsLink = hasOrganizerApplication || canOrganize
 
   const isProfileIncomplete =
@@ -144,7 +150,8 @@ export default function CompeteMobileNav({
               {showManageCompetitionsLink && (
                 <a
                   href="/compete/organizer"
-                  className="flex items-center gap-2 hover:text-primary"
+                  aria-current={isManageCompetitionsActive ? "page" : undefined}
+                  className={manageCompetitionsLinkClass}
                   onClick={handleLinkClick}
                 >
                   <Settings className="h-5 w-5" />
