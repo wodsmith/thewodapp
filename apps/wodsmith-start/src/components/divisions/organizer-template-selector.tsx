@@ -179,12 +179,12 @@ export function OrganizerTemplateSelector({
             disabled={isPending}
           >
             <Plus className="h-4 w-4 mr-2" />
-            Start Fresh
+            Start fresh
           </Button>
         </div>
 
         <p className="text-xs text-muted-foreground">
-          "Start Fresh" creates Open and Scaled divisions. You can customize
+          "Start fresh" creates Open and Scaled divisions. You can customize
           them after.
         </p>
       </CardContent>

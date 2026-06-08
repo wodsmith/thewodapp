@@ -878,7 +878,7 @@ export function RotationTimeline({
                     Back
                   </Button>
                   <CardTitle className="text-sm font-medium">
-                    {editingVolunteerId ? "Edit Rotations" : "Add Rotation"}
+                    {editingVolunteerId ? "Edit rotations" : "Add rotation"}
                   </CardTitle>
                   <div className="w-16" /> {/* Spacer for centering */}
                 </>
@@ -1081,7 +1081,7 @@ export function RotationTimeline({
                                 }
                               >
                                 <Plus className="mr-1 h-3 w-3" />
-                                Add Rotation
+                                Add rotation
                               </Button>
                               <Button
                                 variant="outline"

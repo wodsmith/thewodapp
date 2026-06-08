@@ -223,7 +223,7 @@ function LogNewPage() {
                     })
                   }
                 >
-                  Choose Different Workout
+                  Choose different workout
                 </Button>
               </CardContent>
             </Card>
@@ -276,7 +276,7 @@ function LogNewPage() {
           {selectedWorkout ? (
             <Card>
               <CardHeader>
-                <CardTitle>Log Result for {selectedWorkout.name}</CardTitle>
+                <CardTitle>Log result for {selectedWorkout.name}</CardTitle>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -428,7 +428,7 @@ function LogNewPage() {
                       Cancel
                     </Button>
                     <Button type="submit" disabled={isSubmitting}>
-                      {isSubmitting ? "Saving..." : "Save Result"}
+                      {isSubmitting ? "Saving..." : "Save result"}
                     </Button>
                   </div>
                 </form>

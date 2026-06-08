@@ -477,7 +477,7 @@ export function ScalingGroupDialog({
                   {!isEditing && (
                     <Button type="button" size="sm" onClick={addLevel}>
                       <Plus className="h-4 w-4 mr-1" />
-                      Add Level
+                      Add level
                     </Button>
                   )}
                 </div>

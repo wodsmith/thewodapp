@@ -352,7 +352,7 @@ export function SubmissionWindowsManager({
         <div className="flex gap-2">
           <Button onClick={handleAddWindow} variant="outline" size="sm">
             <Plus className="h-4 w-4 mr-2" />
-            Add Window
+            Add window
           </Button>
           <Button
             onClick={handleSave}
@@ -360,7 +360,7 @@ export function SubmissionWindowsManager({
             size="sm"
           >
             <Save className="h-4 w-4 mr-2" />
-            {isSaving ? "Saving..." : isDirty ? "Save Changes" : "Saved"}
+            {isSaving ? "Saving..." : isDirty ? "Save changes" : "Saved"}
           </Button>
         </div>
       </div>
@@ -380,7 +380,7 @@ export function SubmissionWindowsManager({
               <p className="mb-4">No submission windows created</p>
               <Button onClick={handleAddWindow} variant="outline">
                 <Plus className="h-4 w-4 mr-2" />
-                Create First Window
+                Create first window
               </Button>
             </div>
           ) : (

@@ -194,9 +194,9 @@ export function PublicRegistrationForm(props: PublicProps) {
             ) : r.selectedDivisionIds.length > 1 ? (
               `Register for ${r.selectedDivisionIds.length} Divisions`
             ) : r.selectedTeamDivisions.length > 0 ? (
-              "Register Team"
+              "Register team"
             ) : (
-              "Complete Registration"
+              "Complete registration"
             )}
           </Button>
           <Button

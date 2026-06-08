@@ -125,7 +125,7 @@ export default function MainNav({
                 Login
               </Link>
               <Link to="/sign-up" search={{ redirect: "" }} className="btn">
-                Sign Up
+                Sign up
               </Link>
               <DarkModeToggle />
             </div>

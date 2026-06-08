@@ -72,7 +72,7 @@ export default function CompeteNav({ session, canOrganize }: CompeteNavProps) {
                 search={{ redirect: "/compete" }}
                 className="btn"
               >
-                Sign Up
+                Sign up
               </Link>
               <DarkModeToggle />
             </div>

@@ -182,7 +182,7 @@ function PublicProgrammingPage() {
           <Button asChild>
             <Link to="/settings/programming">
               <Plus className="h-5 w-5 mr-2" />
-              Create Track
+              Create track
             </Link>
           </Button>
         </div>

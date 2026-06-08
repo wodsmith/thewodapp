@@ -132,7 +132,7 @@ function AdminProgrammingPage() {
                 trigger={
                   <Button className="border-4 border-primary transition-all font-mono w-full sm:w-auto">
                     <Plus className="h-4 w-4 mr-2" />
-                    Create Track
+                    Create track
                   </Button>
                 }
               />

@@ -109,7 +109,7 @@ export function AcceptInviteButton({
       ) : (
         <>
           <CheckCircle className="mr-2 h-4 w-4" />
-          Accept Invitation
+          Accept invitation
         </>
       )}
     </Button>

@@ -40,21 +40,22 @@ const SEGMENT_LABELS: Record<string, string> = {
 
   // Organizer pages
   organizer: "Organizer",
-  new: "New Competition",
+  new: "New competition",
   series: "Series",
   settings: "Settings",
   payouts: "Payouts",
-  onboard: "Get Started",
+  onboard: "Get started",
   pending: "Pending",
 
   // Competition management
   athletes: "Athletes",
-  "danger-zone": "Danger Zone",
+  "danger-zone": "Danger zone",
   divisions: "Divisions",
   events: "Events",
   pricing: "Pricing",
   results: "Results",
   revenue: "Revenue",
+  scoring: "Scoring",
   volunteers: "Volunteers",
   waivers: "Waivers",
 

@@ -87,7 +87,7 @@ const getNavigation = (
         { label: "Events", href: `${basePath}/events`, icon: Trophy },
         { label: "Locations", href: `${basePath}/locations`, icon: MapPin },
         {
-          label: "Event Divisions",
+          label: "Event divisions",
           href: `${basePath}/event-divisions`,
           icon: Grid3X3,
         },
@@ -95,7 +95,7 @@ const getNavigation = (
         ...(competitionType === "online"
           ? [
               {
-                label: "Submission Windows",
+                label: "Submission windows",
                 href: `${basePath}/submission-windows`,
                 icon: Clock,
               },
@@ -135,7 +135,7 @@ const getNavigation = (
           icon: Medal,
         },
         {
-          label: "Leaderboard Preview",
+          label: "Leaderboard preview",
           href: `${basePath}/leaderboard-preview`,
           icon: BarChart3,
         },
@@ -165,7 +165,7 @@ const getNavigation = (
       items: [
         { label: "Settings", href: `${basePath}/settings`, icon: Settings },
         {
-          label: "Danger Zone",
+          label: "Danger zone",
           href: `${basePath}/danger-zone`,
           icon: AlertTriangle,
           variant: "destructive" as const,

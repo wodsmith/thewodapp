@@ -1055,7 +1055,7 @@ function CohostAthletesPage() {
                   className="w-full sm:w-auto"
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Registration
+                  Add registration
                 </Button>
               )}
               {registrations.length > 0 && (
@@ -1408,7 +1408,7 @@ function CohostAthletesPage() {
                                               }
                                             >
                                               <X className="h-4 w-4 mr-2" />
-                                              Cancel Transfer
+                                              Cancel transfer
                                             </DropdownMenuItem>
                                           )
                                         }
@@ -1448,7 +1448,7 @@ function CohostAthletesPage() {
                                         }
                                       >
                                         <Trash2 className="h-4 w-4 mr-2" />
-                                        Remove Registration
+                                        Remove registration
                                       </DropdownMenuItem>
                                     </DropdownMenuContent>
                                   </DropdownMenu>
@@ -2056,7 +2056,7 @@ function CohostAthletesPage() {
                                                   }
                                                 >
                                                   <X className="h-4 w-4 mr-2" />
-                                                  Cancel Transfer
+                                                  Cancel transfer
                                                 </DropdownMenuItem>
                                               )
                                             }
@@ -2102,7 +2102,7 @@ function CohostAthletesPage() {
                                             }
                                           >
                                             <Trash2 className="h-4 w-4 mr-2" />
-                                            Remove Registration
+                                            Remove registration
                                           </DropdownMenuItem>
                                         </DropdownMenuContent>
                                       </DropdownMenu>
@@ -2129,7 +2129,7 @@ function CohostAthletesPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Registration</AlertDialogTitle>
+            <AlertDialogTitle>Remove registration</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to remove the registration for{" "}
               <strong>{removingRegistration?.athleteName}</strong>
@@ -2147,7 +2147,7 @@ function CohostAthletesPage() {
               disabled={isRemoving}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isRemoving ? "Removing..." : "Remove Registration"}
+              {isRemoving ? "Removing..." : "Remove registration"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

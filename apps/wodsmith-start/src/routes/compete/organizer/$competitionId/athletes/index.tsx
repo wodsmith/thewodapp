@@ -1026,7 +1026,7 @@ function AthletesPage() {
                 className="w-full sm:w-auto"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Add Registration
+                Add registration
               </Button>
               {registrations.length > 0 && (
                 <Button
@@ -1339,7 +1339,7 @@ function AthletesPage() {
                                         }}
                                       >
                                         <ArrowUpRight className="h-4 w-4 mr-2" />
-                                        View Details
+                                        View details
                                       </Link>
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
@@ -1384,7 +1384,7 @@ function AthletesPage() {
                                             }
                                           >
                                             <X className="h-4 w-4 mr-2" />
-                                            Cancel Transfer
+                                            Cancel transfer
                                           </DropdownMenuItem>
                                         )
                                       }
@@ -1445,7 +1445,7 @@ function AthletesPage() {
                                       }
                                     >
                                       <Trash2 className="h-4 w-4 mr-2" />
-                                      Remove Registration
+                                      Remove registration
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
@@ -2060,7 +2060,7 @@ function AthletesPage() {
                                             }}
                                           >
                                             <ArrowUpRight className="h-4 w-4 mr-2" />
-                                            View Details
+                                            View details
                                           </Link>
                                         </DropdownMenuItem>
                                         <DropdownMenuItem
@@ -2107,7 +2107,7 @@ function AthletesPage() {
                                                 }
                                               >
                                                 <X className="h-4 w-4 mr-2" />
-                                                Cancel Transfer
+                                                Cancel transfer
                                               </DropdownMenuItem>
                                             )
                                           }
@@ -2169,7 +2169,7 @@ function AthletesPage() {
                                           }
                                         >
                                           <Trash2 className="h-4 w-4 mr-2" />
-                                          Remove Registration
+                                          Remove registration
                                         </DropdownMenuItem>
                                       </DropdownMenuContent>
                                     </DropdownMenu>
@@ -2195,7 +2195,7 @@ function AthletesPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Registration</AlertDialogTitle>
+            <AlertDialogTitle>Remove registration</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to remove the registration for{" "}
               <strong>{removingRegistration?.athleteName}</strong>
@@ -2213,7 +2213,7 @@ function AthletesPage() {
               disabled={isRemoving}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isRemoving ? "Removing..." : "Remove Registration"}
+              {isRemoving ? "Removing..." : "Remove registration"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -2234,7 +2234,7 @@ function AthletesPage() {
               )}
               ? This issues a Stripe refund and reverses the transfer to your
               connected account. The registration itself stays in place — use
-              "Remove Registration" if you also want to release their spot.
+              "Remove registration" if you also want to release their spot.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -426,7 +426,7 @@ export function OrganizerDivisionManager({
               className="w-full sm:w-auto"
             >
               <Plus className="h-4 w-4 mr-2" />
-              Add Division
+              Add division
             </Button>
           </div>
         </CardHeader>
@@ -485,7 +485,7 @@ export function OrganizerDivisionManager({
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Division</DialogTitle>
+            <DialogTitle>Add division</DialogTitle>
             <DialogDescription>
               Create a new division for athletes to register in.
             </DialogDescription>
@@ -563,7 +563,7 @@ export function OrganizerDivisionManager({
               onClick={handleAddDivision}
               disabled={isAdding || !newDivisionLabel.trim()}
             >
-              {isAdding ? "Adding..." : "Add Division"}
+              {isAdding ? "Adding..." : "Add division"}
             </Button>
           </DialogFooter>
         </DialogContent>

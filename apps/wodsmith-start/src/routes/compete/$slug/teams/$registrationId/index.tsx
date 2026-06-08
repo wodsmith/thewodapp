@@ -762,7 +762,7 @@ function TeamManagementPage() {
                                 onClick={() => copyInviteLink(invite.token!)}
                               >
                                 <Copy className="w-4 h-4 mr-1" />
-                                Copy Link
+                                Copy link
                               </Button>
                             )}
                           {isExpired ? (

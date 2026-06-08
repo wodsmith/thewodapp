@@ -234,7 +234,7 @@ export function HeatSchedulePublishingCard({
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Bulk Actions */}
+        {/* Bulk actions */}
         <div className="flex flex-wrap gap-2">
           <Button
             variant={allPublished ? "outline" : "default"}
@@ -247,7 +247,7 @@ export function HeatSchedulePublishingCard({
             ) : (
               <CheckCircle2 className="h-4 w-4 mr-2" />
             )}
-            Publish All Heats
+            Publish all heats
           </Button>
           <Button
             variant="outline"

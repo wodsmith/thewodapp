@@ -273,7 +273,7 @@ export function ShiftFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit Shift" : "Add Shift"}</DialogTitle>
+          <DialogTitle>{isEditing ? "Edit shift" : "Add shift"}</DialogTitle>
           <DialogDescription>
             {isEditing
               ? "Update the volunteer shift details."
@@ -386,7 +386,7 @@ export function ShiftFormDialog({
                 name="startTime"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Start Time</FormLabel>
+                    <FormLabel>Start time</FormLabel>
                     <FormControl>
                       <Input type="time" disabled={isSubmitting} {...field} />
                     </FormControl>
@@ -496,8 +496,8 @@ export function ShiftFormDialog({
                     ? "Saving..."
                     : "Creating..."
                   : isEditing
-                    ? "Save Changes"
-                    : "Create Shift"}
+                    ? "Save changes"
+                    : "Create shift"}
               </Button>
             </DialogFooter>
           </form>

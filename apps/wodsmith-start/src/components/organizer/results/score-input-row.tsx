@@ -125,7 +125,7 @@ export const ScoreInputRow = forwardRef<
 
   // Determine status display
   const hasExistingResult = !!athlete.existingResult
-  // Only show invalid warning styling when explicitly triggered (not persisted after "Save Anyway")
+  // Only show invalid warning styling when explicitly triggered (not persisted after "Save anyway")
   const isInvalidWarning = showWarning
   const hasWarning = parseResult?.error && parseResult?.isValid
 
@@ -406,7 +406,7 @@ export const ScoreInputRow = forwardRef<
                   variant="outline"
                   onClick={handleConfirmWarning}
                 >
-                  Save Anyway
+                  Save anyway
                 </Button>
                 <Button
                   size="sm"
@@ -469,7 +469,7 @@ export const ScoreInputRow = forwardRef<
                     variant="outline"
                     onClick={handleConfirmTieBreakWarning}
                   >
-                    Save Anyway
+                    Save anyway
                   </Button>
                   <Button
                     size="sm"

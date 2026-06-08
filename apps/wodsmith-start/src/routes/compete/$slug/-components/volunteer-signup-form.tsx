@@ -477,9 +477,9 @@ export function VolunteerSignupForm({
                 Submitting...
               </>
             ) : currentUser ? (
-              "Sign Up to Volunteer"
+              "Sign up to volunteer"
             ) : (
-              "Create Account & Sign Up to Volunteer"
+              "Create account & Sign up to volunteer"
             )}
           </Button>
 

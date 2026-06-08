@@ -772,7 +772,7 @@ function AthleteSettingsPage() {
               Cancel
             </Button>
             <Button type="submit" disabled={isPending}>
-              Save Profile
+              Save profile
             </Button>
           </div>
         </form>

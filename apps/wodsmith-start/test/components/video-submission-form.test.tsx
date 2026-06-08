@@ -370,7 +370,7 @@ describe("VideoSubmissionForm", () => {
 				/>,
 			)
 
-			expect(screen.getByText("Submit Team Result")).toBeTruthy()
+			expect(screen.getByText("Submit team result")).toBeTruthy()
 			expect(screen.getByText("Partner 1's Video")).toBeTruthy()
 			expect(screen.getByText("Partner 2's Video")).toBeTruthy()
 			expect(screen.getByText("Partner 3's Video")).toBeTruthy()
@@ -389,7 +389,7 @@ describe("VideoSubmissionForm", () => {
 			)
 
 			expect(screen.getByText("Video URL")).toBeTruthy()
-			expect(screen.getByText("Submit Your Result")).toBeTruthy()
+			expect(screen.getByText("Submit your result")).toBeTruthy()
 		})
 
 		it("shows team score label when teamSize > 1 and workout provided", () => {

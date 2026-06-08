@@ -744,7 +744,7 @@ export function EventDetailsForm({
                         })
                       }
                     >
-                      Create Divisions
+                      Create divisions
                     </Button>
                   </div>
                 )}
@@ -768,7 +768,7 @@ export function EventDetailsForm({
             Cancel
           </Button>
           <Button type="submit" disabled={isSaving || !form.formState.isValid}>
-            {isSaving ? "Saving..." : "Save Changes"}
+            {isSaving ? "Saving..." : "Save changes"}
           </Button>
         </div>
       </form>

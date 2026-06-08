@@ -93,7 +93,7 @@ export function AddTeammateDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add Teammate</DialogTitle>
+          <DialogTitle>Add teammate</DialogTitle>
           <DialogDescription>
             Sends an invitation email. The teammate completes registration —
             questions, waivers — themselves.
@@ -147,7 +147,7 @@ export function AddTeammateDialog({
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={isSaving}>
-            {isSaving ? "Inviting..." : "Send Invite"}
+            {isSaving ? "Inviting..." : "Send invite"}
           </Button>
         </DialogFooter>
       </DialogContent>

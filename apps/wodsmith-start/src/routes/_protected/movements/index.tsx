@@ -83,7 +83,7 @@ function MovementsPage() {
           <Button asChild>
             <Link to="/movements/new">
               <Plus className="h-5 w-5 mr-2" />
-              Create Movement
+              Create movement
             </Link>
           </Button>
         )}

@@ -6,7 +6,7 @@
  * Renders rank + athlete + source + status columns for the leaderboard of
  * the currently-filtered (sourceCompetitionId, sourceDivisionId). The
  * organizer ticks rows to stage them as recipients; the parent route
- * routes those into the Send Invites dialog where the championship
+ * routes those into the Send invites dialog where the championship
  * division is chosen at submit time.
  *
  * Rows without an email (no userId resolved from `userTable`) are marked

@@ -224,7 +224,7 @@ export function AthleteScoreSubmissionPanel({
       <CardHeader className="pb-3">
         <div className="flex items-center gap-2">
           <Trophy className="h-5 w-5 text-primary" />
-          <CardTitle className="text-lg">Submit Your Scores</CardTitle>
+          <CardTitle className="text-lg">Submit your scores</CardTitle>
         </div>
 
         {userDivisions.length > 1 && (

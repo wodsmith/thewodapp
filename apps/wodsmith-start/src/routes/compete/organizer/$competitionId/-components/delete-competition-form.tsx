@@ -75,7 +75,7 @@ export function DeleteCompetitionForm({
       <CardHeader>
         <CardTitle className="text-destructive flex items-center gap-2">
           <Trash2 className="h-5 w-5" />
-          Delete Competition
+          Delete competition
         </CardTitle>
         <CardDescription>
           Permanently delete this competition and all associated data
@@ -124,7 +124,7 @@ export function DeleteCompetitionForm({
           disabled={!isConfirmed || isDeleting}
           className="w-full"
         >
-          {isDeleting ? "Deleting..." : "Delete Competition Permanently"}
+          {isDeleting ? "Deleting..." : "Delete competition permanently"}
         </Button>
       </CardContent>
     </Card>

@@ -312,7 +312,7 @@ function WorkoutsPage() {
         <Button asChild>
           <Link to="/workouts/new" search={{ remixFrom: undefined }}>
             <Plus className="h-5 w-5 mr-2" />
-            Create Workout
+            Create workout
           </Link>
         </Button>
       </div>

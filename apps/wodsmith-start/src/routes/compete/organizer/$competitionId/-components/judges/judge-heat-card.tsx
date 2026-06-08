@@ -710,7 +710,7 @@ export function JudgeHeatCard({
           })}
         </div>
 
-        {/* Add Judge Button */}
+        {/* Add judge Button */}
         {availableLanes.length > 0 && unassignedVolunteers.length > 0 && (
           <Dialog open={isAssignOpen} onOpenChange={setIsAssignOpen}>
             <DialogTrigger asChild>

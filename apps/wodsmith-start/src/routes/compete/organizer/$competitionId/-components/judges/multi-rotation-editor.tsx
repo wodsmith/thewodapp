@@ -204,7 +204,7 @@ export function MultiRotationEditor({
   const hasAutoAddedRef = useRef(false)
 
   // Auto-add a new rotation block if activeBlockIndex is beyond current fields
-  // This handles the "Add Rotation" button from the volunteer list
+  // This handles the "Add rotation" button from the volunteer list
   useEffect(() => {
     if (
       activeBlockIndex >= fields.length &&
@@ -816,7 +816,7 @@ export function MultiRotationEditor({
             )
           })}
 
-          {/* Add Rotation Button */}
+          {/* Add rotation Button */}
           <Button
             type="button"
             variant="outline"
@@ -825,7 +825,7 @@ export function MultiRotationEditor({
             className="w-full"
           >
             <Plus className="mr-2 h-4 w-4" />
-            Add Rotation
+            Add rotation
           </Button>
         </div>
 
@@ -836,7 +836,7 @@ export function MultiRotationEditor({
           </Button>
           <Button type="submit" disabled={isPending}>
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isEditing ? "Update Rotations" : "Create Rotations"}
+            {isEditing ? "Update rotations" : "Create rotations"}
           </Button>
         </div>
       </form>

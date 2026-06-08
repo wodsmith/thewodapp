@@ -67,7 +67,7 @@ const defaultProps = {
 
 describe("CompetitionWorkoutCard", () => {
 	describe("CTA behavior based on submission status", () => {
-		it("shows 'View Details' when not registered", () => {
+		it("shows 'View details' when not registered", () => {
 			render(
 				<CompetitionWorkoutCard
 					{...defaultProps}
@@ -76,10 +76,10 @@ describe("CompetitionWorkoutCard", () => {
 				/>,
 			)
 
-			expect(screen.getAllByText("View Details").length).toBeGreaterThan(0)
+			expect(screen.getAllByText("View details").length).toBeGreaterThan(0)
 		})
 
-		it("shows 'View Details' when registered but no submission tracking (in-person)", () => {
+		it("shows 'View details' when registered but no submission tracking (in-person)", () => {
 			render(
 				<CompetitionWorkoutCard
 					{...defaultProps}
@@ -88,10 +88,10 @@ describe("CompetitionWorkoutCard", () => {
 				/>,
 			)
 
-			expect(screen.getAllByText("View Details").length).toBeGreaterThan(0)
+			expect(screen.getAllByText("View details").length).toBeGreaterThan(0)
 		})
 
-		it("shows 'Submit Score' when registered, not submitted, window open", () => {
+		it("shows 'Submit score' when registered, not submitted, window open", () => {
 			const status: SubmissionStatus = {
 				hasSubmitted: false,
 				canSubmit: true,
@@ -105,7 +105,7 @@ describe("CompetitionWorkoutCard", () => {
 				/>,
 			)
 
-			expect(screen.getAllByText("Submit Score").length).toBeGreaterThan(0)
+			expect(screen.getAllByText("Submit score").length).toBeGreaterThan(0)
 		})
 
 		it("shows 'Edit Submission' with Submitted badge when submitted and window open", () => {

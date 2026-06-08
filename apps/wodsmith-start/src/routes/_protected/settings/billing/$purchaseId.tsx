@@ -290,7 +290,7 @@ function InvoiceDetailPage() {
               to="/compete/$slug"
               params={{ slug: invoice.competition.slug }}
             >
-              View Competition
+              View competition
             </Link>
           </Button>
         </div>

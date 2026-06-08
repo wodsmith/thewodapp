@@ -282,7 +282,7 @@ export function AthleteScoreSubmission({
       <CardHeader>
         <div className="flex items-center gap-2">
           <Trophy className="h-5 w-5 text-primary" />
-          <CardTitle className="text-lg">Submit Your Score</CardTitle>
+          <CardTitle className="text-lg">Submit your score</CardTitle>
         </div>
         <CardDescription>
           {windowStatus.isOpen ? (
@@ -474,9 +474,9 @@ export function AthleteScoreSubmission({
                 Submitting...
               </>
             ) : existingScore?.scoreId ? (
-              "Update Score"
+              "Update score"
             ) : (
-              "Submit Score"
+              "Submit score"
             )}
           </Button>
         </CardFooter>

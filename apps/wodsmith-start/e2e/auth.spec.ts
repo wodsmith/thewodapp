@@ -12,7 +12,7 @@ test.describe('Authentication', () => {
     await page.goto('/workouts')
     await expect(page).toHaveURL(/\/sign-in/)
     // CardTitle renders as <div>, not a heading element — check for the sign-in button instead
-    await expect(page.getByRole('button', {name: 'Sign In'})).toBeVisible()
+    await expect(page.getByRole('button', {name: 'Sign in'})).toBeVisible()
   })
 
   test('should login with valid test user credentials', async ({page}) => {

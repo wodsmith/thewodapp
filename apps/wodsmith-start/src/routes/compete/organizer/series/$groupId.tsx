@@ -54,10 +54,10 @@ export const Route = createFileRoute(
 })
 
 const routeLabels: Record<string, string> = {
-  edit: "Edit Series",
+  edit: "Edit series",
   divisions: "Divisions",
   events: "Event Template",
-  "publish-workouts": "Publish Workouts",
+  "publish-workouts": "Publish workouts",
   "registration-questions": "Registration Questions",
   leaderboard: "Global Leaderboard",
 }

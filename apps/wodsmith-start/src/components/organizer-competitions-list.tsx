@@ -127,7 +127,7 @@ export function OrganizerCompetitionsList({
               <a href="/compete/organizer/new">
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
-                  Create Competition
+                  Create competition
                 </Button>
               </a>
             </div>
@@ -244,7 +244,7 @@ export function OrganizerCompetitionsList({
                       <Button
                         variant="ghost"
                         size="sm"
-                        title="View Public Page"
+                        title="View public page"
                       >
                         <ExternalLink className="h-4 w-4" />
                       </Button>

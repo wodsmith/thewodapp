@@ -184,7 +184,7 @@ function CampaignsPage() {
             className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"
           >
             <Plus className="h-4 w-4" />
-            {savingCampaign ? "Creating..." : "Create Campaign"}
+            {savingCampaign ? "Creating..." : "Create campaign"}
           </button>
         </div>
       </form>
@@ -225,7 +225,7 @@ function CampaignsPage() {
             className="inline-flex h-10 items-center gap-2 rounded-md border border-input bg-background px-4 text-sm font-medium disabled:opacity-50"
           >
             <Mail className="h-4 w-4" />
-            {savingTouch ? "Adding..." : "Add Interaction"}
+            {savingTouch ? "Adding..." : "Add interaction"}
           </button>
         </div>
       </form>

@@ -406,7 +406,7 @@ export function VenueManager({
         </div>
       )}
 
-      {/* Create Venue Dialog */}
+      {/* Create venue dialog */}
       <Dialog
         open={isCreateOpen}
         onOpenChange={(open) => {
@@ -422,12 +422,12 @@ export function VenueManager({
         <DialogTrigger asChild>
           <Button variant="outline" size="sm">
             <Plus className="h-4 w-4 mr-2" />
-            Add Venue
+            Add venue
           </Button>
         </DialogTrigger>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Create Venue</DialogTitle>
+            <DialogTitle>Create venue</DialogTitle>
           </DialogHeader>
           <Form {...createForm}>
             <form
@@ -549,7 +549,7 @@ export function VenueManager({
         </DialogContent>
       </Dialog>
 
-      {/* Edit Venue Dialog */}
+      {/* Edit venue dialog */}
       <Dialog
         open={!!editingVenue}
         onOpenChange={(open) => {
@@ -561,7 +561,7 @@ export function VenueManager({
       >
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Venue</DialogTitle>
+            <DialogTitle>Edit venue</DialogTitle>
           </DialogHeader>
           <Form {...editForm}>
             <form

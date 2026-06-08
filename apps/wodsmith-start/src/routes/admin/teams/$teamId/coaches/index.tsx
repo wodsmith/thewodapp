@@ -202,10 +202,10 @@ function CoachesPage() {
         </div>
       </header>
 
-      {/* Add New Coach */}
+      {/* Add new coach */}
       <Card>
         <CardHeader>
-          <CardTitle>Add New Coach</CardTitle>
+          <CardTitle>Add new coach</CardTitle>
           <CardDescription>Add a new coach to your team</CardDescription>
         </CardHeader>
         <CardContent>
@@ -362,7 +362,7 @@ function CoachesPage() {
                 disabled={isPending || availableMembers.length === 0}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                {isPending ? "Adding Coach..." : "Add Coach"}
+                {isPending ? "Adding Coach..." : "Add coach"}
               </Button>
             </form>
           </Form>
@@ -477,7 +477,7 @@ function CoachesPage() {
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Delete Coach</DialogTitle>
+                        <DialogTitle>Delete coach</DialogTitle>
                         <DialogDescription>
                           Are you sure you want to delete{" "}
                           <strong>

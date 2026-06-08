@@ -87,7 +87,7 @@ export function EventResourceDialog({
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? "Edit Resource" : "Add Resource"}
+            {isEditing ? "Edit resource" : "Add resource"}
           </DialogTitle>
           <DialogDescription>
             {isEditing
@@ -179,8 +179,8 @@ export function EventResourceDialog({
                 {isSaving
                   ? "Saving..."
                   : isEditing
-                    ? "Save Changes"
-                    : "Add Resource"}
+                    ? "Save changes"
+                    : "Add resource"}
               </Button>
             </DialogFooter>
           </form>
