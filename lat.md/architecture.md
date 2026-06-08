@@ -77,6 +77,7 @@ TanStack Router uses layout-based route groups to control access and shared UI.
 ### _auth
 
 Public authentication routes — login, signup, password reset, email verification.
+These routes render the Compete header so sign-in and sign-up keep the competition discovery navigation instead of the workout app header.
 
 ### _protected
 
