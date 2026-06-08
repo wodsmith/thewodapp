@@ -11,16 +11,25 @@ import type { SessionValidationResult } from "@/types"
 interface CompeteNavProps {
   session: SessionValidationResult
   canOrganize: boolean
+  hasOrganizerApplication: boolean
 }
 
-export default function CompeteNav({ session, canOrganize }: CompeteNavProps) {
+export default function CompeteNav({
+  session,
+  canOrganize,
+  hasOrganizerApplication,
+}: CompeteNavProps) {
   // For now, we don't have these other features implemented in wodsmith-start
   const pendingInvitations: never[] = []
   const missingProfileFields = null
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
-  const showCompetitionsLink = pathname !== "/"
+  const isCompetitionIndex = pathname === "/"
+  const competitionsLinkClass = isCompetitionIndex
+    ? "font-bold text-primary uppercase underline underline-offset-4 dark:text-primary"
+    : "font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
+  const showManageCompetitionsLink = hasOrganizerApplication || canOrganize
 
   return (
     <header className="border-black border-b-2 bg-background dark:border-dark-border dark:bg-dark-background">
@@ -30,26 +39,31 @@ export default function CompeteNav({ session, canOrganize }: CompeteNavProps) {
           {/* @lat: [[architecture#Route Groups#compete]] */}
           {session?.user ? (
             <>
-              {showCompetitionsLink && (
-                <Link
-                  to="/"
-                  className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
-                >
-                  Competitions
-                </Link>
-              )}
-              {canOrganize && (
+              <Link
+                to="/"
+                aria-current={isCompetitionIndex ? "page" : undefined}
+                className={competitionsLinkClass}
+              >
+                Competitions
+              </Link>
+              {showManageCompetitionsLink && (
                 <>
-                  {showCompetitionsLink && (
-                    <div className="h-6 border-black border-l-2 dark:border-dark-border" />
-                  )}
+                  <div className="h-6 border-black border-l-2 dark:border-dark-border" />
                   <Link
                     to="/compete/organizer"
-                    className="flex items-center gap-1 font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
+                    className="flex items-center gap-1 font-bold text-foreground hover:underline dark:text-dark-foreground"
                   >
-                    Organize
+                    MANAGE COMPETITIONS
                   </Link>
                 </>
+              )}
+              {!hasOrganizerApplication && (
+                <Link
+                  to="/compete/organizer/onboard"
+                  className="font-bold text-foreground hover:underline dark:text-dark-foreground"
+                >
+                  HOST A COMP
+                </Link>
               )}
               <div className="mx-2 h-6 border-black border-l-2 dark:border-dark-border" />
               <a
@@ -63,14 +77,13 @@ export default function CompeteNav({ session, canOrganize }: CompeteNavProps) {
             </>
           ) : (
             <div className="flex items-center gap-2">
-              {showCompetitionsLink && (
-                <Link
-                  to="/"
-                  className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
-                >
-                  Competitions
-                </Link>
-              )}
+              <Link
+                to="/"
+                aria-current={isCompetitionIndex ? "page" : undefined}
+                className={competitionsLinkClass}
+              >
+                Competitions
+              </Link>
               <Link
                 to="/sign-in"
                 search={{ redirect: "/" }}
@@ -90,6 +103,7 @@ export default function CompeteNav({ session, canOrganize }: CompeteNavProps) {
             session={session}
             invitations={pendingInvitations}
             canOrganize={canOrganize}
+            hasOrganizerApplication={hasOrganizerApplication}
             missingProfileFields={missingProfileFields}
           />
         </div>

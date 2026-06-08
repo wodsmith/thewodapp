@@ -91,7 +91,7 @@ Workout tracking routes redirect to the competition discovery page when the acti
 Public-facing competition pages.
 The competition discovery index moved to `/`; competition detail pages remain at `/compete/{slug}`.
 
-The root discovery route renders the Compete navigation and footer shell because it is outside the `/compete` layout tree. Its header hides the `Competitions` self-link on `/`.
+The root discovery route renders the Compete navigation and footer shell because it is outside the `/compete` layout tree. Its header keeps `Competitions` visible on `/` and marks it as the current page.
 
 Compete breadcrumbs label the `/compete` route segment as `Competitions`, but link that root crumb back to `/` because discovery moved out of the `/compete` layout tree.
 

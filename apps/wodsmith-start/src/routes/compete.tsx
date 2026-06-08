@@ -12,6 +12,7 @@ import { CompeteBreadcrumb } from "@/components/compete-breadcrumb"
 import CompeteNav from "@/components/compete-nav"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { getSessionFromCookie } from "@/utils/auth"
+import { computeOrganizerEntitlements } from "@/utils/organizer-entitlements"
 
 // Server function to get session and permissions
 const getCompeteNavDataFn = createServerFn({ method: "GET" }).handler(
@@ -24,8 +25,12 @@ const getCompeteNavDataFn = createServerFn({ method: "GET" }).handler(
           team.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS),
         )
       : false
+    const hasOrganizerApplication = computeOrganizerEntitlements(
+      session,
+      null,
+    ).hasHostCompetitions
 
-    return { session, canOrganize }
+    return { session, canOrganize, hasOrganizerApplication }
   },
 )
 
@@ -33,13 +38,15 @@ export const Route = createFileRoute("/compete")({
   component: CompeteLayout,
   staleTime: 30_000, // Cache for 30 seconds - nav data changes infrequently
   loader: async () => {
-    const { session, canOrganize } = await getCompeteNavDataFn()
-    return { session, canOrganize }
+    const { session, canOrganize, hasOrganizerApplication } =
+      await getCompeteNavDataFn()
+    return { session, canOrganize, hasOrganizerApplication }
   },
 })
 
 function CompeteLayout() {
-  const { session, canOrganize } = Route.useLoaderData()
+  const { session, canOrganize, hasOrganizerApplication } =
+    Route.useLoaderData()
   const location = useLocation()
   const matches = useMatches()
 
@@ -88,7 +95,11 @@ function CompeteLayout() {
   return (
     <div className="flex min-h-screen flex-col overflow-x-clip print:min-h-0 print:block">
       <div className="print:hidden">
-        <CompeteNav session={session} canOrganize={canOrganize} />
+        <CompeteNav
+          session={session}
+          canOrganize={canOrganize}
+          hasOrganizerApplication={hasOrganizerApplication}
+        />
       </div>
 
       <main className="container mx-auto flex-1 p-4 print:p-0 print:max-w-none print:mx-0">

@@ -15,6 +15,7 @@ import CompeteNav from "@/components/compete-nav"
 import { PendingOrganizerBanner } from "@/components/pending-organizer-banner"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { getSessionFromCookie } from "@/utils/auth"
+import { computeOrganizerEntitlements } from "@/utils/organizer-entitlements"
 
 const getCompeteNavDataFn = createServerFn({ method: "GET" }).handler(
   async () => {
@@ -25,8 +26,12 @@ const getCompeteNavDataFn = createServerFn({ method: "GET" }).handler(
           team.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS),
         )
       : false
+    const hasOrganizerApplication = computeOrganizerEntitlements(
+      session,
+      null,
+    ).hasHostCompetitions
 
-    return { session, canOrganize }
+    return { session, canOrganize, hasOrganizerApplication }
   },
 )
 
@@ -34,8 +39,9 @@ export const Route = createFileRoute("/compete/organizer/_dashboard")({
   component: DashboardLayout,
   staleTime: 30_000, // Cache for 30 seconds - nav data changes infrequently
   loader: async () => {
-    const { session, canOrganize } = await getCompeteNavDataFn()
-    return { session, canOrganize }
+    const { session, canOrganize, hasOrganizerApplication } =
+      await getCompeteNavDataFn()
+    return { session, canOrganize, hasOrganizerApplication }
   },
 })
 
@@ -43,11 +49,16 @@ function DashboardLayout() {
   const { entitlements } = Route.useRouteContext() as {
     entitlements?: { isPendingApproval?: boolean }
   }
-  const { session, canOrganize } = Route.useLoaderData()
+  const { session, canOrganize, hasOrganizerApplication } =
+    Route.useLoaderData()
 
   return (
     <div className="flex min-h-screen flex-col">
-      <CompeteNav session={session} canOrganize={canOrganize} />
+      <CompeteNav
+        session={session}
+        canOrganize={canOrganize}
+        hasOrganizerApplication={hasOrganizerApplication}
+      />
 
       <main className="container mx-auto flex-1 pt-4 sm:p-4">
         <CompeteBreadcrumb />

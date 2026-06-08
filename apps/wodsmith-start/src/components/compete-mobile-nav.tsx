@@ -34,6 +34,7 @@ interface CompeteMobileNavProps {
   session: SessionValidationResult | null
   invitations?: PendingInvitation[]
   canOrganize?: boolean
+  hasOrganizerApplication?: boolean
   missingProfileFields?: AthleteProfileMissingFields | null
 }
 
@@ -64,12 +65,17 @@ export default function CompeteMobileNav({
   session,
   invitations = [],
   canOrganize = false,
+  hasOrganizerApplication = false,
   missingProfileFields = null,
 }: CompeteMobileNavProps) {
   const [open, setOpen] = useState(false)
   const router = useRouterState()
   const pathname = router.location.pathname
-  const showCompetitionsLink = pathname !== "/"
+  const isCompetitionIndex = pathname === "/"
+  const competitionsLinkClass = isCompetitionIndex
+    ? "font-semibold text-primary"
+    : "hover:text-primary"
+  const showManageCompetitionsLink = hasOrganizerApplication || canOrganize
 
   const isProfileIncomplete =
     missingProfileFields &&
@@ -127,23 +133,31 @@ export default function CompeteMobileNav({
           )}
           {session?.user ? (
             <>
-              {showCompetitionsLink && (
-                <Link
-                  to="/"
-                  className="hover:text-primary"
-                  onClick={handleLinkClick}
-                >
-                  Competitions
-                </Link>
-              )}
-              {canOrganize && (
+              <Link
+                to="/"
+                aria-current={isCompetitionIndex ? "page" : undefined}
+                className={competitionsLinkClass}
+                onClick={handleLinkClick}
+              >
+                Competitions
+              </Link>
+              {showManageCompetitionsLink && (
                 <a
                   href="/compete/organizer"
                   className="flex items-center gap-2 hover:text-primary"
                   onClick={handleLinkClick}
                 >
                   <Settings className="h-5 w-5" />
-                  <span>Organizer</span>
+                  <span>MANAGE COMPETITIONS</span>
+                </a>
+              )}
+              {!hasOrganizerApplication && (
+                <a
+                  href="/compete/organizer/onboard"
+                  className="hover:text-primary"
+                  onClick={handleLinkClick}
+                >
+                  HOST A COMP
                 </a>
               )}
               <hr className="my-2" />
@@ -203,15 +217,14 @@ export default function CompeteMobileNav({
             </>
           ) : (
             <>
-              {showCompetitionsLink && (
-                <Link
-                  to="/"
-                  className="hover:text-primary"
-                  onClick={handleLinkClick}
-                >
-                  Competitions
-                </Link>
-              )}
+              <Link
+                to="/"
+                aria-current={isCompetitionIndex ? "page" : undefined}
+                className={competitionsLinkClass}
+                onClick={handleLinkClick}
+              >
+                Competitions
+              </Link>
               <a
                 href="/sign-in"
                 className="hover:text-primary"

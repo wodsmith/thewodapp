@@ -26,6 +26,7 @@ import {
 } from "@/server-fns/competition-fns"
 import { cn } from "@/utils/cn"
 import { getTodayInTimezone } from "@/utils/date-utils"
+import { computeOrganizerEntitlements } from "@/utils/organizer-entitlements"
 
 // ---------------------------------------------------------------------------
 // Route
@@ -100,11 +101,16 @@ export const Route = createFileRoute("/")({
           team.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS),
         )
       : false
+    const hasOrganizerApplication = computeOrganizerEntitlements(
+      session,
+      null,
+    ).hasHostCompetitions
 
     return {
       competitions: result.competitions,
       session,
       canOrganize,
+      hasOrganizerApplication,
     }
   },
 })
@@ -183,7 +189,8 @@ function getLocationLabel(comp: CompetitionWithOrganizingTeam): string | null {
 // ---------------------------------------------------------------------------
 
 function CompetePage() {
-  const { competitions, session, canOrganize } = Route.useLoaderData()
+  const { competitions, session, canOrganize, hasOrganizerApplication } =
+    Route.useLoaderData()
   const search = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
   const activeStatus = search.filter ?? "all"
@@ -340,7 +347,11 @@ function CompetePage() {
 
   return (
     <div className="flex min-h-screen flex-col overflow-x-clip">
-      <CompeteNav session={session} canOrganize={canOrganize} />
+      <CompeteNav
+        session={session}
+        canOrganize={canOrganize}
+        hasOrganizerApplication={hasOrganizerApplication}
+      />
 
       <main className="container mx-auto flex-1 px-2 py-4 sm:px-6 sm:py-12">
         {/* ── Header ─────────────────────────────────────────── */}
