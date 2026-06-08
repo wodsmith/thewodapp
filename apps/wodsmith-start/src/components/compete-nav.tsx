@@ -65,12 +65,15 @@ export default function CompeteNav({
                 </>
               )}
               {!hasOrganizerApplication && (
-                <Link
-                  to="/compete/organizer/onboard"
-                  className="font-bold text-foreground hover:underline dark:text-dark-foreground"
-                >
-                  HOST A COMP
-                </Link>
+                <>
+                  <div className="h-6 border-black border-l-2 dark:border-dark-border" />
+                  <Link
+                    to="/compete/organizer/onboard"
+                    className="font-bold text-foreground hover:underline dark:text-dark-foreground"
+                  >
+                    HOST A COMP
+                  </Link>
+                </>
               )}
               <div className="mx-2 h-6 border-black border-l-2 dark:border-dark-border" />
               <a
