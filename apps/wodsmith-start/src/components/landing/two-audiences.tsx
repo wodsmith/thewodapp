@@ -137,6 +137,7 @@ export function TwoAudiences({ session }: TwoAudiencesProps) {
 
             <div className="mt-auto pt-6 border-t border-border">
               <Button variant="outline" className="w-full" asChild>
+                {/* @lat: [[architecture#Route Groups#compete]] */}
                 <Link to="/">
                   Browse Competitions
                   <ArrowRight className="ml-2 h-4 w-4" />

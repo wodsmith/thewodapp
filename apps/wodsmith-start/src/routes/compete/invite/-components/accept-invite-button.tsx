@@ -1,5 +1,6 @@
 "use client"
 
+// @lat: [[competition-invites#Claim routes]]
 import { useNavigate } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { CheckCircle } from "lucide-react"

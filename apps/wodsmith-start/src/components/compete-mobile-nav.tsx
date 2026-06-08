@@ -69,6 +69,7 @@ export default function CompeteMobileNav({
   const [open, setOpen] = useState(false)
   const router = useRouterState()
   const pathname = router.location.pathname
+  const showCompetitionsLink = pathname !== "/"
 
   const isProfileIncomplete =
     missingProfileFields &&
@@ -95,6 +96,7 @@ export default function CompeteMobileNav({
       <SheetContent side="left" background="sidebar">
         <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
         <nav className="grid gap-6 font-medium text-lg">
+          {/* @lat: [[architecture#Route Groups#compete]] */}
           {!shouldHideBrand(pathname) && (
             <Link
               to="/"
@@ -125,13 +127,15 @@ export default function CompeteMobileNav({
           )}
           {session?.user ? (
             <>
-              <Link
-                to="/"
-                className="hover:text-primary"
-                onClick={handleLinkClick}
-              >
-                Events
-              </Link>
+              {showCompetitionsLink && (
+                <Link
+                  to="/"
+                  className="hover:text-primary"
+                  onClick={handleLinkClick}
+                >
+                  Competitions
+                </Link>
+              )}
               {canOrganize && (
                 <a
                   href="/compete/organizer"
@@ -199,13 +203,15 @@ export default function CompeteMobileNav({
             </>
           ) : (
             <>
-              <Link
-                to="/"
-                className="hover:text-primary"
-                onClick={handleLinkClick}
-              >
-                Events
-              </Link>
+              {showCompetitionsLink && (
+                <Link
+                  to="/"
+                  className="hover:text-primary"
+                  onClick={handleLinkClick}
+                >
+                  Competitions
+                </Link>
+              )}
               <a
                 href="/sign-in"
                 className="hover:text-primary"

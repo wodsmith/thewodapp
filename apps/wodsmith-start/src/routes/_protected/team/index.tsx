@@ -4,6 +4,7 @@ import { TeamPageClient } from "@/components/team-page-client"
 export const Route = createFileRoute("/_protected/team/")({
   component: TeamPage,
   beforeLoad: async ({ context }) => {
+    // @lat: [[architecture#Route Groups#_protected#Workout tracking guards]]
     if (!context.hasWorkoutTracking) {
       throw redirect({ to: "/" })
     }

@@ -207,6 +207,7 @@ function NavMenuItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
 function CompetitionSidebarHeader() {
   return (
     <SidebarHeader className="h-14 flex-row items-center border-b px-3 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:justify-center">
+      {/* @lat: [[architecture#Route Groups#compete]] */}
       <Link
         to="/"
         className="flex items-center gap-2 min-w-0 group-data-[collapsible=icon]:hidden"
@@ -225,10 +226,8 @@ function CompetitionSidebarHeader() {
           </span>
         </h1>
       </Link>
-      <Link
-        to="/"
-        className="hidden group-data-[collapsible=icon]:block"
-      >
+      {/* @lat: [[architecture#Route Groups#compete]] */}
+      <Link to="/" className="hidden group-data-[collapsible=icon]:block">
         <img
           src="/wodsmith-logo-no-text.png"
           alt="wodsmith compete"
@@ -316,6 +315,7 @@ export function CompetitionSidebar({
           <SidebarTrigger className="-ml-1">
             <Menu className="h-5 w-5" />
           </SidebarTrigger>
+          {/* @lat: [[architecture#Route Groups#compete]] */}
           <Link to="/" className="flex items-center gap-2">
             <img
               src="/wodsmith-logo-no-text.png"

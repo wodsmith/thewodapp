@@ -82,10 +82,18 @@ Public authentication routes — login, signup, password reset, email verificati
 
 Authenticated routes requiring a valid session. Contains the main app dashboard, team management, workout programming, and settings.
 
+#### Workout tracking guards
+
+Workout tracking routes redirect to the competition discovery page when the active session lacks workout tracking access.
+
 ### compete
 
 Public-facing competition pages.
 The competition discovery index moved to `/`; competition detail pages remain at `/compete/{slug}`.
+
+The root discovery route renders the Compete navigation and footer shell because it is outside the `/compete` layout tree. Its header hides the `Competitions` self-link on `/`.
+
+Compete breadcrumbs label the `/compete` route segment as `Competitions`, but link that root crumb back to `/` because discovery moved out of the `/compete` layout tree.
 
 The event details view ([[apps/wodsmith-start/src/components/event-details-content.tsx]]) groups divisions by price tier, each tier collapsible (default open) with a chevron toggle.
 

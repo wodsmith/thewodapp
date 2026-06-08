@@ -7,6 +7,7 @@ import { getLogsByUserFn } from "@/server-fns/log-fns"
 export const Route = createFileRoute("/_protected/log/")({
   component: LogPage,
   beforeLoad: async ({ context }) => {
+    // @lat: [[architecture#Route Groups#_protected#Workout tracking guards]]
     if (!context.hasWorkoutTracking) {
       throw redirect({ to: "/" })
     }

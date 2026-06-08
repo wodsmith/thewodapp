@@ -81,7 +81,13 @@ const getNavigation = (
       label: "Competition Setup",
       items: [
         ...(permissions?.divisions
-          ? [{ label: "Divisions", href: `${basePath}/divisions`, icon: Layers }]
+          ? [
+              {
+                label: "Divisions",
+                href: `${basePath}/divisions`,
+                icon: Layers,
+              },
+            ]
           : []),
         ...(permissions?.editEvents
           ? [
@@ -98,13 +104,31 @@ const getNavigation = (
             ]
           : []),
         ...(permissions?.locations
-          ? [{ label: "Locations", href: `${basePath}/locations`, icon: MapPin }]
+          ? [
+              {
+                label: "Locations",
+                href: `${basePath}/locations`,
+                icon: MapPin,
+              },
+            ]
           : []),
         ...(permissions?.scoringConfig
-          ? [{ label: "Scoring", href: `${basePath}/scoring`, icon: Calculator }]
+          ? [
+              {
+                label: "Scoring",
+                href: `${basePath}/scoring`,
+                icon: Calculator,
+              },
+            ]
           : []),
         ...(permissions?.viewRegistrations
-          ? [{ label: "Registrations", href: `${basePath}/athletes`, icon: Users }]
+          ? [
+              {
+                label: "Registrations",
+                href: `${basePath}/athletes`,
+                icon: Users,
+              },
+            ]
           : []),
         ...(permissions?.waivers
           ? [
@@ -189,7 +213,13 @@ const getNavigation = (
             ]
           : []),
         ...(permissions?.sponsors
-          ? [{ label: "Sponsors", href: `${basePath}/sponsors`, icon: Sparkles }]
+          ? [
+              {
+                label: "Sponsors",
+                href: `${basePath}/sponsors`,
+                icon: Sparkles,
+              },
+            ]
           : []),
       ],
     },
@@ -215,6 +245,7 @@ function NavMenuItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
 function CohostSidebarHeader({ competitionName }: { competitionName: string }) {
   return (
     <SidebarHeader className="border-b px-3 py-3 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3 group-data-[collapsible=icon]:justify-center">
+      {/* @lat: [[architecture#Route Groups#compete]] */}
       <Link
         to="/"
         className="flex items-center gap-2 min-w-0 group-data-[collapsible=icon]:hidden"
@@ -238,10 +269,8 @@ function CohostSidebarHeader({ competitionName }: { competitionName: string }) {
           </span>
         </div>
       </Link>
-      <Link
-        to="/"
-        className="hidden group-data-[collapsible=icon]:block"
-      >
+      {/* @lat: [[architecture#Route Groups#compete]] */}
+      <Link to="/" className="hidden group-data-[collapsible=icon]:block">
         <img
           src="/wodsmith-logo-no-text.png"
           alt="wodsmith compete"
@@ -334,6 +363,7 @@ export function CohostSidebar({
             <Menu className="h-5 w-5" />
           </SidebarTrigger>
           <div className="flex items-center gap-2 min-w-0">
+            {/* @lat: [[architecture#Route Groups#compete]] */}
             <Link to="/" className="flex items-center gap-2 shrink-0">
               <img
                 src="/wodsmith-logo-no-text.png"
@@ -342,7 +372,9 @@ export function CohostSidebar({
                 height={24}
               />
             </Link>
-            <span className="truncate text-sm font-medium">{competitionName}</span>
+            <span className="truncate text-sm font-medium">
+              {competitionName}
+            </span>
           </div>
         </header>
         <div className="h-14 md:hidden" />

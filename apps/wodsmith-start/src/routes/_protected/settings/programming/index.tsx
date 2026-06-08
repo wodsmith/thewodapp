@@ -11,6 +11,7 @@ import {
 export const Route = createFileRoute("/_protected/settings/programming/")({
   component: ProgrammingTracksPage,
   beforeLoad: async ({ context }) => {
+    // @lat: [[architecture#Route Groups#_protected#Workout tracking guards]]
     if (!context.hasWorkoutTracking) {
       throw redirect({ to: "/" })
     }

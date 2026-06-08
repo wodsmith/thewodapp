@@ -94,6 +94,7 @@ export default function MobileNav({
                   </a>
                 </>
               )}
+              {/* @lat: [[architecture#Route Groups#compete]] */}
               <a
                 href="/"
                 className="hover:text-primary"
@@ -107,6 +108,7 @@ export default function MobileNav({
             </>
           ) : (
             <>
+              {/* @lat: [[architecture#Route Groups#compete]] */}
               <a
                 href="/"
                 className="hover:text-primary"

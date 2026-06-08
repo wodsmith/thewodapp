@@ -34,8 +34,10 @@ export default function MainNav({
             session?.user
               ? hasWorkoutTracking
                 ? "/workouts"
-                : "/"
-              : "/"
+                : // @lat: [[architecture#Route Groups#compete]]
+                  "/"
+              : // @lat: [[architecture#Route Groups#compete]]
+                "/"
           }
           className="flex items-center gap-2"
         >
@@ -85,6 +87,7 @@ export default function MainNav({
                   </a>
                 </>
               )}
+              {/* @lat: [[architecture#Route Groups#compete]] */}
               <a
                 href="/"
                 className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
@@ -111,6 +114,7 @@ export default function MainNav({
             </>
           ) : (
             <div className="flex items-center gap-2">
+              {/* @lat: [[architecture#Route Groups#compete]] */}
               <a
                 href="/"
                 className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"

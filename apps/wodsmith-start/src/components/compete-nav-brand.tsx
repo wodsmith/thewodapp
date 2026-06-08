@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router"
 
 export function CompeteNavBrand() {
   return (
+    // @lat: [[architecture#Route Groups#compete]]
     <Link to="/" className="flex items-center gap-2">
       <img
         src="/wodsmith-logo-no-text.png"

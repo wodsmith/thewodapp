@@ -1,6 +1,6 @@
 "use client"
 
-import { Link } from "@tanstack/react-router"
+import { Link, useRouterState } from "@tanstack/react-router"
 import { User } from "lucide-react"
 import CompeteMobileNav from "@/components/compete-mobile-nav"
 import { CompeteNavBrand } from "@/components/compete-nav-brand"
@@ -17,23 +17,32 @@ export default function CompeteNav({ session, canOrganize }: CompeteNavProps) {
   // For now, we don't have these other features implemented in wodsmith-start
   const pendingInvitations: never[] = []
   const missingProfileFields = null
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
+  const showCompetitionsLink = pathname !== "/"
 
   return (
     <header className="border-black border-b-2 bg-background dark:border-dark-border dark:bg-dark-background">
       <div className="container mx-auto flex items-center p-4">
         <CompeteNavBrand />
         <nav className="ml-auto hidden items-center gap-4 md:flex">
+          {/* @lat: [[architecture#Route Groups#compete]] */}
           {session?.user ? (
             <>
-              <Link
-                to="/"
-                className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
-              >
-                Events
-              </Link>
+              {showCompetitionsLink && (
+                <Link
+                  to="/"
+                  className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
+                >
+                  Competitions
+                </Link>
+              )}
               {canOrganize && (
                 <>
-                  <div className="h-6 border-black border-l-2 dark:border-dark-border" />
+                  {showCompetitionsLink && (
+                    <div className="h-6 border-black border-l-2 dark:border-dark-border" />
+                  )}
                   <Link
                     to="/compete/organizer"
                     className="flex items-center gap-1 font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
@@ -54,12 +63,14 @@ export default function CompeteNav({ session, canOrganize }: CompeteNavProps) {
             </>
           ) : (
             <div className="flex items-center gap-2">
-              <Link
-                to="/"
-                className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
-              >
-                Events
-              </Link>
+              {showCompetitionsLink && (
+                <Link
+                  to="/"
+                  className="font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
+                >
+                  Competitions
+                </Link>
+              )}
               <Link
                 to="/sign-in"
                 search={{ redirect: "/" }}
@@ -67,11 +78,7 @@ export default function CompeteNav({ session, canOrganize }: CompeteNavProps) {
               >
                 Login
               </Link>
-              <Link
-                to="/sign-up"
-                search={{ redirect: "/" }}
-                className="btn"
-              >
+              <Link to="/sign-up" search={{ redirect: "/" }} className="btn">
                 Sign Up
               </Link>
               <DarkModeToggle />

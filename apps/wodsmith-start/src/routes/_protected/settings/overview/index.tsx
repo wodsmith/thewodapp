@@ -399,6 +399,7 @@ function CompetitiveHistory({ registrations }: { registrations: any[] }) {
               history
             </p>
             <Button asChild className="mt-4">
+              {/* @lat: [[architecture#Route Groups#compete]] */}
               <Link to="/">Browse Competitions</Link>
             </Button>
           </div>
