@@ -271,7 +271,7 @@ export function AcceptVolunteerInviteForm({
         </div>
       )}
 
-      {/* Volunteer Registration Questions */}
+      {/* Volunteer Signup Questions */}
       {questions.length > 0 && (
         <div className="space-y-4 border-t pt-4">
           <p className="text-sm font-medium">Additional Questions</p>

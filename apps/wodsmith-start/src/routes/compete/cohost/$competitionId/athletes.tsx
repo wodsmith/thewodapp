@@ -956,9 +956,7 @@ function CohostAthletesPage() {
         <TabsList className="mb-6">
           <TabsTrigger value="athletes">Athletes</TabsTrigger>
           {canEditRegistrations && (
-            <TabsTrigger value="registration-rules">
-              Registration Rules
-            </TabsTrigger>
+            <TabsTrigger value="registration-rules">Form Questions</TabsTrigger>
           )}
         </TabsList>
         {canEditRegistrations && (

@@ -926,9 +926,7 @@ function AthletesPage() {
       <Tabs value={tab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="athletes">Athletes</TabsTrigger>
-          <TabsTrigger value="registration-rules">
-            Registration Rules
-          </TabsTrigger>
+          <TabsTrigger value="registration-rules">Form Questions</TabsTrigger>
         </TabsList>
         <TabsContent value="registration-rules" className="flex flex-col gap-6">
           {/* Inherited Series Questions (read-only) */}
