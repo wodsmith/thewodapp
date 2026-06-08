@@ -33,7 +33,6 @@ interface AthleteProfileMissingFields {
 interface CompeteMobileNavProps {
   session: SessionValidationResult | null
   invitations?: PendingInvitation[]
-  canOrganize?: boolean
   hasOrganizerApplication?: boolean
   missingProfileFields?: AthleteProfileMissingFields | null
 }
@@ -64,7 +63,6 @@ function shouldHideBrand(pathname: string) {
 export default function CompeteMobileNav({
   session,
   invitations = [],
-  canOrganize = false,
   hasOrganizerApplication = false,
   missingProfileFields = null,
 }: CompeteMobileNavProps) {
@@ -81,7 +79,7 @@ export default function CompeteMobileNav({
   const manageCompetitionsLinkClass = isManageCompetitionsActive
     ? "flex items-center gap-2 font-semibold text-foreground underline decoration-primary decoration-2 underline-offset-4 dark:text-dark-foreground"
     : "flex items-center gap-2 hover:text-primary"
-  const showManageCompetitionsLink = hasOrganizerApplication || canOrganize
+  const showManageCompetitionsLink = hasOrganizerApplication
 
   const isProfileIncomplete =
     missingProfileFields &&

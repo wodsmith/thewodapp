@@ -10,13 +10,11 @@ import type { SessionValidationResult } from "@/types"
 
 interface CompeteNavProps {
   session: SessionValidationResult
-  canOrganize: boolean
   hasOrganizerApplication: boolean
 }
 
 export default function CompeteNav({
   session,
-  canOrganize,
   hasOrganizerApplication,
 }: CompeteNavProps) {
   // For now, we don't have these other features implemented in wodsmith-start
@@ -35,7 +33,7 @@ export default function CompeteNav({
   const manageCompetitionsLinkClass = isManageCompetitionsActive
     ? "flex items-center gap-1 font-bold text-foreground underline decoration-primary decoration-2 underline-offset-4 dark:text-dark-foreground"
     : "flex items-center gap-1 font-bold text-foreground hover:underline dark:text-dark-foreground"
-  const showManageCompetitionsLink = hasOrganizerApplication || canOrganize
+  const showManageCompetitionsLink = hasOrganizerApplication
 
   return (
     <header className="border-black border-b-2 bg-background dark:border-dark-border dark:bg-dark-background">
@@ -111,7 +109,6 @@ export default function CompeteNav({
           <CompeteMobileNav
             session={session}
             invitations={pendingInvitations}
-            canOrganize={canOrganize}
             hasOrganizerApplication={hasOrganizerApplication}
             missingProfileFields={missingProfileFields}
           />

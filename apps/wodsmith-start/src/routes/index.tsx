@@ -18,15 +18,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { getSessionFn } from "@/server-fns/auth-fns"
 import {
   type CompetitionWithOrganizingTeam,
   getPublicCompetitionsFn,
 } from "@/server-fns/competition-fns"
+import { hasCurrentUserOrganizerRequestFn } from "@/server-fns/organizer-onboarding-fns"
 import { cn } from "@/utils/cn"
 import { getTodayInTimezone } from "@/utils/date-utils"
-import { computeOrganizerEntitlements } from "@/utils/organizer-entitlements"
 
 // ---------------------------------------------------------------------------
 // Route
@@ -92,24 +91,15 @@ export const Route = createFileRoute("/")({
         : undefined,
   }),
   loader: async () => {
-    const [result, session] = await Promise.all([
+    const [result, session, hasOrganizerApplication] = await Promise.all([
       getPublicCompetitionsFn({ data: {} }),
       getSessionFn(),
+      hasCurrentUserOrganizerRequestFn(),
     ])
-    const canOrganize = session?.teams
-      ? session.teams.some((team) =>
-          team.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS),
-        )
-      : false
-    const hasOrganizerApplication = computeOrganizerEntitlements(
-      session,
-      null,
-    ).hasHostCompetitions
 
     return {
       competitions: result.competitions,
       session,
-      canOrganize,
       hasOrganizerApplication,
     }
   },
@@ -189,7 +179,7 @@ function getLocationLabel(comp: CompetitionWithOrganizingTeam): string | null {
 // ---------------------------------------------------------------------------
 
 function CompetePage() {
-  const { competitions, session, canOrganize, hasOrganizerApplication } =
+  const { competitions, session, hasOrganizerApplication } =
     Route.useLoaderData()
   const search = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
@@ -349,7 +339,6 @@ function CompetePage() {
     <div className="flex min-h-screen flex-col overflow-x-clip">
       <CompeteNav
         session={session}
-        canOrganize={canOrganize}
         hasOrganizerApplication={hasOrganizerApplication}
       />
 

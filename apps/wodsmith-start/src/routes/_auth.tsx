@@ -8,11 +8,7 @@ export const Route = createFileRoute("/_auth")({
 function AuthLayout() {
   return (
     <div className="min-h-screen bg-background">
-      <CompeteNav
-        session={null}
-        canOrganize={false}
-        hasOrganizerApplication={false}
-      />
+      <CompeteNav session={null} hasOrganizerApplication={false} />
       <main>
         <Outlet />
       </main>

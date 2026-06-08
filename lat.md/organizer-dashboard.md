@@ -272,7 +272,7 @@ The application flow for teams to become competition organizers.
 
 At `/compete/organizer/onboard/`, teams submit an organizer request. Includes inline auth for unauthenticated users. After submission, the pending page shows request status. Admin approval is required before teams can create competitions.
 
-The Compete header shows `HOST A COMP` only before a user has applied. After the request grants hosting entitlements, the header switches to `MANAGE COMPETITIONS`.
+The Compete header shows `HOST A COMP` only before one of the user's teams has an organizer request. Hosting entitlements alone do not switch the header to `MANAGE COMPETITIONS`.
 
 ## Competition Creation
 
