@@ -26,6 +26,7 @@ import {
 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
+import { OrganizerEmptyState } from "@/components/organizer/empty-state"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,7 +40,6 @@ import {
 import { Button } from "@/components/ui/button"
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
@@ -346,20 +346,14 @@ export function WaiverList({
       </div>
 
       {waivers.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <ClipboardSignature className="mb-4 h-12 w-12 text-muted-foreground" />
-            <h3 className="mb-2 text-lg font-semibold">No waivers yet</h3>
-            <p className="mb-4 text-sm text-muted-foreground">
-              Create your first waiver to require athletes to sign liability
-              agreements
-            </p>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Waiver
-            </Button>
-          </CardContent>
-        </Card>
+        <OrganizerEmptyState
+          icon={ClipboardSignature}
+          title="No waivers yet"
+          description="Create a liability agreement or event policy that athletes must review before competing."
+          actionLabel="Add Waiver"
+          actionIcon={<Plus className="mr-2 h-4 w-4" />}
+          onAction={() => setIsCreateDialogOpen(true)}
+        />
       ) : (
         <div className="space-y-3">
           {waivers.map((waiver, index) => (

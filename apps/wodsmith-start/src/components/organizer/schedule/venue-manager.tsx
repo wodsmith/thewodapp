@@ -1,12 +1,13 @@
 "use client"
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
-import { Loader2, Pencil, Plus, Trash2 } from "lucide-react"
+import { Loader2, MapPin, Pencil, Plus, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
 import { AddressFields } from "@/components/forms/address-fields"
+import { OrganizerEmptyState } from "@/components/organizer/empty-state"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -354,15 +355,14 @@ export function VenueManager({
     <div className="space-y-4">
       {/* Venue List */}
       {displayVenues.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="py-8 text-center text-muted-foreground">
-            <p className="mb-4">No venues created yet.</p>
-            <p className="text-sm">
-              Create venues like "Main Floor" or "Outside Rig" to assign heats
-              to specific locations.
-            </p>
-          </CardContent>
-        </Card>
+        <OrganizerEmptyState
+          icon={MapPin}
+          title="No venues yet"
+          description='Create locations like "Main Floor" or "Outside Rig" to assign heats to specific areas.'
+          actionLabel="Add Venue"
+          actionIcon={<Plus className="mr-2 h-4 w-4" />}
+          onAction={() => setIsCreateOpen(true)}
+        />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {displayVenues.map((venue) => (
@@ -419,12 +419,14 @@ export function VenueManager({
           }
         }}
       >
-        <DialogTrigger asChild>
-          <Button variant="outline" size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Venue
-          </Button>
-        </DialogTrigger>
+        {displayVenues.length > 0 ? (
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Venue
+            </Button>
+          </DialogTrigger>
+        ) : null}
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create Venue</DialogTitle>

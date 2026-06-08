@@ -6,8 +6,9 @@
  * (matches `project/invites/sources.jsx` modulo visual polish).
  */
 
-import type React from "react"
 import { Layers, Trophy } from "lucide-react"
+import type React from "react"
+import { OrganizerEmptyState } from "@/components/organizer/empty-state"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -68,6 +69,18 @@ export function InviteSourcesList({
     0,
   )
 
+  if (sources.length === 0) {
+    return (
+      <OrganizerEmptyState
+        icon={Layers}
+        title="No qualification sources yet"
+        description="Add a competition or series source to identify athletes who qualify for this championship."
+        actionLabel={onAdd ? "Add source" : undefined}
+        onAction={onAdd}
+      />
+    )
+  }
+
   return (
     <div className="space-y-4">
       <Card>
@@ -75,11 +88,8 @@ export function InviteSourcesList({
           <div>
             <CardTitle>Qualification sources</CardTitle>
             <CardDescription>
-              {sources.length === 0
-                ? "No sources configured yet."
-                : `${sources.length} source${
-                    sources.length === 1 ? "" : "s"
-                  } · ${totalAllocated} qualifying spots allocated.`}
+              {sources.length} source{sources.length === 1 ? "" : "s"} ·{" "}
+              {totalAllocated} qualifying spots allocated.
             </CardDescription>
           </div>
           {onAdd ? <Button onClick={onAdd}>Add source</Button> : null}
@@ -98,12 +108,12 @@ export function InviteSourcesList({
               ? "Series global leaderboard"
               : "Single competition"
           const name = isSeriesKind
-            ? (source.sourceGroupId
+            ? ((source.sourceGroupId
                 ? seriesNamesById[source.sourceGroupId]
-                : undefined) ?? "Unknown series"
-            : (source.sourceCompetitionId
+                : undefined) ?? "Unknown series")
+            : ((source.sourceCompetitionId
                 ? competitionNamesById[source.sourceCompetitionId]
-                : undefined) ?? "Unknown competition"
+                : undefined) ?? "Unknown competition")
           const allocated = resolvedTotalFor(source)
           const perDivisionMap = allocationsBySourceByDivision?.[source.id]
           const previewItems =
@@ -129,7 +139,8 @@ export function InviteSourcesList({
                   </div>
                   <CardTitle className="mt-1 text-base">{name}</CardTitle>
                   <CardDescription>
-                    Contributes <span className="font-semibold">{allocated}</span>{" "}
+                    Contributes{" "}
+                    <span className="font-semibold">{allocated}</span>{" "}
                     qualifying spots to the championship.
                   </CardDescription>
                   {previewItems.length > 0 ? (
