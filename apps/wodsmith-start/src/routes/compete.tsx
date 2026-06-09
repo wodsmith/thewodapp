@@ -1,12 +1,7 @@
 /**
  * This file uses top-level imports for server-only modules.
  */
-import {
-  createFileRoute,
-  Outlet,
-  useLocation,
-  useMatches,
-} from "@tanstack/react-router"
+import { createFileRoute, Outlet, useMatches } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
 import { CompeteBreadcrumb } from "@/components/compete-breadcrumb"
 import CompeteNav from "@/components/compete-nav"
@@ -34,18 +29,19 @@ export const Route = createFileRoute("/compete")({
 
 function CompeteLayout() {
   const { session, hasOrganizerApplication } = Route.useLoaderData()
-  const location = useLocation()
   const matches = useMatches()
 
   // Check if we're on an organizer route that uses its own layout
   // - _dashboard routes: have their own layout with CompeteNav
   // - $competitionId routes: have sidebar layout
   // - onboard routes: have their own layout
-  const isOrganizerRoute =
-    location.pathname === "/compete/organizer" ||
-    location.pathname.startsWith("/compete/organizer/")
+  const isOrganizerRoute = matches.some((match) =>
+    match.pathname.startsWith("/compete/organizer"),
+  )
 
-  const isCohostRoute = location.pathname.startsWith("/compete/cohost/")
+  const isCohostRoute = matches.some((match) =>
+    match.pathname.startsWith("/compete/cohost/"),
+  )
 
   // Organizer and cohost routes have their own sidebar layouts
   if (isOrganizerRoute || isCohostRoute) {

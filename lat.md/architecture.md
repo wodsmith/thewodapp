@@ -96,6 +96,8 @@ The root discovery route renders the Compete navigation and footer shell because
 
 Compete breadcrumbs label the `/compete` route segment as `Competitions`, but link that root crumb back to `/` because discovery moved out of the `/compete` layout tree.
 
+During pending navigation, the `/compete` layout bases shell ownership on the currently rendered route matches, not the pending target URL, so organizer/cohost layouts are not wrapped by the public Compete shell while another route is still loading.
+
 The event details view ([[apps/wodsmith-start/src/components/event-details-content.tsx]]) groups divisions by price tier, each tier collapsible (default open) with a chevron toggle.
 
 ### compete/organizer
