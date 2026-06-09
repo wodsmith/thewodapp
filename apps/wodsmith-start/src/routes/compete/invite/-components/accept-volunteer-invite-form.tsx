@@ -114,7 +114,7 @@ export function AcceptVolunteerInviteForm({
       if (competitionSlug) {
         navigate({ to: "/compete/$slug", params: { slug: competitionSlug } })
       } else {
-        navigate({ to: "/compete" })
+        navigate({ to: "/" })
       }
     } catch (err) {
       const message =

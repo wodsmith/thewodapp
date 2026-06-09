@@ -1,31 +1,20 @@
 /**
  * This file uses top-level imports for server-only modules.
  */
-import {
-  createFileRoute,
-  Outlet,
-  useLocation,
-  useMatches,
-} from "@tanstack/react-router"
+import { createFileRoute, Outlet, useMatches } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
 import { CompeteBreadcrumb } from "@/components/compete-breadcrumb"
 import CompeteNav from "@/components/compete-nav"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { hasCurrentUserOrganizerRequestFn } from "@/server-fns/organizer-onboarding-fns"
 import { getSessionFromCookie } from "@/utils/auth"
 
 // Server function to get session and permissions
 const getCompeteNavDataFn = createServerFn({ method: "GET" }).handler(
   async () => {
     const session = await getSessionFromCookie()
+    const hasOrganizerApplication = await hasCurrentUserOrganizerRequestFn()
 
-    // Check if user has MANAGE_COMPETITIONS permission in any team
-    const canOrganize = session?.teams
-      ? session.teams.some((team) =>
-          team.permissions.includes(TEAM_PERMISSIONS.MANAGE_COMPETITIONS),
-        )
-      : false
-
-    return { session, canOrganize }
+    return { session, hasOrganizerApplication }
   },
 )
 
@@ -33,25 +22,26 @@ export const Route = createFileRoute("/compete")({
   component: CompeteLayout,
   staleTime: 30_000, // Cache for 30 seconds - nav data changes infrequently
   loader: async () => {
-    const { session, canOrganize } = await getCompeteNavDataFn()
-    return { session, canOrganize }
+    const { session, hasOrganizerApplication } = await getCompeteNavDataFn()
+    return { session, hasOrganizerApplication }
   },
 })
 
 function CompeteLayout() {
-  const { session, canOrganize } = Route.useLoaderData()
-  const location = useLocation()
+  const { session, hasOrganizerApplication } = Route.useLoaderData()
   const matches = useMatches()
 
   // Check if we're on an organizer route that uses its own layout
   // - _dashboard routes: have their own layout with CompeteNav
   // - $competitionId routes: have sidebar layout
   // - onboard routes: have their own layout
-  const isOrganizerRoute =
-    location.pathname === "/compete/organizer" ||
-    location.pathname.startsWith("/compete/organizer/")
+  const isOrganizerRoute = matches.some((match) =>
+    match.pathname.startsWith("/compete/organizer"),
+  )
 
-  const isCohostRoute = location.pathname.startsWith("/compete/cohost/")
+  const isCohostRoute = matches.some((match) =>
+    match.pathname.startsWith("/compete/cohost/"),
+  )
 
   // Organizer and cohost routes have their own sidebar layouts
   if (isOrganizerRoute || isCohostRoute) {
@@ -88,7 +78,10 @@ function CompeteLayout() {
   return (
     <div className="flex min-h-screen flex-col overflow-x-clip print:min-h-0 print:block">
       <div className="print:hidden">
-        <CompeteNav session={session} canOrganize={canOrganize} />
+        <CompeteNav
+          session={session}
+          hasOrganizerApplication={hasOrganizerApplication}
+        />
       </div>
 
       <main className="container mx-auto flex-1 p-4 print:p-0 print:max-w-none print:mx-0">

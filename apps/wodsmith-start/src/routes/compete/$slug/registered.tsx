@@ -44,7 +44,7 @@ export const Route = createFileRoute("/compete/$slug/registered")({
     const competition = parentMatch.loaderData?.competition
     const divisions = parentMatch.loaderData?.divisions ?? []
     if (!competition) {
-      throw redirect({ to: "/compete" })
+      throw redirect({ to: "/" })
     }
 
     const [{ registrations }, affiliateResult] = await Promise.all([
