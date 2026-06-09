@@ -144,7 +144,7 @@ Only available when `competitionType === "online"`. Fetches workouts and competi
 
 ## Volunteers
 
-Manages competition staff across four tabs: roster, shifts, judge scheduling, and registration rules.
+Manages competition staff across four tabs: roster, shifts, judge scheduling, and signup questions.
 
 ### Volunteer Roster
 
@@ -176,7 +176,7 @@ Accepted proposals write to `competition_judge_rotations` via [[apps/wodsmith-st
 
 Gated by the `ai_judge_scheduling` feature (see [[apps/wodsmith-start/src/config/features.ts#FEATURES]] → `AI_JUDGE_SCHEDULING`). Teams without the entitlement see a paywall card instead of the scheduling UI. Admins can grant it manually from the platform admin entitlements panel.
 
-### Volunteer Registration Rules
+### Volunteer Signup Questions
 
 Custom registration questions and waivers targeted at volunteers (separate from athlete registration requirements).
 
@@ -328,7 +328,7 @@ Each cohost server fn checks the user is a cohost on that competition team AND h
 
 Cohost route loaders wrap optional-permission server fn calls with a `.catch()` that swallows only `FORBIDDEN:` errors and rethrows everything else — graceful degradation without masking real failures.
 
-The athletes loader (`/compete/cohost/$competitionId/athletes`) wraps `cohostGetCompetitionWaiversFn` and `cohostGetCompetitionWaiverSignaturesFn` with a catch that returns `{ waivers: [] }` / `{ signatures: [] }` only when the error message starts with `FORBIDDEN:` — backstop for edge cases (e.g. team-ownership mismatch), since both fns now accept `waivers`, `viewRegistrations`, or `editRegistrations` so view-only cohosts see waiver titles + per-row signed dates in the registrations table. Mutations on waivers (`cohostCreateWaiverFn`, `cohostUpdateWaiverFn`, `cohostDeleteWaiverFn`, `cohostReorderWaiversFn`) remain gated on the dedicated `waivers` permission. `cohostGetDivisionsWithCountsFn` accepts `viewRegistrations` and `editRegistrations` (in addition to `divisions`/`leaderboardPreview`/`results`) since the athletes filter UI needs division metadata. The "Add Registration" button, the per-row actions menu (`...` dropdown — Change Division / Transfer / Remove), the actions table column, and the "Registration Rules" tab are all hidden unless the cohost has `editRegistrations`. The page coerces a `tab=registration-rules` search param to `athletes` when `editRegistrations` is false, so `<Tabs>` never holds a value with no matching `TabsContent`.
+The athletes loader (`/compete/cohost/$competitionId/athletes`) wraps `cohostGetCompetitionWaiversFn` and `cohostGetCompetitionWaiverSignaturesFn` with a catch that returns `{ waivers: [] }` / `{ signatures: [] }` only when the error message starts with `FORBIDDEN:` — backstop for edge cases (e.g. team-ownership mismatch), since both fns now accept `waivers`, `viewRegistrations`, or `editRegistrations` so view-only cohosts see waiver titles + per-row signed dates in the registrations table. Mutations on waivers (`cohostCreateWaiverFn`, `cohostUpdateWaiverFn`, `cohostDeleteWaiverFn`, `cohostReorderWaiversFn`) remain gated on the dedicated `waivers` permission. `cohostGetDivisionsWithCountsFn` accepts `viewRegistrations` and `editRegistrations` (in addition to `divisions`/`leaderboardPreview`/`results`) since the athletes filter UI needs division metadata. The "Add Registration" button, the per-row actions menu (`...` dropdown — Change Division / Transfer / Remove), the actions table column, and the "Form Questions" tab are all hidden unless the cohost has `editRegistrations`. The page coerces a `tab=registration-rules` search param to `athletes` when `editRegistrations` is false, so `<Tabs>` never holds a value with no matching `TabsContent`.
 
 Registration question CRUD (`cohostCreateQuestionFn`, `cohostUpdateQuestionFn`, `cohostDeleteQuestionFn`, `cohostReorderQuestionsFn`) authorizes by `questionTarget`: volunteer questions require the `volunteers` permission, athlete questions require `editRegistrations`. Update/delete fetch the question first and then call `requireCohostCompetitionOwnership` so a cohost on team A can't mutate a question whose competition belongs to team B by passing a forged `competitionTeamId`. Reorder fetches the targeted ids, asserts they all share one `questionTarget`, requires the matching permission for that target, and adds a `questionTarget` filter to the update so a volunteers-only cohost cannot reorder athlete questions.
 
