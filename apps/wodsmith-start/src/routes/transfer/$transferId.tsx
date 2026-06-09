@@ -121,7 +121,7 @@ function TransferAcceptPage() {
               This transfer link is invalid or the transfer no longer exists.
             </p>
             <Button asChild variant="outline">
-              <Link to="/compete">Browse Competitions</Link>
+              <Link to="/">Browse Competitions</Link>
             </Button>
           </CardContent>
         </Card>
@@ -171,7 +171,7 @@ function TransferAcceptPage() {
               This transfer has expired. Contact the organizer to resend.
             </p>
             <Button asChild variant="outline">
-              <Link to="/compete">Browse Competitions</Link>
+              <Link to="/">Browse Competitions</Link>
             </Button>
           </CardContent>
         </Card>
@@ -191,7 +191,7 @@ function TransferAcceptPage() {
               This transfer was cancelled by the organizer.
             </p>
             <Button asChild variant="outline">
-              <Link to="/compete">Browse Competitions</Link>
+              <Link to="/">Browse Competitions</Link>
             </Button>
           </CardContent>
         </Card>

@@ -481,7 +481,7 @@ function OrganizerRequestForm({ teams }: { teams: TeamInfo[] }) {
           <Button
             type="button"
             variant="outline"
-            onClick={() => router.navigate({ to: "/compete" })}
+            onClick={() => router.navigate({ to: "/" })}
             disabled={isPending}
           >
             Cancel

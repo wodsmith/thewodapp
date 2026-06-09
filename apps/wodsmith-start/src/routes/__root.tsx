@@ -1,7 +1,7 @@
 import { TanStackDevtools } from "@tanstack/react-devtools"
 import {
-  type ErrorComponentProps,
   createRootRoute,
+  type ErrorComponentProps,
   HeadContent,
   Link,
   Outlet,
@@ -70,18 +70,32 @@ function RootComponent() {
   })
 
   // Don't render MainNav on routes that have their own navigation
-  // Hide MainNav if EITHER current OR target route is compete/admin
+  // Hide MainNav if EITHER current OR target route is compete/admin/auth
   // This prevents layout flash during transitions in both directions
   const isCompeteRoute =
+    currentPath === "/" ||
+    (isNavigating && targetPath === "/") ||
     currentPath.startsWith("/compete") ||
     (isNavigating && targetPath.startsWith("/compete"))
   const isAdminRoute =
     currentPath.startsWith("/admin") ||
     (isNavigating && targetPath.startsWith("/admin"))
+  const isAuthRoute =
+    currentPath === "/sign-in" ||
+    currentPath === "/sign-up" ||
+    currentPath.startsWith("/reset-password") ||
+    currentPath.startsWith("/forgot-password") ||
+    currentPath.startsWith("/verify-email") ||
+    (isNavigating &&
+      (targetPath === "/sign-in" ||
+        targetPath === "/sign-up" ||
+        targetPath.startsWith("/reset-password") ||
+        targetPath.startsWith("/forgot-password") ||
+        targetPath.startsWith("/verify-email")))
 
   return (
     <>
-      {!isCompeteRoute && !isAdminRoute && (
+      {!isCompeteRoute && !isAdminRoute && !isAuthRoute && (
         <MainNav
           session={session}
           activeTeamId={activeTeamId}
