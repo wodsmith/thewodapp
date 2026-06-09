@@ -283,8 +283,9 @@ const WarmupSet = ({
 export const Route = createFileRoute("/_protected/calculator/")({
   component: BarbellCalculatorPage,
   beforeLoad: async ({ context }) => {
+    // @lat: [[architecture#Route Groups#_protected#Workout tracking guards]]
     if (!context.hasWorkoutTracking) {
-      throw redirect({ to: "/compete" })
+      throw redirect({ to: "/" })
     }
   },
   validateSearch: (search: Record<string, unknown>): CalculatorSearch => {

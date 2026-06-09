@@ -59,7 +59,7 @@ export const Route = createFileRoute("/compete/cohost/$competitionId")({
     const competitionTeamId = competition.competitionTeamId
     if (!competitionTeamId) {
       throw redirect({
-        to: "/compete",
+        to: "/",
         search: {},
       })
     }
@@ -81,7 +81,7 @@ export const Route = createFileRoute("/compete/cohost/$competitionId")({
 
     if (!permissions) {
       throw redirect({
-        to: "/compete",
+        to: "/",
         search: {},
       })
     }
