@@ -42,7 +42,6 @@ function getRegistrationStatus(
   closesAt: string | null,
 ): {
   label: string
-  detail: string | null
   variant: "default" | "secondary" | "destructive"
 } | null {
   if (!opensAt || !closesAt) return null
@@ -54,20 +53,17 @@ function getRegistrationStatus(
   if (todayStr < opensAt) {
     return {
       label: "Upcoming",
-      detail: `Opens ${formatDateTime(opensAt)}`,
       variant: "secondary",
     }
   }
   if (todayStr > closesAt) {
     return {
       label: "Closed",
-      detail: `Closed ${formatDateTime(closesAt)}`,
       variant: "destructive",
     }
   }
   return {
     label: "Open",
-    detail: `Closes ${formatDateTime(closesAt)}`,
     variant: "default",
   }
 }
@@ -87,7 +83,7 @@ function getCompetitionStatus(
   return { label: "Live", variant: "default" }
 }
 
-function StatusItem({
+function HeaderField({
   label,
   children,
 }: {
@@ -95,13 +91,33 @@ function StatusItem({
   children: ReactNode
 }) {
   return (
-    <div className="flex items-center gap-1.5">
-      <span className="text-xs font-medium uppercase text-muted-foreground">
+    <div className="min-w-0 rounded-md bg-muted/30 py-1.5 pr-2.5 pl-0">
+      <div className="text-[0.6875rem] font-medium uppercase tracking-wide text-muted-foreground">
         {label}
-      </span>
-      {children}
+      </div>
+      <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-sm text-foreground">
+        {children}
+      </div>
     </div>
   )
+}
+
+function MutedDetail({ children }: { children: ReactNode }) {
+  return (
+    <span className="min-w-0 truncate text-xs text-muted-foreground">
+      {children}
+    </span>
+  )
+}
+
+function formatDateRange(startDate: string, endDate: string): string {
+  if (isSameDateString(startDate, endDate)) {
+    return formatDateStringFull(startDate) || startDate
+  }
+
+  return `${formatDateStringFull(startDate) || startDate} - ${
+    formatDateStringFull(endDate) || endDate
+  }`
 }
 
 export function CompetitionHeader({ competition }: CompetitionHeaderProps) {
@@ -117,70 +133,66 @@ export function CompetitionHeader({ competition }: CompetitionHeaderProps) {
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0 flex-1">
-        <h1 className="text-2xl font-bold sm:text-3xl">{competition.name}</h1>
-        <div className="mt-2 flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:items-center sm:gap-4">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <StatusItem label="Setup">
-              {competition.status === "draft" ? (
-                <Badge variant="secondary" className="shrink-0">
-                  Draft
-                </Badge>
-              ) : (
-                <Badge variant="default" className="shrink-0 bg-green-600">
-                  Published
-                </Badge>
-              )}
-            </StatusItem>
-            <StatusItem label="Visibility">
-              {competition.visibility === "private" ? (
-                <Badge variant="secondary" className="shrink-0">
-                  <EyeOff className="mr-1 h-3 w-3" />
-                  Private
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="shrink-0">
-                  <Eye className="mr-1 h-3 w-3" />
-                  Public
-                </Badge>
-              )}
-            </StatusItem>
-            {registrationStatus && (
-              <StatusItem label="Registration">
-                <Badge variant={registrationStatus.variant}>
-                  {registrationStatus.label}
-                </Badge>
-                {registrationStatus.detail && (
-                  <span className="whitespace-nowrap text-xs text-muted-foreground">
-                    {registrationStatus.detail}
-                  </span>
-                )}
-              </StatusItem>
-            )}
-            <StatusItem label="Competition">
-              <Badge variant={competitionStatus.variant}>
-                {competitionStatus.label}
+        <h1 className="text-2xl font-bold text-pretty sm:text-3xl">
+          {competition.name}
+        </h1>
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
+          <HeaderField label="Publication">
+            {competition.status === "draft" ? (
+              <Badge variant="secondary" className="shrink-0">
+                Draft
               </Badge>
-            </StatusItem>
-          </div>
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            <span>
-              {isSameDateString(competition.startDate, competition.endDate)
-                ? formatDateStringFull(competition.startDate)
-                : `${formatDateStringFull(competition.startDate)} - ${formatDateStringFull(competition.endDate)}`}
-            </span>
-          </div>
-          {competition.registrationOpensAt &&
-            competition.registrationClosesAt && (
-              <div className="flex items-center gap-2">
-                <UserPlus className="h-4 w-4" />
-                <span>
-                  Registration:{" "}
-                  {formatDateTime(competition.registrationOpensAt)} -{" "}
-                  {formatDateTime(competition.registrationClosesAt)}
-                </span>
-              </div>
+            ) : (
+              <Badge variant="default" className="shrink-0 bg-green-600">
+                Published
+              </Badge>
             )}
+          </HeaderField>
+          <HeaderField label="Visibility">
+            {competition.visibility === "private" ? (
+              <Badge variant="secondary" className="shrink-0">
+                <EyeOff className="mr-1 h-3 w-3" aria-hidden="true" />
+                Private
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="shrink-0">
+                <Eye className="mr-1 h-3 w-3" aria-hidden="true" />
+                Public
+              </Badge>
+            )}
+          </HeaderField>
+          {registrationStatus && (
+            <HeaderField label="Registration">
+              <Badge variant={registrationStatus.variant} className="shrink-0">
+                {registrationStatus.label}
+              </Badge>
+              {competition.registrationOpensAt &&
+                competition.registrationClosesAt && (
+                  <>
+                    <UserPlus
+                      className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                    <MutedDetail>
+                      {formatDateTime(competition.registrationOpensAt)} -{" "}
+                      {formatDateTime(competition.registrationClosesAt)}
+                    </MutedDetail>
+                  </>
+                )}
+            </HeaderField>
+          )}
+          <HeaderField label="Competition">
+            <Badge variant={competitionStatus.variant} className="shrink-0">
+              {competitionStatus.label}
+            </Badge>
+            <Calendar
+              className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <MutedDetail>
+              {formatDateRange(competition.startDate, competition.endDate)}
+            </MutedDetail>
+          </HeaderField>
         </div>
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-2">
