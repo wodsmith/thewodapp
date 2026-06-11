@@ -1,5 +1,5 @@
 /**
- * Event Division Mappings Route
+ * Event Visibility Route
  *
  * Organizer page for mapping which events are visible to which divisions.
  * Enables division-specific event variants — e.g., individual vs team versions
@@ -43,12 +43,10 @@ function EventDivisionsPage() {
   return (
     <div className="space-y-6 p-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">
-          Event Division Mappings
-        </h2>
+        <h2 className="text-2xl font-bold tracking-tight">Event visibility</h2>
         <p className="text-muted-foreground">
-          Control which events are visible to each division. Useful when
-          individual and team divisions need different event variants.
+          Decide which events are visible to each division. Useful when
+          individual and team divisions need different workouts or variants.
         </p>
       </div>
 
@@ -62,9 +60,9 @@ function EventDivisionsPage() {
               all divisions (default behavior).
             </li>
             <li>
-              <strong>Mappings configured:</strong> Only checked event-division
-              pairs are active. Athletes only see events mapped to their
-              division.
+              <strong>Visibility configured:</strong> Only checked
+              event-division pairs are active. Athletes only see events mapped
+              to their division.
             </li>
             <li>
               Create separate event versions (e.g., &quot;Fran&quot; for
@@ -77,7 +75,7 @@ function EventDivisionsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Event &times; Division Matrix</CardTitle>
+          <CardTitle>Division event mapping</CardTitle>
           <CardDescription>
             Check the boxes to map events to divisions. Click an event name to
             toggle all divisions, or click a division header to toggle all

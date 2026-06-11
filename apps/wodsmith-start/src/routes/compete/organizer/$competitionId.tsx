@@ -68,17 +68,17 @@ export const Route = createFileRoute("/compete/organizer/$competitionId")({
 // Note: "results" label is handled dynamically based on competition type
 const routeLabels: Record<string, string> = {
   "check-in": "Check-in",
-  divisions: "Divisions",
-  athletes: "Registrations",
+  divisions: "Divisions & capacity",
+  athletes: "Athletes",
   invites: "Invites",
   events: "Events",
-  "event-divisions": "Event divisions",
+  "event-divisions": "Event visibility",
   "submission-windows": "Submission windows",
-  schedule: "Schedule",
-  locations: "Locations",
+  schedule: "Heat schedule",
+  locations: "Venues & lanes",
   volunteers: "Volunteers",
   waivers: "Waivers",
-  scoring: "Scoring",
+  scoring: "Scoring rules",
   results: "Results", // Overridden to "Submissions" for online competitions
   "leaderboard-preview": "Leaderboard preview",
   review: "Review",

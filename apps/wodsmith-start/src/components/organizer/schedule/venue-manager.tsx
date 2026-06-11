@@ -358,8 +358,8 @@ export function VenueManager({
         <OrganizerEmptyState
           icon={MapPin}
           title="No venues yet"
-          description='Create locations like "Main Floor" or "Outside Rig" to assign heats to specific areas.'
-          actionLabel="Add Venue"
+          description='Create venues like "Main Floor" or "Outside Rig" with lane counts for heat scheduling.'
+          actionLabel="Add venue"
           actionIcon={<Plus className="mr-2 h-4 w-4" />}
           onAction={() => setIsCreateOpen(true)}
         />
@@ -372,7 +372,8 @@ export function VenueManager({
                   <div>
                     <h3 className="font-medium">{venue.name}</h3>
                     <p className="text-sm text-muted-foreground">
-                      {venue.laneCount} lanes • {venue.transitionMinutes}min
+                      {venue.laneCount} lanes · {venue.transitionMinutes} min
+                      heat interval
                     </p>
                     {venue.address && (
                       <p className="text-xs text-muted-foreground">

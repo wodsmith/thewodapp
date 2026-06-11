@@ -251,22 +251,30 @@ function CoHostsPage() {
 
 const PERMISSION_GROUPS_DISPLAY = [
   {
-    label: "Competition Setup",
+    label: "Setup",
     items: [
-      { key: "divisions", label: "Divisions" },
-      { key: "viewRegistrations", label: "View registrations" },
-      { key: "editRegistrations", label: "Edit registrations" },
+      { key: "divisions", label: "Divisions & capacity" },
       { key: "editEvents", label: "Edit events" },
-      { key: "scoringConfig", label: "Scoring config" },
+      { key: "locations", label: "Venues & lanes" },
+      { key: "scoringConfig", label: "Scoring rules" },
+    ],
+  },
+  {
+    label: "Registration",
+    items: [
+      { key: "viewRegistrations", label: "View athletes" },
+      { key: "editRegistrations", label: "Edit athletes" },
       { key: "waivers", label: "Waivers" },
     ],
   },
   {
-    label: "Run Competition",
+    label: "Volunteers & judging",
+    items: [{ key: "volunteers", label: "Volunteers & judging" }],
+  },
+  {
+    label: "Run competition",
     items: [
-      { key: "schedule", label: "Schedule" },
-      { key: "locations", label: "Locations" },
-      { key: "volunteers", label: "Volunteers" },
+      { key: "schedule", label: "Heat schedule" },
       { key: "results", label: "Results" },
       { key: "leaderboardPreview", label: "Leaderboard preview" },
     ],

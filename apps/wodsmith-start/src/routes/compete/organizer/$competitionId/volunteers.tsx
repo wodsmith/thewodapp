@@ -308,9 +308,9 @@ function VolunteersPage() {
             <SelectItem value="roster">Roster</SelectItem>
             <SelectItem value="shifts">Shifts</SelectItem>
             {isInPerson && (
-              <SelectItem value="schedule">Judge Schedule</SelectItem>
+              <SelectItem value="schedule">Judge assignments</SelectItem>
             )}
-            <SelectItem value="registration-rules">Signup Questions</SelectItem>
+            <SelectItem value="registration-rules">Signup questions</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -320,9 +320,9 @@ function VolunteersPage() {
         <TabsTrigger value="roster">Roster</TabsTrigger>
         <TabsTrigger value="shifts">Shifts</TabsTrigger>
         {isInPerson && (
-          <TabsTrigger value="schedule">Judge Schedule</TabsTrigger>
+          <TabsTrigger value="schedule">Judge assignments</TabsTrigger>
         )}
-        <TabsTrigger value="registration-rules">Signup Questions</TabsTrigger>
+        <TabsTrigger value="registration-rules">Signup questions</TabsTrigger>
       </TabsList>
 
       {/* Roster Tab - Volunteer Management */}
@@ -405,7 +405,7 @@ function VolunteersPage() {
         </TabsContent>
       )}
 
-      {/* Signup Questions Tab */}
+      {/* Signup questions tab */}
       <TabsContent value="registration-rules">
         <RegistrationQuestionsEditor
           entityType="competition"

@@ -14,6 +14,7 @@ import {
   Calculator,
   Calendar,
   ClipboardCheck,
+  ClipboardList,
   ClipboardSignature,
   Clock,
   DollarSign,
@@ -82,13 +83,26 @@ const getNavigation = (
   },
   groups: [
     {
-      label: "Competition Setup",
+      label: "Setup",
       items: [
-        { label: "Divisions", href: `${basePath}/divisions`, icon: Layers },
-        { label: "Events", href: `${basePath}/events`, icon: Trophy },
-        { label: "Locations", href: `${basePath}/locations`, icon: MapPin },
         {
-          label: "Event divisions",
+          label: "Competition details",
+          href: `${basePath}/edit`,
+          icon: Settings,
+        },
+        {
+          label: "Divisions & capacity",
+          href: `${basePath}/divisions`,
+          icon: Layers,
+        },
+        { label: "Events", href: `${basePath}/events`, icon: Trophy },
+        {
+          label: "Venues & lanes",
+          href: `${basePath}/locations`,
+          icon: MapPin,
+        },
+        {
+          label: "Event visibility",
           href: `${basePath}/event-divisions`,
           icon: Grid3X3,
         },
@@ -102,24 +116,72 @@ const getNavigation = (
               },
             ]
           : []),
-        { label: "Scoring", href: `${basePath}/scoring`, icon: Calculator },
-        { label: "Registrations", href: `${basePath}/athletes`, icon: Users },
-        { label: "Invites", href: `${basePath}/invites`, icon: Mail },
+        {
+          label: "Scoring rules",
+          href: `${basePath}/scoring`,
+          icon: Calculator,
+        },
+      ],
+    },
+    {
+      label: "Registration",
+      items: [
+        { label: "Athletes", href: `${basePath}/athletes`, icon: Users },
+        {
+          label: "Form questions",
+          href: `${basePath}/athletes?tab=registration-rules`,
+          icon: ClipboardList,
+        },
         {
           label: "Waivers",
           href: `${basePath}/waivers`,
           icon: ClipboardSignature,
         },
+        { label: "Invites", href: `${basePath}/invites`, icon: Mail },
+        {
+          label: "Capacity / eligibility",
+          href: `${basePath}/divisions`,
+          icon: ClipboardCheck,
+        },
       ],
     },
     {
-      label: "Run Competition",
+      label: "Volunteers & judging",
+      items: [
+        {
+          label: "Volunteer roster",
+          href: `${basePath}/volunteers`,
+          icon: UserCheck,
+        },
+        {
+          label: "Volunteer shifts",
+          href: `${basePath}/volunteers?tab=shifts`,
+          icon: Calendar,
+        },
+        ...(competitionType !== "online"
+          ? [
+              {
+                label: "Judge assignments",
+                href: `${basePath}/volunteers?tab=schedule`,
+                icon: ClipboardCheck,
+              },
+            ]
+          : []),
+        {
+          label: "Signup questions",
+          href: `${basePath}/volunteers?tab=registration-rules`,
+          icon: ClipboardList,
+        },
+      ],
+    },
+    {
+      label: "Run competition",
       items: [
         // Schedule only for in-person competitions
         ...(competitionType !== "online"
           ? [
               {
-                label: "Schedule",
+                label: "Heat schedule",
                 href: `${basePath}/schedule`,
                 icon: Calendar,
               },
@@ -130,17 +192,12 @@ const getNavigation = (
         ...(competitionType !== "online"
           ? [
               {
-                label: "Check-in",
+                label: "Check-in / athlete status",
                 href: `${basePath}/check-in`,
                 icon: ClipboardCheck,
               },
             ]
           : []),
-        {
-          label: "Volunteers",
-          href: `${basePath}/volunteers`,
-          icon: UserCheck,
-        },
         {
           label: competitionType === "online" ? "Submissions" : "Results",
           href: `${basePath}/results`,
@@ -273,15 +330,34 @@ export function CompetitionSidebar({
 }: CompetitionSidebarProps) {
   const router = useRouterState()
   const pathname = router.location.pathname
+  const search = router.location.search as Record<string, unknown>
   const basePath = `/compete/organizer/${competitionId}`
   const navigation = getNavigation(basePath, competitionType)
 
-  const isActive = (href: string) => {
-    if (href === basePath) {
+  const isActive = (item: NavItem) => {
+    const [hrefPath, hrefSearch] = item.href.split("?")
+    const hrefParams = new URLSearchParams(hrefSearch)
+
+    if (hrefPath === basePath) {
       // Overview is active only when exactly on base path
-      return pathname === basePath
+      return pathname === basePath && hrefParams.size === 0
     }
-    return pathname.startsWith(href)
+
+    if (!pathname.startsWith(hrefPath)) {
+      return false
+    }
+
+    for (const [key, value] of hrefParams) {
+      if (search[key] !== value) {
+        return false
+      }
+    }
+
+    if (hrefParams.size === 0 && typeof search.tab === "string") {
+      return false
+    }
+
+    return true
   }
 
   return (
@@ -296,7 +372,7 @@ export function CompetitionSidebar({
               <SidebarMenu>
                 <NavMenuItem
                   item={navigation.overview}
-                  isActive={isActive(navigation.overview.href)}
+                  isActive={isActive(navigation.overview)}
                 />
               </SidebarMenu>
             </SidebarGroupContent>
@@ -312,7 +388,7 @@ export function CompetitionSidebar({
                     <NavMenuItem
                       key={item.href}
                       item={item}
-                      isActive={isActive(item.href)}
+                      isActive={isActive(item)}
                     />
                   ))}
                 </SidebarMenu>

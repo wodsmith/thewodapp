@@ -355,7 +355,9 @@ function AthletesPage() {
       router.invalidate()
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to refund registration",
+        error instanceof Error
+          ? error.message
+          : "Failed to refund registration",
       )
     } finally {
       setIsRefunding(false)
@@ -937,7 +939,7 @@ function AthletesPage() {
       <Tabs value={tab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="athletes">Athletes</TabsTrigger>
-          <TabsTrigger value="registration-rules">Form Questions</TabsTrigger>
+          <TabsTrigger value="registration-rules">Form questions</TabsTrigger>
         </TabsList>
         <TabsContent value="registration-rules" className="flex flex-col gap-6">
           {/* Inherited Series Questions (read-only) */}
@@ -946,7 +948,7 @@ function AthletesPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Link2 className="h-5 w-5" />
-                  Series Registration Questions
+                  Series registration questions
                 </CardTitle>
                 <CardDescription>
                   These questions are inherited from the series and apply to all
@@ -2101,7 +2103,8 @@ function AthletesPage() {
                                             to="/compete/organizer/$competitionId/athletes/$registrationId"
                                             params={{
                                               competitionId: competition.id,
-                                              registrationId: row.registrationId,
+                                              registrationId:
+                                                row.registrationId,
                                             }}
                                           >
                                             <ArrowUpRight className="h-4 w-4 mr-2" />
