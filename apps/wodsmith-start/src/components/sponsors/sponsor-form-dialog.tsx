@@ -99,7 +99,7 @@ export function SponsorFormDialog({
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>
-              {isEditing ? "Edit Sponsor" : "Add Sponsor"}
+              {isEditing ? "Edit sponsor" : "Add sponsor"}
             </DialogTitle>
             <DialogDescription>
               {isEditing
@@ -185,7 +185,7 @@ export function SponsorFormDialog({
                   : "Adding..."
                 : isEditing
                   ? "Save"
-                  : "Add Sponsor"}
+                  : "Add sponsor"}
             </Button>
           </DialogFooter>
         </form>

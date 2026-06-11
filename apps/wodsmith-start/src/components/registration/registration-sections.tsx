@@ -264,8 +264,8 @@ export function CompetitionDetailsCard({
         <div>
           <p className="text-muted-foreground text-sm">
             {isSameDateString(competition.startDate, competition.endDate)
-              ? "Competition Date"
-              : "Competition Dates"}
+              ? "Competition date"
+              : "Competition dates"}
           </p>
           <p className="font-medium">
             {isSameDateString(competition.startDate, competition.endDate)

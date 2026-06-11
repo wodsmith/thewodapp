@@ -32,7 +32,7 @@ export async function login(
 		return
 	}
 
-	const signInButton = page.getByRole("button", { name: "Sign In" })
+	const signInButton = page.getByRole("button", { name: "Sign in" })
 	await signInButton.waitFor({ state: 'visible', timeout: 30000 })
 
 	// Wait for React hydration — the form's submit button must have React's

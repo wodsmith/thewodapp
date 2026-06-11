@@ -84,7 +84,7 @@ export function AdminCompetitionsTable({
               <TableHead>Name</TableHead>
               <TableHead>Organizer</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Start Date</TableHead>
+              <TableHead>Start date</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>

@@ -50,7 +50,7 @@ export function TrackHeader({
           trigger={
             <Button variant="outline" size="sm">
               <Edit className="h-4 w-4 mr-2" />
-              Edit Track
+              Edit track
             </Button>
           }
           onSuccess={handleEditSuccess}

@@ -184,19 +184,19 @@ export const getCompetitionSponsorsFn = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<CompetitionSponsorsResult> => {
     const db = getDb()
 
-    // Get all sponsor groups for this competition
-    const groups = await db
-      .select()
-      .from(sponsorGroupsTable)
-      .where(eq(sponsorGroupsTable.competitionId, data.competitionId))
-      .orderBy(asc(sponsorGroupsTable.displayOrder))
-
-    // Get all sponsors for this competition
-    const sponsors = await db
-      .select()
-      .from(sponsorsTable)
-      .where(eq(sponsorsTable.competitionId, data.competitionId))
-      .orderBy(asc(sponsorsTable.displayOrder))
+    // Fetch sponsor groups and sponsors in parallel
+    const [groups, sponsors] = await Promise.all([
+      db
+        .select()
+        .from(sponsorGroupsTable)
+        .where(eq(sponsorGroupsTable.competitionId, data.competitionId))
+        .orderBy(asc(sponsorGroupsTable.displayOrder)),
+      db
+        .select()
+        .from(sponsorsTable)
+        .where(eq(sponsorsTable.competitionId, data.competitionId))
+        .orderBy(asc(sponsorsTable.displayOrder)),
+    ])
 
     // Organize sponsors by group
     const groupsWithSponsors: SponsorGroupWithSponsors[] = groups.map(

@@ -556,7 +556,7 @@ export function VideoSubmissionForm({
     return (
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Submit Your Result</CardTitle>
+          <CardTitle className="text-lg">Submit your result</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {divisionSelector}
@@ -574,7 +574,7 @@ export function VideoSubmissionForm({
     return (
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Submit Your Result</CardTitle>
+          <CardTitle className="text-lg">Submit your result</CardTitle>
         </CardHeader>
         <CardContent>
           <Alert>
@@ -646,7 +646,7 @@ export function VideoSubmissionForm({
     return (
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Submit Your Result</CardTitle>
+          <CardTitle className="text-lg">Submit your result</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {divisionSelector}
@@ -1000,10 +1000,10 @@ export function VideoSubmissionForm({
           <div className="space-y-1">
             <CardTitle className="text-lg">
               {hasSubmitted
-                ? "Update Your Result"
+                ? "Update your result"
                 : teamSize > 1
-                  ? "Submit Team Result"
-                  : "Submit Your Result"}
+                  ? "Submit team result"
+                  : "Submit your result"}
             </CardTitle>
             <CardDescription>
               {hasSubmitted
@@ -1298,9 +1298,9 @@ export function VideoSubmissionForm({
                 Submitting...
               </>
             ) : hasSubmitted ? (
-              "Update Submission"
+              "Update submission"
             ) : (
-              "Submit Result"
+              "Submit result"
             )}
           </Button>
 

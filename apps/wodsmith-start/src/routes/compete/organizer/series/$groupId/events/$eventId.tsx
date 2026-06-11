@@ -319,7 +319,7 @@ function SeriesSingleEventEditPage() {
                 </Link>
               </Button>
             </div>
-            <h1 className="text-3xl font-bold">Edit Event</h1>
+            <h1 className="text-3xl font-bold">Edit event</h1>
             <p className="text-muted-foreground mt-1">
               Event #{formatTrackOrder(event.trackOrder)} -{" "}
               {event.workout.name}
@@ -330,7 +330,7 @@ function SeriesSingleEventEditPage() {
             form="series-event-details-form"
             disabled={isSaving}
           >
-            {isSaving ? "Saving..." : "Save Changes"}
+            {isSaving ? "Saving..." : "Save changes"}
           </Button>
         </div>
 
@@ -700,7 +700,7 @@ function SeriesSingleEventEditPage() {
                 type="submit"
                 disabled={isSaving || !form.formState.isValid}
               >
-                {isSaving ? "Saving..." : "Save Changes"}
+                {isSaving ? "Saving..." : "Save changes"}
               </Button>
             </div>
           </form>
@@ -868,7 +868,7 @@ function SeriesParentEventEditPage() {
                 />
                 <div className="flex justify-end">
                   <Button type="submit" disabled={isSavingParent}>
-                    {isSavingParent ? "Saving..." : "Save Parent"}
+                    {isSavingParent ? "Saving..." : "Save parent"}
                   </Button>
                 </div>
               </form>
@@ -1302,7 +1302,7 @@ function SubEventForm({
         </div>
         <div className="flex justify-end">
           <Button type="submit" disabled={isSaving}>
-            {isSaving ? "Saving..." : "Save Sub-Event"}
+            {isSaving ? "Saving..." : "Save sub-event"}
           </Button>
         </div>
       </form>

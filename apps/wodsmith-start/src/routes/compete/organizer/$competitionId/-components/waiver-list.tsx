@@ -341,7 +341,7 @@ export function WaiverList({
           className="w-full sm:w-auto"
         >
           <Plus className="mr-2 h-4 w-4" />
-          Add Waiver
+          Add waiver
         </Button>
       </div>
 
@@ -356,7 +356,7 @@ export function WaiverList({
             </p>
             <Button onClick={() => setIsCreateDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
-              Add Waiver
+              Add waiver
             </Button>
           </CardContent>
         </Card>
@@ -422,7 +422,7 @@ export function WaiverList({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Waiver</AlertDialogTitle>
+            <AlertDialogTitle>Delete waiver</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete this waiver? Athletes who have
               already signed it will keep their signature records, but the

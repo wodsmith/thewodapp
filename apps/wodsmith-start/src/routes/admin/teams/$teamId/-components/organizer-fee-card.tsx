@@ -303,7 +303,7 @@ export function OrganizerFeeCard({ team }: Props) {
                 Saving...
               </>
             ) : (
-              "Save Custom Fee"
+              "Save custom fee"
             )}
           </Button>
         </div>

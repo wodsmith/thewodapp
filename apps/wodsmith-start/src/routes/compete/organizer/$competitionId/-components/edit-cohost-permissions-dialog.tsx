@@ -20,7 +20,7 @@ const PERMISSION_GROUPS = [
     items: [
       { key: "divisions" as const, label: "Divisions" },
       { key: "viewRegistrations" as const, label: "View registrations" },
-      { key: "editRegistrations" as const, label: "Manage Registrations" },
+      { key: "editRegistrations" as const, label: "Manage registrations" },
       { key: "editEvents" as const, label: "Edit events" },
       { key: "scoringConfig" as const, label: "Scoring config" },
       { key: "waivers" as const, label: "Waivers" },
@@ -148,7 +148,7 @@ export function EditCohostPermissionsDialog(props: EditCohostPermissionsDialogPr
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit Permissions — {cohostName}</DialogTitle>
+          <DialogTitle>Edit permissions — {cohostName}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-3 pt-4">
@@ -201,7 +201,7 @@ export function EditCohostPermissionsDialog(props: EditCohostPermissionsDialogPr
             </Button>
           </DialogClose>
           <Button onClick={handleSave} disabled={isSubmitting}>
-            {isSubmitting ? "Saving..." : "Save Permissions"}
+            {isSubmitting ? "Saving..." : "Save permissions"}
           </Button>
         </div>
       </DialogContent>

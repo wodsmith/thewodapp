@@ -1332,13 +1332,13 @@ export function HeatScheduleManager({
           <DialogTrigger asChild>
             <Button size="sm">
               <Plus className="h-4 w-4 mr-2" />
-              Add Heat
+              Add heat
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
-                Create Heat for {selectedEvent?.workout.name}
+                Create heat for {selectedEvent?.workout.name}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
@@ -1429,18 +1429,18 @@ export function HeatScheduleManager({
                   {isCreating && (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   )}
-                  Create Heat
+                  Create heat
                 </Button>
               </div>
             </div>
           </DialogContent>
         </Dialog>
 
-        {/* Bulk Edit Button */}
+        {/* Bulk edit button */}
         {eventHeats.length > 0 && (
           <Button size="sm" variant="outline" onClick={openBulkEditDialog}>
             <Pencil className="h-4 w-4 mr-2" />
-            Edit All Heats
+            Edit all heats
           </Button>
         )}
 
@@ -1497,18 +1497,18 @@ export function HeatScheduleManager({
         )}
       </div>
 
-      {/* Bulk Create Heats Dialog */}
+      {/* Bulk create heats dialog */}
       <Dialog open={isBulkCreateOpen} onOpenChange={setIsBulkCreateOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Heats</DialogTitle>
+            <DialogTitle>Add heats</DialogTitle>
           </DialogHeader>
           <Tabs
             value={bulkCreateTab}
             onValueChange={(v) => setBulkCreateTab(v as "new" | "copy")}
           >
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="new">Create New</TabsTrigger>
+              <TabsTrigger value="new">Create new</TabsTrigger>
               <TabsTrigger
                 value="copy"
                 disabled={isLoadingEvents || eventsWithHeats.length === 0}
@@ -1517,7 +1517,7 @@ export function HeatScheduleManager({
               </TabsTrigger>
             </TabsList>
 
-            {/* Create New Tab */}
+            {/* Create new Tab */}
             <TabsContent value="new" className="space-y-4">
               <div className="text-sm text-muted-foreground">
                 Venue: {selectedVenue?.name} (
@@ -1629,7 +1629,7 @@ export function HeatScheduleManager({
                   </div>
 
                   <div>
-                    <Label htmlFor="copy-start-time">New Start Time</Label>
+                    <Label htmlFor="copy-start-time">New start time</Label>
                     <Input
                       id="copy-start-time"
                       type="datetime-local"
@@ -1719,7 +1719,7 @@ export function HeatScheduleManager({
                       {isCopying && (
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       )}
-                      Copy Heats
+                      Copy heats
                     </Button>
                   </div>
                 </>
@@ -1729,11 +1729,11 @@ export function HeatScheduleManager({
         </DialogContent>
       </Dialog>
 
-      {/* Bulk Edit Heats Dialog */}
+      {/* Bulk edit heats dialog */}
       <Dialog open={isBulkEditOpen} onOpenChange={setIsBulkEditOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Heat Times</DialogTitle>
+            <DialogTitle>Edit heat times</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="text-sm text-muted-foreground">
@@ -1824,7 +1824,7 @@ export function HeatScheduleManager({
             <Card className="border-dashed">
               <CardContent className="py-8 text-center text-muted-foreground">
                 <p>No heats for this event yet.</p>
-                <p className="text-sm mt-2">Click "Add Heat" to create one.</p>
+                <p className="text-sm mt-2">Click "Add heat" to create one.</p>
               </CardContent>
             </Card>
           ) : (

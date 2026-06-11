@@ -308,7 +308,7 @@ export function EventJudgingSheets({
                 onClick={handleCreateSheet}
                 disabled={isUploading || !newSheetTitle.trim()}
               >
-                {isUploading ? "Saving..." : "Save Judging Sheet"}
+                {isUploading ? "Saving..." : "Save judging sheet"}
               </Button>
               <Button
                 type="button"

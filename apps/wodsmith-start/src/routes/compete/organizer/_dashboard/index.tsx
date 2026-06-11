@@ -119,12 +119,12 @@ function OrganizerDashboard() {
               </Button>
             )}
             <Button variant="outline" className="w-full sm:w-auto" asChild>
-              <Link to="/compete/organizer/series">Manage Series</Link>
+              <Link to="/compete/organizer/series">Manage series</Link>
             </Button>
             <Button className="w-full sm:w-auto" asChild>
               <Link to="/compete/organizer/new">
                 <Plus className="h-4 w-4 mr-2" />
-                Create Competition
+                Create competition
               </Link>
             </Button>
           </div>

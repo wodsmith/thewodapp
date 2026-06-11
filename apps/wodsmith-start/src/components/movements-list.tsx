@@ -207,7 +207,7 @@ export function MovementsList({
             })
           )}
 
-          {/* Create Movement Button */}
+          {/* Create movement Button */}
           {enableCreateMovement && (
             <Dialog
               open={isCreateDialogOpen}
@@ -228,7 +228,7 @@ export function MovementsList({
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Create New Movement</DialogTitle>
+                  <DialogTitle>Create new movement</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
@@ -269,7 +269,7 @@ export function MovementsList({
                       onClick={handleCreateMovement}
                       disabled={!newMovementName || !newMovementType}
                     >
-                      Create Movement
+                      Create movement
                     </Button>
                   </div>
                 </div>

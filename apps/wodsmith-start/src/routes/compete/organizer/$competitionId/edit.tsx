@@ -33,7 +33,7 @@ export const Route = createFileRoute("/compete/organizer/$competitionId/edit")({
   head: () => {
     return {
       meta: [
-        { title: "Edit Competition" },
+        { title: "Edit competition" },
         {
           name: "description",
           content: "Edit competition details",
@@ -51,7 +51,7 @@ function EditCompetitionPage() {
   return (
     <div className="max-w-2xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">Edit Competition</h1>
+        <h1 className="text-3xl font-bold">Edit competition</h1>
         <p className="text-muted-foreground mt-1">Update competition details</p>
       </div>
 

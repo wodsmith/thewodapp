@@ -576,7 +576,7 @@ export function VolunteersList({
             ) : (
               <Copy className="mr-2 h-4 w-4" />
             )}
-            Copy Signup Link
+            Copy signup link
           </Button>
           <InviteVolunteerDialog
             competitionId={competitionId}
@@ -593,7 +593,7 @@ export function VolunteersList({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Bulk Action Toolbar */}
+      {/* Bulk action toolbar */}
       {someSelected && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/50 p-2">
           <span className="text-sm font-medium">
@@ -666,7 +666,7 @@ export function VolunteersList({
             ) : (
               <Copy className="mr-2 h-4 w-4" />
             )}
-            Copy Signup Link
+            Copy signup link
           </Button>
           <Button
             onClick={() => setInviteDialogOpen(true)}

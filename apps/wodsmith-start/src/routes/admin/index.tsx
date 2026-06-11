@@ -64,7 +64,7 @@ function AdminDashboardPage() {
               <Button asChild>
                 <a href="/admin/competitions">
                   <Trophy className="mr-2 h-4 w-4" />
-                  Manage Competitions
+                  Manage competitions
                 </a>
               </Button>
               <Button asChild variant="outline">

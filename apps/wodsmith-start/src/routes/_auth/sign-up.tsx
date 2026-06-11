@@ -209,7 +209,7 @@ function SignUpPage() {
               className="w-full block"
             >
               <Button variant="outline" className="w-full">
-                Go to Sign In
+                Go to sign in
               </Button>
             </Link>
           </CardContent>
@@ -236,7 +236,7 @@ function SignUpPage() {
             </p>
             <Link to="/sign-up" search={{ redirect: redirectPath }}>
               <Button variant="outline" className="w-full">
-                Sign Up Without Link
+                Sign up without link
               </Button>
             </Link>
           </CardContent>
@@ -250,7 +250,7 @@ function SignUpPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">
-            {claim && claimValid ? "Claim Your Account" : "Create Account"}
+            {claim && claimValid ? "Claim your account" : "Create account"}
           </CardTitle>
           <CardDescription>
             {claim && claimValid ? (
@@ -369,8 +369,8 @@ function SignUpPage() {
                   {isLoading
                     ? "Creating account..."
                     : claim && claimValid
-                      ? "Claim Account"
-                      : "Create Account"}
+                      ? "Claim account"
+                      : "Create account"}
                 </Button>
               </div>
             </form>

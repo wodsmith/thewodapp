@@ -200,7 +200,7 @@ function NewCompetitionPage() {
               Back
             </Button>
           </div>
-          <h1 className="text-3xl font-bold">Create Competition</h1>
+          <h1 className="text-3xl font-bold">Create competition</h1>
           <p className="text-muted-foreground mt-1">
             Set up a new competition for your team
           </p>

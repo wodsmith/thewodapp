@@ -648,7 +648,7 @@ export function VolunteerRow({
                 className="rounded-md px-3 py-2 text-sm hover:bg-accent border"
                 disabled={isPending}
               >
-                Edit Roles
+                Edit roles
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
                 <DropdownMenuLabel>Role Types</DropdownMenuLabel>
@@ -930,7 +930,7 @@ export function VolunteerRow({
                 className="rounded-md px-3 py-2 text-sm hover:bg-accent"
                 disabled={isPending}
               >
-                Edit Roles
+                Edit roles
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Role Types</DropdownMenuLabel>

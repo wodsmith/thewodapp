@@ -595,7 +595,7 @@ function ComposeCard({
             disabled={isSending || !title.trim() || !body.trim()}
           >
             <Send className="mr-2 h-4 w-4" />
-            {isSending ? "Sending..." : "Send Broadcast"}
+            {isSending ? "Sending..." : "Send broadcast"}
           </Button>
         </div>
       </CardContent>

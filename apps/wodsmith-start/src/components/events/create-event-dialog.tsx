@@ -145,7 +145,7 @@ export function CreateEventDialog({
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Create New Event</DialogTitle>
+            <DialogTitle>Create new event</DialogTitle>
             <DialogDescription>
               Create a new workout event for this competition. You can add more
               details like division-specific descriptions after creating.
@@ -311,7 +311,7 @@ export function CreateEventDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={isCreating || !name.trim()}>
-              {isCreating ? "Creating..." : "Create Event"}
+              {isCreating ? "Creating..." : "Create event"}
             </Button>
           </DialogFooter>
         </form>

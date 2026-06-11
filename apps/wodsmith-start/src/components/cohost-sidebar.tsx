@@ -95,7 +95,7 @@ const getNavigation = (
               ...(competitionType === "online"
                 ? [
                     {
-                      label: "Submission Windows",
+                      label: "Submission windows",
                       href: `${basePath}/submission-windows`,
                       icon: Clock,
                     },
@@ -174,7 +174,7 @@ const getNavigation = (
         ...(permissions?.leaderboardPreview
           ? [
               {
-                label: "Leaderboard Preview",
+                label: "Leaderboard preview",
                 href: `${basePath}/leaderboard-preview`,
                 icon: BarChart3,
               },

@@ -438,7 +438,7 @@ function StatusBadge({ status, opensAt, closesAt }: StatusBadgeProps) {
       return (
         <Badge className="bg-orange-500 text-white gap-1">
           <CheckCircle2 className="h-3 w-3" />
-          Open Now
+          Open now
           {closesAt && (
             <span className="opacity-75">
               (closes {getTimeUntil(closesAt)})

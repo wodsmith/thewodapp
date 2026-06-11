@@ -102,7 +102,7 @@ export default function CompeteNav({
                 Login
               </Link>
               <Link to="/sign-up" search={{ redirect: "/" }} className="btn">
-                Sign Up
+                Sign up
               </Link>
               <DarkModeToggle />
             </div>

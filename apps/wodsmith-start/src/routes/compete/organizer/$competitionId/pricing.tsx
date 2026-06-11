@@ -27,20 +27,33 @@ export const Route = createFileRoute(
     const parentMatch = await parentMatchPromise
     const { competition } = parentMatch.loaderData!
 
-    // Get Stripe connection status for the organizing team
-    const stripeStatus = await getStripeConnectionStatusFn({
-      data: { teamId: competition.organizingTeamId },
-    })
+    const settings = parseCompetitionSettings(competition.settings)
+    const scalingGroupId = settings?.divisions?.scalingGroupId
 
-    const isStripeConnected = stripeStatus.isConnected
-
-    // Get team slug for Stripe connection redirect (if not connected)
-    const teamSlug = await getTeamSlugFn({
-      data: { teamId: competition.organizingTeamId },
-    })
+    // All five lookups are independent — fetch in parallel
+    const [stripeStatus, teamSlug, scalingGroup, feeConfig, teamFeeSettings] =
+      await Promise.all([
+        getStripeConnectionStatusFn({
+          data: { teamId: competition.organizingTeamId },
+        }),
+        getTeamSlugFn({
+          data: { teamId: competition.organizingTeamId },
+        }),
+        scalingGroupId
+          ? getScalingGroupWithLevelsFn({
+              data: { scalingGroupId },
+            })
+          : Promise.resolve(null),
+        getCompetitionDivisionFeesFn({
+          data: { competitionId: competition.id },
+        }),
+        getTeamFeeSettingsFn({
+          data: { teamId: competition.organizingTeamId },
+        }),
+      ])
 
     // If Stripe not connected, return early with minimal data
-    if (!isStripeConnected) {
+    if (!stripeStatus.isConnected) {
       return {
         competition: {
           id: competition.id,
@@ -53,33 +66,14 @@ export const Route = createFileRoute(
       }
     }
 
-    // Get competition's divisions from scaling group
-    const settings = parseCompetitionSettings(competition.settings)
-    let divisions: Array<{ id: string; label: string; teamSize: number }> = []
-
-    if (settings?.divisions?.scalingGroupId) {
-      const scalingGroup = await getScalingGroupWithLevelsFn({
-        data: { scalingGroupId: settings.divisions.scalingGroupId },
-      })
-
-      if (scalingGroup?.scalingLevels) {
-        divisions = scalingGroup.scalingLevels.map((level) => ({
-          id: level.id,
-          label: level.label,
-          teamSize: level.teamSize ?? 1,
-        }))
-      }
-    }
-
-    // Get current fee configuration
-    const feeConfig = await getCompetitionDivisionFeesFn({
-      data: { competitionId: competition.id },
-    })
-
-    // Get team's fee settings (for founding organizers)
-    const teamFeeSettings = await getTeamFeeSettingsFn({
-      data: { teamId: competition.organizingTeamId },
-    })
+    const divisions: Array<{ id: string; label: string; teamSize: number }> =
+      scalingGroup?.scalingLevels
+        ? scalingGroup.scalingLevels.map((level) => ({
+            id: level.id,
+            label: level.label,
+            teamSize: level.teamSize ?? 1,
+          }))
+        : []
 
     return {
       competition: {

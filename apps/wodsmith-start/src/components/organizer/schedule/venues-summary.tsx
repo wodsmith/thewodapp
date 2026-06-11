@@ -24,7 +24,7 @@ export function VenuesSummary({ competitionId, venues, routePrefix = "/compete/o
           <Button asChild>
             <Link to={locationsHref}>
               <Plus className="h-4 w-4 mr-2" />
-              Add Venue
+              Add venue
             </Link>
           </Button>
         </CardContent>
@@ -57,7 +57,7 @@ export function VenuesSummary({ competitionId, venues, routePrefix = "/compete/o
       <Button variant="outline" size="sm" asChild>
         <Link to={locationsHref}>
           <MapPin className="h-4 w-4 mr-2" />
-          Manage Locations
+          Manage locations
         </Link>
       </Button>
     </div>

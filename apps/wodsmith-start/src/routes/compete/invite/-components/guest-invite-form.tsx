@@ -247,7 +247,7 @@ export function GuestInviteForm({
                       <CollapsibleTrigger asChild>
                         <Button variant="ghost" size="sm">
                           <FileText className="h-4 w-4 mr-2" />
-                          View Details
+                          View details
                           <ChevronDown className="h-4 w-4 ml-2" />
                         </Button>
                       </CollapsibleTrigger>
@@ -320,7 +320,7 @@ export function GuestInviteForm({
             Saving...
           </>
         ) : (
-          "Complete Registration"
+          "Complete registration"
         )}
       </Button>
     </div>

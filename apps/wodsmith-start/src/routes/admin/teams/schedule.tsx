@@ -34,7 +34,7 @@ const scheduleNavItems = [
     href: "/admin/teams/schedule/generate",
   },
   {
-    title: "Manage Coaches",
+    title: "Manage coaches",
     icon: Users,
     href: "/admin/teams/schedule/coaches",
   },

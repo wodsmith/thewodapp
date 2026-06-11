@@ -98,7 +98,7 @@ export function AddEventDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Add Event to Competition</DialogTitle>
+          <DialogTitle>Add event to competition</DialogTitle>
           <DialogDescription>
             Select a workout to add as a competition event.
           </DialogDescription>

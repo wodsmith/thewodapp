@@ -253,7 +253,7 @@ export function SeriesEventMapper({
               onClick={handleSave}
               disabled={isSaving}
             >
-              {isSaving ? "Saving..." : "Save Matches"}
+              {isSaving ? "Saving..." : "Save matches"}
             </Button>
           </div>
         </div>

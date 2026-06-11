@@ -268,7 +268,7 @@ export default function WorkoutRowCard({
               className="flex-1 sm:flex-initial"
             >
               <Link to="/log/new" search={{ workoutId: workout.id }}>
-                {result ? "Log Another" : "Log Result"}
+                {result ? "Log another" : "Log result"}
               </Link>
             </Button>
           </div>

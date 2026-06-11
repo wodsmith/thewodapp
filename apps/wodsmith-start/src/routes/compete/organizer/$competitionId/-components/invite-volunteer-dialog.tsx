@@ -247,7 +247,7 @@ export function InviteVolunteerDialog({
               </DialogClose>
 
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Sending..." : "Send Invitation"}
+                {isSubmitting ? "Sending..." : "Send invitation"}
               </Button>
             </div>
           </form>

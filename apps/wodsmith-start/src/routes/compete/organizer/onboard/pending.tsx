@@ -165,7 +165,7 @@ function OrganizerOnboardPendingPage() {
             are only visible to you and people you share the link with.
           </p>
           <Button asChild>
-            <Link to="/compete/organizer">Create Private Competition</Link>
+            <Link to="/compete/organizer">Create private competition</Link>
           </Button>
         </div>
 

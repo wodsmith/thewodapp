@@ -275,7 +275,7 @@ export function PricingSettingsForm({
                   Saving...
                 </>
               ) : (
-                "Save Default Fee"
+                "Save default fee"
               )}
             </Button>
           </div>
@@ -452,7 +452,7 @@ export function PricingSettingsForm({
                 to={`${routePrefix}/$competitionId/divisions` as string}
                 params={{ competitionId: competition.id }}
               >
-                Configure Divisions
+                Configure divisions
               </Link>
             </Button>
           </CardContent>

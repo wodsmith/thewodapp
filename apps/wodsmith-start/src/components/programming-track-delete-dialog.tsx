@@ -59,7 +59,7 @@ export function ProgrammingTrackDeleteDialog({
       >
         <SheetHeader>
           <SheetTitle className="font-mono text-xl tracking-tight text-red-600">
-            Delete Programming Track
+            Delete programming track
           </SheetTitle>
           <SheetDescription className="font-mono text-sm">
             Are you sure you want to delete "{track.name}"? This action cannot
@@ -78,7 +78,7 @@ export function ProgrammingTrackDeleteDialog({
             disabled={isPending}
             className="sm:w-auto w-full border-2 border-red-500 shadow-[4px_4px_0px_0px] shadow-red-500 hover:shadow-[2px_2px_0px_0px] transition-all font-mono bg-red-500 text-white hover:bg-red-600 rounded-none"
           >
-            {isPending ? "Deleting..." : "Delete Track"}
+            {isPending ? "Deleting..." : "Delete track"}
           </Button>
         </SheetFooter>
       </SheetContent>

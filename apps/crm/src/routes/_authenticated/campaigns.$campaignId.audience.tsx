@@ -180,7 +180,7 @@ function CampaignAudienceBuilderPage() {
             className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"
           >
             <Check className="h-4 w-4" />
-            {saving ? "Saving..." : "Save Audience"}
+            {saving ? "Saving..." : "Save audience"}
           </button>
         </div>
       </header>
