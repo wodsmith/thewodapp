@@ -11,10 +11,15 @@ import type {
 } from "@/db/schema"
 import { trackEvent } from "@/lib/posthog"
 import type { PublicCompetitionDivision } from "@/server-fns/competition-divisions-fns"
+import { validateCouponForCheckoutFn } from "@/server-fns/coupon-fns"
 import { initiateRegistrationPaymentFn } from "@/server-fns/registration-fns"
 import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
 import { signWaiverFn } from "@/server-fns/waiver-fns"
-import { clearCouponSession, getCouponSession } from "@/utils/coupon-cookie"
+import {
+  clearCouponSession,
+  getCouponSession,
+  setCouponSession,
+} from "@/utils/coupon-cookie"
 
 export interface Teammate {
   email: string
@@ -22,6 +27,9 @@ export interface Teammate {
   lastName: string
   affiliateName: string
 }
+
+export const OWN_TEAMMATE_EMAIL_ERROR =
+  "This is your account email. Enter your teammate's email instead."
 
 export interface TeamEntry {
   divisionId: string
@@ -61,6 +69,40 @@ export interface UseRegistrationFormInput {
   prefillTeammates?: Teammate[]
   /** Prior team name from the source competition; pre-fills `teamName`. */
   prefillTeamName?: string
+  /** Logged-in athlete email, used to prevent self-inviting as a teammate. */
+  userEmail?: string | null
+}
+
+const normalizeEmail = (email: string | null | undefined) =>
+  email?.trim().toLowerCase() ?? ""
+
+export function buildTeammateEmailErrors({
+  teamEntries,
+  selectedTeamDivisions,
+  userEmail,
+}: {
+  teamEntries: Map<string, TeamEntry>
+  selectedTeamDivisions: ScalingLevel[]
+  userEmail?: string | null
+}) {
+  const normalizedUserEmail = normalizeEmail(userEmail)
+  const errors = new Map<string, Map<number, string>>()
+  if (!normalizedUserEmail) return errors
+
+  for (const division of selectedTeamDivisions) {
+    const teamEntry = teamEntries.get(division.id)
+    if (!teamEntry?.teammates) continue
+
+    for (const [index, teammate] of teamEntry.teammates.entries()) {
+      if (normalizeEmail(teammate.email) !== normalizedUserEmail) continue
+
+      const divisionErrors = errors.get(division.id) ?? new Map()
+      divisionErrors.set(index, OWN_TEAMMATE_EMAIL_ERROR)
+      errors.set(division.id, divisionErrors)
+    }
+  }
+
+  return errors
 }
 
 export function useRegistrationForm(input: UseRegistrationFormInput) {
@@ -80,19 +122,28 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
     inviteToken,
     prefillTeammates = [],
     prefillTeamName = "",
+    userEmail,
   } = input
 
   const navigate = useNavigate()
   const signWaiver = useServerFn(signWaiverFn)
+  const validateCouponForCheckout = useServerFn(validateCouponForCheckoutFn)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false)
+  const [couponCodeInput, setCouponCodeInput] = useState("")
 
-  // Active coupon from sessionStorage
-  const [activeCoupon] = useState(() => {
+  // Active coupon from sessionStorage or manual entry.
+  const [activeCoupon, setActiveCoupon] = useState(() => {
     const coupon = getCouponSession()
     return coupon?.competitionSlug === competition.slug ? coupon : null
   })
 
-  // Resolve initial division (eligible iff present + not registered/removed/full)
+  // Resolve initial division (eligible iff present + not registered/removed/full).
+  // Invite-locked URLs (`inviteToken` set) bypass the public `isFull` check —
+  // the invite IS the authorization, and the per-(source, division) allocation
+  // guardrail + payment-time re-check enforce the real cap. The public count
+  // also includes the invitee's own in-flight pending purchase, which would
+  // otherwise self-fill the division on a retry.
   const invitedDivision = (() => {
     if (!initialDivisionId) return null
     const level = scalingGroup.scalingLevels.find(
@@ -101,8 +152,10 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
     if (!level) return null
     if (registeredDivisionIds.includes(level.id)) return null
     if (removedDivisionIds.includes(level.id)) return null
-    const pub = publicDivisions.find((d) => d.id === level.id)
-    if (pub?.isFull) return null
+    if (!inviteToken) {
+      const pub = publicDivisions.find((d) => d.id === level.id)
+      if (pub?.isFull) return null
+    }
     return level
   })()
 
@@ -301,6 +354,46 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
     )
   }
 
+  const handleApplyCoupon = async () => {
+    const code = couponCodeInput.trim()
+    if (!code) {
+      toast.error("Enter a coupon code")
+      return
+    }
+
+    setIsApplyingCoupon(true)
+    try {
+      const result = await validateCouponForCheckout({
+        data: { code, competitionId: competition.id },
+      })
+
+      if (!result.valid || !result.coupon) {
+        toast.error("Invalid or expired coupon code")
+        return
+      }
+
+      const couponSession = {
+        code: result.coupon.code,
+        competitionSlug: competition.slug,
+        competitionName: competition.name,
+        amountOffCents: result.amountOffCents,
+      }
+      setCouponSession(couponSession)
+      setActiveCoupon(couponSession)
+      setCouponCodeInput("")
+      toast.success("Coupon applied")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to apply coupon")
+    } finally {
+      setIsApplyingCoupon(false)
+    }
+  }
+
+  const handleRemoveCoupon = () => {
+    clearCouponSession()
+    setActiveCoupon(null)
+  }
+
   const buildRegistrationItems = () =>
     selectedDivisionIds.map((divisionId) => {
       const division = getDivision(divisionId)
@@ -312,6 +405,18 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
         teammates: isTeam ? teamEntry?.teammates : undefined,
       }
     })
+
+  const hasSelectedDivisions = selectedDivisionIds.length > 0
+  const competitionFull = false // capacity gating happens at the variant level
+  const selectedTeamDivisions = selectedDivisionIds
+    .map((id) => getDivision(id))
+    .filter((d): d is ScalingLevel => d !== undefined && d.teamSize > 1)
+  const teammateEmailErrors = buildTeammateEmailErrors({
+    teamEntries,
+    selectedTeamDivisions,
+    userEmail,
+  })
+  const hasTeammateEmailErrors = teammateEmailErrors.size > 0
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -344,9 +449,16 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
         )
         return
       }
-      for (const teammate of teamEntry.teammates) {
+      for (const [index, teammate] of teamEntry.teammates.entries()) {
         if (!teammate.email?.trim()) {
           toast.error(`All teammate emails are required for ${division.label}`)
+          return
+        }
+        const teammateEmailError = teammateEmailErrors
+          .get(divisionId)
+          ?.get(index)
+        if (teammateEmailError) {
+          toast.error(teammateEmailError)
           return
         }
       }
@@ -451,12 +563,6 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
     }
   }
 
-  const hasSelectedDivisions = selectedDivisionIds.length > 0
-  const competitionFull = false // capacity gating happens at the variant level
-  const selectedTeamDivisions = selectedDivisionIds
-    .map((id) => getDivision(id))
-    .filter((d): d is ScalingLevel => d !== undefined && d.teamSize > 1)
-
   return {
     // pass-throughs (so variants don't need to re-pass everything)
     competition,
@@ -467,13 +573,18 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
 
     // state
     isSubmitting,
+    isApplyingCoupon,
     activeCoupon,
+    couponCodeInput,
     invitedDivision,
     selectedDivisionIds,
     selectedTeamDivisions,
     hasSelectedDivisions,
+    teammateEmailErrors,
+    hasTeammateEmailErrors,
     affiliateName,
     setAffiliateName,
+    setCouponCodeInput,
     teamEntries,
     divisionFees,
     answers,
@@ -487,6 +598,8 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
     getDivision,
     handleDivisionToggle,
     handleFeesLoaded,
+    handleApplyCoupon,
+    handleRemoveCoupon,
     updateTeamEntry,
     updateTeammate,
     handleWaiverCheckChange,

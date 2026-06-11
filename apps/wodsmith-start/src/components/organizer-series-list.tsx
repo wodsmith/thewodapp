@@ -78,7 +78,7 @@ export function OrganizerSeriesList({
                     to="/compete/organizer/series/$groupId"
                     params={{ groupId: group.id }}
                   >
-                    <Button variant="ghost" size="sm" title="View Details">
+                    <Button variant="ghost" size="sm" title="View details">
                       <Pencil className="h-4 w-4" />
                     </Button>
                   </Link>
@@ -114,7 +114,7 @@ export function OrganizerSeriesList({
       {deleteGroupId && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-card p-6 rounded-lg max-w-md border">
-            <h2 className="text-lg font-semibold mb-2">Delete Series?</h2>
+            <h2 className="text-lg font-semibold mb-2">Delete series?</h2>
             <p className="text-sm text-muted-foreground mb-4">
               This action cannot be undone. Series with competitions cannot be
               deleted.

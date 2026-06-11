@@ -59,7 +59,7 @@ export function SuccessClaimPrompt({
                     }}
                   >
                     <LogIn className="mr-2 h-4 w-4" />
-                    Sign In to Claim Registration
+                    Sign in to claim registration
                   </Link>
                 </Button>
                 <Button asChild variant="outline" className="w-full" size="lg">
@@ -70,7 +70,7 @@ export function SuccessClaimPrompt({
                     }}
                   >
                     <UserPlus className="mr-2 h-4 w-4" />
-                    Create New Account
+                    Create new account
                   </Link>
                 </Button>
               </>
@@ -84,7 +84,7 @@ export function SuccessClaimPrompt({
                     }}
                   >
                     <UserPlus className="mr-2 h-4 w-4" />
-                    Sign Up to Claim Registration
+                    Sign up to claim registration
                   </Link>
                 </Button>
                 <Button asChild variant="outline" className="w-full" size="lg">

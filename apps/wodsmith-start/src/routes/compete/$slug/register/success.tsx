@@ -82,7 +82,7 @@ export const Route = createFileRoute("/compete/$slug/register/success")({
     const parentMatch = await parentMatchPromise
     const competition = parentMatch.loaderData?.competition
     if (!competition) {
-      throw redirect({ to: "/compete" })
+      throw redirect({ to: "/" })
     }
 
     // Check for registration
@@ -212,7 +212,7 @@ function RegistrationSuccessPage() {
           <div className="pt-4">
             <Button asChild>
               <Link to="/compete/$slug" params={{ slug }}>
-                View Competition
+                View competition
               </Link>
             </Button>
           </div>
@@ -361,7 +361,7 @@ function RegistrationSuccessPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-              <CardTitle className="text-lg">Complete Your Profile</CardTitle>
+              <CardTitle className="text-lg">Complete your profile</CardTitle>
             </div>
             <CardDescription>
               Please provide your gender and date of birth for competition

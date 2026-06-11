@@ -50,6 +50,15 @@ vi.mock('@/server/notifications', () => ({
   notifyPaymentExpired: vi.fn(),
 }))
 
+// Mock financial events recorders
+const mockRecordRefundCompleted = vi.fn()
+const mockRecordDisputeEvent = vi.fn()
+vi.mock('@/server/commerce/financial-events', () => ({
+  recordRefundCompleted: (...args: unknown[]) =>
+    mockRecordRefundCompleted(...args),
+  recordDisputeEvent: (...args: unknown[]) => mockRecordDisputeEvent(...args),
+}))
+
 // Mock TanStack for route creation
 vi.mock('@tanstack/react-router', () => ({
   createFileRoute: () => (config: unknown) => config,
@@ -110,6 +119,8 @@ beforeEach(() => {
   mockDb.reset()
   mockDb.registerTable('commercePurchaseTable')
   mockDb.registerTable('teamTable')
+  mockDb.registerTable('competitionsTable')
+  mockDb.registerTable('financialEventTable')
 })
 
 describe('Stripe Webhook Handler', () => {
@@ -428,6 +439,145 @@ describe('Stripe Webhook Handler', () => {
       const response = await callWebhook(JSON.stringify(event))
       expect(response.status).toBe(200)
       expect(mockDb.update).toHaveBeenCalled()
+    })
+  })
+
+  describe('charge.refunded', () => {
+    function setupRefundLookups({
+      purchase,
+      competition,
+      existingRefundEvent = null,
+    }: {
+      purchase: Record<string, unknown> | null
+      competition?: Record<string, unknown> | null
+      existingRefundEvent?: Record<string, unknown> | null
+    }) {
+      mockDb.query.commercePurchaseTable = {
+        findFirst: vi.fn().mockResolvedValue(purchase),
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+      mockDb.query.competitionsTable = {
+        findFirst: vi.fn().mockResolvedValue(competition ?? null),
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+      mockDb.query.financialEventTable = {
+        findFirst: vi.fn().mockResolvedValue(existingRefundEvent),
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+    }
+
+    it('records REFUND_COMPLETED for each succeeded refund on the charge', async () => {
+      const charge = {
+        id: 'ch_test_1',
+        payment_intent: 'pi_test_refund_1',
+        refunds: {
+          data: [
+            {id: 're_test_1', amount: 7500, status: 'succeeded', reason: null},
+          ],
+        },
+      }
+      const event = buildStripeEvent('charge.refunded', charge, 'evt_refund_1')
+      mockConstructEventAsync.mockResolvedValue(event)
+
+      setupRefundLookups({
+        purchase: {
+          id: 'purchase-1',
+          competitionId: 'comp-1',
+          stripePaymentIntentId: 'pi_test_refund_1',
+        },
+        competition: {organizingTeamId: 'team-1'},
+      })
+
+      const response = await callWebhook(JSON.stringify(event))
+      expect(response.status).toBe(200)
+
+      expect(mockRecordRefundCompleted).toHaveBeenCalledTimes(1)
+      const call = mockRecordRefundCompleted.mock.calls[0]?.[0]
+      expect(call).toMatchObject({
+        purchaseId: 'purchase-1',
+        teamId: 'team-1',
+        amountCents: 7500,
+        stripePaymentIntentId: 'pi_test_refund_1',
+        stripeRefundId: 're_test_1',
+      })
+    })
+
+    it('skips refunds whose status is not "succeeded"', async () => {
+      const charge = {
+        id: 'ch_test_2',
+        payment_intent: 'pi_test_refund_2',
+        refunds: {
+          data: [
+            {id: 're_pending', amount: 5000, status: 'pending', reason: null},
+            {id: 're_failed', amount: 5000, status: 'failed', reason: null},
+          ],
+        },
+      }
+      const event = buildStripeEvent('charge.refunded', charge)
+      mockConstructEventAsync.mockResolvedValue(event)
+
+      setupRefundLookups({
+        purchase: {
+          id: 'purchase-2',
+          competitionId: 'comp-2',
+          stripePaymentIntentId: 'pi_test_refund_2',
+        },
+        competition: {organizingTeamId: 'team-2'},
+      })
+
+      const response = await callWebhook(JSON.stringify(event))
+      expect(response.status).toBe(200)
+      expect(mockRecordRefundCompleted).not.toHaveBeenCalled()
+    })
+
+    it('is idempotent: skips refunds already recorded as REFUND_COMPLETED', async () => {
+      const charge = {
+        id: 'ch_test_3',
+        payment_intent: 'pi_test_refund_3',
+        refunds: {
+          data: [
+            {id: 're_dupe', amount: 7500, status: 'succeeded', reason: null},
+          ],
+        },
+      }
+      const event = buildStripeEvent('charge.refunded', charge)
+      mockConstructEventAsync.mockResolvedValue(event)
+
+      setupRefundLookups({
+        purchase: {
+          id: 'purchase-3',
+          competitionId: 'comp-3',
+          stripePaymentIntentId: 'pi_test_refund_3',
+        },
+        competition: {organizingTeamId: 'team-3'},
+        existingRefundEvent: {
+          id: 'fevt_existing',
+          stripeRefundId: 're_dupe',
+          eventType: 'REFUND_COMPLETED',
+        },
+      })
+
+      const response = await callWebhook(JSON.stringify(event))
+      expect(response.status).toBe(200)
+      expect(mockRecordRefundCompleted).not.toHaveBeenCalled()
+    })
+
+    it('returns 200 and does nothing when payment_intent cannot be resolved', async () => {
+      const charge = {
+        id: 'ch_test_4',
+        payment_intent: null,
+        refunds: {
+          data: [
+            {id: 're_orphan', amount: 1000, status: 'succeeded', reason: null},
+          ],
+        },
+      }
+      const event = buildStripeEvent('charge.refunded', charge)
+      mockConstructEventAsync.mockResolvedValue(event)
+
+      const response = await callWebhook(JSON.stringify(event))
+      expect(response.status).toBe(200)
+      expect(mockRecordRefundCompleted).not.toHaveBeenCalled()
     })
   })
 

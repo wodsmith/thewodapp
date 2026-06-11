@@ -2,9 +2,14 @@
  * Decline an invite.
  *
  * Called from the `/compete/$slug/claim/$token/decline` route. Transitions
- * a pending invite to `declined` — nulls `activeMarker` and `claimToken`
- * so the unique-active index unblocks a future re-invite and the link
- * dies immediately.
+ * a pending invite to `declined` — nulls `activeMarker` so the
+ * unique-active index unblocks a future re-invite. Unlike other terminal
+ * transitions we intentionally **keep** `claimToken` set: an athlete who
+ * revisits the link should see the friendly "Invite declined" page rather
+ * than the generic "invalid link" copy that `not_found` would render.
+ * `assertInviteClaimable` still blocks any actual claim because
+ * `status = "declined"`, so retaining the token has no claim-side risk —
+ * it's a UX affordance only.
  *
  * Identity-match is the caller's responsibility (the route loader checks
  * the session email matches the invite email before dispatching). This
@@ -37,7 +42,9 @@ export async function declineInvite(params: {
     .set({
       status: COMPETITION_INVITE_STATUS.DECLINED,
       declinedAt: now,
-      claimToken: null,
+      // `claimToken` stays — see docstring. `activeMarker` is nulled
+      // so the unique-active index unblocks a future re-invite from
+      // the same (championship, division, email).
       activeMarker: null,
       updatedAt: now,
     })

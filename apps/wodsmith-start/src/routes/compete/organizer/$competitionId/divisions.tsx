@@ -141,7 +141,7 @@ function SeriesMappingBanner({
               to="/compete/organizer/series/$groupId/divisions"
               params={{ groupId: status.groupId }}
             >
-              Configure Series Divisions
+              Configure series divisions
               <ArrowRight className="h-4 w-4 ml-2" />
             </Link>
           </Button>
@@ -226,7 +226,7 @@ function SeriesMappingBanner({
             to="/compete/organizer/series/$groupId/divisions"
             params={{ groupId: status.groupId }}
           >
-            {allMapped ? "View Series Divisions" : "Configure Series Divisions"}
+            {allMapped ? "View series divisions" : "Configure series divisions"}
             <ArrowRight className="h-4 w-4 ml-2" />
           </Link>
         </Button>

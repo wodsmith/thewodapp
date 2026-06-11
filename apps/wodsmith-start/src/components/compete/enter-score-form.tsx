@@ -385,7 +385,7 @@ export function EnterScoreForm({
           onClick={handleSubmit}
           disabled={!canSubmit || isSubmitting}
         >
-          {isSubmitting ? "Saving..." : "Save Score"}
+          {isSubmitting ? "Saving..." : "Save score"}
         </Button>
       </CardContent>
     </Card>

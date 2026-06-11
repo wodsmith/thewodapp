@@ -37,6 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import type { Waiver } from "@/db/schemas/waivers"
 import {
   checkEmailExistsFn,
   getPendingInviteDataFn,
@@ -52,13 +53,13 @@ import {
   type RegistrationQuestion,
 } from "@/server-fns/registration-questions-fns"
 import { getCompetitionWaiversFn } from "@/server-fns/waiver-fns"
-import type { Waiver } from "@/db/schemas/waivers"
 import { AcceptInviteButton } from "./-components/accept-invite-button"
 import { AcceptVolunteerInviteForm } from "./-components/accept-volunteer-invite-form"
 import { GuestInviteForm } from "./-components/guest-invite-form"
 import { InviteSignUpForm } from "./-components/invite-signup-form"
 import { SuccessClaimPrompt } from "./-components/success-claim-prompt"
 
+// @lat: [[competition-invites#Claim routes]]
 export const Route = createFileRoute("/compete/invite/$token")({
   loader: async ({ params }) => {
     const [volunteerInvite, teammateInvite, session] = await Promise.all([
@@ -101,9 +102,11 @@ export const Route = createFileRoute("/compete/invite/$token")({
     }
 
     let waivers: Waiver[] = []
-    if (teammateInvite?.competition?.id) {
+    const waiverCompetitionId =
+      teammateInvite?.competition?.id ?? volunteerInvite?.competition?.id
+    if (waiverCompetitionId) {
       const waiversResult = await getCompetitionWaiversFn({
-        data: { competitionId: teammateInvite.competition.id },
+        data: { competitionId: waiverCompetitionId },
       })
       waivers = waiversResult.waivers
     }
@@ -200,6 +203,9 @@ function InvitePage() {
         token={token}
         emailHasAccount={emailHasAccount}
         volunteerQuestions={volunteerQuestions}
+        volunteerWaivers={waivers.filter(
+          (waiver) => waiver.requiredForVolunteers,
+        )}
       />
     )
   }
@@ -218,7 +224,7 @@ function InvitePage() {
               This invitation link is invalid or has expired.
             </p>
             <Button asChild variant="outline">
-              <Link to="/compete">Browse Competitions</Link>
+              <Link to="/">Browse Competitions</Link>
             </Button>
           </CardContent>
         </Card>
@@ -243,7 +249,7 @@ function InvitePage() {
                   to="/compete/$slug"
                   params={{ slug: invite.competition.slug }}
                 >
-                  View Competition
+                  View competition
                 </Link>
               </Button>
             )}
@@ -266,13 +272,15 @@ function InvitePage() {
               a new invite.
             </p>
             <Button asChild variant="outline">
-              <Link to="/compete">Browse Competitions</Link>
+              <Link to="/">Browse Competitions</Link>
             </Button>
           </CardContent>
         </Card>
       </div>
     )
   }
+
+  const athleteWaivers = waivers.filter((waiver) => waiver.required)
 
   // Note: Pending data transfer now happens automatically in acceptTeamInvitationFn
   // when the user accepts the invite - no need for separate transfer logic
@@ -299,11 +307,11 @@ function InvitePage() {
             <InviteDetails invite={invite} />
 
             {/* Registration Questions & Waivers - only show if no pending data (guest already filled them) */}
-            {(teammateQuestions.length > 0 || waivers.length > 0) &&
+            {(teammateQuestions.length > 0 || athleteWaivers.length > 0) &&
               !hasPendingData && (
                 <TeammateRequirementsForm
                   questions={teammateQuestions}
-                  waivers={waivers}
+                  waivers={athleteWaivers}
                   token={token}
                   competitionSlug={invite.competition?.slug}
                   competitionId={invite.competition?.id}
@@ -312,7 +320,7 @@ function InvitePage() {
               )}
 
             {/* Simple accept button if no requirements OR if pending data exists (will be transferred on accept) */}
-            {(teammateQuestions.length === 0 && waivers.length === 0) ||
+            {(teammateQuestions.length === 0 && athleteWaivers.length === 0) ||
             hasPendingData ? (
               <>
                 {hasPendingData && (
@@ -358,11 +366,11 @@ function InvitePage() {
             </div>
 
             {/* Show requirements form if questions or waivers exist */}
-            {(teammateQuestions.length > 0 || waivers.length > 0) &&
+            {(teammateQuestions.length > 0 || athleteWaivers.length > 0) &&
             !hasPendingData ? (
               <TeammateRequirementsForm
                 questions={teammateQuestions}
-                waivers={waivers}
+                waivers={athleteWaivers}
                 token={token}
                 competitionSlug={invite.competition?.slug}
                 competitionId={invite.competition?.id}
@@ -380,7 +388,7 @@ function InvitePage() {
             )}
             <div className="flex justify-center">
               <Button asChild variant="outline">
-                <a href="/api/auth/sign-out">Sign Out</a>
+                <a href="/api/auth/sign-out">Sign out</a>
               </Button>
             </div>
           </CardContent>
@@ -415,13 +423,13 @@ function InvitePage() {
               inviteToken={token}
               emailHasAccount={emailHasAccount}
             />
-          ) : teammateQuestions.length > 0 || waivers.length > 0 ? (
+          ) : teammateQuestions.length > 0 || athleteWaivers.length > 0 ? (
             <>
               <InviteDetails invite={invite} />
               <GuestInviteForm
                 token={token}
                 questions={teammateQuestions}
-                waivers={waivers}
+                waivers={athleteWaivers}
                 teamName={invite.team.name}
                 competitionName={invite.competition?.name || "Competition"}
                 onSuccess={() => setGuestSubmitComplete(true)}
@@ -439,7 +447,7 @@ function InvitePage() {
               <Button asChild className="w-full" size="lg">
                 <Link to="/sign-in" search={{ redirect: redirectPath }}>
                   <LogIn className="mr-2 h-4 w-4" />
-                  Sign In to Accept
+                  Sign in to accept
                 </Link>
               </Button>
             </>
@@ -611,7 +619,7 @@ function VolunteerApplicationStatus({ invite }: { invite: VolunteerInvite }) {
                 to="/compete/$slug"
                 params={{ slug: invite.competition.slug }}
               >
-                View Competition
+                View competition
               </Link>
             </Button>
           )}
@@ -623,7 +631,7 @@ function VolunteerApplicationStatus({ invite }: { invite: VolunteerInvite }) {
           )}
 
           <Button asChild variant="outline" className="w-full">
-            <Link to="/compete">Browse Competitions</Link>
+            <Link to="/">Browse Competitions</Link>
           </Button>
         </CardContent>
       </Card>
@@ -641,12 +649,14 @@ function DirectVolunteerInvite({
   token,
   emailHasAccount,
   volunteerQuestions,
+  volunteerWaivers,
 }: {
   invite: VolunteerInvite
   session: { userId: string; email: string | null } | null
   token: string
   emailHasAccount: boolean
   volunteerQuestions: RegistrationQuestion[]
+  volunteerWaivers: Waiver[]
 }) {
   // Check if already accepted
   if (invite.acceptedAt) {
@@ -665,7 +675,7 @@ function DirectVolunteerInvite({
                   to="/compete/$slug"
                   params={{ slug: invite.competition.slug }}
                 >
-                  View Competition
+                  View competition
                 </Link>
               </Button>
             )}
@@ -688,7 +698,7 @@ function DirectVolunteerInvite({
               organizer for a new invite.
             </p>
             <Button asChild variant="outline">
-              <Link to="/compete">Browse Competitions</Link>
+              <Link to="/">Browse Competitions</Link>
             </Button>
           </CardContent>
         </Card>
@@ -722,6 +732,7 @@ function DirectVolunteerInvite({
               competitionId={invite.competition?.id}
               competitionName={invite.competition?.name}
               questions={volunteerQuestions}
+              waivers={volunteerWaivers}
             />
           </CardContent>
         </Card>
@@ -759,11 +770,12 @@ function DirectVolunteerInvite({
               competitionId={invite.competition?.id}
               competitionName={invite.competition?.name}
               questions={volunteerQuestions}
+              waivers={volunteerWaivers}
             />
 
             <div className="flex justify-center">
               <Button asChild variant="outline">
-                <a href="/api/auth/sign-out">Sign Out</a>
+                <a href="/api/auth/sign-out">Sign out</a>
               </Button>
             </div>
           </CardContent>
@@ -799,7 +811,7 @@ function DirectVolunteerInvite({
               <Button asChild className="w-full" size="lg">
                 <Link to="/sign-in" search={{ redirect: redirectPath }}>
                   <LogIn className="mr-2 h-4 w-4" />
-                  Sign In to Accept
+                  Sign in to accept
                 </Link>
               </Button>
             </>
@@ -887,8 +899,8 @@ function TeammateRequirementsForm({
   )
 
   // Check if all required waivers are signed
-  const requiredWaivers = waivers.filter((w) => w.required)
-  const allRequiredWaiversSigned = requiredWaivers.every(
+  const athleteWaivers = waivers.filter((w) => w.required)
+  const allRequiredWaiversSigned = athleteWaivers.every(
     (w) =>
       (signatures[w.id]?.signatureName?.trim() ?? "") !== "" &&
       signatures[w.id]?.agreed === true,
@@ -988,7 +1000,7 @@ function TeammateRequirementsForm({
       )}
 
       {/* Waivers Section */}
-      {waivers.length > 0 && (
+      {athleteWaivers.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Waivers</CardTitle>
@@ -997,7 +1009,7 @@ function TeammateRequirementsForm({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {waivers.map((waiver) => (
+            {athleteWaivers.map((waiver) => (
               <Card key={waiver.id} className="border-2">
                 <Collapsible>
                   <CardHeader>
@@ -1011,7 +1023,7 @@ function TeammateRequirementsForm({
                       <CollapsibleTrigger asChild>
                         <Button variant="ghost" size="sm">
                           <FileText className="h-4 w-4 mr-2" />
-                          View Details
+                          View details
                           <ChevronDown className="h-4 w-4 ml-2" />
                         </Button>
                       </CollapsibleTrigger>

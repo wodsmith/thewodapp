@@ -184,19 +184,19 @@ export const getCompetitionSponsorsFn = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<CompetitionSponsorsResult> => {
     const db = getDb()
 
-    // Get all sponsor groups for this competition
-    const groups = await db
-      .select()
-      .from(sponsorGroupsTable)
-      .where(eq(sponsorGroupsTable.competitionId, data.competitionId))
-      .orderBy(asc(sponsorGroupsTable.displayOrder))
-
-    // Get all sponsors for this competition
-    const sponsors = await db
-      .select()
-      .from(sponsorsTable)
-      .where(eq(sponsorsTable.competitionId, data.competitionId))
-      .orderBy(asc(sponsorsTable.displayOrder))
+    // Fetch sponsor groups and sponsors in parallel
+    const [groups, sponsors] = await Promise.all([
+      db
+        .select()
+        .from(sponsorGroupsTable)
+        .where(eq(sponsorGroupsTable.competitionId, data.competitionId))
+        .orderBy(asc(sponsorGroupsTable.displayOrder)),
+      db
+        .select()
+        .from(sponsorsTable)
+        .where(eq(sponsorsTable.competitionId, data.competitionId))
+        .orderBy(asc(sponsorsTable.displayOrder)),
+    ])
 
     // Organize sponsors by group
     const groupsWithSponsors: SponsorGroupWithSponsors[] = groups.map(
@@ -493,6 +493,14 @@ export const createSponsorFn = createServerFn({ method: "POST" })
       )
     }
 
+    // For user sponsors, enforce ownership from session (never trust client userId)
+    if (data.userId) {
+      const session = await getSessionFromCookie()
+      if (!session?.userId || session.userId !== data.userId) {
+        throw new Error("Unauthorized")
+      }
+    }
+
     // If no displayOrder, put at end
     let order = data.displayOrder
     if (order === undefined) {
@@ -564,8 +572,13 @@ export const updateSponsorFn = createServerFn({ method: "POST" })
           TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
         )
       }
+    } else if (existing.userId) {
+      // For user sponsors, enforce ownership from session
+      const session = await getSessionFromCookie()
+      if (!session?.userId || session.userId !== existing.userId) {
+        throw new Error("Unauthorized")
+      }
     }
-    // For user sponsors, authorization is checked at action level
 
     await db
       .update(sponsorsTable)
@@ -618,6 +631,12 @@ export const deleteSponsorFn = createServerFn({ method: "POST" })
           competition.organizingTeamId,
           TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
         )
+      }
+    } else if (existing.userId) {
+      // For user sponsors, enforce ownership from session
+      const session = await getSessionFromCookie()
+      if (!session?.userId || session.userId !== existing.userId) {
+        throw new Error("Unauthorized")
       }
     }
 
@@ -799,7 +818,7 @@ export const getSponsorsPageDataFn = createServerFn({ method: "GET" }).handler(
     if (!session) {
       throw redirect({
         to: "/sign-in",
-        search: { redirect: "/compete/athlete/sponsors" },
+        search: { redirect: "/settings/sponsors" },
       })
     }
 

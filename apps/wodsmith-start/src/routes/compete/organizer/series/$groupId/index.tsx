@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start"
 import {
   ChevronDown,
   Copy,
+  Download,
   ListPlus,
   Pencil,
   Plus,
@@ -12,10 +13,10 @@ import {
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { AddCompetitionsToSeriesDialog } from "@/components/add-competitions-to-series-dialog"
+import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
 import type { CompetitionRevenueData } from "@/components/organizer-competitions-list"
 import { OrganizerCompetitionsList } from "@/components/organizer-competitions-list"
 import { SeriesRevenueSummary } from "@/components/series-competition-revenue-list"
-import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -31,6 +32,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import { Skeleton } from "@/components/ui/skeleton"
+import { FEATURES } from "@/config/features"
 import type { CohostMembershipMetadata } from "@/db/schemas/cohost"
 import { EditCohostPermissionsDialog } from "@/routes/compete/organizer/$competitionId/-components/edit-cohost-permissions-dialog"
 import { InviteCohostDialog } from "@/routes/compete/organizer/$competitionId/-components/invite-cohost-dialog"
@@ -44,14 +46,14 @@ import {
   getOrganizerCompetitionsFn,
   updateCompetitionFn,
 } from "@/server-fns/competition-fns"
+import { checkTeamHasFeatureFn } from "@/server-fns/entitlements"
 import { getSeriesQuestionsFn } from "@/server-fns/registration-questions-fns"
 import {
   getSeriesCohostsFn,
   removeSeriesCohostFn,
 } from "@/server-fns/series-cohost-fns"
-import { checkTeamHasFeatureFn } from "@/server-fns/entitlements"
+import { exportSeriesRegistrationsCsvFn } from "@/server-fns/series-registration-export-fns"
 import { getActiveTeamIdFn, getOrganizerTeamsFn } from "@/server-fns/team-fns"
-import { FEATURES } from "@/config/features"
 
 export const Route = createFileRoute(
   "/compete/organizer/series/$groupId/",
@@ -168,6 +170,8 @@ function SeriesDetailPage() {
   const router = useRouter()
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isExportingCsv, setIsExportingCsv] = useState(false)
+  const [isExportingRegistrationsCsv, setIsExportingRegistrationsCsv] =
+    useState(false)
   const [seriesRevenueStats, setSeriesRevenueStats] =
     useState<SeriesRevenueStats | null>(null)
 
@@ -203,6 +207,7 @@ function SeriesDetailPage() {
 
   const updateCompetition = useServerFn(updateCompetitionFn)
   const exportCsv = useServerFn(exportSeriesRevenueCsvFn)
+  const exportRegistrationsCsv = useServerFn(exportSeriesRegistrationsCsvFn)
 
   const handleQuestionsChange = () => {
     router.invalidate()
@@ -249,6 +254,27 @@ function SeriesDetailPage() {
     }
   }
 
+  const handleExportRegistrationsCsv = async () => {
+    if (!group) return
+    setIsExportingRegistrationsCsv(true)
+    try {
+      const csv = await exportRegistrationsCsv({ data: { groupId: group.id } })
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      const date = new Date().toISOString().split("T")[0]
+      a.download = `series-registrations-${group.slug}-${date}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error("Failed to export registration CSV:", error)
+      toast.error("Failed to export registration CSV")
+    } finally {
+      setIsExportingRegistrationsCsv(false)
+    }
+  }
+
   if (!teamId || !group) {
     return null
   }
@@ -257,11 +283,7 @@ function SeriesDetailPage() {
     <div className="flex flex-col gap-6">
         {/* Revenue Summary */}
         {seriesRevenueStats ? (
-          <SeriesRevenueSummary
-            stats={seriesRevenueStats}
-            onExportCsv={handleExportCsv}
-            isExporting={isExportingCsv}
-          />
+          <SeriesRevenueSummary stats={seriesRevenueStats} />
         ) : (
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="grid gap-4 grid-cols-2 sm:grid-cols-3">
@@ -297,6 +319,28 @@ function SeriesDetailPage() {
                   Slug
                 </div>
                 <div className="text-sm font-mono mt-1">{group.slug}</div>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportCsv}
+                    disabled={isExportingCsv}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    {isExportingCsv ? "Exporting..." : "Export Revenue Data"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportRegistrationsCsv}
+                    disabled={isExportingRegistrationsCsv}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    {isExportingRegistrationsCsv
+                      ? "Exporting..."
+                      : "Export Registration Data"}
+                  </Button>
+                </div>
               </div>
               <div>
                 <div className="text-sm font-medium text-muted-foreground">
@@ -343,7 +387,7 @@ function SeriesDetailPage() {
                 onClick={() => setIsAddDialogOpen(true)}
               >
                 <ListPlus className="h-4 w-4 mr-2" />
-                Add Existing
+                Add existing
               </Button>
               <Button size="sm" asChild>
                 <Link
@@ -351,7 +395,7 @@ function SeriesDetailPage() {
                   search={{ groupId: group.id }}
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Create Competition
+                  Create competition
                 </Link>
               </Button>
             </div>
@@ -365,7 +409,7 @@ function SeriesDetailPage() {
           />
         </div>
 
-      {/* Add Existing Competitions Dialog */}
+      {/* Add existing Competitions Dialog */}
       <AddCompetitionsToSeriesDialog
         open={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
@@ -586,38 +630,41 @@ function SeriesCohostsSection({
             })}
 
             {/* Pending invitations */}
-            {pendingInvitations.map((inv) => (
-              <Collapsible key={inv.email}>
-                <div className="flex items-center justify-between px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <CollapsibleTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-                      <ChevronDown className="h-3.5 w-3.5 transition-transform [[data-state=open]>&]:rotate-180" />
-                      {inv.email}
-                    </CollapsibleTrigger>
-                    <Badge variant="secondary" className="text-xs">
-                      {inv.competitionCount} of {totalCompetitions} competition
-                      {totalCompetitions !== 1 ? "s" : ""}
-                    </Badge>
-                    <Badge variant="outline" className="text-xs">
-                      Pending
-                    </Badge>
+            {pendingInvitations.map((inv) => {
+              const firstToken = inv.firstToken
+              return (
+                <Collapsible key={inv.email}>
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <CollapsibleTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+                        <ChevronDown className="h-3.5 w-3.5 transition-transform [[data-state=open]>&]:rotate-180" />
+                        {inv.email}
+                      </CollapsibleTrigger>
+                      <Badge variant="secondary" className="text-xs">
+                        {inv.competitionCount} of {totalCompetitions} competition
+                        {totalCompetitions !== 1 ? "s" : ""}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        Pending
+                      </Badge>
+                    </div>
+                    {firstToken && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copyInviteLink(firstToken)}
+                      >
+                        <Copy className="mr-1.5 h-3.5 w-3.5" />
+                        Copy link
+                      </Button>
+                    )}
                   </div>
-                  {inv.firstToken && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => copyInviteLink(inv.firstToken!)}
-                    >
-                      <Copy className="mr-1.5 h-3.5 w-3.5" />
-                      Copy Link
-                    </Button>
-                  )}
-                </div>
-                <CollapsibleContent>
-                  <PermissionsList permissions={inv.permissions} />
-                </CollapsibleContent>
-              </Collapsible>
-            ))}
+                  <CollapsibleContent>
+                    <PermissionsList permissions={inv.permissions} />
+                  </CollapsibleContent>
+                </Collapsible>
+              )
+            })}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">

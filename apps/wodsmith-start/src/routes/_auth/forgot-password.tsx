@@ -158,7 +158,7 @@ function ForgotPasswordPage() {
                   className="w-full font-mono uppercase"
                   disabled={isLoading}
                 >
-                  {isLoading ? "Sending..." : "Send Reset Instructions"}
+                  {isLoading ? "Sending..." : "Send reset instructions"}
                 </Button>
               </div>
             </form>

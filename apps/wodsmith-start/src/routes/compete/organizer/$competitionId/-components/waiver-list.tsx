@@ -26,6 +26,7 @@ import {
 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
+import { OrganizerEmptyState } from "@/components/organizer/empty-state"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,7 +40,6 @@ import {
 import { Button } from "@/components/ui/button"
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
@@ -199,12 +199,18 @@ function WaiverItem({
                 {waiver.required ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900/30 dark:text-red-400">
                     <AlertTriangle className="h-3 w-3" />
-                    Required
+                    Athlete required
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                     <CheckCircle2 className="h-3 w-3" />
-                    Optional
+                    Athlete optional
+                  </span>
+                )}
+                {waiver.requiredForVolunteers && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                    <AlertTriangle className="h-3 w-3" />
+                    Volunteer required
                   </span>
                 )}
               </div>
@@ -335,25 +341,19 @@ export function WaiverList({
           className="w-full sm:w-auto"
         >
           <Plus className="mr-2 h-4 w-4" />
-          Add Waiver
+          Add waiver
         </Button>
       </div>
 
       {waivers.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <ClipboardSignature className="mb-4 h-12 w-12 text-muted-foreground" />
-            <h3 className="mb-2 text-lg font-semibold">No waivers yet</h3>
-            <p className="mb-4 text-sm text-muted-foreground">
-              Create your first waiver to require athletes to sign liability
-              agreements
-            </p>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Waiver
-            </Button>
-          </CardContent>
-        </Card>
+        <OrganizerEmptyState
+          icon={ClipboardSignature}
+          title="No waivers yet"
+          description="Create a liability agreement or event policy that athletes must review before competing."
+          actionLabel="Add Waiver"
+          actionIcon={<Plus className="mr-2 h-4 w-4" />}
+          onAction={() => setIsCreateDialogOpen(true)}
+        />
       ) : (
         <div className="space-y-3">
           {waivers.map((waiver, index) => (
@@ -379,7 +379,14 @@ export function WaiverList({
         competitionId={competitionId}
         teamId={teamId}
         onSuccess={handleWaiverCreated}
-        overrides={overrides ? { createWaiver: overrides.createWaiver, updateWaiver: overrides.updateWaiver } : undefined}
+        overrides={
+          overrides
+            ? {
+                createWaiver: overrides.createWaiver,
+                updateWaiver: overrides.updateWaiver,
+              }
+            : undefined
+        }
       />
 
       {/* Edit Dialog */}
@@ -391,7 +398,14 @@ export function WaiverList({
           teamId={teamId}
           waiver={editingWaiver}
           onSuccess={handleWaiverUpdated}
-          overrides={overrides ? { createWaiver: overrides.createWaiver, updateWaiver: overrides.updateWaiver } : undefined}
+          overrides={
+            overrides
+              ? {
+                  createWaiver: overrides.createWaiver,
+                  updateWaiver: overrides.updateWaiver,
+                }
+              : undefined
+          }
         />
       )}
 
@@ -402,7 +416,7 @@ export function WaiverList({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Waiver</AlertDialogTitle>
+            <AlertDialogTitle>Delete waiver</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete this waiver? Athletes who have
               already signed it will keep their signature records, but the

@@ -104,6 +104,7 @@ class FakeFreeCompetitionNotEligibleError extends Error {
 vi.mock("@/server/competition-invites/issue", () => ({
   issueInvitesForRecipients: vi.fn(),
   reissueInvite: vi.fn(),
+  redeliverInvite: vi.fn(),
   normalizeInviteEmail: (e: string) => e.trim().toLowerCase(),
   FreeCompetitionNotEligibleError: FakeFreeCompetitionNotEligibleError,
 }))
@@ -115,8 +116,12 @@ vi.mock("@react-email/render", () => ({
   render: renderMock,
 }))
 
+// Capture the props passed to CompetitionInviteEmail so tests can assert
+// the rendered email body received the expected sourceLabel (placement)
+// from the invite row.
+const inviteEmailMock = vi.fn((_props: unknown) => ({}))
 vi.mock("@/react-email/competition-invites/invite-email", () => ({
-  CompetitionInviteEmail: () => ({}),
+  CompetitionInviteEmail: (props: unknown) => inviteEmailMock(props),
 }))
 
 vi.mock("@/lib/env", () => ({
@@ -218,6 +223,8 @@ beforeEach(() => {
   updateCalls.length = 0
   renderMock.mockClear()
   renderMock.mockImplementation(async () => "<html>email</html>")
+  inviteEmailMock.mockClear()
+  inviteEmailMock.mockImplementation((_props: unknown) => ({}))
   queueStub.send.mockClear()
   queueStub.send.mockImplementation(async () => undefined)
   // restore env queue binding (a test below removes it)
@@ -455,7 +462,10 @@ describe("issueInvitesFn", () => {
     expect(renderMock).toHaveBeenCalledTimes(2)
   })
 
-  it("classifies non-draft already-active rows as skipped (no email queued)", async () => {
+  it("classifies skip-resolution already-active rows as skipped (no email queued)", async () => {
+    // `resolution: "skip"` covers terminal active states like
+    // `accepted_paid` — re-delivering would spam an athlete who's
+    // already registered, so the helper marks the row to be left alone.
     const { auth, issue } = await getMocks()
     vi.mocked(auth.getSessionFromCookie).mockResolvedValue(
       sessionStub as unknown as Awaited<
@@ -470,7 +480,7 @@ describe("issueInvitesFn", () => {
         {
           email: "a@example.com",
           existingInviteId: "ci_existing",
-          isDraft: false,
+          resolution: "skip",
         },
       ],
     })
@@ -503,6 +513,83 @@ describe("issueInvitesFn", () => {
     expect(queueStub.send).not.toHaveBeenCalled()
   })
 
+  it("redelivers a resend-resolution row via redeliverInvite (keeps the same claim token)", async () => {
+    // Use case: organizer is opening up earned spots first-come-first-serve
+    // and wants to nudge previously-invited athletes that they could lose
+    // their qualifying spot. The athlete may already have the prior link
+    // in hand, so we DO NOT rotate the token — we re-deliver the email
+    // with a refreshed expiration date and the same claim URL.
+    const { auth, issue } = await getMocks()
+    vi.mocked(auth.getSessionFromCookie).mockResolvedValue(
+      sessionStub as unknown as Awaited<
+        ReturnType<typeof auth.getSessionFromCookie>
+      >,
+    )
+    pushHappyPathLookups()
+
+    vi.mocked(issue.issueInvitesForRecipients).mockResolvedValueOnce({
+      inserted: [],
+      alreadyActive: [
+        {
+          email: "athlete@example.com",
+          existingInviteId: "ci_resend",
+          resolution: "resend",
+        },
+      ],
+    })
+
+    const refreshedInvite = makeInvite({
+      id: "ci_resend",
+      email: "athlete@example.com",
+      claimToken: "tok_already_delivered",
+      sendAttempt: 2,
+      expiresAt: new Date("2099-12-31T23:59:59Z"),
+    })
+    vi.mocked(issue.redeliverInvite).mockResolvedValueOnce({
+      invite: refreshedInvite,
+      plaintextToken: "tok_already_delivered",
+    })
+
+    const { issueInvitesFn } = await import(
+      "@/server-fns/competition-invite-fns"
+    )
+
+    const result = await (
+      issueInvitesFn as unknown as (ctx: {
+        data: unknown
+      }) => Promise<{
+        sentCount: number
+        skipped: unknown[]
+        failed: unknown[]
+      }>
+    )({
+      data: {
+        championshipCompetitionId: "comp_champ",
+        championshipDivisionId: "div_rx",
+        rsvpDeadlineDate: "2099-12-31",
+        subject: "Spots opening up",
+        recipients: [{ ...validRecipient, email: "athlete@example.com" }],
+      },
+    })
+
+    expect(issue.redeliverInvite).toHaveBeenCalledTimes(1)
+    expect(issue.redeliverInvite).toHaveBeenCalledWith(
+      expect.objectContaining({ inviteId: "ci_resend" }),
+    )
+    // Token rotation must NOT happen for resend-resolution rows.
+    expect(issue.reissueInvite).not.toHaveBeenCalled()
+    expect(result.sentCount).toBe(1)
+    expect(result.skipped).toHaveLength(0)
+    expect(queueStub.send).toHaveBeenCalledTimes(1)
+    // Render received the existing token (no rotation) — the athlete's
+    // prior email link must still work after the resend.
+    expect(inviteEmailMock).toHaveBeenCalledTimes(1)
+    const renderedProps = inviteEmailMock.mock.calls[0]?.[0] as unknown as {
+      claimUrl: string
+    }
+    expect(renderedProps.claimUrl).toContain("tok_already_delivered")
+  })
+
   it("activates draft bespoke rows via reissueInvite and queues their emails", async () => {
     const { auth, issue } = await getMocks()
     vi.mocked(auth.getSessionFromCookie).mockResolvedValue(
@@ -518,7 +605,7 @@ describe("issueInvitesFn", () => {
         {
           email: "draft@example.com",
           existingInviteId: "ci_draft",
-          isDraft: true,
+          resolution: "draft",
         },
       ],
     })
@@ -776,17 +863,17 @@ describe("issueInvitesFn", () => {
         {
           email: "draft1@example.com",
           existingInviteId: "ci_d1",
-          isDraft: true,
+          resolution: "draft",
         },
         {
           email: "draft2@example.com",
           existingInviteId: "ci_d2",
-          isDraft: true,
+          resolution: "draft",
         },
         {
           email: "draft3@example.com",
           existingInviteId: "ci_d3",
-          isDraft: true,
+          resolution: "draft",
         },
       ],
     })
@@ -919,5 +1006,76 @@ describe("issueInvitesFn", () => {
     expect(args?.rsvpDeadlineAt.toISOString()).toBe(
       "2025-03-01T23:59:59.000Z",
     )
+  })
+
+  // @lat: [[competition-invites#Email delivery#Source label is leaderboard placement]]
+  it("renders the email's Qualified-via label from the invite row's sourcePlacementLabel (leaderboard rank)", async () => {
+    // Regression guard for the chain that PR #445 fixed end-to-end:
+    //   getCompetitionLeaderboard.overallRank
+    //     → CandidateEntry.overallRank
+    //     → RosterRow.sourcePlacement
+    //     → recipient.sourcePlacementLabel ("3rd — <comp> · <div>")
+    //     → competition_invites.sourcePlacementLabel
+    //     → CompetitionInviteEmail props.sourceLabel
+    //     → email body "Qualified via: 3rd — <comp> · <div>"
+    //
+    // The earlier sub-arc (roster ↔ leaderboard) is locked by
+    // `roster-candidates-wiring.test.ts`. This test pins the
+    // tail of the chain — that the rank we ranked-by ends up in the
+    // recipient's inbox, not whatever ordering the row was inserted in.
+    const { auth, issue } = await getMocks()
+    vi.mocked(auth.getSessionFromCookie).mockResolvedValue(
+      sessionStub as unknown as Awaited<
+        ReturnType<typeof auth.getSessionFromCookie>
+      >,
+    )
+    pushHappyPathLookups()
+
+    const leaderboardLabel = "3rd — Qualifier Open · RX"
+    const invite = makeInvite({
+      id: "ci_a",
+      email: "a@example.com",
+      sourcePlacement: 3,
+      sourcePlacementLabel: leaderboardLabel,
+    })
+    vi.mocked(issue.issueInvitesForRecipients).mockResolvedValueOnce({
+      inserted: [{ invite, plaintextToken: "tok_a" }],
+      alreadyActive: [],
+    })
+
+    const { issueInvitesFn } = await import(
+      "@/server-fns/competition-invite-fns"
+    )
+
+    await (
+      issueInvitesFn as unknown as (ctx: {
+        data: unknown
+      }) => Promise<unknown>
+    )({
+      data: {
+        championshipCompetitionId: "comp_champ",
+        championshipDivisionId: "div_rx",
+        rsvpDeadlineDate: "2099-12-31",
+        subject: "Welcome",
+        recipients: [
+          {
+            ...validRecipient,
+            email: "a@example.com",
+            sourcePlacement: 3,
+            sourcePlacementLabel: leaderboardLabel,
+          },
+        ],
+      },
+    })
+
+    // CompetitionInviteEmail received the leaderboard-derived label as
+    // `sourceLabel`. The email JSX renders this verbatim under the
+    // "Qualified via:" detail row, so an assertion here is equivalent
+    // to asserting the recipient sees the leaderboard placement.
+    expect(inviteEmailMock).toHaveBeenCalledTimes(1)
+    const props = inviteEmailMock.mock.calls[0]?.[0] as unknown as {
+      sourceLabel: string | null | undefined
+    }
+    expect(props.sourceLabel).toBe(leaderboardLabel)
   })
 })

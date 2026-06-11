@@ -13,15 +13,14 @@
  * @see https://tanstack.com/start/latest/docs/framework/react/hosting#custom-server-entry
  */
 
-import type {
-  ExecutionContext,
-  MessageBatch,
-} from "@cloudflare/workers-types"
+import { env, waitUntil } from "cloudflare:workers"
+import type { ExecutionContext, MessageBatch } from "@cloudflare/workers-types"
 import * as Sentry from "@sentry/cloudflare"
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry"
-import { env, waitUntil } from "cloudflare:workers"
+import { getAgentByName } from "agents"
 import { sendBatchToPostHog } from "evlog/posthog"
 import { createWorkersLogger, initWorkersLogger } from "evlog/workers"
+import type { JudgeSchedulerAgent } from "./agents/judge-scheduler-agent"
 import { withEvlog } from "./lib/evlog"
 import {
   extractRequestInfo,
@@ -30,6 +29,7 @@ import {
   withRequestContext,
 } from "./lib/logging"
 import { getSentryOptions } from "./lib/sentry/server"
+import { getSessionFromRequestCookie, withSessionCache } from "./utils/auth"
 
 // Sensitive field names to redact as a safety net in the drain.
 // This catches any PII that accidentally leaks through log.set().
@@ -45,9 +45,7 @@ const SENSITIVE_KEYS = [
   "captcha",
 ]
 
-function deepSanitize(
-  obj: Record<string, unknown>,
-): Record<string, unknown> {
+function deepSanitize(obj: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(obj)) {
     if (SENSITIVE_KEYS.some((k) => key.toLowerCase().includes(k))) {
@@ -98,16 +96,54 @@ initWorkersLogger({
   },
 })
 
+// Workers runtime requires Durable Object classes to be exported from the entry point
+export { JudgeSchedulerAgent } from "./agents/judge-scheduler-agent"
+export { ManualRegistrationWorkflow } from "./workflows/manual-registration-workflow"
 // Workers runtime requires Workflow classes to be exported from the entry point
 export { StripeCheckoutWorkflow } from "./workflows/stripe-checkout-workflow"
-export { ManualRegistrationWorkflow } from "./workflows/manual-registration-workflow"
 
 // Threshold for logging slow requests (in ms)
 const SLOW_REQUEST_THRESHOLD_MS = 2000
 
 // Create the base TanStack Start entry with default fetch handling
 const startEntry = createServerEntry({
-  fetch(request) {
+  async fetch(request) {
+    // Route /agents/<namespace>/<name>/... to the matching Agent DO.
+    // We resolve the stub via getAgentByName (which calls setName under the
+    // hood and persists the name to DO storage) instead of routeAgentRequest
+    // — miniflare doesn't reliably expose ctx.id.name for idFromName() IDs,
+    // and persisting the name is also required for hibernating WS messages
+    // that re-instantiate the DO without the original Upgrade request.
+    const url = new URL(request.url)
+    const parts = url.pathname.split("/").filter(Boolean)
+    if (parts[0] === "agents" && parts.length >= 3) {
+      const namespace = parts[1]
+      const name = parts[2]
+      if (namespace === "judge-scheduler-agent") {
+        // Agent instance names are `<trackWorkoutId>__<userId>` (or
+        // `idle__<userId>` for the placeholder before a workout is
+        // selected). Reject anything else so an attacker can't spawn /
+        // probe arbitrary DO identities by hitting the route directly
+        // — getAgentByName persists the name and would otherwise let
+        // callers materialize as many DOs as they like.
+        const match = /^([a-z0-9_-]{1,128})__([a-z0-9_-]{1,128})$/i.exec(name)
+        if (!match) {
+          return new Response("Invalid agent name", { status: 400 })
+        }
+        const [, , userId] = match
+        const session = await getSessionFromRequestCookie(request)
+        if (!session?.userId || session.userId !== userId) {
+          return new Response("Unauthorized", { status: 401 })
+        }
+        // The DO namespace is typed as <undefined> by the autogen env types
+        // because alchemy doesn't pipe the class through. Cast to the agent
+        // class for the agents library's name-persistence helper.
+        const ns =
+          env.JUDGE_SCHEDULER_AGENT as unknown as DurableObjectNamespace<JudgeSchedulerAgent>
+        const stub = await getAgentByName(ns, name)
+        return stub.fetch(request)
+      }
+    }
     return handler.fetch(request)
   },
 })
@@ -172,60 +208,60 @@ async function fetchWithLogging(
       path: requestInfo.path,
     },
     () =>
-      withEvlog(log, async () => {
-        try {
-          const response = await startEntry.fetch(request)
-          const durationMs = Date.now() - startTime
+      withEvlog(log, () =>
+        withSessionCache(async () => {
+          try {
+            const response = await startEntry.fetch(request)
+            const durationMs = Date.now() - startTime
 
-          // Only log errors or slow requests
-          if (response.status >= 400) {
-            logWarning({
-              message: `[HTTP] ${requestInfo.method} ${requestInfo.path} -> ${response.status}`,
+            // Only log errors or slow requests
+            if (response.status >= 400) {
+              logWarning({
+                message: `[HTTP] ${requestInfo.method} ${requestInfo.path} -> ${response.status}`,
+                attributes: {
+                  httpMethod: requestInfo.method,
+                  httpPath: requestInfo.path,
+                  status: response.status,
+                  durationMs,
+                },
+              })
+            } else if (durationMs >= SLOW_REQUEST_THRESHOLD_MS) {
+              logWarning({
+                message: `[HTTP] Slow request: ${requestInfo.method} ${requestInfo.path}`,
+                attributes: {
+                  httpMethod: requestInfo.method,
+                  httpPath: requestInfo.path,
+                  status: response.status,
+                  durationMs,
+                },
+              })
+            }
+
+            // Emit the wide event with accumulated context
+            log.emit({ status: response.status })
+
+            return response
+          } catch (error) {
+            const durationMs = Date.now() - startTime
+
+            logError({
+              message: `[HTTP] ${requestInfo.method} ${requestInfo.path} -> Error`,
+              error,
               attributes: {
                 httpMethod: requestInfo.method,
                 httpPath: requestInfo.path,
-                status: response.status,
                 durationMs,
               },
             })
-          } else if (durationMs >= SLOW_REQUEST_THRESHOLD_MS) {
-            logWarning({
-              message: `[HTTP] Slow request: ${requestInfo.method} ${requestInfo.path}`,
-              attributes: {
-                httpMethod: requestInfo.method,
-                httpPath: requestInfo.path,
-                status: response.status,
-                durationMs,
-              },
-            })
+
+            // Emit the wide event with error context
+            log.error(error instanceof Error ? error : new Error(String(error)))
+            log.emit({ status: 500 })
+
+            throw error
           }
-
-          // Emit the wide event with accumulated context
-          log.emit({ status: response.status })
-
-          return response
-        } catch (error) {
-          const durationMs = Date.now() - startTime
-
-          logError({
-            message: `[HTTP] ${requestInfo.method} ${requestInfo.path} -> Error`,
-            error,
-            attributes: {
-              httpMethod: requestInfo.method,
-              httpPath: requestInfo.path,
-              durationMs,
-            },
-          })
-
-          // Emit the wide event with error context
-          log.error(
-            error instanceof Error ? error : new Error(String(error)),
-          )
-          log.emit({ status: 500 })
-
-          throw error
-        }
-      }),
+        }),
+      ),
   )
 }
 
@@ -243,11 +279,7 @@ export default Sentry.withSentry((env: Env) => getSentryOptions(env), {
 
   // Cloudflare Queue consumer for broadcast email delivery.
   // Messages are enqueued by sendBroadcastFn and processed here asynchronously.
-  async queue(
-    batch: MessageBatch,
-    _env: Env,
-    _ctx: ExecutionContext,
-  ) {
+  async queue(batch: MessageBatch, _env: Env, _ctx: ExecutionContext) {
     // Dynamic import to keep cold start fast
     const { handleBroadcastEmailQueue } = await import(
       "./server/broadcast-queue-consumer"

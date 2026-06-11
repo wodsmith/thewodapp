@@ -331,7 +331,7 @@ export function SeriesTemplateEventEditor({
       <div className="flex justify-end">
         <Button onClick={() => setShowCreateDialog(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Create Event
+          Create event
         </Button>
       </div>
 
@@ -342,7 +342,7 @@ export function SeriesTemplateEventEditor({
           </p>
           <Button onClick={() => setShowCreateDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            Create First Event
+            Create first event
           </Button>
         </div>
       ) : (
@@ -422,7 +422,7 @@ export function SeriesTemplateEventEditor({
                       onClick={() => handleAddSubEvent(event.id)}
                     >
                       <Plus className="h-3 w-3 mr-1" />
-                      Add Sub-Event
+                      Add sub-event
                     </Button>
                   </div>
                 )}
@@ -445,7 +445,7 @@ export function SeriesTemplateEventEditor({
         </div>
       )}
 
-      {/* Create Event Dialog */}
+      {/* Create event dialog */}
       <CreateEventDialog
         open={showCreateDialog}
         onOpenChange={(open) => {
@@ -466,7 +466,7 @@ export function SeriesTemplateEventEditor({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Event</AlertDialogTitle>
+            <AlertDialogTitle>Delete event</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete &quot;{deletingEvent?.name}
               &quot;? This will also remove any competition event matches for

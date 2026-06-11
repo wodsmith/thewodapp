@@ -157,7 +157,7 @@ export function RotationSettingsForm({ competition }: Props) {
                 Saving...
               </>
             ) : (
-              "Save Settings"
+              "Save settings"
             )}
           </Button>
         </div>

@@ -442,7 +442,7 @@ function TemplateEditor({
                 disabled={isSaving}
               >
                 <Save className="h-4 w-4 mr-2" />
-                {isSaving ? "Saving..." : "Save Template"}
+                {isSaving ? "Saving..." : "Save template"}
               </Button>
               <Button
                 size="sm"
@@ -922,7 +922,7 @@ function TemplateCreator({
                 disabled={!newLabel.trim()}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Add Division
+                Add division
               </Button>
             </div>
 
@@ -934,7 +934,7 @@ function TemplateCreator({
                 customDivisions.filter((d) => d.label.trim()).length === 0
               }
             >
-              {isCreating ? "Creating..." : "Create Template"}
+              {isCreating ? "Creating..." : "Create template"}
             </Button>
           </div>
         )}

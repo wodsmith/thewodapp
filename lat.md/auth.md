@@ -14,6 +14,14 @@ Session tokens stored as HTTP-only cookies. The `/api/get-session` endpoint vali
 
 Session management functions live in `src/server-fns/session-fns.ts`. Auth middleware in `src/server-fns/middleware/` wraps server functions to require authentication.
 
+### Per-request session cache
+
+`getSessionFromCookie()` is memoized per HTTP request via `AsyncLocalStorage`.
+
+Multiple calls within the same request lifecycle (e.g. handler + nested `requireTeamPermission`) share a single KV read. The `withSessionCache` wrapper is applied once at the fetch boundary in [[apps/wodsmith-start/src/server.ts]], and during SSR it deduplicates the session lookup across all loaders/server fns running in one request. See [[apps/wodsmith-start/src/utils/auth.ts#getSessionFromCookie]].
+
+Custom Worker handlers that run before TanStack Start installs its request context must not call `getSessionFromCookie()`. They validate the raw `Cookie` header with [[apps/wodsmith-start/src/utils/auth.ts#getSessionFromRequestCookie]] instead, which uses the same session token validation without depending on Start's `AsyncLocalStorage`.
+
 ## Authorization
 
 Route-level auth is enforced by the `_protected` layout route. Server function auth uses middleware that validates the session and injects the current user.
@@ -27,6 +35,12 @@ Composite access helpers combine multiple checks: `requireSubmissionReviewAccess
 Cohosts have a separate auth path from organizers, using `requireCohostPermission` from [[apps/wodsmith-start/src/utils/cohost-auth.ts#requireCohostPermission]].
 
 Cohost server functions live in `src/server-fns/cohost/` and mirror their organizer counterparts but authenticate via the competition team ID rather than the organizing team ID. Each cohost membership stores granular permissions in `CohostMembershipMetadata` with a 1:1 mapping from sidebar nav item to boolean permission flag: Competition Setup (`divisions`, `events`, `scoring`, `registrations`, `waivers` — defaults OFF except `registrations`), Run Competition (`schedule`, `locations`, `volunteers`, `results` — defaults ON), Business (`pricing`, `revenue`, `coupons`, `sponsors` — defaults OFF). `requireCohostPermission` accepts an optional `permissionKey` to gate specific operations. The cohost module includes `cohost-division-fns.ts` (divisions gated), `cohost-event-fns.ts` (events gated), `cohost-workout-fns.ts` (events gated), `cohost-scoring-fns.ts` (scoring gated for reads, results gated for writes), `cohost-registration-fns.ts` (registrations gated), `cohost-waiver-fns.ts` (waivers gated), `cohost-schedule-fns.ts` (schedule gated), `cohost-location-fns.ts` (locations gated), `cohost-volunteer-fns.ts` (volunteers gated), `cohost-results-fns.ts` (results gated), `cohost-submission-fns.ts` (results gated), `cohost-sponsor-fns.ts` (sponsors gated), `cohost-settings-fns.ts` (capacity — divisions gated, scoring/rotation reads — base access), `cohost-pricing-fns.ts` (pricing gated), `cohost-revenue-fns.ts` (revenue gated), `cohost-coupon-fns.ts` (coupons gated), and `cohost-competition-fns.ts` (base access for reads, volunteers for rotation writes, scoring for scoring config writes).
+
+### Cohost permission lookups
+
+Cohost access checks query active DB memberships directly so accepted invites work before KV sessions catch up.
+
+[[apps/wodsmith-start/src/server/cohost.ts#getCohostPermissions]] does not trust `session.teams` as the source of truth. Invite acceptance writes `team_memberships` before refreshing sessions, and Cloudflare KV can briefly return the pre-acceptance session; DB-backed checks let the new cohost land on `/compete/cohost/{competitionId}` immediately.
 
 ## Placeholder Users
 

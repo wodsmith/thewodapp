@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react"
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
+import { useEffect, useMemo, useState } from "react"
 import { AthleteScoreSubmissionPanel } from "@/components/compete/athlete-score-submission-panel"
 import { CompetitionLocationCard } from "@/components/competition-location-card"
 import { CompetitionTabs } from "@/components/competition-tabs"
@@ -15,9 +15,9 @@ import {
   type PublicScheduleEvent,
 } from "@/server-fns/competition-heats-fns"
 import {
+  type DivisionDescription,
   getBatchWorkoutDivisionDescriptionsFn,
   getPublishedCompetitionWorkoutsWithDetailsFn,
-  type DivisionDescription,
 } from "@/server-fns/competition-workouts-fns"
 import { getPublicEventDivisionMappingsFn } from "@/server-fns/event-division-mapping-fns"
 import { getBatchSubmissionStatusFn } from "@/server-fns/video-submission-fns"
@@ -27,6 +27,7 @@ const parentRoute = getRouteApi("/compete/$slug")
 
 export const Route = createFileRoute("/compete/$slug/")({
   component: CompetitionOverviewPage,
+  staleTime: 30_000,
   loader: async ({ parentMatchPromise }) => {
     const parentMatch = await parentMatchPromise
     const competition = parentMatch.loaderData?.competition
@@ -84,7 +85,10 @@ export const Route = createFileRoute("/compete/$slug/")({
         : Promise.resolve(null),
       getPublicEventDivisionMappingsFn({
         data: { competitionId },
-      }).catch(() => ({ mappings: [] as Array<{ trackWorkoutId: string; divisionId: string }>, hasMappings: false })),
+      }).catch(() => ({
+        mappings: [] as Array<{ trackWorkoutId: string; divisionId: string }>,
+        hasMappings: false,
+      })),
     ])
 
     if (submissionResult) {
@@ -111,6 +115,8 @@ function CompetitionOverviewPage() {
     divisions,
     competitionCapacity,
     sponsors,
+    pendingTeamInvites,
+    pendingCompetitionInvites,
     userDivision,
     userDivisions,
     maxSpots,
@@ -219,39 +225,43 @@ function CompetitionOverviewPage() {
                 <div className="space-y-6">
                   <h2 className="text-xl font-semibold mb-4">Workouts</h2>
                   <div className="space-y-6">
-                    {workouts.filter((w) => !w.parentEventId).map((event) => {
-                      const divisionDescriptionsResult =
-                        divisionDescriptionsMap[event.workoutId]
-                      return (
-                        <CompetitionWorkoutCard
-                          key={event.id}
-                          eventId={event.id}
-                          slug={slug}
-                          trackOrder={event.trackOrder}
-                          name={event.workout.name}
-                          scheme={event.workout.scheme}
-                          description={event.workout.description}
-                          roundsToScore={event.workout.roundsToScore}
-                          pointsMultiplier={event.pointsMultiplier}
-                          movements={event.workout.movements}
-                          tags={event.workout.tags}
-                          divisionDescriptions={
-                            divisionDescriptionsResult ?? []
-                          }
-                          sponsorName={event.sponsorName}
-                          sponsorLogoUrl={event.sponsorLogoUrl}
-                          selectedDivisionId="default"
-                          isRegistered={isRegistered}
-                          submissionStatus={
-                            submissionStatusMap[event.id] ?? null
-                          }
-                          timeCap={event.workout.timeCap}
-                          schedule={scheduleMap?.get(event.id) ?? null}
-                          childEvents={childEventsMap.get(event.id)}
-                          childDivisionDescriptionsMap={divisionDescriptionsMap}
-                        />
-                      )
-                    })}
+                    {workouts
+                      .filter((w) => !w.parentEventId)
+                      .map((event) => {
+                        const divisionDescriptionsResult =
+                          divisionDescriptionsMap[event.workoutId]
+                        return (
+                          <CompetitionWorkoutCard
+                            key={event.id}
+                            eventId={event.id}
+                            slug={slug}
+                            trackOrder={event.trackOrder}
+                            name={event.workout.name}
+                            scheme={event.workout.scheme}
+                            description={event.workout.description}
+                            roundsToScore={event.workout.roundsToScore}
+                            pointsMultiplier={event.pointsMultiplier}
+                            movements={event.workout.movements}
+                            tags={event.workout.tags}
+                            divisionDescriptions={
+                              divisionDescriptionsResult ?? []
+                            }
+                            sponsorName={event.sponsorName}
+                            sponsorLogoUrl={event.sponsorLogoUrl}
+                            selectedDivisionId="default"
+                            isRegistered={isRegistered}
+                            submissionStatus={
+                              submissionStatusMap[event.id] ?? null
+                            }
+                            timeCap={event.workout.timeCap}
+                            schedule={scheduleMap?.get(event.id) ?? null}
+                            childEvents={childEventsMap.get(event.id)}
+                            childDivisionDescriptionsMap={
+                              divisionDescriptionsMap
+                            }
+                          />
+                        )
+                      })}
                   </div>
                 </div>
               ) : undefined
@@ -275,6 +285,8 @@ function CompetitionOverviewPage() {
           isCaptain={userRegistration?.userId === session?.userId}
           isVolunteer={isVolunteer}
           userRegistrations={userDivisions}
+          pendingTeamInvites={pendingTeamInvites}
+          pendingCompetitionInvites={pendingCompetitionInvites}
           session={session}
           competitionCapacity={competitionCapacity}
         />

@@ -5,7 +5,7 @@ const testimonials = [
     quote:
       "The backend ops are the real problem. Payment is table stakes. WODsmith gets that.",
     name: "Basile",
-    title: "Verdant CrossFit",
+    title: "Verdant Functional Fitness",
     event: "Multi-location comp organizer",
   },
   {

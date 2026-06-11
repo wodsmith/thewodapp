@@ -35,7 +35,11 @@ import { getSiteUrl } from "@/lib/env"
 import { logError, logInfo } from "@/lib/logging/posthog-otel-logger"
 import { RegistrationConfirmationEmail } from "@/react-email/registration-confirmation"
 import { parseCompetitionSettings } from "@/server-fns/competition-divisions-fns"
-import { sendCompetitionTeamInviteEmail, sendEmail } from "@/utils/email"
+import {
+  sendCompetitionTeamInviteEmail,
+  sendCompetitionTeamMemberAddedEmail,
+  sendEmail,
+} from "@/utils/email"
 import { updateAllSessionsOfUser } from "@/utils/kv-session"
 import { generateSlug } from "@/utils/slugify"
 import {
@@ -171,6 +175,12 @@ async function inviteUserToTeamInternal({
     competitionSlug: string
     teamName: string
     divisionName: string
+    /**
+     * Registration id of the team's captain — used to build the team-roster
+     * URL in the "added to team" email so the recipient can complete
+     * registration questions and sign waivers.
+     */
+    registrationId?: string
   }
 }): Promise<{
   userJoined: boolean
@@ -240,6 +250,29 @@ async function inviteUserToTeamInternal({
             isActive: true,
           })
         }
+      }
+
+      // Notify existing-account teammates that they've been added so they
+      // know to answer registration questions and sign required waivers.
+      if (competitionContext.registrationId) {
+        const inviter = await db.query.userTable.findFirst({
+          where: eq(userTable.id, invitedBy),
+          columns: { firstName: true, lastName: true },
+        })
+        const inviterName = inviter
+          ? `${inviter.firstName || ""} ${inviter.lastName || ""}`.trim() ||
+            "Your team captain"
+          : "Your team captain"
+
+        await sendCompetitionTeamMemberAddedEmail({
+          email: email.toLowerCase(),
+          registrationId: competitionContext.registrationId,
+          competitionSlug: competitionContext.competitionSlug,
+          competitionName: competition?.name ?? "the competition",
+          teamName: competitionContext.teamName,
+          divisionName: competitionContext.divisionName,
+          inviterName,
+        })
       }
     }
 
@@ -777,6 +810,7 @@ export async function registerForCompetition(
           competitionSlug: competition.slug,
           teamName: params.teamName ?? "Unknown Team",
           divisionName: division.label,
+          registrationId: registration.id,
         },
       })
     }

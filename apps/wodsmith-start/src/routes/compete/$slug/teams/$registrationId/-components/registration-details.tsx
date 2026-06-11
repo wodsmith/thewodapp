@@ -131,7 +131,7 @@ export function RegistrationDetailsCard({
                 params={{ slug: competition.slug }}
                 className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
               >
-                View Event
+                View event
                 <ExternalLink className="w-3.5 h-3.5" />
               </Link>
             )}
@@ -223,13 +223,13 @@ export function RegistrationDetailsCard({
               isOriginalPurchaser && (
                 <div className="pt-2 border-t">
                   <Link
-                    to="/compete/athlete/invoices/$purchaseId"
+                    to="/settings/billing/$purchaseId"
                     params={{ purchaseId: purchase.id }}
                     search={{ returnTo: location.pathname }}
                     className="text-sm text-primary hover:underline flex items-center gap-1"
                   >
                     <Receipt className="w-3.5 h-3.5" />
-                    View Invoice
+                    View invoice
                   </Link>
                 </div>
               )}

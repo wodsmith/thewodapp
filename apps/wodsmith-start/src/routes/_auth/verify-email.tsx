@@ -114,7 +114,7 @@ function VerifyEmailPage() {
               className="w-full block"
             >
               <Button variant="outline" className="w-full">
-                Go to Sign In
+                Go to sign in
               </Button>
             </Link>
           </CardContent>
@@ -140,7 +140,7 @@ function VerifyEmailPage() {
             className="w-full block"
           >
             <Button variant="outline" className="w-full">
-              Back to Sign In
+              Back to sign in
             </Button>
           </Link>
         </CardContent>

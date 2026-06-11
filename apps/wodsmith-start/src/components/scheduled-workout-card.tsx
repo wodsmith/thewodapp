@@ -138,7 +138,7 @@ export function ScheduledWorkoutCard({
                   className="w-full sm:w-auto sm:self-start"
                 >
                   <Link to="/log/new" search={{ workoutId: workout.id }}>
-                    Log Another Result
+                    Log another result
                   </Link>
                 </Button>
               </div>
@@ -150,7 +150,7 @@ export function ScheduledWorkoutCard({
                 className="w-full sm:w-auto"
               >
                 <Link to="/log/new" search={{ workoutId: workout.id }}>
-                  Log Result
+                  Log result
                 </Link>
               </Button>
             )}

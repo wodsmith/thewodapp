@@ -92,6 +92,27 @@ describe("assertInviteClaimable", () => {
     )
   })
 
+  it("rejects a declined invite that still has its claimToken with reason 'declined'", () => {
+    // Decline intentionally keeps `claimToken` so a revisit lands on the
+    // friendly "Invite declined" page instead of the generic invalid-link
+    // copy. The status check must still fire first regardless of token.
+    expect(() =>
+      assertInviteClaimable(
+        inviteFixture({
+          status: COMPETITION_INVITE_STATUS.DECLINED,
+          activeMarker: null,
+          claimToken: "tok_still_set_after_decline",
+        }),
+        before,
+      ),
+    ).toThrow(
+      expect.objectContaining({
+        name: "InviteNotClaimableError",
+        reason: "declined",
+      }),
+    )
+  })
+
   it("rejects a revoked invite with reason 'revoked'", () => {
     expect(() =>
       assertInviteClaimable(

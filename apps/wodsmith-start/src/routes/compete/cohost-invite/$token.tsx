@@ -93,7 +93,7 @@ function CohostInvitePage() {
               This invitation link is invalid or has expired.
             </p>
             <Button asChild variant="outline">
-              <Link to="/compete">Browse Competitions</Link>
+              <Link to="/">Browse Competitions</Link>
             </Button>
           </CardContent>
         </Card>
@@ -143,7 +143,7 @@ function CohostInvitePage() {
               new invite.
             </p>
             <Button asChild variant="outline">
-              <Link to="/compete">Browse Competitions</Link>
+              <Link to="/">Browse Competitions</Link>
             </Button>
           </CardContent>
         </Card>
@@ -186,7 +186,7 @@ function CohostInvitePage() {
             <Button asChild className="w-full" size="lg">
               <Link to="/sign-in" search={{ redirect: redirectPath }}>
                 <LogIn className="mr-2 h-4 w-4" />
-                Sign In to Accept
+                Sign in to accept
               </Link>
             </Button>
           </CardContent>
@@ -215,7 +215,7 @@ function CohostInvitePage() {
           replace: true,
         })
       } else {
-        await router.navigate({ to: "/compete", replace: true })
+        await router.navigate({ to: "/", replace: true })
       }
     } catch (error) {
       toast.dismiss()
@@ -301,11 +301,11 @@ function CohostInvitePage() {
               ? "Accepting..."
               : isSeries
                 ? `Accept for ${competitionCount} Competitions`
-                : "Accept Invitation"}
+                : "Accept invitation"}
           </Button>
 
           <Button asChild variant="outline" className="w-full">
-            <Link to="/compete">Browse Competitions</Link>
+            <Link to="/">Browse Competitions</Link>
           </Button>
         </CardContent>
       </Card>

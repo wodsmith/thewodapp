@@ -140,6 +140,7 @@ const testPurchaseId = 'purchase-123'
 const testProductId = 'product-456'
 const testCompetitionId = 'comp-789'
 const testOrgTeamId = 'team-org-123'
+const testCompetitionTeamId = 'team-comp-789'
 const testDivisionId = 'div-001'
 const testTransferId = 'ptxfr_transfer-001'
 
@@ -160,6 +161,7 @@ const mockProduct = {
 const mockCompetition = {
   id: testCompetitionId,
   organizingTeamId: testOrgTeamId,
+  competitionTeamId: testCompetitionTeamId,
   name: 'Summer Throwdown 2026',
 }
 
@@ -197,6 +199,7 @@ beforeEach(() => {
   mockDb.registerTable('userTable')
   mockDb.registerTable('competitionRegistrationsTable')
   mockDb.registerTable('scalingLevelsTable')
+  mockDb.registerTable('teamMembershipTable')
 
   setMockSession(mockOrganizerSession)
 })
@@ -519,6 +522,10 @@ describe('cancelPurchaseTransferFn', () => {
       findFirst: vi.fn().mockResolvedValue(mockProduct),
       findMany: vi.fn().mockResolvedValue([]),
     }
+    mockDb.query.teamMembershipTable = {
+      findFirst: vi.fn().mockResolvedValue(null),
+      findMany: vi.fn().mockResolvedValue([]),
+    }
     mockDb.query.competitionsTable = {
       findFirst: vi.fn().mockResolvedValue(mockCompetition),
       findMany: vi.fn().mockResolvedValue([]),
@@ -581,7 +588,9 @@ describe('cancelPurchaseTransferFn', () => {
 
     await expect(
       cancelTransfer({data: {transferId: testTransferId}}),
-    ).rejects.toThrow('Missing required permission: manage_competitions')
+    ).rejects.toThrow(
+      'Missing required permission: manage_competitions or cohost editRegistrations',
+    )
   })
 })
 

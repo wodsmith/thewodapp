@@ -242,10 +242,18 @@ export function CompetitionDetailsCard({
   competition,
   registrationOpensAt,
   registrationClosesAt,
+  hideRegistrationWindow = false,
 }: {
   competition: Competition & { organizingTeam: Team | null }
   registrationOpensAt: string | null
   registrationClosesAt: string | null
+  /**
+   * Suppresses the "Registration Window" row. Set when the form is in
+   * invite-locked mode — invitees bypass the public registration window,
+   * so the row is irrelevant and surfaces "TBA - TBA" when dates aren't
+   * configured, which contradicts the "you can register now" CTA.
+   */
+  hideRegistrationWindow?: boolean
 }) {
   return (
     <Card>
@@ -256,8 +264,8 @@ export function CompetitionDetailsCard({
         <div>
           <p className="text-muted-foreground text-sm">
             {isSameDateString(competition.startDate, competition.endDate)
-              ? "Competition Date"
-              : "Competition Dates"}
+              ? "Competition date"
+              : "Competition dates"}
           </p>
           <p className="font-medium">
             {isSameDateString(competition.startDate, competition.endDate)
@@ -265,13 +273,15 @@ export function CompetitionDetailsCard({
               : `${formatRegistrationDate(competition.startDate)} - ${formatRegistrationDate(competition.endDate)}`}
           </p>
         </div>
-        <div>
-          <p className="text-muted-foreground text-sm">Registration Window</p>
-          <p className="font-medium">
-            {formatRegistrationDate(registrationOpensAt)} -{" "}
-            {formatRegistrationDate(registrationClosesAt)}
-          </p>
-        </div>
+        {!hideRegistrationWindow && (
+          <div>
+            <p className="text-muted-foreground text-sm">Registration Window</p>
+            <p className="font-medium">
+              {formatRegistrationDate(registrationOpensAt)} -{" "}
+              {formatRegistrationDate(registrationClosesAt)}
+            </p>
+          </div>
+        )}
         <div>
           <p className="text-muted-foreground text-sm">Hosted By</p>
           <p className="font-medium">
@@ -635,6 +645,81 @@ export function RegistrationQuestionsSection({
   )
 }
 
+export function CouponCodeSection({
+  value,
+  activeCoupon,
+  onChange,
+  onApply,
+  onRemove,
+  disabled,
+  isApplying,
+}: {
+  value: string
+  activeCoupon: { code: string; amountOffCents: number } | null
+  onChange: (value: string) => void
+  onApply: () => void
+  onRemove: () => void
+  disabled?: boolean
+  isApplying: boolean
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Coupon Code</CardTitle>
+        <CardDescription>
+          Have a WODsmith coupon code? Apply it before checkout.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {activeCoupon ? (
+          <div className="flex items-center justify-between gap-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
+            <span className="flex items-center gap-2">
+              <Tag className="h-4 w-4" />
+              <span>
+                <span className="font-semibold">{activeCoupon.code}</span>{" "}
+                applied (${(activeCoupon.amountOffCents / 100).toFixed(2)} off)
+              </span>
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onRemove}
+              disabled={disabled}
+            >
+              Remove
+            </Button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <Label htmlFor="registration-coupon-code" className="sr-only">
+                Coupon code
+              </Label>
+              <Input
+                id="registration-coupon-code"
+                value={value}
+                onChange={(event) => onChange(event.target.value)}
+                placeholder="Enter coupon code"
+                disabled={disabled || isApplying}
+                autoCapitalize="characters"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onApply}
+              disabled={disabled || isApplying || !value.trim()}
+            >
+              {isApplying ? "Applying..." : "Apply"}
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 export function FeeSummarySection({
   competitionId,
   selectedDivisionIds,
@@ -653,14 +738,27 @@ export function FeeSummarySection({
   ) => void
   activeCoupon: { code: string; amountOffCents: number } | null
 }) {
-  if (selectedDivisionIds.length === 0) return null
   const isMulti = selectedDivisionIds.length > 1
+  const hasSelectedDivisions = selectedDivisionIds.length > 0
+  const selectedFeeValues = selectedDivisionIds
+    .map((divisionId) => divisionFees.get(divisionId))
+    .filter((fee): fee is number => fee !== undefined)
+  const hasLoadedSelectedFees =
+    selectedFeeValues.length === selectedDivisionIds.length
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Registration Fee{isMulti ? "s" : ""}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
+        {!hasSelectedDivisions ? (
+          <FeeBreakdown
+            competitionId={competitionId}
+            divisionId={null}
+            onFeesLoaded={onFeesLoaded}
+          />
+        ) : null}
         {selectedDivisionIds.map((divisionId) => {
           const division = getDivision(divisionId)
           const hideDivTotal = isMulti || !!activeCoupon
@@ -680,12 +778,9 @@ export function FeeSummarySection({
             </div>
           )
         })}
-        {divisionFees.size > 0
+        {hasSelectedDivisions && hasLoadedSelectedFees
           ? (() => {
-              const subtotal = Array.from(divisionFees.values()).reduce(
-                (sum, c) => sum + c,
-                0,
-              )
+              const subtotal = selectedFeeValues.reduce((sum, c) => sum + c, 0)
               if (!activeCoupon) {
                 if (!isMulti) return null
                 return (
@@ -740,6 +835,7 @@ export function TeamDetailsSection({
   userFirstName,
   userLastName,
   userEmail,
+  teammateEmailErrors,
   disabled,
 }: {
   selectedTeamDivisions: ScalingLevel[]
@@ -758,6 +854,7 @@ export function TeamDetailsSection({
   userFirstName?: string | null
   userLastName?: string | null
   userEmail?: string | null
+  teammateEmailErrors: Map<string, Map<number, string>>
   disabled: boolean
 }) {
   if (selectedTeamDivisions.length === 0) return null
@@ -845,88 +942,106 @@ export function TeamDetailsSection({
                     </p>
                   </div>
                 </Card>
-                {teamEntry.teammates.map((teammate, index) => (
-                  <Card
-                    key={`${division.id}-teammate-${index}`}
-                    className="p-4"
-                  >
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4 text-muted-foreground" />
-                        <span className="font-medium">
-                          Teammate {index + 2}
-                        </span>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Email *</Label>
-                        <Input
-                          type="email"
-                          placeholder="teammate@email.com"
-                          value={teammate.email}
-                          onChange={(e) =>
-                            updateTeammate(
-                              division.id,
-                              index,
-                              "email",
-                              e.target.value,
-                            )
-                          }
-                          disabled={disabled}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
+                {teamEntry.teammates.map((teammate, index) => {
+                  const emailError = teammateEmailErrors
+                    .get(division.id)
+                    ?.get(index)
+                  const errorId = `${division.id}-teammate-${index}-email-error`
+                  return (
+                    <Card
+                      key={`${division.id}-teammate-${index}`}
+                      className="p-4"
+                    >
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2">
+                          <Users className="w-4 h-4 text-muted-foreground" />
+                          <span className="font-medium">
+                            Teammate {index + 2}
+                          </span>
+                        </div>
                         <div className="space-y-2">
-                          <Label>First Name</Label>
+                          <Label>Email *</Label>
                           <Input
-                            placeholder="First name"
-                            value={teammate.firstName}
+                            type="email"
+                            placeholder="teammate@email.com"
+                            value={teammate.email}
                             onChange={(e) =>
                               updateTeammate(
                                 division.id,
                                 index,
-                                "firstName",
+                                "email",
                                 e.target.value,
                               )
                             }
                             disabled={disabled}
+                            aria-invalid={!!emailError}
+                            aria-describedby={emailError ? errorId : undefined}
+                            className={cn(emailError && "border-destructive")}
                           />
+                          {emailError ? (
+                            <p
+                              id={errorId}
+                              className="text-xs text-destructive"
+                              role="alert"
+                            >
+                              {emailError}
+                            </p>
+                          ) : null}
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label>First Name</Label>
+                            <Input
+                              placeholder="First name"
+                              value={teammate.firstName}
+                              onChange={(e) =>
+                                updateTeammate(
+                                  division.id,
+                                  index,
+                                  "firstName",
+                                  e.target.value,
+                                )
+                              }
+                              disabled={disabled}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Last Name</Label>
+                            <Input
+                              placeholder="Last name"
+                              value={teammate.lastName}
+                              onChange={(e) =>
+                                updateTeammate(
+                                  division.id,
+                                  index,
+                                  "lastName",
+                                  e.target.value,
+                                )
+                              }
+                              disabled={disabled}
+                            />
+                          </div>
                         </div>
                         <div className="space-y-2">
-                          <Label>Last Name</Label>
-                          <Input
-                            placeholder="Last name"
-                            value={teammate.lastName}
-                            onChange={(e) =>
+                          <Label>Affiliate (Optional)</Label>
+                          <AffiliateCombobox
+                            value={teammate.affiliateName}
+                            onChange={(val) =>
                               updateTeammate(
                                 division.id,
                                 index,
-                                "lastName",
-                                e.target.value,
+                                "affiliateName",
+                                val,
                               )
                             }
+                            placeholder="Search or enter affiliate..."
                             disabled={disabled}
                           />
                         </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label>Affiliate (Optional)</Label>
-                        <AffiliateCombobox
-                          value={teammate.affiliateName}
-                          onChange={(val) =>
-                            updateTeammate(
-                              division.id,
-                              index,
-                              "affiliateName",
-                              val,
-                            )
-                          }
-                          placeholder="Search or enter affiliate..."
-                          disabled={disabled}
-                        />
-                      </div>
-                    </div>
-                  </Card>
-                ))}
+                    </Card>
+                  )
+                })}
                 <p className="text-sm text-muted-foreground">
                   Teammates will receive an email invitation to join your team.
                   They must accept the invite to complete their registration.

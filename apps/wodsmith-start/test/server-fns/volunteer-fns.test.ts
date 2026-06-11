@@ -177,6 +177,14 @@ const createMockMembership = (overrides?: Partial<{
   updateCounter: null,
 })
 
+const mockCompetitionWithoutRequiredVolunteerWaivers = () => {
+  mockDb.query.competitionsTable.findFirst.mockResolvedValueOnce({
+    id: 'comp_test123',
+    competitionTeamId: 'team_comp123',
+  })
+  mockDb.query.waiversTable.findMany.mockResolvedValueOnce([])
+}
+
 describe('Volunteer Server Functions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -192,6 +200,8 @@ describe('Volunteer Server Functions', () => {
     mockDb.registerTable('competitionHeatsTable')
     mockDb.registerTable('judgeHeatAssignmentsTable')
     mockDb.registerTable('teamTable')
+    mockDb.registerTable('waiversTable')
+    mockDb.registerTable('waiverSignaturesTable')
     setMockSession(mockOrganizerSession)
   })
 
@@ -324,6 +334,7 @@ describe('Volunteer Server Functions', () => {
   // ============================================================================
   describe('submitVolunteerSignupFn', () => {
     it('should create a volunteer signup invitation', async () => {
+      mockCompetitionWithoutRequiredVolunteerWaivers()
       // findMany must return [] for duplicate check
       mockDb.query.teamInvitationTable.findMany.mockResolvedValueOnce([])
       mockDb.setMockSingleValue(null) // No existing user
@@ -359,8 +370,9 @@ describe('Volunteer Server Functions', () => {
     })
 
     it('should reject duplicate email signups', async () => {
+      mockCompetitionWithoutRequiredVolunteerWaivers()
       // Return existing invitation with same email
-      mockDb.setMockReturnValue([
+      mockDb.query.teamInvitationTable.findMany.mockResolvedValueOnce([
         createMockInvitation({email: 'duplicate@example.com'}),
       ])
 
@@ -376,26 +388,19 @@ describe('Volunteer Server Functions', () => {
     })
 
     it('should reject when user already has volunteer membership', async () => {
+      mockCompetitionWithoutRequiredVolunteerWaivers()
       // No existing invitations with matching email
-      mockDb.setMockReturnValue([])
+      mockDb.query.teamInvitationTable.findMany.mockResolvedValueOnce([])
       // User exists
-      mockDb.setMockSingleValue({id: 'user-existing', email: 'existing@example.com'})
+      mockDb.query.userTable.findFirst.mockResolvedValueOnce({
+        id: 'user-existing',
+        email: 'existing@example.com',
+      })
       // Membership exists for this user
-      // The function queries for user first, then checks membership
-      // After setMockSingleValue for user, the next findFirst needs to return a membership
-      // But FakeDrizzleDb only has one mockSingleValue... so this tests the first path
+      mockDb.query.teamMembershipTable.findFirst.mockResolvedValueOnce(
+        createMockMembership({userId: 'user-existing'}),
+      )
 
-      // Actually, the function flow:
-      // 1. findMany invitations -> [] (no dup)
-      // 2. findFirst user by email -> user
-      // 3. findFirst membership -> membership exists
-      // Since mockSingleValue returns the same value for all findFirst calls,
-      // we need to work with the mock's limitations
-
-      // For the duplicate membership path, we need the user lookup to succeed
-      // and then the membership lookup to also succeed.
-      // Both use findFirst which shares mockSingleValue.
-      // Let's test that the error is thrown for the general duplicate case
       await expect(
         submitVolunteerSignupFn({
           data: {
@@ -933,6 +938,7 @@ describe('Volunteer Server Functions', () => {
     })
 
     it('should create a new user account and volunteer application', async () => {
+      mockCompetitionWithoutRequiredVolunteerWaivers()
       // No existing user in account creation check
       mockDb.query.userTable.findFirst.mockResolvedValueOnce(null)
       // No duplicate invitations in createVolunteerApplication
@@ -954,6 +960,7 @@ describe('Volunteer Server Functions', () => {
     })
 
     it('should upgrade an existing placeholder user and create volunteer application', async () => {
+      mockCompetitionWithoutRequiredVolunteerWaivers()
       const placeholderUser = {
         id: 'user_placeholder123',
         email: 'jane@example.com',

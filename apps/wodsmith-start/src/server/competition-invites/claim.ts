@@ -37,7 +37,6 @@ import {
   type CompetitionInvite,
   competitionInvitesTable,
 } from "@/db/schemas/competition-invites"
-import { competitionsTable } from "@/db/schemas/competitions"
 import { PENDING_PURCHASE_MAX_AGE_MINUTES } from "@/server-fns/competition-divisions-fns"
 import {
   listAllocationsForChampionship,
@@ -69,12 +68,16 @@ export {
  * "invite link is invalid or expired" page without leaking whether the
  * token ever existed.
  *
- * The `activeMarker = "active"` filter deliberately excludes
- * declined/expired/revoked rows: those have had their `claimToken`
- * nulled, but we belt-and-suspenders the query so a stale token that
- * somehow survived never resolves. Paid rows also have their token
- * nulled, so the happy path "you already claimed" short-circuit is
- * handled by {@link assertInviteClaimable} on the live re-read, not here.
+ * The lookup is intentionally activeMarker-agnostic so that *declined*
+ * rows still resolve (per the decline flow they keep their
+ * `claimToken`): an athlete revisiting a previously-declined link
+ * should land on the friendly "Invite declined" page rather than a
+ * generic "invalid link" error. `assertInviteClaimable` is the
+ * authoritative gate — it inspects `status` and rejects every terminal
+ * row before any claim work happens. `accepted_paid`, `expired`, and
+ * `revoked` transitions still null `claimToken`, so a stale link with
+ * one of those statuses never matches the `eq(claimToken, ...)`
+ * predicate in the first place.
  */
 export async function resolveInviteByToken(
   tokenPlaintext: string,
@@ -84,15 +87,7 @@ export async function resolveInviteByToken(
   const rows = await db
     .select()
     .from(competitionInvitesTable)
-    .where(
-      and(
-        eq(competitionInvitesTable.claimToken, tokenPlaintext),
-        eq(
-          competitionInvitesTable.activeMarker,
-          COMPETITION_INVITE_ACTIVE_MARKER,
-        ),
-      ),
-    )
+    .where(eq(competitionInvitesTable.claimToken, tokenPlaintext))
     .limit(1)
   return rows[0] ?? null
 }
@@ -171,12 +166,16 @@ export async function getAcceptedPaidCountForBucket(args: {
  * `created_at > now - PENDING_PURCHASE_MAX_AGE_MINUTES`. The TTL matches
  * the Stripe checkout session expiry — abandoned sessions free their hold
  * implicitly without a sweep job. Pass `excludePurchaseId` to skip the
- * webhook's own purchase row during the authoritative race-close.
+ * webhook's own purchase row during the authoritative race-close. Pass
+ * `excludeInviteId` so the *invitee's own* mid-flight checkout doesn't
+ * count against them when they revisit the claim page; the hold is theirs,
+ * not someone else's contention.
  *
  * Existing accepted-paid count + soft-hold count = the number to compare
- * against the bucket's allocation. Two athletes claiming the last spot
- * concurrently both see the hold in the count, so the second one bounces
- * at claim load instead of paying-then-refunding.
+ * against the bucket's allocation. Two *different* athletes claiming the
+ * last spot concurrently both see the hold in the count, so the second one
+ * bounces at claim load instead of paying-then-refunding. The same athlete
+ * re-clicking their own claim link does not.
  */
 // @lat: [[competition-invites#Claim resolution]]
 export async function getOccupiedCountForBucket(args: {
@@ -184,6 +183,7 @@ export async function getOccupiedCountForBucket(args: {
   championshipCompetitionId: string
   championshipDivisionId: string
   excludePurchaseId?: string
+  excludeInviteId?: string
 }): Promise<number> {
   const db = getDb()
   const cutoff = new Date(
@@ -230,6 +230,9 @@ export async function getOccupiedCountForBucket(args: {
           args.excludePurchaseId
             ? sql`${commercePurchaseTable.id} != ${args.excludePurchaseId}`
             : sql`1 = 1`,
+          args.excludeInviteId
+            ? sql`${competitionInvitesTable.id} != ${args.excludeInviteId}`
+            : sql`1 = 1`,
         ),
       ),
   ])
@@ -269,20 +272,11 @@ export async function resolveAllocationForInvite(args: {
   )
   if (override) return override.spots
 
-  // Fallback: load the source row + (if series) its comp count, then run
-  // the same default math the loader uses.
+  // Fallback: load the source row and run the default math the loader
+  // uses. The default is just `source.globalSpots` per division — no
+  // multiplication, no series math.
   const source = await getSourceById(args.invite.sourceId)
   if (!source) return null
-
-  let seriesCompCount: number | undefined
-  if (source.sourceGroupId) {
-    const db = getDb()
-    const rows = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(competitionsTable)
-      .where(eq(competitionsTable.groupId, source.sourceGroupId))
-    seriesCompCount = Number(rows[0]?.count ?? 0)
-  }
 
   const resolved = resolveSourceAllocations({
     source,
@@ -290,7 +284,6 @@ export async function resolveAllocationForInvite(args: {
       { id: args.invite.championshipDivisionId, label: "" },
     ],
     allocations: allocations.filter((a) => a.sourceId === args.invite.sourceId),
-    seriesCompCount,
   })
 
   return resolved.byDivision[args.invite.championshipDivisionId] ?? 0

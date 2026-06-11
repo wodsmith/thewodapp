@@ -397,11 +397,11 @@ export function OrganizerEventManager({
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => setShowAddDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            Add Existing
+            Add existing
           </Button>
           <Button onClick={() => setShowCreateDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            Create Event
+            Create event
           </Button>
         </div>
       </div>
@@ -413,11 +413,11 @@ export function OrganizerEventManager({
           <div className="flex items-center justify-center gap-2">
             <Button variant="outline" onClick={() => setShowAddDialog(true)}>
               <Plus className="h-4 w-4 mr-2" />
-              Add Existing Workout
+              Add existing workout
             </Button>
             <Button onClick={() => setShowCreateDialog(true)}>
               <Plus className="h-4 w-4 mr-2" />
-              Create New Event
+              Create new event
             </Button>
           </div>
         </div>
@@ -502,7 +502,7 @@ export function OrganizerEventManager({
                       onClick={() => handleAddSubEvent(event.id)}
                     >
                       <Plus className="h-3 w-3 mr-1" />
-                      Add Sub-Event
+                      Add sub-event
                     </Button>
                   </div>
                 )}

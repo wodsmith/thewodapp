@@ -88,6 +88,9 @@
 
 import alchemy from "alchemy"
 import {
+  Ai,
+  AiGateway,
+  DurableObjectNamespace,
   Hyperdrive,
   KVNamespace,
   Queue,
@@ -95,12 +98,11 @@ import {
   TanStackStart,
   Workflow,
 } from "alchemy/cloudflare"
-import { GitHubComment } from "alchemy/github"
-import { CloudflareStateStore } from "alchemy/state"
 import {
   Branch as PlanetScaleBranch,
   Password as PlanetScalePassword,
 } from "alchemy/planetscale"
+import { CloudflareStateStore } from "alchemy/state"
 import { WebhookEndpoint } from "alchemy/stripe"
 
 /**
@@ -130,7 +132,6 @@ import { WebhookEndpoint } from "alchemy/stripe"
  */
 /**
  * Current stage name for conditional configuration.
- * PR stages are formatted as `pr-{number}` (e.g., `pr-42`).
  */
 const stage = process.env.STAGE ?? "dev"
 
@@ -162,7 +163,6 @@ const app = await alchemy("wodsmith", {
    * - "dev"     → Development database, no custom domain
    * - "staging" → Staging database, staging domain (if configured)
    * - "prod"    → Production database, wodsmith.com domain
-   * - "pr-42"   → PR preview with auto-generated workers.dev URL
    */
   stage,
 
@@ -227,20 +227,16 @@ const psOrg = process.env.PLANETSCALE_ORGANIZATION ?? "wodsmith"
  * - prod  → "main" (production branch, no Branch resource needed)
  * - dev   → branches off main
  * - demo  → branches off main (parallel to dev)
- * - pr-N  → uses "dev" branch directly (no per-PR branch creation)
  */
 const branchConfig: Record<string, { name: string; parent: string }> = {
   dev: { name: "dev", parent: "main" },
   demo: { name: "demo", parent: "main" },
 }
 
-const isPrStage = stage.startsWith("pr-")
 const psBranchName =
-  stage === "prod"
-    ? "main"
-    : (branchConfig[stage]?.name ?? (isPrStage ? "dev" : stage))
+  stage === "prod" ? "main" : (branchConfig[stage]?.name ?? stage)
 const psBranch =
-  stage === "prod" || isPrStage
+  stage === "prod"
     ? undefined
     : await PlanetScaleBranch(`ps-branch-${stage}`, {
         organization: psOrg,
@@ -258,6 +254,27 @@ const psPassword = await PlanetScalePassword(`ps-password-${stage}`, {
   role: "admin",
 })
 
+const ciDatabaseUrl = process.env.DATABASE_URL
+  ? new URL(process.env.DATABASE_URL)
+  : undefined
+const hyperdriveOrigin = ciDatabaseUrl
+  ? {
+      host: ciDatabaseUrl.hostname,
+      database: ciDatabaseUrl.pathname.slice(1),
+      user: decodeURIComponent(ciDatabaseUrl.username),
+      password: decodeURIComponent(ciDatabaseUrl.password),
+      port: ciDatabaseUrl.port ? Number(ciDatabaseUrl.port) : 3306,
+      scheme: "mysql" as const,
+    }
+  : {
+      host: psPassword.host,
+      database: psDbName,
+      user: psPassword.username,
+      password: psPassword.password.unencrypted,
+      port: 3306,
+      scheme: "mysql" as const,
+    }
+
 /**
  * Cloudflare Hyperdrive for PlanetScale connection pooling and caching.
  *
@@ -270,19 +287,17 @@ const psPassword = await PlanetScalePassword(`ps-password-${stage}`, {
  * which exposes a `connectionString` for use with standard MySQL drivers (mysql2).
  */
 const hyperdrive = await Hyperdrive(`hyperdrive-${stage}`, {
-  origin: {
-    host: psPassword.host,
-    database: psDbName,
-    user: psPassword.username,
-    password: psPassword.password.unencrypted,
-    port: 3306,
-    scheme: "mysql",
-  },
+  // CI creates a fresh PlanetScale branch password before deploy and verifies it
+  // with drizzle-kit. Prefer that URL so stale Alchemy password state cannot
+  // make Cloudflare reject Hyperdrive updates during credential validation.
+  origin: hyperdriveOrigin,
   caching: {
     disabled: true,
   },
   adopt: true,
-  // Local dev: connect directly to PlanetScale (bypassing Hyperdrive pooling)
+  // Keep local dev on the direct PlanetScale URL for now. The pscale proxy
+  // Hyperdrive tweak caused deploys to try updating the remote config, which
+  // fails when Cloudflare validates stale demo branch credentials.
   dev: {
     origin: `mysql://${psPassword.username}:${psPassword.password.unencrypted}@${psPassword.host}:3306/${psDbName}?sslaccept=strict`,
   },
@@ -446,21 +461,19 @@ const stripeWebhook = needsStripeWebhook
 /**
  * Determines the custom domain(s) for the current deployment stage.
  *
- * @param currentStage - The current deployment stage (e.g., "dev", "prod", "demo", "pr-42")
+ * @param currentStage - The current deployment stage (e.g., "dev", "prod", "demo")
  * @returns Array of domains for prod/demo stages, undefined for others (uses workers.dev)
  *
  * @remarks
  * Domain assignment logic:
  * - **prod**: Returns `["wodsmith.com"]` for production
  * - **demo**: Returns `["demo.wodsmith.com"]` for persistent staging/demo environment
- * - **pr-N**: Returns `undefined` to use auto-generated workers.dev subdomain (avoids DNS delays)
  * - **other**: Returns `undefined` to use auto-generated workers.dev subdomain
  *
  * @example
  * ```typescript
  * getDomains("prod")    // ["wodsmith.com"]
  * getDomains("demo")    // ["demo.wodsmith.com"]
- * getDomains("pr-42")   // undefined (uses workers.dev)
  * getDomains("staging") // undefined
  * getDomains("dev")     // undefined
  * ```
@@ -501,6 +514,59 @@ const manualRegistrationWorkflow = Workflow(
 )
 
 /**
+ * Durable Object namespace for the AI judge-scheduling agent.
+ *
+ * Each scheduling session is keyed by `${trackWorkoutId}:${userId}` so an
+ * organizer reconnecting (e.g. tab refresh) reattaches to the same Agent
+ * instance and resumes the in-flight stream of proposals.
+ *
+ * @see src/agents/judge-scheduler-agent.ts
+ */
+const judgeSchedulerAgent = DurableObjectNamespace("judge-scheduler-agent", {
+  className: "JudgeSchedulerAgent",
+  sqlite: true,
+})
+
+/**
+ * Cloudflare Workers AI binding for built-in LLM inference.
+ *
+ * Currently used by the judge-scheduling agent to call
+ * `@cf/moonshotai/kimi-k2.5` via the `workers-ai-provider` AI SDK adapter.
+ * Adding new AI features? Reuse this binding — there's no per-feature cost
+ * beyond Workers AI's pay-per-request pricing.
+ */
+const aiBinding = Ai()
+
+/**
+ * Cloudflare AI Gateway in front of all AI traffic.
+ *
+ * Routes Workers AI (and other providers via the unified adapter) through
+ * a managed gateway that adds:
+ * - Request/response logging and analytics in the CF dashboard
+ * - Optional caching (off by default — agent traffic is rarely identical)
+ * - Optional rate limiting per-key for future cost control
+ * - A single observability surface across providers if/when we mix
+ *   Workers AI with OpenAI/Anthropic/etc via `ai-gateway-provider`.
+ *
+ * For `dev` we skip the IaC-managed resource — the AI Gateway API requires
+ * an API token (not the OAuth/wrangler login) and many devs won't have one
+ * configured. Local dev points at a manually-created `wodsmith-gateway`
+ * instead via `CF_AIG_GATEWAY` below.
+ *
+ * @see src/agents/judge-scheduler-agent.ts
+ */
+const aiGateway =
+  stage === "dev"
+    ? undefined
+    : await AiGateway(`ai-gateway-${stage}`, {
+        gatewayName: `wodsmith-${stage}`,
+        collectLogs: true,
+        cacheTtl: 0,
+        apiToken: alchemy.secret(process.env.CLOUDFLARE_API_TOKEN!),
+      })
+const aiGatewayName = aiGateway?.id ?? "wodsmith-gateway"
+
+/**
  * Cloudflare Queue for async broadcast email delivery.
  *
  * When an organizer sends a broadcast, recipient batches are enqueued here.
@@ -530,7 +596,6 @@ const broadcastEmailQueue = await Queue(`broadcast-email-queue-${stage}`, {
  * | dev         | `*.workers.dev`           | Auto-generated Cloudflare subdomain |
  * | demo        | `demo.wodsmith.com`       | Persistent staging/demo environment |
  * | prod        | `wodsmith.com`            | Custom domain with SSL              |
- * | pr-N        | `*.workers.dev`           | Auto-generated (avoids DNS delays)  |
  *
  * The `bindings` object makes Cloudflare resources available in your server code
  * via the `env` object. Types are automatically inferred and exported as `Env`.
@@ -591,7 +656,24 @@ const website = await TanStackStart("app", {
     MANUAL_REGISTRATION_WORKFLOW: manualRegistrationWorkflow,
     /** Queue for async broadcast email delivery */
     BROADCAST_EMAIL_QUEUE: broadcastEmailQueue,
-
+    /** Durable Object namespace for the AI judge-scheduling agent */
+    JUDGE_SCHEDULER_AGENT: judgeSchedulerAgent,
+    /** Cloudflare Workers AI binding for LLM inference */
+    AI: aiBinding,
+    /**
+     * AI Gateway identifiers — the agent uses `ai-gateway-provider` to
+     * route Workers AI traffic through the managed gateway above so we
+     * get logs, analytics, and a single switchboard for adding non-CF
+     * providers later.
+     */
+    // Cloudflare account id — defaults to the wodsmith production
+    // account if `CLOUDFLARE_ACCOUNT_ID` isn't set in the deploy env.
+    // Pulling from env lets forks / new deploys target their own
+    // Cloudflare account without code changes.
+    CF_ACCOUNT_ID:
+      process.env.CLOUDFLARE_ACCOUNT_ID ??
+      "317fb84f366ea1ab038ca90000953697",
+    CF_AIG_GATEWAY: aiGatewayName,
     // App configuration
     // biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time
     APP_URL: process.env.APP_URL!,
@@ -694,7 +776,6 @@ const website = await TanStackStart("app", {
    * Domain assignment by environment:
    * - **prod**: `wodsmith.com` (production domain)
    * - **demo**: `demo.wodsmith.com` (persistent staging/demo environment)
-   * - **pr-N**: Auto-generated `*.workers.dev` subdomain (avoids DNS delays)
    * - **other**: Auto-generated `*.workers.dev` subdomain
    */
   domains: getDomains(stage),
@@ -705,51 +786,6 @@ const website = await TanStackStart("app", {
    */
   adopt: true,
 })
-
-/**
- * GitHub PR comment with preview URL for pull request deployments.
- *
- * When deploying from a pull request (PULL_REQUEST env var is set), this resource
- * creates or updates a comment on the PR with the preview deployment URL.
- * This provides immediate feedback to reviewers about where to test the changes.
- *
- * @remarks
- * **Environment variables required:**
- * - `PULL_REQUEST`: PR number (set by CI workflow)
- * - `GITHUB_SHA`: Commit SHA for display (optional, auto-detected in GitHub Actions)
- * - `GITHUB_TOKEN`: Token with `pull-requests: write` permission (auto-available in Actions)
- *
- * **Comment behavior:**
- * - Creates a new comment on first deployment
- * - Updates existing comment on subsequent deployments (idempotent)
- * - Comment includes preview URL, commit SHA, and deployment timestamp
- *
- * @see {@link https://alchemy.run/docs/github GitHub Integration Docs}
- */
-if (process.env.PULL_REQUEST) {
-  const prNumber = Number(process.env.PULL_REQUEST)
-  // Use default workers.dev URL to avoid DNS propagation delays
-  const previewUrl = `https://wodsmith-app-pr-${prNumber}.zacjones93.workers.dev`
-  const commitSha = process.env.GITHUB_SHA?.slice(0, 7) ?? "unknown"
-
-  await GitHubComment("preview-comment", {
-    owner: "wodsmith",
-    repository: "thewodapp",
-    issueNumber: prNumber,
-    body: `## 🚀 Preview Deployed
-
-**URL:** ${previewUrl}
-
-| Detail | Value |
-|--------|-------|
-| Commit | \`${commitSha}\` |
-| Stage | \`pr-${prNumber}\` |
-| Deployed | ${new Date().toISOString()} |
-
----
-_This comment is automatically updated on each push to this PR._`,
-  })
-}
 
 /**
  * Exported environment type for use throughout the application.

@@ -17,6 +17,7 @@ import {
   CapacityBanners,
   ClosedRegistrationBanner,
   CompetitionDetailsCard,
+  CouponCodeSection,
   DivisionPickerSection,
   FeeSummarySection,
   PageHeader,
@@ -81,14 +82,16 @@ interface InviteProps extends RegistrationFormProps {
 export function PublicRegistrationForm(props: PublicProps) {
   const r = useRegistrationForm(props)
   const navigate = useNavigate()
+  const athleteWaivers = props.waivers.filter((waiver) => waiver.required)
   const competitionFull = props.competitionCapacity?.isFull ?? false
   const submitDisabled =
     r.isSubmitting ||
     !props.registrationOpen ||
     competitionFull ||
     !r.hasSelectedDivisions ||
+    r.hasTeammateEmailErrors ||
     !r.affiliateName.trim() ||
-    (props.waivers.length > 0 && !r.allRequiredWaiversAgreed)
+    (athleteWaivers.length > 0 && !r.allRequiredWaiversAgreed)
 
   const fieldsDisabled = r.isSubmitting || !props.registrationOpen
 
@@ -137,6 +140,15 @@ export function PublicRegistrationForm(props: PublicProps) {
           onAnswerChange={r.updateAnswer}
           disabled={fieldsDisabled}
         />
+        <CouponCodeSection
+          value={r.couponCodeInput}
+          activeCoupon={r.activeCoupon}
+          onChange={r.setCouponCodeInput}
+          onApply={r.handleApplyCoupon}
+          onRemove={r.handleRemoveCoupon}
+          disabled={fieldsDisabled}
+          isApplying={r.isApplyingCoupon}
+        />
         <FeeSummarySection
           competitionId={props.competition.id}
           selectedDivisionIds={r.selectedDivisionIds}
@@ -153,10 +165,11 @@ export function PublicRegistrationForm(props: PublicProps) {
           userFirstName={props.userFirstName}
           userLastName={props.userLastName}
           userEmail={props.userEmail}
+          teammateEmailErrors={r.teammateEmailErrors}
           disabled={fieldsDisabled}
         />
         <WaiversSection
-          waivers={props.waivers}
+          waivers={athleteWaivers}
           agreedWaivers={r.agreedWaivers}
           onWaiverToggle={r.handleWaiverCheckChange}
           disabled={fieldsDisabled}
@@ -174,14 +187,16 @@ export function PublicRegistrationForm(props: PublicProps) {
               "Competition Full"
             ) : !r.hasSelectedDivisions ? (
               "Select a Division"
-            ) : props.waivers.length > 0 && !r.allRequiredWaiversAgreed ? (
+            ) : athleteWaivers.length > 0 && !r.allRequiredWaiversAgreed ? (
               "Agree to Waivers to Continue"
+            ) : r.hasTeammateEmailErrors ? (
+              "Fix Teammate Emails"
             ) : r.selectedDivisionIds.length > 1 ? (
               `Register for ${r.selectedDivisionIds.length} Divisions`
             ) : r.selectedTeamDivisions.length > 0 ? (
-              "Register Team"
+              "Register team"
             ) : (
-              "Complete Registration"
+              "Complete registration"
             )}
           </Button>
           <Button
@@ -207,6 +222,7 @@ export function PublicRegistrationForm(props: PublicProps) {
 export function InviteRegistrationForm(props: InviteProps) {
   const r = useRegistrationForm(props)
   const navigate = useNavigate()
+  const athleteWaivers = props.waivers.filter((waiver) => waiver.required)
 
   // If the URL pointed at a division that's no longer eligible (full,
   // already registered, removed), fall back to the public flow so the
@@ -231,8 +247,9 @@ export function InviteRegistrationForm(props: InviteProps) {
 
   const submitDisabled =
     r.isSubmitting ||
+    r.hasTeammateEmailErrors ||
     !r.affiliateName.trim() ||
-    (props.waivers.length > 0 && !r.allRequiredWaiversAgreed)
+    (athleteWaivers.length > 0 && !r.allRequiredWaiversAgreed)
   const fieldsDisabled = r.isSubmitting
 
   return (
@@ -249,6 +266,7 @@ export function InviteRegistrationForm(props: InviteProps) {
         competition={props.competition}
         registrationOpensAt={props.registrationOpensAt}
         registrationClosesAt={props.registrationClosesAt}
+        hideRegistrationWindow
       />
 
       <form onSubmit={r.onSubmit} className="space-y-6">
@@ -262,6 +280,15 @@ export function InviteRegistrationForm(props: InviteProps) {
           answers={r.answers}
           onAnswerChange={r.updateAnswer}
           disabled={fieldsDisabled}
+        />
+        <CouponCodeSection
+          value={r.couponCodeInput}
+          activeCoupon={r.activeCoupon}
+          onChange={r.setCouponCodeInput}
+          onApply={r.handleApplyCoupon}
+          onRemove={r.handleRemoveCoupon}
+          disabled={fieldsDisabled}
+          isApplying={r.isApplyingCoupon}
         />
         <FeeSummarySection
           competitionId={props.competition.id}
@@ -279,10 +306,11 @@ export function InviteRegistrationForm(props: InviteProps) {
           userFirstName={props.userFirstName}
           userLastName={props.userLastName}
           userEmail={props.userEmail}
+          teammateEmailErrors={r.teammateEmailErrors}
           disabled={fieldsDisabled}
         />
         <WaiversSection
-          waivers={props.waivers}
+          waivers={athleteWaivers}
           agreedWaivers={r.agreedWaivers}
           onWaiverToggle={r.handleWaiverCheckChange}
           disabled={fieldsDisabled}
@@ -294,8 +322,10 @@ export function InviteRegistrationForm(props: InviteProps) {
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 Processing...
               </>
-            ) : props.waivers.length > 0 && !r.allRequiredWaiversAgreed ? (
+            ) : athleteWaivers.length > 0 && !r.allRequiredWaiversAgreed ? (
               "Agree to Waivers to Continue"
+            ) : r.hasTeammateEmailErrors ? (
+              "Fix Teammate Emails"
             ) : r.selectedTeamDivisions.length > 0 ? (
               "Confirm Team Spot"
             ) : (

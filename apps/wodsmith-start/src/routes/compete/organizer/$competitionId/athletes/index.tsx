@@ -26,6 +26,7 @@ import {
   Mail,
   MoreHorizontal,
   Plus,
+  RotateCcw,
   Trash2,
   UserPlus,
   X,
@@ -87,7 +88,10 @@ import {
   cancelPurchaseTransferFn,
   getPendingTransfersForCompetitionFn,
 } from "@/server-fns/purchase-transfer-fns"
-import { removeRegistrationFn } from "@/server-fns/registration-fns"
+import {
+  refundRegistrationFn,
+  removeRegistrationFn,
+} from "@/server-fns/registration-fns"
 import {
   getCompetitionQuestionsFn,
   getCompetitionRegistrationAnswersFn,
@@ -97,6 +101,7 @@ import {
   getCompetitionWaiversFn,
 } from "@/server-fns/waiver-fns"
 import { ManualRegistrationDialog } from "../-components/manual-registration-dialog"
+import { RefundStatusBadge } from "../-components/refund-status-badge"
 import { TransferDivisionDialog } from "../-components/transfer-division-dialog"
 import { TransferRegistrationDialog } from "../-components/transfer-registration-dialog"
 
@@ -187,6 +192,8 @@ export const Route = createFileRoute(
 
     return {
       registrations: registrationsResult.registrations,
+      canRefund: registrationsResult.canRefund,
+      refundsByPurchaseId: registrationsResult.refundsByPurchaseId,
       divisions: divisionsResult.divisions,
       questions: questionsResult.questions,
       answersByRegistration: answersResult.answersByRegistration,
@@ -215,6 +222,8 @@ function AthletesPage() {
   const { competition } = parentRoute.useLoaderData()
   const {
     registrations,
+    canRefund,
+    refundsByPurchaseId,
     divisions,
     questions,
     answersByRegistration,
@@ -229,6 +238,23 @@ function AthletesPage() {
     currentSortDir,
     teamId,
   } = Route.useLoaderData()
+  /**
+   * Resolve refund status for a given purchaseId. Returns:
+   *   - null  → no refund recorded
+   *   - "full"    → refundedCents >= totalCents (e.g. organizer refunded the full ticket)
+   *   - "partial" → 0 < refundedCents < totalCents
+   * The dropdown action hides on any refund, but the badge surfaces the
+   * distinction so an organizer can tell at a glance whether more remains.
+   */
+  const getRefundStatus = React.useCallback(
+    (purchaseId: string | null): "full" | "partial" | null => {
+      if (!purchaseId) return null
+      const refund = refundsByPurchaseId[purchaseId]
+      if (!refund || refund.refundedCents <= 0) return null
+      return refund.refundedCents >= refund.totalCents ? "full" : "partial"
+    },
+    [refundsByPurchaseId],
+  )
   const navigate = useNavigate()
   const router = useRouter()
   const { tab } = Route.useSearch()
@@ -243,6 +269,7 @@ function AthletesPage() {
     })
   }
   const removeRegistration = useServerFn(removeRegistrationFn)
+  const refundRegistration = useServerFn(refundRegistrationFn)
   const cancelPurchaseTransfer = useServerFn(cancelPurchaseTransferFn)
   const [removingRegistration, setRemovingRegistration] = useState<{
     id: string
@@ -250,6 +277,12 @@ function AthletesPage() {
     teamName: string | null
   } | null>(null)
   const [isRemoving, setIsRemoving] = useState(false)
+  const [refundingRegistration, setRefundingRegistration] = useState<{
+    id: string
+    athleteName: string
+    teamName: string | null
+  } | null>(null)
+  const [isRefunding, setIsRefunding] = useState(false)
   const [showManualRegistration, setShowManualRegistration] = useState(false)
   const [transferTarget, setTransferTarget] = useState<{
     id: string
@@ -304,6 +337,28 @@ function AthletesPage() {
       )
     } finally {
       setIsRemoving(false)
+    }
+  }
+
+  const handleRefundRegistration = async () => {
+    if (!refundingRegistration) return
+    setIsRefunding(true)
+    try {
+      await refundRegistration({
+        data: {
+          registrationId: refundingRegistration.id,
+          competitionId: competition.id,
+        },
+      })
+      toast.success("Refund initiated. Stripe will confirm shortly.")
+      setRefundingRegistration(null)
+      router.invalidate()
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to refund registration",
+      )
+    } finally {
+      setIsRefunding(false)
     }
   }
 
@@ -485,6 +540,7 @@ function AthletesPage() {
     registrationId: string
     registrationStatus: string // 'active' | 'removed'
     commercePurchaseId: string | null
+    paymentStatus: string | null
     athlete: {
       id: string
       firstName: string | null
@@ -590,6 +646,9 @@ function AthletesPage() {
         commercePurchaseId:
           (registration as { commercePurchaseId?: string | null })
             ?.commercePurchaseId ?? null,
+        paymentStatus:
+          (registration as { paymentStatus?: string | null })?.paymentStatus ??
+          null,
         ordinal: rowIndex,
         ordinalLabel: memberIndex === 0 ? String(rowIndex) : "",
         athlete: {
@@ -626,6 +685,7 @@ function AthletesPage() {
           registrationId: registration.id,
           registrationStatus: registration.status,
           commercePurchaseId: null,
+          paymentStatus: null,
           ordinal: rowIndex,
           ordinalLabel: "",
           athlete: {
@@ -877,9 +937,7 @@ function AthletesPage() {
       <Tabs value={tab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="athletes">Athletes</TabsTrigger>
-          <TabsTrigger value="registration-rules">
-            Registration Rules
-          </TabsTrigger>
+          <TabsTrigger value="registration-rules">Form Questions</TabsTrigger>
         </TabsList>
         <TabsContent value="registration-rules" className="flex flex-col gap-6">
           {/* Inherited Series Questions (read-only) */}
@@ -977,7 +1035,7 @@ function AthletesPage() {
                 className="w-full sm:w-auto"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Add Registration
+                Add registration
               </Button>
               {registrations.length > 0 && (
                 <Button
@@ -1290,7 +1348,7 @@ function AthletesPage() {
                                         }}
                                       >
                                         <ArrowUpRight className="h-4 w-4 mr-2" />
-                                        View Details
+                                        View details
                                       </Link>
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
@@ -1335,7 +1393,7 @@ function AthletesPage() {
                                             }
                                           >
                                             <X className="h-4 w-4 mr-2" />
-                                            Cancel Transfer
+                                            Cancel transfer
                                           </DropdownMenuItem>
                                         )
                                       }
@@ -1360,6 +1418,28 @@ function AthletesPage() {
                                         </DropdownMenuItem>
                                       )
                                     })()}
+                                    {canRefund &&
+                                      row.commercePurchaseId &&
+                                      row.paymentStatus === "PAID" &&
+                                      !getRefundStatus(
+                                        row.commercePurchaseId,
+                                      ) && (
+                                        <DropdownMenuItem
+                                          onClick={() =>
+                                            setRefundingRegistration({
+                                              id: row.registrationId,
+                                              athleteName:
+                                                `${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim() ||
+                                                row.athlete.email ||
+                                                "Unknown",
+                                              teamName: row.teamName,
+                                            })
+                                          }
+                                        >
+                                          <RotateCcw className="h-4 w-4 mr-2" />
+                                          Refund Registration
+                                        </DropdownMenuItem>
+                                      )}
                                     <DropdownMenuItem
                                       className="text-destructive focus:text-destructive"
                                       onClick={() =>
@@ -1374,7 +1454,7 @@ function AthletesPage() {
                                       }
                                     >
                                       <Trash2 className="h-4 w-4 mr-2" />
-                                      Remove Registration
+                                      Remove registration
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
@@ -1447,6 +1527,21 @@ function AthletesPage() {
                                   {row.division.label}
                                 </Badge>
                               )}
+                              {row.commercePurchaseId &&
+                                refundsByPurchaseId[row.commercePurchaseId] && (
+                                  <RefundStatusBadge
+                                    refundedCents={
+                                      refundsByPurchaseId[
+                                        row.commercePurchaseId
+                                      ]?.refundedCents ?? 0
+                                    }
+                                    totalCents={
+                                      refundsByPurchaseId[
+                                        row.commercePurchaseId
+                                      ]?.totalCents ?? 0
+                                    }
+                                  />
+                                )}
                             </div>
                             <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                               {row.teamName && (
@@ -1775,6 +1870,25 @@ function AthletesPage() {
                                       </button>
                                     </div>
                                   ) : null}
+                                  {row.commercePurchaseId &&
+                                    refundsByPurchaseId[
+                                      row.commercePurchaseId
+                                    ] && (
+                                      <div className="mt-1">
+                                        <RefundStatusBadge
+                                          refundedCents={
+                                            refundsByPurchaseId[
+                                              row.commercePurchaseId
+                                            ]?.refundedCents ?? 0
+                                          }
+                                          totalCents={
+                                            refundsByPurchaseId[
+                                              row.commercePurchaseId
+                                            ]?.totalCents ?? 0
+                                          }
+                                        />
+                                      </div>
+                                    )}
                                 </TableCell>
                                 <TableCell>
                                   <div className="flex items-center gap-3">
@@ -1991,7 +2105,7 @@ function AthletesPage() {
                                             }}
                                           >
                                             <ArrowUpRight className="h-4 w-4 mr-2" />
-                                            View Details
+                                            View details
                                           </Link>
                                         </DropdownMenuItem>
                                         <DropdownMenuItem
@@ -2038,7 +2152,7 @@ function AthletesPage() {
                                                 }
                                               >
                                                 <X className="h-4 w-4 mr-2" />
-                                                Cancel Transfer
+                                                Cancel transfer
                                               </DropdownMenuItem>
                                             )
                                           }
@@ -2064,6 +2178,28 @@ function AthletesPage() {
                                             </DropdownMenuItem>
                                           )
                                         })()}
+                                        {canRefund &&
+                                          row.commercePurchaseId &&
+                                          row.paymentStatus === "PAID" &&
+                                          !getRefundStatus(
+                                            row.commercePurchaseId,
+                                          ) && (
+                                            <DropdownMenuItem
+                                              onClick={() =>
+                                                setRefundingRegistration({
+                                                  id: row.registrationId,
+                                                  athleteName:
+                                                    `${row.athlete.firstName ?? ""} ${row.athlete.lastName ?? ""}`.trim() ||
+                                                    row.athlete.email ||
+                                                    "Unknown",
+                                                  teamName: row.teamName,
+                                                })
+                                              }
+                                            >
+                                              <RotateCcw className="h-4 w-4 mr-2" />
+                                              Refund Registration
+                                            </DropdownMenuItem>
+                                          )}
                                         <DropdownMenuItem
                                           className="text-destructive focus:text-destructive"
                                           onClick={() =>
@@ -2078,7 +2214,7 @@ function AthletesPage() {
                                           }
                                         >
                                           <Trash2 className="h-4 w-4 mr-2" />
-                                          Remove Registration
+                                          Remove registration
                                         </DropdownMenuItem>
                                       </DropdownMenuContent>
                                     </DropdownMenu>
@@ -2104,7 +2240,7 @@ function AthletesPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Registration</AlertDialogTitle>
+            <AlertDialogTitle>Remove registration</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to remove the registration for{" "}
               <strong>{removingRegistration?.athleteName}</strong>
@@ -2122,7 +2258,37 @@ function AthletesPage() {
               disabled={isRemoving}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isRemoving ? "Removing..." : "Remove Registration"}
+              {isRemoving ? "Removing..." : "Remove registration"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!refundingRegistration}
+        onOpenChange={(open) => !open && setRefundingRegistration(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Refund Registration</AlertDialogTitle>
+            <AlertDialogDescription>
+              Refund the full registration fee for{" "}
+              <strong>{refundingRegistration?.athleteName}</strong>
+              {refundingRegistration?.teamName && (
+                <> (team: {refundingRegistration.teamName})</>
+              )}
+              ? This issues a Stripe refund and reverses the transfer to your
+              connected account. The registration itself stays in place — use
+              "Remove registration" if you also want to release their spot.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isRefunding}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRefundRegistration}
+              disabled={isRefunding}
+            >
+              {isRefunding ? "Refunding..." : "Refund Registration"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { Link, useRouterState } from "@tanstack/react-router"
 import {
   Calendar,
   ClipboardList,
+  Eye,
   Home,
   Layers,
   Moon,
@@ -13,6 +13,7 @@ import {
   Sun,
   Trophy,
 } from "lucide-react"
+import { useEffect, useState } from "react"
 import {
   Sidebar,
   SidebarContent,
@@ -59,9 +60,13 @@ const getNavigation = (
     {
       label: "Series Setup",
       items: [
-        { label: "Edit Series", href: `${basePath}/edit`, icon: Pencil },
+        { label: "Edit series", href: `${basePath}/edit`, icon: Pencil },
         { label: "Divisions", href: `${basePath}/divisions`, icon: Layers },
-        { label: "Registration Questions", href: `${basePath}/registration-questions`, icon: ClipboardList },
+        {
+          label: "Registration Questions",
+          href: `${basePath}/registration-questions`,
+          icon: ClipboardList,
+        },
       ],
     },
     {
@@ -71,6 +76,11 @@ const getNavigation = (
           label: "Event Template",
           href: `${basePath}/events`,
           icon: Calendar,
+        },
+        {
+          label: "Publish workouts",
+          href: `${basePath}/publish-workouts`,
+          icon: Eye,
         },
       ],
     },
@@ -93,11 +103,7 @@ function NavMenuItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
 
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton
-        asChild
-        isActive={isActive}
-        tooltip={item.label}
-      >
+      <SidebarMenuButton asChild isActive={isActive} tooltip={item.label}>
         <Link to={item.href} onClick={() => setOpenMobile(false)}>
           <Icon className="h-4 w-4" />
           <span>{item.label}</span>
@@ -110,8 +116,9 @@ function NavMenuItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
 function SeriesSidebarHeader() {
   return (
     <SidebarHeader className="h-14 flex-row items-center border-b px-3 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:justify-center">
+      {/* @lat: [[architecture#Route Groups#compete]] */}
       <Link
-        to="/compete"
+        to="/"
         className="flex items-center gap-2 min-w-0 group-data-[collapsible=icon]:hidden"
       >
         <img
@@ -128,10 +135,8 @@ function SeriesSidebarHeader() {
           </span>
         </h1>
       </Link>
-      <Link
-        to="/compete"
-        className="hidden group-data-[collapsible=icon]:block"
-      >
+      {/* @lat: [[architecture#Route Groups#compete]] */}
+      <Link to="/" className="hidden group-data-[collapsible=icon]:block">
         <img
           src="/wodsmith-logo-no-text.png"
           alt="wodsmith compete"
@@ -145,78 +150,77 @@ function SeriesSidebarHeader() {
 }
 
 function ThemeToggleButton() {
-	const [theme, setTheme] = useState<"light" | "dark">("light")
-	const [mounted, setMounted] = useState(false)
+  const [theme, setTheme] = useState<"light" | "dark">("light")
+  const [mounted, setMounted] = useState(false)
 
-	useEffect(() => {
-		const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null
-		const prefersDark = window.matchMedia(
-			"(prefers-color-scheme: dark)",
-		).matches
-		const initialTheme = savedTheme || (prefersDark ? "dark" : "light")
-		setTheme(initialTheme)
-		setMounted(true)
-	}, [])
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null
+    const prefersDark = window.matchMedia(
+      "(prefers-color-scheme: dark)",
+    ).matches
+    const initialTheme = savedTheme || (prefersDark ? "dark" : "light")
+    setTheme(initialTheme)
+    setMounted(true)
+  }, [])
 
-	const toggleTheme = () => {
-		const newTheme = theme === "dark" ? "light" : "dark"
-		setTheme(newTheme)
-		localStorage.setItem("theme", newTheme)
-		const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString()
-		const secure = window.location.protocol === "https:" ? "; Secure" : ""
-		// biome-ignore lint/suspicious/noDocumentCookie: document.cookie required for SSR-accessible theme preference
-		document.cookie = `theme=${newTheme}; path=/; expires=${expires}; SameSite=Lax${secure}`
-		const root = document.documentElement
-		if (newTheme === "dark") {
-			root.classList.add("dark")
-		} else {
-			root.classList.remove("dark")
-		}
-	}
+  const toggleTheme = () => {
+    const newTheme = theme === "dark" ? "light" : "dark"
+    setTheme(newTheme)
+    localStorage.setItem("theme", newTheme)
+    const expires = new Date(
+      Date.now() + 365 * 24 * 60 * 60 * 1000,
+    ).toUTCString()
+    const secure = window.location.protocol === "https:" ? "; Secure" : ""
+    // biome-ignore lint/suspicious/noDocumentCookie: document.cookie required for SSR-accessible theme preference
+    document.cookie = `theme=${newTheme}; path=/; expires=${expires}; SameSite=Lax${secure}`
+    const root = document.documentElement
+    if (newTheme === "dark") {
+      root.classList.add("dark")
+    } else {
+      root.classList.remove("dark")
+    }
+  }
 
-	if (!mounted) {
-		return (
-			<SidebarMenuItem>
-				<SidebarMenuButton tooltip="Toggle Theme" disabled>
-					<Sun className="h-4 w-4" />
-					<span>Toggle Theme</span>
-				</SidebarMenuButton>
-			</SidebarMenuItem>
-		)
-	}
+  if (!mounted) {
+    return (
+      <SidebarMenuItem>
+        <SidebarMenuButton tooltip="Toggle Theme" disabled>
+          <Sun className="h-4 w-4" />
+          <span>Toggle Theme</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    )
+  }
 
-	return (
-		<SidebarMenuItem>
-			<SidebarMenuButton
-				tooltip="Toggle Theme"
-				onClick={toggleTheme}
-			>
-				{theme === "dark" ? (
-					<Moon className="h-4 w-4" />
-				) : (
-					<Sun className="h-4 w-4" />
-				)}
-				<span>Toggle Theme</span>
-			</SidebarMenuButton>
-		</SidebarMenuItem>
-	)
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton tooltip="Toggle Theme" onClick={toggleTheme}>
+        {theme === "dark" ? (
+          <Moon className="h-4 w-4" />
+        ) : (
+          <Sun className="h-4 w-4" />
+        )}
+        <span>Toggle Theme</span>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  )
 }
 
 function SidebarCollapseButton() {
-	const { toggleSidebar, state } = useSidebar()
-	const isCollapsed = state === "collapsed"
+  const { toggleSidebar, state } = useSidebar()
+  const isCollapsed = state === "collapsed"
 
-	return (
-		<SidebarMenuItem>
-			<SidebarMenuButton
-				tooltip={isCollapsed ? "Open Sidebar" : "Collapse Sidebar"}
-				onClick={toggleSidebar}
-			>
-				<PanelLeft className="h-4 w-4" />
-				<span>{isCollapsed ? "Open Sidebar" : "Collapse Sidebar"}</span>
-			</SidebarMenuButton>
-		</SidebarMenuItem>
-	)
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        tooltip={isCollapsed ? "Open sidebar" : "Collapse sidebar"}
+        onClick={toggleSidebar}
+      >
+        <PanelLeft className="h-4 w-4" />
+        <span>{isCollapsed ? "Open sidebar" : "Collapse sidebar"}</span>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  )
 }
 
 function SeriesSidebarFooter() {
@@ -230,10 +234,7 @@ function SeriesSidebarFooter() {
   )
 }
 
-export function SeriesSidebar({
-  groupId,
-  children,
-}: SeriesSidebarProps) {
+export function SeriesSidebar({ groupId, children }: SeriesSidebarProps) {
   const router = useRouterState()
   const pathname = router.location.pathname
   const basePath = `/compete/organizer/series/${groupId}`
@@ -287,7 +288,8 @@ export function SeriesSidebar({
       <SidebarInset>
         <header className="fixed top-0 left-0 right-0 z-40 flex h-14 items-center gap-2 border-b bg-background px-3 md:hidden">
           <SidebarTrigger className="-ml-1" />
-          <Link to="/compete" className="flex items-center gap-2">
+          {/* @lat: [[architecture#Route Groups#compete]] */}
+          <Link to="/" className="flex items-center gap-2">
             <img
               src="/wodsmith-logo-no-text.png"
               alt="wodsmith compete"

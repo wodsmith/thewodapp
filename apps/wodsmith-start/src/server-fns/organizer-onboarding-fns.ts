@@ -6,7 +6,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, desc, eq } from "drizzle-orm"
+import { and, desc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { FEATURES } from "@/config/features"
 import { LIMITS } from "@/config/limits"
@@ -205,6 +205,21 @@ async function isApprovedOrganizerInternal(teamId: string): Promise<boolean> {
   return !!request
 }
 
+async function hasOrganizerRequestForTeamIds(
+  teamIds: string[],
+): Promise<boolean> {
+  if (teamIds.length === 0) {
+    return false
+  }
+
+  const db = getDb()
+  const request = await db.query.organizerRequestTable.findFirst({
+    where: inArray(organizerRequestTable.teamId, teamIds),
+  })
+
+  return !!request
+}
+
 // ============================================================================
 // Input Schemas
 // ============================================================================
@@ -252,6 +267,18 @@ export const isApprovedOrganizer = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<boolean> => {
     return isApprovedOrganizerInternal(data.teamId)
   })
+
+/**
+ * Check if the current user belongs to a team with an organizer request.
+ */
+export const hasCurrentUserOrganizerRequestFn = createServerFn({
+  method: "GET",
+}).handler(async (): Promise<boolean> => {
+  const session = await getSessionFromCookie()
+  const teamIds = session?.teams?.map((team) => team.id) ?? []
+
+  return hasOrganizerRequestForTeamIds(teamIds)
+})
 
 /**
  * Submit an organizer request for a team

@@ -219,7 +219,7 @@ export const DEMO_DIVISIONS: DivisionConfig[] = [
 // ============================================================================
 
 export const DEMO_PRIMARY_ADDRESS = {
-  name: "CrossFit Demo Gym",
+  name: "Functional Fitness Demo Gym",
   streetLine1: "123 Barbell Way",
   streetLine2: "Suite 100",
   city: "Austin",
@@ -240,8 +240,8 @@ export interface SponsorTemplate {
 
 export const DEMO_SPONSORS: SponsorTemplate[] = [
   {
-    name: "CrossFit Equipment Co",
-    website: "https://example.com/crossfit-equipment",
+    name: "Functional Fitness Equipment Co",
+    website: "https://example.com/functional-fitness-equipment",
   },
   {
     name: "Performance Nutrition",

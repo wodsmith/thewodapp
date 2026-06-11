@@ -148,7 +148,7 @@ function CreateMovementPage() {
             )}
 
             <Button type="submit" disabled={isSubmitting} className="w-full">
-              {isSubmitting ? "Creating..." : "Create Movement"}
+              {isSubmitting ? "Creating..." : "Create movement"}
             </Button>
           </div>
         </form>

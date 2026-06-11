@@ -91,8 +91,8 @@ export function GuestInviteForm({
     (q) => answers[q.id] && answers[q.id].trim() !== "",
   )
 
-  const requiredWaivers = waivers.filter((w) => w.required)
-  const allRequiredWaiversSigned = requiredWaivers.every(
+  const athleteWaivers = waivers.filter((w) => w.required)
+  const allRequiredWaiversSigned = athleteWaivers.every(
     (w) =>
       signatures[w.id]?.signatureName?.trim() !== "" &&
       signatures[w.id]?.agreed === true,
@@ -147,7 +147,7 @@ export function GuestInviteForm({
   }
 
   const hasQuestions = questions.length > 0
-  const hasWaivers = waivers.length > 0
+  const hasWaivers = athleteWaivers.length > 0
 
   return (
     <div className="space-y-6">
@@ -233,7 +233,7 @@ export function GuestInviteForm({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {waivers.map((waiver) => (
+            {athleteWaivers.map((waiver) => (
               <Card key={waiver.id} className="border-2">
                 <Collapsible>
                   <CardHeader>
@@ -247,7 +247,7 @@ export function GuestInviteForm({
                       <CollapsibleTrigger asChild>
                         <Button variant="ghost" size="sm">
                           <FileText className="h-4 w-4 mr-2" />
-                          View Details
+                          View details
                           <ChevronDown className="h-4 w-4 ml-2" />
                         </Button>
                       </CollapsibleTrigger>
@@ -320,7 +320,7 @@ export function GuestInviteForm({
             Saving...
           </>
         ) : (
-          "Complete Registration"
+          "Complete registration"
         )}
       </Button>
     </div>

@@ -94,8 +94,9 @@ export default function MobileNav({
                   </a>
                 </>
               )}
+              {/* @lat: [[architecture#Route Groups#compete]] */}
               <a
-                href="/compete"
+                href="/"
                 className="hover:text-primary"
                 onClick={handleLinkClick}
               >
@@ -107,8 +108,9 @@ export default function MobileNav({
             </>
           ) : (
             <>
+              {/* @lat: [[architecture#Route Groups#compete]] */}
               <a
-                href="/compete"
+                href="/"
                 className="hover:text-primary"
                 onClick={handleLinkClick}
               >
@@ -128,7 +130,7 @@ export default function MobileNav({
                 className="hover:text-primary"
                 onClick={handleLinkClick}
               >
-                Sign Up
+                Sign up
               </Link>
               <DarkModeToggle />
             </>

@@ -27,6 +27,14 @@ Running a throwdown or multi-gym event?
 - [**Manage Registrations**](/how-to/organizers/manage-registrations) - Handle athlete signups
 - [**Run Event Day**](/how-to/organizers/event-day) - Heats, scoring, and leaderboards
 
+### For Judges & Volunteers
+
+Judging an event or helping run a competition?
+
+- [**Sign Up and Complete Your First Shift**](/tutorials/judges/first-judging-shift) - End-to-end walkthrough
+- [**Review Video Submissions**](/how-to/judges/review-submissions) - Verify athlete-submitted scores online
+- [**Score In-Person Events**](/how-to/judges/score-in-person) - Enter live results during heats
+
 ## Concepts & Reference
 
 - [**Core Concepts**](/concepts/overview) - Understand how WODsmith works

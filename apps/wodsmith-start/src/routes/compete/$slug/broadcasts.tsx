@@ -24,7 +24,11 @@ export const Route = createFileRoute("/compete/$slug/broadcasts")({
 	component: AthleteBroadcastsPage,
 	loader: async ({ parentMatchPromise }) => {
 		const parentMatch = await parentMatchPromise
-		const { competition } = parentMatch.loaderData!
+		const loaderData = parentMatch.loaderData
+		if (!loaderData) {
+			throw new Error("Parent loader data missing for /compete/$slug")
+		}
+		const { competition } = loaderData
 
 		const { broadcasts } = await listAthleteBroadcastsFn({
 			data: { competitionId: competition.id },

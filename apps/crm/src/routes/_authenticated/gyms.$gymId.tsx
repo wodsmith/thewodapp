@@ -1,0 +1,347 @@
+import { createFileRoute, Link, notFound } from "@tanstack/react-router"
+import {
+  Building2,
+  Globe2,
+  Handshake,
+  Hash,
+  Instagram,
+  Mail,
+  MapPin,
+  Pencil,
+  Phone,
+  UserRound,
+} from "lucide-react"
+import { useState } from "react"
+import { EntityDocumentPanel } from "@/components/entity-document-panel"
+import { GymEditPanel } from "@/components/entity-edit-panel"
+import { getCrmDataFn } from "@/server-fns/crm"
+
+export const Route = createFileRoute("/_authenticated/gyms/$gymId")({
+  loader: async ({ params }) => {
+    const data = await getCrmDataFn()
+    const gym = data.gyms.find((item) => item.id === params.gymId)
+    if (!gym) throw notFound()
+
+    const contacts = data.contacts.filter(
+      (contact) => contact.companyId === gym.id,
+    )
+    const contactIds = new Set(contacts.map((contact) => contact.id))
+    const interactions = data.interactions.filter(
+      (interaction) =>
+        interaction.companyId === gym.id ||
+        (interaction.contactId ? contactIds.has(interaction.contactId) : false),
+    )
+
+    return { gym, contacts, interactions }
+  },
+  notFoundComponent: () => <EntityNotFound label="Gym" />,
+  component: GymDetailPage,
+})
+
+function GymDetailPage() {
+  const { gym, contacts, interactions } = Route.useLoaderData()
+  const [isEditing, setIsEditing] = useState(false)
+  const latestInteraction = interactions[0]
+
+  return (
+    <section className="space-y-6">
+      <header className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Building2 className="h-4 w-4" />
+            Gym
+          </div>
+          <h2 className="mt-1 text-3xl font-semibold tracking-tight">
+            {gym.name}
+          </h2>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <MetaInline
+              icon={<MapPin className="h-4 w-4" aria-hidden="true" />}
+              value={gym.location}
+              label="Location"
+            />
+            <Badge value={gym.status || "Prospect"} />
+            <Badge value={gym.priority} />
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsEditing((current) => !current)}
+            aria-pressed={isEditing}
+            className="inline-flex h-10 items-center gap-2 rounded-md border border-input px-4 text-sm font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Pencil className="h-4 w-4" aria-hidden="true" />
+            {isEditing ? "Viewing" : "Edit"}
+          </button>
+          <Link
+            to="/interactions"
+            search={{}}
+            className="inline-flex h-10 items-center justify-center rounded-md border border-input px-4 text-sm font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            View all interactions
+          </Link>
+        </div>
+      </header>
+
+      {isEditing ? (
+        <GymEditPanel
+          gym={gym}
+          onCancel={() => setIsEditing(false)}
+          onSaved={() => setIsEditing(false)}
+        />
+      ) : (
+        <section className="space-y-4 rounded-lg border border-border p-4">
+          <div className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-3">
+            <MetaItem
+              icon={<UserRound className="h-4 w-4" aria-hidden="true" />}
+              value={gym.ownerManager}
+              label="Owner or manager"
+            />
+            <MetaItem
+              icon={<Handshake className="h-4 w-4" aria-hidden="true" />}
+              value={gym.relationship}
+              label="Relationship"
+              showLabel
+            />
+            <MetaItem
+              icon={<Mail className="h-4 w-4" aria-hidden="true" />}
+              value={gym.email}
+              label="Email"
+            />
+            <MetaItem
+              icon={<Phone className="h-4 w-4" aria-hidden="true" />}
+              value={gym.phone}
+              label="Phone"
+            />
+            <MetaItem
+              icon={<Globe2 className="h-4 w-4" aria-hidden="true" />}
+              value={gym.website}
+              label="Website"
+              href={gym.website}
+            />
+            {/* `@lat`: [[crm-crossfit-metadata]] */}
+            <MetaItem
+              icon={<Globe2 className="h-4 w-4" aria-hidden="true" />}
+              value={gym.crossfitPage}
+              label="CrossFit Page"
+              href={gym.crossfitPage}
+              showLabel
+            />
+            <MetaItem
+              icon={<Hash className="h-4 w-4" aria-hidden="true" />}
+              value={gym.crossfitAffiliateNumber}
+              label="Affiliate"
+              showLabel
+            />
+            <MetaItem
+              icon={<Instagram className="h-4 w-4" aria-hidden="true" />}
+              value={gym.instagram}
+              label="Instagram"
+            />
+          </div>
+          {gym.notes ? <NoteBlock>{gym.notes}</NoteBlock> : null}
+          {gym.updatedAt ? (
+            <p className="border-t border-border pt-3 text-xs text-muted-foreground">
+              Record updated {gym.updatedAt}
+            </p>
+          ) : null}
+        </section>
+      )}
+
+      <RelatedSection
+        icon={<UserRound className="h-4 w-4" />}
+        title="Contacts"
+        empty="No contacts are linked to this gym yet."
+      >
+        {contacts.map((contact) => (
+          <RelatedRow key={contact.id}>
+            <Link
+              to="/contacts/$contactId"
+              params={{ contactId: contact.id }}
+              className="font-medium underline-offset-4 hover:underline"
+            >
+              {contact.fullName}
+            </Link>
+            <span>{contact.status || "Lead"}</span>
+            <span>{contact.email || contact.phone || "-"}</span>
+          </RelatedRow>
+        ))}
+      </RelatedSection>
+
+      <RelatedSection
+        icon={<Handshake className="h-4 w-4" />}
+        title="Interactions"
+        summary={interactionSummary({
+          count: interactions.length,
+          latestDate: latestInteraction?.date,
+        })}
+        empty="No interactions are linked to this gym yet."
+      >
+        {interactions.map((interaction) => (
+          <RelatedRow key={`${interaction.source}-${interaction.id}`}>
+            <Link
+              to="/interactions/$interactionId"
+              params={{ interactionId: interaction.id }}
+              className="font-medium underline-offset-4 hover:underline"
+            >
+              {interaction.title}
+            </Link>
+            <span>{interaction.date || "-"}</span>
+            <span>{interaction.contactName || interaction.channel || "-"}</span>
+          </RelatedRow>
+        ))}
+      </RelatedSection>
+
+      <EntityDocumentPanel entryId={gym.id} label={gym.name} />
+    </section>
+  )
+}
+
+function Badge({ value }: { value: string | null }) {
+  if (!value) return null
+
+  return (
+    <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+      {value}
+    </span>
+  )
+}
+
+function MetaInline({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string | null
+}) {
+  if (!value) return null
+
+  return (
+    <span
+      title={`${label}: ${value}`}
+      className="inline-flex min-w-0 items-center gap-1.5"
+    >
+      {icon}
+      <span className="truncate">{value}</span>
+    </span>
+  )
+}
+
+function MetaItem({
+  icon,
+  label,
+  value,
+  href,
+  showLabel,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string | null
+  href?: string | null
+  showLabel?: boolean
+}) {
+  if (!value) return null
+
+  return (
+    <span
+      title={`${label}: ${value}`}
+      className="inline-flex min-w-0 items-center gap-2 rounded-md border border-border bg-background px-2.5 py-2 text-sm"
+    >
+      <span className="shrink-0 text-muted-foreground">{icon}</span>
+      {showLabel ? (
+        <span className="shrink-0 text-xs font-medium uppercase text-muted-foreground">
+          {label}
+        </span>
+      ) : null}
+      {href ? (
+        <a
+          href={href.startsWith("http") ? href : `https://${href}`}
+          target="_blank"
+          rel="noreferrer"
+          className="min-w-0 truncate underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {value}
+        </a>
+      ) : (
+        <span className="min-w-0 truncate">{value}</span>
+      )}
+    </span>
+  )
+}
+
+function NoteBlock({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="border-t border-border pt-4 text-sm leading-6 text-muted-foreground">
+      {children}
+    </div>
+  )
+}
+
+function RelatedSection({
+  icon,
+  title,
+  summary,
+  empty,
+  children,
+}: {
+  icon: React.ReactNode
+  title: string
+  summary?: string
+  empty: string
+  children: React.ReactNode[]
+}) {
+  return (
+    <section className="rounded-lg border border-border">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          {icon}
+          {title}
+        </div>
+        {summary ? (
+          <p className="text-xs font-normal text-muted-foreground">{summary}</p>
+        ) : null}
+      </div>
+      <div className="divide-y divide-border">
+        {children.length > 0 ? (
+          children
+        ) : (
+          <p className="px-4 py-6 text-sm text-muted-foreground">{empty}</p>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function interactionSummary({
+  count,
+  latestDate,
+}: {
+  count: number
+  latestDate: string | null | undefined
+}) {
+  if (count === 0) return undefined
+  const countLabel = count === 1 ? "1 interaction" : `${count} interactions`
+  return latestDate ? `${countLabel} • latest ${latestDate}` : countLabel
+}
+
+function RelatedRow({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="grid gap-2 px-4 py-3 text-sm md:grid-cols-[1.5fr_0.75fr_1fr]">
+      {children}
+    </div>
+  )
+}
+
+function EntityNotFound({ label }: { label: string }) {
+  return (
+    <section className="rounded-lg border border-border p-6">
+      <h2 className="text-xl font-semibold">{label} not found</h2>
+      <p className="mt-2 text-sm text-muted-foreground">
+        This CRM record may have been removed or has not been seeded yet.
+      </p>
+    </section>
+  )
+}

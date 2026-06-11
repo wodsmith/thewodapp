@@ -43,7 +43,10 @@ import {
   type VolunteerRoleType,
 } from "@/db/schemas/volunteers"
 import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
-import { bulkAssignVolunteerRoleFn } from "@/server-fns/volunteer-fns"
+import {
+  bulkAssignVolunteerRoleFn,
+  type VolunteerWaiverStatusResult,
+} from "@/server-fns/volunteer-fns"
 import { InviteVolunteerDialog } from "./invite-volunteer-dialog"
 import { VolunteerRow } from "./volunteer-row"
 
@@ -77,6 +80,7 @@ interface VolunteersListProps {
   volunteerQuestions: RegistrationQuestion[]
   answersByInvitation: Record<string, VolunteerAnswer[]>
   emailToInvitationId: Record<string, string>
+  volunteerWaiverStatus?: VolunteerWaiverStatusResult
   volunteerAssignments: Record<
     string,
     {
@@ -102,19 +106,50 @@ interface VolunteersListProps {
     }
   >
   /** Optional callback for bulk role assignment. Defaults to organizer server fn. */
-  onBulkAssignRole?: (params: { membershipIds: string[]; competitionId: string; roleType: string }) => Promise<{ succeeded: number; failed: number }>
+  onBulkAssignRole?: (params: {
+    membershipIds: string[]
+    competitionId: string
+    roleType: string
+  }) => Promise<{ succeeded: number; failed: number }>
   /** Optional callback to invite a volunteer. Passed through to InviteVolunteerDialog. */
-  onInviteVolunteer?: (params: { name?: string; email: string; competitionTeamId: string; competitionId: string; roleTypes: string[] }) => Promise<{ success: boolean }>
+  onInviteVolunteer?: (params: {
+    name?: string
+    email: string
+    competitionTeamId: string
+    competitionId: string
+    roleTypes: string[]
+  }) => Promise<{ success: boolean }>
   /** Optional callback to add a role type. Passed through to VolunteerRow. */
-  onAddRoleType?: (params: { membershipId: string; competitionId: string; roleType: string }) => Promise<{ success: boolean }>
+  onAddRoleType?: (params: {
+    membershipId: string
+    competitionId: string
+    roleType: string
+  }) => Promise<{ success: boolean }>
   /** Optional callback to remove a role type. Passed through to VolunteerRow. */
-  onRemoveRoleType?: (params: { membershipId: string; competitionId: string; roleType: string }) => Promise<{ success: boolean }>
+  onRemoveRoleType?: (params: {
+    membershipId: string
+    competitionId: string
+    roleType: string
+  }) => Promise<{ success: boolean }>
   /** Optional callback to update volunteer metadata. Passed through to VolunteerRow. */
-  onUpdateMetadata?: (params: { membershipId: string; competitionId: string; metadata: Record<string, unknown> }) => Promise<{ success: boolean }>
+  onUpdateMetadata?: (params: {
+    membershipId: string
+    competitionId: string
+    metadata: Record<string, unknown>
+  }) => Promise<{ success: boolean }>
   /** Optional callback to grant score access. Passed through to VolunteerRow. */
-  onGrantScoreAccess?: (params: { volunteerId: string; competitionTeamId: string; competitionId: string; grantedBy: string }) => Promise<{ success: boolean }>
+  onGrantScoreAccess?: (params: {
+    volunteerId: string
+    competitionTeamId: string
+    competitionId: string
+    grantedBy: string
+  }) => Promise<{ success: boolean }>
   /** Optional callback to revoke score access. Passed through to VolunteerRow. */
-  onRevokeScoreAccess?: (params: { userId: string; competitionTeamId: string; competitionId: string }) => Promise<{ success: boolean }>
+  onRevokeScoreAccess?: (params: {
+    userId: string
+    competitionTeamId: string
+    competitionId: string
+  }) => Promise<{ success: boolean }>
 }
 
 /**
@@ -132,6 +167,7 @@ export function VolunteersList({
   volunteerQuestions,
   answersByInvitation,
   emailToInvitationId,
+  volunteerWaiverStatus,
   onBulkAssignRole,
   onInviteVolunteer,
   onAddRoleType,
@@ -152,6 +188,41 @@ export function VolunteersList({
     }
     return invitationId ? (answersByInvitation[invitationId] ?? []) : []
   }
+
+  function getEmailForVolunteer(volunteer: VolunteerWithAccess): string | null {
+    if (volunteer.user?.email) return volunteer.user.email
+
+    try {
+      const parsed = JSON.parse(volunteer.metadata || "{}") as {
+        signupEmail?: string
+        inviteEmail?: string
+      }
+      return parsed.signupEmail ?? parsed.inviteEmail ?? null
+    } catch {
+      return null
+    }
+  }
+
+  function getWaiverStatusesForVolunteer(volunteer: VolunteerWithAccess) {
+    if (!volunteerWaiverStatus) return []
+
+    const email = getEmailForVolunteer(volunteer)
+    const userId =
+      volunteer.user?.id ??
+      (email ? volunteerWaiverStatus.userIdByEmail[email.toLowerCase()] : null)
+    const signedWaiverIds = new Set(
+      userId
+        ? (volunteerWaiverStatus.signedWaiverIdsByUserId[userId] ?? [])
+        : [],
+    )
+
+    return volunteerWaiverStatus.requiredWaivers.map((waiver) => ({
+      id: waiver.id,
+      title: waiver.title,
+      signed: signedWaiverIds.has(waiver.id),
+    }))
+  }
+
   const router = useRouter()
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
   const [filter, setFilter] = useState<"all" | "pending" | "approved">("all")
@@ -363,6 +434,8 @@ export function VolunteersList({
   const allSelected =
     filteredIds.length > 0 && filteredIds.every((id) => selectedIds.has(id))
   const someSelected = selectedIds.size > 0
+  const waiverColumns = volunteerWaiverStatus?.requiredWaivers ?? []
+  const showWaiverStatus = waiverColumns.length > 0
 
   /**
    * Export all visible volunteers to CSV, including registration question answers
@@ -503,7 +576,7 @@ export function VolunteersList({
             ) : (
               <Copy className="mr-2 h-4 w-4" />
             )}
-            Copy Signup Link
+            Copy signup link
           </Button>
           <InviteVolunteerDialog
             competitionId={competitionId}
@@ -520,7 +593,7 @@ export function VolunteersList({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Bulk Action Toolbar */}
+      {/* Bulk action toolbar */}
       {someSelected && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/50 p-2">
           <span className="text-sm font-medium">
@@ -593,7 +666,7 @@ export function VolunteersList({
             ) : (
               <Copy className="mr-2 h-4 w-4" />
             )}
-            Copy Signup Link
+            Copy signup link
           </Button>
           <Button
             onClick={() => setInviteDialogOpen(true)}
@@ -701,6 +774,10 @@ export function VolunteersList({
                     }
                     answers={getAnswersForVolunteer(volunteerItem)}
                     questions={volunteerQuestions}
+                    showWaiverStatus={showWaiverStatus}
+                    waiverStatuses={getWaiverStatusesForVolunteer(
+                      volunteerItem,
+                    )}
                     variant="card"
                     onAddRoleType={onAddRoleType}
                     onRemoveRoleType={onRemoveRoleType}
@@ -731,6 +808,8 @@ export function VolunteersList({
                   }
                   answers={getAnswersForVolunteer(volunteer)}
                   questions={volunteerQuestions}
+                  showWaiverStatus={showWaiverStatus}
+                  waiverStatuses={getWaiverStatusesForVolunteer(volunteer)}
                   variant="card"
                   onAddRoleType={onAddRoleType}
                   onRemoveRoleType={onRemoveRoleType}
@@ -759,6 +838,9 @@ export function VolunteersList({
                       <TableHead>Name</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Role Types</TableHead>
+                      {waiverColumns.map((waiver) => (
+                        <TableHead key={waiver.id}>{waiver.title}</TableHead>
+                      ))}
                       <TableHead>Assignments</TableHead>
                       <TableHead>Score Access</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -819,6 +901,10 @@ export function VolunteersList({
                             }
                             answers={getAnswersForVolunteer(volunteerItem)}
                             questions={volunteerQuestions}
+                            showWaiverStatus={showWaiverStatus}
+                            waiverStatuses={getWaiverStatusesForVolunteer(
+                              volunteerItem,
+                            )}
                             onAddRoleType={onAddRoleType}
                             onRemoveRoleType={onRemoveRoleType}
                             onUpdateMetadata={onUpdateMetadata}
@@ -848,6 +934,10 @@ export function VolunteersList({
                           }
                           answers={getAnswersForVolunteer(volunteer)}
                           questions={volunteerQuestions}
+                          showWaiverStatus={showWaiverStatus}
+                          waiverStatuses={getWaiverStatusesForVolunteer(
+                            volunteer,
+                          )}
                           onAddRoleType={onAddRoleType}
                           onRemoveRoleType={onRemoveRoleType}
                           onUpdateMetadata={onUpdateMetadata}

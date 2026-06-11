@@ -1,8 +1,6 @@
-import { useEffect } from "react"
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router"
+import { useEffect } from "react"
 import { z } from "zod"
-import type { JudgeAssignmentVersion } from "@/db/schema"
-import type { LaneShiftPattern } from "@/db/schemas/volunteers"
 import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
 import {
   Select,
@@ -12,27 +10,25 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import type { JudgeAssignmentVersion } from "@/db/schema"
+import type { LaneShiftPattern } from "@/db/schemas/volunteers"
 import { getHeatsForCompetitionFn } from "@/server-fns/competition-heats-fns"
 import { getCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
 import {
-  getActiveVersionFn,
-  getVersionHistoryFn,
-} from "@/server-fns/judge-assignment-fns"
-import {
-  getJudgeHeatAssignmentsFn,
+  getJudgeSchedulingDataForEventsFn,
   getJudgeVolunteersFn,
-  getRotationsForEventFn,
 } from "@/server-fns/judge-scheduling-fns"
 import {
   getVolunteerAnswersFn,
   getVolunteerQuestionsFn,
 } from "@/server-fns/registration-questions-fns"
 import {
-  canInputScoresFn,
   getCompetitionVolunteersFn,
   getDirectVolunteerInvitesFn,
   getPendingVolunteerInvitationsFn,
+  getScoreAccessMapFn,
   getVolunteerAssignmentsFn,
+  getVolunteerWaiverStatusesFn,
 } from "@/server-fns/volunteer-fns"
 import { getCompetitionShiftsFn } from "@/server-fns/volunteer-shift-fns"
 import { InvitedVolunteersList } from "./-components/invited-volunteers-list"
@@ -64,7 +60,11 @@ export const Route = createFileRoute(
   validateSearch: searchParamsSchema,
   loader: async ({ parentMatchPromise }) => {
     const parentMatch = await parentMatchPromise
-    const { competition } = parentMatch.loaderData!
+    const competition = parentMatch.loaderData?.competition
+
+    if (!competition) {
+      throw new Error("Competition not found")
+    }
 
     if (!competition.competitionTeamId) {
       throw new Error("Competition team not found")
@@ -72,7 +72,7 @@ export const Route = createFileRoute(
 
     const competitionTeamId = competition.competitionTeamId
 
-    // Parallel fetch: invitations, volunteers, events, direct invites, judges, shifts, assignments, volunteer questions, volunteer answers
+    // Parallel fetch: invitations, volunteers, events, direct invites, judges, shifts, assignments, volunteer questions, volunteer answers, heats
     const [
       invitations,
       volunteers,
@@ -83,6 +83,8 @@ export const Route = createFileRoute(
       volunteerAssignments,
       volunteerQuestionsResult,
       volunteerAnswersResult,
+      volunteerWaiverStatus,
+      heatsResult,
     ] = await Promise.all([
       getPendingVolunteerInvitationsFn({
         data: { competitionTeamId },
@@ -117,93 +119,73 @@ export const Route = createFileRoute(
           organizingTeamId: competition.organizingTeamId,
         },
       }),
+      getVolunteerWaiverStatusesFn({
+        data: {
+          competitionId: competition.id,
+          competitionTeamId,
+          organizingTeamId: competition.organizingTeamId,
+        },
+      }),
+      getHeatsForCompetitionFn({
+        data: {
+          competitionId: competition.id,
+          teamId: competition.organizingTeamId,
+        },
+      }),
     ])
     const volunteerQuestions = volunteerQuestionsResult.questions
     const { answersByInvitation, emailToInvitationId } = volunteerAnswersResult
 
     const events = eventsResult.workouts
-
-    // For each volunteer, check if they have score access
-    const volunteersWithAccess = await Promise.all(
-      volunteers.map(async (volunteer) => {
-        const hasScoreAccess = volunteer.user
-          ? await canInputScoresFn({
-              data: {
-                userId: volunteer.user.id,
-                competitionTeamId,
-              },
-            })
-          : false
-
-        return {
-          ...volunteer,
-          hasScoreAccess,
-        }
-      }),
-    )
-
-    // Get heats for all events
-    const heatsResult = await getHeatsForCompetitionFn({
-      data: {
-        competitionId: competition.id,
-        teamId: competition.organizingTeamId,
-      },
-    })
     const heats = heatsResult.heats
 
-    // Get judge assignments, rotations, and version data for all events
-    const [
-      allAssignments,
-      allRotationResults,
-      allVersionHistory,
-      allActiveVersions,
-    ] = await Promise.all([
-      Promise.all(
-        events.map((event) =>
-          getJudgeHeatAssignmentsFn({ data: { trackWorkoutId: event.id } }),
-        ),
-      ),
-      Promise.all(
-        events.map((event) =>
-          getRotationsForEventFn({ data: { trackWorkoutId: event.id } }),
-        ),
-      ),
-      Promise.all(
-        events.map((event) =>
-          getVersionHistoryFn({ data: { trackWorkoutId: event.id } }),
-        ),
-      ),
-      Promise.all(
-        events.map((event) =>
-          getActiveVersionFn({ data: { trackWorkoutId: event.id } }),
-        ),
-      ),
+    // Batched second stage: score access for all volunteers + judge
+    // scheduling data for all events, each a constant number of queries.
+    const [scoreAccessMap, judgeSchedulingData] = await Promise.all([
+      getScoreAccessMapFn({
+        data: {
+          userIds: volunteers
+            .map((volunteer) => volunteer.user?.id)
+            .filter((id): id is string => Boolean(id)),
+          competitionTeamId,
+        },
+      }),
+      getJudgeSchedulingDataForEventsFn({
+        data: { trackWorkoutIds: events.map((event) => event.id) },
+      }),
     ])
 
-    const judgeAssignments = allAssignments.flat()
-    // Extract rotations from the new { rotations, eventDefaults } return type
-    const rotations = allRotationResults.flatMap((result) => result.rotations)
+    const volunteersWithAccess = volunteers.map((volunteer) => ({
+      ...volunteer,
+      hasScoreAccess: volunteer.user
+        ? (scoreAccessMap[volunteer.user.id] ?? false)
+        : false,
+    }))
+
+    const judgeAssignments = judgeSchedulingData.judgeAssignments
+    const rotations = events.flatMap(
+      (event) => judgeSchedulingData.rotationsByEvent[event.id] ?? [],
+    )
     // Build event defaults map for each event (cast to EventDefaults for type safety)
     const eventDefaultsMap = new Map<string, EventDefaults>()
-    for (const [index, event] of events.entries()) {
-      const result = allRotationResults[index]
-      eventDefaultsMap.set(event.id, {
-        defaultHeatsCount: result?.eventDefaults?.defaultHeatsCount ?? null,
-        defaultLaneShiftPattern:
-          (result?.eventDefaults
-            ?.defaultLaneShiftPattern as LaneShiftPattern) ?? null,
-        minHeatBuffer: result?.eventDefaults?.minHeatBuffer ?? null,
-      })
-    }
-    // Build version history map for each event
     const versionHistoryMap = new Map<string, JudgeAssignmentVersion[]>()
-    for (const [index, event] of events.entries()) {
-      versionHistoryMap.set(event.id, allVersionHistory[index] ?? [])
-    }
-    // Build active version map for each event
     const activeVersionMap = new Map<string, JudgeAssignmentVersion | null>()
-    for (const [index, event] of events.entries()) {
-      activeVersionMap.set(event.id, allActiveVersions[index] ?? null)
+    for (const event of events) {
+      const defaults = judgeSchedulingData.eventDefaultsByEvent[event.id]
+      eventDefaultsMap.set(event.id, {
+        defaultHeatsCount: defaults?.defaultHeatsCount ?? null,
+        defaultLaneShiftPattern:
+          (defaults?.defaultLaneShiftPattern as LaneShiftPattern) ?? null,
+        minHeatBuffer: defaults?.minHeatBuffer ?? null,
+      })
+      versionHistoryMap.set(
+        event.id,
+        judgeSchedulingData.versionHistoryByEvent[event.id] ?? [],
+      )
+      activeVersionMap.set(
+        event.id,
+        judgeSchedulingData.activeVersionByEvent[event.id] ?? null,
+      )
     }
 
     // Filter pending direct invites for conditional rendering
@@ -230,6 +212,7 @@ export const Route = createFileRoute(
       volunteerQuestions,
       answersByInvitation,
       emailToInvitationId,
+      volunteerWaiverStatus,
     }
   },
   component: VolunteersPage,
@@ -255,6 +238,7 @@ function VolunteersPage() {
     volunteerQuestions,
     answersByInvitation,
     emailToInvitationId,
+    volunteerWaiverStatus,
   } = Route.useLoaderData()
 
   const { tab, event: eventFromUrl } = Route.useSearch()
@@ -326,9 +310,7 @@ function VolunteersPage() {
             {isInPerson && (
               <SelectItem value="schedule">Judge Schedule</SelectItem>
             )}
-            <SelectItem value="registration-rules">
-              Registration Rules
-            </SelectItem>
+            <SelectItem value="registration-rules">Signup Questions</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -340,7 +322,7 @@ function VolunteersPage() {
         {isInPerson && (
           <TabsTrigger value="schedule">Judge Schedule</TabsTrigger>
         )}
-        <TabsTrigger value="registration-rules">Registration Rules</TabsTrigger>
+        <TabsTrigger value="registration-rules">Signup Questions</TabsTrigger>
       </TabsList>
 
       {/* Roster Tab - Volunteer Management */}
@@ -382,6 +364,7 @@ function VolunteersPage() {
             volunteerQuestions={volunteerQuestions}
             answersByInvitation={answersByInvitation}
             emailToInvitationId={emailToInvitationId}
+            volunteerWaiverStatus={volunteerWaiverStatus}
           />
         </section>
       </TabsContent>
@@ -422,7 +405,7 @@ function VolunteersPage() {
         </TabsContent>
       )}
 
-      {/* Registration Rules Tab */}
+      {/* Signup Questions Tab */}
       <TabsContent value="registration-rules">
         <RegistrationQuestionsEditor
           entityType="competition"
@@ -433,7 +416,6 @@ function VolunteersPage() {
           questionTarget="volunteer"
         />
       </TabsContent>
-
     </Tabs>
   )
 }

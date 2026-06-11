@@ -10,7 +10,14 @@ const selectQueue: unknown[][] = []
 function makeChain(): unknown {
   const chain: Record<string, unknown> = {}
   const noop = () => chain
-  for (const m of ["from", "where", "limit", "innerJoin", "leftJoin"]) {
+  for (const m of [
+    "from",
+    "where",
+    "limit",
+    "innerJoin",
+    "leftJoin",
+    "orderBy",
+  ]) {
     chain[m] = vi.fn(noop)
   }
   chain.then = (resolve: (value: unknown) => void) => {
@@ -97,7 +104,14 @@ describe("getPriorTeamForInvite", () => {
 
   it("returns prior team + teammates when invitee was the captain", async () => {
     // Query 1: captain registration lookup → has athleteTeamId.
-    selectQueue.push([{ athleteTeamId: "team_prior", teamName: "Crush" }])
+    selectQueue.push([
+      {
+        athleteTeamId: "team_prior",
+        teamName: "Crush",
+        registeredAt: new Date("2026-04-10T00:00:00Z"),
+        sourceTeamSize: 2,
+      },
+    ])
     // Query 2: team-membership join → two other members (captain excluded
     // by the SQL `ne(userId, inviteeUserId)`).
     selectQueue.push([
@@ -140,7 +154,14 @@ describe("getPriorTeamForInvite", () => {
 
   it("returns null when invitee's prior registration was individual (athleteTeamId IS NULL)", async () => {
     // Query 1: captain registration row exists but is solo.
-    selectQueue.push([{ athleteTeamId: null, teamName: null }])
+    selectQueue.push([
+      {
+        athleteTeamId: null,
+        teamName: null,
+        registeredAt: new Date("2026-04-10T00:00:00Z"),
+        sourceTeamSize: 1,
+      },
+    ])
     // Query 2: membership lane lookup → user is in no other teams.
     selectQueue.push([])
 
@@ -154,7 +175,14 @@ describe("getPriorTeamForInvite", () => {
     // Query 1: user-by-email lookup.
     selectQueue.push([{ id: "usr_resolved" }])
     // Query 2: captain registration lookup.
-    selectQueue.push([{ athleteTeamId: "team_prior", teamName: "Late Adds" }])
+    selectQueue.push([
+      {
+        athleteTeamId: "team_prior",
+        teamName: "Late Adds",
+        registeredAt: new Date("2026-04-10T00:00:00Z"),
+        sourceTeamSize: 2,
+      },
+    ])
     // Query 3: membership join.
     selectQueue.push([
       {
@@ -190,5 +218,98 @@ describe("getPriorTeamForInvite", () => {
       invite: inviteFixture({ userId: null }),
     })
     expect(result).toBeNull()
+  })
+
+  // Multi-division source athlete: the invitee was registered in BOTH a
+  // partner (team_size=2) and a solo (team_size=1) division of the source
+  // comp. The legacy "first row wins" behavior could surface either; with
+  // destinationTeamSize the helper picks the source reg whose division
+  // teamSize matches the championship division's teamSize.
+  it("prefers source registration whose teamSize matches destinationTeamSize=2 (partner)", async () => {
+    // Query 1: captain rows → solo individual row + partner team row.
+    // Ordering by registeredAt ASC — solo first; without the teamSize
+    // preference the legacy code would pick solo (athleteTeamId null) and
+    // fall through to membership lane. With destinationTeamSize=2 the
+    // helper picks the partner team row directly.
+    selectQueue.push([
+      {
+        athleteTeamId: null,
+        teamName: null,
+        registeredAt: new Date("2026-03-01T00:00:00Z"),
+        sourceTeamSize: 1,
+      },
+      {
+        athleteTeamId: "team_partner",
+        teamName: "Crush Partner",
+        registeredAt: new Date("2026-03-15T00:00:00Z"),
+        sourceTeamSize: 2,
+      },
+    ])
+    // Query 2: team-membership join → one partner.
+    selectQueue.push([
+      {
+        email: "partner@example.com",
+        firstName: "Part",
+        lastName: "Ner",
+        affiliateName: "Gym A",
+      },
+    ])
+
+    const result = await getPriorTeamForInvite({
+      invite: inviteFixture({ userId: "usr_captain" }),
+      destinationTeamSize: 2,
+    })
+
+    expect(result).toEqual({
+      teamName: "Crush Partner",
+      teammates: [
+        {
+          email: "partner@example.com",
+          firstName: "Part",
+          lastName: "Ner",
+          affiliateName: "Gym A",
+        },
+      ],
+    })
+  })
+
+  // When the destination is a 2-person division but the source has only a
+  // 4-person team registration, the exact-teamSize match misses. The helper
+  // falls back to the first team registration so the invitee at least gets
+  // *some* prefill rather than a blank form.
+  it("falls back to first team reg when no source teamSize matches", async () => {
+    selectQueue.push([
+      {
+        athleteTeamId: "team_quad",
+        teamName: "Quad Squad",
+        registeredAt: new Date("2026-03-01T00:00:00Z"),
+        sourceTeamSize: 4,
+      },
+    ])
+    selectQueue.push([
+      {
+        email: "q1@example.com",
+        firstName: "Q",
+        lastName: "One",
+        affiliateName: "Gym Q",
+      },
+    ])
+
+    const result = await getPriorTeamForInvite({
+      invite: inviteFixture({ userId: "usr_captain" }),
+      destinationTeamSize: 2,
+    })
+
+    expect(result).toEqual({
+      teamName: "Quad Squad",
+      teammates: [
+        {
+          email: "q1@example.com",
+          firstName: "Q",
+          lastName: "One",
+          affiliateName: "Gym Q",
+        },
+      ],
+    })
   })
 })

@@ -352,8 +352,8 @@ export function WorkoutForm({
                 ? "Creating..."
                 : "Saving..."
               : mode === "create"
-                ? "Create Workout"
-                : "Save Changes"}
+                ? "Create workout"
+                : "Save changes"}
           </Button>
         </div>
       </form>

@@ -17,9 +17,9 @@
  * ADR-0012 Phase 6: per-(source, championshipDivision) cutoffs are
  * applied after leaderboards are fetched. The resolved allocation map
  * (`resolveSourceAllocations`) supplies the truncation N for each
- * `(sourceId, championshipDivisionId)`. Source-side `globalSpots` /
- * `directSpotsPerComp` act as defaults when no override row exists for
- * the championship division. See ADR-0012 "Allocation Resolution".
+ * `(sourceId, championshipDivisionId)`. Source-side `globalSpots` is
+ * the per-division default when no override row exists. See ADR-0012
+ * "Allocation Resolution".
  */
 // @lat: [[competition-invites#Roster computation]]
 
@@ -32,6 +32,7 @@ import {
 } from "@/db/schemas/competition-invites"
 import { competitionsTable } from "@/db/schemas/competitions"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
+import type { TeamMemberInfo } from "@/server/competition-leaderboard"
 import { parseCompetitionSettings } from "@/server-fns/competition-divisions-fns"
 import type { ResolvedSourceAllocations } from "./allocations"
 import { getCandidatesForSourceComp } from "./candidates"
@@ -64,6 +65,15 @@ export interface RosterRow {
    *  Null when the leaderboard surfaced no user id (rare) or the user
    *  has no email on file. */
   athleteEmail: string | null
+  /** True when the source division is a team division (`teamSize > 1`).
+   *  The roster table renders team rows with team name + members
+   *  underneath, mirroring the qualifier's leaderboard. */
+  isTeamDivision: boolean
+  /** Registration's team name when `isTeamDivision`; null otherwise. */
+  teamName: string | null
+  /** Team roster (captain-first), mirroring the leaderboard. Empty for
+   *  individual divisions. */
+  teamMembers: TeamMemberInfo[]
   /** Invite-state columns — always null at this layer; the route attaches
    *  invite status via `listActiveInvitesFn` keyed by email. */
   inviteId: null
@@ -169,6 +179,14 @@ function mapSourceDivisionToChampionship(args: {
  * Returns a deduped list keyed by `competitionId` so a comp referenced
  * by both a direct source AND a series source only fetches once. The
  * first-encountered source wins for tagging.
+ *
+ * TODO(series_global): `series_global` currently fans out the same way
+ * as `series` — one (comp × division) candidate fetch per child comp,
+ * no series-level aggregation. The intent is "top N from the series
+ * global leaderboard per championship division", which needs a
+ * dedicated path that calls `getSeriesLeaderboard` and truncates by
+ * the resolved per-(source, championship division) allocation. The
+ * schema split lands first; the aggregate path is deferred.
  */
 async function resolveSourceCompetitions(
   championshipId: string,
@@ -194,7 +212,8 @@ async function resolveSourceCompetitions(
   const groupIds = sources
     .filter(
       (s): s is typeof s & { sourceGroupId: string } =>
-        s.kind === "series" && !!s.sourceGroupId,
+        (s.kind === "series" || s.kind === "series_global") &&
+        !!s.sourceGroupId,
     )
     .map((s) => s.sourceGroupId)
 
@@ -242,7 +261,10 @@ async function resolveSourceCompetitions(
         competitionId: row.id,
         competitionName: row.name,
       })
-    } else if (source.kind === "series" && source.sourceGroupId) {
+    } else if (
+      (source.kind === "series" || source.kind === "series_global") &&
+      source.sourceGroupId
+    ) {
       const matchingComps = seriesComps.filter(
         (c) => c.groupId === source.sourceGroupId,
       )
@@ -343,24 +365,11 @@ async function resolveDivisionRefs(
  * championshipDivision) value. Override present → uses override; absent
  * → uses the source's `globalSpots` default (applied per division).
  *
- * Series source: today the leaderboard fan-out yields one entry per
- * (seriesComp × division). The per-comp "direct" line uses
- * `directSpotsPerComp` as the default; when an override exists for the
- * championship division the override is the *total* number of direct
- * qualifiers for that division across the *whole series* — not per
- * comp. We can't faithfully redistribute that across comps without
- * series-leaderboard context (which row from comp A vs comp B counts
- * toward the global pool), so series with overrides keeps the current
- * full-leaderboard behavior and lets downstream UI / the
- * `divisionAllocationTotals` denominator surface the discrepancy.
- *
- * TODO(ADR-0012 Phase 6): split direct vs. global tiers cleanly for
- * series sources with division-level overrides; today the override is
- * honored on the per-division *denominator* (Sent tab) but not on the
- * per-comp leaderboard truncation here. See ADR-0012 "Allocation
- * Resolution" — the global block is still the safe fallback because it
- * never *adds* invalid qualifying rows; it can only over-include rows
- * the organizer must filter manually.
+ * Series source: keeps the full leaderboard (no cutoff). The per-
+ * (source, division) allocation still gates invite issuing and claim
+ * acceptance via `divisionAllocationTotals`; the leaderboard fan-out
+ * just doesn't pre-truncate so organizers can pick whom to invite from
+ * the full candidate pool.
  *
  * Returns `null` when no cutoff applies (i.e. include every row).
  */
@@ -373,11 +382,6 @@ function computeCutoffForLeaderboard(args: {
   divisionMappings: DivisionMapping[]
 }): number | null {
   if (args.source.kind === COMPETITION_INVITE_SOURCE_KIND.SERIES) {
-    // Series fallback: keep all rows. Per-comp direct truncation is a
-    // future improvement (TODO above) — until the (direct, global)
-    // tiers are split, returning the full leaderboard is the safer
-    // path because it can only over-include candidate rows the
-    // organizer manually filters, never silently drop a qualifier.
     return null
   }
 
@@ -411,11 +415,11 @@ export async function getChampionshipRoster(
   if (divisionRefs.length === 0) return { rows: [] }
 
   // Fan out per (sourceComp × division) candidate fetches in parallel.
-  // `getCandidatesForSourceComp` is purpose-built for this surface: it
-  // returns active registrations directly, with no heat / event-status /
-  // publication gating. The roster used to call `getCompetitionLeaderboard`
-  // here, which silently dropped divisions whose athletes hadn't been
-  // heat-assigned — see docs/bugs/0001-invite-candidates-missing-divisions.md.
+  // `getCandidatesForSourceComp` mirrors the qualifier's leaderboard
+  // (same scoring algorithm + tiebreakers) so `sourcePlacement` on every
+  // row matches what the source competition's leaderboard would show —
+  // organizers use this surface as the source of truth when deciding
+  // whom to invite, so the two views must agree exactly.
   //
   // Cutoff is allocation budget metadata, not a candidate filter. The
   // organizer needs every eligible athlete on the page so they can pick
@@ -434,9 +438,9 @@ export async function getChampionshipRoster(
 
   const rows: RosterRow[] = []
   for (const { ref, entries } of candidates) {
-    entries.forEach((e, idx) => {
+    for (const e of entries) {
       rows.push({
-        sourcePlacement: idx + 1,
+        sourcePlacement: e.overallRank,
         sourceId: ref.sourceId,
         sourceKind: ref.sourceKind,
         sourceCompetitionId: ref.competitionId,
@@ -446,12 +450,15 @@ export async function getChampionshipRoster(
         userId: e.userId,
         athleteName: e.athleteName,
         athleteEmail: e.athleteEmail,
+        isTeamDivision: e.isTeamDivision ?? false,
+        teamName: e.teamName ?? null,
+        teamMembers: e.teamMembers ?? [],
         inviteId: null,
         inviteStatus: null,
         roundId: null,
         roundNumber: null,
       })
-    })
+    }
   }
 
   return { rows }

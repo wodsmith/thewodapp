@@ -7,7 +7,6 @@
 
 import alchemy from 'alchemy'
 import {Website} from 'alchemy/cloudflare'
-import {GitHubComment} from 'alchemy/github'
 import {CloudflareStateStore} from 'alchemy/state'
 
 const stage = process.env.STAGE ?? 'dev'
@@ -22,7 +21,7 @@ const app = await alchemy('wodsmith-docs', {
 
 /**
  * Determines the custom domain for the docs site.
- * Only production gets a custom domain - PR previews use the default workers.dev URL.
+ * Only production gets a custom domain.
  *
  * Domains are specified as objects with explicit adopt: true to handle
  * cases where the domain binding already exists in Cloudflare.
@@ -46,32 +45,6 @@ const website = await Website('docs', {
   adopt: true,
 })
 
-/**
- * GitHub PR comment with preview URL for pull request deployments.
- * Uses the default workers.dev URL (no custom domain for previews).
- */
-if (process.env.PULL_REQUEST) {
-  const prNumber = Number(process.env.PULL_REQUEST)
-  const previewUrl = website.url
-  const commitSha = process.env.GITHUB_SHA?.slice(0, 7) ?? 'unknown'
-
-  await GitHubComment('preview-comment', {
-    owner: 'wodsmith',
-    repository: 'thewodapp',
-    issueNumber: prNumber,
-    body: `## Docs Preview Deployed
-
-**URL:** ${previewUrl}
-
-| Detail | Value |
-|--------|-------|
-| Commit | \`${commitSha}\` |
-| Stage | \`pr-${prNumber}\` |
-| Deployed | ${new Date().toISOString()} |
-
----
-_This comment is automatically updated on each push to this PR._`,
-  })
-}
+export default website
 
 await app.finalize()

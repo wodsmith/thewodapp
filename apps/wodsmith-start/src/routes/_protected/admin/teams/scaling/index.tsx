@@ -42,8 +42,9 @@ import {
 export const Route = createFileRoute("/_protected/admin/teams/scaling/")({
   component: AdminScalingPage,
   beforeLoad: async ({ context }) => {
+    // @lat: [[architecture#Route Groups#_protected#Workout tracking guards]]
     if (!context.hasWorkoutTracking) {
-      throw redirect({ to: "/compete" })
+      throw redirect({ to: "/" })
     }
   },
   loader: async ({ context }) => {
@@ -192,7 +193,7 @@ function AdminScalingPage() {
           <div className="flex justify-end">
             <Button onClick={() => setCreatingGroup(true)}>
               <Plus className="h-4 w-4 mr-2" />
-              Create Scaling Group
+              Create scaling group
             </Button>
           </div>
 
@@ -204,7 +205,7 @@ function AdminScalingPage() {
                 </p>
                 <Button onClick={() => setCreatingGroup(true)}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Create Your First Group
+                  Create your first group
                 </Button>
               </CardContent>
             </Card>
@@ -318,7 +319,7 @@ function AdminScalingPage() {
         >
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete Scaling Group</AlertDialogTitle>
+              <AlertDialogTitle>Delete scaling group</AlertDialogTitle>
               <AlertDialogDescription>
                 Are you sure you want to delete "{groupToDelete?.title}"?
               </AlertDialogDescription>

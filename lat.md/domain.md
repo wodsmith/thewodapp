@@ -7,7 +7,7 @@ WODsmith's domain centers on organizing and running functional fitness competiti
 Teams are the primary organizational unit. Every user belongs to at least one team (their auto-created personal team).
 
 Team types (`TEAM_TYPE_ENUM`):
-- **gym** — An organizing entity (CrossFit box, fitness studio). Can create competitions and programming tracks.
+- **gym** — An organizing entity (Functional Fitness box, fitness studio). Can create competitions and programming tracks.
 - **competition_event** — Auto-created when a competition is made. Holds registered athletes as members. Has a `parentOrganizationId` linking to the organizing gym.
 - **competition_team** — Athlete squads for team-division competitions (e.g., a team of 3 competing together).
 - **personal** — Auto-created per user for personal workout logging.
@@ -174,9 +174,11 @@ Each scaling group contains ordered scaling levels. Workouts and scores can refe
 
 ## Waivers
 
-Legal documents that athletes must sign before competing.
+Legal documents that athletes and volunteers must sign before participating.
 
-Organizers create waiver templates per competition. Athletes sign waivers during registration. Signature and acceptance timestamps are recorded.
+Organizers create waiver templates per competition. Waivers can be required for athletes, volunteers, or both. Only athlete-required waivers appear in athlete registration and invite flows. Volunteers sign volunteer-required waivers during public signup or direct invite acceptance. Signature and acceptance timestamps are recorded.
+
+The waiver schema stores the athlete requirement as `required` and volunteer requirement as `requiredForVolunteers` / `required_for_volunteers` on [[apps/wodsmith-start/src/db/schemas/waivers.ts#waiversTable]].
 
 ## Video Submissions
 

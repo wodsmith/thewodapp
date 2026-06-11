@@ -14,7 +14,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, count, eq, inArray, isNull, ne, sql } from "drizzle-orm"
+import { and, count, eq, gt, inArray, isNull, ne, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { addressesTable } from "@/db/schemas/addresses"
@@ -27,6 +27,10 @@ import {
   competitionsTable,
   REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
+import {
+  FINANCIAL_EVENT_TYPE,
+  financialEventTable,
+} from "@/db/schemas/financial-events"
 import {
   INVITATION_STATUS,
   type InvitationStatus,
@@ -63,7 +67,6 @@ const getUserRegistrationInputSchema = z.object({
 
 const getPendingTeamInvitesInputSchema = z.object({
   competitionId: z.string().min(1, "Competition ID is required"),
-  userId: z.string().min(1, "User ID is required"),
 })
 
 const checkCanManageInputSchema = z.object({
@@ -457,7 +460,10 @@ export const getUserCompetitionRegistrationsFn = createServerFn({
     // Merge and deduplicate by division.
     // Direct registrations (user's own rows) take priority.
     // Team query may return teammate rows in the same division — skip those.
-    const divisionMap = new Map<string | null, (typeof directRegistrations)[0]>()
+    const divisionMap = new Map<
+      string | null,
+      (typeof directRegistrations)[0]
+    >()
 
     for (const reg of directRegistrations) {
       divisionMap.set(reg.divisionId, reg)
@@ -487,24 +493,35 @@ export const getPendingTeamInvitesFn = createServerFn({ method: "GET" })
     getPendingTeamInvitesInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    const db = getDb()
-
-    // Get the competition to find the competitionTeamId
-    const competition = await db
-      .select({
-        id: competitionsTable.id,
-        competitionTeamId: competitionsTable.competitionTeamId,
-      })
-      .from(competitionsTable)
-      .where(eq(competitionsTable.id, data.competitionId))
-      .limit(1)
-
-    if (!competition[0]) {
+    const session = await getSessionFromCookie()
+    const email = session?.user?.email?.toLowerCase()
+    if (!email) {
       return { invitations: [] }
     }
 
-    // Find pending invitations for this user to teams related to this competition
-    // This includes both athlete team invites and competition team invites
+    const db = getDb()
+
+    const registrations = await db
+      .select({
+        athleteTeamId: competitionRegistrationsTable.athleteTeamId,
+      })
+      .from(competitionRegistrationsTable)
+      .where(
+        and(
+          eq(competitionRegistrationsTable.eventId, data.competitionId),
+          ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+        ),
+      )
+
+    const athleteTeamIds = registrations
+      .map((r) => r.athleteTeamId)
+      .filter((id): id is string => id !== null)
+
+    if (athleteTeamIds.length === 0) {
+      return { invitations: [] }
+    }
+
+    // Find unclaimed teammate invitations for this signed-in email on this competition.
     const invitations = await db
       .select({
         id: teamInvitationTable.id,
@@ -520,14 +537,16 @@ export const getPendingTeamInvitesFn = createServerFn({ method: "GET" })
       .from(teamInvitationTable)
       .where(
         and(
-          eq(teamInvitationTable.email, data.userId), // Assuming userId is email for now
+          inArray(teamInvitationTable.teamId, athleteTeamIds),
+          eq(teamInvitationTable.email, email),
+          eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.MEMBER),
+          eq(teamInvitationTable.isSystemRole, true),
           isNull(teamInvitationTable.acceptedAt),
-          eq(teamInvitationTable.status, INVITATION_STATUS.PENDING),
+          ne(teamInvitationTable.status, INVITATION_STATUS.CANCELLED),
+          gt(teamInvitationTable.expiresAt, new Date()),
         ),
       )
 
-    // Filter to competition-related invites
-    // This is a simplified version - in production we'd join with teams and check parent organization
     return { invitations }
   })
 
@@ -656,7 +675,46 @@ const getOrganizerRegistrationsInputSchema = z.object({
 })
 
 /**
- * Get registrations for organizer view with full user and division details
+ * Roll up refund events into a per-purchase map keyed by purchaseId. Negative
+ * `amountCents` values (sign convention from financial_events) are normalized
+ * to positive cents so the UI can compare refundedCents to totalCents
+ * directly. Refund events for purchaseIds not present in the totals map are
+ * dropped — they cannot be paired with a purchase total and would render an
+ * incomplete badge.
+ *
+ * Pure for testability; used by getOrganizerRegistrationsFn below.
+ */
+export function computeRefundsByPurchase(
+  refundEvents: Array<{ purchaseId: string; amountCents: number }>,
+  purchaseTotals: Map<string, number>,
+): Record<string, { refundedCents: number; totalCents: number }> {
+  const result: Record<string, { refundedCents: number; totalCents: number }> =
+    {}
+  for (const event of refundEvents) {
+    const totalCents = purchaseTotals.get(event.purchaseId)
+    if (totalCents === undefined) continue
+    const cents = Math.abs(event.amountCents)
+    const existing = result[event.purchaseId]
+    if (existing) {
+      existing.refundedCents += cents
+    } else {
+      result[event.purchaseId] = { refundedCents: cents, totalCents }
+    }
+  }
+  return result
+}
+
+/**
+ * Get registrations for organizer view with full user and division details.
+ *
+ * Returns refund metadata so the UI can decide whether to surface the "Refund
+ * Registration" action and render the appropriate refund-status badge:
+ * - `canRefund` is true when the organizing team has a verified Stripe Express
+ *   connected account (only Express accounts use platform-mediated refunds).
+ * - `refundsByPurchaseId` maps each refunded purchase to {refundedCents,
+ *   totalCents} so the UI shows "Refunded" for full refunds and "Partially
+ *   refunded" for partials, and so the dropdown action can be hidden once a
+ *   purchase has any refund recorded.
  */
 export const getOrganizerRegistrationsFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) =>
@@ -728,7 +786,79 @@ export const getOrganizerRegistrationsFn = createServerFn({ method: "GET" })
       ? registrations.filter((r) => r.divisionId === data.divisionFilter)
       : registrations
 
-    return { registrations: filteredRegistrations }
+    // Refund capability: organizing team Stripe Express + already-refunded set
+    const competition = await db.query.competitionsTable.findFirst({
+      where: eq(competitionsTable.id, data.competitionId),
+      columns: { organizingTeamId: true },
+    })
+
+    let canRefund = false
+    if (competition?.organizingTeamId) {
+      const team = await db.query.teamTable.findFirst({
+        where: eq(teamTable.id, competition.organizingTeamId),
+        columns: {
+          stripeConnectedAccountId: true,
+          stripeAccountStatus: true,
+          stripeAccountType: true,
+        },
+      })
+      canRefund =
+        !!team?.stripeConnectedAccountId &&
+        team.stripeAccountType === "express" &&
+        team.stripeAccountStatus === "VERIFIED"
+    }
+
+    const purchaseIds = filteredRegistrations
+      .map((r) => r.commercePurchaseId)
+      .filter((id): id is string => !!id)
+
+    let refundsByPurchaseId: Record<
+      string,
+      { refundedCents: number; totalCents: number }
+    > = {}
+    if (purchaseIds.length > 0) {
+      // Pull the totals (so the UI can detect full vs partial refunds) and
+      // refund events (REFUND_INITIATED only — counting INITIATED + COMPLETED
+      // would double-count once Stripe's webhook lands).
+      const [purchaseRows, refundEvents] = await Promise.all([
+        db
+          .select({
+            id: commercePurchaseTable.id,
+            totalCents: commercePurchaseTable.totalCents,
+          })
+          .from(commercePurchaseTable)
+          .where(inArray(commercePurchaseTable.id, purchaseIds)),
+        db
+          .select({
+            purchaseId: financialEventTable.purchaseId,
+            amountCents: financialEventTable.amountCents,
+          })
+          .from(financialEventTable)
+          .where(
+            and(
+              inArray(financialEventTable.purchaseId, purchaseIds),
+              eq(
+                financialEventTable.eventType,
+                FINANCIAL_EVENT_TYPE.REFUND_INITIATED,
+              ),
+            ),
+          ),
+      ])
+
+      const purchaseTotals = new Map(
+        purchaseRows.map((p) => [p.id, p.totalCents]),
+      )
+      refundsByPurchaseId = computeRefundsByPurchase(
+        refundEvents,
+        purchaseTotals,
+      )
+    }
+
+    return {
+      registrations: filteredRegistrations,
+      canRefund,
+      refundsByPurchaseId,
+    }
   })
 
 /**
@@ -908,10 +1038,7 @@ export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
           if (inv.metadata) {
             try {
               const meta = JSON.parse(inv.metadata) as Record<string, unknown>
-              if (
-                canViewPendingAnswers &&
-                Array.isArray(meta.pendingAnswers)
-              ) {
+              if (canViewPendingAnswers && Array.isArray(meta.pendingAnswers)) {
                 pendingAnswers =
                   meta.pendingAnswers as PendingTeammateInvite["pendingAnswers"]
               }
@@ -979,7 +1106,10 @@ export const updateCompetitionRotationSettingsFn = createServerFn({
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "update_rotation_settings", competition: { id: input.competitionId } })
+    getEvlog()?.set({
+      action: "update_rotation_settings",
+      competition: { id: input.competitionId },
+    })
 
     // Update competition
     await db
@@ -1023,7 +1153,11 @@ export const updateCompetitionScoringConfigFn = createServerFn({
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "update_scoring_config", competition: { id: input.competitionId }, scoring: { algorithm: input.scoringConfig.algorithm } })
+    getEvlog()?.set({
+      action: "update_scoring_config",
+      competition: { id: input.competitionId },
+      scoring: { algorithm: input.scoringConfig.algorithm },
+    })
 
     // Parse existing settings and merge with new scoring config
     let existingSettings: Record<string, unknown> = {}
@@ -1069,7 +1203,13 @@ export const deleteCompetitionFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "delete_competition", competition: { id: input.competitionId, organizingTeamId: input.organizingTeamId } })
+    getEvlog()?.set({
+      action: "delete_competition",
+      competition: {
+        id: input.competitionId,
+        organizingTeamId: input.organizingTeamId,
+      },
+    })
 
     // Get the competition to verify it exists and get the competitionTeamId
     const competition = await db.query.competitionsTable.findFirst({

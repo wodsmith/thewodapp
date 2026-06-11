@@ -76,13 +76,13 @@ function EventEditPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Edit Event</h1>
+          <h1 className="text-3xl font-bold">Edit event</h1>
           <p className="text-muted-foreground mt-1">
             Event #{formatTrackOrder(event.trackOrder)} - {event.workout.name}
           </p>
         </div>
         <Button type="submit" form={EVENT_DETAILS_FORM_ID}>
-          Save Changes
+          Save changes
         </Button>
       </div>
 
@@ -144,7 +144,7 @@ function EventEditPage() {
                     eventId: event.id,
                   }}
                 >
-                  View Submissions
+                  View submissions
                 </Link>
               </Button>
             </CardContent>
@@ -215,7 +215,7 @@ function ParentEventEditPage() {
             </Link>
           </Button>
           <Button type="submit" form={activeFormId}>
-            Save Changes
+            Save changes
           </Button>
         </div>
       </div>
@@ -262,7 +262,7 @@ function ParentEventEditPage() {
                 params={{ competitionId: competition.id }}
               >
                 <Plus className="h-4 w-4 mr-1" />
-                Add Sub-Event
+                Add sub-event
               </Link>
             </Button>
           </div>

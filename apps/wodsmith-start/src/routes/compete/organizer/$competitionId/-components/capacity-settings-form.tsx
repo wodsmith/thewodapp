@@ -158,7 +158,7 @@ export function CapacitySettingsForm({ competition, onSaveCapacity }: Props) {
 
         <Button onClick={handleSave} disabled={isSubmitting || !hasChanges}>
           {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-          Save Changes
+          Save changes
         </Button>
       </CardContent>
     </Card>

@@ -1,7 +1,7 @@
 import { TanStackDevtools } from "@tanstack/react-devtools"
 import {
-  type ErrorComponentProps,
   createRootRoute,
+  type ErrorComponentProps,
   HeadContent,
   Link,
   Outlet,
@@ -13,9 +13,7 @@ import { Toaster } from "sonner"
 
 import MainNav from "@/components/nav/main-nav"
 import { PostHogProvider } from "@/lib/posthog/provider"
-import { checkWorkoutTrackingAccess } from "@/server-fns/entitlements"
-import { getOptionalSession } from "@/server-fns/middleware/auth"
-import { getActiveTeamIdFn, getThemeCookieFn } from "@/server-fns/session-fns"
+import { getRootBootstrapFn } from "@/server-fns/session-fns"
 
 import appCss from "../styles.css?url"
 
@@ -42,17 +40,11 @@ export const Route = createRootRoute({
   }),
 
   beforeLoad: async () => {
-    const session = await getOptionalSession()
-    // Read theme cookie for SSR - apply 'dark' class on server if theme is 'dark'
-    // For 'system' or no cookie, default to light (inline script handles client correction)
-    const themeCookie = await getThemeCookieFn()
+    const { session, themeCookie, activeTeamId, hasWorkoutTracking } =
+      await getRootBootstrapFn()
+    // SSR theme: apply 'dark' class on server only for explicit 'dark' preference.
+    // For 'system' or no cookie, default to light (inline script corrects on client).
     const ssrTheme = themeCookie === "dark" ? "dark" : "light"
-    // Get active team ID from cookie for team switcher
-    const activeTeamId = await getActiveTeamIdFn()
-    // Check workout tracking access
-    const hasWorkoutTracking = session?.user
-      ? await checkWorkoutTrackingAccess()
-      : false
     return { session, ssrTheme, activeTeamId, hasWorkoutTracking }
   },
 
@@ -78,18 +70,32 @@ function RootComponent() {
   })
 
   // Don't render MainNav on routes that have their own navigation
-  // Hide MainNav if EITHER current OR target route is compete/admin
+  // Hide MainNav if EITHER current OR target route is compete/admin/auth
   // This prevents layout flash during transitions in both directions
   const isCompeteRoute =
+    currentPath === "/" ||
+    (isNavigating && targetPath === "/") ||
     currentPath.startsWith("/compete") ||
     (isNavigating && targetPath.startsWith("/compete"))
   const isAdminRoute =
     currentPath.startsWith("/admin") ||
     (isNavigating && targetPath.startsWith("/admin"))
+  const isAuthRoute =
+    currentPath === "/sign-in" ||
+    currentPath === "/sign-up" ||
+    currentPath.startsWith("/reset-password") ||
+    currentPath.startsWith("/forgot-password") ||
+    currentPath.startsWith("/verify-email") ||
+    (isNavigating &&
+      (targetPath === "/sign-in" ||
+        targetPath === "/sign-up" ||
+        targetPath.startsWith("/reset-password") ||
+        targetPath.startsWith("/forgot-password") ||
+        targetPath.startsWith("/verify-email")))
 
   return (
     <>
-      {!isCompeteRoute && !isAdminRoute && (
+      {!isCompeteRoute && !isAdminRoute && !isAuthRoute && (
         <MainNav
           session={session}
           activeTeamId={activeTeamId}

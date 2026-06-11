@@ -13,6 +13,7 @@ import {
 } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
+import { OrganizerEmptyState } from "@/components/organizer/empty-state"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -104,15 +105,41 @@ interface ShiftListProps {
   /** Optional callback to delete a shift. Defaults to organizer server fn. */
   onDeleteShift?: (params: { shiftId: string }) => Promise<{ success: boolean }>
   /** Optional callback to create a shift. Passed through to ShiftFormDialog. */
-  onCreateShift?: (params: { competitionId: string; name: string; roleType: string; startTime: Date; endTime: Date; location?: string; capacity: number; notes?: string }) => Promise<unknown>
+  onCreateShift?: (params: {
+    competitionId: string
+    name: string
+    roleType: string
+    startTime: Date
+    endTime: Date
+    location?: string
+    capacity: number
+    notes?: string
+  }) => Promise<unknown>
   /** Optional callback to update a shift. Passed through to ShiftFormDialog. */
-  onUpdateShift?: (params: { shiftId: string; name?: string; roleType?: string; startTime?: Date; endTime?: Date; location?: string | null; capacity?: number; notes?: string | null }) => Promise<unknown>
+  onUpdateShift?: (params: {
+    shiftId: string
+    name?: string
+    roleType?: string
+    startTime?: Date
+    endTime?: Date
+    location?: string | null
+    capacity?: number
+    notes?: string | null
+  }) => Promise<unknown>
   /** Optional callback to fetch volunteers. Passed through to ShiftAssignmentPanel. */
-  onGetVolunteers?: (params: { competitionTeamId: string }) => Promise<import("@/server-fns/volunteer-fns").TeamMembershipWithUser[]>
+  onGetVolunteers?: (params: {
+    competitionTeamId: string
+  }) => Promise<import("@/server-fns/volunteer-fns").TeamMembershipWithUser[]>
   /** Optional callback to assign volunteer to shift. Passed through to ShiftAssignmentPanel. */
-  onAssignVolunteer?: (params: { shiftId: string; membershipId: string }) => Promise<unknown>
+  onAssignVolunteer?: (params: {
+    shiftId: string
+    membershipId: string
+  }) => Promise<unknown>
   /** Optional callback to unassign volunteer from shift. Passed through to ShiftAssignmentPanel. */
-  onUnassignVolunteer?: (params: { shiftId: string; membershipId: string }) => Promise<unknown>
+  onUnassignVolunteer?: (params: {
+    shiftId: string
+    membershipId: string
+  }) => Promise<unknown>
 }
 
 /**
@@ -241,20 +268,14 @@ export function ShiftList({
   if (shifts.length === 0) {
     return (
       <>
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <CalendarDays className="mb-4 h-12 w-12 text-muted-foreground" />
-            <h3 className="mb-2 text-lg font-semibold">No shifts created</h3>
-            <p className="mb-4 text-sm text-muted-foreground">
-              Create volunteer shifts to schedule non-judge roles like check-in,
-              medical staff, and more.
-            </p>
-            <Button onClick={handleOpenCreateDialog}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Shift
-            </Button>
-          </CardContent>
-        </Card>
+        <OrganizerEmptyState
+          icon={CalendarDays}
+          title="No volunteer shifts yet"
+          description="Create shifts for check-in, medical, equipment, scorekeeping, and other event-day roles."
+          actionLabel="Add Shift"
+          actionIcon={<Plus className="mr-2 h-4 w-4" />}
+          onAction={handleOpenCreateDialog}
+        />
 
         <ShiftFormDialog
           competitionId={competitionId}
@@ -282,7 +303,7 @@ export function ShiftList({
         </div>
         <Button onClick={handleOpenCreateDialog} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
-          Add Shift
+          Add shift
         </Button>
       </div>
 
@@ -403,7 +424,7 @@ export function ShiftList({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Shift</AlertDialogTitle>
+            <AlertDialogTitle>Delete shift</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete "{shiftToDelete?.name}"?
               {shiftToDelete && shiftToDelete.assignments.length > 0 && (
@@ -429,7 +450,7 @@ export function ShiftList({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Create/Edit Shift Dialog */}
+      {/* Create/Edit shift Dialog */}
       <ShiftFormDialog
         competitionId={competitionId}
         open={formDialogOpen}

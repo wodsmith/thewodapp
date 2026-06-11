@@ -824,7 +824,7 @@ export const generateDemoCompetitionFn = createServerFn({ method: "POST" })
           ), // Random time in past week
           metadata: JSON.stringify({
             demo: true,
-            affiliateName: "Demo CrossFit",
+            affiliateName: "Demo Functional Fitness",
           }),
         })
       }

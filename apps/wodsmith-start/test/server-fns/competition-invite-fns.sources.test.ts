@@ -143,7 +143,7 @@ describe("createInviteSourceFn permissions", () => {
         championshipCompetitionId: "comp_champ",
         kind: "competition",
         sourceCompetitionId: "comp_src",
-        directSpotsPerComp: 3,
+        globalSpots: 3,
         divisionMappings: [
           {
             sourceDivisionId: "div_src_rx",
@@ -161,7 +161,7 @@ describe("createInviteSourceFn permissions", () => {
         championshipCompetitionId: "comp_champ",
         kind: "competition",
         sourceCompetitionId: "comp_src",
-        directSpotsPerComp: 3,
+        globalSpots: 3,
         notes: "Top 3 from RX",
       }),
     )
@@ -353,7 +353,7 @@ describe("updateInviteSourceFn", () => {
         championshipCompetitionId: "comp_champ",
         kind: "competition",
         sourceCompetitionId: "comp_src",
-        directSpotsPerComp: 5,
+        globalSpots: 5,
         notes: "updated",
       },
     })
@@ -363,7 +363,7 @@ describe("updateInviteSourceFn", () => {
         id: "cisrc_a",
         kind: "competition",
         sourceCompetitionId: "comp_src",
-        directSpotsPerComp: 5,
+        globalSpots: 5,
         notes: "updated",
       }),
     )

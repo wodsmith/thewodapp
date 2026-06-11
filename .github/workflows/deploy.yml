@@ -4,12 +4,6 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    types:
-      - opened
-      - reopened
-      - synchronize
-      - closed
   workflow_dispatch:
     inputs:
       stage:
@@ -28,8 +22,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # workflow_dispatch uses selected stage; PRs get pr-N; push-to-main deploys demo (via deploy-demo job)
-  STAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.stage || (github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || 'demo') }}
+  # workflow_dispatch uses selected stage; push-to-main deploys demo (via deploy-demo job)
+  STAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.stage || 'demo' }}
 
 jobs:
   # Slack notification - start (production deploys only, manual workflow_dispatch)
@@ -54,10 +48,10 @@ jobs:
           if [ -n "$PR_NUMBER" ]; then
             # Construct PR URL
             PR_URL="${{ github.server_url }}/${{ github.repository }}/pull/$PR_NUMBER"
-            
+
             # Extract PR title (second line of merge commit, or first line after the merge message)
             PR_TITLE=$(echo "$COMMIT_MSG" | sed -n '2p' | sed 's/^[[:space:]]*//')
-            
+
             # If no second line, try to get title from after "from branch" on first line
             if [ -z "$PR_TITLE" ]; then
               PR_TITLE="PR #$PR_NUMBER"
@@ -89,7 +83,7 @@ jobs:
                   text: |
                     *🚀 Production Deploy Started*
                     <${{ steps.pr-info.outputs.pr_url }}|${{ steps.pr-info.outputs.pr_title }}>
-                    
+
                     • *Environment:* production
                     • *Commit:* `${{ github.sha }}`
                     • *Triggered by:* ${{ github.actor }}
@@ -103,7 +97,7 @@ jobs:
                     url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
   test:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.action != 'closed' }}
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     name: Run Tests
@@ -129,22 +123,21 @@ jobs:
           NODE_ENV: test
 
   deploy:
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action != 'closed') }}
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     needs: test
     permissions:
       contents: read
       deployments: write
-      pull-requests: write
     name: Deploy to Cloudflare Workers
     # Prod deploys require approval via GitHub environment protection rules
-    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.stage == 'prod' && 'production' || '' }}
+    environment: ${{ inputs.stage == 'prod' && 'production' || '' }}
     defaults:
       run:
         working-directory: apps/wodsmith-start
     steps:
       - name: Guard prod deploys to main branch only
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.stage == 'prod' && github.ref != 'refs/heads/main' }}
+        if: ${{ inputs.stage == 'prod' && github.ref != 'refs/heads/main' }}
         run: |
           echo "ERROR: Production deploys can only be triggered from the main branch."
           echo "Current branch: ${{ github.ref }}"
@@ -167,15 +160,49 @@ jobs:
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
         working-directory: .
 
+      - name: Setup pscale
+        uses: planetscale/setup-pscale-action@v1
+
+      - name: Generate PlanetScale branch password
+        env:
+          PLANETSCALE_SERVICE_TOKEN_ID: ${{ secrets.PLANETSCALE_SERVICE_TOKEN_ID }}
+          PLANETSCALE_SERVICE_TOKEN: ${{ secrets.PLANETSCALE_SERVICE_TOKEN }}
+        run: |
+          branch="${STAGE}"
+          if [ "$branch" = "prod" ]; then
+            branch="main"
+          fi
+
+          response=$(pscale password create ${{ secrets.PLANETSCALE_DATABASE_NAME }} "$branch" "" -f json --org ${{ secrets.PLANETSCALE_ORGANIZATION }})
+
+          id=$(echo "$response" | jq -r '.id')
+          host=$(echo "$response" | jq -r '.access_host_url')
+          username=$(echo "$response" | jq -r '.username')
+          password=$(echo "$response" | jq -r '.plain_text')
+          echo "PASSWORD_ID=$id" >> $GITHUB_ENV
+          database_url="mysql://$username:$password@$host/${{ secrets.PLANETSCALE_DATABASE_NAME }}"
+          echo "DATABASE_URL=$database_url" >> $GITHUB_ENV
+          echo "::add-mask::$database_url"
+
+      - name: Push schema to PlanetScale branch
+        run: pnpm --filter wodsmith-start exec drizzle-kit push
+        working-directory: .
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
       - name: Deploy with Alchemy
         run: pnpm run deploy
         env:
+          NODE_OPTIONS: --max-old-space-size=5120
           STAGE: ${{ env.STAGE }}
+          DATABASE_URL: ${{ env.DATABASE_URL }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           ALCHEMY_PASSWORD: ${{ secrets.ALCHEMY_PASSWORD }}
@@ -198,7 +225,6 @@ jobs:
           STRIPE_PUBLISHABLE_KEY: ${{ env.STAGE == 'prod' && secrets.STRIPE_PUBLISHABLE_KEY || (env.STAGE == 'demo' && secrets.STRIPE_PUBLISHABLE_KEY_DEMO || '') }}
           STRIPE_CLIENT_ID: ${{ env.STAGE == 'prod' && secrets.STRIPE_CLIENT_ID || (env.STAGE == 'demo' && secrets.STRIPE_CLIENT_ID_DEMO || '') }}
           STRIPE_WEBHOOK_SECRET: ${{ env.STAGE == 'prod' && secrets.STRIPE_WEBHOOK_SECRET || (env.STAGE == 'demo' && secrets.STRIPE_WEBHOOK_SECRET_DEMO || '') }}
-          PULL_REQUEST: ${{ github.event_name == 'pull_request' && github.event.number || '' }}
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Sentry source map upload (DSN is hardcoded in alchemy.run.ts + vite.config.ts)
@@ -206,23 +232,13 @@ jobs:
           SENTRY_ORG: wodsmith
           SENTRY_PROJECT: wodsmith-start
 
-      - name: Seed PR Database
-        if: ${{ github.event_name == 'pull_request' }}
-        run: pnpm db:seed:pr
-        env:
-          STAGE: ${{ env.STAGE }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-
   deploy-demo:
     # Only run on push to main (workflow_dispatch handles demo via main deploy job)
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
-    needs: test
     permissions:
       contents: read
       deployments: write
-      pull-requests: write
     name: Deploy Demo Environment
     defaults:
       run:
@@ -242,6 +258,8 @@ jobs:
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -276,6 +294,7 @@ jobs:
       - name: Deploy with Alchemy
         run: pnpm run deploy
         env:
+          NODE_OPTIONS: --max-old-space-size=5120
           STAGE: demo
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -300,7 +319,6 @@ jobs:
           STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY_DEMO }}
           STRIPE_CLIENT_ID: ${{ secrets.STRIPE_CLIENT_ID_DEMO }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET_DEMO }}
-          PULL_REQUEST: ''
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Sentry source map upload (DSN is hardcoded in alchemy.run.ts + vite.config.ts)
@@ -332,7 +350,7 @@ jobs:
                   text: |
                     *✅ Production Deploy Succeeded*
                     <${{ needs.notify-start.outputs.pr_url }}|${{ needs.notify-start.outputs.pr_title }}>
-                    
+
                     • *Environment:* production
                     • *Commit:* `${{ github.sha }}`
                     • *Triggered by:* ${{ github.actor }}
@@ -369,7 +387,7 @@ jobs:
                   text: |
                     *❌ Production Deploy Failed*
                     <${{ needs.notify-start.outputs.pr_url }}|${{ needs.notify-start.outputs.pr_title }}>
-                    
+
                     • *Environment:* production
                     • *Commit:* `${{ github.sha }}`
                     • *Triggered by:* ${{ github.actor }}
@@ -390,7 +408,7 @@ jobs:
                   type: mrkdwn
                   text: |
                     *Failure Details*
-                    
+
                     The production deploy workflow failed. Check the workflow run for details:
               - type: actions
                 elements:
@@ -400,49 +418,3 @@ jobs:
                       text: View Failed Run
                     style: danger
                     url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-  cleanup:
-    if: ${{ github.event_name == 'pull_request' && github.event.action == 'closed' }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    name: Cleanup PR Environment
-    defaults:
-      run:
-        working-directory: apps/wodsmith-start
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: 'pnpm'
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-        working-directory: .
-
-      - name: Safety Check - Never Destroy Prod
-        run: |
-          if [ "${{ env.STAGE }}" = "prod" ]; then
-            echo "ERROR: Refusing to destroy production environment!"
-            exit 1
-          fi
-          echo "Safe to proceed - destroying stage: ${{ env.STAGE }}"
-
-      - name: Destroy PR Environment
-        run: pnpm run deploy:destroy
-        env:
-          STAGE: ${{ env.STAGE }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          ALCHEMY_PASSWORD: ${{ secrets.ALCHEMY_PASSWORD }}
-          ALCHEMY_STATE_TOKEN: ${{ secrets.ALCHEMY_STATE_TOKEN }}
