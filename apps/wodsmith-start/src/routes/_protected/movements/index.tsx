@@ -15,8 +15,9 @@ import { getAllMovementsFn } from "@/server-fns/movement-fns"
 export const Route = createFileRoute("/_protected/movements/")({
   component: MovementsPage,
   beforeLoad: async ({ context }) => {
+    // @lat: [[architecture#Route Groups#_protected#Workout tracking guards]]
     if (!context.hasWorkoutTracking) {
-      throw redirect({ to: "/compete" })
+      throw redirect({ to: "/" })
     }
   },
   validateSearch: (search: Record<string, unknown>) => ({

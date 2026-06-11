@@ -14,6 +14,9 @@ interface BreadcrumbSegment {
   href?: string
 }
 
+// @lat: [[architecture#Route Groups#compete]]
+const COMPETITION_DISCOVERY_PATH = "/"
+
 /**
  * Route segment to human-readable label mapping
  */
@@ -129,9 +132,13 @@ export function CompeteBreadcrumb({
 
     // Don't add href for the last segment (current page)
     const isLast = i === pathSegments.length - 1
+    const href =
+      segment === "compete" && currentPath === "/compete"
+        ? COMPETITION_DISCOVERY_PATH
+        : currentPath
     segments.push({
       label,
-      href: isLast ? undefined : currentPath,
+      href: isLast ? undefined : href,
     })
   }
 

@@ -59,6 +59,7 @@ import { GuestInviteForm } from "./-components/guest-invite-form"
 import { InviteSignUpForm } from "./-components/invite-signup-form"
 import { SuccessClaimPrompt } from "./-components/success-claim-prompt"
 
+// @lat: [[competition-invites#Claim routes]]
 export const Route = createFileRoute("/compete/invite/$token")({
   loader: async ({ params }) => {
     const [volunteerInvite, teammateInvite, session] = await Promise.all([
@@ -223,7 +224,7 @@ function InvitePage() {
               This invitation link is invalid or has expired.
             </p>
             <Button asChild variant="outline">
-              <Link to="/compete">Browse Competitions</Link>
+              <Link to="/">Browse Competitions</Link>
             </Button>
           </CardContent>
         </Card>
@@ -271,7 +272,7 @@ function InvitePage() {
               a new invite.
             </p>
             <Button asChild variant="outline">
-              <Link to="/compete">Browse Competitions</Link>
+              <Link to="/">Browse Competitions</Link>
             </Button>
           </CardContent>
         </Card>
@@ -630,7 +631,7 @@ function VolunteerApplicationStatus({ invite }: { invite: VolunteerInvite }) {
           )}
 
           <Button asChild variant="outline" className="w-full">
-            <Link to="/compete">Browse Competitions</Link>
+            <Link to="/">Browse Competitions</Link>
           </Button>
         </CardContent>
       </Card>
@@ -697,7 +698,7 @@ function DirectVolunteerInvite({
               organizer for a new invite.
             </p>
             <Button asChild variant="outline">
-              <Link to="/compete">Browse Competitions</Link>
+              <Link to="/">Browse Competitions</Link>
             </Button>
           </CardContent>
         </Card>

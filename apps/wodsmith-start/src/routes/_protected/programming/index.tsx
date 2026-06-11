@@ -38,8 +38,9 @@ interface LoaderData {
 export const Route = createFileRoute("/_protected/programming/")({
   component: PublicProgrammingPage,
   beforeLoad: async ({ context }) => {
+    // @lat: [[architecture#Route Groups#_protected#Workout tracking guards]]
     if (!context.hasWorkoutTracking) {
-      throw redirect({ to: "/compete" })
+      throw redirect({ to: "/" })
     }
   },
   loader: async ({ context }): Promise<LoaderData> => {

@@ -53,7 +53,7 @@ export const Route = createFileRoute("/compete/organizer/$competitionId")({
 
     if (!canManage) {
       throw redirect({
-        to: "/compete",
+        to: "/",
         search: {},
       })
     }

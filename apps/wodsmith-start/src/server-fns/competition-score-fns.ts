@@ -363,14 +363,35 @@ async function getHeatsForWorkoutInternal(
     heatWorkoutId = trackWorkout[0].parentEventId
   }
 
+  const heatsByWorkoutId = await getHeatsByWorkoutIdsInternal([heatWorkoutId])
+  return heatsByWorkoutId.get(heatWorkoutId) ?? []
+}
+
+/**
+ * Batched heat lookup. Callers must pass the ids heats are actually
+ * scheduled on (parent event ids for sub-events). Returns heats grouped by
+ * that workout id, using a constant number of queries.
+ */
+async function getHeatsByWorkoutIdsInternal(
+  heatWorkoutIds: string[],
+): Promise<Map<string, HeatWithAssignmentsInternal[]>> {
+  const db = getDb()
+  const result = new Map<string, HeatWithAssignmentsInternal[]>()
+  for (const id of heatWorkoutIds) {
+    result.set(id, [])
+  }
+  if (heatWorkoutIds.length === 0) {
+    return result
+  }
+
   // Get heats
   const heats = await db
     .select()
     .from(competitionHeatsTable)
-    .where(eq(competitionHeatsTable.trackWorkoutId, heatWorkoutId))
+    .where(inArray(competitionHeatsTable.trackWorkoutId, heatWorkoutIds))
 
   if (heats.length === 0) {
-    return []
+    return result
   }
 
   // Get venue IDs and division IDs
@@ -429,18 +450,212 @@ async function getHeatsForWorkoutInternal(
     assignmentsByHeat.set(assignment.heatId, existing)
   }
 
-  // Build result
-  return heats.map((heat) => ({
-    ...heat,
-    venue: heat.venueId ? (venueMap.get(heat.venueId) ?? null) : null,
-    division: heat.divisionId
-      ? (divisionMap.get(heat.divisionId) ?? null)
-      : null,
-    assignments: (assignmentsByHeat.get(heat.id) ?? []).map((a) => ({
-      laneNumber: a.laneNumber,
-      registrationId: a.registrationId,
-    })),
-  }))
+  // Build result grouped by the workout the heat is scheduled on
+  for (const heat of heats) {
+    result.get(heat.trackWorkoutId)?.push({
+      ...heat,
+      venue: heat.venueId ? (venueMap.get(heat.venueId) ?? null) : null,
+      division: heat.divisionId
+        ? (divisionMap.get(heat.divisionId) ?? null)
+        : null,
+      assignments: (assignmentsByHeat.get(heat.id) ?? []).map((a) => ({
+        laneNumber: a.laneNumber,
+        registrationId: a.registrationId,
+      })),
+    })
+  }
+  return result
+}
+
+// ============================================================================
+// Internal Helper: Build score-entry athletes from prefetched rows
+// ============================================================================
+
+interface ScoreEntryRegistrationRow {
+  registration: typeof competitionRegistrationsTable.$inferSelect
+  user: typeof userTable.$inferSelect
+  division: typeof scalingLevelsTable.$inferSelect | null
+}
+
+type ScoreEntryTeamMember = {
+  userId: string
+  firstName: string | null
+  lastName: string | null
+}
+
+function groupMembersByTeam(
+  teamMemberships: Array<ScoreEntryTeamMember & { teamId: string }>,
+): Map<string, ScoreEntryTeamMember[]> {
+  const membersByTeamId = new Map<string, ScoreEntryTeamMember[]>()
+  for (const membership of teamMemberships) {
+    const existing = membersByTeamId.get(membership.teamId) || []
+    existing.push({
+      userId: membership.userId,
+      firstName: membership.firstName,
+      lastName: membership.lastName,
+    })
+    membersByTeamId.set(membership.teamId, existing)
+  }
+  return membersByTeamId
+}
+
+/**
+ * Pure assembly of the athletes list for one event from prefetched rows.
+ * Shared by the single-event and batched score-entry server functions.
+ */
+function buildScoreEntryAthletes({
+  registrations,
+  existingScores,
+  existingRounds,
+  membersByTeamId,
+}: {
+  registrations: ScoreEntryRegistrationRow[]
+  existingScores: (typeof scoresTable.$inferSelect)[]
+  existingRounds: Array<{ scoreId: string; roundNumber: number; value: number }>
+  membersByTeamId: Map<string, ScoreEntryTeamMember[]>
+}): EventScoreEntryAthlete[] {
+  // Group rounds by scoreId and convert to legacy format
+  const setsByScoreId = new Map<string, ExistingSetData[]>()
+  for (const round of existingRounds) {
+    const existing = setsByScoreId.get(round.scoreId) || []
+
+    const scheme = existingScores.find((s) => s.id === round.scoreId)?.scheme
+    let score: number | null = null
+    let reps: number | null = null
+
+    if (scheme === "rounds-reps") {
+      const rounds = Math.floor(round.value / 100000)
+      reps = round.value % 100000
+      score = rounds
+    } else if (
+      scheme === "time" ||
+      scheme === "time-with-cap" ||
+      scheme === "emom"
+    ) {
+      score = Math.round(round.value / 1000)
+    } else if (scheme === "load") {
+      score = Math.round(round.value / 453.592)
+    } else if (scheme === "meters") {
+      score = Math.round(round.value / 1000)
+    } else if (scheme === "feet") {
+      score = Math.round(round.value / 304.8)
+    } else {
+      score = round.value
+    }
+
+    existing.push({
+      setNumber: round.roundNumber,
+      score,
+      reps,
+    })
+    setsByScoreId.set(round.scoreId, existing)
+  }
+
+  // Key by (userId, scalingLevelId) so a multi-division athlete's score in
+  // division A doesn't get attached to their division-B registration row.
+  const scoreKey = (userId: string, scalingLevelId: string | null) =>
+    `${userId}::${scalingLevelId ?? ""}`
+  const scoresByUserDivision = new Map(
+    existingScores.map((s) => [scoreKey(s.userId, s.scalingLevelId), s]),
+  )
+
+  // Build athletes array
+  const athletes: EventScoreEntryAthlete[] = registrations.map((reg) => {
+    const existingScore = scoresByUserDivision.get(
+      scoreKey(reg.user.id, reg.registration.divisionId),
+    )
+    const scoreSets = existingScore
+      ? (setsByScoreId.get(existingScore.id) || []).sort(
+          (a, b) => a.setNumber - b.setNumber,
+        )
+      : []
+
+    // Get team members if this is a team registration
+    const athleteTeamId = reg.registration.athleteTeamId
+    const captainUserId = reg.registration.captainUserId || reg.user.id
+    const teamMembers: TeamMemberInfo[] = athleteTeamId
+      ? (membersByTeamId.get(athleteTeamId) || []).map((member) => ({
+          userId: member.userId,
+          firstName: member.firstName || "",
+          lastName: member.lastName || "",
+          isCaptain: member.userId === captainUserId,
+        }))
+      : []
+
+    // Sort team members: captain first, then alphabetically by last name
+    teamMembers.sort((a, b) => {
+      if (a.isCaptain && !b.isCaptain) return -1
+      if (!a.isCaptain && b.isCaptain) return 1
+      return a.lastName.localeCompare(b.lastName)
+    })
+
+    // Decode scores from encoding to display format
+    let wodScore = ""
+    let tieBreakScore: string | null = null
+    let secondaryScore: string | null = null
+
+    if (existingScore) {
+      // Decode primary score
+      if (existingScore.scoreValue !== null) {
+        wodScore = decodeScore(
+          existingScore.scoreValue,
+          existingScore.scheme as ScoringWorkoutScheme,
+          { compact: false },
+        )
+      }
+
+      // Decode tiebreak score if present
+      if (
+        existingScore.tiebreakValue !== null &&
+        existingScore.tiebreakScheme
+      ) {
+        tieBreakScore = decodeScore(
+          existingScore.tiebreakValue,
+          existingScore.tiebreakScheme as ScoringWorkoutScheme,
+          { compact: false },
+        )
+      }
+
+      // Decode secondary score if present
+      if (existingScore.secondaryValue !== null) {
+        secondaryScore = String(existingScore.secondaryValue)
+      }
+    }
+
+    return {
+      registrationId: reg.registration.id,
+      userId: reg.user.id,
+      firstName: reg.user.firstName || "",
+      lastName: reg.user.lastName || "",
+      email: reg.user.email || "",
+      divisionId: reg.registration.divisionId,
+      divisionLabel: reg.division?.label || "Open",
+      teamName: reg.registration.teamName || null,
+      teamMembers,
+      existingResult: existingScore
+        ? {
+            resultId: existingScore.id,
+            wodScore,
+            scoreStatus: existingScore.status as ScoreStatus | null,
+            tieBreakScore,
+            secondaryScore,
+            sets: scoreSets,
+          }
+        : null,
+    }
+  })
+
+  // Sort by division label, then by team name (or last name for individuals)
+  athletes.sort((a, b) => {
+    if (a.divisionLabel !== b.divisionLabel) {
+      return a.divisionLabel.localeCompare(b.divisionLabel)
+    }
+    const aName = a.teamName || a.lastName
+    const bName = b.teamName || b.lastName
+    return aName.localeCompare(bName)
+  })
+
+  return athletes
 }
 
 // ============================================================================
@@ -566,51 +781,6 @@ export const getEventScoreEntryDataFn = createServerFn({ method: "GET" })
             .where(inArray(scoreRoundsTable.scoreId, scoreIds))
         : []
 
-    // Group rounds by scoreId and convert to legacy format
-    const setsByScoreId = new Map<string, ExistingSetData[]>()
-    for (const round of existingRounds) {
-      const existing = setsByScoreId.get(round.scoreId) || []
-
-      const scheme = existingScores.find((s) => s.id === round.scoreId)?.scheme
-      let score: number | null = null
-      let reps: number | null = null
-
-      if (scheme === "rounds-reps") {
-        const rounds = Math.floor(round.value / 100000)
-        reps = round.value % 100000
-        score = rounds
-      } else if (
-        scheme === "time" ||
-        scheme === "time-with-cap" ||
-        scheme === "emom"
-      ) {
-        score = Math.round(round.value / 1000)
-      } else if (scheme === "load") {
-        score = Math.round(round.value / 453.592)
-      } else if (scheme === "meters") {
-        score = Math.round(round.value / 1000)
-      } else if (scheme === "feet") {
-        score = Math.round(round.value / 304.8)
-      } else {
-        score = round.value
-      }
-
-      existing.push({
-        setNumber: round.roundNumber,
-        score,
-        reps,
-      })
-      setsByScoreId.set(round.scoreId, existing)
-    }
-
-    // Key by (userId, scalingLevelId) so a multi-division athlete's score in
-    // division A doesn't get attached to their division-B registration row.
-    const scoreKey = (userId: string, scalingLevelId: string | null) =>
-      `${userId}::${scalingLevelId ?? ""}`
-    const scoresByUserDivision = new Map(
-      existingScores.map((s) => [scoreKey(s.userId, s.scalingLevelId), s]),
-    )
-
     // Get unique divisions for the filter dropdown
     const divisionIds = [
       ...new Set(
@@ -656,121 +826,13 @@ export const getEventScoreEntryDataFn = createServerFn({ method: "GET" })
             .where(inArray(teamMembershipTable.teamId, athleteTeamIds))
         : []
 
-    // Group team members by teamId
-    const membersByTeamId = new Map<
-      string,
-      Array<{
-        userId: string
-        firstName: string | null
-        lastName: string | null
-      }>
-    >()
-    for (const membership of teamMemberships) {
-      const existing = membersByTeamId.get(membership.teamId) || []
-      existing.push({
-        userId: membership.userId,
-        firstName: membership.firstName,
-        lastName: membership.lastName,
-      })
-      membersByTeamId.set(membership.teamId, existing)
-    }
+    const membersByTeamId = groupMembersByTeam(teamMemberships)
 
-    // Build athletes array
-    const athletes: EventScoreEntryAthlete[] = filteredRegistrations.map(
-      (reg) => {
-        const existingScore = scoresByUserDivision.get(
-          scoreKey(reg.user.id, reg.registration.divisionId),
-        )
-        const scoreSets = existingScore
-          ? (setsByScoreId.get(existingScore.id) || []).sort(
-              (a, b) => a.setNumber - b.setNumber,
-            )
-          : []
-
-        // Get team members if this is a team registration
-        const athleteTeamId = reg.registration.athleteTeamId
-        const captainUserId = reg.registration.captainUserId || reg.user.id
-        const teamMembers: TeamMemberInfo[] = athleteTeamId
-          ? (membersByTeamId.get(athleteTeamId) || []).map((member) => ({
-              userId: member.userId,
-              firstName: member.firstName || "",
-              lastName: member.lastName || "",
-              isCaptain: member.userId === captainUserId,
-            }))
-          : []
-
-        // Sort team members: captain first, then alphabetically by last name
-        teamMembers.sort((a, b) => {
-          if (a.isCaptain && !b.isCaptain) return -1
-          if (!a.isCaptain && b.isCaptain) return 1
-          return a.lastName.localeCompare(b.lastName)
-        })
-
-        // Decode scores from encoding to display format
-        let wodScore = ""
-        let tieBreakScore: string | null = null
-        let secondaryScore: string | null = null
-
-        if (existingScore) {
-          // Decode primary score
-          if (existingScore.scoreValue !== null) {
-            wodScore = decodeScore(
-              existingScore.scoreValue,
-              existingScore.scheme as ScoringWorkoutScheme,
-              { compact: false },
-            )
-          }
-
-          // Decode tiebreak score if present
-          if (
-            existingScore.tiebreakValue !== null &&
-            existingScore.tiebreakScheme
-          ) {
-            tieBreakScore = decodeScore(
-              existingScore.tiebreakValue,
-              existingScore.tiebreakScheme as ScoringWorkoutScheme,
-              { compact: false },
-            )
-          }
-
-          // Decode secondary score if present
-          if (existingScore.secondaryValue !== null) {
-            secondaryScore = String(existingScore.secondaryValue)
-          }
-        }
-
-        return {
-          registrationId: reg.registration.id,
-          userId: reg.user.id,
-          firstName: reg.user.firstName || "",
-          lastName: reg.user.lastName || "",
-          email: reg.user.email || "",
-          divisionId: reg.registration.divisionId,
-          divisionLabel: reg.division?.label || "Open",
-          teamName: reg.registration.teamName || null,
-          teamMembers,
-          existingResult: existingScore
-            ? {
-                resultId: existingScore.id,
-                wodScore,
-                scoreStatus: existingScore.status as ScoreStatus | null,
-                tieBreakScore,
-                secondaryScore,
-                sets: scoreSets,
-              }
-            : null,
-        }
-      },
-    )
-
-    // Sort by division label, then by team name (or last name for individuals)
-    athletes.sort((a, b) => {
-      if (a.divisionLabel !== b.divisionLabel) {
-        return a.divisionLabel.localeCompare(b.divisionLabel)
-      }
-      const aName = a.teamName || a.lastName
-      const bName = b.teamName || b.lastName
-      return aName.localeCompare(bName)
+    const athletes = buildScoreEntryAthletes({
+      registrations: filteredRegistrations,
+      existingScores,
+      existingRounds,
+      membersByTeamId,
     })
 
     return {
@@ -842,6 +904,254 @@ export const getEventScoreEntryDataWithHeatsFn = createServerFn({
       unassignedRegistrationIds,
     }
   })
+
+const getEventScoreEntryDataBatchInputSchema = z.object({
+  competitionId: z.string().min(1),
+  organizingTeamId: z.string().min(1),
+  trackWorkoutIds: z.array(z.string().min(1)),
+  divisionId: z.string().optional(),
+})
+
+/**
+ * Batched variant of getEventScoreEntryDataWithHeatsFn for sibling
+ * sub-events. Registrations, divisions, and team rosters are competition-
+ * scoped (identical for every event) and sub-events share their parent's
+ * heats, so a constant number of queries serves all events at once.
+ * Returns results keyed by trackWorkoutId.
+ */
+export const getEventScoreEntryDataWithHeatsBatchFn = createServerFn({
+  method: "GET",
+})
+  .inputValidator((data: unknown) =>
+    getEventScoreEntryDataBatchInputSchema.parse(data),
+  )
+  .handler(
+    async ({
+      data,
+    }): Promise<Record<string, EventScoreEntryDataWithHeats>> => {
+      const db = getDb()
+      if (data.trackWorkoutIds.length === 0) {
+        return {}
+      }
+
+      // Event + workout details for all requested events
+      const eventRows = await db
+        .select({
+          trackWorkoutId: trackWorkoutsTable.id,
+          trackOrder: trackWorkoutsTable.trackOrder,
+          pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
+          parentEventId: trackWorkoutsTable.parentEventId,
+          workoutId: workouts.id,
+          workoutName: workouts.name,
+          workoutDescription: workouts.description,
+          workoutScheme: workouts.scheme,
+          workoutScoreType: workouts.scoreType,
+          workoutTiebreakScheme: workouts.tiebreakScheme,
+          workoutTimeCap: workouts.timeCap,
+          workoutRepsPerRound: workouts.repsPerRound,
+          workoutRoundsToScore: workouts.roundsToScore,
+        })
+        .from(trackWorkoutsTable)
+        .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+        .where(inArray(trackWorkoutsTable.id, data.trackWorkoutIds))
+
+      // Registrations are competition-scoped (shared across events); scores
+      // are per-event but fetched for all events in one query.
+      const [registrations, existingScores] = await Promise.all([
+        db
+          .select({
+            registration: competitionRegistrationsTable,
+            user: userTable,
+            division: scalingLevelsTable,
+          })
+          .from(competitionRegistrationsTable)
+          .innerJoin(
+            userTable,
+            eq(competitionRegistrationsTable.userId, userTable.id),
+          )
+          .leftJoin(
+            scalingLevelsTable,
+            eq(competitionRegistrationsTable.divisionId, scalingLevelsTable.id),
+          )
+          .where(
+            and(
+              eq(competitionRegistrationsTable.eventId, data.competitionId),
+              ne(
+                competitionRegistrationsTable.status,
+                REGISTRATION_STATUS.REMOVED,
+              ),
+              ...(data.divisionId
+                ? [
+                    eq(
+                      competitionRegistrationsTable.divisionId,
+                      data.divisionId,
+                    ),
+                  ]
+                : []),
+            ),
+          ),
+        db
+          .select()
+          .from(scoresTable)
+          .where(
+            and(
+              inArray(scoresTable.competitionEventId, data.trackWorkoutIds),
+              ...(data.divisionId
+                ? [eq(scoresTable.scalingLevelId, data.divisionId)]
+                : []),
+            ),
+          ),
+      ])
+
+      const scoreIds = existingScores.map((s) => s.id)
+      const divisionIds = [
+        ...new Set(
+          registrations
+            .map((r) => r.registration.divisionId)
+            .filter((id): id is string => id !== null),
+        ),
+      ]
+      const athleteTeamIds = [
+        ...new Set(
+          registrations
+            .map((r) => r.registration.athleteTeamId)
+            .filter((id): id is string => id !== null),
+        ),
+      ]
+      // Sub-events inherit their parent's heats; standalone events own theirs
+      const heatWorkoutIds = [
+        ...new Set(
+          eventRows.map((row) => row.parentEventId ?? row.trackWorkoutId),
+        ),
+      ]
+
+      const [existingRounds, divisions, teamMemberships, heatsByWorkoutId] =
+        await Promise.all([
+          scoreIds.length > 0
+            ? db
+                .select({
+                  scoreId: scoreRoundsTable.scoreId,
+                  roundNumber: scoreRoundsTable.roundNumber,
+                  value: scoreRoundsTable.value,
+                })
+                .from(scoreRoundsTable)
+                .where(inArray(scoreRoundsTable.scoreId, scoreIds))
+            : [],
+          divisionIds.length > 0
+            ? db
+                .select({
+                  id: scalingLevelsTable.id,
+                  label: scalingLevelsTable.label,
+                  position: scalingLevelsTable.position,
+                })
+                .from(scalingLevelsTable)
+                .where(inArray(scalingLevelsTable.id, divisionIds))
+            : [],
+          athleteTeamIds.length > 0
+            ? db
+                .select({
+                  teamId: teamMembershipTable.teamId,
+                  userId: teamMembershipTable.userId,
+                  firstName: userTable.firstName,
+                  lastName: userTable.lastName,
+                })
+                .from(teamMembershipTable)
+                .innerJoin(
+                  userTable,
+                  eq(teamMembershipTable.userId, userTable.id),
+                )
+                .where(inArray(teamMembershipTable.teamId, athleteTeamIds))
+            : [],
+          getHeatsByWorkoutIdsInternal(heatWorkoutIds),
+        ])
+
+      const membersByTeamId = groupMembersByTeam(teamMemberships)
+      const sortedDivisions = divisions.sort((a, b) => a.position - b.position)
+
+      const scoresByEvent = new Map<string, typeof existingScores>()
+      const eventIdByScoreId = new Map<string, string>()
+      for (const score of existingScores) {
+        if (!score.competitionEventId) continue
+        const existing = scoresByEvent.get(score.competitionEventId) ?? []
+        existing.push(score)
+        scoresByEvent.set(score.competitionEventId, existing)
+        eventIdByScoreId.set(score.id, score.competitionEventId)
+      }
+      const roundsByEvent = new Map<string, typeof existingRounds>()
+      for (const round of existingRounds) {
+        const eventId = eventIdByScoreId.get(round.scoreId)
+        if (!eventId) continue
+        const existing = roundsByEvent.get(eventId) ?? []
+        existing.push(round)
+        roundsByEvent.set(eventId, existing)
+      }
+
+      const result: Record<string, EventScoreEntryDataWithHeats> = {}
+      for (const row of eventRows) {
+        const eventScores = scoresByEvent.get(row.trackWorkoutId) ?? []
+        const eventRounds = roundsByEvent.get(row.trackWorkoutId) ?? []
+
+        const athletes = buildScoreEntryAthletes({
+          registrations,
+          existingScores: eventScores,
+          existingRounds: eventRounds,
+          membersByTeamId,
+        })
+
+        const heatsWithAssignments =
+          heatsByWorkoutId.get(row.parentEventId ?? row.trackWorkoutId) ?? []
+
+        const assignedRegistrationIds = new Set<string>()
+        for (const heat of heatsWithAssignments) {
+          for (const assignment of heat.assignments) {
+            assignedRegistrationIds.add(assignment.registrationId)
+          }
+        }
+        const unassignedRegistrationIds = athletes
+          .map((a) => a.registrationId)
+          .filter((id) => !assignedRegistrationIds.has(id))
+
+        const heats: HeatScoreGroup[] = heatsWithAssignments
+          .map((heat) => ({
+            heatId: heat.id,
+            heatNumber: heat.heatNumber,
+            scheduledTime: heat.scheduledTime,
+            venue: heat.venue,
+            division: heat.division,
+            assignments: heat.assignments.map((a) => ({
+              laneNumber: a.laneNumber,
+              registrationId: a.registrationId,
+            })),
+          }))
+          .sort((a, b) => a.heatNumber - b.heatNumber)
+
+        result[row.trackWorkoutId] = {
+          event: {
+            id: row.trackWorkoutId,
+            trackOrder: row.trackOrder,
+            pointsMultiplier: row.pointsMultiplier,
+            workout: {
+              id: row.workoutId,
+              name: row.workoutName,
+              description: row.workoutDescription,
+              scheme: row.workoutScheme as WorkoutScheme,
+              scoreType: row.workoutScoreType as ScoreType | null,
+              tiebreakScheme: row.workoutTiebreakScheme as TiebreakScheme | null,
+              timeCap: row.workoutTimeCap,
+              repsPerRound: row.workoutRepsPerRound,
+              roundsToScore: row.workoutRoundsToScore,
+            },
+          },
+          athletes,
+          divisions: sortedDivisions,
+          heats,
+          unassignedRegistrationIds,
+        }
+      }
+
+      return result
+    },
+  )
 
 /**
  * Save a single athlete's competition score

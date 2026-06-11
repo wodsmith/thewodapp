@@ -8,6 +8,8 @@ The layout route fetches competition data and verifies the user has organizer-le
 
 Access requires authentication plus one of: platform admin role, or owner/admin membership on the competition's `organizingTeamId`. The layout provides competition data to all child routes via `parentMatchPromise`, avoiding redundant fetches. Each child route uses `getRouteApi("/compete/organizer/$competitionId")` to access parent loader data.
 
+The layout header renders [[apps/wodsmith-start/src/components/competition-header.tsx#CompetitionHeader]], which groups publication, visibility, registration, and competition metadata into compact fields under the competition name. The registration field combines open/closed state with the registration date range so organizers can scan state and timing without reading a long inline sentence.
+
 ## Overview Page
 
 The index page shows at-a-glance competition stats and quick action cards for common organizer tasks.
@@ -105,6 +107,8 @@ Organizers enter scores for each athlete per event, or review video submissions 
 
 For **in-person competitions**: `ResultsEntryForm` provides a per-event, per-division score entry grid. Organizers select an event and division, then enter scores for each athlete. Supports publishing/unpublishing division results. Multi-round scores flow through [[apps/wodsmith-start/src/server-fns/competition-score-fns.ts#saveCompetitionScoreFn]], which for `time-with-cap` workouts derives per-round cap status server-side from each round's encoded value against `workout.timeCap * 1000`, persists that status on `scoreRoundsTable`, preserves the summed total on `scoresTable.scoreValue` (instead of clamping to the cap), and threads `cappedRoundCount` into `computeSortKey` so the leaderboard tiebreaker honors "fewer capped rounds wins". The grid's existing-score fetch (and every downstream write/delete) scopes by `data.divisionId` so an athlete registered in multiple divisions for a shared workout surfaces a separate score row per division — see [[lat.md/domain#Domain Model#Scoring#One score per athlete per event per division]].
 
+For parent events with sub-events, the results loader fetches all child score-entry data through [[apps/wodsmith-start/src/server-fns/competition-score-fns.ts#getEventScoreEntryDataWithHeatsBatchFn]] in one call. Registrations, divisions, and team rosters are competition-scoped (identical per child) and sub-events share their parent's heats, so the batch issues a constant number of queries instead of the prior per-child fan-out. The loader also runs the division-results-status fetch in parallel with score data.
+
 For **online competitions**: Shows a submissions overview with links to individual video verification pages at `/events/{eventId}/submissions/`. Layout mirrors the volunteer review index (`/compete/$slug/review`) — parent events render as cards with their child sub-events listed inline, each row showing per-event total / reviewed / pending counts and a progress bar. Counts come from [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#getSubmissionCountsByEventFn]], which gates on `requireSubmissionReviewAccess(competitionId)`, filters the requested trackWorkoutIds to those belonging to the competition's programming track (so callers can't enumerate counts across tenants), then issues grouped `COUNT() ... GROUP BY trackWorkoutId` queries for total and reviewed counts — autochunked as needed to respect MySQL parameter limits. It inner-joins `competition_registrations` to exclude submissions from removed registrations, matching the leaderboard and in-person results entry filter. This replaces the prior per-event `getEventSubmissionsFn` fan-out, which materialized full submission rows (with autochunked user/division/registration lookups) just to compute three numbers per event. The per-event review list ([[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#getOrganizerSubmissionsFn]]) applies the same removed-registration filter on its registration join.
 
 ### Division Results Publish Gate
@@ -142,13 +146,15 @@ Only available when `competitionType === "online"`. Fetches workouts and competi
 
 ## Volunteers
 
-Manages competition staff across four tabs: roster, shifts, judge scheduling, and registration rules.
+Manages competition staff across four tabs: roster, shifts, judge scheduling, and signup questions.
 
 ### Volunteer Roster
 
 Lists confirmed volunteers with their roles and capabilities (e.g., can input scores).
 
 Uses `getCompetitionVolunteersFn` and `getDirectVolunteerInvitesFn`. Features invite dialog, role management, and activation/deactivation. Also shows `InvitedVolunteersList` for pending invitations.
+
+Score-input access for the roster is resolved in one batched call — [[apps/wodsmith-start/src/server-fns/volunteer-fns.ts#getScoreAccessMapFn]] checks entitlements for every volunteer userId with a single `inArray` query and returns a userId→boolean map, replacing the prior per-volunteer `canInputScoresFn` fan-out (N+1) in the volunteers route loader. `canInputScoresFn` remains for single-user checks.
 
 The roster displays one status column per volunteer-required waiver, with each column titled from the waiver. Status data comes from [[apps/wodsmith-start/src/server-fns/volunteer-fns.ts#getVolunteerWaiverStatusesFn]]. Pending applications resolve signatures by invite email when a user account exists; approved volunteers resolve by membership user id.
 
@@ -162,7 +168,9 @@ Uses `getCompetitionShiftsFn`. `ShiftList` and `ShiftFormDialog` components hand
 
 Assigns judges to heats with rotation patterns so judges move between lanes across events.
 
-Fetches heats, events, judge volunteers, rotations, heat assignments, and version history. Uses the `JudgeSchedulingContainer` component tree (rotation editor, timeline, overview, publish button). Supports rotation patterns: stay, shift right, random. Judge assignment versions allow publishing/reverting schedules. The "adjust for occupied lanes" feature (`adjustRotationsForOccupiedLanesFn`) splits rotations to skip unoccupied lanes; cohost routes use `cohostAdjustRotationsForOccupiedLanesFn` via the `onAdjustRotationsForOccupiedLanes` override prop on `RotationTimeline`.
+Fetches heats, events, judge volunteers, rotations, heat assignments, and version history. Uses the `JudgeSchedulingContainer` component tree (rotation editor, timeline, overview, publish button). Supports rotation patterns: stay, shift right, random. Judge assignment versions allow publishing/reverting schedules.
+
+The volunteers and judges-ai route loaders load all per-event judge data (heat assignments, rotations + event defaults, version history, active versions) through one batched call — [[apps/wodsmith-start/src/server-fns/judge-scheduling-fns.ts#getJudgeSchedulingDataForEventsFn]] — which issues a constant number of `inArray` queries for any event count and returns records keyed by trackWorkoutId. This replaced four per-event server-fn fan-outs (4N round trips, ~10N queries). The single-event fns (`getJudgeHeatAssignmentsFn`, `getRotationsForEventFn`, `getVersionHistoryFn`, `getActiveVersionFn`) remain for targeted refreshes. The "adjust for occupied lanes" feature (`adjustRotationsForOccupiedLanesFn`) splits rotations to skip unoccupied lanes; cohost routes use `cohostAdjustRotationsForOccupiedLanesFn` via the `onAdjustRotationsForOccupiedLanes` override prop on `RotationTimeline`.
 
 ### AI Judge Scheduling
 
@@ -174,7 +182,7 @@ Accepted proposals write to `competition_judge_rotations` via [[apps/wodsmith-st
 
 Gated by the `ai_judge_scheduling` feature (see [[apps/wodsmith-start/src/config/features.ts#FEATURES]] → `AI_JUDGE_SCHEDULING`). Teams without the entitlement see a paywall card instead of the scheduling UI. Admins can grant it manually from the platform admin entitlements panel.
 
-### Volunteer Registration Rules
+### Volunteer Signup Questions
 
 Custom registration questions and waivers targeted at volunteers (separate from athlete registration requirements).
 
@@ -230,7 +238,7 @@ Uses `CapacitySettingsForm`, `ScoringSettingsForm`, and `RotationSettingsForm` c
 
 One-way broadcast messaging from organizers to registered athletes.
 
-The broadcasts tab at [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/broadcasts.tsx]] lets organizers compose messages with audience filtering (all athletes, by division, all volunteers, volunteers by role, pending teammate invites, or public/everyone), preview recipient count, and send. Organizers can optionally narrow the audience by registration question answers — select questions show checkboxes, text/number questions offer an autocomplete tag input populated via [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#getDistinctAnswersFn]]. Multiple question filters are AND'd; values within each filter are OR'd. The answer lookup uses `Map<string, Set<string>>` to support multiple answers per registration/question (e.g. team registrations where different teammates answered differently). `partitionQuestionFilters` validates that all filter questionIds resolve to existing questions — stale or deleted filters throw an error rather than silently widening the recipient set. [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#sendBroadcastFn]] pre-renders the email template once and enqueues batches of up to 100 recipients into a Cloudflare Queue. The queue consumer at [[apps/wodsmith-start/src/server/broadcast-queue-consumer.ts#handleBroadcastEmailQueue]] sends emails via Resend with per-recipient idempotency keys, updating delivery status in [[apps/wodsmith-start/src/db/schemas/broadcasts.ts#competitionBroadcastRecipientsTable]]. The queue requires both a producer binding (`BROADCAST_EMAIL_QUEUE` in bindings) and a consumer registration (`eventSources` in [[apps/wodsmith-start/alchemy.run.ts]]) — without `eventSources`, messages are enqueued but never delivered. Athletes see broadcasts at [[apps/wodsmith-start/src/routes/compete/$slug/broadcasts.tsx]].
+The broadcasts tab at [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/broadcasts.tsx]] lets organizers compose messages with audience filtering (all athletes, by division, all volunteers, volunteers by role, pending teammate invites, or public/everyone), preview recipient count, and send. Organizers can optionally narrow the audience by registration question answers — select questions show checkboxes, text/number questions offer an autocomplete tag input populated via [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#getDistinctAnswersFn]]. Multiple question filters are AND'd; values within each filter are OR'd. The answer lookup uses `Map<string, Set<string>>` to support multiple answers per registration/question (e.g. team registrations where different teammates answered differently). `partitionQuestionFilters` validates that all filter questionIds resolve to existing questions — stale or deleted filters throw an error rather than silently widening the recipient set. [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#sendBroadcastFn]] pre-renders the email template once and enqueues batches of up to 100 recipients into a Cloudflare Queue. The queue consumer at [[apps/wodsmith-start/src/server/broadcast-queue-consumer.ts#handleBroadcastEmailQueue]] sends emails via Resend with per-recipient idempotency keys, updating delivery status in [[apps/wodsmith-start/src/db/schemas/broadcasts.ts#competitionBroadcastRecipientsTable]]. The queue requires both a producer binding (`BROADCAST_EMAIL_QUEUE` in bindings) and a consumer registration (`eventSources` in [[apps/wodsmith-start/alchemy.run.ts]]) — without `eventSources`, messages are enqueued but never delivered. Athletes see broadcasts at [[apps/wodsmith-start/src/routes/compete/$slug/broadcasts.tsx]]. The broadcast list's delivery stats come from a single `GROUP BY (broadcastId, status)` count query in [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#listBroadcastsFn]] rather than two count queries per broadcast.
 
 ### Audience expansion
 
@@ -271,6 +279,8 @@ Shows `DeleteCompetitionForm` with registration count warning. Deletion requires
 The application flow for teams to become competition organizers.
 
 At `/compete/organizer/onboard/`, teams submit an organizer request. Includes inline auth for unauthenticated users. After submission, the pending page shows request status. Admin approval is required before teams can create competitions.
+
+The Compete header shows `HOST A COMP` only before one of the user's teams has an organizer request. Hosting entitlements alone do not switch the header to `MANAGE COMPETITIONS`, and the desktop CTA is separated from `COMPETITIONS` by the standard header divider.
 
 ## Competition Creation
 
@@ -324,7 +334,7 @@ Each cohost server fn checks the user is a cohost on that competition team AND h
 
 Cohost route loaders wrap optional-permission server fn calls with a `.catch()` that swallows only `FORBIDDEN:` errors and rethrows everything else — graceful degradation without masking real failures.
 
-The athletes loader (`/compete/cohost/$competitionId/athletes`) wraps `cohostGetCompetitionWaiversFn` and `cohostGetCompetitionWaiverSignaturesFn` with a catch that returns `{ waivers: [] }` / `{ signatures: [] }` only when the error message starts with `FORBIDDEN:` — backstop for edge cases (e.g. team-ownership mismatch), since both fns now accept `waivers`, `viewRegistrations`, or `editRegistrations` so view-only cohosts see waiver titles + per-row signed dates in the registrations table. Mutations on waivers (`cohostCreateWaiverFn`, `cohostUpdateWaiverFn`, `cohostDeleteWaiverFn`, `cohostReorderWaiversFn`) remain gated on the dedicated `waivers` permission. `cohostGetDivisionsWithCountsFn` accepts `viewRegistrations` and `editRegistrations` (in addition to `divisions`/`leaderboardPreview`/`results`) since the athletes filter UI needs division metadata. The "Add Registration" button, the per-row actions menu (`...` dropdown — Change Division / Transfer / Remove), the actions table column, and the "Registration Rules" tab are all hidden unless the cohost has `editRegistrations`. The page coerces a `tab=registration-rules` search param to `athletes` when `editRegistrations` is false, so `<Tabs>` never holds a value with no matching `TabsContent`.
+The athletes loader (`/compete/cohost/$competitionId/athletes`) wraps `cohostGetCompetitionWaiversFn` and `cohostGetCompetitionWaiverSignaturesFn` with a catch that returns `{ waivers: [] }` / `{ signatures: [] }` only when the error message starts with `FORBIDDEN:` — backstop for edge cases (e.g. team-ownership mismatch), since both fns now accept `waivers`, `viewRegistrations`, or `editRegistrations` so view-only cohosts see waiver titles + per-row signed dates in the registrations table. Mutations on waivers (`cohostCreateWaiverFn`, `cohostUpdateWaiverFn`, `cohostDeleteWaiverFn`, `cohostReorderWaiversFn`) remain gated on the dedicated `waivers` permission. `cohostGetDivisionsWithCountsFn` accepts `viewRegistrations` and `editRegistrations` (in addition to `divisions`/`leaderboardPreview`/`results`) since the athletes filter UI needs division metadata. The "Add Registration" button, the per-row actions menu (`...` dropdown — Change Division / Transfer / Remove), the actions table column, and the "Form Questions" tab are all hidden unless the cohost has `editRegistrations`. The page coerces a `tab=registration-rules` search param to `athletes` when `editRegistrations` is false, so `<Tabs>` never holds a value with no matching `TabsContent`.
 
 Registration question CRUD (`cohostCreateQuestionFn`, `cohostUpdateQuestionFn`, `cohostDeleteQuestionFn`, `cohostReorderQuestionsFn`) authorizes by `questionTarget`: volunteer questions require the `volunteers` permission, athlete questions require `editRegistrations`. Update/delete fetch the question first and then call `requireCohostCompetitionOwnership` so a cohost on team A can't mutate a question whose competition belongs to team B by passing a forged `competitionTeamId`. Reorder fetches the targeted ids, asserts they all share one `questionTarget`, requires the matching permission for that target, and adds a `questionTarget` filter to the update so a volunteers-only cohost cannot reorder athlete questions.
 

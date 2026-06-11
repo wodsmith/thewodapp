@@ -851,8 +851,8 @@ export function RegistrationQuestionsEditor({
             <div>
               <CardTitle>
                 {questionTarget === "volunteer"
-                  ? "Volunteer Registration Questions"
-                  : "Registration Questions"}
+                  ? "Volunteer Signup Questions"
+                  : "Athlete Form Questions"}
               </CardTitle>
               <CardDescription>
                 {questionTarget === "volunteer"
@@ -873,8 +873,8 @@ export function RegistrationQuestionsEditor({
             <div className="text-center py-12 text-muted-foreground">
               <p className="text-lg font-medium mb-2">No questions yet</p>
               <p className="text-sm">
-                Add custom questions to gather information from athletes during
-                registration.
+                Add custom questions to gather information during{" "}
+                {questionTarget === "volunteer" ? "signup" : "registration"}.
               </p>
             </div>
           ) : (

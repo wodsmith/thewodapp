@@ -737,43 +737,48 @@ export const listBroadcastsFn = createServerFn({ method: "GET" })
       orderBy: [desc(competitionBroadcastsTable.createdAt)],
     })
 
-    // Get delivery stats for each broadcast
-    const broadcastsWithStats = await Promise.all(
-      broadcasts.map(async (broadcast) => {
-        const [sentCount] = await db
-          .select({ count: count() })
-          .from(competitionBroadcastRecipientsTable)
-          .where(
-            and(
-              eq(competitionBroadcastRecipientsTable.broadcastId, broadcast.id),
-              eq(
-                competitionBroadcastRecipientsTable.emailDeliveryStatus,
-                BROADCAST_EMAIL_DELIVERY_STATUS.SENT,
-              ),
-            ),
-          )
-        const [failedCount] = await db
-          .select({ count: count() })
-          .from(competitionBroadcastRecipientsTable)
-          .where(
-            and(
-              eq(competitionBroadcastRecipientsTable.broadcastId, broadcast.id),
-              eq(
-                competitionBroadcastRecipientsTable.emailDeliveryStatus,
-                BROADCAST_EMAIL_DELIVERY_STATUS.FAILED,
-              ),
-            ),
-          )
-
-        return {
-          ...broadcast,
-          deliveryStats: {
-            sent: sentCount?.count ?? 0,
-            failed: failedCount?.count ?? 0,
-          },
+    // Get delivery stats for all broadcasts in a single grouped query
+    const broadcastIds = broadcasts.map((broadcast) => broadcast.id)
+    const statsByBroadcast = new Map<string, { sent: number; failed: number }>()
+    if (broadcastIds.length > 0) {
+      const statRows = await db
+        .select({
+          broadcastId: competitionBroadcastRecipientsTable.broadcastId,
+          status: competitionBroadcastRecipientsTable.emailDeliveryStatus,
+          count: count(),
+        })
+        .from(competitionBroadcastRecipientsTable)
+        .where(
+          inArray(
+            competitionBroadcastRecipientsTable.broadcastId,
+            broadcastIds,
+          ),
+        )
+        .groupBy(
+          competitionBroadcastRecipientsTable.broadcastId,
+          competitionBroadcastRecipientsTable.emailDeliveryStatus,
+        )
+      for (const row of statRows) {
+        const stats = statsByBroadcast.get(row.broadcastId) ?? {
+          sent: 0,
+          failed: 0,
         }
-      }),
-    )
+        if (row.status === BROADCAST_EMAIL_DELIVERY_STATUS.SENT) {
+          stats.sent = Number(row.count)
+        } else if (row.status === BROADCAST_EMAIL_DELIVERY_STATUS.FAILED) {
+          stats.failed = Number(row.count)
+        }
+        statsByBroadcast.set(row.broadcastId, stats)
+      }
+    }
+
+    const broadcastsWithStats = broadcasts.map((broadcast) => ({
+      ...broadcast,
+      deliveryStats: statsByBroadcast.get(broadcast.id) ?? {
+        sent: 0,
+        failed: 0,
+      },
+    }))
 
     return { broadcasts: broadcastsWithStats }
   })
