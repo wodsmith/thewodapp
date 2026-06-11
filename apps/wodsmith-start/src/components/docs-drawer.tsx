@@ -1,3 +1,5 @@
+"use client"
+
 /**
  * Documentation Drawer
  *
@@ -137,7 +139,7 @@ function DocItem({ doc }: { doc: RouteDocForViewer }) {
             components={{
               a: ({ children, href }) => (
                 <a
-                  href={href}
+                  href={href && isSafeUrl(href) ? href : "#"}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary underline hover:text-primary/80"
@@ -184,7 +186,7 @@ function DocVideo({ url, title }: { url: string; title: string }) {
         {/* biome-ignore lint/a11y/useMediaCaption: documentation videos don't have captions */}
         <video
           src={url}
-          title={title}
+          aria-label={title}
           controls
           playsInline
           preload="metadata"

@@ -1,3 +1,5 @@
+"use client"
+
 /**
  * Route Doc Form
  *
@@ -9,11 +11,14 @@
  * always reflects the actual route tree — no hand-maintained route list.
  */
 
+import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "@tanstack/react-router"
 import { Loader2, Upload } from "lucide-react"
 import { useMemo, useRef, useState } from "react"
+import { useForm } from "react-hook-form"
 import Markdown from "react-markdown"
 import { toast } from "sonner"
+import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -23,6 +28,14 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -33,20 +46,46 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import type { RouteDocType } from "@/db/schemas/route-docs"
+import { ROUTE_DOC_TYPES } from "@/db/schemas/route-docs"
 import { ORGANIZER_ROUTE_PREFIX } from "@/utils/route-docs"
 
-export interface RouteDocFormValues {
-  title: string
-  description: string
-  type: RouteDocType
-  content: string
-  videoUrl: string
-  linkUrl: string
-  isPublished: boolean
-  sortOrder: number
-  routeIds: string[]
-}
+const routeDocFormSchema = z
+  .object({
+    title: z.string().min(1, "Title is required").max(255),
+    description: z.string().max(1024),
+    type: z.enum(ROUTE_DOC_TYPES),
+    content: z.string().max(100_000),
+    videoUrl: z.string().max(2048),
+    linkUrl: z.string().max(2048),
+    isPublished: z.boolean(),
+    sortOrder: z.number().int().min(0).max(10_000),
+    routeIds: z.array(z.string()).min(1, "Select at least one route"),
+  })
+  .superRefine((values, ctx) => {
+    if (values.type === "markdown" && !values.content.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["content"],
+        message: "Markdown docs require content",
+      })
+    }
+    if (values.type === "video" && !values.videoUrl.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["videoUrl"],
+        message: "Video docs require a video URL or upload",
+      })
+    }
+    if (values.type === "link" && !values.linkUrl.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["linkUrl"],
+        message: "Link docs require a URL",
+      })
+    }
+  })
+
+export type RouteDocFormValues = z.infer<typeof routeDocFormSchema>
 
 const DEFAULT_VALUES: RouteDocFormValues = {
   title: "",
@@ -73,186 +112,231 @@ export function RouteDocForm({
   isSubmitting,
   onSubmit,
 }: RouteDocFormProps) {
-  const [values, setValues] = useState<RouteDocFormValues>({
-    ...DEFAULT_VALUES,
-    ...initialValues,
+  const form = useForm<RouteDocFormValues>({
+    resolver: zodResolver(routeDocFormSchema),
+    defaultValues: { ...DEFAULT_VALUES, ...initialValues },
   })
 
-  const setField = <K extends keyof RouteDocFormValues>(
-    field: K,
-    value: RouteDocFormValues[K],
-  ) => {
-    setValues((prev) => ({ ...prev, [field]: value }))
-  }
-
-  const handleSubmit = (event: React.FormEvent) => {
-    event.preventDefault()
-
-    if (!values.title.trim()) {
-      toast.error("Title is required")
-      return
-    }
-    if (values.type === "markdown" && !values.content.trim()) {
-      toast.error("Markdown docs require content")
-      return
-    }
-    if (values.type === "video" && !values.videoUrl.trim()) {
-      toast.error("Video docs require a video URL or upload")
-      return
-    }
-    if (values.type === "link" && !values.linkUrl.trim()) {
-      toast.error("Link docs require a URL")
-      return
-    }
-    if (values.routeIds.length === 0) {
-      toast.error("Select at least one route")
-      return
-    }
-
-    onSubmit(values)
-  }
+  const docType = form.watch("type")
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Details</CardTitle>
-          <CardDescription>
-            Title and summary shown in the documentation drawer
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="doc-title">Title</Label>
-            <Input
-              id="doc-title"
-              value={values.title}
-              onChange={(e) => setField("title", e.target.value)}
-              placeholder="e.g. Scheduling heats"
-              maxLength={255}
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Details</CardTitle>
+            <CardDescription>
+              Title and summary shown in the documentation drawer
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Title</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      placeholder="e.g. Scheduling heats"
+                      maxLength={255}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="doc-description">Description (optional)</Label>
-            <Textarea
-              id="doc-description"
-              value={values.description}
-              onChange={(e) => setField("description", e.target.value)}
-              placeholder="Short summary shown under the title"
-              rows={2}
-              maxLength={1024}
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description (optional)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      {...field}
+                      placeholder="Short summary shown under the title"
+                      rows={2}
+                      maxLength={1024}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          <div className="flex flex-wrap items-end gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="doc-sort-order">Sort order</Label>
-              <Input
-                id="doc-sort-order"
-                type="number"
-                min={0}
-                max={10000}
-                value={values.sortOrder}
-                onChange={(e) =>
-                  setField("sortOrder", Number(e.target.value) || 0)
-                }
-                className="w-28"
+            <div className="flex flex-wrap items-end gap-6">
+              <FormField
+                control={form.control}
+                name="sortOrder"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sort order</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={10000}
+                        value={field.value}
+                        onChange={(e) =>
+                          field.onChange(Number(e.target.value) || 0)
+                        }
+                        className="w-28"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="isPublished"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center gap-2 space-y-0 pb-2">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={(checked) =>
+                          field.onChange(checked === true)
+                        }
+                      />
+                    </FormControl>
+                    <FormLabel className="text-sm font-normal">
+                      Published (visible in the drawer)
+                    </FormLabel>
+                  </FormItem>
+                )}
               />
             </div>
+          </CardContent>
+        </Card>
 
-            <div className="flex items-center gap-2 pb-2">
-              <Checkbox
-                id="doc-published"
-                checked={values.isPublished}
-                onCheckedChange={(checked) =>
-                  setField("isPublished", checked === true)
-                }
-              />
-              <Label htmlFor="doc-published" className="text-sm font-normal">
-                Published (visible in the drawer)
-              </Label>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Content</CardTitle>
-          <CardDescription>
-            Markdown article, video, or external link
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Type</Label>
-            <Select
-              value={values.type}
-              onValueChange={(value) => setField("type", value as RouteDocType)}
-            >
-              <SelectTrigger className="w-56">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="markdown">Markdown article</SelectItem>
-                <SelectItem value="video">Video</SelectItem>
-                <SelectItem value="link">External link</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {values.type === "markdown" && (
-            <MarkdownEditor
-              value={values.content}
-              onChange={(content) => setField("content", content)}
+        <Card>
+          <CardHeader>
+            <CardTitle>Content</CardTitle>
+            <CardDescription>
+              Markdown article, video, or external link
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <FormField
+              control={form.control}
+              name="type"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Type</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger className="w-56">
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="markdown">Markdown article</SelectItem>
+                      <SelectItem value="video">Video</SelectItem>
+                      <SelectItem value="link">External link</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          )}
 
-          {values.type === "video" && (
-            <VideoField
-              value={values.videoUrl}
-              onChange={(videoUrl) => setField("videoUrl", videoUrl)}
-            />
-          )}
-
-          {values.type === "link" && (
-            <div className="space-y-2">
-              <Label htmlFor="doc-link-url">Article URL</Label>
-              <Input
-                id="doc-link-url"
-                type="url"
-                value={values.linkUrl}
-                onChange={(e) => setField("linkUrl", e.target.value)}
-                placeholder="https://docs.wodsmith.com/how-to/organizers/schedule-heats"
-                maxLength={2048}
+            {docType === "markdown" && (
+              <FormField
+                control={form.control}
+                name="content"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <MarkdownEditor
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Routes</CardTitle>
-          <CardDescription>
-            Pages where this doc appears. Selecting a layout route (e.g. a
-            competition section) shows the doc on all of its child pages.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <RoutePicker
-            selected={values.routeIds}
-            onChange={(routeIds) => setField("routeIds", routeIds)}
-          />
-        </CardContent>
-      </Card>
+            {docType === "video" && (
+              <FormField
+                control={form.control}
+                name="videoUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <VideoField
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
-      <Button type="submit" disabled={isSubmitting}>
-        {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-        {submitLabel}
-      </Button>
-    </form>
+            {docType === "link" && (
+              <FormField
+                control={form.control}
+                name="linkUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Article URL</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="url"
+                        placeholder="https://docs.wodsmith.com/how-to/organizers/schedule-heats"
+                        maxLength={2048}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Routes</CardTitle>
+            <CardDescription>
+              Pages where this doc appears. Selecting a layout route (e.g. a
+              competition section) shows the doc on all of its child pages.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FormField
+              control={form.control}
+              name="routeIds"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <RoutePicker
+                      selected={field.value}
+                      onChange={field.onChange}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </CardContent>
+        </Card>
+
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+          {submitLabel}
+        </Button>
+      </form>
+    </Form>
   )
 }
 

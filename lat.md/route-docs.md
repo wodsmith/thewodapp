@@ -24,11 +24,15 @@ Markdown renders inline via react-markdown; direct video files (R2 uploads) play
 
 ### Orders docs leaf-route first
 
-Verifies `orderDocsForMatches` puts page-specific docs above docs inherited from layout routes, uses the deepest matched route when a doc maps to several, breaks ties by sortOrder then title, and does not mutate its input.
+Verifies `orderDocsForMatches` puts page-specific docs above docs inherited from layout routes, so organizers always see the most contextually relevant help first when several docs apply to a route chain.
+
+Also covers: the deepest matched route wins when a doc maps to several routes, ties break by sortOrder then title, and the input array is not mutated.
 
 ### Detects direct video files
 
-Verifies `isDirectVideoFileUrl` accepts direct file URLs by pathname extension (mp4/webm/mov/m4v, case-insensitive), rejects platform URLs like YouTube/Vimeo, and ignores video-looking query params and unparseable URLs.
+Verifies `isDirectVideoFileUrl` recognizes direct file URLs by pathname extension. The result decides whether the drawer plays a video natively (R2 uploads) or through the shared `VideoEmbed` component (platform URLs).
+
+Also covers: mp4/webm/mov/m4v extensions match case-insensitively, platform URLs like YouTube/Vimeo are rejected, and video-looking query params and unparseable URLs are ignored to avoid false positives.
 
 ## Admin CMS
 
