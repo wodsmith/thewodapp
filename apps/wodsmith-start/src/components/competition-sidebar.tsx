@@ -18,7 +18,6 @@ import {
   ClipboardSignature,
   Clock,
   DollarSign,
-  Grid3X3,
   Handshake,
   Home,
   Layers,
@@ -100,11 +99,6 @@ const getNavigation = (
           label: "Venues & lanes",
           href: `${basePath}/locations`,
           icon: MapPin,
-        },
-        {
-          label: "Event visibility",
-          href: `${basePath}/event-divisions`,
-          icon: Grid3X3,
         },
         // Submission Windows only for online competitions
         ...(competitionType === "online"
@@ -333,6 +327,10 @@ export function CompetitionSidebar({
   const search = router.location.search as Record<string, unknown>
   const basePath = `/compete/organizer/${competitionId}`
   const navigation = getNavigation(basePath, competitionType)
+  const tabRoutedPaths = new Set([
+    `${basePath}/athletes`,
+    `${basePath}/volunteers`,
+  ])
 
   const isActive = (item: NavItem) => {
     const [hrefPath, hrefSearch] = item.href.split("?")
@@ -353,7 +351,11 @@ export function CompetitionSidebar({
       }
     }
 
-    if (hrefParams.size === 0 && typeof search.tab === "string") {
+    if (
+      hrefParams.size === 0 &&
+      tabRoutedPaths.has(hrefPath) &&
+      typeof search.tab === "string"
+    ) {
       return false
     }
 
