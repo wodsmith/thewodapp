@@ -12,7 +12,7 @@ Submission windows control when athletes can upload videos and scores for each e
 2. Drag events from the **unassigned pool** onto the window.
 3. Multi-part events: only the **parent** event is draggable — its parts automatically follow the parent's window and are listed under it on the window card.
 
-Athletes can only submit while their event's window is open. Outside the window, the submission form is closed — there's no late-submission override, so set close times with your review schedule in mind (you can edit a window's dates while the competition runs).
+Athletes can only submit while their event's window is open — outside it, the submission form is closed and there's no athlete-side late-submission override. If someone misses the window, either extend the window's dates (windows stay editable while the competition runs) or enter their score yourself from their athlete detail page.
 
 Events left in the unassigned pool have no window and can't accept submissions — the quick-action card on the dashboard overview flags these so nothing ships unscheduled.
 
