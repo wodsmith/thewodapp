@@ -76,6 +76,8 @@ interface OverviewPageProps {
   resultsLinkTo?: QuickActionsEventsProps["resultsLinkTo"]
   /** Route for the registrations "View all" link (defaults to organizer athletes route). */
   athletesLinkTo?: string
+  /** Route for the revenue "Details" link (defaults to organizer revenue route). */
+  revenueLinkTo?: string
 }
 
 function formatCents(cents: number): string {
@@ -100,6 +102,7 @@ export function OverviewPage({
   routePrefix,
   resultsLinkTo,
   athletesLinkTo = "/compete/organizer/$competitionId/athletes",
+  revenueLinkTo = "/compete/organizer/$competitionId/revenue",
 }: OverviewPageProps) {
   // Organizer routes pass no permissions object and get full access.
   const isOrganizer = !permissions
@@ -370,18 +373,15 @@ export function OverviewPage({
                 <CardTitle>Revenue</CardTitle>
                 <CardDescription>Paid registrations</CardDescription>
               </div>
-              {/* Organizer-only: cohost overview shows no revenue details link */}
-              {isOrganizer && (
-                <Link
-                  to="/compete/organizer/$competitionId/revenue"
-                  params={{ competitionId: competition.id }}
-                >
-                  <Button variant="outline" size="sm">
-                    <TrendingUp className="mr-2 h-4 w-4" />
-                    Details
-                  </Button>
-                </Link>
-              )}
+              <Link
+                to={revenueLinkTo}
+                params={{ competitionId: competition.id }}
+              >
+                <Button variant="outline" size="sm">
+                  <TrendingUp className="mr-2 h-4 w-4" />
+                  Details
+                </Button>
+              </Link>
             </CardHeader>
             <CardContent>
               {revenueStats.purchaseCount > 0 ? (

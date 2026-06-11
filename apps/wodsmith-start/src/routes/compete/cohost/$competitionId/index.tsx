@@ -197,6 +197,7 @@ function CohostOverviewPage() {
       routePrefix="/compete/cohost"
       resultsLinkTo="/compete/cohost/$competitionId/results"
       athletesLinkTo="/compete/cohost/$competitionId/athletes"
+      revenueLinkTo="/compete/cohost/$competitionId/revenue"
     />
   )
 }

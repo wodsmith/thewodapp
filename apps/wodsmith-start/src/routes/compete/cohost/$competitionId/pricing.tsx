@@ -67,33 +67,31 @@ export const Route = createFileRoute("/compete/cohost/$competitionId/pricing")({
       }
     }
 
-    // Get competition's divisions from scaling group
+    // Parallel fetch divisions (from scaling group), fee configuration, and
+    // team fee settings (for founding organizers)
     const settings = parseCompetitionSettings(competition.settings)
-    let divisions: Array<{ id: string; label: string; teamSize: number }> = []
+    const [scalingGroup, feeConfig, teamFeeSettings] = await Promise.all([
+      settings?.divisions?.scalingGroupId
+        ? getScalingGroupWithLevelsFn({
+            data: { scalingGroupId: settings.divisions.scalingGroupId },
+          })
+        : null,
+      getCompetitionDivisionFeesFn({
+        data: { competitionId: competition.id },
+      }),
+      getTeamFeeSettingsFn({
+        data: { teamId: competition.organizingTeamId },
+      }),
+    ])
 
-    if (settings?.divisions?.scalingGroupId) {
-      const scalingGroup = await getScalingGroupWithLevelsFn({
-        data: { scalingGroupId: settings.divisions.scalingGroupId },
-      })
-
-      if (scalingGroup?.scalingLevels) {
-        divisions = scalingGroup.scalingLevels.map((level) => ({
-          id: level.id,
-          label: level.label,
-          teamSize: level.teamSize ?? 1,
-        }))
-      }
-    }
-
-    // Get current fee configuration
-    const feeConfig = await getCompetitionDivisionFeesFn({
-      data: { competitionId: competition.id },
-    })
-
-    // Get team's fee settings (for founding organizers)
-    const teamFeeSettings = await getTeamFeeSettingsFn({
-      data: { teamId: competition.organizingTeamId },
-    })
+    const divisions: Array<{ id: string; label: string; teamSize: number }> =
+      scalingGroup?.scalingLevels
+        ? scalingGroup.scalingLevels.map((level) => ({
+            id: level.id,
+            label: level.label,
+            teamSize: level.teamSize ?? 1,
+          }))
+        : []
 
     return {
       competition: {
