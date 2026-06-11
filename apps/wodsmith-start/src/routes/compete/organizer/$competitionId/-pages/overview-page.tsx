@@ -6,6 +6,7 @@
  * cohost-permissioned mutation callbacks, cohost link targets, and a
  * permissions object that gates organizer-only sections.
  */
+// @lat: [[organizer-dashboard#Cohost Dashboard#Shared Component Callback Pattern#Shared Page Components]]
 
 import { Link } from "@tanstack/react-router"
 import { ClipboardCheck, FileText, TrendingUp, Users } from "lucide-react"
@@ -308,11 +309,14 @@ export function OverviewPage({
               </p>
               {/* Organizer-only: cohosts have no competition edit route */}
               {isOrganizer && (
-                <a href={`/compete/organizer/${competition.id}/edit`}>
+                <Link
+                  to="/compete/organizer/$competitionId/edit"
+                  params={{ competitionId: competition.id }}
+                >
                   <Button variant="outline" size="sm" className="mt-2">
                     Configure registration
                   </Button>
-                </a>
+                </Link>
               )}
             </div>
           )}

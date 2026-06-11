@@ -5,6 +5,7 @@
  * organizer route renders it with defaults; the cohost route injects
  * cohost-permissioned venue mutation overrides.
  */
+// @lat: [[organizer-dashboard#Cohost Dashboard#Shared Component Callback Pattern#Shared Page Components]]
 
 import { useRouter } from "@tanstack/react-router"
 import type { ComponentProps } from "react"

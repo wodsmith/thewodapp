@@ -5,6 +5,7 @@
  * route hides the payout setup link since cohosts cannot configure Stripe for
  * the organizing team.
  */
+// @lat: [[organizer-dashboard#Cohost Dashboard#Shared Component Callback Pattern#Shared Page Components]]
 
 import type { ComponentProps } from "react"
 import { RevenueStatsDisplay } from "../-components/revenue-stats-display"

@@ -5,6 +5,7 @@
  * (online competitions only). The organizer route renders it with defaults;
  * the cohost route injects a cohost-permissioned upsert override.
  */
+// @lat: [[organizer-dashboard#Cohost Dashboard#Shared Component Callback Pattern#Shared Page Components]]
 
 import type { ComponentProps } from "react"
 import { SubmissionWindowsManager } from "@/components/compete/submission-windows-manager"
@@ -39,14 +40,16 @@ export function SubmissionWindowsPage({
   overrides,
 }: SubmissionWindowsPageProps) {
   // Map workouts to format expected by SubmissionWindowsManager
-  const workoutsWithType = workouts.map((event: any) => ({
-    id: event.id,
-    workoutId: event.workoutId,
-    name: event.workout?.name || `Event #${event.trackOrder}`,
-    workoutType: event.workout?.scheme || "for-time",
-    trackOrder: event.trackOrder,
-    parentEventId: event.parentEventId ?? null,
-  }))
+  const workoutsWithType = workouts.map(
+    (event: OrganizerWorkouts[number] | CohostCompetitionWorkout) => ({
+      id: event.id,
+      workoutId: event.workoutId,
+      name: event.workout?.name || `Event #${event.trackOrder}`,
+      workoutType: event.workout?.scheme || "for-time",
+      trackOrder: event.trackOrder,
+      parentEventId: event.parentEventId ?? null,
+    }),
+  )
 
   return (
     <SubmissionWindowsManager

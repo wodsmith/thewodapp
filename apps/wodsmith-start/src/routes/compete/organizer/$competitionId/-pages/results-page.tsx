@@ -9,6 +9,7 @@
  * The organizer route renders it with defaults; the cohost route injects
  * cohost-permissioned publish/save callbacks and cohost link targets.
  */
+// @lat: [[organizer-dashboard#Cohost Dashboard#Shared Component Callback Pattern#Shared Page Components]]
 
 import { Link, useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"

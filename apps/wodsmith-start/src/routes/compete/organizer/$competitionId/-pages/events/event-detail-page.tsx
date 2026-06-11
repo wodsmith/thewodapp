@@ -6,6 +6,7 @@
  * event-division mappings); the cohost route injects cohost-permissioned
  * mutation overrides and the cohost route prefix for navigation links.
  */
+// @lat: [[organizer-dashboard#Cohost Dashboard#Shared Component Callback Pattern#Shared Page Components]]
 
 import { Link } from "@tanstack/react-router"
 import { Plus, Video } from "lucide-react"

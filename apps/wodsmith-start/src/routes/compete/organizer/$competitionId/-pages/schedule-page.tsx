@@ -6,6 +6,7 @@
  * cohost route injects cohost-permissioned heat schedule overrides and a
  * cohost route prefix for navigation links.
  */
+// @lat: [[organizer-dashboard#Cohost Dashboard#Shared Component Callback Pattern#Shared Page Components]]
 
 import type { ComponentProps } from "react"
 import { SchedulePageClient } from "@/components/organizer/schedule/schedule-page-client"

@@ -33,7 +33,9 @@ export function OrganizerBreadcrumb({
           const isLast = index === allSegments.length - 1
 
           return (
-            <Fragment key={segment.label}>
+            <Fragment
+              key={`${segment.href ?? "nolink"}-${index}-${segment.label}`}
+            >
               {index > 0 && <BreadcrumbSeparator />}
               <BreadcrumbItem>
                 {isLast || !segment.href ? (

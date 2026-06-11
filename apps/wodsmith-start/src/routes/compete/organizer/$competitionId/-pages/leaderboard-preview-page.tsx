@@ -7,6 +7,7 @@
  * public `LeaderboardPageContent` component with `preview` enabled. The cohost
  * route flips the alert copy via `isCohost`.
  */
+// @lat: [[organizer-dashboard#Cohost Dashboard#Shared Component Callback Pattern#Shared Page Components]]
 
 import { Eye } from "lucide-react"
 import type { ComponentProps } from "react"

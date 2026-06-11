@@ -6,10 +6,11 @@
  * review-note server fns; cohost routes inject cohost-permissioned callbacks
  * via the page's `overrides` prop.
  */
+// @lat: [[organizer-dashboard#Cohost Dashboard#Shared Component Callback Pattern#Shared Page Components]]
 
 import { useServerFn } from "@tanstack/react-start"
 import { ArrowDownUp, MessageSquare, Pencil, Trash2 } from "lucide-react"
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import type { VideoPlayerRef } from "@/components/compete/video-player-embed"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -97,6 +98,15 @@ export function ReviewNoteForm({
   const [timestampSeconds, setTimestampSeconds] = useState<number | null>(null)
   const [selectedMovementId, setSelectedMovementId] = useState<string>("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Detect the platform only after mount so server and client render the same
+  // label (reading navigator during render diverges between SSR and Mac CSR).
+  const [modifierKeyLabel, setModifierKeyLabel] = useState("Ctrl")
+  useEffect(() => {
+    if (navigator.platform?.includes("Mac")) {
+      setModifierKeyLabel("\u2318")
+    }
+  }, [])
 
   const captureTimestamp = useCallback(() => {
     if (playerRef.current) {
@@ -226,11 +236,7 @@ export function ReviewNoteForm({
         )}
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">
-            {typeof navigator !== "undefined" &&
-            navigator.platform?.includes("Mac")
-              ? "⌘"
-              : "Ctrl"}
-            +Enter to submit
+            {modifierKeyLabel}+Enter to submit
           </span>
           <Button
             size="sm"

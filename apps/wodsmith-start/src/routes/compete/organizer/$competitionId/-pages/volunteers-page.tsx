@@ -7,6 +7,7 @@
  * cohost-permissioned callback bundles for the roster, shifts, judge
  * scheduling, and signup-question editing.
  */
+// @lat: [[organizer-dashboard#Cohost Dashboard#Shared Component Callback Pattern#Shared Page Components]]
 
 import { useNavigate, useRouter } from "@tanstack/react-router"
 import type { ComponentProps } from "react"

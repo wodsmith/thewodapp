@@ -7,6 +7,7 @@
  * cohost-permissioned mutation overrides and omits the organizer-only
  * sections it has no cohost server fns for.
  */
+// @lat: [[organizer-dashboard#Cohost Dashboard#Shared Component Callback Pattern#Shared Page Components]]
 
 import { Link, useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
@@ -380,6 +381,23 @@ export function SubmissionReviewPage({
     Record<string, Date | null>
   >({})
 
+  // Reset per-submission UI state when the route shows a different submission
+  // (the component stays mounted when only the submissionId param changes).
+  const [lastSubmissionId, setLastSubmissionId] = useState(submission.id)
+  if (lastSubmissionId !== submission.id) {
+    setLastSubmissionId(submission.id)
+    setActiveVideoIndex(submission.videoIndex ?? 0)
+    setOptimisticReviews({})
+  }
+
+  // The back search param must be an internal path; anything else
+  // (javascript:, protocol-relative, absolute URLs) falls back to the
+  // submissions list link.
+  const safeBackUrl =
+    backUrl && backUrl.startsWith("/") && !backUrl.startsWith("//")
+      ? backUrl
+      : undefined
+
   // Derive active sibling and per-tab notes
   const activeSubmission =
     siblingList.find((s) => s.videoIndex === activeVideoIndex) ?? siblingList[0]
@@ -501,8 +519,8 @@ export function SubmissionReviewPage({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button asChild variant="ghost" size="icon">
-            {backUrl ? (
-              <a href={backUrl} aria-label="Back">
+            {safeBackUrl ? (
+              <a href={safeBackUrl} aria-label="Back">
                 <ArrowLeft className="h-4 w-4" />
               </a>
             ) : (

@@ -6,6 +6,7 @@
  * cohost route injects cohost-permissioned fee callbacks, a cohost route
  * prefix for form links, and read-only Stripe connection messaging.
  */
+// @lat: [[organizer-dashboard#Cohost Dashboard#Shared Component Callback Pattern#Shared Page Components]]
 
 import type { ComponentProps } from "react"
 import { PricingSettingsForm } from "../-components/pricing-settings-form"

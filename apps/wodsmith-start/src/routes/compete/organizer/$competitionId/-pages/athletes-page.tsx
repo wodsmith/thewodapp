@@ -17,6 +17,7 @@
  *   provided (there is no cohost registration detail route).
  * - Refund UI renders only when `canRefund` is passed (organizer-only data).
  */
+// @lat: [[organizer-dashboard#Cohost Dashboard#Shared Component Callback Pattern#Shared Page Components]]
 
 import { Link, useNavigate, useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"

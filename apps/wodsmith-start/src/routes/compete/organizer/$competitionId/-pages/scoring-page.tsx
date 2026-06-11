@@ -5,6 +5,7 @@
  * route renders it with defaults; the cohost route injects a
  * cohost-permissioned save callback.
  */
+// @lat: [[organizer-dashboard#Cohost Dashboard#Shared Component Callback Pattern#Shared Page Components]]
 
 import type { ComponentProps } from "react"
 import { ScoringSettingsForm } from "../-components/scoring-settings-form"

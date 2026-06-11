@@ -174,10 +174,17 @@ function RouteComponent() {
   const deleteReviewNote = useServerFn(cohostDeleteReviewNoteFn)
 
   const overrides: SubmissionReviewOverrides = {
-    // The cohost fn has no multi-round support, but cohost submission data
-    // never includes round scores so the multi-round adjust path never runs.
-    verifyScore: async ({ adjustedRoundScores: _unsupported, ...input }) =>
-      verifyScore({ data: { ...input, competitionTeamId } }),
+    // The cohost fn has no multi-round support. Cohost submission data never
+    // includes round scores so the multi-round adjust path never runs; fail
+    // fast rather than silently submitting a partial update if it ever does.
+    verifyScore: async ({ adjustedRoundScores, ...input }) => {
+      if (adjustedRoundScores?.length) {
+        throw new Error(
+          "Cohost score verification does not support round-score adjustments",
+        )
+      }
+      return verifyScore({ data: { ...input, competitionTeamId } })
+    },
     deleteVerificationLog: async (input) =>
       deleteVerificationLog({ data: { ...input, competitionTeamId } }),
     markReviewed: async (input) =>

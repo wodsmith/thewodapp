@@ -5,6 +5,7 @@
  * Defaults to the organizer server fns; cohost routes inject
  * cohost-permissioned callbacks via the page's `overrides` prop.
  */
+// @lat: [[organizer-dashboard#Cohost Dashboard#Shared Component Callback Pattern#Shared Page Components]]
 
 import { useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"

@@ -6,6 +6,7 @@
  * injects cohost-permissioned overrides for listing, creating, and
  * deactivating coupons.
  */
+// @lat: [[organizer-dashboard#Cohost Dashboard#Shared Component Callback Pattern#Shared Page Components]]
 
 import { useServerFn } from "@tanstack/react-start"
 import { Ban, Copy, Plus, Tag } from "lucide-react"
@@ -196,6 +197,10 @@ export function CouponsPage({
 
   function handleCopyLink(code: string) {
     const url = `${appUrl}/compete/${slug}?coupon=${encodeURIComponent(code)}`
+    if (!navigator.clipboard) {
+      toast.error("Clipboard not available")
+      return
+    }
     navigator.clipboard.writeText(url).then(
       () => {
         toast.success("Coupon link copied to clipboard")

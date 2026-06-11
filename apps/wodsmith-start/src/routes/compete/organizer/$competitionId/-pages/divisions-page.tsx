@@ -6,6 +6,7 @@
  * route injects cohost-permissioned mutation overrides and omits
  * organizer-only sections.
  */
+// @lat: [[organizer-dashboard#Cohost Dashboard#Shared Component Callback Pattern#Shared Page Components]]
 
 import { Link } from "@tanstack/react-router"
 import { ArrowRight, Check, Info, X } from "lucide-react"

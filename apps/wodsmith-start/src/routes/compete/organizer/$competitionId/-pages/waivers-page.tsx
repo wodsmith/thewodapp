@@ -5,6 +5,7 @@
  * route renders it with defaults; the cohost route injects
  * cohost-permissioned waiver mutation overrides.
  */
+// @lat: [[organizer-dashboard#Cohost Dashboard#Shared Component Callback Pattern#Shared Page Components]]
 
 import type { ComponentProps } from "react"
 import { WaiverList } from "../-components/waiver-list"

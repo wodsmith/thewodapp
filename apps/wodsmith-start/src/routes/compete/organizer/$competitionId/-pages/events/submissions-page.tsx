@@ -7,6 +7,7 @@
  * filters and client-side sorting. The cohost route injects cohost link
  * targets and adapts its leaner server fn data to the organizer row shape.
  */
+// @lat: [[organizer-dashboard#Cohost Dashboard#Shared Component Callback Pattern#Shared Page Components]]
 
 import { Link, useNavigate } from "@tanstack/react-router"
 import {

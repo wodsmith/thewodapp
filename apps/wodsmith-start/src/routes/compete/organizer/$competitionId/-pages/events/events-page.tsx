@@ -6,6 +6,7 @@
  * route injects cohost-permissioned mutation overrides and points event
  * links at the cohost event detail route.
  */
+// @lat: [[organizer-dashboard#Cohost Dashboard#Shared Component Callback Pattern#Shared Page Components]]
 
 import type { ComponentProps } from "react"
 import { OrganizerEventManager } from "@/components/events/organizer-event-manager"
