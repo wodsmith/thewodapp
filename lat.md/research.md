@@ -13,3 +13,9 @@ The source note is `docs/research/crossfit-open-scorecard-template.md`, and the 
 The organic organizer acquisition plan defines the one-year content, activation, and measurement path for earning a real non-referred competition organizer.
 
 The source plan is `docs/plans/organic-organizer-acquisition-strategy.md`. It separates Sales Safari research, Ebomb production, and self-serve draft activation across a weekly execution cadence from May 30, 2026 through May 28, 2027.
+
+## Route Docs Rollout Plan
+
+The route docs rollout plan ranks organizer features by user-facing complexity against business importance to sequence in-app documentation authored with the docs drawer CMS from PR #505.
+
+The source plan is `docs/plans/route-docs-rollout-strategy.md`. It phases coverage: day-one link docs to existing Docusaurus pages plus a layout-level overview doc, deep markdown how-tos for results publishing, event-division mappings, and the registration money path, videos for judge rotations and series templates, then cohost and athlete surface expansion.
