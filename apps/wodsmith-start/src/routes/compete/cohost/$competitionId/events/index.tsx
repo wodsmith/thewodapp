@@ -13,6 +13,7 @@ import {
   cohostGetBatchDivisionDescriptionsFn,
   cohostGetWorkoutsFn,
   cohostCreateWorkoutFn,
+  cohostGroupEventsFn,
   cohostRemoveWorkoutFn,
   cohostReorderEventsFn,
 } from "@/server-fns/cohost/cohost-workout-fns"
@@ -142,6 +143,17 @@ function EventsPage() {
               trackWorkoutId: string
               trackOrder: number
             }>,
+          },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        })) as any,
+      groupEventsFn: ((args: { data: Record<string, unknown> }) =>
+        cohostGroupEventsFn({
+          data: {
+            competitionTeamId,
+            competitionId: args.data.competitionId as string,
+            trackWorkoutIds: args.data.trackWorkoutIds as string[],
+            name: args.data.name as string,
+            description: args.data.description as string | undefined,
           },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         })) as any,
