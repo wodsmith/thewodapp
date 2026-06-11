@@ -393,6 +393,52 @@ export const canInputScoresFn = createServerFn({ method: "GET" })
     return entitlements.length > 0
   })
 
+/**
+ * Batched score-access check for a set of users on a competition team.
+ * One query regardless of user count; returns a userId -> boolean map.
+ */
+export const getScoreAccessMapFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        userIds: z.array(z.string()),
+        competitionTeamId: competitionTeamIdSchema,
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }): Promise<Record<string, boolean>> => {
+    const accessMap: Record<string, boolean> = {}
+    for (const userId of data.userIds) {
+      accessMap[userId] = false
+    }
+    if (data.userIds.length === 0) {
+      return accessMap
+    }
+
+    const db = getDb()
+    const entitlements = await db
+      .select({ userId: entitlementTable.userId })
+      .from(entitlementTable)
+      .where(
+        and(
+          inArray(entitlementTable.userId, data.userIds),
+          eq(entitlementTable.teamId, data.competitionTeamId),
+          eq(entitlementTable.entitlementTypeId, SCORE_INPUT_TYPE_ID),
+          isNull(entitlementTable.deletedAt),
+          or(
+            isNull(entitlementTable.expiresAt),
+            gt(entitlementTable.expiresAt, new Date()),
+          ),
+        ),
+      )
+    for (const entitlement of entitlements) {
+      if (entitlement.userId) {
+        accessMap[entitlement.userId] = true
+      }
+    }
+    return accessMap
+  })
+
 // ============================================================================
 // Mutation Functions
 // ============================================================================
