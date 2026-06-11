@@ -38,7 +38,7 @@ Also covers: mp4/webm/mov/m4v extensions match case-insensitively, platform URLs
 
 Playwright e2e: a signed-in organizer on the dashboard sees the floating Docs button, and opening the drawer shows the seeded "Your first competition" link doc — proving route matching, fetch, and rendering work against a real database.
 
-Relies on the e2e pipeline running `db:push` + `db:seed` first, so the `22-route-docs` seeder's published docs exist for the `/compete/organizer/_dashboard/` route id.
+Relies on the e2e pipeline running `db:push` + `db:seed` first, so the `22-route-docs` seeder's published docs exist for the `/compete/organizer/_dashboard/` route id. The Playwright web server sets `VITE_E2E` to hide the TanStack Devtools trigger, which otherwise floats over the bottom-right corner and intercepts clicks on the drawer button.
 
 ## Admin CMS
 

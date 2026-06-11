@@ -1,8 +1,8 @@
 import {expect, test} from '@playwright/test'
 import {loginAsTestUser, waitForHydration} from './fixtures/auth'
 
-// @lat: [[route-docs#Docs drawer#Shows seeded docs end to end]]
 test.describe('Docs drawer', () => {
+  // @lat: [[route-docs#Docs drawer#Shows seeded docs end to end]]
   test('shows seeded documentation on the organizer dashboard', async ({
     page,
   }) => {

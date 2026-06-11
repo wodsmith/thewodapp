@@ -84,10 +84,12 @@ export function RouteDocsDrawer() {
 
   return (
     <>
+      {/* bottom-20 keeps the button clear of the TanStack Devtools trigger,
+          which occupies the bottom-right corner in dev. */}
       <Button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-4 right-4 z-40 rounded-full shadow-lg"
+        className="fixed bottom-20 right-4 z-40 rounded-full shadow-lg"
         aria-label="Open page documentation"
       >
         <BookOpen className="h-4 w-4" />
