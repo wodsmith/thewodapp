@@ -1,7 +1,15 @@
-import { useState } from "react"
 import { createFileRoute, useRouter } from "@tanstack/react-router"
-import { Copy, Pencil, Trash2, UserPlus } from "lucide-react"
+import {
+  ChevronDown,
+  Copy,
+  Pencil,
+  Trash2,
+  UserPlus,
+  Users,
+} from "lucide-react"
+import { useState } from "react"
 import { toast } from "sonner"
+import { OrganizerEmptyState } from "@/components/organizer/empty-state"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -9,7 +17,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import { ChevronDown } from "lucide-react"
 import { FEATURES } from "@/config/features"
 import type { CohostMembershipMetadata } from "@/db/schemas/cohost"
 import { getCohostsFn } from "@/server-fns/cohost-fns"
@@ -96,8 +103,7 @@ function CoHostsPage() {
     }
   }
 
-  const hasCohosts =
-    cohosts.length > 0 || pendingCohostInvitations.length > 0
+  const hasCohosts = cohosts.length > 0 || pendingCohostInvitations.length > 0
 
   return (
     <>
@@ -113,11 +119,7 @@ function CoHostsPage() {
             </p>
           )}
         </div>
-        <Button
-          onClick={() => setInviteOpen(true)}
-          size="sm"
-          variant="outline"
-        >
+        <Button onClick={() => setInviteOpen(true)} size="sm" variant="outline">
           <UserPlus className="mr-1.5 h-4 w-4" />
           Invite Co-Host
         </Button>
@@ -207,9 +209,14 @@ function CoHostsPage() {
           ))}
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">
-          No co-hosts yet. Invite a partner to help manage this competition.
-        </p>
+        <OrganizerEmptyState
+          icon={Users}
+          title="No co-hosts yet"
+          description="Invite a partner to help manage this competition."
+          actionLabel="Invite Co-Host"
+          actionIcon={<UserPlus className="mr-1.5 h-4 w-4" />}
+          onAction={() => setInviteOpen(true)}
+        />
       )}
 
       <InviteCohostDialog
@@ -277,7 +284,9 @@ const PERMISSION_GROUPS_DISPLAY = [
 
 function PermissionsList({
   permissions,
-}: { permissions: CohostMembershipMetadata }) {
+}: {
+  permissions: CohostMembershipMetadata
+}) {
   return (
     <div className="space-y-2 px-4 pb-3 pt-0">
       {PERMISSION_GROUPS_DISPLAY.map((group) => {
@@ -301,9 +310,7 @@ function PermissionsList({
           (item) => !permissions[item.key as keyof CohostMembershipMetadata],
         ),
       ) && (
-        <p className="text-sm text-muted-foreground">
-          No permissions granted
-        </p>
+        <p className="text-sm text-muted-foreground">No permissions granted</p>
       )}
     </div>
   )

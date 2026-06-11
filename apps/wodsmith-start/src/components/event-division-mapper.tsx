@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start"
 import { Check, Grid3X3, Minus } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
+import { OrganizerEmptyState } from "@/components/organizer/empty-state"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -176,23 +177,23 @@ export function EventDivisionMapper({ competitionId, data, onSaved }: Props) {
 
   if (data.events.length === 0) {
     return (
-      <Alert>
-        <AlertDescription>
-          No events have been added to this competition yet. Add events first,
-          then configure which divisions see each event.
-        </AlertDescription>
-      </Alert>
+      <OrganizerEmptyState
+        variant="plain"
+        icon={Grid3X3}
+        title="No events yet"
+        description="Add competition events first, then configure which divisions can see each event."
+      />
     )
   }
 
   if (data.divisions.length === 0) {
     return (
-      <Alert>
-        <AlertDescription>
-          No divisions have been configured for this competition yet. Set up
-          divisions first, then map events to divisions.
-        </AlertDescription>
-      </Alert>
+      <OrganizerEmptyState
+        variant="plain"
+        icon={Grid3X3}
+        title="No divisions yet"
+        description="Set up competition divisions first, then map events to the divisions that should see them."
+      />
     )
   }
 
