@@ -53,7 +53,9 @@ export function CheckInKiosk({ competitionId, waivers }: CheckInKioskProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [registrations, setRegistrations] = useState<CheckInRegistration[]>([])
   const [pendingCheckInId, setPendingCheckInId] = useState<string | null>(null)
-  const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null)
+  // Keyed by registration + athlete so expanding one athlete's teammate strip
+  // doesn't expand every row of the same team in the search results.
+  const [expandedRowKey, setExpandedRowKey] = useState<string | null>(null)
   const [waiverModal, setWaiverModal] = useState<{
     waiver: Waiver
     athlete: CheckInTeammate
@@ -291,30 +293,31 @@ export function CheckInKiosk({ competitionId, waivers }: CheckInKioskProps) {
               {athleteRows.length}{" "}
               {athleteRows.length === 1 ? "athlete" : "athletes"} found
             </p>
-            {athleteRows.map((row) => (
-              <AthleteRow
-                key={`${row.registration.id}:${row.athlete.userId}`}
-                row={row}
-                allWaivers={waivers}
-                isExpanded={expandedTeamId === row.registration.id}
-                onToggleExpand={() =>
-                  setExpandedTeamId((cur) =>
-                    cur === row.registration.id ? null : row.registration.id,
-                  )
-                }
-                isCheckingIn={pendingCheckInId === row.registration.id}
-                onToggleCheckIn={(checkedIn) =>
-                  handleToggleCheckIn(row.registration, checkedIn)
-                }
-                onSignWaiver={(athlete, waiver) =>
-                  setWaiverModal({
-                    athlete,
-                    waiver,
-                    registrationId: row.registration.id,
-                  })
-                }
-              />
-            ))}
+            {athleteRows.map((row) => {
+              const rowKey = `${row.registration.id}:${row.athlete.userId}`
+              return (
+                <AthleteRow
+                  key={rowKey}
+                  row={row}
+                  allWaivers={waivers}
+                  isExpanded={expandedRowKey === rowKey}
+                  onToggleExpand={() =>
+                    setExpandedRowKey((cur) => (cur === rowKey ? null : rowKey))
+                  }
+                  isCheckingIn={pendingCheckInId === row.registration.id}
+                  onToggleCheckIn={(checkedIn) =>
+                    handleToggleCheckIn(row.registration, checkedIn)
+                  }
+                  onSignWaiver={(athlete, waiver) =>
+                    setWaiverModal({
+                      athlete,
+                      waiver,
+                      registrationId: row.registration.id,
+                    })
+                  }
+                />
+              )
+            })}
           </div>
         )}
       </div>
