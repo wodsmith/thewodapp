@@ -35,6 +35,7 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import {
+  getEventScoreEntryDataWithHeatsBatchFn,
   getEventScoreEntryDataWithHeatsFn,
   saveCompetitionScoreFn,
 } from "@/server-fns/competition-score-fns"
@@ -126,14 +127,6 @@ export const Route = createFileRoute(
       }
     }
 
-    // For in-person competitions, fetch score entry data
-    const divisionResultsStatus = await getDivisionResultsStatusFn({
-      data: {
-        competitionId: params.competitionId,
-        organizingTeamId: competition.organizingTeamId,
-      },
-    })
-
     // Determine which event to show (from URL or first event)
     // Filter top-level events for the dropdown (exclude sub-events)
     const topLevelEvents = events.filter((e) => !e.parentEventId)
@@ -152,41 +145,60 @@ export const Route = createFileRoute(
       .sort((a, b) => a.trackOrder - b.trackOrder)
     const isParentEvent = childEvents.length > 0
 
-    // For parent events, load score data for ALL child events in parallel
-    let childScoreDataList: Array<
-      Awaited<ReturnType<typeof getEventScoreEntryDataWithHeatsFn>>
-    > = []
-    let scoreEntryData: Awaited<
+    type ScoreEntryDataWithHeats = Awaited<
       ReturnType<typeof getEventScoreEntryDataWithHeatsFn>
-    > | null = null
+    >
 
-    if (isParentEvent && childEvents.length > 0) {
-      childScoreDataList = await Promise.all(
-        childEvents.map((child) =>
-          getEventScoreEntryDataWithHeatsFn({
+    // Fetch division results status and score entry data in parallel. For
+    // parent events, all child events come back from one batched call
+    // instead of one round trip (and query set) per child.
+    const [divisionResultsStatus, scoreData] = await Promise.all([
+      getDivisionResultsStatusFn({
+        data: {
+          competitionId: params.competitionId,
+          organizingTeamId: competition.organizingTeamId,
+        },
+      }),
+      (async (): Promise<{
+        childScoreDataList: ScoreEntryDataWithHeats[]
+        scoreEntryData: ScoreEntryDataWithHeats | null
+      }> => {
+        if (isParentEvent) {
+          const batch = await getEventScoreEntryDataWithHeatsBatchFn({
             data: {
               competitionId: params.competitionId,
               organizingTeamId: competition.organizingTeamId,
-              trackWorkoutId: child.id,
+              trackWorkoutIds: childEvents.map((child) => child.id),
+              divisionId: deps.divisionId,
+            },
+          })
+          return {
+            childScoreDataList: childEvents
+              .map((child) => batch[child.id])
+              .filter((d): d is ScoreEntryDataWithHeats => Boolean(d)),
+            scoreEntryData: null,
+          }
+        }
+        const effectiveEvent = selectedEventId
+          ? events.find((e) => e.id === selectedEventId)
+          : undefined
+        if (!effectiveEvent) {
+          return { childScoreDataList: [], scoreEntryData: null }
+        }
+        return {
+          childScoreDataList: [],
+          scoreEntryData: await getEventScoreEntryDataWithHeatsFn({
+            data: {
+              competitionId: params.competitionId,
+              organizingTeamId: competition.organizingTeamId,
+              trackWorkoutId: effectiveEvent.id,
               divisionId: deps.divisionId,
             },
           }),
-        ),
-      )
-    } else if (selectedEventId && !isParentEvent) {
-      // Standalone event - load single score entry data
-      const effectiveEvent = events.find((e) => e.id === selectedEventId)
-      if (effectiveEvent) {
-        scoreEntryData = await getEventScoreEntryDataWithHeatsFn({
-          data: {
-            competitionId: params.competitionId,
-            organizingTeamId: competition.organizingTeamId,
-            trackWorkoutId: effectiveEvent.id,
-            divisionId: deps.divisionId,
-          },
-        })
-      }
-    }
+        }
+      })(),
+    ])
+    const { childScoreDataList, scoreEntryData } = scoreData
 
     return {
       isOnline: false as const,
