@@ -41,7 +41,7 @@ export const Route = createFileRoute("/compete/$slug/check-in")({
     const hasAccess = canManage || isVolunteer
     if (!hasAccess) {
       throw new Error(
-        "You don't have access to check-in for this competition.",
+        "You don't have access to check-in for this competition. Check-in is available to organizers and to volunteers on the competition team. If you're volunteering, ask the organizer to add you as a volunteer, then sign in and reload this page.",
       )
     }
 
@@ -55,6 +55,7 @@ export const Route = createFileRoute("/compete/$slug/check-in")({
     }
   },
   component: CheckInPage,
+  errorComponent: CheckInError,
   head: ({ loaderData }) => {
     const competition = loaderData?.competition
     if (!competition) {
@@ -89,6 +90,25 @@ function CheckInPage() {
 
       <div className="container mx-auto px-4 py-6">
         <CheckInKiosk competitionId={competition.id} waivers={waivers} />
+      </div>
+    </div>
+  )
+}
+
+function CheckInError({ error }: { error: Error }) {
+  const { slug } = Route.useParams()
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto flex max-w-xl flex-col items-center gap-4 px-4 py-24 text-center">
+        <h1 className="text-xl font-bold">Check-in unavailable</h1>
+        <p className="text-sm text-muted-foreground">{error.message}</p>
+        <Button variant="outline" size="sm" asChild>
+          <Link to="/compete/$slug" params={{ slug }}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Competition
+          </Link>
+        </Button>
       </div>
     </div>
   )

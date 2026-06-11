@@ -334,16 +334,15 @@ function CompetitionOverviewPage() {
             </div>
             <div className="flex flex-wrap gap-2">
               {!isOnline && (
-                <a
-                  href={`/compete/${competition.slug}/check-in`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  to="/compete/organizer/$competitionId/check-in"
+                  params={{ competitionId: competition.id }}
                 >
                   <Button size="sm">
                     <ClipboardCheck className="mr-2 h-4 w-4" />
                     Go to Check-In
                   </Button>
-                </a>
+                </Link>
               )}
               <Link
                 to="/compete/organizer/$competitionId/athletes"

@@ -127,9 +127,9 @@ Defaults: when `divisionResults` is absent entirely, online competitions treat e
 
 ## Check-In Kiosk
 
-For in-person competitions only, the "Run Competition" sidebar exposes a "Check-In Kiosk" link that opens the volunteer-facing check-in page in a new tab.
+For in-person competitions only, the "Run Competition" sidebar exposes a "Check-in" link to an organizer landing page that explains the flow and opens the volunteer-facing kiosk in a new tab.
 
-The link is rendered from [[apps/wodsmith-start/src/components/competition-sidebar.tsx]] using the new `external` flag on `NavItem` (an `<a target="_blank">` rather than a TanStack `<Link>`) so organizers don't lose their dashboard tab when running the kiosk. Online competitions hide the link. The destination — `/compete/{slug}/check-in` — is the same page volunteers use; permission gating (`MANAGE_COMPETITIONS` or volunteer role on the competition team) lives on the kiosk route's loader and on every check-in server function. See [[registration#Day-of Check-In]] for the kiosk's behavior and data model.
+The sidebar link ([[apps/wodsmith-start/src/components/competition-sidebar.tsx]]) is a normal internal `<Link>` to `/compete/organizer/{competitionId}/check-in`. That landing page ([[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/check-in.tsx]]) renders an [[apps/wodsmith-start/src/components/organizer/empty-state.tsx#OrganizerEmptyState]] describing how day-of check-in works (one tap checks in the whole team, athletes sign missing waivers on the device, volunteers can run the kiosk from their own accounts) with an "Open check-in kiosk" action that `window.open`s `/compete/{slug}/check-in` in a new tab so organizers keep their dashboard. The overview's Registrations card "Go to Check-In" button points at the same landing page. Online competitions hide the sidebar link, and the landing route's loader redirects them back to the organizer overview. Instructions live only on this organizer page — the public kiosk route stays instruction-free for volunteers. Permission gating (`MANAGE_COMPETITIONS` or volunteer role on the competition team) lives on the kiosk route's loader and on every check-in server function. See [[registration#Day-of Check-In]] for the kiosk's behavior and data model.
 
 ## Leaderboard Preview
 

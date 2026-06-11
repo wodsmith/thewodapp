@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   Calendar,
   CheckCircle2,
+  ClipboardCheck,
   Clock,
   HandHeart,
   MapPin,
@@ -278,13 +279,21 @@ export function RegistrationSidebar({
       {/* Volunteer Dashboard Button */}
       {isVolunteer && (
         <Card className="border-2 border-blue-500/20 bg-white/5 backdrop-blur-md">
-          <CardContent className="p-4">
+          <CardContent className="space-y-2 p-4">
             <Button asChild variant="default" size="sm" className="w-full">
               <a href={`/compete/${competition.slug}/my-schedule`}>
                 <Calendar className="mr-2 h-4 w-4" />
                 Volunteer Dashboard
               </a>
             </Button>
+            {competition.competitionType !== "online" && (
+              <Button asChild variant="outline" size="sm" className="w-full">
+                <a href={`/compete/${competition.slug}/check-in`}>
+                  <ClipboardCheck className="mr-2 h-4 w-4" />
+                  Check-In Kiosk
+                </a>
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
