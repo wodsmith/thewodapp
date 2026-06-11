@@ -39,6 +39,7 @@ import {
   workouts,
   workoutTags,
 } from "@/db/schemas/workouts"
+import { groupCompetitionEvents } from "@/server/group-competition-events"
 import { requireCohostCompetitionOwnership, requireCohostPermission } from "@/utils/cohost-auth"
 
 // ============================================================================
@@ -175,6 +176,16 @@ const cohostCreateWorkoutInputSchema = z.object({
 const cohostRemoveWorkoutInputSchema = z.object({
   competitionTeamId: z.string().min(1, "Competition team ID is required"),
   trackWorkoutId: z.string().min(1, "Track workout ID is required"),
+})
+
+const cohostGroupEventsInputSchema = z.object({
+  competitionTeamId: z.string().min(1, "Competition team ID is required"),
+  competitionId: z.string().min(1, "Competition ID is required"),
+  trackWorkoutIds: z
+    .array(z.string().min(1))
+    .min(2, "Select at least two events to group"),
+  name: z.string().min(1, "Name is required").max(200),
+  description: z.string().max(5000).optional(),
 })
 
 // ============================================================================
@@ -966,4 +977,33 @@ export const cohostRemoveWorkoutFn = createServerFn({ method: "POST" })
     })
 
     return { success: true }
+  })
+
+/**
+ * Group existing top-level competition events under a new parent event (cohost)
+ */
+export const cohostGroupEventsFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => cohostGroupEventsInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    await requireCohostPermission(data.competitionTeamId, "editEvents")
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      data.competitionId,
+    )
+    const db = getDb()
+
+    // The parent container workout is owned by the organizing team
+    const competition = await db.query.competitionsTable.findFirst({
+      where: eq(competitionsTable.id, data.competitionId),
+      columns: { organizingTeamId: true },
+    })
+    if (!competition) throw new Error("Competition not found")
+
+    return await groupCompetitionEvents({
+      competitionId: data.competitionId,
+      organizingTeamId: competition.organizingTeamId,
+      trackWorkoutIds: data.trackWorkoutIds,
+      name: data.name,
+      description: data.description,
+    })
   })
