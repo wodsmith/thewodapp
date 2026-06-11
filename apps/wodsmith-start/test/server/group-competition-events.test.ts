@@ -57,7 +57,13 @@ function queueSelectResults(results: unknown[][]) {
 	const chain = mockDb.getChainMock()
 	let call = 0
 	mockDb.from.mockImplementation(() => {
-		mockDb.setMockReturnValue(results[call] ?? [])
+		const result = results[call]
+		if (result === undefined) {
+			throw new Error(
+				`Unexpected select chain #${call + 1} — only ${results.length} results queued`,
+			)
+		}
+		mockDb.setMockReturnValue(result)
 		call++
 		return chain
 	})
@@ -86,6 +92,17 @@ describe("groupCompetitionEvents", () => {
 				trackWorkoutIds: ["tw_a", "tw_a"],
 			}),
 		).rejects.toThrow("Select at least two events to group")
+	})
+
+	it("throws when more than 99 events are selected", async () => {
+		// trackOrder is decimal(6,2): a 100th child would collide with the
+		// next top-level slot
+		await expect(
+			groupCompetitionEvents({
+				...baseInput,
+				trackWorkoutIds: Array.from({ length: 100 }, (_, i) => `tw_${i}`),
+			}),
+		).rejects.toThrow("Can't group more than 99 events under one parent")
 	})
 
 	it("throws when a selected event is not in this competition", async () => {
@@ -191,10 +208,13 @@ describe("groupCompetitionEvents", () => {
 		expect(setCalls[0]).toMatchObject({
 			parentEventId: result.trackWorkoutId,
 			trackOrder: 2.01,
+			// draft parent cascades to children so none stay publicly visible
+			eventStatus: "draft",
 		})
 		expect(setCalls[1]).toMatchObject({
 			parentEventId: result.trackWorkoutId,
 			trackOrder: 2.02,
+			eventStatus: "draft",
 		})
 		expect(setCalls[2]).toMatchObject({ trackOrder: 4 })
 		expect(setCalls).toHaveLength(3)

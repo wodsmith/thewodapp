@@ -142,7 +142,7 @@ export function CompetitionHero({
                       <Button
                         variant="secondary"
                         size="sm"
-                        className="bg-amber-600 text-amber-950 hover:bg-amber-500 dark:text-white"
+                        className="bg-amber-600 text-amber-950 hover:bg-amber-500"
                       >
                         <Settings className="mr-1 h-4 w-4" />
                         Manage as Co-Host
@@ -217,7 +217,7 @@ export function CompetitionHero({
                     <Button
                       variant="secondary"
                       size="sm"
-                      className="bg-amber-600 text-amber-950 hover:bg-amber-500 dark:text-white"
+                      className="bg-amber-600 text-amber-950 hover:bg-amber-500"
                     >
                       <Settings className="mr-1 h-4 w-4" />
                       Co-Host

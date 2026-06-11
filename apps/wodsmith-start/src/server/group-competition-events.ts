@@ -45,6 +45,11 @@ export async function groupCompetitionEvents(
   if (uniqueIds.length < 2) {
     throw new Error("Select at least two events to group")
   }
+  // trackOrder is decimal(6,2); sub-events occupy parentOrder + 0.01..0.99,
+  // so more than 99 children would collide with the next top-level slot
+  if (uniqueIds.length > 99) {
+    throw new Error("Can't group more than 99 events under one parent")
+  }
 
   const selected = await db
     .select({
@@ -141,7 +146,9 @@ export async function groupCompetitionEvents(
       heatStatus: allHeatsPublished ? "published" : "draft",
     })
 
-    // Re-parent the selected events as sub-events with decimal orders
+    // Re-parent the selected events as sub-events with decimal orders.
+    // Children take the parent's status so a draft parent can't leave
+    // previously published children visible in public queries.
     for (let i = 0; i < ordered.length; i++) {
       const child = ordered[i]
       if (!child) continue
@@ -150,6 +157,7 @@ export async function groupCompetitionEvents(
         .set({
           parentEventId: trackWorkoutId,
           trackOrder: Number((parentOrder + 0.01 * (i + 1)).toFixed(2)),
+          eventStatus: allPublished ? "published" : "draft",
           updatedAt: new Date(),
         })
         .where(eq(trackWorkoutsTable.id, child.id))

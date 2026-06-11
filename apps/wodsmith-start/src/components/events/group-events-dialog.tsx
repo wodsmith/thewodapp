@@ -32,6 +32,11 @@ export function GroupEventsDialog({
 }: GroupEventsDialogProps) {
   const [name, setName] = useState("")
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) setName("")
+    onOpenChange(nextOpen)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
@@ -40,7 +45,7 @@ export function GroupEventsDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
@@ -86,7 +91,7 @@ export function GroupEventsDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={() => handleOpenChange(false)}
               disabled={isGrouping}
             >
               Cancel

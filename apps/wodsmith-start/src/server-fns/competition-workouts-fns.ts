@@ -1409,6 +1409,14 @@ export const groupCompetitionEventsFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
+    // Verify the authorized team actually organizes this competition
+    const competition = await getDb().query.competitionsTable.findFirst({
+      where: eq(competitionsTable.id, data.competitionId),
+    })
+    if (!competition || competition.organizingTeamId !== data.teamId) {
+      throw new Error("Competition not found")
+    }
+
     getEvlog()?.set({
       action: "group_competition_events",
       workout: {
