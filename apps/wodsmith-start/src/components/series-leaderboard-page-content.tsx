@@ -145,7 +145,7 @@ export function SeriesLeaderboardPageContent({ groupId }: Props) {
                 : `${unmappedCompetitions.length} competitions are`}{" "}
               not included in the leaderboard because their divisions haven't
               been matched to the series yet. Set this up on the series
-              Configure Divisions page.
+              Configure divisions page.
             </AlertDescription>
           </Alert>
         )}

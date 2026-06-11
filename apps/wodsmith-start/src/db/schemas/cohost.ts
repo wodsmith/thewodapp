@@ -16,7 +16,7 @@ export interface CohostMembershipMetadata {
   scoringConfig: boolean
   /** View registrations list */
   viewRegistrations: boolean
-  /** Add/remove/transfer registrations + registration rules */
+  /** Add/remove/transfer registrations + athlete form questions */
   editRegistrations: boolean
   /** Waivers sidebar item */
   waivers: boolean

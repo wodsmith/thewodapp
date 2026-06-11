@@ -163,7 +163,7 @@ function SettingsSponsorsPage() {
         </div>
         <Button onClick={() => setShowAddDialog(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Add Sponsor
+          Add sponsor
         </Button>
       </div>
 
@@ -177,7 +177,7 @@ function SettingsSponsorsPage() {
             </p>
             <Button onClick={() => setShowAddDialog(true)}>
               <Plus className="mr-2 h-4 w-4" />
-              Add Your First Sponsor
+              Add your first sponsor
             </Button>
           </CardContent>
         </Card>
@@ -257,7 +257,7 @@ function SettingsSponsorsPage() {
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Sponsor</DialogTitle>
+            <DialogTitle>Add sponsor</DialogTitle>
             <DialogDescription>
               Add a new sponsor to your athlete profile.
             </DialogDescription>
@@ -296,7 +296,7 @@ function SettingsSponsorsPage() {
               Cancel
             </Button>
             <Button onClick={handleCreate} disabled={isSubmitting}>
-              {isSubmitting ? "Adding..." : "Add Sponsor"}
+              {isSubmitting ? "Adding..." : "Add sponsor"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -340,7 +340,7 @@ function SettingsSponsorsPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Sponsor</DialogTitle>
+            <DialogTitle>Edit sponsor</DialogTitle>
             <DialogDescription>Update sponsor details.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -377,7 +377,7 @@ function SettingsSponsorsPage() {
               Cancel
             </Button>
             <Button onClick={handleUpdate} disabled={isSubmitting}>
-              {isSubmitting ? "Saving..." : "Save Changes"}
+              {isSubmitting ? "Saving..." : "Save changes"}
             </Button>
           </DialogFooter>
         </DialogContent>

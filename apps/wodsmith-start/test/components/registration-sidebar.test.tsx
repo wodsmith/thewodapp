@@ -84,7 +84,7 @@ describe("RegistrationSidebar pending competition invites", () => {
       ],
     })
 
-    const link = screen.getByRole("link", { name: "Accept Invite" })
+    const link = screen.getByRole("link", { name: "Accept invite" })
     expect(screen.getByText("Competition invite waiting")).toBeInTheDocument()
     expect(screen.getByText(/Individual RX/)).toBeInTheDocument()
     expect(link).toHaveAttribute(
@@ -92,7 +92,7 @@ describe("RegistrationSidebar pending competition invites", () => {
       "/compete/test-comp/claim/claim_token_abc",
     )
     expect(
-      screen.queryByRole("link", { name: "Register Now" }),
+      screen.queryByRole("link", { name: "Register now" }),
     ).not.toBeInTheDocument()
   })
 
@@ -109,7 +109,7 @@ describe("RegistrationSidebar pending competition invites", () => {
       ],
     })
 
-    expect(screen.getByRole("link", { name: "Accept Invite" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Accept invite" })).toHaveAttribute(
       "href",
       "/compete/test-comp/claim/claim_token_abc",
     )
@@ -123,7 +123,7 @@ describe("RegistrationSidebar pending team invites", () => {
       pendingTeamInvites: [{ id: "invite_1", token: "token_abc" }],
     })
 
-    const link = screen.getByRole("link", { name: "Accept Team Invite" })
+    const link = screen.getByRole("link", { name: "Accept team invite" })
     expect(screen.getByText("Team invite waiting")).toBeInTheDocument()
     expect(link).toHaveAttribute("href", "/compete/invite/token_abc")
   })
@@ -137,7 +137,7 @@ describe("RegistrationSidebar pending team invites", () => {
     })
 
     expect(
-      screen.getByRole("link", { name: "Accept Team Invite" }),
+      screen.getByRole("link", { name: "Accept team invite" }),
     ).toBeInTheDocument()
     expect(screen.getByText("You're Registered!")).toBeInTheDocument()
   })
@@ -146,7 +146,7 @@ describe("RegistrationSidebar pending team invites", () => {
     renderSidebar()
 
     expect(
-      screen.queryByRole("link", { name: "Accept Team Invite" }),
+      screen.queryByRole("link", { name: "Accept team invite" }),
     ).not.toBeInTheDocument()
   })
 })

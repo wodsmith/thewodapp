@@ -128,11 +128,11 @@ export function AddWorkoutToTrackDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button>Add Workout</Button>
+        <Button>Add workout</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Add Workout to Track</DialogTitle>
+          <DialogTitle>Add workout to track</DialogTitle>
           <DialogDescription>
             Select a workout and specify its position in the programming track.
           </DialogDescription>
@@ -220,7 +220,7 @@ export function AddWorkoutToTrackDialog({
             onClick={handleSubmit}
             disabled={isSubmitting || !selectedWorkoutId}
           >
-            {isSubmitting ? "Adding..." : "Add Workout"}
+            {isSubmitting ? "Adding..." : "Add workout"}
           </Button>
         </DialogFooter>
       </DialogContent>

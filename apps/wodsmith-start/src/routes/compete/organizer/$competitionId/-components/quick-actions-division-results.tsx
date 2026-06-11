@@ -283,7 +283,7 @@ export function QuickActionsDivisionResults({
                           ) : (
                             <Eye className="h-3.5 w-3.5 mr-1" />
                           )}
-                          Publish All
+                          Publish all
                         </Button>
                       )}
                       {event.publishedCount > 0 && (

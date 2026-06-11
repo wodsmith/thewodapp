@@ -218,7 +218,7 @@ export function EventResourcesCard({
             </div>
             <Button size="sm" onClick={handleOpenAddDialog}>
               <Plus className="h-4 w-4 mr-1" />
-              Add Resource
+              Add resource
             </Button>
           </div>
         </CardHeader>

@@ -238,7 +238,7 @@ export function EventDivisionMapper({ competitionId, data, onSaved }: Props) {
             onClick={handleSave}
             disabled={isSaving || !isDirty}
           >
-            {isSaving ? "Saving..." : "Save Mappings"}
+            {isSaving ? "Saving..." : "Save mappings"}
           </Button>
         </div>
       </div>

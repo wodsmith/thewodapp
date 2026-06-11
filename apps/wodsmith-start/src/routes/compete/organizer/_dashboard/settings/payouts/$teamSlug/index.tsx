@@ -262,7 +262,7 @@ function PayoutSettingsPage() {
       {showRefreshMessage && (
         <Alert>
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Continue Stripe Setup</AlertTitle>
+          <AlertTitle>Continue Stripe setup</AlertTitle>
           <AlertDescription>
             Your Stripe setup was interrupted. Click the button below to
             continue where you left off.
@@ -331,7 +331,7 @@ function PayoutSettingsPage() {
             <div className="space-y-4">
               <Alert>
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Complete Your Setup</AlertTitle>
+                <AlertTitle>Complete your setup</AlertTitle>
                 <AlertDescription>
                   Your Stripe account is connected but not fully verified. You
                   need to complete the verification process to start accepting
@@ -350,7 +350,7 @@ function PayoutSettingsPage() {
                         Loading...
                       </>
                     ) : (
-                      "Continue Setup"
+                      "Continue setup"
                     )}
                   </Button>
                 )}
@@ -429,7 +429,7 @@ function PayoutSettingsPage() {
                   ) : (
                     <ExternalLink className="h-4 w-4 mr-2" />
                   )}
-                  Open Stripe Dashboard
+                  Open Stripe dashboard
                 </Button>
 
                 <Button

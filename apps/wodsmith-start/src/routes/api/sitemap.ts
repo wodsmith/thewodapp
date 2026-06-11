@@ -37,7 +37,6 @@ export const Route = createFileRoute("/api/sitemap")({
 
           const staticPages = [
             { url: "/", priority: "1.0", changefreq: "weekly" },
-            { url: "/compete", priority: "0.9", changefreq: "daily" },
             { url: "/terms", priority: "0.2", changefreq: "yearly" },
             { url: "/privacy", priority: "0.2", changefreq: "yearly" },
           ]

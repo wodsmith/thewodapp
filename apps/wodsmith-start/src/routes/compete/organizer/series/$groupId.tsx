@@ -9,9 +9,8 @@ import {
 import { SeriesSidebar } from "@/components/series-sidebar"
 import { getCompetitionGroupByIdFn } from "@/server-fns/competition-fns"
 
-export const Route = createFileRoute(
-  "/compete/organizer/series/$groupId",
-)({
+// @lat: [[architecture#Route Groups#compete/organizer]]
+export const Route = createFileRoute("/compete/organizer/series/$groupId")({
   component: SeriesLayout,
   loader: async ({ params, context }) => {
     const session = context.session
@@ -36,13 +35,13 @@ export const Route = createFileRoute(
       session.user?.role === "admin" ||
       !!session.teams?.find(
         (t) =>
-          t.id === groupResult.group!.organizingTeamId &&
+          t.id === groupResult.group.organizingTeamId &&
           (t.role.id === "admin" || t.role.id === "owner"),
       )
 
     if (!canManage) {
       throw redirect({
-        to: "/compete",
+        to: "/",
         search: {},
       })
     }
@@ -54,10 +53,10 @@ export const Route = createFileRoute(
 })
 
 const routeLabels: Record<string, string> = {
-  edit: "Edit Series",
+  edit: "Edit series",
   divisions: "Divisions",
   events: "Event Template",
-  "publish-workouts": "Publish Workouts",
+  "publish-workouts": "Publish workouts",
   "registration-questions": "Registration Questions",
   leaderboard: "Global Leaderboard",
 }
@@ -77,20 +76,19 @@ function SeriesLayout() {
         {/* Series Header */}
         <div>
           <div className="text-sm text-muted-foreground mb-1">
-            <Link
-              to="/compete/organizer/series"
-              className="hover:underline"
-            >
+            <Link to="/compete/organizer/series" className="hover:underline">
               Series
             </Link>
             {" / "}
             <span>{group.name}</span>
-            {lastSegment && lastSegment !== groupId && routeLabels[lastSegment] && (
-              <>
-                {" / "}
-                <span>{routeLabels[lastSegment]}</span>
-              </>
-            )}
+            {lastSegment &&
+              lastSegment !== groupId &&
+              routeLabels[lastSegment] && (
+                <>
+                  {" / "}
+                  <span>{routeLabels[lastSegment]}</span>
+                </>
+              )}
           </div>
           <h1 className="text-2xl font-bold">{group.name}</h1>
           {group.description && (

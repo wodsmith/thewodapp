@@ -7,8 +7,9 @@ import { getLogsByUserFn } from "@/server-fns/log-fns"
 export const Route = createFileRoute("/_protected/log/")({
   component: LogPage,
   beforeLoad: async ({ context }) => {
+    // @lat: [[architecture#Route Groups#_protected#Workout tracking guards]]
     if (!context.hasWorkoutTracking) {
-      throw redirect({ to: "/compete" })
+      throw redirect({ to: "/" })
     }
   },
   loader: async ({ context }) => {
@@ -36,7 +37,7 @@ function LogPage() {
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-4xl font-bold">WORKOUT LOG</h1>
         <Button asChild>
-          <a href="/log/new">Log New Result</a>
+          <a href="/log/new">Log new result</a>
         </Button>
       </div>
 

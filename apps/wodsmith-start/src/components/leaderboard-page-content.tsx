@@ -605,7 +605,7 @@ export function LeaderboardPageContent({
             </Select>
           )}
 
-          {/* View Workout button */}
+          {/* View workout button */}
           {effectiveEventId && (
             <Button variant="outline" size="sm" onClick={handleTogglePreview}>
               {isPreviewOpen ? (
@@ -613,7 +613,7 @@ export function LeaderboardPageContent({
               ) : (
                 <Eye className="h-4 w-4 mr-1.5" />
               )}
-              {isPreviewOpen ? "Hide Workout" : "View Workout"}
+              {isPreviewOpen ? "Hide Workout" : "View workout"}
             </Button>
           )}
 

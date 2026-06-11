@@ -136,7 +136,7 @@ export function AddCompetitionsToSeriesDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Add Competitions to Series</DialogTitle>
+          <DialogTitle>Add competitions to series</DialogTitle>
           <DialogDescription>
             Select competitions to add to "{groupName}"
           </DialogDescription>

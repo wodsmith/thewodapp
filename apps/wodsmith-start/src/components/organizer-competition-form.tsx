@@ -593,14 +593,14 @@ export function OrganizerCompetitionForm({
           </div>
         )}
 
-        {/* Competition Date */}
+        {/* Competition date */}
         <FormField
           control={form.control}
           name="startDate"
           render={({ field }) => (
             <FormItem>
               <FormLabel>
-                {isMultiDay ? "Start Date" : "Competition Date"}
+                {isMultiDay ? "Start date" : "Competition date"}
               </FormLabel>
               <FormControl>
                 <Input type="date" {...field} />
@@ -803,8 +803,8 @@ export function OrganizerCompetitionForm({
                 ? "Updating..."
                 : "Creating..."
               : isEditMode
-                ? "Update Competition"
-                : "Create Competition"}
+                ? "Update competition"
+                : "Create competition"}
           </Button>
           <Button
             type="button"

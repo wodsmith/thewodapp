@@ -97,7 +97,7 @@ Use this to sanity-check the standings before flipping the public leaderboard. C
 ### The Volunteers Tab
 
 1. Click **Volunteers** in the sidebar.
-2. The page splits into four tabs: **Roster**, **Shifts**, **Judge Schedule**, **Registration Rules**.
+2. The page splits into four tabs: **Roster**, **Shifts**, **Judge Schedule**, **Signup Questions**.
 
 ![Volunteers page with the four tabs](/img/how-to/organizers/organizer-volunteers.png)
 

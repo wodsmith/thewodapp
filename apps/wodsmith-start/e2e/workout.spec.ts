@@ -71,7 +71,7 @@ test.describe('Workouts', () => {
     await page.locator('[role="option"]').filter({hasText: 'For Time'}).first().click()
 
     // Submit
-    await page.getByRole('button', {name: 'Create Workout'}).click()
+    await page.getByRole('button', {name: 'Create workout'}).click()
 
     // Should redirect to workout detail page
     await page.waitForURL(/\/workouts\/(?!new)/, {timeout: 15000})

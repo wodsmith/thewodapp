@@ -169,7 +169,7 @@ export function CustomPointsTableEditor({
         disabled={disabled}
         type="button"
       >
-        Edit Points Table...
+        Edit points table...
       </Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>

@@ -122,7 +122,7 @@ export function ProgrammingTrackEditDialog({
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit Programming Track</DialogTitle>
+          <DialogTitle>Edit programming track</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -199,7 +199,7 @@ export function ProgrammingTrackEditDialog({
               </DialogClose>
 
               <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? "Updating..." : "Update Track"}
+                {form.formState.isSubmitting ? "Updating..." : "Update track"}
               </Button>
             </div>
           </form>

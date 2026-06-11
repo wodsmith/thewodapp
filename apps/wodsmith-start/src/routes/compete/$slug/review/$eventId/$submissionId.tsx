@@ -920,7 +920,7 @@ function AuditLogEntry({
   if (isEditing) {
     return (
       <div className="space-y-3 rounded-md border border-orange-200 p-3">
-        <p className="text-sm font-medium">Edit Penalty</p>
+        <p className="text-sm font-medium">Edit penalty</p>
 
         {/* Penalty type selector */}
         <div className="space-y-2">
@@ -1030,7 +1030,7 @@ function AuditLogEntry({
               setIsSaving(false)
             }}
           >
-            {isSaving ? "Saving..." : "Save Changes"}
+            {isSaving ? "Saving..." : "Save changes"}
           </Button>
           <Button
             variant="ghost"
@@ -1244,7 +1244,7 @@ function ReviewNoteForm({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <MessageSquare className="h-4 w-4" />
-          Add Review Note
+          Add review note
         </CardTitle>
         <CardDescription>
           Press{" "}
@@ -1333,7 +1333,7 @@ function ReviewNoteForm({
             disabled={isSubmitting || !content.trim()}
             onClick={handleSubmit}
           >
-            {isSubmitting ? "Adding..." : "Add Note"}
+            {isSubmitting ? "Adding..." : "Add note"}
           </Button>
         </div>
       </CardContent>

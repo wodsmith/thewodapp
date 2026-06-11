@@ -81,7 +81,7 @@ export function EventTemplateCreator({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Create Event Template</CardTitle>
+        <CardTitle>Create event template</CardTitle>
         <CardDescription>
           Define the standard events for this series. Choose an existing
           competition's events as a starting point, or start from scratch.
@@ -174,7 +174,7 @@ export function EventTemplateCreator({
               ) : (
                 <>
                   <Plus className="h-4 w-4 mr-2" />
-                  Create Event Template
+                  Create event template
                 </>
               )}
             </Button>

@@ -103,7 +103,7 @@ export function ProgrammingTrackCreateDialog({
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create Programming Track</DialogTitle>
+          <DialogTitle>Create programming track</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -183,7 +183,7 @@ export function ProgrammingTrackCreateDialog({
               </DialogClose>
 
               <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? "Creating..." : "Create Track"}
+                {form.formState.isSubmitting ? "Creating..." : "Create track"}
               </Button>
             </div>
           </form>

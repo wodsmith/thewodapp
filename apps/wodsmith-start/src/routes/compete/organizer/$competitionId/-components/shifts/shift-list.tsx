@@ -303,7 +303,7 @@ export function ShiftList({
         </div>
         <Button onClick={handleOpenCreateDialog} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
-          Add Shift
+          Add shift
         </Button>
       </div>
 
@@ -424,7 +424,7 @@ export function ShiftList({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Shift</AlertDialogTitle>
+            <AlertDialogTitle>Delete shift</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete "{shiftToDelete?.name}"?
               {shiftToDelete && shiftToDelete.assignments.length > 0 && (
@@ -450,7 +450,7 @@ export function ShiftList({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Create/Edit Shift Dialog */}
+      {/* Create/Edit shift Dialog */}
       <ShiftFormDialog
         competitionId={competitionId}
         open={formDialogOpen}

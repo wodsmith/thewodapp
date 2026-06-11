@@ -387,7 +387,7 @@ function SeriesDetailPage() {
                 onClick={() => setIsAddDialogOpen(true)}
               >
                 <ListPlus className="h-4 w-4 mr-2" />
-                Add Existing
+                Add existing
               </Button>
               <Button size="sm" asChild>
                 <Link
@@ -395,7 +395,7 @@ function SeriesDetailPage() {
                   search={{ groupId: group.id }}
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Create Competition
+                  Create competition
                 </Link>
               </Button>
             </div>
@@ -409,7 +409,7 @@ function SeriesDetailPage() {
           />
         </div>
 
-      {/* Add Existing Competitions Dialog */}
+      {/* Add existing Competitions Dialog */}
       <AddCompetitionsToSeriesDialog
         open={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
@@ -655,7 +655,7 @@ function SeriesCohostsSection({
                         onClick={() => copyInviteLink(firstToken)}
                       >
                         <Copy className="mr-1.5 h-3.5 w-3.5" />
-                        Copy Link
+                        Copy link
                       </Button>
                     )}
                   </div>

@@ -70,7 +70,7 @@ export function WorkoutPreview({
         <h3 className="text-lg font-bold tracking-tight">{name}</h3>
         <Button variant="outline" size="sm" asChild className="shrink-0">
           <Link to="/compete/$slug/workouts/$eventId" params={eventDetailUrl}>
-            View Full Details
+            View full details
             <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
           </Link>
         </Button>

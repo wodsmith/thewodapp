@@ -14,6 +14,9 @@ interface BreadcrumbSegment {
   href?: string
 }
 
+// @lat: [[architecture#Route Groups#compete]]
+const COMPETITION_DISCOVERY_PATH = "/"
+
 /**
  * Route segment to human-readable label mapping
  */
@@ -40,21 +43,22 @@ const SEGMENT_LABELS: Record<string, string> = {
 
   // Organizer pages
   organizer: "Organizer",
-  new: "New Competition",
+  new: "New competition",
   series: "Series",
   settings: "Settings",
   payouts: "Payouts",
-  onboard: "Get Started",
+  onboard: "Get started",
   pending: "Pending",
 
   // Competition management
   athletes: "Athletes",
-  "danger-zone": "Danger Zone",
+  "danger-zone": "Danger zone",
   divisions: "Divisions",
   events: "Events",
   pricing: "Pricing",
   results: "Results",
   revenue: "Revenue",
+  scoring: "Scoring",
   volunteers: "Volunteers",
   waivers: "Waivers",
 
@@ -128,9 +132,13 @@ export function CompeteBreadcrumb({
 
     // Don't add href for the last segment (current page)
     const isLast = i === pathSegments.length - 1
+    const href =
+      segment === "compete" && currentPath === "/compete"
+        ? COMPETITION_DISCOVERY_PATH
+        : currentPath
     segments.push({
       label,
-      href: isLast ? undefined : currentPath,
+      href: isLast ? undefined : href,
     })
   }
 

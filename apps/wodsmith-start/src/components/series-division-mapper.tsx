@@ -198,7 +198,7 @@ export function SeriesDivisionMapper({
               onClick={handleSave}
               disabled={isSaving}
             >
-              {isSaving ? "Saving..." : "Save Mappings"}
+              {isSaving ? "Saving..." : "Save mappings"}
             </Button>
           </div>
         </div>

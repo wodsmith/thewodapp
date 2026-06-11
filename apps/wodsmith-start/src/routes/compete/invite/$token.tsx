@@ -59,6 +59,7 @@ import { GuestInviteForm } from "./-components/guest-invite-form"
 import { InviteSignUpForm } from "./-components/invite-signup-form"
 import { SuccessClaimPrompt } from "./-components/success-claim-prompt"
 
+// @lat: [[competition-invites#Claim routes]]
 export const Route = createFileRoute("/compete/invite/$token")({
   loader: async ({ params }) => {
     const [volunteerInvite, teammateInvite, session] = await Promise.all([
@@ -223,7 +224,7 @@ function InvitePage() {
               This invitation link is invalid or has expired.
             </p>
             <Button asChild variant="outline">
-              <Link to="/compete">Browse Competitions</Link>
+              <Link to="/">Browse Competitions</Link>
             </Button>
           </CardContent>
         </Card>
@@ -248,7 +249,7 @@ function InvitePage() {
                   to="/compete/$slug"
                   params={{ slug: invite.competition.slug }}
                 >
-                  View Competition
+                  View competition
                 </Link>
               </Button>
             )}
@@ -271,7 +272,7 @@ function InvitePage() {
               a new invite.
             </p>
             <Button asChild variant="outline">
-              <Link to="/compete">Browse Competitions</Link>
+              <Link to="/">Browse Competitions</Link>
             </Button>
           </CardContent>
         </Card>
@@ -387,7 +388,7 @@ function InvitePage() {
             )}
             <div className="flex justify-center">
               <Button asChild variant="outline">
-                <a href="/api/auth/sign-out">Sign Out</a>
+                <a href="/api/auth/sign-out">Sign out</a>
               </Button>
             </div>
           </CardContent>
@@ -446,7 +447,7 @@ function InvitePage() {
               <Button asChild className="w-full" size="lg">
                 <Link to="/sign-in" search={{ redirect: redirectPath }}>
                   <LogIn className="mr-2 h-4 w-4" />
-                  Sign In to Accept
+                  Sign in to accept
                 </Link>
               </Button>
             </>
@@ -618,7 +619,7 @@ function VolunteerApplicationStatus({ invite }: { invite: VolunteerInvite }) {
                 to="/compete/$slug"
                 params={{ slug: invite.competition.slug }}
               >
-                View Competition
+                View competition
               </Link>
             </Button>
           )}
@@ -630,7 +631,7 @@ function VolunteerApplicationStatus({ invite }: { invite: VolunteerInvite }) {
           )}
 
           <Button asChild variant="outline" className="w-full">
-            <Link to="/compete">Browse Competitions</Link>
+            <Link to="/">Browse Competitions</Link>
           </Button>
         </CardContent>
       </Card>
@@ -674,7 +675,7 @@ function DirectVolunteerInvite({
                   to="/compete/$slug"
                   params={{ slug: invite.competition.slug }}
                 >
-                  View Competition
+                  View competition
                 </Link>
               </Button>
             )}
@@ -697,7 +698,7 @@ function DirectVolunteerInvite({
               organizer for a new invite.
             </p>
             <Button asChild variant="outline">
-              <Link to="/compete">Browse Competitions</Link>
+              <Link to="/">Browse Competitions</Link>
             </Button>
           </CardContent>
         </Card>
@@ -774,7 +775,7 @@ function DirectVolunteerInvite({
 
             <div className="flex justify-center">
               <Button asChild variant="outline">
-                <a href="/api/auth/sign-out">Sign Out</a>
+                <a href="/api/auth/sign-out">Sign out</a>
               </Button>
             </div>
           </CardContent>
@@ -810,7 +811,7 @@ function DirectVolunteerInvite({
               <Button asChild className="w-full" size="lg">
                 <Link to="/sign-in" search={{ redirect: redirectPath }}>
                   <LogIn className="mr-2 h-4 w-4" />
-                  Sign In to Accept
+                  Sign in to accept
                 </Link>
               </Button>
             </>
@@ -1022,7 +1023,7 @@ function TeammateRequirementsForm({
                       <CollapsibleTrigger asChild>
                         <Button variant="ghost" size="sm">
                           <FileText className="h-4 w-4 mr-2" />
-                          View Details
+                          View details
                           <ChevronDown className="h-4 w-4 ml-2" />
                         </Button>
                       </CollapsibleTrigger>

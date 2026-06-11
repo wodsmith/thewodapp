@@ -17,7 +17,7 @@ test.describe('Competition Registration', () => {
       page.getByRole('heading', {name: comp.name}),
     ).toBeVisible({timeout: 15000})
 
-    // Click Register Now
+    // Click Register now
     const registerLink = page.getByRole('link', {name: /register now/i})
     await expect(registerLink).toBeVisible({timeout: 10000})
     await registerLink.click()

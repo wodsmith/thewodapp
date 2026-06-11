@@ -399,7 +399,8 @@ function CompetitiveHistory({ registrations }: { registrations: any[] }) {
               history
             </p>
             <Button asChild className="mt-4">
-              <Link to="/compete">Browse Competitions</Link>
+              {/* @lat: [[architecture#Route Groups#compete]] */}
+              <Link to="/">Browse Competitions</Link>
             </Button>
           </div>
         </CardContent>
@@ -481,7 +482,7 @@ function CompetitiveHistory({ registrations }: { registrations: any[] }) {
                         to="/compete/$slug"
                         params={{ slug: registration.competition.slug }}
                       >
-                        View Event
+                        View event
                       </Link>
                     </Button>
                   </div>

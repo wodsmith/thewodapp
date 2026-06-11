@@ -97,7 +97,7 @@ export function TeamPageClient({ team, userId }: TeamPageClientProps) {
             href="/settings/programming"
             className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
           >
-            Manage Team
+            Manage team
           </a>
         </div>
       </div>

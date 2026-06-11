@@ -368,6 +368,203 @@ export const getRotationsForEventFn = createServerFn({ method: "GET" })
 // Note: getVersionHistoryFn and getActiveVersionFn are in judge-assignment-fns.ts
 
 /**
+ * Batched judge-scheduling data for a set of events. Replaces per-event
+ * calls to getJudgeHeatAssignmentsFn / getRotationsForEventFn /
+ * getVersionHistoryFn / getActiveVersionFn with a constant number of
+ * queries regardless of event count.
+ */
+export const getJudgeSchedulingDataForEventsFn = createServerFn({
+  method: "GET",
+})
+  .inputValidator((data: unknown) =>
+    z
+      .object({ trackWorkoutIds: z.array(z.string().min(1)) })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { trackWorkoutIds } = data
+    const db = getDb()
+
+    type EventDefaults = {
+      defaultHeatsCount: number | null
+      defaultLaneShiftPattern: string | null
+      minHeatBuffer: number | null
+    }
+
+    const judgeAssignments: JudgeHeatAssignment[] = []
+    const rotationsByEvent: Record<
+      string,
+      (typeof competitionJudgeRotationsTable.$inferSelect)[]
+    > = {}
+    const eventDefaultsByEvent: Record<string, EventDefaults> = {}
+    const versionHistoryByEvent: Record<
+      string,
+      (typeof judgeAssignmentVersionsTable.$inferSelect)[]
+    > = {}
+    const activeVersionByEvent: Record<
+      string,
+      typeof judgeAssignmentVersionsTable.$inferSelect | null
+    > = {}
+
+    if (trackWorkoutIds.length === 0) {
+      return {
+        judgeAssignments,
+        rotationsByEvent,
+        eventDefaultsByEvent,
+        versionHistoryByEvent,
+        activeVersionByEvent,
+      }
+    }
+
+    for (const id of trackWorkoutIds) {
+      rotationsByEvent[id] = []
+      versionHistoryByEvent[id] = []
+      activeVersionByEvent[id] = null
+    }
+
+    const [versions, rotations, eventRows] = await Promise.all([
+      db.query.judgeAssignmentVersionsTable.findMany({
+        where: inArray(
+          judgeAssignmentVersionsTable.trackWorkoutId,
+          trackWorkoutIds,
+        ),
+        orderBy: (table, { desc }) => [desc(table.version)],
+        with: {
+          publishedByUser: {
+            columns: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        },
+      }),
+      db.query.competitionJudgeRotationsTable.findMany({
+        where: inArray(
+          competitionJudgeRotationsTable.trackWorkoutId,
+          trackWorkoutIds,
+        ),
+        orderBy: (table, { asc }) => [asc(table.startingHeat)],
+      }),
+      db
+        .select({
+          id: trackWorkoutsTable.id,
+          defaultHeatsCount: trackWorkoutsTable.defaultHeatsCount,
+          defaultLaneShiftPattern: trackWorkoutsTable.defaultLaneShiftPattern,
+          minHeatBuffer: trackWorkoutsTable.minHeatBuffer,
+        })
+        .from(trackWorkoutsTable)
+        .where(inArray(trackWorkoutsTable.id, trackWorkoutIds)),
+    ])
+
+    for (const version of versions) {
+      versionHistoryByEvent[version.trackWorkoutId]?.push(version)
+      if (version.isActive) {
+        activeVersionByEvent[version.trackWorkoutId] = version
+      }
+    }
+
+    for (const rotation of rotations) {
+      rotationsByEvent[rotation.trackWorkoutId]?.push(rotation)
+    }
+
+    for (const row of eventRows) {
+      eventDefaultsByEvent[row.id] = {
+        defaultHeatsCount: row.defaultHeatsCount ?? null,
+        defaultLaneShiftPattern: row.defaultLaneShiftPattern ?? null,
+        minHeatBuffer: row.minHeatBuffer ?? null,
+      }
+    }
+
+    // Assignments only exist under a published (active) version; a version
+    // belongs to exactly one event, so filtering by active version ids is
+    // sufficient to scope assignments to their events.
+    const activeVersionIds = versions
+      .filter((v) => v.isActive)
+      .map((v) => v.id)
+
+    if (activeVersionIds.length > 0) {
+      const assignments = await db
+        .select()
+        .from(judgeHeatAssignmentsTable)
+        .where(inArray(judgeHeatAssignmentsTable.versionId, activeVersionIds))
+
+      if (assignments.length > 0) {
+        const membershipIds = [
+          ...new Set(assignments.map((a) => a.membershipId)),
+        ]
+        const memberships = await db
+          .select({
+            id: teamMembershipTable.id,
+            userId: teamMembershipTable.userId,
+            metadata: teamMembershipTable.metadata,
+          })
+          .from(teamMembershipTable)
+          .where(inArray(teamMembershipTable.id, membershipIds))
+
+        const userIds = [...new Set(memberships.map((m) => m.userId))]
+        const users =
+          userIds.length > 0
+            ? await db
+                .select({
+                  id: userTable.id,
+                  firstName: userTable.firstName,
+                  lastName: userTable.lastName,
+                  avatar: userTable.avatar,
+                })
+                .from(userTable)
+                .where(inArray(userTable.id, userIds))
+            : []
+        const userMap = new Map(users.map((u) => [u.id, u]))
+
+        const membershipMap = new Map(
+          memberships.map((m) => {
+            const meta = parseVolunteerMetadata(m.metadata)
+            const user = userMap.get(m.userId)
+            return [
+              m.id,
+              {
+                membershipId: m.id,
+                userId: m.userId,
+                firstName: user?.firstName ?? null,
+                lastName: user?.lastName ?? null,
+                avatar: user?.avatar ?? null,
+                volunteerRoleTypes: meta?.volunteerRoleTypes ?? [],
+                credentials: meta?.credentials,
+                availabilityNotes: meta?.availabilityNotes,
+              },
+            ]
+          }),
+        )
+
+        for (const assignment of assignments) {
+          judgeAssignments.push({
+            ...assignment,
+            volunteer:
+              membershipMap.get(assignment.membershipId) ??
+              ({
+                membershipId: assignment.membershipId,
+                userId: "",
+                firstName: null,
+                lastName: null,
+                volunteerRoleTypes: [],
+              } as JudgeVolunteerInfo),
+          })
+        }
+      }
+    }
+
+    return {
+      judgeAssignments,
+      rotationsByEvent,
+      eventDefaultsByEvent,
+      versionHistoryByEvent,
+      activeVersionByEvent,
+    }
+  })
+
+/**
  * Get judge conflicts for a heat
  */
 export const getJudgeConflictsFn = createServerFn({ method: "GET" })

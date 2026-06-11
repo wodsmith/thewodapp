@@ -47,7 +47,7 @@ export function StripeConnectionRequired({ teamSlug, competitionName, isCohost }
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <CreditCard className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle>{isCohost ? "Stripe Not Connected" : "Connect Stripe to Accept Payments"}</CardTitle>
+          <CardTitle>{isCohost ? "Stripe not connected" : "Connect Stripe to accept payments"}</CardTitle>
           <CardDescription>
             {isCohost
               ? "The competition organizer has not yet connected their Stripe account. Registration fees cannot be configured until Stripe is set up. Contact the organizer to resolve this."

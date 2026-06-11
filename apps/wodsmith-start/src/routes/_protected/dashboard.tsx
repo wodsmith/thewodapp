@@ -25,8 +25,9 @@ import {
 export const Route = createFileRoute("/_protected/dashboard")({
   component: DashboardPage,
   beforeLoad: async ({ context }) => {
+    // @lat: [[architecture#Route Groups#_protected#Workout tracking guards]]
     if (!context.hasWorkoutTracking) {
-      throw redirect({ to: "/compete" })
+      throw redirect({ to: "/" })
     }
   },
   loader: async ({ context }) => {
@@ -137,7 +138,7 @@ function DashboardPage() {
           </p>
           <Button asChild>
             <Link to="/sign-in" search={{ redirect: REDIRECT_AFTER_SIGN_IN }}>
-              Sign In
+              Sign in
             </Link>
           </Button>
         </div>
@@ -289,12 +290,12 @@ function WorkoutCard({
         <div className="flex gap-2">
           <Button asChild variant="outline">
             <Link to="/workouts/$workoutId" params={{ workoutId: workout.id }}>
-              View Details
+              View details
             </Link>
           </Button>
           <Button asChild>
             <Link to="/log/new" search={{ workoutId: workout.id }}>
-              Log Result
+              Log result
             </Link>
           </Button>
         </div>

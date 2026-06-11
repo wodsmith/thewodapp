@@ -43,17 +43,12 @@ import {
   getCompetitionWorkoutsFn,
 } from "@/server-fns/competition-workouts-fns"
 import {
-  getActiveVersionFn,
-  getVersionHistoryFn,
-} from "@/server-fns/judge-assignment-fns"
-import {
   applyAiProposalsFn,
   loadAiSchedulingContextFn,
 } from "@/server-fns/judge-scheduler-ai-fns"
 import {
-  getJudgeHeatAssignmentsFn,
+  getJudgeSchedulingDataForEventsFn,
   getJudgeVolunteersFn,
-  getRotationsForEventFn,
 } from "@/server-fns/judge-scheduling-fns"
 import { useSession } from "@/utils/auth-client"
 import { formatTrackOrder } from "@/utils/format-track-order"
@@ -94,73 +89,56 @@ export const Route = createFileRoute(
     // version history. Loading both in parallel keeps the initial render
     // under one round trip and lets the manual editor work even before
     // the agent has run.
-    const [
-      initialResult,
-      heatsResult,
-      judges,
-      allAssignments,
-      allRotationResults,
-      allVersionHistory,
-      allActiveVersions,
-    ] = await Promise.all([
-      initialWorkoutId
-        ? loadAiSchedulingContextFn({
-            data: {
-              trackWorkoutId: initialWorkoutId,
-              competitionId: competition.id,
-              teamId: competition.organizingTeamId,
-            },
-          })
-        : Promise.resolve(null),
-      getHeatsForCompetitionFn({
-        data: {
-          competitionId: competition.id,
-          teamId: competition.organizingTeamId,
-        },
-      }),
-      getJudgeVolunteersFn({
-        data: { competitionTeamId: competition.competitionTeamId ?? "" },
-      }),
-      Promise.all(
-        events.map((event) =>
-          getJudgeHeatAssignmentsFn({ data: { trackWorkoutId: event.id } }),
-        ),
-      ),
-      Promise.all(
-        events.map((event) =>
-          getRotationsForEventFn({ data: { trackWorkoutId: event.id } }),
-        ),
-      ),
-      Promise.all(
-        events.map((event) =>
-          getVersionHistoryFn({ data: { trackWorkoutId: event.id } }),
-        ),
-      ),
-      Promise.all(
-        events.map((event) =>
-          getActiveVersionFn({ data: { trackWorkoutId: event.id } }),
-        ),
-      ),
-    ])
+    const [initialResult, heatsResult, judges, judgeSchedulingData] =
+      await Promise.all([
+        initialWorkoutId
+          ? loadAiSchedulingContextFn({
+              data: {
+                trackWorkoutId: initialWorkoutId,
+                competitionId: competition.id,
+                teamId: competition.organizingTeamId,
+              },
+            })
+          : Promise.resolve(null),
+        getHeatsForCompetitionFn({
+          data: {
+            competitionId: competition.id,
+            teamId: competition.organizingTeamId,
+          },
+        }),
+        getJudgeVolunteersFn({
+          data: { competitionTeamId: competition.competitionTeamId ?? "" },
+        }),
+        getJudgeSchedulingDataForEventsFn({
+          data: { trackWorkoutIds: events.map((event) => event.id) },
+        }),
+      ])
 
     const heats = heatsResult.heats
-    const judgeAssignments = allAssignments.flat()
-    const rotations = allRotationResults.flatMap((r) => r.rotations)
+    const judgeAssignments = judgeSchedulingData.judgeAssignments
+    const rotations = events.flatMap(
+      (event) => judgeSchedulingData.rotationsByEvent[event.id] ?? [],
+    )
 
     const eventDefaultsMap = new Map<string, EventDefaults>()
     const versionHistoryMap = new Map<string, JudgeAssignmentVersion[]>()
     const activeVersionMap = new Map<string, JudgeAssignmentVersion | null>()
-    for (const [index, event] of events.entries()) {
-      const result = allRotationResults[index]
+    for (const event of events) {
+      const defaults = judgeSchedulingData.eventDefaultsByEvent[event.id]
       eventDefaultsMap.set(event.id, {
-        defaultHeatsCount: result?.eventDefaults?.defaultHeatsCount ?? null,
+        defaultHeatsCount: defaults?.defaultHeatsCount ?? null,
         defaultLaneShiftPattern:
-          (result?.eventDefaults
-            ?.defaultLaneShiftPattern as LaneShiftPattern) ?? null,
-        minHeatBuffer: result?.eventDefaults?.minHeatBuffer ?? null,
+          (defaults?.defaultLaneShiftPattern as LaneShiftPattern) ?? null,
+        minHeatBuffer: defaults?.minHeatBuffer ?? null,
       })
-      versionHistoryMap.set(event.id, allVersionHistory[index] ?? [])
-      activeVersionMap.set(event.id, allActiveVersions[index] ?? null)
+      versionHistoryMap.set(
+        event.id,
+        judgeSchedulingData.versionHistoryByEvent[event.id] ?? [],
+      )
+      activeVersionMap.set(
+        event.id,
+        judgeSchedulingData.activeVersionByEvent[event.id] ?? null,
+      )
     }
 
     const hasAccess = initialResult ? initialResult.hasAccess : true

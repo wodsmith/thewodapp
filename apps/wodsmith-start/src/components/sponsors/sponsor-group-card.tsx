@@ -212,7 +212,7 @@ export function SponsorGroupCard({
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={onAddSponsor}>
               <Plus className="mr-2 h-4 w-4" />
-              Add Sponsor
+              Add sponsor
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -224,7 +224,7 @@ export function SponsorGroupCard({
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={onEditGroup}>
                   <Pencil className="mr-2 h-4 w-4" />
-                  Edit Group
+                  Edit group
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -232,7 +232,7 @@ export function SponsorGroupCard({
                   className="text-destructive"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Group
+                  Delete group
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

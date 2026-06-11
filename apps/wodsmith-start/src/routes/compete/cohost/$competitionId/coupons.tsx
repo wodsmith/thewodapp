@@ -200,12 +200,12 @@ function CouponsPage() {
         </p>
       </div>
 
-      {/* Create Coupon Card */}
+      {/* Create coupon Card */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Plus className="h-4 w-4" />
-            Create Coupon
+            Create coupon
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -267,7 +267,7 @@ function CouponsPage() {
             disabled={isCreating || !amountDollars}
           >
             <Plus className="mr-2 h-4 w-4" />
-            {isCreating ? "Creating..." : "Create Coupon"}
+            {isCreating ? "Creating..." : "Create coupon"}
           </Button>
         </CardContent>
       </Card>
@@ -335,7 +335,7 @@ function CouponsPage() {
                               onClick={() => handleCopyLink(coupon.code)}
                             >
                               <Copy className="mr-1 h-3 w-3" />
-                              Copy Link
+                              Copy link
                             </Button>
                             {status === "active" && (
                               <Button

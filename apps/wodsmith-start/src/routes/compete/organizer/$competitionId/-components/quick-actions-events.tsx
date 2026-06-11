@@ -150,7 +150,7 @@ export function QuickActionsEvents({
       <CardHeader className="pb-3">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <CardTitle className="text-base">Publish Events</CardTitle>
+            <CardTitle className="text-base">Publish events</CardTitle>
             <CardDescription>
               {publishedCount} published, {draftCount} draft
             </CardDescription>
@@ -171,7 +171,7 @@ export function QuickActionsEvents({
               ) : (
                 <>
                   <Eye className="h-3.5 w-3.5 mr-1.5" />
-                  Publish All
+                  Publish all
                 </>
               )}
             </Button>

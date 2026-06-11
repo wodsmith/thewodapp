@@ -80,7 +80,7 @@ export function WelcomeModal({
               <FileText className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
               <div>
                 <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                  Sign Competition Waivers
+                  Sign competition waivers
                 </p>
                 <p className="text-xs text-amber-700 dark:text-amber-300">
                   Please sign the required waivers below before competing
@@ -92,7 +92,7 @@ export function WelcomeModal({
 
         <DialogFooter className="flex-col gap-2 sm:flex-col">
           <Button onClick={onClose} className="w-full">
-            {hasUnsignedWaivers ? "Sign Waivers" : "View Team"}
+            {hasUnsignedWaivers ? "Sign waivers" : "View team"}
           </Button>
           <Button
             variant="outline"
@@ -100,7 +100,7 @@ export function WelcomeModal({
             className="w-full"
           >
             <Trophy className="w-4 h-4 mr-2" />
-            View Competition
+            View competition
           </Button>
         </DialogFooter>
       </DialogContent>

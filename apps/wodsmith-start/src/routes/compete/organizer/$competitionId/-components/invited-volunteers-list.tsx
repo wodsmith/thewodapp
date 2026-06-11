@@ -129,7 +129,7 @@ export function InvitedVolunteersList({ invites }: InvitedVolunteersListProps) {
                       disabled={copiedToken === invite.token}
                     >
                       <Copy className="mr-2 h-4 w-4" />
-                      {copiedToken === invite.token ? "Copied!" : "Copy Link"}
+                      {copiedToken === invite.token ? "Copied!" : "Copy link"}
                     </Button>
                   </TableCell>
                 </TableRow>

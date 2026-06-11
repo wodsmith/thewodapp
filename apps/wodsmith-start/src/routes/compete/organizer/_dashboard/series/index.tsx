@@ -68,7 +68,7 @@ function SeriesPage() {
             <Button className="w-full sm:w-auto" asChild>
               <Link to="/compete/organizer/series/new">
                 <Plus className="h-4 w-4 mr-2" />
-                Create Series
+                Create series
               </Link>
             </Button>
           </div>
@@ -87,7 +87,7 @@ function SeriesPage() {
               <Button asChild>
                 <Link to="/compete/organizer/series/new">
                   <Plus className="h-4 w-4 mr-2" />
-                  Create Series
+                  Create series
                 </Link>
               </Button>
             </div>

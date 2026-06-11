@@ -33,7 +33,7 @@ interface AthleteProfileMissingFields {
 interface CompeteMobileNavProps {
   session: SessionValidationResult | null
   invitations?: PendingInvitation[]
-  canOrganize?: boolean
+  hasOrganizerApplication?: boolean
   missingProfileFields?: AthleteProfileMissingFields | null
 }
 
@@ -63,12 +63,23 @@ function shouldHideBrand(pathname: string) {
 export default function CompeteMobileNav({
   session,
   invitations = [],
-  canOrganize = false,
+  hasOrganizerApplication = false,
   missingProfileFields = null,
 }: CompeteMobileNavProps) {
   const [open, setOpen] = useState(false)
   const router = useRouterState()
   const pathname = router.location.pathname
+  const isCompetitionIndex = pathname === "/"
+  const isManageCompetitionsActive =
+    pathname === "/compete/organizer" ||
+    pathname.startsWith("/compete/organizer/")
+  const competitionsLinkClass = isCompetitionIndex
+    ? "font-semibold text-foreground underline decoration-primary decoration-2 underline-offset-4 dark:text-dark-foreground"
+    : "hover:text-primary"
+  const manageCompetitionsLinkClass = isManageCompetitionsActive
+    ? "flex items-center gap-2 font-semibold text-foreground underline decoration-primary decoration-2 underline-offset-4 dark:text-dark-foreground"
+    : "flex items-center gap-2 hover:text-primary"
+  const showManageCompetitionsLink = hasOrganizerApplication
 
   const isProfileIncomplete =
     missingProfileFields &&
@@ -95,9 +106,10 @@ export default function CompeteMobileNav({
       <SheetContent side="left" background="sidebar">
         <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
         <nav className="grid gap-6 font-medium text-lg">
+          {/* @lat: [[architecture#Route Groups#compete]] */}
           {!shouldHideBrand(pathname) && (
             <Link
-              to="/compete"
+              to="/"
               className="mb-4 flex items-center gap-2 font-semibold text-lg"
               onClick={handleLinkClick}
             >
@@ -126,20 +138,31 @@ export default function CompeteMobileNav({
           {session?.user ? (
             <>
               <Link
-                to="/compete"
-                className="hover:text-primary"
+                to="/"
+                aria-current={isCompetitionIndex ? "page" : undefined}
+                className={competitionsLinkClass}
                 onClick={handleLinkClick}
               >
-                Events
+                Competitions
               </Link>
-              {canOrganize && (
+              {showManageCompetitionsLink && (
                 <a
                   href="/compete/organizer"
-                  className="flex items-center gap-2 hover:text-primary"
+                  aria-current={isManageCompetitionsActive ? "page" : undefined}
+                  className={manageCompetitionsLinkClass}
                   onClick={handleLinkClick}
                 >
                   <Settings className="h-5 w-5" />
-                  <span>Organizer</span>
+                  <span>MANAGE COMPETITIONS</span>
+                </a>
+              )}
+              {!hasOrganizerApplication && (
+                <a
+                  href="/compete/organizer/onboard"
+                  className="hover:text-primary"
+                  onClick={handleLinkClick}
+                >
+                  HOST A COMP
                 </a>
               )}
               <hr className="my-2" />
@@ -156,7 +179,7 @@ export default function CompeteMobileNav({
                     >
                       <User className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                       <div className="flex flex-col">
-                        <span>Complete Your Profile</span>
+                        <span>Complete your profile</span>
                         <span className="text-muted-foreground text-sm">
                           {formatMissingFields(missingProfileFields)}
                         </span>
@@ -200,11 +223,12 @@ export default function CompeteMobileNav({
           ) : (
             <>
               <Link
-                to="/compete"
-                className="hover:text-primary"
+                to="/"
+                aria-current={isCompetitionIndex ? "page" : undefined}
+                className={competitionsLinkClass}
                 onClick={handleLinkClick}
               >
-                Events
+                Competitions
               </Link>
               <a
                 href="/sign-in"
@@ -218,7 +242,7 @@ export default function CompeteMobileNav({
                 className="hover:text-primary"
                 onClick={handleLinkClick}
               >
-                Sign Up
+                Sign up
               </a>
               <DarkModeToggle />
             </>

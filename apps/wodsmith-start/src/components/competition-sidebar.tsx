@@ -87,7 +87,7 @@ const getNavigation = (
         { label: "Events", href: `${basePath}/events`, icon: Trophy },
         { label: "Locations", href: `${basePath}/locations`, icon: MapPin },
         {
-          label: "Event Divisions",
+          label: "Event divisions",
           href: `${basePath}/event-divisions`,
           icon: Grid3X3,
         },
@@ -95,7 +95,7 @@ const getNavigation = (
         ...(competitionType === "online"
           ? [
               {
-                label: "Submission Windows",
+                label: "Submission windows",
                 href: `${basePath}/submission-windows`,
                 icon: Clock,
               },
@@ -135,7 +135,7 @@ const getNavigation = (
           icon: Medal,
         },
         {
-          label: "Leaderboard Preview",
+          label: "Leaderboard preview",
           href: `${basePath}/leaderboard-preview`,
           icon: BarChart3,
         },
@@ -165,7 +165,7 @@ const getNavigation = (
       items: [
         { label: "Settings", href: `${basePath}/settings`, icon: Settings },
         {
-          label: "Danger Zone",
+          label: "Danger zone",
           href: `${basePath}/danger-zone`,
           icon: AlertTriangle,
           variant: "destructive" as const,
@@ -207,8 +207,9 @@ function NavMenuItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
 function CompetitionSidebarHeader() {
   return (
     <SidebarHeader className="h-14 flex-row items-center border-b px-3 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:justify-center">
+      {/* @lat: [[architecture#Route Groups#compete]] */}
       <Link
-        to="/compete"
+        to="/"
         className="flex items-center gap-2 min-w-0 group-data-[collapsible=icon]:hidden"
       >
         <img
@@ -225,10 +226,8 @@ function CompetitionSidebarHeader() {
           </span>
         </h1>
       </Link>
-      <Link
-        to="/compete"
-        className="hidden group-data-[collapsible=icon]:block"
-      >
+      {/* @lat: [[architecture#Route Groups#compete]] */}
+      <Link to="/" className="hidden group-data-[collapsible=icon]:block">
         <img
           src="/wodsmith-logo-no-text.png"
           alt="wodsmith compete"
@@ -316,7 +315,8 @@ export function CompetitionSidebar({
           <SidebarTrigger className="-ml-1">
             <Menu className="h-5 w-5" />
           </SidebarTrigger>
-          <Link to="/compete" className="flex items-center gap-2">
+          {/* @lat: [[architecture#Route Groups#compete]] */}
+          <Link to="/" className="flex items-center gap-2">
             <img
               src="/wodsmith-logo-no-text.png"
               alt="wodsmith compete"

@@ -196,7 +196,7 @@ function CoHostsPage() {
                     onClick={() => copyInviteLink(inv.token!)}
                   >
                     <Copy className="mr-1.5 h-3.5 w-3.5" />
-                    Copy Link
+                    Copy link
                   </Button>
                 )}
               </div>
