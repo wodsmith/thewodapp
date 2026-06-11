@@ -482,7 +482,7 @@ function CompetitiveHistory({ registrations }: { registrations: any[] }) {
                         to="/compete/$slug"
                         params={{ slug: registration.competition.slug }}
                       >
-                        View Event
+                        View event
                       </Link>
                     </Button>
                   </div>

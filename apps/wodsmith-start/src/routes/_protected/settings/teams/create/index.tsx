@@ -165,7 +165,7 @@ function CreateTeamPage() {
                   <Link to="/settings/teams">Cancel</Link>
                 </Button>
                 <Button type="submit" disabled={form.formState.isSubmitting}>
-                  {form.formState.isSubmitting ? "Creating..." : "Create Team"}
+                  {form.formState.isSubmitting ? "Creating..." : "Create team"}
                 </Button>
               </div>
             </form>

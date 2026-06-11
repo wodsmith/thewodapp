@@ -238,7 +238,7 @@ function SeriesPublishWorkoutsPage() {
         <CardHeader className="gap-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <CardTitle>Publish Workouts</CardTitle>
+              <CardTitle>Publish workouts</CardTitle>
               <CardDescription>
                 Manage visibility for workouts that already exist on
                 competitions in this series.
@@ -336,7 +336,7 @@ function SeriesPublishWorkoutsPage() {
                 disabled={selectedEventIds.size === 0}
               >
                 <Eye className="mr-2 h-4 w-4" />
-                Publish Selected
+                Publish selected
               </Button>
               <Button
                 type="button"
@@ -489,7 +489,7 @@ function SeriesPublishWorkoutsPage() {
                   Updating...
                 </>
               ) : pendingStatus === "published" ? (
-                "Publish Workouts"
+                "Publish workouts"
               ) : (
                 "Unpublish Workouts"
               )}

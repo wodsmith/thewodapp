@@ -107,7 +107,7 @@ export function PostHogProvider({ children }: PostHogProviderProps) {
  *     posthog.capture('button_clicked', { button: 'signup' })
  *   }
  *
- *   return <button onClick={handleClick}>Sign Up</button>
+ *   return <button onClick={handleClick}>Sign up</button>
  * }
  * ```
  */

@@ -205,7 +205,7 @@ export function CompetitionHeader({ competition }: CompetitionHeaderProps) {
         <Link to="/compete/$slug" params={{ slug: competition.slug }}>
           <Button variant="outline" size="sm">
             <ExternalLink className="mr-2 h-4 w-4" />
-            View Public Page
+            View public page
           </Button>
         </Link>
         {competition.groupId && (

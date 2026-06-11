@@ -44,7 +44,7 @@ export function CopyInviteLink({ inviteUrl }: CopyInviteLinkProps) {
       ) : (
         <>
           <Copy className="w-4 h-4 mr-1" />
-          Copy Link
+          Copy link
         </>
       )}
     </Button>

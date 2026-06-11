@@ -74,7 +74,7 @@ function NewSeriesPage() {
               Back to Series
             </Button>
           </div>
-          <h1 className="text-3xl font-bold">Create Series</h1>
+          <h1 className="text-3xl font-bold">Create series</h1>
           <p className="text-muted-foreground mt-1">
             Group related competitions into a series
           </p>

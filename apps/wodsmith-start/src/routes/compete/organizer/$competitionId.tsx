@@ -71,13 +71,15 @@ const routeLabels: Record<string, string> = {
   athletes: "Registrations",
   invites: "Invites",
   events: "Events",
-  "event-divisions": "Event Divisions",
-  "submission-windows": "Submission Windows",
+  "event-divisions": "Event divisions",
+  "submission-windows": "Submission windows",
   schedule: "Schedule",
   locations: "Locations",
   volunteers: "Volunteers",
+  waivers: "Waivers",
+  scoring: "Scoring",
   results: "Results", // Overridden to "Submissions" for online competitions
-  "leaderboard-preview": "Leaderboard Preview",
+  "leaderboard-preview": "Leaderboard preview",
   review: "Review",
   pricing: "Pricing",
   revenue: "Revenue",
@@ -85,7 +87,7 @@ const routeLabels: Record<string, string> = {
   sponsors: "Sponsors",
   settings: "Settings",
   edit: "Edit",
-  "danger-zone": "Danger Zone",
+  "danger-zone": "Danger zone",
 }
 
 function CompetitionLayout() {

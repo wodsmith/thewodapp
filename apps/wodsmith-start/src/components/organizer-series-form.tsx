@@ -232,8 +232,8 @@ export function OrganizerSeriesForm({
                 ? "Updating..."
                 : "Creating..."
               : isEditing
-                ? "Update Series"
-                : "Create Series"}
+                ? "Update series"
+                : "Create series"}
           </Button>
           <Button
             type="button"

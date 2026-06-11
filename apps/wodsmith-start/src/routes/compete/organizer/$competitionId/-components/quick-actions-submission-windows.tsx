@@ -179,7 +179,7 @@ export function QuickActionsSubmissionWindows({
             params={{ competitionId }}
           >
             <Calendar className="h-4 w-4 mr-2" />
-            Manage Submission Windows
+            Manage submission windows
           </Link>
         </Button>
       </CardContent>

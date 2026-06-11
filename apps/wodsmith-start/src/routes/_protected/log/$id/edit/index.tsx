@@ -229,7 +229,7 @@ function LogEditPage() {
         {/* Edit Form */}
         <Card>
           <CardHeader>
-            <CardTitle>Edit Result for {workout.name}</CardTitle>
+            <CardTitle>Edit result for {workout.name}</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -372,7 +372,7 @@ function LogEditPage() {
                   Cancel
                 </Button>
                 <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Saving..." : "Save Changes"}
+                  {isSubmitting ? "Saving..." : "Save changes"}
                 </Button>
               </div>
             </form>

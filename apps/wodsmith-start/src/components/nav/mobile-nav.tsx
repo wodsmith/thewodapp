@@ -130,7 +130,7 @@ export default function MobileNav({
                 className="hover:text-primary"
                 onClick={handleLinkClick}
               >
-                Sign Up
+                Sign up
               </Link>
               <DarkModeToggle />
             </>

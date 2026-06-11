@@ -616,7 +616,7 @@ function AthleteDetailPage() {
                     className="bg-background/60 backdrop-blur-sm text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/10"
                   >
                     <X className="h-4 w-4 mr-2" />
-                    {isCancellingTransfer ? "Cancelling..." : "Cancel Transfer"}
+                    {isCancellingTransfer ? "Cancelling..." : "Cancel transfer"}
                   </Button>
                 ) : (
                   <Button
@@ -696,7 +696,7 @@ function AthleteDetailPage() {
                   disabled={isRemoved}
                 >
                   <UserPlus className="h-4 w-4 mr-1.5" />
-                  Add Teammate
+                  Add teammate
                 </Button>
               ) : null
             }
@@ -840,7 +840,7 @@ function AthleteDetailPage() {
       <AlertDialog open={showRemoveDialog} onOpenChange={setShowRemoveDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Registration</AlertDialogTitle>
+            <AlertDialogTitle>Remove registration</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to remove the registration for{" "}
               <strong>{displayTitle}</strong>? This removes them from the
@@ -855,7 +855,7 @@ function AthleteDetailPage() {
               disabled={isRemoving}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isRemoving ? "Removing..." : "Remove Registration"}
+              {isRemoving ? "Removing..." : "Remove registration"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

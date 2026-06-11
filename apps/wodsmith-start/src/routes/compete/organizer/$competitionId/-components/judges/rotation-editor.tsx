@@ -478,7 +478,7 @@ export function RotationEditor({
           </Button>
           <Button type="submit" disabled={isPending || conflicts.length > 0}>
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isEditing ? "Update Rotation" : "Create Rotation"}
+            {isEditing ? "Update rotation" : "Create rotation"}
           </Button>
         </div>
       </form>

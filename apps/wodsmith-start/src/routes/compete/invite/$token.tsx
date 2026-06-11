@@ -249,7 +249,7 @@ function InvitePage() {
                   to="/compete/$slug"
                   params={{ slug: invite.competition.slug }}
                 >
-                  View Competition
+                  View competition
                 </Link>
               </Button>
             )}
@@ -388,7 +388,7 @@ function InvitePage() {
             )}
             <div className="flex justify-center">
               <Button asChild variant="outline">
-                <a href="/api/auth/sign-out">Sign Out</a>
+                <a href="/api/auth/sign-out">Sign out</a>
               </Button>
             </div>
           </CardContent>
@@ -447,7 +447,7 @@ function InvitePage() {
               <Button asChild className="w-full" size="lg">
                 <Link to="/sign-in" search={{ redirect: redirectPath }}>
                   <LogIn className="mr-2 h-4 w-4" />
-                  Sign In to Accept
+                  Sign in to accept
                 </Link>
               </Button>
             </>
@@ -619,7 +619,7 @@ function VolunteerApplicationStatus({ invite }: { invite: VolunteerInvite }) {
                 to="/compete/$slug"
                 params={{ slug: invite.competition.slug }}
               >
-                View Competition
+                View competition
               </Link>
             </Button>
           )}
@@ -675,7 +675,7 @@ function DirectVolunteerInvite({
                   to="/compete/$slug"
                   params={{ slug: invite.competition.slug }}
                 >
-                  View Competition
+                  View competition
                 </Link>
               </Button>
             )}
@@ -775,7 +775,7 @@ function DirectVolunteerInvite({
 
             <div className="flex justify-center">
               <Button asChild variant="outline">
-                <a href="/api/auth/sign-out">Sign Out</a>
+                <a href="/api/auth/sign-out">Sign out</a>
               </Button>
             </div>
           </CardContent>
@@ -811,7 +811,7 @@ function DirectVolunteerInvite({
               <Button asChild className="w-full" size="lg">
                 <Link to="/sign-in" search={{ redirect: redirectPath }}>
                   <LogIn className="mr-2 h-4 w-4" />
-                  Sign In to Accept
+                  Sign in to accept
                 </Link>
               </Button>
             </>
@@ -1023,7 +1023,7 @@ function TeammateRequirementsForm({
                       <CollapsibleTrigger asChild>
                         <Button variant="ghost" size="sm">
                           <FileText className="h-4 w-4 mr-2" />
-                          View Details
+                          View details
                           <ChevronDown className="h-4 w-4 ml-2" />
                         </Button>
                       </CollapsibleTrigger>

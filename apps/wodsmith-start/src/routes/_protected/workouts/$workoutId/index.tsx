@@ -275,7 +275,7 @@ function WorkoutDetailPage() {
           </div>
           <Button asChild>
             <Link to="/log/new" search={{ workoutId: workout.id }}>
-              Log Result
+              Log result
             </Link>
           </Button>
         </div>

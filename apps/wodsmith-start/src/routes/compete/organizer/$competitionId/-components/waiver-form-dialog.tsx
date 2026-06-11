@@ -145,7 +145,7 @@ export function WaiverFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[90vh] max-w-3xl flex-col">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit Waiver" : "Add Waiver"}</DialogTitle>
+          <DialogTitle>{isEditing ? "Edit waiver" : "Add waiver"}</DialogTitle>
           <DialogDescription>
             {isEditing
               ? "Update waiver details and content"
@@ -220,8 +220,8 @@ export function WaiverFormDialog({
               {isPending
                 ? "Saving..."
                 : isEditing
-                  ? "Save Changes"
-                  : "Create Waiver"}
+                  ? "Save changes"
+                  : "Create waiver"}
             </Button>
           </DialogFooter>
         </form>

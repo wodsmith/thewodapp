@@ -51,7 +51,7 @@ export function SponsorGroupFormDialog({
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>
-              {isEditing ? "Edit Sponsor Group" : "Create Sponsor Group"}
+              {isEditing ? "Edit sponsor group" : "Create sponsor group"}
             </DialogTitle>
             <DialogDescription>
               {isEditing
@@ -88,7 +88,7 @@ export function SponsorGroupFormDialog({
                   : "Creating..."
                 : isEditing
                   ? "Save"
-                  : "Create Group"}
+                  : "Create group"}
             </Button>
           </DialogFooter>
         </form>

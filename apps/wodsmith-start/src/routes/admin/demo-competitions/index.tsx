@@ -280,7 +280,7 @@ function DemoCompetitionsPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="competitionDate">Competition Date *</Label>
+                  <Label htmlFor="competitionDate">Competition date *</Label>
                   <Input
                     id="competitionDate"
                     type="date"
@@ -291,7 +291,7 @@ function DemoCompetitionsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="demoTime">Demo Start Time *</Label>
+                  <Label htmlFor="demoTime">Demo start time *</Label>
                   <Input
                     id="demoTime"
                     type="time"
@@ -351,7 +351,7 @@ function DemoCompetitionsPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Demo Competition</AlertDialogTitle>
+            <AlertDialogTitle>Delete demo competition</AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently delete "{deleteTarget?.name}" and all
               associated data including fake users, registrations, scores, and

@@ -455,14 +455,14 @@ export function OrganizerCompetitionEditForm({
           />
         )}
 
-        {/* Competition Date */}
+        {/* Competition date */}
         <FormField
           control={form.control}
           name="startDate"
           render={({ field }) => (
             <FormItem>
               <FormLabel>
-                {isMultiDay ? "Start Date" : "Competition Date"}
+                {isMultiDay ? "Start date" : "Competition date"}
               </FormLabel>
               <FormControl>
                 <Input type="date" {...field} />
@@ -672,7 +672,7 @@ export function OrganizerCompetitionEditForm({
 
         <div className="flex gap-4">
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Saving..." : "Save Changes"}
+            {isPending ? "Saving..." : "Save changes"}
           </Button>
           <Button
             type="button"

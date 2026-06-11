@@ -571,7 +571,7 @@ function QuestionFormDialog({
               name="type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Question Type</FormLabel>
+                  <FormLabel>Question type</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
@@ -597,10 +597,10 @@ function QuestionFormDialog({
               name="label"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Question Label</FormLabel>
+                  <FormLabel>Question label</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="e.g., What is your t-shirt size?"
+                      placeholder="e.g., What is your T-shirt size?"
                       {...field}
                     />
                   </FormControl>
@@ -864,7 +864,7 @@ export function RegistrationQuestionsEditor({
             </div>
             <Button onClick={handleAddNew} className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
-              Add Question
+              Add question
             </Button>
           </div>
         </CardHeader>
@@ -913,7 +913,7 @@ export function RegistrationQuestionsEditor({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Question</AlertDialogTitle>
+            <AlertDialogTitle>Delete question</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete "{deletingQuestion?.label}"? This
               will also delete all athlete answers to this question. This action

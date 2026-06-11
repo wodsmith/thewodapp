@@ -169,7 +169,7 @@ export function TransferRegistrationDialog({
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={!canSubmit}>
-            {isSubmitting ? "Sending..." : "Send Transfer"}
+            {isSubmitting ? "Sending..." : "Send transfer"}
           </Button>
         </DialogFooter>
       </DialogContent>

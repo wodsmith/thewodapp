@@ -812,7 +812,7 @@ function InPersonResultsEntry({
                   ) : (
                     <Eye className="h-4 w-4 mr-1.5" />
                   )}
-                  Publish Now
+                  Publish now
                 </Button>
               </div>
             </AlertDescription>

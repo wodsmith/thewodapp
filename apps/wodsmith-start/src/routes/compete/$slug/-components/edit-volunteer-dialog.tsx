@@ -89,7 +89,7 @@ export function EditVolunteerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Edit Volunteer Profile</DialogTitle>
+          <DialogTitle>Edit volunteer profile</DialogTitle>
           <DialogDescription>
             Update your availability and credentials for this competition.
           </DialogDescription>
@@ -196,7 +196,7 @@ export function EditVolunteerDialog({
                   Saving...
                 </>
               ) : (
-                "Save Changes"
+                "Save changes"
               )}
             </Button>
           </DialogFooter>

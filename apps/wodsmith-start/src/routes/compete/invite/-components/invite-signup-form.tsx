@@ -174,7 +174,7 @@ export function InviteSignUpForm({
             ) : (
               <>
                 <UserPlus className="mr-2 h-4 w-4" />
-                Create Account & Join Team
+                Create account & Join Team
               </>
             )}
           </Button>

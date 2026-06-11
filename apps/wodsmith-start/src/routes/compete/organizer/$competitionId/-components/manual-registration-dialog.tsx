@@ -260,7 +260,7 @@ export function ManualRegistrationDialog({
     >
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Registration</DialogTitle>
+          <DialogTitle>Add registration</DialogTitle>
           <DialogDescription>
             Manually register an athlete for this competition.
           </DialogDescription>

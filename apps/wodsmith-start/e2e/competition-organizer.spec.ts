@@ -17,7 +17,7 @@ test.describe('Competition Organizer', () => {
     await page.goto('/compete/organizer/new')
     await waitForHydration(page)
     await expect(
-      page.getByText('Create Competition', {exact: true}).first(),
+      page.getByText('Create competition', {exact: true}).first(),
     ).toBeVisible({timeout: 15000})
 
     // Fill form
@@ -54,10 +54,10 @@ test.describe('Competition Organizer', () => {
     const startDate = new Date()
     startDate.setDate(startDate.getDate() + 30)
     const dateStr = startDate.toISOString().slice(0, 10)
-    await page.getByLabel('Competition Date').fill(dateStr)
+    await page.getByLabel('Competition date').fill(dateStr)
 
     // Submit
-    await page.getByRole('button', {name: 'Create Competition'}).click()
+    await page.getByRole('button', {name: 'Create competition'}).click()
 
     // Wait for navigation back to organizer dashboard
     await page.waitForURL(/\/compete\/organizer/, {timeout: 15000})
@@ -81,7 +81,7 @@ test.describe('Competition Organizer', () => {
     await page.goto(`${compDetailPath}/divisions`)
     await waitForHydration(page)
 
-    // Set up divisions — click "Start Fresh" for default Open + Scaled
+    // Set up divisions — click "Start fresh" for default Open + Scaled
     const startFresh = page.getByRole('button', {name: /start fresh/i})
     const startFreshVisible = await startFresh.waitFor({state: 'visible', timeout: 5000}).then(() => true).catch(() => false)
     if (startFreshVisible) {

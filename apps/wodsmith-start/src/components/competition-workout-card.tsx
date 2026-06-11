@@ -103,7 +103,7 @@ function getCtaConfig(
 ) {
   if (!isRegistered) {
     return {
-      label: "View Details",
+      label: "View details",
       icon: ArrowRight,
       variant: "outline" as const,
       badge: null,
@@ -113,7 +113,7 @@ function getCtaConfig(
   if (!submissionStatus) {
     // Registered but no submission tracking (in-person comp)
     return {
-      label: "View Details",
+      label: "View details",
       icon: ArrowRight,
       variant: "outline" as const,
       badge: null,
@@ -124,7 +124,7 @@ function getCtaConfig(
 
   if (hasSubmitted && canSubmit) {
     return {
-      label: "Edit Submission",
+      label: "Edit submission",
       icon: Edit3,
       variant: "outline" as const,
       badge: {
@@ -137,7 +137,7 @@ function getCtaConfig(
 
   if (hasSubmitted && !canSubmit) {
     return {
-      label: "View Submission",
+      label: "View submission",
       icon: Eye,
       variant: "outline" as const,
       badge: {
@@ -150,7 +150,7 @@ function getCtaConfig(
 
   if (!hasSubmitted && canSubmit) {
     return {
-      label: "Submit Score",
+      label: "Submit score",
       icon: ClipboardCheck,
       variant: "default" as const,
       badge: null,

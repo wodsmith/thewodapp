@@ -851,11 +851,11 @@ export function HeatCard({
             </div>
           </CardHeader>
         </Card>
-        {/* Edit Heat Dialog for collapsed view */}
+        {/* Edit heat Dialog for collapsed view */}
         <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Edit Heat {heat.heatNumber}</DialogTitle>
+              <DialogTitle>Edit heat {heat.heatNumber}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
@@ -1005,7 +1005,7 @@ export function HeatCard({
             )}
           </div>
 
-          {/* Add Athlete Button */}
+          {/* Add athlete Button */}
           {availableLanes.length > 0 && unassignedRegistrations.length > 0 && (
             <Dialog open={isAssignOpen} onOpenChange={setIsAssignOpen}>
               <DialogTrigger asChild>
@@ -1086,11 +1086,11 @@ export function HeatCard({
             </Dialog>
           )}
 
-          {/* Edit Heat Dialog */}
+          {/* Edit heat Dialog */}
           <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Edit Heat {heat.heatNumber}</DialogTitle>
+                <DialogTitle>Edit heat {heat.heatNumber}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-2">

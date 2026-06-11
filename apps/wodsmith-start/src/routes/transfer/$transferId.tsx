@@ -146,7 +146,7 @@ function TransferAcceptPage() {
                   to="/compete/$slug"
                   params={{ slug: transfer.competition.slug }}
                 >
-                  View Competition
+                  View competition
                 </Link>
               </Button>
             )}
@@ -235,7 +235,7 @@ function TransferAcceptPage() {
               <Button asChild className="w-full" size="lg">
                 <Link to="/sign-in" search={{ redirect: redirectPath }}>
                   <LogIn className="mr-2 h-4 w-4" />
-                  Sign In to Accept
+                  Sign in to accept
                 </Link>
               </Button>
               <p className="text-xs text-muted-foreground">
@@ -694,7 +694,7 @@ function AcceptTransferForm({
           ? "Accepting Transfer..."
           : !canSubmit
             ? "Complete all required fields to accept"
-            : "Accept Transfer"}
+            : "Accept transfer"}
       </Button>
     </>
   )

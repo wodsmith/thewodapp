@@ -204,7 +204,7 @@ export function QuickActionsHeats({
                 params={{ slug: competitionSlug }}
               >
                 <ClipboardList className="mr-2 h-4 w-4" />
-                View Judges Schedule
+                View judges schedule
               </Link>
             </Button>
           </div>

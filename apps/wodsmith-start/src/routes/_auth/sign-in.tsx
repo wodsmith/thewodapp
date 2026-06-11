@@ -117,7 +117,7 @@ function SignInPage() {
     <div className="min-h-[90vh] flex flex-col items-center px-4 justify-center bg-background">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Sign In</CardTitle>
+          <CardTitle className="text-2xl">Sign in</CardTitle>
           <CardDescription>
             Or{" "}
             <Link
@@ -180,7 +180,7 @@ function SignInPage() {
               />
 
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Signing in..." : "Sign In"}
+                {isLoading ? "Signing in..." : "Sign in"}
               </Button>
             </form>
           </Form>

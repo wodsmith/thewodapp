@@ -271,11 +271,11 @@ export function CompetitionRow({
           {status === "registration-open" && !isAuthenticated && (
             <div className="flex gap-2 pt-2">
               <a href="/sign-in?redirect=/compete">
-                <Button size="sm">Sign In to Register</Button>
+                <Button size="sm">Sign in to register</Button>
               </a>
               <a href="/sign-up?redirect=/compete">
                 <Button size="sm" variant="outline">
-                  Create Account
+                  Create account
                 </Button>
               </a>
             </div>

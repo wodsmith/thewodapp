@@ -269,7 +269,7 @@ function GymSetupPage() {
         </Card>
       </div>
 
-      {/* Manage Locations */}
+      {/* Manage locations */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
@@ -279,7 +279,7 @@ function GymSetupPage() {
           <CardDescription>Manage your gym's class locations</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Add New Location */}
+          {/* Add new location */}
           <form
             onSubmit={locationForm.handleSubmit(handleAddLocation)}
             className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted rounded-lg"
@@ -315,7 +315,7 @@ function GymSetupPage() {
                 className="w-full"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Add Location
+                Add location
               </Button>
             </div>
           </form>

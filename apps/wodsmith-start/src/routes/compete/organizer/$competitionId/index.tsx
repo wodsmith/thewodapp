@@ -243,8 +243,8 @@ function CompetitionOverviewPage() {
             <div>
               <div className="text-sm font-medium text-muted-foreground">
                 {isSameUTCDay(competition.startDate, competition.endDate)
-                  ? "Competition Date"
-                  : "Competition Dates"}
+                  ? "Competition date"
+                  : "Competition dates"}
               </div>
               <div className="mt-1 text-sm">
                 {isSameUTCDay(competition.startDate, competition.endDate)
@@ -315,7 +315,7 @@ function CompetitionOverviewPage() {
               </p>
               <a href={`/compete/organizer/${competition.id}/edit`}>
                 <Button variant="outline" size="sm" className="mt-2">
-                  Configure Registration
+                  Configure registration
                 </Button>
               </a>
             </div>
@@ -338,7 +338,7 @@ function CompetitionOverviewPage() {
             >
               <Button variant="outline" size="sm">
                 <Users className="mr-2 h-4 w-4" />
-                View All
+                View all
               </Button>
             </Link>
           </CardHeader>

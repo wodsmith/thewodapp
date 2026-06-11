@@ -60,7 +60,7 @@ const getNavigation = (
     {
       label: "Series Setup",
       items: [
-        { label: "Edit Series", href: `${basePath}/edit`, icon: Pencil },
+        { label: "Edit series", href: `${basePath}/edit`, icon: Pencil },
         { label: "Divisions", href: `${basePath}/divisions`, icon: Layers },
         {
           label: "Registration Questions",
@@ -78,7 +78,7 @@ const getNavigation = (
           icon: Calendar,
         },
         {
-          label: "Publish Workouts",
+          label: "Publish workouts",
           href: `${basePath}/publish-workouts`,
           icon: Eye,
         },
@@ -213,11 +213,11 @@ function SidebarCollapseButton() {
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
-        tooltip={isCollapsed ? "Open Sidebar" : "Collapse Sidebar"}
+        tooltip={isCollapsed ? "Open sidebar" : "Collapse sidebar"}
         onClick={toggleSidebar}
       >
         <PanelLeft className="h-4 w-4" />
-        <span>{isCollapsed ? "Open Sidebar" : "Collapse Sidebar"}</span>
+        <span>{isCollapsed ? "Open sidebar" : "Collapse sidebar"}</span>
       </SidebarMenuButton>
     </SidebarMenuItem>
   )

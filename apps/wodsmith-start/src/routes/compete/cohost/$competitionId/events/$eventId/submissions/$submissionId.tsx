@@ -845,7 +845,7 @@ function VerificationControls({
                 disabled={isSubmitting || !adjustedScore.trim()}
                 onClick={handleAdjust}
               >
-                {isSubmitting ? "Saving..." : "Save Adjustment"}
+                {isSubmitting ? "Saving..." : "Save adjustment"}
               </Button>
               <Button
                 variant="ghost"
@@ -954,7 +954,7 @@ function AuditLogEntry({
   if (isEditing) {
     return (
       <div className="space-y-3 rounded-md border border-orange-200 p-3">
-        <p className="text-sm font-medium">Edit Penalty</p>
+        <p className="text-sm font-medium">Edit penalty</p>
         <div className="space-y-2">
           <Label className="text-xs">Penalty type</Label>
           <RadioGroup
@@ -1019,7 +1019,7 @@ function AuditLogEntry({
             disabled={isSaving}
             onClick={async () => { setIsSaving(true); await handleUpdate(); setIsSaving(false) }}
           >
-            {isSaving ? "Saving..." : "Save Changes"}
+            {isSaving ? "Saving..." : "Save changes"}
           </Button>
           <Button
             variant="ghost"
@@ -1210,7 +1210,7 @@ function ReviewNoteForm({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <MessageSquare className="h-4 w-4" />
-          Add Review Note
+          Add review note
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -1279,7 +1279,7 @@ function ReviewNoteForm({
             {typeof navigator !== "undefined" && navigator.platform?.includes("Mac") ? "\u2318" : "Ctrl"}+Enter to submit
           </span>
           <Button size="sm" disabled={isSubmitting || !content.trim()} onClick={handleSubmit}>
-            {isSubmitting ? "Adding..." : "Add Note"}
+            {isSubmitting ? "Adding..." : "Add note"}
           </Button>
         </div>
       </CardContent>

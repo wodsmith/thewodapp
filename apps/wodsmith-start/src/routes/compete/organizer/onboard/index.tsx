@@ -113,12 +113,12 @@ const features = [
 const steps = [
   {
     number: "1",
-    title: "Submit Application",
+    title: "Submit application",
     description: "Tell us about your team and the competitions you want to run",
   },
   {
     number: "2",
-    title: "Create Draft Competitions",
+    title: "Create draft competitions",
     description: "Start building your event immediately while we review",
   },
   {
@@ -487,7 +487,7 @@ function OrganizerRequestForm({ teams }: { teams: TeamInfo[] }) {
             Cancel
           </Button>
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Submitting..." : "Submit Application"}
+            {isPending ? "Submitting..." : "Submit application"}
           </Button>
         </div>
       </form>
@@ -503,8 +503,8 @@ function AuthSection() {
   return (
     <Tabs defaultValue="signin" className="w-full">
       <TabsList className="grid w-full grid-cols-2">
-        <TabsTrigger value="signin">Sign In</TabsTrigger>
-        <TabsTrigger value="signup">Create Account</TabsTrigger>
+        <TabsTrigger value="signin">Sign in</TabsTrigger>
+        <TabsTrigger value="signup">Create account</TabsTrigger>
       </TabsList>
       <TabsContent value="signin" className="mt-6">
         <SignInForm />
@@ -621,7 +621,7 @@ function SignInForm() {
           />
 
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Signing in..." : "Sign In"}
+            {isLoading ? "Signing in..." : "Sign in"}
           </Button>
         </form>
       </Form>
@@ -782,7 +782,7 @@ function SignUpForm() {
           />
 
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Creating account..." : "Create Account"}
+            {isLoading ? "Creating account..." : "Create account"}
           </Button>
         </form>
       </Form>

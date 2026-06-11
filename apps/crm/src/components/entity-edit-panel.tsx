@@ -124,7 +124,7 @@ export function CampaignEditPanel({
 
   return (
     <EditPanel
-      title="Edit Campaign"
+      title="Edit campaign"
       state={state}
       error={error}
       onSubmit={handleSubmit}
@@ -228,7 +228,7 @@ export function GymEditPanel({
 
   return (
     <EditPanel
-      title="Edit Gym"
+      title="Edit gym"
       state={state}
       error={error}
       onSubmit={handleSubmit}
@@ -337,7 +337,7 @@ export function ContactEditPanel({
 
   return (
     <EditPanel
-      title="Edit Contact"
+      title="Edit contact"
       state={state}
       error={error}
       onSubmit={handleSubmit}
@@ -432,7 +432,7 @@ export function InteractionEditPanel({
 
   return (
     <EditPanel
-      title="Edit Interaction"
+      title="Edit interaction"
       state={state}
       error={error}
       onSubmit={handleSubmit}
@@ -553,7 +553,7 @@ function EditPanel({
             className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
           >
             <Save className="h-4 w-4" aria-hidden="true" />
-            {state === "saving" ? "Saving…" : "Save Changes"}
+            {state === "saving" ? "Saving…" : "Save changes"}
           </button>
         </div>
       </form>

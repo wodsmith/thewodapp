@@ -430,14 +430,14 @@ export function SponsorManager({
             className="flex-1 sm:flex-initial"
           >
             <Plus className="mr-2 h-4 w-4" />
-            Add Group
+            Add group
           </Button>
           <Button
             onClick={() => setShowAddSponsorDialog(true)}
             className="flex-1 sm:flex-initial"
           >
             <Plus className="mr-2 h-4 w-4" />
-            Add Sponsor
+            Add sponsor
           </Button>
         </div>
       </div>
@@ -490,11 +490,11 @@ export function SponsorManager({
                 onClick={() => setShowAddGroupDialog(true)}
               >
                 <Plus className="mr-2 h-4 w-4" />
-                Create Group
+                Create group
               </Button>
               <Button onClick={() => setShowAddSponsorDialog(true)}>
                 <Plus className="mr-2 h-4 w-4" />
-                Add Sponsor
+                Add sponsor
               </Button>
             </div>
           </CardContent>

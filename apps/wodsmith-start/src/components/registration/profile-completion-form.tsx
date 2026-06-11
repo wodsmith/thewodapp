@@ -161,7 +161,7 @@ export function ProfileCompletionForm({
 
         <Button type="submit" disabled={isPending} className="w-full">
           {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-          Save Profile
+          Save profile
         </Button>
       </form>
     </Form>

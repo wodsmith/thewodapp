@@ -186,7 +186,7 @@ function CohostInvitePage() {
             <Button asChild className="w-full" size="lg">
               <Link to="/sign-in" search={{ redirect: redirectPath }}>
                 <LogIn className="mr-2 h-4 w-4" />
-                Sign In to Accept
+                Sign in to accept
               </Link>
             </Button>
           </CardContent>
@@ -301,7 +301,7 @@ function CohostInvitePage() {
               ? "Accepting..."
               : isSeries
                 ? `Accept for ${competitionCount} Competitions`
-                : "Accept Invitation"}
+                : "Accept invitation"}
           </Button>
 
           <Button asChild variant="outline" className="w-full">

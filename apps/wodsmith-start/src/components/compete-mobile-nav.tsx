@@ -179,7 +179,7 @@ export default function CompeteMobileNav({
                     >
                       <User className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                       <div className="flex flex-col">
-                        <span>Complete Your Profile</span>
+                        <span>Complete your profile</span>
                         <span className="text-muted-foreground text-sm">
                           {formatMissingFields(missingProfileFields)}
                         </span>
@@ -242,7 +242,7 @@ export default function CompeteMobileNav({
                 className="hover:text-primary"
                 onClick={handleLinkClick}
               >
-                Sign Up
+                Sign up
               </a>
               <DarkModeToggle />
             </>

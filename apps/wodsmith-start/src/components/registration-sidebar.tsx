@@ -229,8 +229,8 @@ export function RegistrationSidebar({
                     params={{ token: invite.token }}
                   >
                     {pendingTeamInvites.length > 1
-                      ? `Accept Team Invite ${index + 1}`
-                      : "Accept Team Invite"}
+                      ? `Accept team invite ${index + 1}`
+                      : "Accept team invite"}
                   </Link>
                 </Button>
               ))}
@@ -258,8 +258,8 @@ export function RegistrationSidebar({
                       params={{ slug: competition.slug, token: invite.token }}
                     >
                       {pendingCompetitionInvites.length > 1
-                        ? `Accept Invite ${index + 1}`
-                        : "Accept Invite"}
+                        ? `Accept invite ${index + 1}`
+                        : "Accept invite"}
                     </Link>
                   </Button>
                   <p className="text-xs text-muted-foreground text-center">
@@ -350,7 +350,7 @@ export function RegistrationSidebar({
                   to="/compete/$slug/register"
                   params={{ slug: competition.slug }}
                 >
-                  Register Now
+                  Register now
                 </Link>
               </Button>
             )}
@@ -375,7 +375,7 @@ export function RegistrationSidebar({
                 params={{ slug: competition.slug }}
               >
                 <HandHeart className="mr-2 h-4 w-4" />
-                Sign Up to Volunteer
+                Sign up to volunteer
               </Link>
             </Button>
           </CardContent>
@@ -523,9 +523,9 @@ export function RegistrationSidebar({
                             <Users className="mr-2 h-4 w-4" />
                             {isTeamRegistration
                               ? isCaptain
-                                ? "Manage Team"
-                                : "View Team"
-                              : "View Registration"}
+                                ? "Manage team"
+                                : "View team"
+                              : "View registration"}
                           </a>
                         </Button>
                       )}
