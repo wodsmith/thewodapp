@@ -202,12 +202,15 @@ export function CompetitionHeader({
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-2">
         {showOrganizerActions && (
-          <a href={`/compete/organizer/${competition.id}/edit`}>
+          <Link
+            to="/compete/organizer/$competitionId/edit"
+            params={{ competitionId: competition.id }}
+          >
             <Button variant="outline" size="sm">
               <Pencil className="mr-2 h-4 w-4" />
               Edit
             </Button>
-          </a>
+          </Link>
         )}
         <Link to="/compete/$slug" params={{ slug: competition.slug }}>
           <Button variant="outline" size="sm">

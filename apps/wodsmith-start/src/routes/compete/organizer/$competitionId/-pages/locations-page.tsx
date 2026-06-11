@@ -32,15 +32,8 @@ export function LocationsPage({
 }: LocationsPageProps) {
   const router = useRouter()
 
-  const handleVenueCreate = async () => {
-    await router.invalidate()
-  }
-
-  const handleVenueUpdate = async () => {
-    await router.invalidate()
-  }
-
-  const handleVenueDelete = async () => {
+  // Refresh loader data after any venue mutation
+  const handleVenueChange = async () => {
     await router.invalidate()
   }
 
@@ -61,9 +54,9 @@ export function LocationsPage({
         venues={venues}
         primaryAddressId={primaryAddressId}
         primaryAddress={primaryAddress}
-        onVenueCreate={handleVenueCreate}
-        onVenueUpdate={handleVenueUpdate}
-        onVenueDelete={handleVenueDelete}
+        onVenueCreate={handleVenueChange}
+        onVenueUpdate={handleVenueChange}
+        onVenueDelete={handleVenueChange}
         overrides={overrides}
       />
     </div>

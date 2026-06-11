@@ -29,7 +29,10 @@ import {
 } from "@/lib/scoring"
 import { getSessionFromCookie } from "@/utils/auth"
 import { autochunk } from "@/utils/batch-query"
-import { requireCohostCompetitionOwnership, requireCohostPermission } from "@/utils/cohost-auth"
+import {
+  requireCohostCompetitionOwnership,
+  requireCohostPermission,
+} from "@/utils/cohost-auth"
 
 // ============================================================================
 // Input Schemas
@@ -81,7 +84,10 @@ export const cohostGetOrganizerSubmissionsFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "results")
-    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      data.competitionId,
+    )
     const db = getDb()
 
     // Get all video submissions for this event with athlete and registration info
@@ -93,6 +99,7 @@ export const cohostGetOrganizerSubmissionsFn = createServerFn({
         submittedAt: videoSubmissionsTable.submittedAt,
         reviewedAt: videoSubmissionsTable.reviewedAt,
         registrationId: videoSubmissionsTable.registrationId,
+        videoIndex: videoSubmissionsTable.videoIndex,
         userId: videoSubmissionsTable.userId,
         athleteFirstName: userTable.firstName,
         athleteLastName: userTable.lastName,
@@ -100,6 +107,7 @@ export const cohostGetOrganizerSubmissionsFn = createServerFn({
         athleteAvatar: userTable.avatar,
         divisionId: competitionRegistrationsTable.divisionId,
         divisionLabel: scalingLevelsTable.label,
+        divisionTeamSize: scalingLevelsTable.teamSize,
         teamName: competitionRegistrationsTable.teamName,
       })
       .from(videoSubmissionsTable)
@@ -195,6 +203,7 @@ export const cohostGetOrganizerSubmissionsFn = createServerFn({
         notes: submission.notes,
         submittedAt: submission.submittedAt,
         registrationId: submission.registrationId,
+        videoIndex: submission.videoIndex,
         athlete: {
           id: submission.userId,
           firstName: submission.athleteFirstName,
@@ -206,6 +215,7 @@ export const cohostGetOrganizerSubmissionsFn = createServerFn({
           ? {
               id: submission.divisionId,
               label: submission.divisionLabel,
+              teamSize: submission.divisionTeamSize ?? 1,
             }
           : null,
         teamName: submission.teamName,
@@ -259,7 +269,10 @@ export const cohostGetSubmissionDetailFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "results")
-    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      data.competitionId,
+    )
     const db = getDb()
 
     // Verify the event belongs to this competition
@@ -512,7 +525,10 @@ export const cohostVerifySubmissionScoreFn = createServerFn({
       data,
     }): Promise<{ success: boolean; verificationStatus: string }> => {
       await requireCohostPermission(data.competitionTeamId, "results")
-      await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+      await requireCohostCompetitionOwnership(
+        data.competitionTeamId,
+        data.competitionId,
+      )
 
       const session = await getSessionFromCookie()
       if (!session?.userId) {
@@ -864,7 +880,10 @@ export const cohostGetEventSubmissionsFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "results")
-    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      data.competitionId,
+    )
     const db = getDb()
 
     // Verify the event belongs to this competition
@@ -921,16 +940,14 @@ export const cohostGetEventSubmissionsFn = createServerFn({ method: "GET" })
       .filter((id): id is string => id !== null)
     const divisions =
       divisionIds.length > 0
-        ? await autochunk(
-            { items: [...new Set(divisionIds)] },
-            async (chunk) =>
-              db
-                .select({
-                  id: scalingLevelsTable.id,
-                  label: scalingLevelsTable.label,
-                })
-                .from(scalingLevelsTable)
-                .where(inArray(scalingLevelsTable.id, chunk)),
+        ? await autochunk({ items: [...new Set(divisionIds)] }, async (chunk) =>
+            db
+              .select({
+                id: scalingLevelsTable.id,
+                label: scalingLevelsTable.label,
+              })
+              .from(scalingLevelsTable)
+              .where(inArray(scalingLevelsTable.id, chunk)),
           )
         : []
     const divisionMap = new Map(divisions.map((d) => [d.id, d]))
@@ -1019,7 +1036,10 @@ export const cohostGetVerificationLogsFn = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "results")
-    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      data.competitionId,
+    )
     const db = getDb()
 
     const logs = await db
@@ -1111,7 +1131,10 @@ export const cohostDeleteVerificationLogFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }): Promise<{ success: boolean }> => {
     await requireCohostPermission(data.competitionTeamId, "results")
-    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      data.competitionId,
+    )
 
     const session = await getSessionFromCookie()
     if (!session?.userId) {
@@ -1161,7 +1184,10 @@ export const cohostUpdateVerificationLogFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }): Promise<{ success: boolean }> => {
     await requireCohostPermission(data.competitionTeamId, "results")
-    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      data.competitionId,
+    )
 
     const session = await getSessionFromCookie()
     if (!session?.userId) {
@@ -1308,7 +1334,10 @@ export const cohostMarkSubmissionReviewedFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "results")
-    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      data.competitionId,
+    )
 
     const session = await getSessionFromCookie()
     if (!session?.userId) {
@@ -1347,7 +1376,10 @@ export const cohostUnmarkSubmissionReviewedFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "results")
-    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      data.competitionId,
+    )
 
     const session = await getSessionFromCookie()
     if (!session?.userId) {
@@ -1391,7 +1423,10 @@ export const cohostGetOrganizerSubmissionDetailFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "results")
-    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      data.competitionId,
+    )
     const db = getDb()
 
     const [submission] = await db
