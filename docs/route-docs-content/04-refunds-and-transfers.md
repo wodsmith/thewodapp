@@ -2,7 +2,7 @@
 title: How to refund, transfer, or remove a registration
 type: markdown
 routes:
-  - /compete/organizer/$competitionId/athletes
+  - /compete/organizer/$competitionId/athletes/
 sortOrder: 0
 ---
 
@@ -10,15 +10,17 @@ All three actions live in the row's actions menu (⋯), or on the athlete's deta
 
 **Refund a registration:**
 
-1. Open the actions menu → Refund. Partial refunds are supported.
+1. Open the actions menu → Refund. Partial refunds are supported; the row shows a "Refunded" or "Partially refunded" badge afterwards.
 2. The refund is paid from **your connected Stripe account**.
+
+If you don't see a Refund option, your team uses a Standard Stripe account — issue refunds from your own Stripe dashboard instead.
 
 > **Money note:** the WODsmith platform fee is not returned on refunds — your net revenue decreases by the refunded amount. The Revenue page shows a Refunds line and per-division refund column so totals reconcile.
 
 **Move an athlete to a different division:**
 
 1. Actions menu → Change Division.
-2. Pick the new division. Their scores and submissions follow the rules of the new division.
+2. Only divisions with the **same team size** are offered (solo ↔ team moves are blocked). Heat assignments are cleared on transfer — re-assign them on the Schedule page. Capacity is not enforced for organizer transfers; that's your call.
 
 **Transfer a registration to a different person:**
 

@@ -66,7 +66,7 @@ The drawer carries **how-to guides** (short, task-shaped — the user is mid-tas
 
 ### Phase 0 — day one (~half a day of CMS data entry, zero writing)
 
-> Review-ready content for Phase 0's orientation doc and every Phase 1 how-to lives in `docs/route-docs-content/` — one file per CMS entry, frontmatter matching the CMS fields, plus the link-doc manifest in its README.
+> Review-ready content for Phase 0's orientation doc, every Phase 1 how-to, and Phase 2's markdown checklists lives in `docs/route-docs-content/` — one file per CMS entry, frontmatter matching the CMS fields, plus the link-doc manifest in its README. Route IDs there are verified against `routeTree.gen.ts` (index routes carry a trailing slash; pathless segments like `_dashboard` appear in IDs).
 
 1. **One layout-level orientation doc** mapped to `/compete/organizer/$competitionId` ("Dashboard overview: setup → run → business"). Via inheritance this puts the Docs button on *every* organizer page immediately — which also makes drawer-open events a per-page **demand signal** in PostHog. The button only renders when docs exist, so without a universal doc there is no way to measure where help is wanted.
 2. **Link-type docs reusing existing Docusaurus pages:**
@@ -74,10 +74,10 @@ The drawer carries **how-to guides** (short, task-shaped — the user is mid-tas
 | Docusaurus page | Map to route ID(s) |
 |---|---|
 | `how-to/organizers/schedule-heats` | `/compete/organizer/$competitionId/schedule` |
-| `how-to/organizers/manage-registrations`, `registration-questions` | `/compete/organizer/$competitionId/athletes` |
+| `how-to/organizers/manage-registrations`, `registration-questions` | `/compete/organizer/$competitionId/athletes/` |
 | `how-to/organizers/edit-competition` | `/compete/organizer/$competitionId/edit` |
 | `how-to/organizers/send-broadcasts`, `reference/broadcasts` | `/compete/organizer/$competitionId/broadcasts` |
-| `how-to/organizers/multi-workout-events` | `/compete/organizer/$competitionId/events` |
+| `how-to/organizers/multi-workout-events` | `/compete/organizer/$competitionId/events/` |
 | `how-to/organizers/event-day` | `/compete/organizer/$competitionId/check-in` |
 | `concepts/scoring-system`, `reference/scoring` | `/compete/organizer/$competitionId/scoring`, `/results` |
 | `concepts/division-system`, `reference/divisions` | `/compete/organizer/$competitionId/divisions`, `/event-divisions` |
@@ -91,10 +91,10 @@ The drawer carries **how-to guides** (short, task-shaped — the user is mid-tas
 | 1 | "Publish division results" — incl. the online-hidden vs in-person-visible defaults | `/compete/organizer/$competitionId/results` | The publish-gate asymmetry is a guaranteed support generator |
 | 2 | "How event–division mappings work" — no-mappings/partial-mapping semantics, sub-event inheritance | `/compete/organizer/$competitionId/event-divisions` | Most confusing semantics in the product |
 | 3 | "Review a video submission: verify, adjust, penalize, mark invalid" | `/compete/organizer/$competitionId/events/$eventId/submissions` (layout — inherits to detail page) | Very high complexity, online-comp critical |
-| 4 | "Refunds and transfers" — refund reduces organizer net; platform fee isn't returned | `/compete/organizer/$competitionId/athletes` | Money path; financially sensitive |
+| 4 | "Refunds and transfers" — refund reduces organizer net; platform fee isn't returned | `/compete/organizer/$competitionId/athletes/` | Money path; financially sensitive |
 | 5 | "Editing a registration" — placeholder vs claimed athletes, roster slots | `/compete/organizer/$competitionId/athletes/$registrationId` | Dense page, high traffic |
 | 6 | "Connect Stripe and understand the fee breakdown" | `/compete/organizer/$competitionId/pricing` | Activation stall point |
-| 7 | "Group multi-part events under a parent" — heat/99-event constraints, publish cascade | `/compete/organizer/$competitionId/events` | Non-obvious constraints |
+| 7 | "Group multi-part events under a parent" — heat/99-event constraints, publish cascade | `/compete/organizer/$competitionId/events/` | Non-obvious constraints |
 | 8 | "Preview vs public leaderboard" — what the bypass shows | `/compete/organizer/$competitionId/leaderboard-preview` | Prevents "athletes can see my drafts?" panic |
 
 ### Phase 2 — weeks 3–4: Q2 quick wins + Q3 videos

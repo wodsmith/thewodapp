@@ -2,7 +2,7 @@
 title: How to group multi-part events under one parent
 type: markdown
 routes:
-  - /compete/organizer/$competitionId/events
+  - /compete/organizer/$competitionId/events/
 sortOrder: 0
 ---
 
