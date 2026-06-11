@@ -66,6 +66,8 @@ The drawer carries **how-to guides** (short, task-shaped — the user is mid-tas
 
 ### Phase 0 — day one (~half a day of CMS data entry, zero writing)
 
+> Review-ready content for Phase 0's orientation doc and every Phase 1 how-to lives in `docs/route-docs-content/` — one file per CMS entry, frontmatter matching the CMS fields, plus the link-doc manifest in its README.
+
 1. **One layout-level orientation doc** mapped to `/compete/organizer/$competitionId` ("Dashboard overview: setup → run → business"). Via inheritance this puts the Docs button on *every* organizer page immediately — which also makes drawer-open events a per-page **demand signal** in PostHog. The button only renders when docs exist, so without a universal doc there is no way to measure where help is wanted.
 2. **Link-type docs reusing existing Docusaurus pages:**
 
