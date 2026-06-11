@@ -49,7 +49,9 @@ const docFieldsSchema = z.object({
   sortOrder: z.number().int().min(0).max(10_000).default(1),
   routeIds: z
     .array(z.string().min(1).max(255))
-    .max(100, "Too many routes selected"),
+    .max(100, "Too many routes selected")
+    // Dedupe so repeated ids can't trip the (docId, routeId) unique index
+    .transform((ids) => Array.from(new Set(ids))),
 })
 
 const createDocInputSchema = docFieldsSchema
@@ -281,28 +283,31 @@ export const updateRouteDocFn = createServerFn({ method: "POST" })
     validateDocContent(data)
 
     const db = getDb()
-    const existing = await db.query.routeDocsTable.findFirst({
-      where: eq(routeDocsTable.id, data.docId),
-      with: {
-        versions: {
-          orderBy: [desc(routeDocVersionsTable.version)],
-          limit: 1,
-        },
-      },
-    })
-
-    if (!existing) {
-      throw new AppError("NOT_FOUND", "Documentation entry not found")
-    }
-
-    const shouldSnapshot = hasContentChanges(existing, data)
-    const nextVersion = (existing.versions[0]?.version ?? 0) + 1
-
     await db.transaction(async (tx) => {
-      if (shouldSnapshot) {
+      // Lock the doc row so concurrent edits serialize — the snapshot and
+      // its version number are computed under the lock, preventing races
+      // on the (docId, version) unique index.
+      const [existing] = await tx
+        .select()
+        .from(routeDocsTable)
+        .where(eq(routeDocsTable.id, data.docId))
+        .for("update")
+
+      if (!existing) {
+        throw new AppError("NOT_FOUND", "Documentation entry not found")
+      }
+
+      if (hasContentChanges(existing, data)) {
+        const [latest] = await tx
+          .select({ version: routeDocVersionsTable.version })
+          .from(routeDocVersionsTable)
+          .where(eq(routeDocVersionsTable.docId, data.docId))
+          .orderBy(desc(routeDocVersionsTable.version))
+          .limit(1)
+
         await tx.insert(routeDocVersionsTable).values({
           docId: existing.id,
-          version: nextVersion,
+          version: (latest?.version ?? 0) + 1,
           title: existing.title,
           description: existing.description,
           type: existing.type,
@@ -354,30 +359,43 @@ export const restoreRouteDocVersionFn = createServerFn({ method: "POST" })
     await requireAdmin()
 
     const db = getDb()
-    const existing = await db.query.routeDocsTable.findFirst({
-      where: eq(routeDocsTable.id, data.docId),
-      with: {
-        versions: {
-          orderBy: [desc(routeDocVersionsTable.version)],
-        },
-      },
-    })
-
-    if (!existing) {
-      throw new AppError("NOT_FOUND", "Documentation entry not found")
-    }
-
-    const version = existing.versions.find((v) => v.id === data.versionId)
-    if (!version) {
-      throw new AppError("NOT_FOUND", "Version not found")
-    }
-
-    const nextVersion = (existing.versions[0]?.version ?? 0) + 1
-
     await db.transaction(async (tx) => {
+      // Lock the doc row so the restore snapshot's version number can't
+      // race a concurrent edit on the (docId, version) unique index.
+      const [existing] = await tx
+        .select()
+        .from(routeDocsTable)
+        .where(eq(routeDocsTable.id, data.docId))
+        .for("update")
+
+      if (!existing) {
+        throw new AppError("NOT_FOUND", "Documentation entry not found")
+      }
+
+      const [version] = await tx
+        .select()
+        .from(routeDocVersionsTable)
+        .where(
+          and(
+            eq(routeDocVersionsTable.docId, data.docId),
+            eq(routeDocVersionsTable.id, data.versionId),
+          ),
+        )
+        .limit(1)
+      if (!version) {
+        throw new AppError("NOT_FOUND", "Version not found")
+      }
+
+      const [latest] = await tx
+        .select({ version: routeDocVersionsTable.version })
+        .from(routeDocVersionsTable)
+        .where(eq(routeDocVersionsTable.docId, data.docId))
+        .orderBy(desc(routeDocVersionsTable.version))
+        .limit(1)
+
       await tx.insert(routeDocVersionsTable).values({
         docId: existing.id,
-        version: nextVersion,
+        version: (latest?.version ?? 0) + 1,
         title: existing.title,
         description: existing.description,
         type: existing.type,

@@ -2,7 +2,7 @@
  * Admin Documentation CMS — create page
  */
 
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { useState } from "react"
 import { toast } from "sonner"
@@ -51,13 +51,13 @@ function NewDocPage() {
     <div className="max-w-4xl">
       {/* Breadcrumb */}
       <nav className="flex items-center space-x-2 text-sm text-muted-foreground mb-6">
-        <a href="/admin" className="hover:text-foreground">
+        <Link to="/admin" className="hover:text-foreground">
           Admin
-        </a>
+        </Link>
         <span>/</span>
-        <a href="/admin/docs" className="hover:text-foreground">
+        <Link to="/admin/docs" className="hover:text-foreground">
           Documentation
-        </a>
+        </Link>
         <span>/</span>
         <span className="text-foreground">New</span>
       </nav>
