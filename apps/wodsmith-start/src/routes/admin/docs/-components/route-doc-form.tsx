@@ -51,8 +51,8 @@ import { ORGANIZER_ROUTE_PREFIX } from "@/utils/route-docs"
 
 function isValidUrl(value: string): boolean {
   try {
-    new URL(value)
-    return true
+    const parsed = new URL(value)
+    return parsed.protocol === "http:" || parsed.protocol === "https:"
   } catch {
     return false
   }
