@@ -13,6 +13,7 @@ import {
   BarChart3,
   Calculator,
   Calendar,
+  ClipboardCheck,
   ClipboardSignature,
   Clock,
   DollarSign,
@@ -121,6 +122,17 @@ const getNavigation = (
                 label: "Schedule",
                 href: `${basePath}/schedule`,
                 icon: Calendar,
+              },
+            ]
+          : []),
+        // Check-in landing page only for in-person competitions; it explains
+        // the flow and opens the volunteer-facing kiosk in a new tab.
+        ...(competitionType !== "online"
+          ? [
+              {
+                label: "Check-in",
+                href: `${basePath}/check-in`,
+                icon: ClipboardCheck,
               },
             ]
           : []),

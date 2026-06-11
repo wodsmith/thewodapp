@@ -1,5 +1,5 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router"
-import { ArrowLeft, ClipboardList } from "lucide-react"
+import { ArrowLeft, ClipboardCheck, ClipboardList } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { canInputScoresFn } from "@/server-fns/volunteer-fns"
 import {
@@ -29,6 +29,13 @@ export const Route = createFileRoute("/compete/$slug/my-schedule")({
       throw new Error("Competition not found")
     }
 
+    // Volunteers and organizers can run the day-of check-in kiosk for
+    // in-person competitions — surface it from their dashboard.
+    const canRunCheckIn =
+      competition.competitionType !== "online" &&
+      ((parentMatch.loaderData?.canManage ?? false) ||
+        (parentMatch.loaderData?.isVolunteer ?? false))
+
     // Check if competition has team
     if (!competition.competitionTeamId) {
       return {
@@ -39,6 +46,7 @@ export const Route = createFileRoute("/compete/$slug/my-schedule")({
         volunteerMetadata: null,
         hasTeam: false,
         hasScoreAccess: false,
+        canRunCheckIn,
       }
     }
 
@@ -59,6 +67,7 @@ export const Route = createFileRoute("/compete/$slug/my-schedule")({
         volunteerMetadata: null,
         hasTeam: true,
         hasScoreAccess: false,
+        canRunCheckIn,
       }
     }
 
@@ -86,6 +95,7 @@ export const Route = createFileRoute("/compete/$slug/my-schedule")({
       volunteerMetadata,
       hasTeam: true,
       hasScoreAccess,
+      canRunCheckIn,
     }
   },
   component: MySchedulePage,
@@ -117,6 +127,7 @@ function MySchedulePage() {
     volunteerMetadata,
     hasTeam,
     hasScoreAccess,
+    canRunCheckIn,
   } = Route.useLoaderData()
   const { slug } = Route.useParams()
 
@@ -131,21 +142,31 @@ function MySchedulePage() {
             </Link>
           </Button>
 
-          {hasScoreAccess && (
-            <Button asChild>
-              {competition.competitionType === "online" ? (
-                <Link to="/compete/$slug/review" params={{ slug }}>
-                  <ClipboardList className="mr-2 h-4 w-4" />
-                  Review Submissions
+          <div className="flex items-center gap-2">
+            {canRunCheckIn && (
+              <Button variant="outline" asChild>
+                <Link to="/compete/$slug/check-in" params={{ slug }}>
+                  <ClipboardCheck className="mr-2 h-4 w-4" />
+                  Check-In
                 </Link>
-              ) : (
-                <Link to="/compete/$slug/scores" params={{ slug }}>
-                  <ClipboardList className="mr-2 h-4 w-4" />
-                  Enter Scores
-                </Link>
-              )}
-            </Button>
-          )}
+              </Button>
+            )}
+            {hasScoreAccess && (
+              <Button asChild>
+                {competition.competitionType === "online" ? (
+                  <Link to="/compete/$slug/review" params={{ slug }}>
+                    <ClipboardList className="mr-2 h-4 w-4" />
+                    Review Submissions
+                  </Link>
+                ) : (
+                  <Link to="/compete/$slug/scores" params={{ slug }}>
+                    <ClipboardList className="mr-2 h-4 w-4" />
+                    Enter Scores
+                  </Link>
+                )}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 

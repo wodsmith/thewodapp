@@ -556,6 +556,9 @@ function AthletesPage() {
     teamName: string | null
     registeredAt: Date | string | null
     joinedAt: Date | null
+    // Per-team check-in timestamp (same value for all athletes in the same registration).
+    // Only displayed on the captain row to avoid visual noise.
+    checkedInAt: Date | string | null
   }
 
   const athleteRows: AthleteRow[] = []
@@ -662,6 +665,7 @@ function AthletesPage() {
         teamName: isTeamDivision ? registration.teamName : null,
         registeredAt: member.isCaptain ? registration.registeredAt : null,
         joinedAt: member.joinedAt,
+        checkedInAt: member.isCaptain ? registration.checkedInAt : null,
       })
     })
 
@@ -699,6 +703,7 @@ function AthletesPage() {
           teamName: registration.teamName,
           registeredAt: null,
           joinedAt: null,
+          checkedInAt: null,
         })
       })
     }
@@ -825,6 +830,9 @@ function AthletesPage() {
       "Registered",
       "Joined",
     ]
+    if (competition.competitionType === "in-person") {
+      headers.push("Checked In")
+    }
     questions.forEach((q) => headers.push(q.label))
     waivers.forEach((w) => headers.push(`${w.title} (Signed)`))
 
@@ -853,6 +861,9 @@ function AthletesPage() {
         row.registeredAt ? formatDate(row.registeredAt) : "",
         row.joinedAt ? formatDate(row.joinedAt) : "",
       ]
+      if (competition.competitionType === "in-person") {
+        csvRow.push(row.checkedInAt ? formatDate(row.checkedInAt) : "")
+      }
 
       // Add answer columns - check pending answers for pending/accepted invites
       if (row.status !== "registered" && row.pendingInvite) {
@@ -1638,6 +1649,25 @@ function AthletesPage() {
                                   </span>
                                 </>
                               )}
+                              {competition.competitionType === "in-person" &&
+                                row.isCaptain && (
+                                  <>
+                                    <span className="text-muted-foreground">
+                                      Checked In
+                                    </span>
+                                    <span
+                                      className={
+                                        row.checkedInAt
+                                          ? "text-green-600"
+                                          : "text-muted-foreground"
+                                      }
+                                    >
+                                      {row.checkedInAt
+                                        ? formatDate(row.checkedInAt)
+                                        : "Not checked in"}
+                                    </span>
+                                  </>
+                                )}
                               {row.joinedAt && (
                                 <>
                                   <span className="text-muted-foreground">
@@ -1744,6 +1774,9 @@ function AthletesPage() {
                                 <SortIcon column="registeredAt" />
                               </button>
                             </TableHead>
+                            {competition.competitionType === "in-person" && (
+                              <TableHead>Checked In</TableHead>
+                            )}
                             <TableHead>
                               <button
                                 type="button"
@@ -2030,6 +2063,20 @@ function AthletesPage() {
                                     ? formatDate(row.registeredAt)
                                     : null}
                                 </TableCell>
+                                {competition.competitionType ===
+                                  "in-person" && (
+                                  <TableCell className="text-sm">
+                                    {row.checkedInAt ? (
+                                      <span className="text-green-600">
+                                        {formatDate(row.checkedInAt)}
+                                      </span>
+                                    ) : row.isCaptain ? (
+                                      <span className="text-muted-foreground">
+                                        Not checked in
+                                      </span>
+                                    ) : null}
+                                  </TableCell>
+                                )}
                                 <TableCell className="text-muted-foreground text-sm">
                                   {row.joinedAt
                                     ? formatDate(row.joinedAt)

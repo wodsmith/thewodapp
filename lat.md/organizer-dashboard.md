@@ -16,6 +16,8 @@ The index page shows at-a-glance competition stats and quick action cards for co
 
 Parallel-fetches registrations, revenue stats, events, heats, division results status, and submission windows (online-only). Displays quick-action components for events, heats, submission windows, and division results that guide organizers through setup steps.
 
+For in-person competitions, the Registrations stat card exposes a `Go to Check-In` button that opens the volunteer-facing kiosk (`/compete/{slug}/check-in`) in a new tab — the same pattern used by the sidebar's [[organizer-dashboard#Check-In Kiosk]] link, so organizers can launch the kiosk from the dashboard's main view without losing their place. The button is hidden for online competitions.
+
 ## Competition Editing
 
 The edit page allows organizers to modify competition name, dates, description, registration window, timezone, and series group.
@@ -80,6 +82,7 @@ Uses `getOrganizerRegistrationsFn` for the full registration list with detailed 
 - Registration questions editor (custom questions athletes answer during signup)
 - Pending teammate invitations tab for team divisions
 - Per-athlete deep link to the [[organizer-dashboard#Registrations (Athletes)#Athlete Detail Page]] via the "View Details" item in the row's captain-scoped actions dropdown (the athlete name itself is plain text — not a link — to keep the row visually calm)
+- For in-person competitions only, a "Checked In" column shows the `checkedInAt` timestamp on the captain's row (see [[registration#Day-of Check-In]]). The CSV export and mobile card view include the same column under the same gate.
 
 ### Athlete Detail Page
 
@@ -129,6 +132,12 @@ Publish state lives in `competitionsTable.settings.divisionResults[trackWorkoutI
 2. Video visibility: the `isEventDivisionPublished` helper returns `false` for unpublished pairs so their videos don't leak.
 
 Defaults: when `divisionResults` is absent entirely, online competitions treat everything as hidden (opt-in publishing) while in-person competitions show everything (backwards compat for gyms that never opted into the gate). Organizers can bulk-publish all divisions for an event from `QuickActionsDivisionResults`.
+
+## Check-In Kiosk
+
+For in-person competitions only, the "Run Competition" sidebar exposes a "Check-in" link to an organizer landing page that explains the flow and opens the volunteer-facing kiosk in a new tab.
+
+The sidebar link ([[apps/wodsmith-start/src/components/competition-sidebar.tsx]]) is a normal internal `<Link>` to `/compete/organizer/{competitionId}/check-in`. That landing page ([[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/check-in.tsx]]) renders an [[apps/wodsmith-start/src/components/organizer/empty-state.tsx#OrganizerEmptyState]] describing how day-of check-in works (one tap checks in the whole team, athletes sign missing waivers on the device, volunteers can run the kiosk from their own accounts) with an "Open check-in kiosk" action that `window.open`s `/compete/{slug}/check-in` in a new tab so organizers keep their dashboard. The overview's Registrations card "Go to Check-In" button points at the same landing page. Online competitions hide the sidebar link, and the landing route's loader redirects them back to the organizer overview. Instructions live only on this organizer page — the public kiosk route stays instruction-free for volunteers. Permission gating (`MANAGE_COMPETITIONS` or volunteer role on the competition team) lives on the kiosk route's loader and on every check-in server function. See [[registration#Day-of Check-In]] for the kiosk's behavior and data model.
 
 ## Leaderboard Preview
 

@@ -67,6 +67,7 @@ export const Route = createFileRoute("/compete/organizer/$competitionId")({
 // Map route paths to breadcrumb labels
 // Note: "results" label is handled dynamically based on competition type
 const routeLabels: Record<string, string> = {
+  "check-in": "Check-in",
   divisions: "Divisions",
   athletes: "Registrations",
   invites: "Invites",

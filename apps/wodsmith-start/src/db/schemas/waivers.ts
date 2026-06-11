@@ -8,6 +8,7 @@ import {
   int,
   mysqlTable,
   text,
+  uniqueIndex,
   varchar,
 } from "drizzle-orm/mysql-core"
 import { commonColumns } from "./common"
@@ -84,8 +85,11 @@ export const waiverSignaturesTable = mysqlTable(
     index("waiver_signatures_waiver_idx").on(table.waiverId),
     index("waiver_signatures_user_idx").on(table.userId),
     index("waiver_signatures_registration_idx").on(table.registrationId),
-    // Composite index to quickly check if a user has signed a specific waiver
-    index("waiver_signatures_waiver_user_idx").on(table.waiverId, table.userId),
+    // One signature per (waiver, user) — enforces idempotency at the DB level.
+    uniqueIndex("waiver_signatures_waiver_user_unique").on(
+      table.waiverId,
+      table.userId,
+    ),
   ],
 )
 
