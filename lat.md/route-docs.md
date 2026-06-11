@@ -40,6 +40,8 @@ Site admins manage docs at `/admin/docs` (list, create, edit). All CRUD server f
 
 The edit form's route picker is populated at runtime from `router.routesById` filtered to the `/compete/organizer` prefix, so it always matches the deployed route tree with no hand-maintained list. Mappings whose route id no longer exists in the tree are highlighted as stale so admins can remove them after route renames.
 
+Dev environments get starter content from the `22-route-docs` seeder: a markdown setup guide on the competition layout plus link docs pointing at docs.wodsmith.com organizer guides for key pages.
+
 ## Video storage
 
 Documentation videos upload to R2 through the existing `/api/upload` route using the `docs-video` purpose (MP4/WebM/MOV, 100MB max, stored under `docs/videos/`).
