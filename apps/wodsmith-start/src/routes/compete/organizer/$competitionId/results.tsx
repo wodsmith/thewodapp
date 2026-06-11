@@ -173,9 +173,18 @@ export const Route = createFileRoute(
             },
           })
           return {
-            childScoreDataList: childEvents
-              .map((child) => batch[child.id])
-              .filter((d): d is ScoreEntryDataWithHeats => Boolean(d)),
+            // A missing entry means the child event no longer exists in the
+            // DB — fail loudly like the per-child fetch used to ("Event not
+            // found") instead of rendering an incomplete entry grid.
+            childScoreDataList: childEvents.map((child) => {
+              const childData = batch[child.id]
+              if (!childData) {
+                throw new Error(
+                  `Missing score entry data for child event ${child.id}`,
+                )
+              }
+              return childData
+            }),
             scoreEntryData: null,
           }
         }

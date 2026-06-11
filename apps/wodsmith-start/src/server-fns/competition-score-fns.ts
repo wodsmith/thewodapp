@@ -1069,20 +1069,27 @@ export const getEventScoreEntryDataWithHeatsBatchFn = createServerFn({
       const sortedDivisions = divisions.sort((a, b) => a.position - b.position)
 
       const scoresByEvent = new Map<string, typeof existingScores>()
+      const eventIdByScoreId = new Map<string, string>()
       for (const score of existingScores) {
         if (!score.competitionEventId) continue
         const existing = scoresByEvent.get(score.competitionEventId) ?? []
         existing.push(score)
         scoresByEvent.set(score.competitionEventId, existing)
+        eventIdByScoreId.set(score.id, score.competitionEventId)
+      }
+      const roundsByEvent = new Map<string, typeof existingRounds>()
+      for (const round of existingRounds) {
+        const eventId = eventIdByScoreId.get(round.scoreId)
+        if (!eventId) continue
+        const existing = roundsByEvent.get(eventId) ?? []
+        existing.push(round)
+        roundsByEvent.set(eventId, existing)
       }
 
       const result: Record<string, EventScoreEntryDataWithHeats> = {}
       for (const row of eventRows) {
         const eventScores = scoresByEvent.get(row.trackWorkoutId) ?? []
-        const eventScoreIds = new Set(eventScores.map((s) => s.id))
-        const eventRounds = existingRounds.filter((r) =>
-          eventScoreIds.has(r.scoreId),
-        )
+        const eventRounds = roundsByEvent.get(row.trackWorkoutId) ?? []
 
         const athletes = buildScoreEntryAthletes({
           registrations,
