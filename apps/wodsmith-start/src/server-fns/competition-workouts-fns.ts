@@ -44,6 +44,7 @@ import {
   workoutTags,
 } from "@/db/schemas/workouts"
 import { getEvlog } from "@/lib/evlog"
+import { groupCompetitionEvents } from "@/server/group-competition-events"
 import { getSessionFromCookie } from "@/utils/auth"
 
 // ============================================================================
@@ -159,6 +160,16 @@ const updateCompetitionWorkoutInputSchema = z.object({
 const removeWorkoutFromCompetitionInputSchema = z.object({
   trackWorkoutId: z.string().min(1, "Track workout ID is required"),
   teamId: z.string().min(1, "Team ID is required"),
+})
+
+const groupCompetitionEventsInputSchema = z.object({
+  competitionId: z.string().min(1, "Competition ID is required"),
+  teamId: z.string().min(1, "Team ID is required"),
+  trackWorkoutIds: z
+    .array(z.string().min(1))
+    .min(2, "Select at least two events to group"),
+  name: z.string().min(1, "Name is required").max(200),
+  description: z.string().max(5000).optional(),
 })
 
 const reorderCompetitionEventsInputSchema = z.object({
@@ -1374,6 +1385,54 @@ export const createWorkoutAndAddToCompetitionFn = createServerFn({
       workoutId: workout.id,
       trackWorkoutId,
     }
+  })
+
+/**
+ * Group existing top-level competition events under a new parent event.
+ * The selected events become sub-events (Part A, Part B, ...) so the whole
+ * group is scheduled together as a single event.
+ */
+export const groupCompetitionEventsFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    groupCompetitionEventsInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    // Verify authentication
+    const session = await getSessionFromCookie()
+    if (!session?.userId) {
+      throw new Error("Not authenticated")
+    }
+
+    // Check permission
+    await requireTeamPermission(
+      data.teamId,
+      TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+    )
+
+    // Verify the authorized team actually organizes this competition
+    const competition = await getDb().query.competitionsTable.findFirst({
+      where: eq(competitionsTable.id, data.competitionId),
+    })
+    if (!competition || competition.organizingTeamId !== data.teamId) {
+      throw new Error("Competition not found")
+    }
+
+    getEvlog()?.set({
+      action: "group_competition_events",
+      workout: {
+        competitionId: data.competitionId,
+        trackWorkoutIds: data.trackWorkoutIds,
+      },
+      teamId: data.teamId,
+    })
+
+    return await groupCompetitionEvents({
+      competitionId: data.competitionId,
+      organizingTeamId: data.teamId,
+      trackWorkoutIds: data.trackWorkoutIds,
+      name: data.name,
+      description: data.description,
+    })
   })
 
 /**

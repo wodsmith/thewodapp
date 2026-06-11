@@ -1,11 +1,12 @@
 "use client"
 
 import { useRouter } from "@tanstack/react-router"
-import { ChevronDown, ChevronRight, Plus } from "lucide-react"
+import { ChevronDown, ChevronRight, Layers, Plus } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
 import { trackEvent } from "@/lib/posthog"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import type { Movement, Sponsor } from "@/db/schema"
 import type {
   ScoreType,
@@ -15,12 +16,14 @@ import type {
 import {
   type CompetitionWorkout,
   createWorkoutAndAddToCompetitionFn,
+  groupCompetitionEventsFn,
   removeWorkoutFromCompetitionFn,
   reorderCompetitionEventsFn,
 } from "@/server-fns/competition-workouts-fns"
 import { AddEventDialog } from "./add-event-dialog"
 import { CompetitionEventRow } from "./competition-event-row"
 import { CreateEventDialog } from "./create-event-dialog"
+import { GroupEventsDialog } from "./group-events-dialog"
 
 interface Division {
   id: string
@@ -46,6 +49,9 @@ interface EventManagerOverrides {
   reorderEventsFn?: (args: {
     data: NonNullable<Parameters<typeof reorderCompetitionEventsFn>[0]>["data"]
   }) => ReturnType<typeof reorderCompetitionEventsFn>
+  groupEventsFn?: (args: {
+    data: NonNullable<Parameters<typeof groupCompetitionEventsFn>[0]>["data"]
+  }) => ReturnType<typeof groupCompetitionEventsFn>
 }
 
 interface OrganizerEventManagerProps {
@@ -83,6 +89,7 @@ export function OrganizerEventManager({
   const createWorkoutFn = overrides?.createWorkoutFn ?? createWorkoutAndAddToCompetitionFn
   const removeWorkoutFn = overrides?.removeWorkoutFn ?? removeWorkoutFromCompetitionFn
   const reorderEventsFn = overrides?.reorderEventsFn ?? reorderCompetitionEventsFn
+  const groupEventsFn = overrides?.groupEventsFn ?? groupCompetitionEventsFn
   const [events, setEvents] = useState(initialEvents)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showAddDialog, setShowAddDialog] = useState(false)
@@ -96,6 +103,11 @@ export function OrganizerEventManager({
   const [collapsedParents, setCollapsedParents] = useState<Set<string>>(
     () => new Set(),
   )
+  const [selectedForGrouping, setSelectedForGrouping] = useState<Set<string>>(
+    () => new Set(),
+  )
+  const [showGroupDialog, setShowGroupDialog] = useState(false)
+  const [isGrouping, setIsGrouping] = useState(false)
 
   // Sync props to state when server data changes, but deduplicate
   useEffect(() => {
@@ -127,6 +139,16 @@ export function OrganizerEventManager({
   }
   // Top-level items: standalone events (no parent, no children) + parent events (has children)
   const topLevelEvents = sortedEvents.filter((e) => !e.parentEventId)
+
+  // Only standalone events (no children) can be grouped under a new parent —
+  // sub-events can't nest more than one level deep
+  const groupableEventIds = new Set(
+    topLevelEvents.filter((e) => !childrenByParent.has(e.id)).map((e) => e.id),
+  )
+  // Selected events in display order; prunes selections that became ineligible
+  const selectedGroupableEvents = topLevelEvents.filter(
+    (e) => selectedForGrouping.has(e.id) && groupableEventIds.has(e.id),
+  )
 
   const getSubEventInstanceId = useCallback(
     (parentId: string) => {
@@ -285,6 +307,57 @@ export function OrganizerEventManager({
     setSubEventParentId(parentEventId)
   }
 
+  const toggleEventSelection = useCallback((eventId: string) => {
+    setSelectedForGrouping((prev) => {
+      const next = new Set(prev)
+      if (next.has(eventId)) {
+        next.delete(eventId)
+      } else {
+        next.add(eventId)
+      }
+      return next
+    })
+  }, [])
+
+  const handleGroupEvents = async (name: string) => {
+    setIsGrouping(true)
+    try {
+      const result = await groupEventsFn({
+        data: {
+          competitionId,
+          teamId: organizingTeamId,
+          trackWorkoutIds: selectedGroupableEvents.map((e) => e.id),
+          name,
+        },
+      })
+
+      if (result?.trackWorkoutId) {
+        trackEvent("competition_events_grouped", {
+          competition_id: competitionId,
+          parent_event_id: result.trackWorkoutId,
+          parent_event_name: name,
+          grouped_event_count: selectedGroupableEvents.length,
+        })
+        toast.success(
+          `Grouped ${selectedGroupableEvents.length} events under "${name}"`,
+        )
+        setShowGroupDialog(false)
+        setSelectedForGrouping(new Set())
+        router.invalidate()
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to group events"
+      trackEvent("competition_events_grouped_failed", {
+        competition_id: competitionId,
+        error_message: message,
+      })
+      toast.error(message)
+    } finally {
+      setIsGrouping(false)
+    }
+  }
+
   const handleDrop = async (sourceIndex: number, targetIndex: number) => {
     // Only reorder top-level events (standalone + parents)
     const newEvents = [...topLevelEvents]
@@ -405,6 +478,46 @@ export function OrganizerEventManager({
           </Button>
         </div>
       </div>
+      {selectedGroupableEvents.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/50 p-3">
+          <div className="space-y-0.5 text-sm">
+            <p className="font-medium">
+              {selectedGroupableEvents.length}{" "}
+              {selectedGroupableEvents.length === 1 ? "event" : "events"}{" "}
+              selected
+            </p>
+            <p className="text-muted-foreground">
+              {selectedGroupableEvents.length < 2
+                ? "Select at least one more event to group them under a parent event."
+                : "Group these events under a parent event (e.g. Part A / Part B) so they're scheduled together as a single event."}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedForGrouping(new Set())}
+            >
+              Clear
+            </Button>
+            <Button
+              size="sm"
+              disabled={selectedGroupableEvents.length < 2}
+              onClick={() => setShowGroupDialog(true)}
+            >
+              <Layers className="h-4 w-4 mr-2" />
+              Group as one event
+            </Button>
+          </div>
+        </div>
+      )}
+      {selectedGroupableEvents.length === 0 && groupableEventIds.size >= 2 && (
+        <p className="text-xs text-muted-foreground">
+          Tip: running a multi-part event? Select two or more events with the
+          checkboxes to group them under a parent event so they're scheduled
+          together.
+        </p>
+      )}
       {events.length === 0 ? (
         <div className="text-center py-8">
           <p className="text-muted-foreground mb-4">
@@ -431,7 +544,7 @@ export function OrganizerEventManager({
             return (
               <div key={event.id}>
                 <div className="flex items-center gap-1">
-                  {isParent && (
+                  {isParent ? (
                     <button
                       type="button"
                       onClick={() => toggleParentCollapse(event.id)}
@@ -444,8 +557,15 @@ export function OrganizerEventManager({
                         <ChevronDown className="h-4 w-4" />
                       )}
                     </button>
+                  ) : (
+                    <Checkbox
+                      checked={selectedForGrouping.has(event.id)}
+                      onCheckedChange={() => toggleEventSelection(event.id)}
+                      aria-label={`Select ${event.workout.name} to group under a parent event`}
+                      className="mx-0.5"
+                    />
                   )}
-                  <div className={`flex-1 ${!isParent ? "ml-6" : ""}`}>
+                  <div className="flex-1">
                     <CompetitionEventRow
                       event={event}
                       index={index}
@@ -530,6 +650,14 @@ export function OrganizerEventManager({
         isAdding={isAdding}
         teamId={organizingTeamId}
         existingWorkoutIds={existingWorkoutIds}
+      />
+
+      <GroupEventsDialog
+        open={showGroupDialog}
+        onOpenChange={setShowGroupDialog}
+        events={selectedGroupableEvents}
+        onGroupEvents={handleGroupEvents}
+        isGrouping={isGrouping}
       />
     </>
   )
