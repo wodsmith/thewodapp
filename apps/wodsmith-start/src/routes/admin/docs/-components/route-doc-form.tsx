@@ -49,6 +49,15 @@ import { Textarea } from "@/components/ui/textarea"
 import { ROUTE_DOC_TYPES } from "@/db/schemas/route-docs"
 import { ORGANIZER_ROUTE_PREFIX } from "@/utils/route-docs"
 
+function isValidUrl(value: string): boolean {
+  try {
+    new URL(value)
+    return true
+  } catch {
+    return false
+  }
+}
+
 const routeDocFormSchema = z
   .object({
     title: z.string().min(1, "Title is required").max(255),
@@ -69,19 +78,35 @@ const routeDocFormSchema = z
         message: "Markdown docs require content",
       })
     }
-    if (values.type === "video" && !values.videoUrl.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["videoUrl"],
-        message: "Video docs require a video URL or upload",
-      })
+    if (values.type === "video") {
+      if (!values.videoUrl.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["videoUrl"],
+          message: "Video docs require a video URL or upload",
+        })
+      } else if (!isValidUrl(values.videoUrl.trim())) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["videoUrl"],
+          message: "Must be a valid URL",
+        })
+      }
     }
-    if (values.type === "link" && !values.linkUrl.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["linkUrl"],
-        message: "Link docs require a URL",
-      })
+    if (values.type === "link") {
+      if (!values.linkUrl.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["linkUrl"],
+          message: "Link docs require a URL",
+        })
+      } else if (!isValidUrl(values.linkUrl.trim())) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["linkUrl"],
+          message: "Must be a valid URL",
+        })
+      }
     }
   })
 
