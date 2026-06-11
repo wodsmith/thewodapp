@@ -1,8 +1,11 @@
 /**
  * Competition Sidebar Component
  *
- * Sidebar navigation for organizer competition detail pages.
- * Provides navigation to all competition management sections.
+ * Sidebar navigation for competition management pages, shared by organizer and
+ * cohost dashboards. Organizer mode shows every section; cohost mode filters
+ * nav items by the cohost's granted permissions and links under /compete/cohost.
+ * Nav items declare their cohost permission key here so new organizer sections
+ * automatically show up for cohosts once a permission is assigned.
  */
 
 "use client"
@@ -50,11 +53,19 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
+import type { CohostMembershipMetadata } from "@/db/schemas/cohost"
 import { cn } from "@/utils/cn"
+
+interface CohostSidebarContext {
+  competitionName: string
+  permissions: CohostMembershipMetadata
+}
 
 interface CompetitionSidebarProps {
   competitionId: string
   competitionType?: "in-person" | "online"
+  /** When set, renders the cohost variant: nav filtered by permissions, links under /compete/cohost. */
+  cohost?: CohostSidebarContext
   children: React.ReactNode
 }
 
@@ -63,6 +74,11 @@ interface NavItem {
   href: string
   icon: React.ComponentType<{ className?: string }>
   variant?: "default" | "destructive"
+  /**
+   * Cohost permission required to see this item. Items without a permission
+   * key are organizer-only and never shown to cohosts.
+   */
+  cohostPermission?: keyof CohostMembershipMetadata
 }
 
 interface NavGroup {
@@ -83,9 +99,24 @@ const getNavigation = (
     {
       label: "Competition Setup",
       items: [
-        { label: "Divisions", href: `${basePath}/divisions`, icon: Layers },
-        { label: "Events", href: `${basePath}/events`, icon: Trophy },
-        { label: "Locations", href: `${basePath}/locations`, icon: MapPin },
+        {
+          label: "Divisions",
+          href: `${basePath}/divisions`,
+          icon: Layers,
+          cohostPermission: "divisions",
+        },
+        {
+          label: "Events",
+          href: `${basePath}/events`,
+          icon: Trophy,
+          cohostPermission: "editEvents",
+        },
+        {
+          label: "Locations",
+          href: `${basePath}/locations`,
+          icon: MapPin,
+          cohostPermission: "locations",
+        },
         {
           label: "Event divisions",
           href: `${basePath}/event-divisions`,
@@ -98,16 +129,28 @@ const getNavigation = (
                 label: "Submission windows",
                 href: `${basePath}/submission-windows`,
                 icon: Clock,
+                cohostPermission: "editEvents" as const,
               },
             ]
           : []),
-        { label: "Scoring", href: `${basePath}/scoring`, icon: Calculator },
-        { label: "Registrations", href: `${basePath}/athletes`, icon: Users },
+        {
+          label: "Scoring",
+          href: `${basePath}/scoring`,
+          icon: Calculator,
+          cohostPermission: "scoringConfig",
+        },
+        {
+          label: "Registrations",
+          href: `${basePath}/athletes`,
+          icon: Users,
+          cohostPermission: "viewRegistrations",
+        },
         { label: "Invites", href: `${basePath}/invites`, icon: Mail },
         {
           label: "Waivers",
           href: `${basePath}/waivers`,
           icon: ClipboardSignature,
+          cohostPermission: "waivers",
         },
       ],
     },
@@ -121,6 +164,7 @@ const getNavigation = (
                 label: "Schedule",
                 href: `${basePath}/schedule`,
                 icon: Calendar,
+                cohostPermission: "schedule" as const,
               },
             ]
           : []),
@@ -128,16 +172,19 @@ const getNavigation = (
           label: "Volunteers",
           href: `${basePath}/volunteers`,
           icon: UserCheck,
+          cohostPermission: "volunteers",
         },
         {
           label: competitionType === "online" ? "Submissions" : "Results",
           href: `${basePath}/results`,
           icon: Medal,
+          cohostPermission: "results",
         },
         {
           label: "Leaderboard preview",
           href: `${basePath}/leaderboard-preview`,
           icon: BarChart3,
+          cohostPermission: "leaderboardPreview",
         },
         {
           label: "Broadcasts",
@@ -149,10 +196,30 @@ const getNavigation = (
     {
       label: "Business",
       items: [
-        { label: "Pricing", href: `${basePath}/pricing`, icon: ReceiptText },
-        { label: "Revenue", href: `${basePath}/revenue`, icon: DollarSign },
-        { label: "Coupons", href: `${basePath}/coupons`, icon: Tag },
-        { label: "Sponsors", href: `${basePath}/sponsors`, icon: Sparkles },
+        {
+          label: "Pricing",
+          href: `${basePath}/pricing`,
+          icon: ReceiptText,
+          cohostPermission: "pricing",
+        },
+        {
+          label: "Revenue",
+          href: `${basePath}/revenue`,
+          icon: DollarSign,
+          cohostPermission: "revenue",
+        },
+        {
+          label: "Coupons",
+          href: `${basePath}/coupons`,
+          icon: Tag,
+          cohostPermission: "coupons",
+        },
+        {
+          label: "Sponsors",
+          href: `${basePath}/sponsors`,
+          icon: Sparkles,
+          cohostPermission: "sponsors",
+        },
         {
           label: "Co-Hosts",
           href: `${basePath}/co-hosts`,
@@ -174,6 +241,20 @@ const getNavigation = (
     },
   ],
 })
+
+/** Filter nav groups down to items the cohost has permission to see. */
+const filterForCohost = (
+  groups: NavGroup[],
+  permissions: CohostMembershipMetadata,
+): NavGroup[] =>
+  groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(
+        (item) => item.cohostPermission && permissions[item.cohostPermission],
+      ),
+    }))
+    .filter((group) => group.items.length > 0)
 
 function NavMenuItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
   const Icon = item.icon
@@ -204,9 +285,20 @@ function NavMenuItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
   )
 }
 
-function CompetitionSidebarHeader() {
+function CompetitionSidebarHeader({
+  cohost,
+}: {
+  cohost?: CohostSidebarContext
+}) {
   return (
-    <SidebarHeader className="h-14 flex-row items-center border-b px-3 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:justify-center">
+    <SidebarHeader
+      className={cn(
+        "border-b px-3 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:justify-center",
+        cohost
+          ? "py-3 group-data-[collapsible=icon]:py-3"
+          : "h-14 flex-row items-center",
+      )}
+    >
       {/* @lat: [[architecture#Route Groups#compete]] */}
       <Link
         to="/"
@@ -219,12 +311,19 @@ function CompetitionSidebarHeader() {
           height={32}
           className="shrink-0"
         />
-        <h1 className="text-lg text-foreground whitespace-nowrap">
-          <span className="font-black uppercase">wod</span>smith{" "}
-          <span className="font-medium text-amber-600 dark:text-amber-500">
-            Compete
-          </span>
-        </h1>
+        <div className="flex flex-col leading-tight">
+          <h1 className="text-lg text-foreground whitespace-nowrap">
+            <span className="font-black uppercase">wod</span>smith{" "}
+            <span className="font-medium text-amber-600 dark:text-amber-500">
+              Compete
+            </span>
+          </h1>
+          {cohost && (
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-500">
+              Co-Hosting
+            </span>
+          )}
+        </div>
       </Link>
       {/* @lat: [[architecture#Route Groups#compete]] */}
       <Link to="/" className="hidden group-data-[collapsible=icon]:block">
@@ -236,6 +335,11 @@ function CompetitionSidebarHeader() {
           className="size-6"
         />
       </Link>
+      {cohost && (
+        <p className="mt-1 truncate text-sm font-medium text-muted-foreground group-data-[collapsible=icon]:hidden">
+          {cohost.competitionName}
+        </p>
+      )}
     </SidebarHeader>
   )
 }
@@ -257,12 +361,18 @@ function CompetitionSidebarFooter() {
 export function CompetitionSidebar({
   competitionId,
   competitionType,
+  cohost,
   children,
 }: CompetitionSidebarProps) {
   const router = useRouterState()
   const pathname = router.location.pathname
-  const basePath = `/compete/organizer/${competitionId}`
+  const basePath = cohost
+    ? `/compete/cohost/${competitionId}`
+    : `/compete/organizer/${competitionId}`
   const navigation = getNavigation(basePath, competitionType)
+  const groups = cohost
+    ? filterForCohost(navigation.groups, cohost.permissions)
+    : navigation.groups
 
   const isActive = (href: string) => {
     if (href === basePath) {
@@ -275,7 +385,7 @@ export function CompetitionSidebar({
   return (
     <SidebarProvider>
       <Sidebar variant="sidebar" collapsible="icon">
-        <CompetitionSidebarHeader />
+        <CompetitionSidebarHeader cohost={cohost} />
         <SidebarRail />
         <SidebarContent>
           {/* Overview - standalone at top */}
@@ -291,7 +401,7 @@ export function CompetitionSidebar({
           </SidebarGroup>
 
           {/* Grouped navigation */}
-          {navigation.groups.map((group) => (
+          {groups.map((group) => (
             <SidebarGroup key={group.label}>
               <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
               <SidebarGroupContent>
@@ -316,20 +426,36 @@ export function CompetitionSidebar({
             <Menu className="h-5 w-5" />
           </SidebarTrigger>
           {/* @lat: [[architecture#Route Groups#compete]] */}
-          <Link to="/" className="flex items-center gap-2">
-            <img
-              src="/wodsmith-logo-no-text.png"
-              alt="wodsmith compete"
-              width={24}
-              height={24}
-            />
-            <span className="text-sm font-semibold">
-              <span className="font-black uppercase">wod</span>smith{" "}
-              <span className="font-medium text-amber-600 dark:text-amber-500">
-                Compete
+          {cohost ? (
+            <div className="flex items-center gap-2 min-w-0">
+              <Link to="/" className="flex items-center gap-2 shrink-0">
+                <img
+                  src="/wodsmith-logo-no-text.png"
+                  alt="wodsmith compete"
+                  width={24}
+                  height={24}
+                />
+              </Link>
+              <span className="truncate text-sm font-medium">
+                {cohost.competitionName}
               </span>
-            </span>
-          </Link>
+            </div>
+          ) : (
+            <Link to="/" className="flex items-center gap-2">
+              <img
+                src="/wodsmith-logo-no-text.png"
+                alt="wodsmith compete"
+                width={24}
+                height={24}
+              />
+              <span className="text-sm font-semibold">
+                <span className="font-black uppercase">wod</span>smith{" "}
+                <span className="font-medium text-amber-600 dark:text-amber-500">
+                  Compete
+                </span>
+              </span>
+            </Link>
+          )}
         </header>
         <div className="h-14 md:hidden" />
         {children}

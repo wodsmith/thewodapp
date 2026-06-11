@@ -31,6 +31,8 @@ interface CompetitionHeaderProps {
     status: "draft" | "published"
     groupId?: string | null
   }
+  /** Hidden for cohosts: Edit and Go to Series link into organizer-only routes. */
+  showOrganizerActions?: boolean
 }
 
 function formatDateTime(date: string): string {
@@ -120,7 +122,10 @@ function formatDateRange(startDate: string, endDate: string): string {
   }`
 }
 
-export function CompetitionHeader({ competition }: CompetitionHeaderProps) {
+export function CompetitionHeader({
+  competition,
+  showOrganizerActions = true,
+}: CompetitionHeaderProps) {
   const registrationStatus = getRegistrationStatus(
     competition.registrationOpensAt,
     competition.registrationClosesAt,
@@ -196,19 +201,21 @@ export function CompetitionHeader({ competition }: CompetitionHeaderProps) {
         </div>
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-2">
-        <a href={`/compete/organizer/${competition.id}/edit`}>
-          <Button variant="outline" size="sm">
-            <Pencil className="mr-2 h-4 w-4" />
-            Edit
-          </Button>
-        </a>
+        {showOrganizerActions && (
+          <a href={`/compete/organizer/${competition.id}/edit`}>
+            <Button variant="outline" size="sm">
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit
+            </Button>
+          </a>
+        )}
         <Link to="/compete/$slug" params={{ slug: competition.slug }}>
           <Button variant="outline" size="sm">
             <ExternalLink className="mr-2 h-4 w-4" />
             View public page
           </Button>
         </Link>
-        {competition.groupId && (
+        {showOrganizerActions && competition.groupId && (
           <Link
             to="/compete/organizer/series/$groupId"
             params={{ groupId: competition.groupId }}

@@ -16,13 +16,15 @@ export interface BreadcrumbSegment {
 
 interface OrganizerBreadcrumbProps {
   segments: BreadcrumbSegment[]
+  /** Root crumb; defaults to the organizer dashboard. Cohost pages pass a non-linked label. */
+  root?: BreadcrumbSegment
 }
 
-export function OrganizerBreadcrumb({ segments }: OrganizerBreadcrumbProps) {
-  const allSegments: BreadcrumbSegment[] = [
-    { label: "Organizer", href: "/compete/organizer" },
-    ...segments,
-  ]
+export function OrganizerBreadcrumb({
+  segments,
+  root = { label: "Organizer", href: "/compete/organizer" },
+}: OrganizerBreadcrumbProps) {
+  const allSegments: BreadcrumbSegment[] = [root, ...segments]
 
   return (
     <Breadcrumb className="mb-4">

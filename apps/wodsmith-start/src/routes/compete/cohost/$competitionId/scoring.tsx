@@ -1,19 +1,17 @@
 /**
  * Competition Cohost Scoring Route
  *
- * Cohost page for configuring scoring settings.
- * Mirrors the organizer scoring page but uses cohost server functions.
+ * Renders the shared organizer ScoringPage with a cohost-permissioned save
+ * callback so the page stays in sync with the organizer route.
  */
 
 import { createFileRoute } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { cohostUpdateScoringConfigFn } from "@/server-fns/cohost/cohost-competition-fns"
 import { cohostGetWorkoutsFn } from "@/server-fns/cohost/cohost-workout-fns"
-import { ScoringSettingsForm } from "../../organizer/$competitionId/-components/scoring-settings-form"
+import { ScoringPage } from "../../organizer/$competitionId/-pages/scoring-page"
 
-export const Route = createFileRoute(
-  "/compete/cohost/$competitionId/scoring",
-)({
+export const Route = createFileRoute("/compete/cohost/$competitionId/scoring")({
   staleTime: 10_000,
   loader: async ({ params, parentMatchPromise }) => {
     const parentMatch = await parentMatchPromise
@@ -36,7 +34,7 @@ export const Route = createFileRoute(
 
     return { competition, events, competitionTeamId }
   },
-  component: CohostScoringPage,
+  component: RouteComponent,
   head: ({ loaderData }) => {
     const competition = loaderData?.competition
     if (!competition) {
@@ -56,34 +54,19 @@ export const Route = createFileRoute(
   },
 })
 
-function CohostScoringPage() {
+function RouteComponent() {
   const { competition, events, competitionTeamId } = Route.useLoaderData()
   const updateScoringConfig = useServerFn(cohostUpdateScoringConfigFn)
 
   return (
-    <div className="max-w-7xl space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">
-          Scoring Configuration
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Configure how athletes are ranked on the leaderboard
-        </p>
-      </div>
-
-      <ScoringSettingsForm
-        competition={{
-          id: competition.id,
-          name: competition.name,
-          settings: competition.settings,
-        }}
-        events={events}
-        onSaveScoringConfig={async (data) => {
-          await updateScoringConfig({
-            data: { ...data, competitionTeamId },
-          })
-        }}
-      />
-    </div>
+    <ScoringPage
+      competition={competition}
+      events={events}
+      onSaveScoringConfig={async (data) => {
+        await updateScoringConfig({
+          data: { ...data, competitionTeamId },
+        })
+      }}
+    />
   )
 }

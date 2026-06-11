@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { getCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
-import { ScoringSettingsForm } from "./-components/scoring-settings-form"
+import { ScoringPage } from "./-pages/scoring-page"
 
 // @lat: [[organizer-dashboard#Scoring Configuration]]
 export const Route = createFileRoute(
@@ -26,7 +26,7 @@ export const Route = createFileRoute(
 
     return { competition, events }
   },
-  component: ScoringPage,
+  component: RouteComponent,
   head: ({ loaderData }) => {
     const competition = loaderData?.competition
     if (!competition) {
@@ -46,28 +46,8 @@ export const Route = createFileRoute(
   },
 })
 
-function ScoringPage() {
+function RouteComponent() {
   const { competition, events } = Route.useLoaderData()
 
-  return (
-    <div className="max-w-7xl space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">
-          Scoring Configuration
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Configure how athletes are ranked on the leaderboard
-        </p>
-      </div>
-
-      <ScoringSettingsForm
-        competition={{
-          id: competition.id,
-          name: competition.name,
-          settings: competition.settings,
-        }}
-        events={events}
-      />
-    </div>
-  )
+  return <ScoringPage competition={competition} events={events} />
 }

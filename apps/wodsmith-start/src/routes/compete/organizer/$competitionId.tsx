@@ -11,11 +11,8 @@ import {
   notFound,
   Outlet,
   redirect,
-  useMatches,
 } from "@tanstack/react-router"
-import { CompetitionHeader } from "@/components/competition-header"
-import { CompetitionSidebar } from "@/components/competition-sidebar"
-import { OrganizerBreadcrumb } from "@/components/organizer-breadcrumb"
+import { CompetitionDashboardShell } from "@/components/competition-dashboard-shell"
 import { PendingOrganizerBanner } from "@/components/pending-organizer-banner"
 import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 
@@ -64,89 +61,20 @@ export const Route = createFileRoute("/compete/organizer/$competitionId")({
   },
 })
 
-// Map route paths to breadcrumb labels
-// Note: "results" label is handled dynamically based on competition type
-const routeLabels: Record<string, string> = {
-  divisions: "Divisions",
-  athletes: "Registrations",
-  invites: "Invites",
-  events: "Events",
-  "event-divisions": "Event divisions",
-  "submission-windows": "Submission windows",
-  schedule: "Schedule",
-  locations: "Locations",
-  volunteers: "Volunteers",
-  waivers: "Waivers",
-  scoring: "Scoring",
-  results: "Results", // Overridden to "Submissions" for online competitions
-  "leaderboard-preview": "Leaderboard preview",
-  review: "Review",
-  pricing: "Pricing",
-  revenue: "Revenue",
-  coupons: "Coupons",
-  sponsors: "Sponsors",
-  settings: "Settings",
-  edit: "Edit",
-  "danger-zone": "Danger zone",
-}
-
 function CompetitionLayout() {
   const { competition } = Route.useLoaderData()
   const { entitlements } = Route.useRouteContext()
-  const matches = useMatches()
-
-  // Get the current child route segment for breadcrumb
-  const currentPath = matches[matches.length - 1]?.pathname ?? ""
-  const segments = currentPath.split("/").filter(Boolean)
-  const lastSegment = segments[segments.length - 1]
-
-  // Build breadcrumb segments
-  const breadcrumbSegments: Array<{ label: string; href?: string }> = [
-    { label: competition.name },
-  ]
-
-  // Add current page to breadcrumb if not on overview
-  if (lastSegment && lastSegment !== competition.id) {
-    let label = routeLabels[lastSegment] || lastSegment
-    // Show "Submissions" instead of "Results" for online competitions
-    if (lastSegment === "results" && competition.competitionType === "online") {
-      label = "Submissions"
-    }
-    breadcrumbSegments.push({ label })
-  }
 
   return (
-    <CompetitionSidebar
-      competitionId={competition.id}
-      competitionType={competition.competitionType}
+    <CompetitionDashboardShell
+      competition={competition}
+      banner={
+        entitlements.isPendingApproval ? (
+          <PendingOrganizerBanner variant="sidebar-inset" />
+        ) : undefined
+      }
     >
-      {entitlements.isPendingApproval && (
-        <PendingOrganizerBanner variant="sidebar-inset" />
-      )}
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:gap-6 sm:p-6">
-        {/* Breadcrumb */}
-        <OrganizerBreadcrumb segments={breadcrumbSegments} />
-
-        {/* Competition Header */}
-        <CompetitionHeader
-          competition={{
-            id: competition.id,
-            name: competition.name,
-            slug: competition.slug,
-            description: competition.description,
-            startDate: competition.startDate,
-            endDate: competition.endDate,
-            registrationOpensAt: competition.registrationOpensAt,
-            registrationClosesAt: competition.registrationClosesAt,
-            visibility: competition.visibility,
-            status: competition.status,
-            groupId: competition.groupId,
-          }}
-        />
-
-        {/* Child route content */}
-        <Outlet />
-      </div>
-    </CompetitionSidebar>
+      <Outlet />
+    </CompetitionDashboardShell>
   )
 }
