@@ -283,68 +283,64 @@ export async function getCompetitionRevenueStats(
       ),
     )
 
-  // Get division labels and fees
+  // Division labels/fees, refund events, and the competition default fee
+  // are independent lookups — fetch them in parallel.
   const divisionIds = [
     ...new Set(purchases.map((p) => p.divisionId).filter(Boolean)),
   ]
-  const divisions =
-    divisionIds.length > 0
-      ? await db
-          .select({
-            id: scalingLevelsTable.id,
-            label: scalingLevelsTable.label,
-          })
-          .from(scalingLevelsTable)
-          .where(sql`${scalingLevelsTable.id} IN ${divisionIds}`)
-      : []
-
-  // Get division fees for ticket prices
-  const divisionFees =
-    divisionIds.length > 0
-      ? await db
-          .select({
-            divisionId: competitionDivisionFeesTable.divisionId,
-            feeCents: competitionDivisionFeesTable.feeCents,
-          })
-          .from(competitionDivisionFeesTable)
-          .where(
-            and(
-              eq(competitionDivisionFeesTable.competitionId, competitionId),
-              sql`${competitionDivisionFeesTable.divisionId} IN ${divisionIds}`,
-            ),
-          )
-      : []
-
-  // Get refund events (REFUND_INITIATED) for the purchases in this comp.
-  // We use REFUND_INITIATED rather than REFUND_COMPLETED so the page reflects
-  // refunds the moment the organizer kicks them off, not after Stripe's
-  // settlement webhook lands. Both rows are eventually written; counting
-  // INITIATED avoids double-counting once COMPLETED arrives.
   const purchaseIds = purchases.map((p) => p.purchaseId)
-  const refundEvents =
-    purchaseIds.length > 0
-      ? await db
-          .select({
-            purchaseId: financialEventTable.purchaseId,
-            amountCents: financialEventTable.amountCents,
-          })
-          .from(financialEventTable)
-          .where(
-            and(
-              inArray(financialEventTable.purchaseId, purchaseIds),
-              eq(
-                financialEventTable.eventType,
-                FINANCIAL_EVENT_TYPE.REFUND_INITIATED,
-              ),
-            ),
-          )
-      : []
 
-  // Get competition default fee as fallback for divisions without specific fees
-  const competition = await db.query.competitionsTable.findFirst({
-    where: eq(competitionsTable.id, competitionId),
-    columns: { defaultRegistrationFeeCents: true },
-  })
+  // Refund events use REFUND_INITIATED rather than REFUND_COMPLETED so the
+  // page reflects refunds the moment the organizer kicks them off, not after
+  // Stripe's settlement webhook lands. Both rows are eventually written;
+  // counting INITIATED avoids double-counting once COMPLETED arrives.
+  const [divisions, divisionFees, refundEvents, competition] =
+    await Promise.all([
+      divisionIds.length > 0
+        ? db
+            .select({
+              id: scalingLevelsTable.id,
+              label: scalingLevelsTable.label,
+            })
+            .from(scalingLevelsTable)
+            .where(sql`${scalingLevelsTable.id} IN ${divisionIds}`)
+        : [],
+      divisionIds.length > 0
+        ? db
+            .select({
+              divisionId: competitionDivisionFeesTable.divisionId,
+              feeCents: competitionDivisionFeesTable.feeCents,
+            })
+            .from(competitionDivisionFeesTable)
+            .where(
+              and(
+                eq(competitionDivisionFeesTable.competitionId, competitionId),
+                sql`${competitionDivisionFeesTable.divisionId} IN ${divisionIds}`,
+              ),
+            )
+        : [],
+      purchaseIds.length > 0
+        ? db
+            .select({
+              purchaseId: financialEventTable.purchaseId,
+              amountCents: financialEventTable.amountCents,
+            })
+            .from(financialEventTable)
+            .where(
+              and(
+                inArray(financialEventTable.purchaseId, purchaseIds),
+                eq(
+                  financialEventTable.eventType,
+                  FINANCIAL_EVENT_TYPE.REFUND_INITIATED,
+                ),
+              ),
+            )
+        : [],
+      db.query.competitionsTable.findFirst({
+        where: eq(competitionsTable.id, competitionId),
+        columns: { defaultRegistrationFeeCents: true },
+      }),
+    ])
   const defaultFeeCents = competition?.defaultRegistrationFeeCents ?? 0
 
   return aggregateRevenueStats({
