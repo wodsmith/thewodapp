@@ -108,7 +108,7 @@ describe("CompetitionWorkoutCard", () => {
 			expect(screen.getAllByText("Submit score").length).toBeGreaterThan(0)
 		})
 
-		it("shows 'Edit Submission' with Submitted badge when submitted and window open", () => {
+		it("shows 'Edit submission' with Submitted badge when submitted and window open", () => {
 			const status: SubmissionStatus = {
 				hasSubmitted: true,
 				canSubmit: true,
@@ -123,12 +123,12 @@ describe("CompetitionWorkoutCard", () => {
 			)
 
 			expect(
-				screen.getAllByText("Edit Submission").length,
+				screen.getAllByText("Edit submission").length,
 			).toBeGreaterThan(0)
 			expect(screen.getByText("Submitted")).toBeTruthy()
 		})
 
-		it("shows 'View Submission' with Submitted badge when submitted and window closed", () => {
+		it("shows 'View submission' with Submitted badge when submitted and window closed", () => {
 			const status: SubmissionStatus = {
 				hasSubmitted: true,
 				canSubmit: false,
@@ -143,7 +143,7 @@ describe("CompetitionWorkoutCard", () => {
 			)
 
 			expect(
-				screen.getAllByText("View Submission").length,
+				screen.getAllByText("View submission").length,
 			).toBeGreaterThan(0)
 			expect(screen.getByText("Submitted")).toBeTruthy()
 		})
