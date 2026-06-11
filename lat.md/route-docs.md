@@ -34,6 +34,12 @@ Verifies `isDirectVideoFileUrl` recognizes direct file URLs by pathname extensio
 
 Also covers: mp4/webm/mov/m4v extensions match case-insensitively, platform URLs like YouTube/Vimeo are rejected, and video-looking query params and unparseable URLs are ignored to avoid false positives.
 
+### Shows seeded docs end to end
+
+Playwright e2e: a signed-in organizer on the dashboard sees the floating Docs button, and opening the drawer shows the seeded "Your first competition" link doc — proving route matching, fetch, and rendering work against a real database.
+
+Relies on the e2e pipeline running `db:push` + `db:seed` first, so the `22-route-docs` seeder's published docs exist for the `/compete/organizer/_dashboard/` route id.
+
 ## Admin CMS
 
 Site admins manage docs at `/admin/docs` (list, create, edit). All CRUD server functions in [[apps/wodsmith-start/src/server-fns/route-docs-fns.ts]] call `requireAdmin`.
