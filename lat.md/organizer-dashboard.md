@@ -20,6 +20,8 @@ Parallel-fetches registrations, revenue stats, events, heats, division results s
 
 The page body lives in the shared [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/-pages/overview-page.tsx#OverviewPage]], rendered by both the organizer and cohost overview routes. The cohost route keeps its own graceful-degradation loader and injects cohost mutation callbacks (`onUpdateWorkout`, `onPublishDivisionResults`, `onPublishAllDivisionResults`), cohost link targets (`routePrefix`, `resultsLinkTo`, `athletesLinkTo`, `revenueLinkTo`), and a `permissions` prop (`CohostMembershipMetadata`; undefined = organizer = full access) that gates the events publish card on `editEvents`, the revenue card (including its "Details" link) on `revenue`, and hides the organizer-only "Configure registration" link.
 
+For in-person competitions, the Registrations stat card exposes a `Go to Check-In` button that opens the volunteer-facing kiosk (`/compete/{slug}/check-in`) in a new tab — the same pattern used by the sidebar's [[organizer-dashboard#Check-In Kiosk]] link, so organizers can launch the kiosk from the dashboard's main view without losing their place. The button is hidden for online competitions. It is also organizer-only in the shared page (gated with the "Configure registration" link), since no cohost check-in route exists.
+
 ## Competition Editing
 
 The edit page allows organizers to modify competition name, dates, description, registration window, timezone, and series group.
@@ -37,6 +39,14 @@ Fetches divisions with registration counts, scaling groups, and series mapping s
 Events link workouts to the competition. Each event represents a workout athletes will perform and be scored on.
 
 Fetches events, divisions, movements, and sponsors in parallel. Uses `OrganizerEventManager` for creating, editing, reordering, and deleting events. Events can have per-division workout descriptions, attached resources, and judging sheets. Supports parent/sub-event hierarchy for multi-workout events. Publishing or unpublishing a parent event cascades to all its child sub-events via [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/-components/quick-actions-events.tsx]].
+
+### Grouping Existing Events Under a Parent
+
+Organizers who created multi-part events (Part A / Part B) as separate top-level events can retroactively group them under a new parent event so they're scheduled together as one event.
+
+Standalone event rows in [[apps/wodsmith-start/src/components/events/organizer-event-manager.tsx#OrganizerEventManager]] show a selection checkbox (parents with children show the collapse chevron instead, since sub-events can't nest deeper than one level). Selecting one or more events reveals a banner explaining that selected events can be wrapped in a parent event for scheduling, with a "Group as one event" action enabled at two or more selections. The action opens [[apps/wodsmith-start/src/components/events/group-events-dialog.tsx#GroupEventsDialog]], which collects the parent event name and lists the events that will become sub-events.
+
+The core logic lives in [[apps/wodsmith-start/src/server/group-competition-events.ts#groupCompetitionEvents]], shared by the organizer fn [[apps/wodsmith-start/src/server-fns/competition-workouts-fns.ts#groupCompetitionEventsFn]] (requires `MANAGE_PROGRAMMING` plus a check that the team actually organizes the competition, preventing cross-team grouping with a forged teamId/competitionId pair) and the cohost fn [[apps/wodsmith-start/src/server-fns/cohost/cohost-workout-fns.ts#cohostGroupEventsFn]] (requires `editEvents`; the parent workout is still owned by the organizing team). Validation rejects sub-events, events that already have sub-events, events with scheduled heats (heats reference `trackWorkoutId` and are only scheduled for top-level events, so grouping would orphan them — organizers must delete those heats first), and selections over 99 events (`trackOrder` is decimal(6,2), so a 100th child would collide with the next top-level slot). In one transaction it creates a private parent container workout (scheme borrowed from the earliest selected event, `scoreType` null), inserts the parent track workout at the earliest selected event's integer slot, re-parents the selected events with decimal `trackOrder` values (N.01, N.02, ...) preserving their relative order, and renumbers the remaining top-level events sequentially (shifting their children) to close gaps. The parent's `eventStatus`/`heatStatus` is published only when every grouped event was already published, and the parent's `eventStatus` cascades to the grouped children so a draft parent can't leave previously published sub-events visible in public queries; existing scores stay on the grouped events, matching the per-sub-event scoring model. Validation rules and the re-parenting transaction are covered by tests in `apps/wodsmith-start/test/server/group-competition-events.test.ts`.
 
 ### Event-Division Mappings
 
@@ -76,6 +86,7 @@ Uses `getOrganizerRegistrationsFn` for the full registration list with detailed 
 - Registration questions editor (custom questions athletes answer during signup)
 - Pending teammate invitations tab for team divisions
 - Per-athlete deep link to the [[organizer-dashboard#Registrations (Athletes)#Athlete Detail Page]] via the "View Details" item in the row's captain-scoped actions dropdown (the athlete name itself is plain text — not a link — to keep the row visually calm)
+- For in-person competitions only, a "Checked In" column shows the `checkedInAt` timestamp on the captain's row (see [[registration#Day-of Check-In]]). The CSV export and mobile card view include the same column under the same gate.
 
 ### Athlete Detail Page
 
@@ -127,6 +138,12 @@ Publish state lives in `competitionsTable.settings.divisionResults[trackWorkoutI
 2. Video visibility: the `isEventDivisionPublished` helper returns `false` for unpublished pairs so their videos don't leak.
 
 Defaults: when `divisionResults` is absent entirely, online competitions treat everything as hidden (opt-in publishing) while in-person competitions show everything (backwards compat for gyms that never opted into the gate). Organizers can bulk-publish all divisions for an event from `QuickActionsDivisionResults`.
+
+## Check-In Kiosk
+
+For in-person competitions only, the "Run Competition" sidebar exposes a "Check-in" link to an organizer landing page that explains the flow and opens the volunteer-facing kiosk in a new tab.
+
+The sidebar link ([[apps/wodsmith-start/src/components/competition-sidebar.tsx]]) is a normal internal `<Link>` to `/compete/organizer/{competitionId}/check-in`. That landing page ([[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/check-in.tsx]]) renders an [[apps/wodsmith-start/src/components/organizer/empty-state.tsx#OrganizerEmptyState]] describing how day-of check-in works (one tap checks in the whole team, athletes sign missing waivers on the device, volunteers can run the kiosk from their own accounts) with an "Open check-in kiosk" action that `window.open`s `/compete/{slug}/check-in` in a new tab so organizers keep their dashboard. The overview's Registrations card "Go to Check-In" button points at the same landing page. Online competitions hide the sidebar link, and the landing route's loader redirects them back to the organizer overview. Instructions live only on this organizer page — the public kiosk route stays instruction-free for volunteers. Permission gating (`MANAGE_COMPETITIONS` or volunteer role on the competition team) lives on the kiosk route's loader and on every check-in server function. See [[registration#Day-of Check-In]] for the kiosk's behavior and data model.
 
 ## Leaderboard Preview
 

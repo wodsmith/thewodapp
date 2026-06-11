@@ -15,6 +15,7 @@ import {
   cohostCreateWorkoutFn,
   cohostGetBatchDivisionDescriptionsFn,
   cohostGetWorkoutsFn,
+  cohostGroupEventsFn,
   cohostRemoveWorkoutFn,
   cohostReorderEventsFn,
 } from "@/server-fns/cohost/cohost-workout-fns"
@@ -148,6 +149,17 @@ function RouteComponent() {
               trackOrder: number
             }>,
           },
+        })) as any,
+      groupEventsFn: ((args: { data: Record<string, unknown> }) =>
+        cohostGroupEventsFn({
+          data: {
+            competitionTeamId,
+            competitionId: args.data.competitionId as string,
+            trackWorkoutIds: args.data.trackWorkoutIds as string[],
+            name: args.data.name as string,
+            description: args.data.description as string | undefined,
+          },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         })) as any,
     }),
     [competitionTeamId],

@@ -8,7 +8,7 @@
  */
 
 import { Link } from "@tanstack/react-router"
-import { FileText, TrendingUp, Users } from "lucide-react"
+import { ClipboardCheck, FileText, TrendingUp, Users } from "lucide-react"
 import type { ComponentProps } from "react"
 import { Button } from "@/components/ui/button"
 import {
@@ -328,15 +328,29 @@ export function OverviewPage({
               <CardTitle>Registrations</CardTitle>
               <CardDescription>Athletes registered</CardDescription>
             </div>
-            <Link
-              to={athletesLinkTo as string}
-              params={{ competitionId: competition.id }}
-            >
-              <Button variant="outline" size="sm">
-                <Users className="mr-2 h-4 w-4" />
-                View all
-              </Button>
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              {/* Organizer-only: there is no cohost check-in route */}
+              {!isOnline && isOrganizer && (
+                <Link
+                  to="/compete/organizer/$competitionId/check-in"
+                  params={{ competitionId: competition.id }}
+                >
+                  <Button size="sm">
+                    <ClipboardCheck className="mr-2 h-4 w-4" />
+                    Go to Check-In
+                  </Button>
+                </Link>
+              )}
+              <Link
+                to={athletesLinkTo as string}
+                params={{ competitionId: competition.id }}
+              >
+                <Button variant="outline" size="sm">
+                  <Users className="mr-2 h-4 w-4" />
+                  View all
+                </Button>
+              </Link>
+            </div>
           </CardHeader>
           <CardContent>
             {registrations.length === 0 ? (

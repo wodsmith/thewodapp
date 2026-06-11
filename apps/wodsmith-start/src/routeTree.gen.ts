@@ -68,6 +68,7 @@ import { Route as CompeteSlugMyScheduleRouteImport } from './routes/compete/$slu
 import { Route as CompeteSlugLeaderboardRouteImport } from './routes/compete/$slug/leaderboard'
 import { Route as CompeteSlugJudgesScheduleRouteImport } from './routes/compete/$slug/judges-schedule'
 import { Route as CompeteSlugInvitePendingRouteImport } from './routes/compete/$slug/invite-pending'
+import { Route as CompeteSlugCheckInRouteImport } from './routes/compete/$slug/check-in'
 import { Route as CompeteSlugBroadcastsRouteImport } from './routes/compete/$slug/broadcasts'
 import { Route as ApiWorkoutsSearchRouteImport } from './routes/api/workouts/search'
 import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
@@ -125,6 +126,7 @@ import { Route as CompeteOrganizerCompetitionIdDivisionsRouteImport } from './ro
 import { Route as CompeteOrganizerCompetitionIdDangerZoneRouteImport } from './routes/compete/organizer/$competitionId/danger-zone'
 import { Route as CompeteOrganizerCompetitionIdCouponsRouteImport } from './routes/compete/organizer/$competitionId/coupons'
 import { Route as CompeteOrganizerCompetitionIdCoHostsRouteImport } from './routes/compete/organizer/$competitionId/co-hosts'
+import { Route as CompeteOrganizerCompetitionIdCheckInRouteImport } from './routes/compete/organizer/$competitionId/check-in'
 import { Route as CompeteOrganizerCompetitionIdBroadcastsRouteImport } from './routes/compete/organizer/$competitionId/broadcasts'
 import { Route as CompeteCohostCompetitionIdWaiversRouteImport } from './routes/compete/cohost/$competitionId/waivers'
 import { Route as CompeteCohostCompetitionIdVolunteersRouteImport } from './routes/compete/cohost/$competitionId/volunteers'
@@ -511,6 +513,11 @@ const CompeteSlugInvitePendingRoute =
     path: '/invite-pending',
     getParentRoute: () => CompeteSlugRoute,
   } as any)
+const CompeteSlugCheckInRoute = CompeteSlugCheckInRouteImport.update({
+  id: '/check-in',
+  path: '/check-in',
+  getParentRoute: () => CompeteSlugRoute,
+} as any)
 const CompeteSlugBroadcastsRoute = CompeteSlugBroadcastsRouteImport.update({
   id: '/broadcasts',
   path: '/broadcasts',
@@ -838,6 +845,12 @@ const CompeteOrganizerCompetitionIdCoHostsRoute =
   CompeteOrganizerCompetitionIdCoHostsRouteImport.update({
     id: '/co-hosts',
     path: '/co-hosts',
+    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+  } as any)
+const CompeteOrganizerCompetitionIdCheckInRoute =
+  CompeteOrganizerCompetitionIdCheckInRouteImport.update({
+    id: '/check-in',
+    path: '/check-in',
     getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
   } as any)
 const CompeteOrganizerCompetitionIdBroadcastsRoute =
@@ -1372,6 +1385,7 @@ export interface FileRoutesByFullPath {
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
   '/compete/$slug/broadcasts': typeof CompeteSlugBroadcastsRoute
+  '/compete/$slug/check-in': typeof CompeteSlugCheckInRoute
   '/compete/$slug/invite-pending': typeof CompeteSlugInvitePendingRoute
   '/compete/$slug/judges-schedule': typeof CompeteSlugJudgesScheduleRoute
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
@@ -1438,6 +1452,7 @@ export interface FileRoutesByFullPath {
   '/compete/cohost/$competitionId/volunteers': typeof CompeteCohostCompetitionIdVolunteersRoute
   '/compete/cohost/$competitionId/waivers': typeof CompeteCohostCompetitionIdWaiversRoute
   '/compete/organizer/$competitionId/broadcasts': typeof CompeteOrganizerCompetitionIdBroadcastsRoute
+  '/compete/organizer/$competitionId/check-in': typeof CompeteOrganizerCompetitionIdCheckInRoute
   '/compete/organizer/$competitionId/co-hosts': typeof CompeteOrganizerCompetitionIdCoHostsRoute
   '/compete/organizer/$competitionId/coupons': typeof CompeteOrganizerCompetitionIdCouponsRoute
   '/compete/organizer/$competitionId/danger-zone': typeof CompeteOrganizerCompetitionIdDangerZoneRoute
@@ -1564,6 +1579,7 @@ export interface FileRoutesByTo {
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
   '/compete/$slug/broadcasts': typeof CompeteSlugBroadcastsRoute
+  '/compete/$slug/check-in': typeof CompeteSlugCheckInRoute
   '/compete/$slug/invite-pending': typeof CompeteSlugInvitePendingRoute
   '/compete/$slug/judges-schedule': typeof CompeteSlugJudgesScheduleRoute
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
@@ -1628,6 +1644,7 @@ export interface FileRoutesByTo {
   '/compete/cohost/$competitionId/volunteers': typeof CompeteCohostCompetitionIdVolunteersRoute
   '/compete/cohost/$competitionId/waivers': typeof CompeteCohostCompetitionIdWaiversRoute
   '/compete/organizer/$competitionId/broadcasts': typeof CompeteOrganizerCompetitionIdBroadcastsRoute
+  '/compete/organizer/$competitionId/check-in': typeof CompeteOrganizerCompetitionIdCheckInRoute
   '/compete/organizer/$competitionId/co-hosts': typeof CompeteOrganizerCompetitionIdCoHostsRoute
   '/compete/organizer/$competitionId/coupons': typeof CompeteOrganizerCompetitionIdCouponsRoute
   '/compete/organizer/$competitionId/danger-zone': typeof CompeteOrganizerCompetitionIdDangerZoneRoute
@@ -1756,6 +1773,7 @@ export interface FileRoutesById {
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
   '/compete/$slug/broadcasts': typeof CompeteSlugBroadcastsRoute
+  '/compete/$slug/check-in': typeof CompeteSlugCheckInRoute
   '/compete/$slug/invite-pending': typeof CompeteSlugInvitePendingRoute
   '/compete/$slug/judges-schedule': typeof CompeteSlugJudgesScheduleRoute
   '/compete/$slug/leaderboard': typeof CompeteSlugLeaderboardRoute
@@ -1823,6 +1841,7 @@ export interface FileRoutesById {
   '/compete/cohost/$competitionId/volunteers': typeof CompeteCohostCompetitionIdVolunteersRoute
   '/compete/cohost/$competitionId/waivers': typeof CompeteCohostCompetitionIdWaiversRoute
   '/compete/organizer/$competitionId/broadcasts': typeof CompeteOrganizerCompetitionIdBroadcastsRoute
+  '/compete/organizer/$competitionId/check-in': typeof CompeteOrganizerCompetitionIdCheckInRoute
   '/compete/organizer/$competitionId/co-hosts': typeof CompeteOrganizerCompetitionIdCoHostsRoute
   '/compete/organizer/$competitionId/coupons': typeof CompeteOrganizerCompetitionIdCouponsRoute
   '/compete/organizer/$competitionId/danger-zone': typeof CompeteOrganizerCompetitionIdDangerZoneRoute
@@ -1957,6 +1976,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
     | '/compete/$slug/broadcasts'
+    | '/compete/$slug/check-in'
     | '/compete/$slug/invite-pending'
     | '/compete/$slug/judges-schedule'
     | '/compete/$slug/leaderboard'
@@ -2023,6 +2043,7 @@ export interface FileRouteTypes {
     | '/compete/cohost/$competitionId/volunteers'
     | '/compete/cohost/$competitionId/waivers'
     | '/compete/organizer/$competitionId/broadcasts'
+    | '/compete/organizer/$competitionId/check-in'
     | '/compete/organizer/$competitionId/co-hosts'
     | '/compete/organizer/$competitionId/coupons'
     | '/compete/organizer/$competitionId/danger-zone'
@@ -2149,6 +2170,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
     | '/compete/$slug/broadcasts'
+    | '/compete/$slug/check-in'
     | '/compete/$slug/invite-pending'
     | '/compete/$slug/judges-schedule'
     | '/compete/$slug/leaderboard'
@@ -2213,6 +2235,7 @@ export interface FileRouteTypes {
     | '/compete/cohost/$competitionId/volunteers'
     | '/compete/cohost/$competitionId/waivers'
     | '/compete/organizer/$competitionId/broadcasts'
+    | '/compete/organizer/$competitionId/check-in'
     | '/compete/organizer/$competitionId/co-hosts'
     | '/compete/organizer/$competitionId/coupons'
     | '/compete/organizer/$competitionId/danger-zone'
@@ -2340,6 +2363,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
     | '/compete/$slug/broadcasts'
+    | '/compete/$slug/check-in'
     | '/compete/$slug/invite-pending'
     | '/compete/$slug/judges-schedule'
     | '/compete/$slug/leaderboard'
@@ -2407,6 +2431,7 @@ export interface FileRouteTypes {
     | '/compete/cohost/$competitionId/volunteers'
     | '/compete/cohost/$competitionId/waivers'
     | '/compete/organizer/$competitionId/broadcasts'
+    | '/compete/organizer/$competitionId/check-in'
     | '/compete/organizer/$competitionId/co-hosts'
     | '/compete/organizer/$competitionId/coupons'
     | '/compete/organizer/$competitionId/danger-zone'
@@ -2961,6 +2986,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompeteSlugInvitePendingRouteImport
       parentRoute: typeof CompeteSlugRoute
     }
+    '/compete/$slug/check-in': {
+      id: '/compete/$slug/check-in'
+      path: '/check-in'
+      fullPath: '/compete/$slug/check-in'
+      preLoaderRoute: typeof CompeteSlugCheckInRouteImport
+      parentRoute: typeof CompeteSlugRoute
+    }
     '/compete/$slug/broadcasts': {
       id: '/compete/$slug/broadcasts'
       path: '/broadcasts'
@@ -3358,6 +3390,13 @@ declare module '@tanstack/react-router' {
       path: '/co-hosts'
       fullPath: '/compete/organizer/$competitionId/co-hosts'
       preLoaderRoute: typeof CompeteOrganizerCompetitionIdCoHostsRouteImport
+      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+    }
+    '/compete/organizer/$competitionId/check-in': {
+      id: '/compete/organizer/$competitionId/check-in'
+      path: '/check-in'
+      fullPath: '/compete/organizer/$competitionId/check-in'
+      preLoaderRoute: typeof CompeteOrganizerCompetitionIdCheckInRouteImport
       parentRoute: typeof CompeteOrganizerCompetitionIdRoute
     }
     '/compete/organizer/$competitionId/broadcasts': {
@@ -4171,6 +4210,7 @@ const CompeteSlugClaimTokenRouteWithChildren =
 
 interface CompeteSlugRouteChildren {
   CompeteSlugBroadcastsRoute: typeof CompeteSlugBroadcastsRoute
+  CompeteSlugCheckInRoute: typeof CompeteSlugCheckInRoute
   CompeteSlugInvitePendingRoute: typeof CompeteSlugInvitePendingRoute
   CompeteSlugJudgesScheduleRoute: typeof CompeteSlugJudgesScheduleRoute
   CompeteSlugLeaderboardRoute: typeof CompeteSlugLeaderboardRoute
@@ -4190,6 +4230,7 @@ interface CompeteSlugRouteChildren {
 
 const CompeteSlugRouteChildren: CompeteSlugRouteChildren = {
   CompeteSlugBroadcastsRoute: CompeteSlugBroadcastsRoute,
+  CompeteSlugCheckInRoute: CompeteSlugCheckInRoute,
   CompeteSlugInvitePendingRoute: CompeteSlugInvitePendingRoute,
   CompeteSlugJudgesScheduleRoute: CompeteSlugJudgesScheduleRoute,
   CompeteSlugLeaderboardRoute: CompeteSlugLeaderboardRoute,
@@ -4371,6 +4412,7 @@ const CompeteOrganizerCompetitionIdEventsEventIdRouteWithChildren =
 
 interface CompeteOrganizerCompetitionIdRouteChildren {
   CompeteOrganizerCompetitionIdBroadcastsRoute: typeof CompeteOrganizerCompetitionIdBroadcastsRoute
+  CompeteOrganizerCompetitionIdCheckInRoute: typeof CompeteOrganizerCompetitionIdCheckInRoute
   CompeteOrganizerCompetitionIdCoHostsRoute: typeof CompeteOrganizerCompetitionIdCoHostsRoute
   CompeteOrganizerCompetitionIdCouponsRoute: typeof CompeteOrganizerCompetitionIdCouponsRoute
   CompeteOrganizerCompetitionIdDangerZoneRoute: typeof CompeteOrganizerCompetitionIdDangerZoneRoute
@@ -4403,6 +4445,8 @@ const CompeteOrganizerCompetitionIdRouteChildren: CompeteOrganizerCompetitionIdR
   {
     CompeteOrganizerCompetitionIdBroadcastsRoute:
       CompeteOrganizerCompetitionIdBroadcastsRoute,
+    CompeteOrganizerCompetitionIdCheckInRoute:
+      CompeteOrganizerCompetitionIdCheckInRoute,
     CompeteOrganizerCompetitionIdCoHostsRoute:
       CompeteOrganizerCompetitionIdCoHostsRoute,
     CompeteOrganizerCompetitionIdCouponsRoute:

@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   ChevronRight,
+  ClipboardList,
   Clock3,
   Eye,
   EyeOff,
@@ -24,6 +25,7 @@ import {
 } from "lucide-react"
 import { type ComponentProps, useCallback, useState } from "react"
 import { toast } from "sonner"
+import { OrganizerEmptyState } from "@/components/organizer/empty-state"
 import { ResultsEntryForm } from "@/components/organizer/results/results-entry-form"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -232,7 +234,11 @@ function OnlineSubmissionsOverview({
 
       {/* Event list */}
       {events.length === 0 ? (
-        <EmptyState />
+        <OrganizerEmptyState
+          icon={Video}
+          title="Nothing to review yet"
+          description="No events found for this competition. Add events first."
+        />
       ) : (
         <div className="space-y-3 animate-in fade-in-0 duration-400 delay-150">
           {topLevel.map((event, index) => {
@@ -483,20 +489,6 @@ function ChildCountsPills({ counts }: { counts: CountEntry }) {
   )
 }
 
-function EmptyState() {
-  return (
-    <div className="rounded-2xl border border-dashed border-black/15 bg-black/[0.02] p-12 text-center backdrop-blur-md animate-in fade-in-0 zoom-in-95 duration-400 dark:border-white/15 dark:bg-white/[0.02]">
-      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-black/10 bg-white/60 animate-in fade-in-0 zoom-in-95 duration-300 delay-100 dark:border-white/10 dark:bg-black/30">
-        <Video className="text-muted-foreground h-5 w-5" />
-      </div>
-      <p className="font-semibold">Nothing to review yet</p>
-      <p className="text-muted-foreground mt-1 text-sm">
-        No events found for this competition. Add events first.
-      </p>
-    </div>
-  )
-}
-
 /**
  * In-person competition results entry
  * Original results entry form for manual score input
@@ -622,10 +614,11 @@ function InPersonResultsEntry({
             Enter scores for competition events
           </p>
         </div>
-        <div className="text-center py-12 text-muted-foreground">
-          No events found for this competition. Add events first before entering
-          results.
-        </div>
+        <OrganizerEmptyState
+          icon={ClipboardList}
+          title="No events yet"
+          description="No events found for this competition. Add events first before entering results."
+        />
       </div>
     )
   }
@@ -640,9 +633,11 @@ function InPersonResultsEntry({
             Enter scores for competition events
           </p>
         </div>
-        <div className="text-center py-12 text-muted-foreground">
-          Unable to load score entry data. Please try again.
-        </div>
+        <OrganizerEmptyState
+          icon={AlertTriangle}
+          title="Unable to load results"
+          description="Unable to load score entry data. Please try again."
+        />
       </div>
     )
   }

@@ -635,9 +635,17 @@ function EventDetailsPage() {
                               </span>
                             )}
                         </div>
-                        <div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
-                          {child.workout.description || "Details coming soon."}
-                        </div>
+                        {child.workout.description ? (
+                          <div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
+                            {child.workout.description}
+                          </div>
+                        ) : (
+                          !childScale && (
+                            <div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
+                              Details coming soon.
+                            </div>
+                          )
+                        )}
                         {childScale && (
                           <div className="flex items-start gap-2 mt-1">
                             <Badge
