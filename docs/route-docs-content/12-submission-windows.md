@@ -1,5 +1,6 @@
 ---
 title: How to set video submission windows
+description: Set when athletes can submit videos for each event
 type: markdown
 routes:
   - /compete/organizer/$competitionId/submission-windows

@@ -1,5 +1,6 @@
 ---
 title: How to control which divisions see each event
+description: Limit events to specific divisions and understand mapping defaults
 type: markdown
 routes:
   - /compete/organizer/$competitionId/event-divisions

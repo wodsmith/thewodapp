@@ -1,5 +1,6 @@
 ---
 title: "Leaderboard preview: what you see vs what athletes see"
+description: What the private preview shows that the public leaderboard hides
 type: markdown
 routes:
   - /compete/organizer/$competitionId/leaderboard-preview

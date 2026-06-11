@@ -1,5 +1,6 @@
 ---
 title: How to set up divisions and capacity
+description: Add divisions, set team sizes, and manage capacity limits
 type: markdown
 routes:
   - /compete/organizer/$competitionId/divisions

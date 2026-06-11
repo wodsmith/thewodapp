@@ -1,5 +1,6 @@
 ---
 title: How to publish division results
+description: Control when scores appear on the public leaderboard, per event and division
 type: markdown
 routes:
   - /compete/organizer/$competitionId/results

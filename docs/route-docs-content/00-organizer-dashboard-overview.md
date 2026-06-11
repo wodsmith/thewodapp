@@ -1,5 +1,6 @@
 ---
 title: "Organizer dashboard: where everything lives"
+description: "Map of the organizer dashboard: setup, run, and business sections"
 type: markdown
 routes:
   - /compete/organizer/$competitionId

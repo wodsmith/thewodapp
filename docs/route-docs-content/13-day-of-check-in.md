@@ -1,5 +1,6 @@
 ---
 title: How to run day-of check-in
+description: Run the day-of check-in kiosk with volunteers
 type: markdown
 routes:
   - /compete/organizer/$competitionId/check-in

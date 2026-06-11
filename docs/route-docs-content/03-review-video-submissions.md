@@ -1,5 +1,6 @@
 ---
 title: "How to review video submissions: verify, adjust, penalize, invalidate"
+description: Verify, adjust, penalize, or invalidate athlete video submissions
 type: markdown
 routes:
   - /compete/organizer/$competitionId/events/$eventId/submissions

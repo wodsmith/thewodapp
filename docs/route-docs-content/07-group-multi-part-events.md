@@ -1,5 +1,6 @@
 ---
 title: How to group multi-part events under one parent
+description: Combine Part A / Part B events into one scheduled block
 type: markdown
 routes:
   - /compete/organizer/$competitionId/events/

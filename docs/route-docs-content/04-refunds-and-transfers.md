@@ -1,5 +1,6 @@
 ---
 title: How to refund, transfer, or remove a registration
+description: Refunds, division changes, person-to-person transfers, and removals
 type: markdown
 routes:
   - /compete/organizer/$competitionId/athletes/

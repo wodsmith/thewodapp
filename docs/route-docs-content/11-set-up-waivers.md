@@ -1,5 +1,6 @@
 ---
 title: How to set up waivers
+description: Create waivers and choose who must sign them
 type: markdown
 routes:
   - /compete/organizer/$competitionId/waivers

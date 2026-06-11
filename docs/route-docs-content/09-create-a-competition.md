@@ -1,5 +1,6 @@
 ---
 title: How to create a competition
+description: Create a competition and choose the right type and series
 type: markdown
 routes:
   - /compete/organizer/_dashboard/new

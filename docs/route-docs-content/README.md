@@ -9,6 +9,7 @@ Frontmatter maps 1:1 to CMS fields:
 ```yaml
 ---
 title: Publish division results   # route_docs.title
+description: One-line summary     # route_docs.description (shown in CMS list/drawer)
 type: markdown                    # route_docs.type (markdown | video | link)
 routes:                           # route_doc_routes — one mapping per route ID
   - /compete/organizer/$competitionId/results
@@ -41,6 +42,8 @@ Create these as `type: link` entries pointing at the existing Docusaurus site:
 
 Give link docs `sortOrder: 10` so page-specific markdown how-tos (sortOrder 0) appear above them.
 
+**Overlap warning:** PR #505's dev seeder (`apps/wodsmith-start/scripts/seed/seeders/22-route-docs.ts`) already creates a subset of these in **dev environments only** — a layout-level setup guide plus link docs for schedule, athletes, broadcasts, and edit, and a first-competition tutorial on the dashboard index (`/compete/organizer/_dashboard/`). Production gets nothing from seeds, so the full manifest above still needs CMS entry there — but in dev, check `/admin/docs` before creating duplicates. The seeder is also the reference data shape if anyone builds a production importer for this pack.
+
 ## Phase 1 — markdown how-tos (files in this directory)
 
 | File | Route ID |
@@ -65,6 +68,15 @@ Give link docs `sortOrder: 10` so page-specific markdown how-tos (sortOrder 0) a
 | `12-submission-windows.md` | `/compete/organizer/$competitionId/submission-windows` |
 | `13-day-of-check-in.md` | `/compete/organizer/$competitionId/check-in` |
 
-Phase 2's judge-rotation and series-sync **videos** are not in this pack — they need a human screen recording (see the rollout plan).
+## Phase 2 — video scripts (`video-scripts/`)
 
-Keep edits to these files in sync with the CMS until a future importer exists — the CMS is the runtime source of truth; this directory is the reviewed draft of record.
+The two videos need a human screen recording, but the narration scripts and shot lists are ready:
+
+| File | Route ID | Length |
+|---|---|---|
+| `video-scripts/judge-rotations.md` | `/compete/organizer/$competitionId/volunteers` | ~3 min |
+| `video-scripts/series-template-sync.md` | `/compete/organizer/series/$groupId/events` | ~3 min |
+
+Record against a seeded dev environment, upload via `/admin/docs` (≤100MB R2) or paste an unlisted YouTube URL, then create the CMS entry from each script's frontmatter.
+
+Keep edits to these files in sync with the CMS — the CMS is the runtime source of truth; this directory is the reviewed draft of record (the `22-route-docs` seeder shows the data shape if a production importer gets built).

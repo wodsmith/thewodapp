@@ -1,5 +1,6 @@
 ---
 title: How to connect Stripe and set registration fees
+description: Connect Stripe, set per-division fees, and read the fee breakdown
 type: markdown
 routes:
   - /compete/organizer/$competitionId/pricing

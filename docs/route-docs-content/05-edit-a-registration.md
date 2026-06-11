@@ -1,5 +1,6 @@
 ---
 title: How to edit a registration
+description: Edit team names, rosters, answers, and scores on one registration
 type: markdown
 routes:
   - /compete/organizer/$competitionId/athletes/$registrationId
