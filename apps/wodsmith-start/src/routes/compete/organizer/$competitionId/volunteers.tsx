@@ -1,15 +1,5 @@
-import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router"
-import { useEffect } from "react"
+import { createFileRoute } from "@tanstack/react-router"
 import { z } from "zod"
-import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { JudgeAssignmentVersion } from "@/db/schema"
 import type { LaneShiftPattern } from "@/db/schemas/volunteers"
 import { getHeatsForCompetitionFn } from "@/server-fns/competition-heats-fns"
@@ -31,10 +21,7 @@ import {
   getVolunteerWaiverStatusesFn,
 } from "@/server-fns/volunteer-fns"
 import { getCompetitionShiftsFn } from "@/server-fns/volunteer-shift-fns"
-import { InvitedVolunteersList } from "./-components/invited-volunteers-list"
-import { JudgeSchedulingContainer } from "./-components/judges"
-import { ShiftList } from "./-components/shifts/shift-list"
-import { VolunteersList } from "./-components/volunteers-list"
+import { VolunteersPage } from "./-pages/volunteers-page"
 
 // Search params schema for tab navigation and event selection
 const searchParamsSchema = z.object({
@@ -215,10 +202,10 @@ export const Route = createFileRoute(
       volunteerWaiverStatus,
     }
   },
-  component: VolunteersPage,
+  component: RouteComponent,
 })
 
-function VolunteersPage() {
+function RouteComponent() {
   const {
     competition,
     competitionTeamId,
@@ -241,181 +228,31 @@ function VolunteersPage() {
     volunteerWaiverStatus,
   } = Route.useLoaderData()
 
-  const { tab, event: eventFromUrl } = Route.useSearch()
-  const navigate = useNavigate()
-  const router = useRouter()
-
-  const handleTabChange = (value: string) => {
-    navigate({
-      to: ".",
-      search: (prev) => ({
-        ...prev,
-        tab: value as "roster" | "shifts" | "schedule" | "registration-rules",
-      }),
-      replace: true,
-    })
-  }
-
-  const handleEventChange = (eventId: string) => {
-    navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, event: eventId }),
-      replace: true,
-    })
-  }
-
-  // Determine selected event - from URL or first event
-  // Validate eventFromUrl exists in events before using it
-  const selectedEventId =
-    eventFromUrl && events.some((event) => event.id === eventFromUrl)
-      ? eventFromUrl
-      : events[0]?.id || ""
-
-  // Check if schedule tab should be available (in-person competitions only)
-  const isInPerson = competition.competitionType === "in-person"
-
-  // Derive effective tab - fall back to roster if schedule isn't allowed
-  const effectiveTab = !isInPerson && tab === "schedule" ? "roster" : tab
-
-  // Sync URL/state when competition type changes and schedule tab is no longer valid
-  useEffect(() => {
-    if (!isInPerson && tab === "schedule") {
-      navigate({
-        to: ".",
-        search: { tab: "roster" },
-        replace: true,
-      })
-    }
-  }, [isInPerson, tab, navigate])
-
-  const handleQuestionsChange = () => {
-    router.invalidate()
-  }
+  const { tab, event } = Route.useSearch()
 
   return (
-    <Tabs
-      value={effectiveTab}
-      onValueChange={handleTabChange}
-      className="w-full"
-    >
-      {/* Mobile: Select dropdown */}
-      <div className="mb-6 sm:hidden">
-        <Select value={effectiveTab} onValueChange={handleTabChange}>
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="roster">Roster</SelectItem>
-            <SelectItem value="shifts">Shifts</SelectItem>
-            {isInPerson && (
-              <SelectItem value="schedule">Judge Schedule</SelectItem>
-            )}
-            <SelectItem value="registration-rules">Signup Questions</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Desktop: Tabs */}
-      <TabsList className="mb-6 hidden sm:inline-flex">
-        <TabsTrigger value="roster">Roster</TabsTrigger>
-        <TabsTrigger value="shifts">Shifts</TabsTrigger>
-        {isInPerson && (
-          <TabsTrigger value="schedule">Judge Schedule</TabsTrigger>
-        )}
-        <TabsTrigger value="registration-rules">Signup Questions</TabsTrigger>
-      </TabsList>
-
-      {/* Roster Tab - Volunteer Management */}
-      <TabsContent value="roster" className="flex flex-col gap-8">
-        {/* Invited Volunteers Section - Only show if there are pending direct invites */}
-        {pendingDirectInvites.length > 0 && (
-          <section>
-            <div className="mb-4">
-              <h2 className="text-xl font-semibold">Invited Volunteers</h2>
-              <p className="text-sm text-muted-foreground">
-                {pendingDirectInvites.length} pending{" "}
-                {pendingDirectInvites.length === 1 ? "invite" : "invites"}
-              </p>
-            </div>
-            <InvitedVolunteersList invites={pendingDirectInvites} />
-          </section>
-        )}
-
-        {/* Volunteers Section */}
-        <section>
-          <div className="mb-4">
-            <h2 className="text-xl font-semibold">Volunteers</h2>
-            <p className="text-sm text-muted-foreground">
-              {invitations.length + volunteersWithAccess.length} total (
-              {invitations.length} application
-              {invitations.length === 1 ? "" : "s"},{" "}
-              {volunteersWithAccess.length} approved)
-            </p>
-          </div>
-
-          <VolunteersList
-            competitionId={competition.id}
-            competitionSlug={competition.slug}
-            competitionTeamId={competitionTeamId}
-            organizingTeamId={competition.organizingTeamId}
-            invitations={invitations}
-            volunteers={volunteersWithAccess}
-            volunteerAssignments={volunteerAssignments}
-            volunteerQuestions={volunteerQuestions}
-            answersByInvitation={answersByInvitation}
-            emailToInvitationId={emailToInvitationId}
-            volunteerWaiverStatus={volunteerWaiverStatus}
-          />
-        </section>
-      </TabsContent>
-
-      {/* Shifts Tab */}
-      <TabsContent value="shifts" className="mt-6">
-        <ShiftList
-          competitionId={competition.id}
-          competitionTeamId={competitionTeamId}
-          shifts={shifts}
-        />
-      </TabsContent>
-
-      {/* Schedule Tab - Judge Scheduling & Rotations (in-person only) */}
-      {isInPerson && (
-        <TabsContent value="schedule">
-          <JudgeSchedulingContainer
-            competitionId={competition.id}
-            competitionSlug={competition.slug}
-            organizingTeamId={competition.organizingTeamId}
-            competitionType={competition.competitionType}
-            events={events}
-            heats={heats}
-            judges={judges}
-            judgeAssignments={judgeAssignments}
-            rotations={rotations}
-            eventDefaultsMap={eventDefaultsMap}
-            versionHistoryMap={versionHistoryMap}
-            activeVersionMap={activeVersionMap}
-            competitionDefaultHeats={competition.defaultHeatsPerRotation ?? 4}
-            competitionDefaultPattern={
-              (competition.defaultLaneShiftPattern as "stay" | "shift_right") ??
-              "shift_right"
-            }
-            selectedEventId={selectedEventId}
-            onEventChange={handleEventChange}
-          />
-        </TabsContent>
-      )}
-
-      {/* Signup Questions Tab */}
-      <TabsContent value="registration-rules">
-        <RegistrationQuestionsEditor
-          entityType="competition"
-          entityId={competition.id}
-          teamId={competition.organizingTeamId}
-          questions={volunteerQuestions}
-          onQuestionsChange={handleQuestionsChange}
-          questionTarget="volunteer"
-        />
-      </TabsContent>
-    </Tabs>
+    <VolunteersPage
+      competition={competition}
+      competitionTeamId={competitionTeamId}
+      tab={tab}
+      eventFromUrl={event}
+      invitations={invitations}
+      volunteersWithAccess={volunteersWithAccess}
+      events={events}
+      pendingDirectInvites={pendingDirectInvites}
+      judges={judges}
+      heats={heats}
+      judgeAssignments={judgeAssignments}
+      rotations={rotations}
+      eventDefaultsMap={eventDefaultsMap}
+      versionHistoryMap={versionHistoryMap}
+      activeVersionMap={activeVersionMap}
+      shifts={shifts}
+      volunteerAssignments={volunteerAssignments}
+      volunteerQuestions={volunteerQuestions}
+      answersByInvitation={answersByInvitation}
+      emailToInvitationId={emailToInvitationId}
+      volunteerWaiverStatus={volunteerWaiverStatus}
+    />
   )
 }

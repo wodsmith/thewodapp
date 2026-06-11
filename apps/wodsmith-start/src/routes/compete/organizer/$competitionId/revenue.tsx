@@ -3,7 +3,7 @@ import {
   getCompetitionRevenueStatsFn,
   getOrganizerStripeStatusFn,
 } from "@/server-fns/commerce-fns"
-import { RevenueStatsDisplay } from "./-components/revenue-stats-display"
+import { RevenuePage } from "./-pages/revenue-page"
 
 // @lat: [[organizer-dashboard#Revenue]]
 export const Route = createFileRoute(
@@ -28,7 +28,7 @@ export const Route = createFileRoute(
       stripeStatus: stripeResult.stripeStatus,
     }
   },
-  component: RevenuePage,
+  component: RouteComponent,
   head: ({ loaderData }) => {
     const competition = loaderData?.competition
     if (!competition) {
@@ -48,13 +48,8 @@ export const Route = createFileRoute(
   },
 })
 
-function RevenuePage() {
+function RouteComponent() {
   const { stats, stripeStatus } = Route.useLoaderData()
 
-  return (
-    <RevenueStatsDisplay
-      stats={stats}
-      stripeStatus={stripeStatus ?? undefined}
-    />
-  )
+  return <RevenuePage stats={stats} stripeStatus={stripeStatus ?? undefined} />
 }

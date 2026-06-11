@@ -1,33 +1,34 @@
 /**
  * Cohost Competition Events Route
  *
- * Cohost page for managing competition events (workouts).
- * Fetches events, divisions, movements, and sponsors in parallel via cohost server fns.
+ * Renders the shared organizer EventsPage with cohost-permissioned mutation
+ * overrides and cohost event detail links so the page stays in sync with the
+ * organizer route. Fetches events, divisions, movements, and sponsors in
+ * parallel via cohost server fns.
  */
 
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { useMemo } from "react"
-import { OrganizerEventManager } from "@/components/events/organizer-event-manager"
 import { cohostGetDivisionsWithCountsFn } from "@/server-fns/cohost/cohost-division-fns"
+import { cohostGetCompetitionSponsorsFn } from "@/server-fns/cohost/cohost-sponsor-fns"
 import {
+  cohostCreateWorkoutFn,
   cohostGetBatchDivisionDescriptionsFn,
   cohostGetWorkoutsFn,
-  cohostCreateWorkoutFn,
   cohostRemoveWorkoutFn,
   cohostReorderEventsFn,
 } from "@/server-fns/cohost/cohost-workout-fns"
 import { getAllMovementsFn } from "@/server-fns/movement-fns"
-import { cohostGetCompetitionSponsorsFn } from "@/server-fns/cohost/cohost-sponsor-fns"
+import { EventsPage } from "../../../organizer/$competitionId/-pages/events/events-page"
 
 const parentRoute = getRouteApi("/compete/cohost/$competitionId")
 
-export const Route = createFileRoute(
-  "/compete/cohost/$competitionId/events/",
-)({
+export const Route = createFileRoute("/compete/cohost/$competitionId/events/")({
   staleTime: 10_000,
-  component: EventsPage,
+  component: RouteComponent,
   loader: async ({ params, parentMatchPromise }) => {
     const parentMatch = await parentMatchPromise
+    // biome-ignore lint/style/noNonNullAssertion: established pattern for parent route data
     const { competition } = parentMatch.loaderData!
 
     const competitionTeamId = competition.competitionTeamId!
@@ -92,7 +93,7 @@ export const Route = createFileRoute(
   },
 })
 
-function EventsPage() {
+function RouteComponent() {
   const {
     events,
     divisions,
@@ -118,12 +119,17 @@ function EventsPage() {
             description: args.data.description as string | undefined,
             roundsToScore: args.data.roundsToScore as number | null | undefined,
             repsPerRound: args.data.repsPerRound as number | null | undefined,
-            tiebreakScheme: args.data.tiebreakScheme as string | null | undefined,
+            tiebreakScheme: args.data.tiebreakScheme as
+              | string
+              | null
+              | undefined,
             movementIds: args.data.movementIds as string[] | undefined,
-            sourceWorkoutId: args.data.sourceWorkoutId as string | null | undefined,
+            sourceWorkoutId: args.data.sourceWorkoutId as
+              | string
+              | null
+              | undefined,
             parentEventId: args.data.parentEventId as string | undefined,
           },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         })) as any,
       removeWorkoutFn: ((args: { data: Record<string, unknown> }) =>
         cohostRemoveWorkoutFn({
@@ -131,7 +137,6 @@ function EventsPage() {
             competitionTeamId,
             trackWorkoutId: args.data.trackWorkoutId as string,
           },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         })) as any,
       reorderEventsFn: ((args: { data: Record<string, unknown> }) =>
         cohostReorderEventsFn({
@@ -143,14 +148,13 @@ function EventsPage() {
               trackOrder: number
             }>,
           },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         })) as any,
     }),
     [competitionTeamId],
   )
 
   return (
-    <OrganizerEventManager
+    <EventsPage
       competitionId={competition.id}
       organizingTeamId={competition.organizingTeamId}
       events={events}

@@ -1,9 +1,8 @@
 /**
  * Competition Cohost Waivers Route
  *
- * Cohost page for managing competition waivers.
- * Mirrors the organizer waivers page but uses cohost server functions.
- * Passes override callbacks to WaiverList so mutations use cohost auth.
+ * Renders the shared organizer WaiversPage with cohost-permissioned waiver
+ * mutation overrides so the page stays in sync with the organizer route.
  */
 
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
@@ -16,7 +15,7 @@ import {
   cohostUpdateWaiverFn,
 } from "@/server-fns/cohost/cohost-waiver-fns"
 import type { WaiverListOverrides } from "../../organizer/$competitionId/-components/waiver-list"
-import { WaiverList } from "../../organizer/$competitionId/-components/waiver-list"
+import { WaiversPage } from "../../organizer/$competitionId/-pages/waivers-page"
 
 // Get parent route API to access its loader data
 const parentRoute = getRouteApi("/compete/cohost/$competitionId")
@@ -38,10 +37,10 @@ export const Route = createFileRoute("/compete/cohost/$competitionId/waivers")({
       waivers: waiversResult.waivers,
     }
   },
-  component: CohostWaiversPage,
+  component: RouteComponent,
 })
 
-function CohostWaiversPage() {
+function RouteComponent() {
   const { waivers } = Route.useLoaderData()
   // Get competition from parent layout loader data
   const { competition } = parentRoute.useLoaderData()
@@ -94,7 +93,7 @@ function CohostWaiversPage() {
   )
 
   return (
-    <WaiverList
+    <WaiversPage
       competitionId={competition.id}
       teamId={competitionTeamId}
       waivers={waivers}

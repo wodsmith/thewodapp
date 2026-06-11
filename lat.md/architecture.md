@@ -106,7 +106,9 @@ Competition management dashboard for organizers. Accessible at `/compete/organiz
 
 ### compete/cohost
 
-Co-host dashboard for users invited to help manage a competition. Accessible at `/compete/cohost/{competitionId}/`. Mirrors the organizer dashboard but filters navigation and features based on `CohostMembershipMetadata` permissions.
+Co-host dashboard for users invited to help manage a competition. Accessible at `/compete/cohost/{competitionId}/`. Renders the same chrome and page bodies as the organizer dashboard, filtered by `CohostMembershipMetadata` permissions.
+
+The chrome comes from [[apps/wodsmith-start/src/components/competition-dashboard-shell.tsx#CompetitionDashboardShell]] and the page bodies from `organizer/$competitionId/-pages/`; cohost routes keep their own loaders and inject cohost-permissioned server-fn callbacks.
 
 ### admin
 

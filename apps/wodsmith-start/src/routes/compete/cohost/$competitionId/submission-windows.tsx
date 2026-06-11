@@ -1,21 +1,20 @@
 /**
  * Cohost Submission Windows Route
  *
- * Cohost page for managing submission windows for online competitions.
- * Only available for online competition types.
- * Mirrors organizer submission-windows route with cohost auth and server fns.
- * Passes override callback so upsert mutations use cohost auth.
+ * Renders the shared organizer SubmissionWindowsPage with a
+ * cohost-permissioned upsert override so the page stays in sync with the
+ * organizer route. Only available for online competition types.
  */
 
-import { useMemo } from "react"
 import { createFileRoute, getRouteApi, redirect } from "@tanstack/react-router"
+import { useMemo } from "react"
 import type { SubmissionWindowsManagerOverrides } from "@/components/compete/submission-windows-manager"
-import { SubmissionWindowsManager } from "@/components/compete/submission-windows-manager"
 import {
   cohostGetCompetitionEventsFn,
   cohostUpsertCompetitionEventsFn,
 } from "@/server-fns/cohost/cohost-event-fns"
 import { cohostGetWorkoutsFn } from "@/server-fns/cohost/cohost-workout-fns"
+import { SubmissionWindowsPage } from "../../organizer/$competitionId/-pages/submission-windows-page"
 
 // Get parent route API to access its loader data
 const parentRoute = getRouteApi("/compete/cohost/$competitionId")
@@ -24,7 +23,7 @@ export const Route = createFileRoute(
   "/compete/cohost/$competitionId/submission-windows",
 )({
   staleTime: 10_000,
-  component: SubmissionWindowsPage,
+  component: RouteComponent,
   loader: async ({ params, parentMatchPromise }) => {
     const parentMatch = await parentMatchPromise
     const { competition } = parentMatch.loaderData!
@@ -63,20 +62,10 @@ export const Route = createFileRoute(
   },
 })
 
-function SubmissionWindowsPage() {
+function RouteComponent() {
   const { workouts, competitionEvents } = Route.useLoaderData()
   const { competition } = parentRoute.useLoaderData()
   const competitionTeamId = competition.competitionTeamId!
-
-  // Map workouts to format expected by SubmissionWindowsManager
-  const workoutsWithType = workouts.map((event: any) => ({
-    id: event.id,
-    workoutId: event.workoutId,
-    name: event.workout?.name || `Event #${event.trackOrder}`,
-    workoutType: event.workout?.scheme || "for-time",
-    trackOrder: event.trackOrder,
-    parentEventId: event.parentEventId ?? null,
-  }))
 
   // Build override callback that maps teamId -> competitionTeamId for cohost server fn
   const overrides = useMemo(
@@ -94,12 +83,12 @@ function SubmissionWindowsPage() {
   )
 
   return (
-    <SubmissionWindowsManager
+    <SubmissionWindowsPage
       competitionId={competition.id}
       teamId={competitionTeamId}
-      workouts={workoutsWithType}
+      workouts={workouts}
       initialEvents={competitionEvents}
-      timezone={competition.timezone || "America/Denver"}
+      timezone={competition.timezone}
       overrides={overrides}
     />
   )

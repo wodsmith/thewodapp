@@ -3,15 +3,16 @@
  *
  * Revenue statistics display for cohosts.
  * Gated by revenue permission.
- * Reuses organizer RevenueStatsDisplay component.
+ * Renders the shared organizer RevenuePage with the payout setup link hidden
+ * so the page stays in sync with the organizer route.
  */
 
 import { createFileRoute, redirect } from "@tanstack/react-router"
-import { RevenueStatsDisplay } from "@/routes/compete/organizer/$competitionId/-components/revenue-stats-display"
 import {
   getCompetitionRevenueStatsFn,
   getOrganizerStripeStatusFn,
 } from "@/server-fns/commerce-fns"
+import { RevenuePage } from "../../organizer/$competitionId/-pages/revenue-page"
 
 export const Route = createFileRoute("/compete/cohost/$competitionId/revenue")({
   staleTime: 10_000,
@@ -53,7 +54,7 @@ export const Route = createFileRoute("/compete/cohost/$competitionId/revenue")({
       stripeStatus: stripeResult.stripeStatus,
     }
   },
-  component: RevenuePage,
+  component: RouteComponent,
   head: ({ loaderData }) => {
     const competition = loaderData?.competition
     if (!competition) {
@@ -71,11 +72,11 @@ export const Route = createFileRoute("/compete/cohost/$competitionId/revenue")({
   },
 })
 
-function RevenuePage() {
+function RouteComponent() {
   const { stats, stripeStatus } = Route.useLoaderData()
 
   return (
-    <RevenueStatsDisplay
+    <RevenuePage
       stats={stats}
       stripeStatus={stripeStatus ?? undefined}
       hidePayoutSetupLink

@@ -16,8 +16,7 @@ import {
 import { getStripeConnectionStatusFn } from "@/server-fns/stripe-connect-fns"
 import { getTeamFeeSettingsFn, getTeamSlugFn } from "@/server-fns/team-fns"
 
-import { PricingSettingsForm } from "./-components/pricing-settings-form"
-import { StripeConnectionRequired } from "./-components/stripe-connection-required"
+import { PricingPage } from "./-pages/pricing-page"
 
 export const Route = createFileRoute(
   "/compete/organizer/$competitionId/pricing",
@@ -94,10 +93,10 @@ export const Route = createFileRoute(
       teamFeeSettings,
     }
   },
-  component: PricingPage,
+  component: RouteComponent,
 })
 
-function PricingPage() {
+function RouteComponent() {
   const {
     competition,
     isStripeConnected,
@@ -107,44 +106,14 @@ function PricingPage() {
     teamFeeSettings,
   } = Route.useLoaderData()
 
-  // If Stripe not connected, show connection prompt
-  if (!isStripeConnected) {
-    return (
-      <StripeConnectionRequired
-        teamSlug={teamSlug ?? ""}
-        competitionName={competition.name}
-      />
-    )
-  }
-
-  // Type assertion is safe here because when isStripeConnected is true,
-  // the loader returns the full competition object with all fields
-  const fullCompetition = competition as {
-    id: string
-    name: string
-    defaultRegistrationFeeCents: number
-    platformFeePercentage: number | null
-    platformFeeFixed: number | null
-    passStripeFeesToCustomer: boolean
-    passPlatformFeesToCustomer: boolean
-  }
-
-  // Show pricing settings form
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-xl font-semibold">Pricing Settings</h2>
-        <p className="text-sm text-muted-foreground">
-          Configure registration fees for {competition.name}
-        </p>
-      </div>
-
-      <PricingSettingsForm
-        competition={fullCompetition}
-        divisions={divisions}
-        currentFees={currentFees ?? { defaultFeeCents: 0, divisionFees: [] }}
-        teamFeeSettings={teamFeeSettings}
-      />
-    </div>
+    <PricingPage
+      competition={competition}
+      isStripeConnected={isStripeConnected}
+      teamSlug={teamSlug}
+      divisions={divisions}
+      currentFees={currentFees}
+      teamFeeSettings={teamFeeSettings}
+    />
   )
 }

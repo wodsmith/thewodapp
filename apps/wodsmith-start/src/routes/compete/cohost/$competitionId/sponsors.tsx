@@ -1,15 +1,13 @@
 /**
  * Cohost Competition Sponsors Route
  *
- * Cohost page for managing competition sponsors.
- * Fetches sponsors and groups via cohost server fns, reuses SponsorManager component.
- * Passes override callbacks so mutations use cohost auth instead of organizer auth.
+ * Renders the shared organizer SponsorsPage with cohost-permissioned sponsor
+ * mutation overrides so the page stays in sync with the organizer route.
  */
 
-import { useMemo } from "react"
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
+import { useMemo } from "react"
 import type { SponsorManagerOverrides } from "@/components/sponsors/sponsor-manager"
-import { SponsorManager } from "@/components/sponsors/sponsor-manager"
 import {
   cohostCreateSponsorFn,
   cohostCreateSponsorGroupFn,
@@ -21,35 +19,36 @@ import {
   cohostUpdateSponsorFn,
   cohostUpdateSponsorGroupFn,
 } from "@/server-fns/cohost/cohost-sponsor-fns"
+import { SponsorsPage } from "../../organizer/$competitionId/-pages/sponsors-page"
 
 const parentRoute = getRouteApi("/compete/cohost/$competitionId")
 
-export const Route = createFileRoute(
-  "/compete/cohost/$competitionId/sponsors",
-)({
-  staleTime: 10_000,
-  component: SponsorsPage,
-  loader: async ({ params, parentMatchPromise }) => {
-    const parentMatch = await parentMatchPromise
-    const { competition } = parentMatch.loaderData!
+export const Route = createFileRoute("/compete/cohost/$competitionId/sponsors")(
+  {
+    staleTime: 10_000,
+    component: RouteComponent,
+    loader: async ({ params, parentMatchPromise }) => {
+      const parentMatch = await parentMatchPromise
+      const { competition } = parentMatch.loaderData!
 
-    const competitionTeamId = competition.competitionTeamId!
+      const competitionTeamId = competition.competitionTeamId!
 
-    const sponsorsResult = await cohostGetCompetitionSponsorsFn({
-      data: {
-        competitionId: params.competitionId,
-        competitionTeamId,
-      },
-    })
+      const sponsorsResult = await cohostGetCompetitionSponsorsFn({
+        data: {
+          competitionId: params.competitionId,
+          competitionTeamId,
+        },
+      })
 
-    return {
-      groups: sponsorsResult.groups,
-      ungroupedSponsors: sponsorsResult.ungroupedSponsors,
-    }
+      return {
+        groups: sponsorsResult.groups,
+        ungroupedSponsors: sponsorsResult.ungroupedSponsors,
+      }
+    },
   },
-})
+)
 
-function SponsorsPage() {
+function RouteComponent() {
   const { groups, ungroupedSponsors } = Route.useLoaderData()
   const { competition } = parentRoute.useLoaderData()
   const competitionTeamId = competition.competitionTeamId!
@@ -134,7 +133,7 @@ function SponsorsPage() {
   )
 
   return (
-    <SponsorManager
+    <SponsorsPage
       competitionId={competition.id}
       organizingTeamId={competition.organizingTeamId}
       groups={groups}

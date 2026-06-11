@@ -7,9 +7,9 @@
 // @lat: [[organizer-dashboard#Submission Windows]]
 
 import { createFileRoute, getRouteApi, redirect } from "@tanstack/react-router"
-import { SubmissionWindowsManager } from "@/components/compete/submission-windows-manager"
 import { getCompetitionEventsFn } from "@/server-fns/competition-event-fns"
 import { getCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
+import { SubmissionWindowsPage } from "./-pages/submission-windows-page"
 
 // Get parent route API to access its loader data
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
@@ -18,7 +18,7 @@ export const Route = createFileRoute(
   "/compete/organizer/$competitionId/submission-windows",
 )({
   staleTime: 10_000,
-  component: SubmissionWindowsPage,
+  component: RouteComponent,
   loader: async ({ params, parentMatchPromise }) => {
     const parentMatch = await parentMatchPromise
     const { competition } = parentMatch.loaderData!
@@ -52,27 +52,17 @@ export const Route = createFileRoute(
   },
 })
 
-function SubmissionWindowsPage() {
+function RouteComponent() {
   const { workouts, competitionEvents } = Route.useLoaderData()
   const { competition } = parentRoute.useLoaderData()
 
-  // Map workouts to format expected by SubmissionWindowsManager
-  const workoutsWithType = workouts.map((event: any) => ({
-    id: event.id,
-    workoutId: event.workoutId,
-    name: event.workout?.name || `Event #${event.trackOrder}`,
-    workoutType: event.workout?.scheme || "for-time",
-    trackOrder: event.trackOrder,
-    parentEventId: event.parentEventId ?? null,
-  }))
-
   return (
-    <SubmissionWindowsManager
+    <SubmissionWindowsPage
       competitionId={competition.id}
       teamId={competition.organizingTeamId}
-      workouts={workoutsWithType}
+      workouts={workouts}
       initialEvents={competitionEvents}
-      timezone={competition.timezone || "America/Denver"}
+      timezone={competition.timezone}
     />
   )
 }

@@ -3,21 +3,28 @@
  *
  * Layout route for a single competition event. Loads event details,
  * divisions, movements, sponsors, and judging sheets for child routes.
- * Uses cohost server fns for auth.
+ * Uses cohost server fns for auth, with FORBIDDEN graceful degradation.
+ *
+ * Paired with the organizer layout at
+ * routes/compete/organizer/$competitionId/events/$eventId.tsx. Returns the
+ * same loader-data shape except eventDivisionMappings (organizer-only; no
+ * cohost server fn exists), and childEvents come from the raw workouts list
+ * rather than per-child detail fetches. Child routes render the shared
+ * EventDetailPage from the organizer -pages/events/ directory.
  */
 
-import { Outlet, createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, Outlet } from "@tanstack/react-router"
 import { cohostGetDivisionsWithCountsFn } from "@/server-fns/cohost/cohost-division-fns"
 import { cohostGetCompetitionEventsFn } from "@/server-fns/cohost/cohost-event-fns"
+import { cohostGetEventResourcesFn } from "@/server-fns/cohost/cohost-event-resources-fns"
+import { cohostGetCompetitionSponsorsFn } from "@/server-fns/cohost/cohost-sponsor-fns"
 import {
   cohostGetEventFn,
-  cohostGetWorkoutsFn,
   cohostGetWorkoutDivisionDescriptionsFn,
+  cohostGetWorkoutsFn,
 } from "@/server-fns/cohost/cohost-workout-fns"
-import { cohostGetEventResourcesFn } from "@/server-fns/cohost/cohost-event-resources-fns"
 import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
 import { getAllMovementsFn } from "@/server-fns/movement-fns"
-import { cohostGetCompetitionSponsorsFn } from "@/server-fns/cohost/cohost-sponsor-fns"
 
 export const Route = createFileRoute(
   "/compete/cohost/$competitionId/events/$eventId",
