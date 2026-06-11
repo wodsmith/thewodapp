@@ -142,3 +142,8 @@ export const createCompetitionInviteSourceId = () => `cisrc_${ulid()}`
 export const createCompetitionInviteId = () => `cinv_${ulid()}`
 export const createCompetitionInviteSourceDivisionAllocationId = () =>
   `cisda_${ulid()}`
+
+// Route documentation ID generators (in-app docs drawer CMS)
+export const createRouteDocId = () => `rdoc_${ulid()}`
+export const createRouteDocRouteId = () => `rdocrt_${ulid()}`
+export const createRouteDocVersionId = () => `rdocver_${ulid()}`
