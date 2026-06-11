@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   Edit2,
   GripVertical,
+  HelpCircle,
   Plus,
   Trash2,
   Users,
@@ -29,6 +30,7 @@ import { useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
+import { OrganizerEmptyState } from "@/components/organizer/empty-state"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -416,7 +418,8 @@ function QuestionFormDialog({
   const createSeriesQuestion = useServerFn(createSeriesQuestionFn)
   const defaultUpdateQuestion = useServerFn(updateQuestionFn)
 
-  const createCompetitionQuestion = overrides?.createQuestion ?? defaultCreateCompetitionQuestion
+  const createCompetitionQuestion =
+    overrides?.createQuestion ?? defaultCreateCompetitionQuestion
   const updateQuestion = overrides?.updateQuestion ?? defaultUpdateQuestion
 
   const form = useForm<QuestionFormValues>({
@@ -653,7 +656,7 @@ function QuestionFormDialog({
                   <div className="space-y-1 mt-2">
                     {options.map((option, index) => (
                       <div
-                        key={index}
+                        key={option}
                         className="flex items-center justify-between p-2 border rounded"
                       >
                         <span className="text-sm">{option}</span>
@@ -763,7 +766,8 @@ export function RegistrationQuestionsEditor({
   const reorderSeriesQuestionsServer = useServerFn(reorderSeriesQuestionsFn)
   const defaultDeleteQuestion = useServerFn(deleteQuestionFn)
 
-  const reorderCompetitionQuestions = overrides?.reorderQuestions ?? defaultReorderCompetitionQuestions
+  const reorderCompetitionQuestions =
+    overrides?.reorderQuestions ?? defaultReorderCompetitionQuestions
   const deleteQuestion = overrides?.deleteQuestion ?? defaultDeleteQuestion
 
   // Update local state when prop changes
@@ -862,21 +866,33 @@ export function RegistrationQuestionsEditor({
                     : "Custom questions athletes must answer during registration"}
               </CardDescription>
             </div>
-            <Button onClick={handleAddNew} className="w-full sm:w-auto">
-              <Plus className="h-4 w-4 mr-2" />
-              Add question
-            </Button>
+            {questions.length > 0 ? (
+              <Button onClick={handleAddNew} className="w-full sm:w-auto">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Question
+              </Button>
+            ) : null}
           </div>
         </CardHeader>
         <CardContent>
           {questions.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <p className="text-lg font-medium mb-2">No questions yet</p>
-              <p className="text-sm">
-                Add custom questions to gather information during{" "}
-                {questionTarget === "volunteer" ? "signup" : "registration"}.
-              </p>
-            </div>
+            <OrganizerEmptyState
+              variant="plain"
+              icon={HelpCircle}
+              title={
+                questionTarget === "volunteer"
+                  ? "No volunteer signup questions yet"
+                  : "No registration questions yet"
+              }
+              description={
+                questionTarget === "volunteer"
+                  ? "Ask volunteers about availability, certifications, shirt size, or preferred roles."
+                  : "Ask athletes about shirt size, experience level, teammate details, or other registration needs."
+              }
+              actionLabel="Add Question"
+              actionIcon={<Plus className="mr-2 h-4 w-4" />}
+              onAction={handleAddNew}
+            />
           ) : (
             <div className="space-y-2">
               {questions.map((question, index) => (
