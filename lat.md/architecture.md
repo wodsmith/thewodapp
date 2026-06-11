@@ -59,7 +59,7 @@ CRM deploys through its own GitHub Actions workflow so app changes do not depend
 
 `.github/workflows/deploy-crm.yml` triggers on pushes to `main` that touch `apps/crm/**` or the workflow itself, and can also be run manually. It deploys `apps/crm` with Alchemy using `pnpm run crm-deploy`, binding the production app to `https://crm.wodsmith.com`.
 
-The CRM deploy workflow pins Bun to match the main WODsmith deploy workflow, avoiding unverified runtime updates during Alchemy deployment.
+The CRM deploy workflow pins Bun to match the main WODsmith deploy workflow, avoiding unverified runtime updates during Alchemy deployment. The docs and ledger deploy workflows pin the same Bun version for the same reason — an unpinned `setup-bun` picked up Bun 1.3.14, which segfaults running `alchemy.run.ts` and broke the docs deploy on main (run 27239805784).
 
 CRM pins `react` and `react-dom` to identical exact versions because Cloudflare Worker upload validation rejects bundles with mismatched React package versions.
 

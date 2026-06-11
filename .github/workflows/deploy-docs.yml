@@ -40,6 +40,10 @@ jobs:
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
+        with:
+          # Pin to match deploy.yml / deploy-crm.yml — unpinned Bun 1.3.14
+          # segfaults running alchemy.run.ts (exit 132)
+          bun-version: 1.3.13
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
