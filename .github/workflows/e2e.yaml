@@ -94,7 +94,10 @@ jobs:
 
       # Note: We use vite dev (not vite preview) because the Alchemy Cloudflare
       # plugin only works in dev mode. No build step needed for E2E tests.
+      # timeout-minutes guards against browser install hangs (e.g. the
+      # playwright <1.60 extraction hang on Node 24.16+) eating the full job timeout.
       - run: pnpm --filter wodsmith-start exec playwright install chromium --with-deps
+        timeout-minutes: 10
       - run: pnpm --filter wodsmith-start exec playwright test --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
         env:
           CI: true
@@ -118,9 +121,6 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Check for blob reports
-        id: check-reports
-        run: echo "has_reports=true" >> $GITHUB_OUTPUT
       - uses: actions/download-artifact@v4
         id: download
         continue-on-error: true
@@ -128,10 +128,21 @@ jobs:
           path: apps/wodsmith-start/all-blob-reports
           pattern: blob-report-*
           merge-multiple: true
+      # download-artifact succeeds even when zero artifacts match the pattern
+      # (e.g. all shards failed before producing reports), so check for actual files
+      - name: Check for blob reports
+        id: check-reports
+        run: |
+          if [ -n "$(ls -A apps/wodsmith-start/all-blob-reports 2>/dev/null)" ]; then
+            echo "has_reports=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_reports=false" >> $GITHUB_OUTPUT
+            echo "No blob reports found; skipping merge."
+          fi
       - run: pnpm --filter wodsmith-start exec playwright merge-reports --reporter html ./all-blob-reports
-        if: steps.download.outcome == 'success'
+        if: steps.check-reports.outputs.has_reports == 'true'
       - uses: actions/upload-artifact@v4
-        if: steps.download.outcome == 'success'
+        if: steps.check-reports.outputs.has_reports == 'true'
         with:
           name: playwright-report
           path: apps/wodsmith-start/playwright-report/
