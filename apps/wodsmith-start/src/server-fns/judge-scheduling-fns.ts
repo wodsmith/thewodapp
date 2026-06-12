@@ -5,7 +5,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray } from "drizzle-orm"
+import { and, desc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -25,7 +25,10 @@ import {
   VOLUNTEER_ROLE_TYPES,
   workouts,
 } from "@/db/schema"
-import { createHeatVolunteerId } from "@/db/schemas/common"
+import {
+  createHeatVolunteerId,
+  createJudgeAssignmentVersionId,
+} from "@/db/schemas/common"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import type {
   VolunteerAvailability,
@@ -84,11 +87,9 @@ const membershipIdSchema = z
   .string()
   .startsWith("tmem_", "Invalid membership ID")
 
-const heatIdSchema = z.string().startsWith("cheat_", "Invalid heat ID")
+const heatIdSchema = z.string().min(1, "Heat ID is required")
 
-const assignmentIdSchema = z
-  .string()
-  .startsWith("chvol_", "Invalid assignment ID")
+const assignmentIdSchema = z.string().min(1, "Assignment ID is required")
 
 const volunteerRoleTypeSchema = z.enum([
   VOLUNTEER_ROLE_TYPES.JUDGE,
@@ -132,6 +133,114 @@ function isJudge(metadata: string | null): boolean {
     meta.volunteerRoleTypes.includes(VOLUNTEER_ROLE_TYPES.JUDGE) ||
     meta.volunteerRoleTypes.includes(VOLUNTEER_ROLE_TYPES.HEAD_JUDGE)
   )
+}
+
+async function getTrackWorkoutIdForHeat(heatId: string): Promise<string> {
+  const db = getDb()
+  const heat = await db
+    .select({ trackWorkoutId: competitionHeatsTable.trackWorkoutId })
+    .from(competitionHeatsTable)
+    .where(eq(competitionHeatsTable.id, heatId))
+    .then((rows) => rows[0] ?? null)
+
+  if (!heat) {
+    throw new Error("Heat not found")
+  }
+
+  return heat.trackWorkoutId
+}
+
+type JudgeAssignmentSnapshot = typeof judgeHeatAssignmentsTable.$inferInsert
+type JudgeAssignmentRow = typeof judgeHeatAssignmentsTable.$inferSelect
+
+async function createPublishedJudgeScheduleRevision(
+  trackWorkoutId: string,
+  editAssignments: (
+    assignments: JudgeAssignmentSnapshot[],
+  ) => JudgeAssignmentSnapshot[],
+): Promise<{ assignments: JudgeAssignmentRow[]; versionId: string }> {
+  const db = getDb()
+
+  const heats = await db
+    .select({ id: competitionHeatsTable.id })
+    .from(competitionHeatsTable)
+    .where(eq(competitionHeatsTable.trackWorkoutId, trackWorkoutId))
+
+  if (heats.length === 0) {
+    throw new Error("No heats found for event")
+  }
+
+  const heatIds = heats.map((h) => h.id)
+  const versions = await db.query.judgeAssignmentVersionsTable.findMany({
+    where: eq(judgeAssignmentVersionsTable.trackWorkoutId, trackWorkoutId),
+    orderBy: desc(judgeAssignmentVersionsTable.version),
+  })
+  const activeVersion = versions.find((version) => version.isActive) ?? null
+  const nextVersion = versions.length > 0 ? (versions[0]?.version ?? 0) + 1 : 1
+  const sourceAssignments = activeVersion
+    ? await db
+        .select()
+        .from(judgeHeatAssignmentsTable)
+        .where(
+          and(
+            inArray(judgeHeatAssignmentsTable.heatId, heatIds),
+            eq(judgeHeatAssignmentsTable.versionId, activeVersion.id),
+          ),
+        )
+    : []
+  const sourceAssignmentIds = new Set(sourceAssignments.map((a) => a.id))
+
+  const newVersionId = createJudgeAssignmentVersionId()
+  const editedAssignments = editAssignments(
+    sourceAssignments.map((assignment) => ({
+      id: assignment.id,
+      heatId: assignment.heatId,
+      membershipId: assignment.membershipId,
+      rotationId: assignment.rotationId,
+      laneNumber: assignment.laneNumber,
+      position: assignment.position,
+      instructions: assignment.instructions,
+      isManualOverride: assignment.isManualOverride,
+    })),
+  ).map((assignment) => ({
+    ...assignment,
+    id:
+      assignment.id && !sourceAssignmentIds.has(assignment.id)
+        ? assignment.id
+        : createHeatVolunteerId(),
+    versionId: newVersionId,
+  }))
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(judgeAssignmentVersionsTable)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(judgeAssignmentVersionsTable.trackWorkoutId, trackWorkoutId))
+
+    await tx.insert(judgeAssignmentVersionsTable).values({
+      id: newVersionId,
+      trackWorkoutId,
+      version: nextVersion,
+      notes: activeVersion
+        ? `Edited published schedule v${activeVersion.version}`
+        : "Edited published schedule",
+      isActive: true,
+    })
+
+    if (editedAssignments.length > 0) {
+      await tx.insert(judgeHeatAssignmentsTable).values(editedAssignments)
+    }
+  })
+
+  const assignments =
+    editedAssignments.length > 0
+      ? await db
+          .select()
+          .from(judgeHeatAssignmentsTable)
+          .where(eq(judgeHeatAssignmentsTable.versionId, newVersionId))
+      : []
+
+  return { assignments, versionId: newVersionId }
 }
 
 // ============================================================================
@@ -377,9 +486,7 @@ export const getJudgeSchedulingDataForEventsFn = createServerFn({
   method: "GET",
 })
   .inputValidator((data: unknown) =>
-    z
-      .object({ trackWorkoutIds: z.array(z.string().min(1)) })
-      .parse(data),
+    z.object({ trackWorkoutIds: z.array(z.string().min(1)) }).parse(data),
   )
   .handler(async ({ data }) => {
     const { trackWorkoutIds } = data
@@ -480,9 +587,7 @@ export const getJudgeSchedulingDataForEventsFn = createServerFn({
     // Assignments only exist under a published (active) version; a version
     // belongs to exactly one event, so filtering by active version ids is
     // sufficient to scope assignments to their events.
-    const activeVersionIds = versions
-      .filter((v) => v.isActive)
-      .map((v) => v.id)
+    const activeVersionIds = versions.filter((v) => v.isActive).map((v) => v.id)
 
     if (activeVersionIds.length > 0) {
       const assignments = await db
@@ -701,23 +806,25 @@ export const assignJudgeToHeatFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
     )
 
-    const db = getDb()
     const assignmentId = createHeatVolunteerId()
-    await db.insert(judgeHeatAssignmentsTable).values({
-      id: assignmentId,
-      heatId: data.heatId,
-      membershipId: data.membershipId,
-      laneNumber: data.laneNumber,
-      position: data.position ?? null,
-      instructions: data.instructions ?? null,
-    })
+    const trackWorkoutId = await getTrackWorkoutIdForHeat(data.heatId)
+    const { assignments } = await createPublishedJudgeScheduleRevision(
+      trackWorkoutId,
+      (currentAssignments) => [
+        ...currentAssignments,
+        {
+          id: assignmentId,
+          heatId: data.heatId,
+          membershipId: data.membershipId,
+          laneNumber: data.laneNumber,
+          position: data.position ?? null,
+          instructions: data.instructions ?? null,
+          isManualOverride: true,
+        },
+      ],
+    )
 
-    // Select back the created record
-    const [assignment] = await db
-      .select()
-      .from(judgeHeatAssignmentsTable)
-      .where(eq(judgeHeatAssignmentsTable.id, assignmentId))
-
+    const assignment = assignments.find((a) => a.id === assignmentId)
     if (!assignment) {
       throw new Error("Failed to assign judge to heat")
     }
@@ -756,9 +863,7 @@ export const bulkAssignJudgesToHeatFn = createServerFn({ method: "POST" })
       return { success: true, data: [] }
     }
 
-    const db = getDb()
-
-    // Insert all assignments in a single query (MySQL has no param limit)
+    const trackWorkoutId = await getTrackWorkoutIdForHeat(data.heatId)
     const insertedIds: string[] = []
     const values = data.assignments.map((a) => {
       const id = createHeatVolunteerId()
@@ -770,16 +875,16 @@ export const bulkAssignJudgesToHeatFn = createServerFn({ method: "POST" })
         laneNumber: a.laneNumber,
         position: a.position ?? null,
         instructions: a.instructions ?? null,
+        isManualOverride: true,
       }
     })
-
-    await db.insert(judgeHeatAssignmentsTable).values(values)
-
-    // Select back the created records
-    const results = await db
-      .select()
-      .from(judgeHeatAssignmentsTable)
-      .where(inArray(judgeHeatAssignmentsTable.id, insertedIds))
+    const { assignments } = await createPublishedJudgeScheduleRevision(
+      trackWorkoutId,
+      (currentAssignments) => [...currentAssignments, ...values],
+    )
+    const results = assignments.filter((assignment) =>
+      insertedIds.includes(assignment.id ?? ""),
+    )
 
     return { success: true, data: results }
   })
@@ -804,9 +909,24 @@ export const removeJudgeFromHeatFn = createServerFn({ method: "POST" })
     )
 
     const db = getDb()
-    await db
-      .delete(judgeHeatAssignmentsTable)
+    const assignment = await db
+      .select({
+        heatId: judgeHeatAssignmentsTable.heatId,
+      })
+      .from(judgeHeatAssignmentsTable)
       .where(eq(judgeHeatAssignmentsTable.id, data.assignmentId))
+      .then((rows) => rows[0] ?? null)
+
+    if (!assignment) {
+      return { success: true }
+    }
+
+    const trackWorkoutId = await getTrackWorkoutIdForHeat(assignment.heatId)
+    await createPublishedJudgeScheduleRevision(
+      trackWorkoutId,
+      (currentAssignments) =>
+        currentAssignments.filter((a) => a.id !== data.assignmentId),
+    )
 
     return { success: true }
   })
@@ -832,15 +952,21 @@ export const moveJudgeAssignmentFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
     )
 
-    const db = getDb()
-    await db
-      .update(judgeHeatAssignmentsTable)
-      .set({
-        heatId: data.targetHeatId,
-        laneNumber: data.targetLaneNumber,
-        updatedAt: new Date(),
-      })
-      .where(eq(judgeHeatAssignmentsTable.id, data.assignmentId))
+    const trackWorkoutId = await getTrackWorkoutIdForHeat(data.targetHeatId)
+    await createPublishedJudgeScheduleRevision(
+      trackWorkoutId,
+      (currentAssignments) =>
+        currentAssignments.map((assignment) =>
+          assignment.id === data.assignmentId
+            ? {
+                ...assignment,
+                heatId: data.targetHeatId,
+                laneNumber: data.targetLaneNumber,
+                isManualOverride: true,
+              }
+            : assignment,
+        ),
+    )
 
     return { success: true }
   })

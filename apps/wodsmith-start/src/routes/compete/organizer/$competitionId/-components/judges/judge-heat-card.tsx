@@ -15,7 +15,6 @@ import {
   Loader2,
   MapPin,
   Plus,
-  Trash2,
   X,
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
@@ -287,7 +286,6 @@ interface JudgeHeatCardProps {
   unassignedVolunteers: JudgeVolunteerInfo[]
   judgeAssignments: JudgeHeatAssignment[]
   maxLanes: number
-  onDelete: () => void
   onAssignmentChange: (assignments: JudgeHeatAssignment[]) => void
   onMoveAssignment?: (
     assignmentId: string,
@@ -300,6 +298,7 @@ interface JudgeHeatCardProps {
   onClearSelection?: () => void
   filterEmptyLanes?: boolean
   athleteOccupiedLanes?: Set<number>
+  onScheduleRevisionPublished?: () => Promise<void> | void
 }
 
 /**
@@ -314,13 +313,13 @@ export function JudgeHeatCard({
   unassignedVolunteers,
   judgeAssignments,
   maxLanes,
-  onDelete,
   onAssignmentChange,
   onMoveAssignment,
   selectedJudgeIds,
   onClearSelection,
   filterEmptyLanes,
   athleteOccupiedLanes,
+  onScheduleRevisionPublished,
 }: JudgeHeatCardProps) {
   const [isAssignOpen, setIsAssignOpen] = useState(false)
   const [selectedMembershipId, setSelectedMembershipId] = useState<string>("")
@@ -380,6 +379,7 @@ export function JudgeHeatCard({
           }
           onAssignmentChange([...heatAssignments, newAssignment])
         }
+        await onScheduleRevisionPublished?.()
         setIsAssignOpen(false)
         setSelectedMembershipId("")
         // Auto-select next available lane
@@ -406,6 +406,7 @@ export function JudgeHeatCard({
       })
 
       onAssignmentChange(heatAssignments.filter((a) => a.id !== assignmentId))
+      await onScheduleRevisionPublished?.()
     } catch (err) {
       console.error("Failed to remove judge:", err)
     } finally {
@@ -469,6 +470,7 @@ export function JudgeHeatCard({
             onAssignmentChange([...heatAssignments, newAssignment])
           }
         }
+        await onScheduleRevisionPublished?.()
       } catch (err) {
         console.error("Failed to assign judge:", err)
       } finally {
@@ -504,6 +506,7 @@ export function JudgeHeatCard({
 
           onAssignmentChange([...heatAssignments, ...newAssignments])
         }
+        await onScheduleRevisionPublished?.()
       } catch (err) {
         console.error("Failed to bulk assign judges:", err)
       } finally {
@@ -548,6 +551,7 @@ export function JudgeHeatCard({
             a.id === assignmentId ? { ...a, laneNumber: targetLane } : a,
           ),
         )
+        await onScheduleRevisionPublished?.()
       } else {
         // Cross-heat move
         await moveJudgeAssignmentFn({
@@ -570,6 +574,7 @@ export function JudgeHeatCard({
             assignment,
           )
         }
+        await onScheduleRevisionPublished?.()
       }
     } catch (err) {
       console.error("Failed to move judge:", err)
@@ -643,14 +648,9 @@ export function JudgeHeatCard({
               {heatAssignments.length}/{maxLanes}
             </Badge>
           </div>
-          <div className="flex items-center gap-2">
-            {heat.division && (
-              <Badge variant="secondary">{heat.division.label}</Badge>
-            )}
-            <Button variant="ghost" size="icon" onClick={onDelete}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
+          {heat.division && (
+            <Badge variant="secondary">{heat.division.label}</Badge>
+          )}
         </div>
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           {heat.scheduledTime && (
