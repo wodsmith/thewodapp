@@ -16,12 +16,15 @@ The flow validates in order:
 3. Division capacity not exceeded
 4. Competition-wide capacity not exceeded
 5. Required registration questions answered
-6. Fee calculated per division (division-specific fee overrides competition default)
-7. Coupon applied if provided by link session data or manual entry
+6. Add-on (merch) selections validated when present — entitlement, availability, variant, quantity caps, soft stock; see [[commerce#Registration Add-ons]]
+7. Fee calculated per division (division-specific fee overrides competition default)
+8. Coupon applied if provided by link session data or manual entry
 
-For **free** competitions (or fully discounted by coupon): calls `registerForCompetition` directly and returns immediately.
+For **free** competitions (or fully discounted by coupon): calls `registerForCompetition` directly and returns immediately. Selecting any add-on disables this shortcut — add-ons are always paid, so a free division plus a paid shirt still routes through Stripe.
 
-For **paid** competitions: creates `commercePurchaseTable` records (one per division), builds Stripe Checkout line items with fee breakdown, creates a Stripe Checkout Session, and redirects the athlete. Registration is finalized asynchronously by the [[registration#Stripe Checkout Workflow]].
+For **paid** competitions: creates `commercePurchaseTable` records (one per division, plus one per add-on selection), builds Stripe Checkout line items with fee breakdown, creates a Stripe Checkout Session, and redirects the athlete. Registration is finalized asynchronously by the [[registration#Stripe Checkout Workflow]]; add-on purchases complete through the same workflow's ADDON branch without creating registrations.
+
+The registration form renders an optional "Event merch" order-bump section between the coupon input and the fee summary when the organizer has purchasable add-ons ([[apps/wodsmith-start/src/components/registration/addons-section.tsx#AddOnsSection]]).
 
 Coupon codes are resolved before redirecting to Stripe; see [[commerce#Coupons#Registration coupon entry]] for the shared link/manual entry behavior.
 

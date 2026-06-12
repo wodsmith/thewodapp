@@ -233,6 +233,12 @@ Discount codes that reduce registration fees for athletes.
 
 Requires `PRODUCT_COUPONS` entitlement. `CouponsPage` handles creating and deactivating coupons with code, discount amount, usage limits, and expiration. Uses `createCouponFn`, `listCouponsFn`, `deactivateCouponFn`. All three server functions authorize both platform admins (`session.user.role === "admin"`) and team admin/owner members.
 
+## Merch
+
+Registration add-ons (merch) management for a competition, gated behind the `registration_addons` entitlement.
+
+`MerchPage` at `/compete/organizer/$competitionId/merch` renders a locked state when the organizing team lacks the entitlement. When entitled: product CRUD (price, size variants with optional stock, order-by deadline, max per athlete, ACTIVE/HIDDEN/ARCHIVED status) plus two fulfillment tables — counts-by-variant for the print shop and the per-athlete pickup list. Uses `listCompetitionAddonsFn`, `createCompetitionAddonFn`, `updateCompetitionAddonFn`, `archiveCompetitionAddonFn`, and `getAddonSalesReportFn`. See [[commerce#Registration Add-ons]] for the checkout and payment flow.
+
 ## Sponsors
 
 Manages sponsor logos and groupings displayed on the competition's public page.

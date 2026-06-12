@@ -241,6 +241,13 @@ function setupHappyPathMocks() {
 beforeEach(() => {
   vi.clearAllMocks()
   mockDb.reset()
+  // createRegistration branches on the purchase's product type to route
+  // ADDON (merch) purchases away from registration creation — default to a
+  // registration product so the existing flows proceed unchanged.
+  mockDb.query.commerceProductTable = {
+    findFirst: vi.fn().mockResolvedValue({type: 'COMPETITION_REGISTRATION'}),
+    findMany: vi.fn().mockResolvedValue([]),
+  }
 })
 
 describe('StripeCheckoutWorkflow', () => {
@@ -611,5 +618,152 @@ describe('StripeCheckoutWorkflow', () => {
         }),
       )
     })
+  })
+})
+
+// =========================================================================
+// ADDON purchases (registration merch)
+// =========================================================================
+
+describe('StripeCheckoutWorkflow — ADDON purchases', () => {
+  const addonPurchase = {
+    id: 'purchase-addon-1',
+    productId: 'cprod-addon-1',
+    userId: testUserId,
+    status: COMMERCE_PURCHASE_STATUS.PENDING,
+    metadata: JSON.stringify({
+      addonProductId: 'cmpprod-1',
+      addonName: 'Event Tee',
+      variantLabel: 'L',
+      quantity: 2,
+      unitPriceCents: 2500,
+    }),
+    competitionId: testCompetitionId,
+    divisionId: null,
+    variantId: null,
+    quantity: 2,
+    totalCents: 5200,
+    platformFeeCents: 200,
+    stripeFeeCents: 0,
+    organizerNetCents: 5000,
+  }
+
+  function setupAddonMocks(purchaseOverrides: Record<string, unknown> = {}) {
+    mockDb.query.commercePurchaseTable = {
+      findFirst: vi
+        .fn()
+        .mockResolvedValue({...addonPurchase, ...purchaseOverrides}),
+      // Session registration purchases for the group-refund check
+      findMany: vi.fn().mockResolvedValue([]),
+    }
+    mockDb.query.commerceProductTable = {
+      findFirst: vi.fn().mockResolvedValue({type: 'ADDON'}),
+      findMany: vi.fn().mockResolvedValue([]),
+    }
+    mockDb.query.competitionsTable = {
+      findFirst: vi.fn().mockResolvedValue({
+        id: testCompetitionId,
+        organizingTeamId: 'team-org-1',
+      }),
+      findMany: vi.fn().mockResolvedValue([]),
+    }
+  }
+
+  it('completes the purchase without creating a registration', async () => {
+    setupAddonMocks()
+
+    const workflow = new StripeCheckoutWorkflow({} as any, {} as any)
+    const step = createFakeStep()
+    const event = createWorkflowEvent({
+      ...baseParams,
+      session: {
+        ...baseSession,
+        metadata: {...baseSession.metadata, purchaseId: addonPurchase.id},
+      },
+    })
+
+    await workflow.run(event as any, step as any)
+
+    expect(mockRegisterForCompetition).not.toHaveBeenCalled()
+    expect(mockNotifyRegistrationConfirmed).not.toHaveBeenCalled()
+    expect(mockStripeRefundsCreate).not.toHaveBeenCalled()
+    expect(mockDb.update).toHaveBeenCalled()
+  })
+
+  it('refunds the addon when every registration purchase in the session failed', async () => {
+    setupAddonMocks()
+    mockDb.query.commercePurchaseTable.findMany = vi.fn().mockResolvedValue([
+      {id: 'purchase-reg-1', status: COMMERCE_PURCHASE_STATUS.FAILED},
+      {id: 'purchase-reg-2', status: COMMERCE_PURCHASE_STATUS.FAILED},
+    ])
+    mockStripeRefundsCreate.mockResolvedValue({id: 're_addon_1'})
+
+    const workflow = new StripeCheckoutWorkflow({} as any, {} as any)
+    const step = createFakeStep()
+    const event = createWorkflowEvent({
+      ...baseParams,
+      session: {
+        ...baseSession,
+        metadata: {...baseSession.metadata, purchaseId: addonPurchase.id},
+      },
+    })
+
+    await workflow.run(event as any, step as any)
+
+    expect(mockStripeRefundsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payment_intent: 'pi_test_456',
+        amount: addonPurchase.totalCents,
+        reverse_transfer: true,
+        refund_application_fee: false,
+      }),
+      expect.objectContaining({idempotencyKey: expect.any(String)}),
+    )
+    expect(mockRegisterForCompetition).not.toHaveBeenCalled()
+  })
+
+  it('refunds the addon when the variant stock claim affects zero rows', async () => {
+    setupAddonMocks({variantId: 'cmpvar-1'})
+    // The conditional soldQty UPDATE resolves through the chain mock;
+    // affectedRows 0 = variant oversold during payment.
+    mockDb.setMockReturnValue([{affectedRows: 0}])
+    mockStripeRefundsCreate.mockResolvedValue({id: 're_addon_2'})
+
+    const workflow = new StripeCheckoutWorkflow({} as any, {} as any)
+    const step = createFakeStep()
+    const event = createWorkflowEvent({
+      ...baseParams,
+      session: {
+        ...baseSession,
+        metadata: {...baseSession.metadata, purchaseId: addonPurchase.id},
+      },
+    })
+
+    await workflow.run(event as any, step as any)
+
+    expect(mockStripeRefundsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({amount: addonPurchase.totalCents}),
+      expect.anything(),
+    )
+  })
+
+  it('claims variant stock and completes when the conditional update succeeds', async () => {
+    setupAddonMocks({variantId: 'cmpvar-1'})
+    mockDb.setMockReturnValue([{affectedRows: 1}])
+
+    const workflow = new StripeCheckoutWorkflow({} as any, {} as any)
+    const step = createFakeStep()
+    const event = createWorkflowEvent({
+      ...baseParams,
+      session: {
+        ...baseSession,
+        metadata: {...baseSession.metadata, purchaseId: addonPurchase.id},
+      },
+    })
+
+    await workflow.run(event as any, step as any)
+
+    expect(mockStripeRefundsCreate).not.toHaveBeenCalled()
+    expect(mockRegisterForCompetition).not.toHaveBeenCalled()
   })
 })

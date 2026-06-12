@@ -28,6 +28,7 @@ import {
   Menu,
   ReceiptText,
   Settings,
+  ShoppingBag,
   Sparkles,
   Tag,
   Trophy,
@@ -164,6 +165,7 @@ const getNavigation = (
         { label: "Pricing", href: `${basePath}/pricing`, icon: ReceiptText },
         { label: "Revenue", href: `${basePath}/revenue`, icon: DollarSign },
         { label: "Coupons", href: `${basePath}/coupons`, icon: Tag },
+        { label: "Merch", href: `${basePath}/merch`, icon: ShoppingBag },
         { label: "Sponsors", href: `${basePath}/sponsors`, icon: Sparkles },
         {
           label: "Co-Hosts",
