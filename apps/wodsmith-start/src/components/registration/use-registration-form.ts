@@ -303,6 +303,11 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
       const next = new Map(prev)
       if (fees && !fees.isFree && fees.totalChargeCents) {
         next.set(divisionId, fees.totalChargeCents)
+      } else if (fees?.isFree) {
+        // Track free divisions as $0 rather than absent — the fee summary
+        // gates its totals (and add-on lines) on every selected division
+        // having reported, so a free division must still count as loaded.
+        next.set(divisionId, 0)
       } else {
         next.delete(divisionId)
       }

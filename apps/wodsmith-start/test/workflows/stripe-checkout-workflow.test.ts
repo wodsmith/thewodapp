@@ -667,6 +667,9 @@ describe('StripeCheckoutWorkflow — ADDON purchases', () => {
       }),
       findMany: vi.fn().mockResolvedValue([]),
     }
+    // Stock claim + conditional PENDING→COMPLETED both resolve through the
+    // chain mock; default to one affected row so the completion gate passes.
+    mockDb.setMockReturnValue([{affectedRows: 1}])
   }
 
   it('completes the purchase without creating a registration', async () => {

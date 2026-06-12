@@ -2,7 +2,7 @@
  * Fee Calculator for TanStack Start
  * Handles competition registration fee calculation and revenue statistics.
  */
-import { and, eq, inArray, sql } from "drizzle-orm"
+import { and, eq, inArray, isNotNull, sql } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
   COMMERCE_PURCHASE_STATUS,
@@ -280,6 +280,10 @@ export async function getCompetitionRevenueStats(
       and(
         eq(commercePurchaseTable.competitionId, competitionId),
         eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.COMPLETED),
+        // Registration revenue only: ADDON (merch) purchases have no
+        // division and would pollute the per-division breakdown with an
+        // "Unknown" bucket. Merch revenue is reported on the Merch page.
+        isNotNull(commercePurchaseTable.divisionId),
       ),
     )
 

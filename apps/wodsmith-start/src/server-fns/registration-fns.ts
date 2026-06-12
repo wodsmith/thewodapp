@@ -682,6 +682,106 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
       }
     }
 
+    // Settle an invite for a registration created WITHOUT a Stripe purchase
+    // (free divisions). The paid path tags purchase metadata with `inviteId`
+    // and the workflow flips the invite post-webhook, but free registrations
+    // skip Stripe entirely — flip inline or the invite stays `pending`
+    // forever. Runs the authoritative allocation re-check at the write site:
+    // the preflight alone is not enough because free flows leave no
+    // in-flight purchase rows for `getOccupiedCountForBucket` to see — two
+    // concurrent free claims could both pass the preflight and overfill the
+    // (source, division) bucket. On a lost race the just-created
+    // registrations are marked REMOVED so they don't squat division
+    // capacity, and the user gets a clear error. The status=pending guard on
+    // the flip keeps a racing claim/decline from being stomped.
+    const settleInviteForFreeRegistration = async (
+      registrationIdsToRollback: string[],
+      claimedRegistrationId: string,
+    ): Promise<void> => {
+      if (!inviteIdForPurchase) return
+      if (inviteSourceIdForGuardrail) {
+        const inviteDivisionId =
+          inviteDivisionIdForPurchase ?? input.items[0].divisionId
+        const [allocation, occupiedCount] = await Promise.all([
+          resolveAllocationForInvite({
+            invite: {
+              sourceId: inviteSourceIdForGuardrail,
+              championshipDivisionId: inviteDivisionId,
+              championshipCompetitionId: input.competitionId,
+            },
+          }),
+          getOccupiedCountForBucket({
+            sourceId: inviteSourceIdForGuardrail,
+            championshipCompetitionId: input.competitionId,
+            championshipDivisionId: inviteDivisionId,
+            // Same self-exclusion as the preflight: this invite's own
+            // stale pending purchases shouldn't block its own free flip.
+            excludeInviteId: inviteIdForPurchase,
+          }),
+        ])
+        const allocationCheck = assertInviteWithinAllocation({
+          invite: { sourceId: inviteSourceIdForGuardrail },
+          allocation: allocation ?? 0,
+          acceptedCount: occupiedCount,
+        })
+        if (!allocationCheck.ok) {
+          await db
+            .update(competitionRegistrationsTable)
+            .set({
+              status: REGISTRATION_STATUS.REMOVED,
+              updatedAt: new Date(),
+            })
+            .where(
+              inArray(
+                competitionRegistrationsTable.id,
+                registrationIdsToRollback,
+              ),
+            )
+          logWarning({
+            message:
+              "[Registration] Free-checkout invite blocked at write-time allocation recheck; rolled back registrations",
+            attributes: {
+              inviteId: inviteIdForPurchase,
+              sourceId: inviteSourceIdForGuardrail,
+              championshipDivisionId: inviteDivisionId,
+              allocation: allocation ?? 0,
+              occupiedCount,
+              rolledBackRegistrationIds: registrationIdsToRollback,
+            },
+          })
+          throw new Error(
+            "All invitation spots from this qualifying source for this division are filled.",
+          )
+        }
+      }
+      const now = new Date()
+      await db
+        .update(competitionInvitesTable)
+        .set({
+          status: COMPETITION_INVITE_STATUS.ACCEPTED_PAID,
+          paidAt: now,
+          claimedRegistrationId,
+          claimToken: null,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(competitionInvitesTable.id, inviteIdForPurchase),
+            eq(
+              competitionInvitesTable.status,
+              COMPETITION_INVITE_STATUS.PENDING,
+            ),
+          ),
+        )
+      logInfo({
+        message: "[Registration] Free-checkout invite flipped to accepted_paid",
+        attributes: {
+          inviteId: inviteIdForPurchase,
+          registrationId: claimedRegistrationId,
+        },
+      })
+    }
+
     // 6. ALL FREE - create registrations directly
     if (allFree) {
       let firstRegistrationId: string | null = null
@@ -743,106 +843,13 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
         },
       })
 
-      // Mirror the Stripe-workflow invite flip when an invite-locked
-      // checkout zeroes out (e.g. 100% coupon). The paid path tags
-      // purchase metadata with `inviteId` and the workflow flips the
-      // invite to `accepted_paid` post-webhook, but the free branch
-      // skips Stripe entirely — so we have to flip inline or the invite
-      // stays `pending` indefinitely. Guarded by status=pending so a
-      // racing claim/decline doesn't get stomped.
+      // Invite-locked checkout that zeroed out (e.g. 100% coupon): settle
+      // the invite inline since no Stripe purchase will carry it.
       if (inviteIdForPurchase && firstRegistrationId) {
-        // Authoritative allocation re-check at the write site. The
-        // preflight (above, before the allFree branch) is alone not
-        // enough for free invites: the free path skips Stripe, so
-        // `getOccupiedCountForBucket` sees no in-flight purchase rows
-        // for either flow — two concurrent free claims can both pass
-        // the preflight and overfill the (source, division) bucket.
-        // Re-running the check here catches any peer that has already
-        // flipped to accepted_paid; if we lose the race, mark the
-        // just-created registrations REMOVED so they don't squat
-        // division capacity and surface a clear error to the user.
-        if (inviteSourceIdForGuardrail) {
-          const inviteDivisionId =
-            inviteDivisionIdForPurchase ?? input.items[0].divisionId
-          const [allocation, occupiedCount] = await Promise.all([
-            resolveAllocationForInvite({
-              invite: {
-                sourceId: inviteSourceIdForGuardrail,
-                championshipDivisionId: inviteDivisionId,
-                championshipCompetitionId: input.competitionId,
-              },
-            }),
-            getOccupiedCountForBucket({
-              sourceId: inviteSourceIdForGuardrail,
-              championshipCompetitionId: input.competitionId,
-              championshipDivisionId: inviteDivisionId,
-              // Same self-exclusion as the preflight: this invite's own
-              // stale pending purchases shouldn't block its own free flip.
-              excludeInviteId: inviteIdForPurchase,
-            }),
-          ])
-          const allocationCheck = assertInviteWithinAllocation({
-            invite: { sourceId: inviteSourceIdForGuardrail },
-            allocation: allocation ?? 0,
-            acceptedCount: occupiedCount,
-          })
-          if (!allocationCheck.ok) {
-            await db
-              .update(competitionRegistrationsTable)
-              .set({
-                status: REGISTRATION_STATUS.REMOVED,
-                updatedAt: new Date(),
-              })
-              .where(
-                inArray(
-                  competitionRegistrationsTable.id,
-                  createdRegistrationIds,
-                ),
-              )
-            logWarning({
-              message:
-                "[Registration] Free-checkout invite blocked at write-time allocation recheck; rolled back registrations",
-              attributes: {
-                inviteId: inviteIdForPurchase,
-                sourceId: inviteSourceIdForGuardrail,
-                championshipDivisionId: inviteDivisionId,
-                allocation: allocation ?? 0,
-                occupiedCount,
-                rolledBackRegistrationIds: createdRegistrationIds,
-              },
-            })
-            throw new Error(
-              "All invitation spots from this qualifying source for this division are filled.",
-            )
-          }
-        }
-        const now = new Date()
-        await db
-          .update(competitionInvitesTable)
-          .set({
-            status: COMPETITION_INVITE_STATUS.ACCEPTED_PAID,
-            paidAt: now,
-            claimedRegistrationId: firstRegistrationId,
-            claimToken: null,
-            updatedAt: now,
-          })
-          .where(
-            and(
-              eq(competitionInvitesTable.id, inviteIdForPurchase),
-              eq(
-                competitionInvitesTable.status,
-                COMPETITION_INVITE_STATUS.PENDING,
-              ),
-            ),
-          )
-        logInfo({
-          message:
-            "[Registration] Free-checkout invite flipped to accepted_paid",
-          attributes: {
-            inviteId: inviteIdForPurchase,
-            registrationId: firstRegistrationId,
-          },
-        })
+        await settleInviteForFreeRegistration(
+          createdRegistrationIds,
+          firstRegistrationId,
+        )
       }
 
       // Record coupon redemption if a coupon covered the full amount
@@ -943,6 +950,22 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
             mixedCheckout: true,
           },
         })
+
+        // An invited FREE division can land here when add-ons force the
+        // Stripe path (allFree requires zero add-ons). No purchase row
+        // carries the inviteId for the workflow to flip, so settle the
+        // invite inline exactly like the all-free branch. Throwing on a
+        // lost allocation race aborts before the Stripe session is
+        // created, so the add-ons are never charged.
+        if (
+          inviteIdForPurchase &&
+          item.divisionId === inviteDivisionIdForPurchase
+        ) {
+          await settleInviteForFreeRegistration(
+            [result.registrationId],
+            result.registrationId,
+          )
+        }
 
         continue
       }
