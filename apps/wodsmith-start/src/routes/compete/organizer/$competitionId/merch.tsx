@@ -243,6 +243,16 @@ function MerchPage() {
       toast.error("Enter a valid price")
       return
     }
+    const maxPerAthlete = draft.maxPerAthlete.trim()
+      ? parseInt(draft.maxPerAthlete, 10)
+      : null
+    if (
+      maxPerAthlete !== null &&
+      (Number.isNaN(maxPerAthlete) || maxPerAthlete <= 0)
+    ) {
+      toast.error("Max per athlete must be a positive number (or blank)")
+      return
+    }
     const variants = draft.variants
       .filter((v) => v.label.trim())
       .map((v) => ({
@@ -260,9 +270,7 @@ function MerchPage() {
       description: draft.description.trim() || undefined,
       imageUrl: draft.imageUrl.trim() || undefined,
       priceCents,
-      maxPerAthlete: draft.maxPerAthlete.trim()
-        ? parseInt(draft.maxPerAthlete, 10)
-        : null,
+      maxPerAthlete,
       availableUntil: draft.availableUntil.trim() || null,
       status: draft.status as "ACTIVE" | "HIDDEN" | "ARCHIVED",
       variants,

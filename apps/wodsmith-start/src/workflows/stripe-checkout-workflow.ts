@@ -248,43 +248,85 @@ async function completeAddonPurchase(
     return
   }
 
-  // 2. Atomic stock claim (only for variant-tracked products)
-  if (purchase.variantId) {
-    const updateResult = await db
-      .update(competitionProductVariantsTable)
-      .set({
-        soldQty: sql`${competitionProductVariantsTable.soldQty} + ${purchase.quantity}`,
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(competitionProductVariantsTable.id, purchase.variantId),
-          or(
-            isNull(competitionProductVariantsTable.stockQty),
-            sql`${competitionProductVariantsTable.soldQty} + ${purchase.quantity} <= ${competitionProductVariantsTable.stockQty}`,
+  // 2+3. Stock claim and completion in ONE transaction, gated by the
+  // conditional PENDING→COMPLETED transition. The workflow step retries the
+  // whole function on a transient failure; without the transaction a retry
+  // after a successful soldQty increment (but before the status write) would
+  // claim the stock a second time. With it, either both writes committed
+  // (retry short-circuits on the status guard) or neither did.
+  const affectedRows = (result: unknown): number =>
+    (result as { rowsAffected?: number }).rowsAffected ??
+    (result as [{ affectedRows?: number }])[0]?.affectedRows ??
+    0
+
+  // Thrown inside the transaction to roll back a stock claim when a
+  // concurrent run already completed this purchase.
+  class AddonAlreadyProcessed extends Error {}
+
+  let outcome: "completed" | "oversold"
+  try {
+    outcome = await db.transaction(async (tx) => {
+      // Atomic stock claim (only for variant-tracked products). Zero rows
+      // affected = the variant oversold during payment.
+      if (purchase.variantId) {
+        const claimResult = await tx
+          .update(competitionProductVariantsTable)
+          .set({
+            soldQty: sql`${competitionProductVariantsTable.soldQty} + ${purchase.quantity}`,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(competitionProductVariantsTable.id, purchase.variantId),
+              or(
+                isNull(competitionProductVariantsTable.stockQty),
+                sql`${competitionProductVariantsTable.soldQty} + ${purchase.quantity} <= ${competitionProductVariantsTable.stockQty}`,
+              ),
+            ),
+          )
+        if (affectedRows(claimResult) === 0) {
+          // Nothing written yet — safe to return and refund outside.
+          return "oversold" as const
+        }
+      }
+
+      const completeResult = await tx
+        .update(commercePurchaseTable)
+        .set({
+          status: COMMERCE_PURCHASE_STATUS.COMPLETED,
+          stripePaymentIntentId: session.payment_intent ?? undefined,
+          completedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(commercePurchaseTable.id, purchase.id),
+            eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
           ),
-        ),
-      )
-    const affected =
-      (updateResult as unknown as { rowsAffected?: number }).rowsAffected ??
-      (updateResult as unknown as [{ affectedRows?: number }])[0]
-        ?.affectedRows ??
-      0
-    if (affected === 0) {
-      await refundAddon("Add-on sold out during payment - automatic refund")
+        )
+      if (affectedRows(completeResult) === 0) {
+        // A concurrent run already settled this purchase — abort so the
+        // stock claim above rolls back instead of double-counting.
+        throw new AddonAlreadyProcessed()
+      }
+
+      return "completed" as const
+    })
+  } catch (err) {
+    if (err instanceof AddonAlreadyProcessed) {
+      logInfo({
+        message:
+          "[Workflow] Add-on purchase already settled by a concurrent run, skipping",
+        attributes: { purchaseId: purchase.id },
+      })
       return
     }
+    throw err
   }
 
-  // 3. Complete the purchase + ledger event
-  await db
-    .update(commercePurchaseTable)
-    .set({
-      status: COMMERCE_PURCHASE_STATUS.COMPLETED,
-      stripePaymentIntentId: session.payment_intent ?? undefined,
-      completedAt: new Date(),
-    })
-    .where(eq(commercePurchaseTable.id, purchase.id))
+  if (outcome === "oversold") {
+    await refundAddon("Add-on sold out during payment - automatic refund")
+    return
+  }
 
   if (competition) {
     try {
@@ -596,6 +638,12 @@ async function createRegistration(
           and(
             eq(commercePurchaseTable.competitionId, competitionId),
             eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
+            // ADDON (merch) purchases share competitionId but have no
+            // division and must not occupy registration capacity — an
+            // athlete's own pending add-on would otherwise count against
+            // their registration here and could trigger a wrongful
+            // competition-full auto-refund.
+            isNotNull(commercePurchaseTable.divisionId),
             gt(
               commercePurchaseTable.createdAt,
               new Date(
