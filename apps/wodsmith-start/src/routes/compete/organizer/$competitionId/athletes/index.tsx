@@ -76,7 +76,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { INVITATION_STATUS } from "@/db/schemas/teams"
 import {
   getOrganizerRegistrationsFn,
@@ -258,16 +258,6 @@ function AthletesPage() {
   const navigate = useNavigate()
   const router = useRouter()
   const { tab } = Route.useSearch()
-  const handleTabChange = (value: string) => {
-    navigate({
-      to: ".",
-      search: (prev) => ({
-        ...prev,
-        tab: value as "athletes" | "registration-rules",
-      }),
-      replace: true,
-    })
-  }
   const removeRegistration = useServerFn(removeRegistrationFn)
   const refundRegistration = useServerFn(refundRegistrationFn)
   const cancelPurchaseTransfer = useServerFn(cancelPurchaseTransferFn)
@@ -936,11 +926,7 @@ function AthletesPage() {
 
   return (
     <>
-      <Tabs value={tab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="mb-6">
-          <TabsTrigger value="athletes">Athletes</TabsTrigger>
-          <TabsTrigger value="registration-rules">Form questions</TabsTrigger>
-        </TabsList>
+      <Tabs value={tab} className="w-full">
         <TabsContent value="registration-rules" className="flex flex-col gap-6">
           {/* Inherited Series Questions (read-only) */}
           {questions.some((q) => q.source === "series") && (

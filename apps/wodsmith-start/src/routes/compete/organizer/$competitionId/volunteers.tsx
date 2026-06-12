@@ -2,14 +2,7 @@ import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router"
 import { useEffect } from "react"
 import { z } from "zod"
 import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent } from "@/components/ui/tabs"
 import type { JudgeAssignmentVersion } from "@/db/schema"
 import type { LaneShiftPattern } from "@/db/schemas/volunteers"
 import { getHeatsForCompetitionFn } from "@/server-fns/competition-heats-fns"
@@ -245,17 +238,6 @@ function VolunteersPage() {
   const navigate = useNavigate()
   const router = useRouter()
 
-  const handleTabChange = (value: string) => {
-    navigate({
-      to: ".",
-      search: (prev) => ({
-        ...prev,
-        tab: value as "roster" | "shifts" | "schedule" | "registration-rules",
-      }),
-      replace: true,
-    })
-  }
-
   const handleEventChange = (eventId: string) => {
     navigate({
       to: ".",
@@ -293,38 +275,7 @@ function VolunteersPage() {
   }
 
   return (
-    <Tabs
-      value={effectiveTab}
-      onValueChange={handleTabChange}
-      className="w-full"
-    >
-      {/* Mobile: Select dropdown */}
-      <div className="mb-6 sm:hidden">
-        <Select value={effectiveTab} onValueChange={handleTabChange}>
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="roster">Roster</SelectItem>
-            <SelectItem value="shifts">Shifts</SelectItem>
-            {isInPerson && (
-              <SelectItem value="schedule">Judge assignments</SelectItem>
-            )}
-            <SelectItem value="registration-rules">Signup questions</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Desktop: Tabs */}
-      <TabsList className="mb-6 hidden sm:inline-flex">
-        <TabsTrigger value="roster">Roster</TabsTrigger>
-        <TabsTrigger value="shifts">Shifts</TabsTrigger>
-        {isInPerson && (
-          <TabsTrigger value="schedule">Judge assignments</TabsTrigger>
-        )}
-        <TabsTrigger value="registration-rules">Signup questions</TabsTrigger>
-      </TabsList>
-
+    <Tabs value={effectiveTab} className="w-full">
       {/* Roster Tab - Volunteer Management */}
       <TabsContent value="roster" className="flex flex-col gap-8">
         {/* Invited Volunteers Section - Only show if there are pending direct invites */}

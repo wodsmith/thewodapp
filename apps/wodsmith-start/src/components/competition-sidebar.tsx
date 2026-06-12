@@ -132,11 +132,6 @@ const getNavigation = (
           icon: ClipboardSignature,
         },
         { label: "Invites", href: `${basePath}/invites`, icon: Mail },
-        {
-          label: "Capacity / eligibility",
-          href: `${basePath}/divisions`,
-          icon: ClipboardCheck,
-        },
       ],
     },
     {

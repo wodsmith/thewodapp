@@ -8,7 +8,7 @@ The layout route fetches competition data and verifies the user has organizer-le
 
 Access requires authentication plus one of: platform admin role, or owner/admin membership on the competition's `organizingTeamId`. The layout provides competition data to all child routes via `parentMatchPromise`, avoiding redundant fetches. Each child route uses `getRouteApi("/compete/organizer/$competitionId")` to access parent loader data.
 
-The layout header renders [[apps/wodsmith-start/src/components/competition-header.tsx#CompetitionHeader]], which groups publication, visibility, registration, and competition metadata into compact fields under the competition name. The registration field combines open/closed state with the registration date range so organizers can scan state and timing without reading a long inline sentence.
+The layout header renders [[apps/wodsmith-start/src/components/competition-header.tsx#CompetitionHeader]], which groups publication, visibility, registration, and competition metadata into compact fields under the competition name. The registration field combines open/closed state with the registration date range so organizers can scan state and timing without reading a long inline sentence. The header's actions are "View public page" and (for series competitions) "Go to Series" — there is no Edit button because the sidebar's "Competition details" link already navigates to the edit page.
 
 ## Overview Page
 
@@ -79,7 +79,7 @@ Uses `getOrganizerRegistrationsFn` for the full registration list with detailed 
 - Transfer registration to a different division (see [[registration#Division Transfer]])
 - Transfer registration to a different person (purchase transfer)
 - CSV export of athlete data
-- Registration questions editor (custom questions athletes answer during signup)
+- Registration questions editor (custom questions athletes answer during signup) — lives on the `tab=registration-rules` view, reached via the sidebar's "Form questions" link (the page has no on-page tab bar; the `tab` search param selects the view)
 - Pending teammate invitations tab for team divisions
 - Per-athlete deep link to the [[organizer-dashboard#Registrations (Athletes)#Athlete Detail Page]] via the "View Details" item in the row's captain-scoped actions dropdown (the athlete name itself is plain text — not a link — to keep the row visually calm)
 - For in-person competitions only, a "Checked In" column shows the `checkedInAt` timestamp on the captain's row (see [[registration#Day-of Check-In]]). The CSV export and mobile card view include the same column under the same gate.
@@ -163,7 +163,9 @@ Only available when `competitionType === "online"`. Fetches workouts and competi
 
 ## Volunteers
 
-Manages competition staff across four tabs: roster, shifts, judge scheduling, and signup questions.
+Manages competition staff across four views selected by the `tab` search param: roster, shifts, judge scheduling, and signup questions.
+
+Navigation happens through the sidebar's deep links (Volunteer roster, Volunteer shifts, Judge assignments, Signup questions) rather than an on-page tab bar — the in-page tabs were removed because they duplicated the sidebar.
 
 ### Volunteer Roster
 
