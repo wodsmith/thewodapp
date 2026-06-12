@@ -4,11 +4,11 @@
  * Organizer page for managing competition events (workouts).
  * Fetches events, divisions, movements, and sponsors in parallel.
  * Uses parent route loader data for competition data.
+ * Renders the shared EventsPage body.
  */
 // @lat: [[organizer-dashboard#Event Management]]
 
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
-import { OrganizerEventManager } from "@/components/events/organizer-event-manager"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import {
   getBatchWorkoutDivisionDescriptionsFn,
@@ -17,6 +17,7 @@ import {
 import { getAllMovementsFn } from "@/server-fns/movement-fns"
 import { getCompetitionEventSeriesMappingStatusFn } from "@/server-fns/series-event-template-fns"
 import { getCompetitionSponsorsFn } from "@/server-fns/sponsor-fns"
+import { EventsPage } from "../-pages/events/events-page"
 
 // Get parent route API to access its loader data
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
@@ -25,34 +26,40 @@ export const Route = createFileRoute(
   "/compete/organizer/$competitionId/events/",
 )({
   staleTime: 10_000,
-  component: EventsPage,
+  component: RouteComponent,
   loader: async ({ params, parentMatchPromise }) => {
     const parentMatch = await parentMatchPromise
+    // biome-ignore lint/style/noNonNullAssertion: established pattern for parent route data
     const { competition } = parentMatch.loaderData!
 
     // Parallel fetch events, divisions, movements, sponsors, and series mapping status
-    const [eventsResult, divisionsResult, movementsResult, sponsorsResult, seriesMappingStatus] =
-      await Promise.all([
-        getCompetitionWorkoutsFn({
-          data: {
-            competitionId: params.competitionId,
-            teamId: competition.organizingTeamId,
-          },
-        }),
-        getCompetitionDivisionsWithCountsFn({
-          data: {
-            competitionId: params.competitionId,
-            teamId: competition.organizingTeamId,
-          },
-        }),
-        getAllMovementsFn(),
-        getCompetitionSponsorsFn({
-          data: { competitionId: params.competitionId },
-        }),
-        getCompetitionEventSeriesMappingStatusFn({
-          data: { competitionId: params.competitionId },
-        }),
-      ])
+    const [
+      eventsResult,
+      divisionsResult,
+      movementsResult,
+      sponsorsResult,
+      seriesMappingStatus,
+    ] = await Promise.all([
+      getCompetitionWorkoutsFn({
+        data: {
+          competitionId: params.competitionId,
+          teamId: competition.organizingTeamId,
+        },
+      }),
+      getCompetitionDivisionsWithCountsFn({
+        data: {
+          competitionId: params.competitionId,
+          teamId: competition.organizingTeamId,
+        },
+      }),
+      getAllMovementsFn(),
+      getCompetitionSponsorsFn({
+        data: { competitionId: params.competitionId },
+      }),
+      getCompetitionEventSeriesMappingStatusFn({
+        data: { competitionId: params.competitionId },
+      }),
+    ])
 
     // Flatten sponsors from groups and ungrouped
     const allSponsors = [
@@ -91,7 +98,7 @@ export const Route = createFileRoute(
   },
 })
 
-function EventsPage() {
+function RouteComponent() {
   const {
     events,
     divisions,
@@ -103,16 +110,8 @@ function EventsPage() {
   // Get competition from parent layout loader data (for consistency with other pages)
   const { competition } = parentRoute.useLoaderData()
 
-  // Build a lookup map from competition event ID -> template event name
-  const seriesEventMap = new Map<string, string>()
-  if (seriesMappingStatus.hasTemplate) {
-    for (const mapping of seriesMappingStatus.mappings) {
-      seriesEventMap.set(mapping.competitionEventId, mapping.templateEventName)
-    }
-  }
-
   return (
-    <OrganizerEventManager
+    <EventsPage
       competitionId={competition.id}
       organizingTeamId={competition.organizingTeamId}
       events={events}
@@ -120,8 +119,7 @@ function EventsPage() {
       divisions={divisions}
       divisionDescriptionsByWorkout={divisionDescriptionsByWorkout}
       sponsors={sponsors}
-      seriesName={seriesMappingStatus.hasTemplate ? seriesMappingStatus.seriesName : null}
-      seriesEventMap={seriesEventMap}
+      seriesMappingStatus={seriesMappingStatus}
     />
   )
 }

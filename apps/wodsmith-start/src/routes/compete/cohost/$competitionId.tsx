@@ -11,7 +11,7 @@ import {
   Outlet,
   redirect,
 } from "@tanstack/react-router"
-import { CohostSidebar } from "@/components/cohost-sidebar"
+import { CompetitionDashboardShell } from "@/components/competition-dashboard-shell"
 import { FEATURES } from "@/config/features"
 import { cohostGetPermissionsFn } from "@/server-fns/cohost/cohost-competition-fns"
 import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
@@ -103,15 +103,11 @@ function CohostCompetitionLayout() {
   const { competition, permissions } = Route.useLoaderData()
 
   return (
-    <CohostSidebar
-      competitionId={competition.id}
-      competitionName={competition.name}
-      competitionType={competition.competitionType}
-      permissions={permissions}
+    <CompetitionDashboardShell
+      competition={competition}
+      cohostPermissions={permissions}
     >
-      <div className="flex flex-1 flex-col gap-4 p-4 sm:gap-6 sm:p-6">
-        <Outlet />
-      </div>
-    </CohostSidebar>
+      <Outlet />
+    </CompetitionDashboardShell>
   )
 }

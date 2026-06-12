@@ -4,30 +4,28 @@
  * Allows cohosts to configure registration fees for their competition.
  * Gated by pricing permission.
  * Requires Stripe connection to be verified before showing the pricing form.
+ * Renders the shared organizer PricingPage with cohost-permissioned fee
+ * callbacks so the page stays in sync with the organizer route.
  */
 
 import { createFileRoute, redirect } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import {
-  getCompetitionDivisionFeesFn,
-  getOrganizerStripeStatusFn,
-} from "@/server-fns/commerce-fns"
-import {
   cohostUpdateDefaultFeeFn,
   cohostUpdateDivisionFeeFn,
 } from "@/server-fns/cohost/cohost-pricing-fns"
+import {
+  getCompetitionDivisionFeesFn,
+  getOrganizerStripeStatusFn,
+} from "@/server-fns/commerce-fns"
 import {
   getScalingGroupWithLevelsFn,
   parseCompetitionSettings,
 } from "@/server-fns/competition-divisions-fns"
 import { getTeamFeeSettingsFn } from "@/server-fns/team-fns"
+import { PricingPage } from "../../organizer/$competitionId/-pages/pricing-page"
 
-import { PricingSettingsForm } from "@/routes/compete/organizer/$competitionId/-components/pricing-settings-form"
-import { StripeConnectionRequired } from "@/routes/compete/organizer/$competitionId/-components/stripe-connection-required"
-
-export const Route = createFileRoute(
-  "/compete/cohost/$competitionId/pricing",
-)({
+export const Route = createFileRoute("/compete/cohost/$competitionId/pricing")({
   staleTime: 10_000,
   loader: async ({ params, parentMatchPromise }) => {
     const parentMatch = await parentMatchPromise
@@ -69,33 +67,31 @@ export const Route = createFileRoute(
       }
     }
 
-    // Get competition's divisions from scaling group
+    // Parallel fetch divisions (from scaling group), fee configuration, and
+    // team fee settings (for founding organizers)
     const settings = parseCompetitionSettings(competition.settings)
-    let divisions: Array<{ id: string; label: string; teamSize: number }> = []
+    const [scalingGroup, feeConfig, teamFeeSettings] = await Promise.all([
+      settings?.divisions?.scalingGroupId
+        ? getScalingGroupWithLevelsFn({
+            data: { scalingGroupId: settings.divisions.scalingGroupId },
+          })
+        : null,
+      getCompetitionDivisionFeesFn({
+        data: { competitionId: competition.id },
+      }),
+      getTeamFeeSettingsFn({
+        data: { teamId: competition.organizingTeamId },
+      }),
+    ])
 
-    if (settings?.divisions?.scalingGroupId) {
-      const scalingGroup = await getScalingGroupWithLevelsFn({
-        data: { scalingGroupId: settings.divisions.scalingGroupId },
-      })
-
-      if (scalingGroup?.scalingLevels) {
-        divisions = scalingGroup.scalingLevels.map((level) => ({
-          id: level.id,
-          label: level.label,
-          teamSize: level.teamSize ?? 1,
-        }))
-      }
-    }
-
-    // Get current fee configuration
-    const feeConfig = await getCompetitionDivisionFeesFn({
-      data: { competitionId: competition.id },
-    })
-
-    // Get team's fee settings (for founding organizers)
-    const teamFeeSettings = await getTeamFeeSettingsFn({
-      data: { teamId: competition.organizingTeamId },
-    })
+    const divisions: Array<{ id: string; label: string; teamSize: number }> =
+      scalingGroup?.scalingLevels
+        ? scalingGroup.scalingLevels.map((level) => ({
+            id: level.id,
+            label: level.label,
+            teamSize: level.teamSize ?? 1,
+          }))
+        : []
 
     return {
       competition: {
@@ -117,10 +113,10 @@ export const Route = createFileRoute(
       teamFeeSettings,
     }
   },
-  component: PricingPage,
+  component: RouteComponent,
 })
 
-function PricingPage() {
+function RouteComponent() {
   const {
     competition,
     competitionTeamId,
@@ -133,52 +129,26 @@ function PricingPage() {
   const updateDefaultFee = useServerFn(cohostUpdateDefaultFeeFn)
   const updateDivisionFee = useServerFn(cohostUpdateDivisionFeeFn)
 
-  if (!isStripeConnected) {
-    return (
-      <StripeConnectionRequired
-        teamSlug={teamSlug ?? ""}
-        competitionName={competition.name}
-        isCohost
-      />
-    )
-  }
-
-  const fullCompetition = competition as {
-    id: string
-    name: string
-    defaultRegistrationFeeCents: number
-    platformFeePercentage: number | null
-    platformFeeFixed: number | null
-    passStripeFeesToCustomer: boolean
-    passPlatformFeesToCustomer: boolean
-  }
-
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-xl font-semibold">Pricing Settings</h2>
-        <p className="text-sm text-muted-foreground">
-          Configure registration fees for {competition.name}
-        </p>
-      </div>
-
-      <PricingSettingsForm
-        competition={fullCompetition}
-        divisions={divisions}
-        currentFees={currentFees ?? { defaultFeeCents: 0, divisionFees: [] }}
-        teamFeeSettings={teamFeeSettings}
-        routePrefix="/compete/cohost"
-        onUpdateFeeConfig={async (data) => {
-          await updateDefaultFee({
-            data: { ...data, competitionTeamId },
-          })
-        }}
-        onUpdateDivisionFee={async (data) => {
-          await updateDivisionFee({
-            data: { ...data, competitionTeamId },
-          })
-        }}
-      />
-    </div>
+    <PricingPage
+      competition={competition}
+      isStripeConnected={isStripeConnected}
+      teamSlug={teamSlug}
+      divisions={divisions}
+      currentFees={currentFees}
+      teamFeeSettings={teamFeeSettings}
+      isCohost
+      routePrefix="/compete/cohost"
+      onUpdateFeeConfig={async (data) => {
+        await updateDefaultFee({
+          data: { ...data, competitionTeamId },
+        })
+      }}
+      onUpdateDivisionFee={async (data) => {
+        await updateDivisionFee({
+          data: { ...data, competitionTeamId },
+        })
+      }}
+    />
   )
 }

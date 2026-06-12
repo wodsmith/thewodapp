@@ -1,34 +1,56 @@
 /**
  * Cohost Competition Volunteers Route
  *
- * Cohost page for managing competition volunteers.
- * Mirrors organizer volunteers route with cohost auth and server fns.
+ * Renders the shared organizer VolunteersPage with cohost-permissioned
+ * callback bundles so the page stays in sync with the organizer route.
  * Cohosts CAN manage volunteers (invite, assign roles, schedule judges).
  */
 
-import { useEffect } from "react"
-import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router"
+import { createFileRoute } from "@tanstack/react-router"
 import { z } from "zod"
+import type { RegistrationQuestionsOverrides } from "@/components/competition-settings/registration-questions-editor"
 import type { JudgeAssignmentVersion } from "@/db/schema"
 import type { LaneShiftPattern } from "@/db/schemas/volunteers"
 import {
-  RegistrationQuestionsEditor,
-  type RegistrationQuestionsOverrides,
-} from "@/components/competition-settings/registration-questions-editor"
+  cohostAdjustRotationsForOccupiedLanesFn,
+  cohostBatchCreateRotationsFn,
+  cohostBatchDeleteRotationsFn,
+  cohostBatchUpdateVolunteerRotationsFn,
+  cohostCreateJudgeRotationFn,
+  cohostDeleteJudgeRotationFn,
+  cohostDeleteVolunteerRotationsFn,
+  cohostPublishRotationsFn,
+  cohostRollbackToVersionFn,
+  cohostUpdateEventDefaultsFn,
+  cohostUpdateJudgeRotationFn,
+} from "@/server-fns/cohost/cohost-judge-rotation-fns"
 import {
   cohostCreateQuestionFn,
   cohostDeleteQuestionFn,
   cohostReorderQuestionsFn,
   cohostUpdateQuestionFn,
 } from "@/server-fns/cohost/cohost-registration-questions-fns"
+import { cohostGetHeatsForCompetitionFn } from "@/server-fns/cohost/cohost-schedule-fns"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+  cohostAddVolunteerRoleTypeFn,
+  cohostAssignVolunteerToShiftFn,
+  cohostBulkAssignVolunteerRoleFn,
+  cohostCreateShiftFn,
+  cohostDeleteShiftFn,
+  cohostGetCompetitionShiftsFn,
+  cohostGetCompetitionVolunteersFn,
+  cohostGetDirectVolunteerInvitesFn,
+  cohostGetPendingVolunteerInvitationsFn,
+  cohostGetVolunteerAssignmentsFn,
+  cohostGrantScoreAccessFn,
+  cohostInviteVolunteerFn,
+  cohostRemoveVolunteerRoleTypeFn,
+  cohostRevokeScoreAccessFn,
+  cohostUnassignVolunteerFromShiftFn,
+  cohostUpdateShiftFn,
+  cohostUpdateVolunteerMetadataFn,
+} from "@/server-fns/cohost/cohost-volunteer-fns"
+import { cohostGetWorkoutsFn } from "@/server-fns/cohost/cohost-workout-fns"
 import {
   getActiveVersionFn,
   getVersionHistoryFn,
@@ -42,52 +64,13 @@ import {
   getVolunteerAnswersFn,
   getVolunteerQuestionsFn,
 } from "@/server-fns/registration-questions-fns"
-import {
-  canInputScoresFn,
-} from "@/server-fns/volunteer-fns"
-import {
-  cohostGetCompetitionVolunteersFn,
-  cohostGetDirectVolunteerInvitesFn,
-  cohostGetPendingVolunteerInvitationsFn,
-  cohostGetVolunteerAssignmentsFn,
-  cohostGetCompetitionShiftsFn,
-  cohostBulkAssignVolunteerRoleFn,
-  cohostInviteVolunteerFn,
-  cohostAddVolunteerRoleTypeFn,
-  cohostRemoveVolunteerRoleTypeFn,
-  cohostUpdateVolunteerMetadataFn,
-  cohostGrantScoreAccessFn,
-  cohostRevokeScoreAccessFn,
-  cohostDeleteShiftFn,
-  cohostCreateShiftFn,
-  cohostUpdateShiftFn,
-  cohostAssignVolunteerToShiftFn,
-  cohostUnassignVolunteerFromShiftFn,
-} from "@/server-fns/cohost/cohost-volunteer-fns"
-import { cohostGetWorkoutsFn } from "@/server-fns/cohost/cohost-workout-fns"
-import {
-  cohostBatchCreateRotationsFn,
-  cohostBatchDeleteRotationsFn,
-  cohostBatchUpdateVolunteerRotationsFn,
-  cohostCreateJudgeRotationFn,
-  cohostDeleteJudgeRotationFn,
-  cohostDeleteVolunteerRotationsFn,
-  cohostPublishRotationsFn,
-  cohostRollbackToVersionFn,
-  cohostUpdateEventDefaultsFn,
-  cohostUpdateJudgeRotationFn,
-  cohostAdjustRotationsForOccupiedLanesFn,
-} from "@/server-fns/cohost/cohost-judge-rotation-fns"
-import {
-  cohostGetHeatsForCompetitionFn,
-} from "@/server-fns/cohost/cohost-schedule-fns"
-import { InvitedVolunteersList } from "../../organizer/$competitionId/-components/invited-volunteers-list"
-import {
-  JudgeSchedulingContainer,
-  type JudgeSchedulingOverrides,
-} from "../../organizer/$competitionId/-components/judges"
-import { ShiftList } from "../../organizer/$competitionId/-components/shifts/shift-list"
-import { VolunteersList } from "../../organizer/$competitionId/-components/volunteers-list"
+import { canInputScoresFn } from "@/server-fns/volunteer-fns"
+import type { JudgeSchedulingOverrides } from "../../organizer/$competitionId/-components/judges"
+import type {
+  ShiftListCallbacks,
+  VolunteersListCallbacks,
+} from "../../organizer/$competitionId/-pages/volunteers-page"
+import { VolunteersPage } from "../../organizer/$competitionId/-pages/volunteers-page"
 
 // Search params schema for tab navigation and event selection
 const searchParamsSchema = z.object({
@@ -155,7 +138,10 @@ export const Route = createFileRoute(
       }).catch(() => []),
       cohostGetVolunteerAssignmentsFn({
         data: { competitionTeamId, competitionId: competition.id },
-      }).catch(() => ({} as Awaited<ReturnType<typeof cohostGetVolunteerAssignmentsFn>>)),
+      }).catch(
+        () =>
+          ({}) as Awaited<ReturnType<typeof cohostGetVolunteerAssignmentsFn>>,
+      ),
       getVolunteerQuestionsFn({
         data: { competitionId: competition.id },
       }).catch(() => ({ questions: [] })),
@@ -164,7 +150,13 @@ export const Route = createFileRoute(
           competitionTeamId,
           organizingTeamId: competition.organizingTeamId,
         },
-      }).catch(() => ({ answersByInvitation: {} as Record<string, Array<{ id: string; questionId: string; answer: string }>>, emailToInvitationId: {} as Record<string, string> })),
+      }).catch(() => ({
+        answersByInvitation: {} as Record<
+          string,
+          Array<{ id: string; questionId: string; answer: string }>
+        >,
+        emailToInvitationId: {} as Record<string, string>,
+      })),
     ])
     const volunteerQuestions = volunteerQuestionsResult.questions
     const { answersByInvitation, emailToInvitationId } = volunteerAnswersResult
@@ -208,22 +200,30 @@ export const Route = createFileRoute(
     ] = await Promise.all([
       Promise.all(
         events.map((event) =>
-          getJudgeHeatAssignmentsFn({ data: { trackWorkoutId: event.id } }).catch(() => []),
+          getJudgeHeatAssignmentsFn({
+            data: { trackWorkoutId: event.id },
+          }).catch(() => []),
         ),
       ),
       Promise.all(
         events.map((event) =>
-          getRotationsForEventFn({ data: { trackWorkoutId: event.id } }).catch(() => ({ rotations: [], eventDefaults: null })),
+          getRotationsForEventFn({ data: { trackWorkoutId: event.id } }).catch(
+            () => ({ rotations: [], eventDefaults: null }),
+          ),
         ),
       ),
       Promise.all(
         events.map((event) =>
-          getVersionHistoryFn({ data: { trackWorkoutId: event.id } }).catch(() => []),
+          getVersionHistoryFn({ data: { trackWorkoutId: event.id } }).catch(
+            () => [],
+          ),
         ),
       ),
       Promise.all(
         events.map((event) =>
-          getActiveVersionFn({ data: { trackWorkoutId: event.id } }).catch(() => null),
+          getActiveVersionFn({ data: { trackWorkoutId: event.id } }).catch(
+            () => null,
+          ),
         ),
       ),
     ])
@@ -280,10 +280,10 @@ export const Route = createFileRoute(
       emailToInvitationId,
     }
   },
-  component: VolunteersPage,
+  component: RouteComponent,
 })
 
-function VolunteersPage() {
+function RouteComponent() {
   const {
     competition,
     competitionTeamId,
@@ -305,56 +305,7 @@ function VolunteersPage() {
     emailToInvitationId,
   } = Route.useLoaderData()
 
-  const { tab, event: eventFromUrl } = Route.useSearch()
-  const navigate = useNavigate()
-  const router = useRouter()
-
-  const handleTabChange = (value: string) => {
-    navigate({
-      to: ".",
-      search: (prev) => ({
-        ...prev,
-        tab: value as "roster" | "shifts" | "schedule" | "registration-rules",
-      }),
-      replace: true,
-    })
-  }
-
-  const handleEventChange = (eventId: string) => {
-    navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, event: eventId }),
-      replace: true,
-    })
-  }
-
-  // Determine selected event - from URL or first event
-  // Validate eventFromUrl exists in events before using it
-  const selectedEventId =
-    eventFromUrl && events.some((event) => event.id === eventFromUrl)
-      ? eventFromUrl
-      : events[0]?.id || ""
-
-  // Check if schedule tab should be available (in-person competitions only)
-  const isInPerson = competition.competitionType === "in-person"
-
-  // Derive effective tab - fall back to roster if schedule isn't allowed
-  const effectiveTab = !isInPerson && tab === "schedule" ? "roster" : tab
-
-  // Sync URL/state when competition type changes and schedule tab is no longer valid
-  useEffect(() => {
-    if (!isInPerson && tab === "schedule") {
-      navigate({
-        to: ".",
-        search: { tab: "roster" },
-        replace: true,
-      })
-    }
-  }, [isInPerson, tab, navigate])
-
-  const handleQuestionsChange = () => {
-    router.invalidate()
-  }
+  const { tab, event } = Route.useSearch()
 
   // Wrap cohost question fns so they match the callback shape the editor expects
   const questionOverrides: RegistrationQuestionsOverrides = {
@@ -450,204 +401,176 @@ function VolunteersPage() {
       }),
   }
 
+  // Wrap cohost roster fns for VolunteersList
+  const volunteersListCallbacks: VolunteersListCallbacks = {
+    onBulkAssignRole: async ({
+      membershipIds,
+      competitionId: compId,
+      roleType,
+    }) => {
+      const result = await cohostBulkAssignVolunteerRoleFn({
+        data: {
+          membershipIds,
+          competitionTeamId,
+          competitionId: compId,
+          roleType,
+        },
+      })
+      return { succeeded: result.succeeded, failed: result.failed }
+    },
+    onInviteVolunteer: async ({
+      name,
+      email,
+      competitionTeamId: ctId,
+      competitionId: compId,
+      roleTypes,
+    }) => {
+      await cohostInviteVolunteerFn({
+        data: {
+          name,
+          email,
+          competitionTeamId: ctId,
+          competitionId: compId,
+          roleTypes,
+        },
+      })
+      return { success: true }
+    },
+    onAddRoleType: async ({
+      membershipId,
+      competitionId: compId,
+      roleType,
+    }) => {
+      await cohostAddVolunteerRoleTypeFn({
+        data: {
+          membershipId,
+          competitionTeamId,
+          competitionId: compId,
+          roleType,
+        },
+      })
+      return { success: true }
+    },
+    onRemoveRoleType: async ({
+      membershipId,
+      competitionId: compId,
+      roleType,
+    }) => {
+      await cohostRemoveVolunteerRoleTypeFn({
+        data: {
+          membershipId,
+          competitionTeamId,
+          competitionId: compId,
+          roleType,
+        },
+      })
+      return { success: true }
+    },
+    onUpdateMetadata: async ({
+      membershipId,
+      competitionId: compId,
+      metadata,
+    }) => {
+      await cohostUpdateVolunteerMetadataFn({
+        data: {
+          membershipId,
+          competitionTeamId,
+          competitionId: compId,
+          metadata,
+        },
+      })
+      return { success: true }
+    },
+    onGrantScoreAccess: async ({
+      volunteerId,
+      competitionTeamId: ctId,
+      competitionId: compId,
+      grantedBy,
+    }) => {
+      await cohostGrantScoreAccessFn({
+        data: {
+          volunteerId,
+          competitionTeamId: ctId,
+          competitionId: compId,
+          grantedBy,
+        },
+      })
+      return { success: true }
+    },
+    onRevokeScoreAccess: async ({
+      userId,
+      competitionTeamId: ctId,
+      competitionId: compId,
+    }) => {
+      await cohostRevokeScoreAccessFn({
+        data: { userId, competitionTeamId: ctId, competitionId: compId },
+      })
+      return { success: true }
+    },
+  }
+
+  // Wrap cohost shift fns for ShiftList
+  const shiftListCallbacks: ShiftListCallbacks = {
+    onDeleteShift: async ({ shiftId }) => {
+      await cohostDeleteShiftFn({
+        data: { competitionTeamId, shiftId },
+      })
+      return { success: true }
+    },
+    onCreateShift: async (params) => {
+      return cohostCreateShiftFn({
+        data: { competitionTeamId, ...params },
+      })
+    },
+    onUpdateShift: async (params) => {
+      return cohostUpdateShiftFn({
+        data: { competitionTeamId, ...params },
+      })
+    },
+    onGetVolunteers: async ({ competitionTeamId: ctId }) => {
+      return cohostGetCompetitionVolunteersFn({
+        data: { competitionTeamId: ctId },
+      })
+    },
+    onAssignVolunteer: async ({ shiftId, membershipId }) => {
+      return cohostAssignVolunteerToShiftFn({
+        data: { competitionTeamId, shiftId, membershipId },
+      })
+    },
+    onUnassignVolunteer: async ({ shiftId, membershipId }) => {
+      return cohostUnassignVolunteerFromShiftFn({
+        data: { competitionTeamId, shiftId, membershipId },
+      })
+    },
+  }
+
   return (
-    <Tabs
-      value={effectiveTab}
-      onValueChange={handleTabChange}
-      className="w-full"
-    >
-      {/* Mobile: Select dropdown */}
-      <div className="mb-6 sm:hidden">
-        <Select value={effectiveTab} onValueChange={handleTabChange}>
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="roster">Roster</SelectItem>
-            <SelectItem value="shifts">Shifts</SelectItem>
-            {isInPerson && (
-              <SelectItem value="schedule">Judge Schedule</SelectItem>
-            )}
-            <SelectItem value="registration-rules">Signup Questions</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Desktop: Tabs */}
-      <TabsList className="mb-6 hidden sm:inline-flex">
-        <TabsTrigger value="roster">Roster</TabsTrigger>
-        <TabsTrigger value="shifts">Shifts</TabsTrigger>
-        {isInPerson && (
-          <TabsTrigger value="schedule">Judge Schedule</TabsTrigger>
-        )}
-        <TabsTrigger value="registration-rules">Signup Questions</TabsTrigger>
-      </TabsList>
-
-      {/* Roster Tab - Volunteer Management */}
-      <TabsContent value="roster" className="flex flex-col gap-8">
-        {/* Invited Volunteers Section - Only show if there are pending direct invites */}
-        {pendingDirectInvites.length > 0 && (
-          <section>
-            <div className="mb-4">
-              <h2 className="text-xl font-semibold">Invited Volunteers</h2>
-              <p className="text-sm text-muted-foreground">
-                {pendingDirectInvites.length} pending{" "}
-                {pendingDirectInvites.length === 1 ? "invite" : "invites"}
-              </p>
-            </div>
-            <InvitedVolunteersList invites={pendingDirectInvites} />
-          </section>
-        )}
-
-        {/* Volunteers Section */}
-        <section>
-          <div className="mb-4">
-            <h2 className="text-xl font-semibold">Volunteers</h2>
-            <p className="text-sm text-muted-foreground">
-              {invitations.length + volunteersWithAccess.length} total (
-              {invitations.length} application
-              {invitations.length === 1 ? "" : "s"},{" "}
-              {volunteersWithAccess.length} approved)
-            </p>
-          </div>
-
-          <VolunteersList
-            competitionId={competition.id}
-            competitionSlug={competition.slug}
-            competitionTeamId={competitionTeamId}
-            organizingTeamId={competition.organizingTeamId}
-            invitations={invitations}
-            volunteers={volunteersWithAccess}
-            volunteerAssignments={volunteerAssignments}
-            volunteerQuestions={volunteerQuestions}
-            answersByInvitation={answersByInvitation}
-            emailToInvitationId={emailToInvitationId}
-            onBulkAssignRole={async ({ membershipIds, competitionId: compId, roleType }) => {
-              const result = await cohostBulkAssignVolunteerRoleFn({
-                data: { membershipIds, competitionTeamId, competitionId: compId, roleType },
-              })
-              return { succeeded: result.succeeded, failed: result.failed }
-            }}
-            onInviteVolunteer={async ({ name, email, competitionTeamId: ctId, competitionId: compId, roleTypes }) => {
-              await cohostInviteVolunteerFn({
-                data: { name, email, competitionTeamId: ctId, competitionId: compId, roleTypes },
-              })
-              return { success: true }
-            }}
-            onAddRoleType={async ({ membershipId, competitionId: compId, roleType }) => {
-              await cohostAddVolunteerRoleTypeFn({
-                data: { membershipId, competitionTeamId, competitionId: compId, roleType },
-              })
-              return { success: true }
-            }}
-            onRemoveRoleType={async ({ membershipId, competitionId: compId, roleType }) => {
-              await cohostRemoveVolunteerRoleTypeFn({
-                data: { membershipId, competitionTeamId, competitionId: compId, roleType },
-              })
-              return { success: true }
-            }}
-            onUpdateMetadata={async ({ membershipId, competitionId: compId, metadata }) => {
-              await cohostUpdateVolunteerMetadataFn({
-                data: { membershipId, competitionTeamId, competitionId: compId, metadata },
-              })
-              return { success: true }
-            }}
-            onGrantScoreAccess={async ({ volunteerId, competitionTeamId: ctId, competitionId: compId, grantedBy }) => {
-              await cohostGrantScoreAccessFn({
-                data: { volunteerId, competitionTeamId: ctId, competitionId: compId, grantedBy },
-              })
-              return { success: true }
-            }}
-            onRevokeScoreAccess={async ({ userId, competitionTeamId: ctId, competitionId: compId }) => {
-              await cohostRevokeScoreAccessFn({
-                data: { userId, competitionTeamId: ctId, competitionId: compId },
-              })
-              return { success: true }
-            }}
-          />
-        </section>
-      </TabsContent>
-
-      {/* Shifts Tab */}
-      <TabsContent value="shifts" className="mt-6">
-        <ShiftList
-          competitionId={competition.id}
-          competitionTeamId={competitionTeamId}
-          shifts={shifts}
-          onDeleteShift={async ({ shiftId }) => {
-            await cohostDeleteShiftFn({
-              data: { competitionTeamId, shiftId },
-            })
-            return { success: true }
-          }}
-          onCreateShift={async (params) => {
-            return cohostCreateShiftFn({
-              data: { competitionTeamId, ...params },
-            })
-          }}
-          onUpdateShift={async (params) => {
-            return cohostUpdateShiftFn({
-              data: { competitionTeamId, ...params },
-            })
-          }}
-          onGetVolunteers={async ({ competitionTeamId: ctId }) => {
-            return cohostGetCompetitionVolunteersFn({
-              data: { competitionTeamId: ctId },
-            })
-          }}
-          onAssignVolunteer={async ({ shiftId, membershipId }) => {
-            return cohostAssignVolunteerToShiftFn({
-              data: { competitionTeamId, shiftId, membershipId },
-            })
-          }}
-          onUnassignVolunteer={async ({ shiftId, membershipId }) => {
-            return cohostUnassignVolunteerFromShiftFn({
-              data: { competitionTeamId, shiftId, membershipId },
-            })
-          }}
-        />
-      </TabsContent>
-
-      {/* Schedule Tab - Judge Scheduling & Rotations (in-person only) */}
-      {isInPerson && (
-        <TabsContent value="schedule">
-          <JudgeSchedulingContainer
-            competitionId={competition.id}
-            competitionSlug={competition.slug}
-            organizingTeamId={competition.organizingTeamId}
-            competitionType={competition.competitionType}
-            events={events}
-            heats={heats}
-            judges={judges}
-            judgeAssignments={judgeAssignments}
-            rotations={rotations}
-            eventDefaultsMap={eventDefaultsMap}
-            versionHistoryMap={versionHistoryMap}
-            activeVersionMap={activeVersionMap}
-            competitionDefaultHeats={competition.defaultHeatsPerRotation ?? 4}
-            competitionDefaultPattern={
-              (competition.defaultLaneShiftPattern as "stay" | "shift_right") ??
-              "shift_right"
-            }
-            selectedEventId={selectedEventId}
-            onEventChange={handleEventChange}
-            overrides={judgeSchedulingOverrides}
-          />
-        </TabsContent>
-      )}
-
-      {/* Signup Questions Tab */}
-      <TabsContent value="registration-rules">
-        <RegistrationQuestionsEditor
-          entityType="competition"
-          entityId={competition.id}
-          teamId={competitionTeamId}
-          questions={volunteerQuestions}
-          onQuestionsChange={handleQuestionsChange}
-          questionTarget="volunteer"
-          overrides={questionOverrides}
-        />
-      </TabsContent>
-    </Tabs>
+    <VolunteersPage
+      competition={competition}
+      competitionTeamId={competitionTeamId}
+      tab={tab}
+      eventFromUrl={event}
+      invitations={invitations}
+      volunteersWithAccess={volunteersWithAccess}
+      events={events}
+      pendingDirectInvites={pendingDirectInvites}
+      judges={judges}
+      heats={heats}
+      judgeAssignments={judgeAssignments}
+      rotations={rotations}
+      eventDefaultsMap={eventDefaultsMap}
+      versionHistoryMap={versionHistoryMap}
+      activeVersionMap={activeVersionMap}
+      shifts={shifts}
+      volunteerAssignments={volunteerAssignments}
+      volunteerQuestions={volunteerQuestions}
+      answersByInvitation={answersByInvitation}
+      emailToInvitationId={emailToInvitationId}
+      questionsTeamId={competitionTeamId}
+      volunteersListCallbacks={volunteersListCallbacks}
+      shiftListCallbacks={shiftListCallbacks}
+      questionOverrides={questionOverrides}
+      judgeSchedulingOverrides={judgeSchedulingOverrides}
+    />
   )
 }

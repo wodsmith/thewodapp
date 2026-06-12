@@ -3,9 +3,16 @@
  *
  * Layout route for a single competition event. Loads event details,
  * divisions, movements, sponsors, and judging sheets for child routes.
+ *
+ * Paired with the cohost layout at
+ * routes/compete/cohost/$competitionId/events/$eventId.tsx, which returns the
+ * same loader-data shape via cohost server fns — except eventDivisionMappings
+ * (organizer-only; no cohost server fn exists) and full per-child event
+ * details. Child routes render the shared EventDetailPage from
+ * -pages/events/, which treats those extras as optional.
  */
 
-import { Outlet, createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, Outlet } from "@tanstack/react-router"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionEventsFn } from "@/server-fns/competition-event-fns"
 import {

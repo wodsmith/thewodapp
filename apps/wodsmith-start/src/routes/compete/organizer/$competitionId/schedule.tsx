@@ -3,14 +3,14 @@
  *
  * Organizer page for managing competition heat schedule.
  * Fetches venues, events, heats, divisions, and registrations in parallel.
- * Uses VenueManager and HeatScheduleManager components for full CRUD functionality.
+ * Renders the shared SchedulePage (VenueManager and HeatScheduleManager) for
+ * full CRUD functionality.
  *
  * Port from apps/wodsmith/src/app/(compete)/compete/organizer/[competitionId]/(with-sidebar)/schedule/page.tsx
  */
 // @lat: [[organizer-dashboard#Heat Scheduling]]
 
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
-import { SchedulePageClient } from "@/components/organizer/schedule/schedule-page-client"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import {
   getCompetitionRegistrationsFn,
@@ -18,6 +18,7 @@ import {
   getHeatsForCompetitionFn,
 } from "@/server-fns/competition-heats-fns"
 import { getCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
+import { SchedulePage } from "./-pages/schedule-page"
 
 // Get parent route API to access competition data
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
@@ -26,7 +27,7 @@ export const Route = createFileRoute(
   "/compete/organizer/$competitionId/schedule",
 )({
   staleTime: 10_000,
-  component: SchedulePage,
+  component: RouteComponent,
   loader: async ({ params, parentMatchPromise }) => {
     const parentMatch = await parentMatchPromise
     const { competition } = parentMatch.loaderData!
@@ -73,7 +74,7 @@ export const Route = createFileRoute(
   },
 })
 
-function SchedulePage() {
+function RouteComponent() {
   const { venues, events, heats, divisions, registrations } =
     Route.useLoaderData()
   const { competitionId } = Route.useParams()
@@ -82,13 +83,13 @@ function SchedulePage() {
   const { competition } = parentRoute.useLoaderData()
 
   return (
-    <SchedulePageClient
+    <SchedulePage
       competitionId={competitionId}
       organizingTeamId={competition.organizingTeamId}
       competitionStartDate={competition.startDate}
-      initialVenues={venues}
+      venues={venues}
       events={events}
-      initialHeats={heats}
+      heats={heats}
       divisions={divisions}
       registrations={registrations}
     />

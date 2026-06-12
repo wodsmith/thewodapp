@@ -10,8 +10,7 @@
 
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { getCompetitionWaiversFn } from "@/server-fns/waiver-fns"
-
-import { WaiverList } from "./-components/waiver-list"
+import { WaiversPage } from "./-pages/waivers-page"
 
 // Get parent route API to access its loader data
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
@@ -30,16 +29,16 @@ export const Route = createFileRoute(
       waivers,
     }
   },
-  component: WaiversPage,
+  component: RouteComponent,
 })
 
-function WaiversPage() {
+function RouteComponent() {
   const { waivers } = Route.useLoaderData()
   // Get competition from parent layout loader data
   const { competition } = parentRoute.useLoaderData()
 
   return (
-    <WaiverList
+    <WaiversPage
       competitionId={competition.id}
       teamId={competition.organizingTeamId}
       waivers={waivers}

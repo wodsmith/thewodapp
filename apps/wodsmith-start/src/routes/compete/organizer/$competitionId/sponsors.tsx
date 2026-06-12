@@ -8,8 +8,8 @@
 // @lat: [[organizer-dashboard#Sponsors]]
 
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
-import { SponsorManager } from "@/components/sponsors/sponsor-manager"
 import { getCompetitionSponsorsFn } from "@/server-fns/sponsor-fns"
+import { SponsorsPage } from "./-pages/sponsors-page"
 
 // Get parent route API to access its loader data
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
@@ -18,7 +18,7 @@ export const Route = createFileRoute(
   "/compete/organizer/$competitionId/sponsors",
 )({
   staleTime: 10_000,
-  component: SponsorsPage,
+  component: RouteComponent,
   loader: async ({ params }) => {
     // Fetch sponsors with groups
     const { groups, ungroupedSponsors } = await getCompetitionSponsorsFn({
@@ -32,13 +32,13 @@ export const Route = createFileRoute(
   },
 })
 
-function SponsorsPage() {
+function RouteComponent() {
   const { groups, ungroupedSponsors } = Route.useLoaderData()
   // Get competition from parent layout loader data
   const { competition } = parentRoute.useLoaderData()
 
   return (
-    <SponsorManager
+    <SponsorsPage
       competitionId={competition.id}
       organizingTeamId={competition.organizingTeamId}
       groups={groups}
