@@ -32,7 +32,7 @@ Athletes enter WODsmith coupon codes before leaving for Stripe Checkout.
 
 Organizers sell merch (e.g., event tees with sizes) inside the registration flow. Selections become extra line items in the same Stripe Checkout Session and extra `ADDON` purchase rows; pickup is at the venue.
 
-The catalog lives in [[apps/wodsmith-start/src/db/schemas/competition-products.ts#competitionProductsTable]] and [[apps/wodsmith-start/src/db/schemas/competition-products.ts#competitionProductVariantsTable]]. Each add-on line item is its own `commerce_purchases` row (with `variantId` + `quantity` columns) referencing a lazily created `commerce_products` row (`type=ADDON`, `resourceId` = catalog product id). Organizer CRUD, the athlete-facing catalog, and fulfillment reports (counts-by-variant + pickup list) live in `src/server-fns/competition-addon-fns.ts`. The organizer Revenue page stays registration-only (add-on purchases are excluded by their null divisionId); merch revenue is reported on the Merch page.
+The catalog lives in [[apps/wodsmith-start/src/db/schemas/competition-products.ts#competitionProductsTable]] and [[apps/wodsmith-start/src/db/schemas/competition-products.ts#competitionProductVariantsTable]]. Each add-on line item is its own `commerce_purchases` row (with `variantId` + `quantity` columns) referencing a lazily created `commerce_products` row (`type=ADDON`, `resourceId` = catalog product id). Organizer CRUD, the athlete-facing catalog, and fulfillment reports (counts-by-variant + pickup list) live in `src/server-fns/competition-addon-fns.ts`. The organizer Revenue page and series revenue rollups stay registration-only (add-on purchases are excluded by their null divisionId); merch revenue is reported on the Merch page.
 
 ### Entitlement Gate
 
