@@ -24,34 +24,29 @@ import { seriesDivisionMappingsTable } from "@/db/schemas/series"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
 import { getEvlog } from "@/lib/evlog"
+import { getPublicCompetitionDivisionsForCompetition } from "@/server/competition-divisions"
 import { getSessionFromCookie } from "@/utils/auth"
 import { calculateCompetitionCapacity } from "@/utils/competition-capacity"
+import {
+  PENDING_PURCHASE_MAX_AGE_MINUTES,
+  parseCompetitionSettings,
+  type PublicCompetitionDivision,
+} from "@/utils/competition-settings"
 import { calculateDivisionCapacity } from "@/utils/division-capacity"
 
-/**
- * Stripe checkout sessions expire after 30 minutes.
- * Only count pending purchases created within this window.
- * Older ones are stale (missed webhook) and should not block capacity.
- */
-export const PENDING_PURCHASE_MAX_AGE_MINUTES = 35
+// Pure helpers + public division types live in a client-safe utils module so
+// server modules can import them without touching this server-fn file.
+// Re-exported here to keep existing importers working.
+export {
+  PENDING_PURCHASE_MAX_AGE_MINUTES,
+  parseCompetitionSettings,
+  type PublicCompetitionDivision,
+  type PublicDivisionsCompetitionInput,
+} from "@/utils/competition-settings"
 
 // ============================================================================
 // Types
 // ============================================================================
-
-/**
- * Parse competition settings from JSON string
- */
-export function parseCompetitionSettings(settings: string | null): {
-  divisions?: { scalingGroupId?: string }
-} | null {
-  if (!settings) return null
-  try {
-    return JSON.parse(settings)
-  } catch {
-    return null
-  }
-}
 
 /**
  * Stringify competition settings to JSON
@@ -100,18 +95,6 @@ async function requireTeamPermission(
   if (!hasPermission) {
     throw new Error(`Missing required permission: ${permission}`)
   }
-}
-
-export interface PublicCompetitionDivision {
-  id: string
-  label: string
-  description: string | null
-  registrationCount: number
-  feeCents: number
-  teamSize: number
-  maxSpots: number | null
-  spotsAvailable: number | null
-  isFull: boolean
 }
 
 export interface CompetitionDivisionWithCounts {
@@ -581,155 +564,6 @@ export const getScalingGroupWithLevelsFn = createServerFn({ method: "GET" })
 
     return scalingGroup
   })
-
-/**
- * Minimal competition fields needed to compute public division capacity.
- * Satisfied by a full competitionsTable row and by
- * CompetitionWithOrganizingTeam (getCompetitionBySlugFn).
- */
-export interface PublicDivisionsCompetitionInput {
-  id: string
-  settings: string | null
-  defaultRegistrationFeeCents: number | null
-  defaultMaxSpotsPerDivision: number | null
-  maxTotalRegistrations: number | null
-}
-
-/**
- * Internal helper: compute public divisions + capacity for an already-loaded
- * competition row. Lets consolidated server fns (which already fetched the
- * competition) skip the duplicate competition fetch.
- *
- * The two queries are independent, so each runs on its own connection for
- * true wire parallelism (a single mysql2 connection serializes commands).
- */
-export async function getPublicCompetitionDivisionsForCompetition({
-  competition,
-}: {
-  competition: PublicDivisionsCompetitionInput
-}): Promise<{
-  divisions: PublicCompetitionDivision[]
-  competitionCapacity: ReturnType<typeof calculateCompetitionCapacity> | null
-}> {
-  const settings = parseCompetitionSettings(competition.settings)
-  const scalingGroupId = settings?.divisions?.scalingGroupId
-
-  if (!scalingGroupId) {
-    return { divisions: [], competitionCapacity: null }
-  }
-
-  const db = getDb()
-  const pendingDb = getDb()
-
-  // Get divisions with descriptions, registration counts, and capacity
-  // Also get pending purchases (reservations) separately to avoid double-counting in joins
-  const [divisions, pendingByDivision] = await Promise.all([
-    db
-      .select({
-        id: scalingLevelsTable.id,
-        label: scalingLevelsTable.label,
-        teamSize: scalingLevelsTable.teamSize,
-        description: competitionDivisionsTable.description,
-        feeCents: competitionDivisionsTable.feeCents,
-        maxSpots: competitionDivisionsTable.maxSpots,
-        registrationCount: sql<number>`cast(count(${competitionRegistrationsTable.id}) as unsigned)`,
-      })
-      .from(scalingLevelsTable)
-      .leftJoin(
-        competitionDivisionsTable,
-        and(
-          eq(competitionDivisionsTable.divisionId, scalingLevelsTable.id),
-          eq(competitionDivisionsTable.competitionId, competition.id),
-        ),
-      )
-      .leftJoin(
-        competitionRegistrationsTable,
-        and(
-          eq(competitionRegistrationsTable.divisionId, scalingLevelsTable.id),
-          eq(competitionRegistrationsTable.eventId, competition.id),
-          ne(
-            competitionRegistrationsTable.status,
-            REGISTRATION_STATUS.REMOVED,
-          ),
-        ),
-      )
-      .where(eq(scalingLevelsTable.scalingGroupId, scalingGroupId))
-      .groupBy(
-        scalingLevelsTable.id,
-        competitionDivisionsTable.description,
-        competitionDivisionsTable.feeCents,
-        competitionDivisionsTable.maxSpots,
-      )
-      .orderBy(scalingLevelsTable.position),
-    // Count pending purchases (reservations) per division
-    // Only count recent ones — Stripe sessions expire after 30 min
-    pendingDb
-      .select({
-        divisionId: commercePurchaseTable.divisionId,
-        pendingCount: sql<number>`cast(count(*) as unsigned)`,
-      })
-      .from(commercePurchaseTable)
-      .where(
-        and(
-          eq(commercePurchaseTable.competitionId, competition.id),
-          eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
-          gt(
-            commercePurchaseTable.createdAt,
-            new Date(Date.now() - PENDING_PURCHASE_MAX_AGE_MINUTES * 60 * 1000),
-          ),
-        ),
-      )
-      .groupBy(commercePurchaseTable.divisionId),
-  ])
-
-  // Create lookup map for pending counts
-  const pendingCountMap = new Map(
-    pendingByDivision.map((p) => [p.divisionId, p.pendingCount]),
-  )
-
-  // Apply defaults from competition and calculate capacity (including reservations)
-  const result: PublicCompetitionDivision[] = divisions.map((d) => {
-    const capacity = calculateDivisionCapacity({
-      registrationCount: d.registrationCount,
-      pendingCount: pendingCountMap.get(d.id) ?? 0,
-      divisionMaxSpots: d.maxSpots,
-      competitionDefaultMax: competition.defaultMaxSpotsPerDivision,
-    })
-    return {
-      id: d.id,
-      label: d.label,
-      description: d.description ?? null,
-      registrationCount: d.registrationCount,
-      feeCents: d.feeCents ?? competition.defaultRegistrationFeeCents ?? 0,
-      teamSize: d.teamSize,
-      maxSpots: capacity.effectiveMax,
-      spotsAvailable: capacity.spotsAvailable,
-      isFull: capacity.isFull,
-    }
-  })
-
-  // Competition-wide capacity (only when a cap is set)
-  let competitionCapacity: ReturnType<
-    typeof calculateCompetitionCapacity
-  > | null = null
-  if (competition.maxTotalRegistrations != null) {
-    const totalConfirmed = divisions.reduce(
-      (sum, d) => sum + Number(d.registrationCount),
-      0,
-    )
-    const totalPending = pendingByDivision.reduce(
-      (sum, p) => sum + Number(p.pendingCount),
-      0,
-    )
-    competitionCapacity = calculateCompetitionCapacity({
-      registrationCount: totalConfirmed,
-      pendingCount: totalPending,
-      maxTotalRegistrations: competition.maxTotalRegistrations,
-    })
-  }
-
-  return { divisions: result, competitionCapacity }
-}
 
 /**
  * Get divisions for public competition display

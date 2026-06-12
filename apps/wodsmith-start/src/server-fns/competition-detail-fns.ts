@@ -14,17 +14,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import {
-  and,
-  count,
-  eq,
-  exists,
-  gt,
-  inArray,
-  isNull,
-  ne,
-  sql,
-} from "drizzle-orm"
+import { and, count, eq, inArray, isNull, ne } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import { addressesTable } from "@/db/schemas/addresses"
@@ -55,6 +45,10 @@ import { ROLES_ENUM } from "@/db/schemas/users"
 import type { LaneShiftPattern } from "@/db/schemas/volunteers"
 import { getEvlog } from "@/lib/evlog"
 import { getCohostPermissions } from "@/server/cohost"
+import {
+  getPendingTeamInvitesForEmail,
+  getUserCompetitionRegistrationsForUser,
+} from "@/server/competition-detail"
 import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
 import {
   DEFAULT_TIMEZONE,
@@ -403,106 +397,6 @@ export const getUserCompetitionRegistrationFn = createServerFn({
   })
 
 /**
- * Internal helper: get ALL of a user's registrations for a competition.
- * Takes the userId from the caller (which must derive it from the session —
- * never from client input). Used by getUserCompetitionRegistrationsFn and the
- * consolidated competition page server fn.
- *
- * The direct-registrations and team-memberships queries are independent, so
- * they run on separate connections for true wire parallelism (a single
- * mysql2 connection serializes commands).
- */
-export async function getUserCompetitionRegistrationsForUser({
-  competitionId,
-  userId,
-}: {
-  competitionId: string
-  userId: string
-}) {
-  const registrationColumns = {
-    id: competitionRegistrationsTable.id,
-    eventId: competitionRegistrationsTable.eventId,
-    userId: competitionRegistrationsTable.userId,
-    divisionId: competitionRegistrationsTable.divisionId,
-    registeredAt: competitionRegistrationsTable.registeredAt,
-    status: competitionRegistrationsTable.status,
-    teamName: competitionRegistrationsTable.teamName,
-    captainUserId: competitionRegistrationsTable.captainUserId,
-    athleteTeamId: competitionRegistrationsTable.athleteTeamId,
-    teamMemberId: competitionRegistrationsTable.teamMemberId,
-  }
-
-  const db = getDb()
-  const membershipsDb = getDb()
-
-  // Get direct registrations (as captain/individual) and the user's active
-  // team memberships in parallel — they don't depend on each other.
-  const [directRegistrations, userTeamMemberships] = await Promise.all([
-    db
-      .select(registrationColumns)
-      .from(competitionRegistrationsTable)
-      .where(
-        and(
-          eq(competitionRegistrationsTable.eventId, competitionId),
-          eq(competitionRegistrationsTable.userId, userId),
-          ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
-        ),
-      ),
-    membershipsDb
-      .select({ teamId: teamMembershipTable.teamId })
-      .from(teamMembershipTable)
-      .where(
-        and(
-          eq(teamMembershipTable.userId, userId),
-          eq(teamMembershipTable.isActive, true),
-        ),
-      ),
-  ])
-
-  let teamRegistrations: typeof directRegistrations = []
-  if (userTeamMemberships.length > 0) {
-    const userTeamIds = userTeamMemberships.map((m) => m.teamId)
-
-    teamRegistrations = await db
-      .select(registrationColumns)
-      .from(competitionRegistrationsTable)
-      .where(
-        and(
-          eq(competitionRegistrationsTable.eventId, competitionId),
-          ne(
-            competitionRegistrationsTable.status,
-            REGISTRATION_STATUS.REMOVED,
-          ),
-          inArray(competitionRegistrationsTable.athleteTeamId, userTeamIds),
-        ),
-      )
-  }
-
-  // Merge and deduplicate by division.
-  // Direct registrations (user's own rows) take priority.
-  // Team query may return teammate rows in the same division — skip those.
-  const divisionMap = new Map<string | null, (typeof directRegistrations)[0]>()
-
-  for (const reg of directRegistrations) {
-    divisionMap.set(reg.divisionId, reg)
-  }
-
-  for (const reg of teamRegistrations) {
-    if (!divisionMap.has(reg.divisionId)) {
-      divisionMap.set(reg.divisionId, reg)
-    } else if (
-      reg.userId === userId &&
-      divisionMap.get(reg.divisionId)!.userId !== userId
-    ) {
-      // Prefer the user's own row over a teammate's row
-      divisionMap.set(reg.divisionId, reg)
-    }
-  }
-
-  return { registrations: Array.from(divisionMap.values()) }
-}
-
-/**
  * Get ALL of a user's registrations for a competition
  * Checks both direct registrations (as captain) and team memberships
  * Supports multi-division registration
@@ -525,66 +419,6 @@ export const getUserCompetitionRegistrationsFn = createServerFn({
       userId: session.userId,
     })
   })
-
-/**
- * Internal helper: find unclaimed teammate invitations for an email on a
- * competition. Filters teamInvitationTable by email first and correlates to
- * the competition's athlete teams with EXISTS — instead of fetching every
- * registration in the competition to feed an inArray (unbounded scan).
- */
-export async function getPendingTeamInvitesForEmail({
-  competitionId,
-  email,
-}: {
-  competitionId: string
-  email: string
-}) {
-  const db = getDb()
-
-  const invitations = await db
-    .select({
-      id: teamInvitationTable.id,
-      teamId: teamInvitationTable.teamId,
-      email: teamInvitationTable.email,
-      roleId: teamInvitationTable.roleId,
-      isSystemRole: teamInvitationTable.isSystemRole,
-      token: teamInvitationTable.token,
-      expiresAt: teamInvitationTable.expiresAt,
-      createdAt: teamInvitationTable.createdAt,
-      metadata: teamInvitationTable.metadata,
-    })
-    .from(teamInvitationTable)
-    .where(
-      and(
-        eq(teamInvitationTable.email, email),
-        eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.MEMBER),
-        eq(teamInvitationTable.isSystemRole, true),
-        isNull(teamInvitationTable.acceptedAt),
-        ne(teamInvitationTable.status, INVITATION_STATUS.CANCELLED),
-        gt(teamInvitationTable.expiresAt, new Date()),
-        exists(
-          db
-            .select({ one: sql`1` })
-            .from(competitionRegistrationsTable)
-            .where(
-              and(
-                eq(
-                  competitionRegistrationsTable.athleteTeamId,
-                  teamInvitationTable.teamId,
-                ),
-                eq(competitionRegistrationsTable.eventId, competitionId),
-                ne(
-                  competitionRegistrationsTable.status,
-                  REGISTRATION_STATUS.REMOVED,
-                ),
-              ),
-            ),
-        ),
-      ),
-    )
-
-  return { invitations }
-}
 
 /**
  * Get pending team invitations for a user related to a competition

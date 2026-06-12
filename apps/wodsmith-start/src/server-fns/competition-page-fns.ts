@@ -25,11 +25,8 @@ import { cohostGetPermissionsFn } from "@/server-fns/cohost/cohost-competition-f
 import {
   getPendingTeamInvitesForEmail,
   getUserCompetitionRegistrationsForUser,
-} from "@/server-fns/competition-detail-fns"
-import {
-  getPublicCompetitionDivisionsForCompetition,
-  type PublicCompetitionDivision,
-} from "@/server-fns/competition-divisions-fns"
+} from "@/server/competition-detail"
+import { getPublicCompetitionDivisionsForCompetition } from "@/server/competition-divisions"
 import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
 import { listMyPendingCompetitionInvitesFn } from "@/server-fns/competition-invite-fns"
 import { hasJudgesScheduleFn } from "@/server-fns/judge-scheduling-fns"
@@ -38,6 +35,7 @@ import {
   getCompetitionSponsorsFn,
 } from "@/server-fns/sponsor-fns"
 import { getSessionFromCookie } from "@/utils/auth"
+import type { PublicCompetitionDivision } from "@/utils/competition-settings"
 
 // ============================================================================
 // Input Schemas
