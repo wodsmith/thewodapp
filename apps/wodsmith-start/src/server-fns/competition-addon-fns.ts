@@ -382,88 +382,94 @@ export const updateCompetitionAddonFn = createServerFn({ method: "POST" })
 
     const db = getDb()
 
-    await db
-      .update(competitionProductsTable)
-      .set({
-        ...(input.name !== undefined ? { name: input.name } : {}),
-        ...(input.description !== undefined
-          ? { description: input.description || null }
-          : {}),
-        ...(input.imageUrl !== undefined
-          ? { imageUrl: input.imageUrl || null }
-          : {}),
-        ...(input.priceCents !== undefined
-          ? { priceCents: input.priceCents }
-          : {}),
-        ...(input.maxPerAthlete !== undefined
-          ? { maxPerAthlete: input.maxPerAthlete }
-          : {}),
-        ...(input.availableUntil !== undefined
-          ? { availableUntil: input.availableUntil }
-          : {}),
-        ...(input.status !== undefined ? { status: input.status } : {}),
-        updatedAt: new Date(),
-      })
-      .where(eq(competitionProductsTable.id, product.id))
+    // Product fields and variant reconciliation commit together — a variant
+    // validation error (e.g. removing a variant with sales) must not leave
+    // half-applied product changes behind.
+    await db.transaction(async (tx) => {
+      await tx
+        .update(competitionProductsTable)
+        .set({
+          ...(input.name !== undefined ? { name: input.name } : {}),
+          ...(input.description !== undefined
+            ? { description: input.description || null }
+            : {}),
+          ...(input.imageUrl !== undefined
+            ? { imageUrl: input.imageUrl || null }
+            : {}),
+          ...(input.priceCents !== undefined
+            ? { priceCents: input.priceCents }
+            : {}),
+          ...(input.maxPerAthlete !== undefined
+            ? { maxPerAthlete: input.maxPerAthlete }
+            : {}),
+          ...(input.availableUntil !== undefined
+            ? { availableUntil: input.availableUntil }
+            : {}),
+          ...(input.status !== undefined ? { status: input.status } : {}),
+          updatedAt: new Date(),
+        })
+        .where(eq(competitionProductsTable.id, product.id))
 
-    if (input.variants !== undefined) {
-      const { createCompetitionProductVariantId } = await import(
-        "@/db/schemas/common"
-      )
-      const existing = await db.query.competitionProductVariantsTable.findMany({
-        where: eq(competitionProductVariantsTable.productId, product.id),
-      })
-      const incomingIds = new Set(
-        input.variants.map((v) => v.id).filter(Boolean),
-      )
+      if (input.variants !== undefined) {
+        const { createCompetitionProductVariantId } = await import(
+          "@/db/schemas/common"
+        )
+        const existing =
+          await tx.query.competitionProductVariantsTable.findMany({
+            where: eq(competitionProductVariantsTable.productId, product.id),
+          })
+        const incomingIds = new Set(
+          input.variants.map((v) => v.id).filter(Boolean),
+        )
 
-      // Remove variants dropped from the payload — but never ones that have
-      // sold units or are referenced by any purchase (pending included).
-      const removed = existing.filter((v) => !incomingIds.has(v.id))
-      for (const variant of removed) {
-        if (variant.soldQty > 0) {
-          throw new Error(
-            `Cannot remove variant "${variant.label}" — it has completed sales. Set its stock to 0 instead.`,
-          )
+        // Remove variants dropped from the payload — but never ones that have
+        // sold units or are referenced by any purchase (pending included).
+        const removed = existing.filter((v) => !incomingIds.has(v.id))
+        for (const variant of removed) {
+          if (variant.soldQty > 0) {
+            throw new Error(
+              `Cannot remove variant "${variant.label}" — it has completed sales. Set its stock to 0 instead.`,
+            )
+          }
+          const [referencing] = await tx
+            .select({ count: sql<number>`COUNT(*)` })
+            .from(commercePurchaseTable)
+            .where(eq(commercePurchaseTable.variantId, variant.id))
+          if (Number(referencing?.count ?? 0) > 0) {
+            throw new Error(
+              `Cannot remove variant "${variant.label}" — purchases reference it. Set its stock to 0 instead.`,
+            )
+          }
+          await tx
+            .delete(competitionProductVariantsTable)
+            .where(eq(competitionProductVariantsTable.id, variant.id))
         }
-        const [referencing] = await db
-          .select({ count: sql<number>`COUNT(*)` })
-          .from(commercePurchaseTable)
-          .where(eq(commercePurchaseTable.variantId, variant.id))
-        if (Number(referencing?.count ?? 0) > 0) {
-          throw new Error(
-            `Cannot remove variant "${variant.label}" — purchases reference it. Set its stock to 0 instead.`,
-          )
-        }
-        await db
-          .delete(competitionProductVariantsTable)
-          .where(eq(competitionProductVariantsTable.id, variant.id))
-      }
 
-      for (const [index, variant] of input.variants.entries()) {
-        if (variant.id) {
-          const current = existing.find((v) => v.id === variant.id)
-          if (!current) throw new Error("Variant not found on this add-on")
-          await db
-            .update(competitionProductVariantsTable)
-            .set({
+        for (const [index, variant] of input.variants.entries()) {
+          if (variant.id) {
+            const current = existing.find((v) => v.id === variant.id)
+            if (!current) throw new Error("Variant not found on this add-on")
+            await tx
+              .update(competitionProductVariantsTable)
+              .set({
+                label: variant.label,
+                stockQty: variant.stockQty ?? null,
+                sortOrder: index,
+                updatedAt: new Date(),
+              })
+              .where(eq(competitionProductVariantsTable.id, variant.id))
+          } else {
+            await tx.insert(competitionProductVariantsTable).values({
+              id: createCompetitionProductVariantId(),
+              productId: product.id,
               label: variant.label,
               stockQty: variant.stockQty ?? null,
               sortOrder: index,
-              updatedAt: new Date(),
             })
-            .where(eq(competitionProductVariantsTable.id, variant.id))
-        } else {
-          await db.insert(competitionProductVariantsTable).values({
-            id: createCompetitionProductVariantId(),
-            productId: product.id,
-            label: variant.label,
-            stockQty: variant.stockQty ?? null,
-            sortOrder: index,
-          })
+          }
         }
       }
-    }
+    })
 
     logInfo({
       message: "[Addons] Add-on updated",

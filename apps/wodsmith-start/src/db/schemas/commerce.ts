@@ -111,7 +111,7 @@ export const commercePurchaseTable = mysqlTable(
     // References competition_product_variants.id; null for no-variant products
     variantId: varchar({ length: 255 }),
     // Units purchased in this line (always 1 for registrations)
-    quantity: int().notNull().default(1),
+    quantity: int({ unsigned: true }).notNull().default(1),
 
     // Amounts (all in cents)
     totalCents: int().notNull(), // Amount charged to customer
@@ -138,6 +138,7 @@ export const commercePurchaseTable = mysqlTable(
     ),
     index("commerce_purchase_competition_idx").on(table.competitionId),
     index("commerce_purchase_stripe_pi_idx").on(table.stripePaymentIntentId),
+    index("commerce_purchase_variant_idx").on(table.variantId),
   ],
 )
 

@@ -662,6 +662,9 @@ export const getPublicCompetitionDivisionsFn = createServerFn({ method: "GET" })
           and(
             eq(commercePurchaseTable.competitionId, data.competitionId),
             eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
+            // ADDON (merch) purchases have no division; the null group would
+            // otherwise inflate the competition-wide pending sum below.
+            isNotNull(commercePurchaseTable.divisionId),
             gt(
               commercePurchaseTable.createdAt,
               new Date(
