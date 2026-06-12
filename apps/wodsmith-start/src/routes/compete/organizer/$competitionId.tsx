@@ -70,6 +70,7 @@ const routeLabels: Record<string, string> = {
   "check-in": "Check-in",
   divisions: "Divisions & capacity",
   athletes: "Athletes",
+  "form-questions": "Form questions",
   invites: "Invites",
   events: "Events",
   "event-divisions": "Event visibility",
@@ -77,6 +78,9 @@ const routeLabels: Record<string, string> = {
   schedule: "Heat schedule",
   locations: "Venues & lanes",
   volunteers: "Volunteers",
+  shifts: "Volunteer shifts",
+  judges: "Judge assignments",
+  "signup-questions": "Signup questions",
   waivers: "Waivers",
   scoring: "Scoring rules",
   results: "Results", // Overridden to "Submissions" for online competitions

@@ -108,7 +108,6 @@ import { Route as CompeteOrganizerSeriesGroupIdRouteImport } from './routes/comp
 import { Route as CompeteOrganizerOnboardPendingRouteImport } from './routes/compete/organizer/onboard/pending'
 import { Route as CompeteOrganizerDashboardNewRouteImport } from './routes/compete/organizer/_dashboard/new'
 import { Route as CompeteOrganizerCompetitionIdWaiversRouteImport } from './routes/compete/organizer/$competitionId/waivers'
-import { Route as CompeteOrganizerCompetitionIdVolunteersRouteImport } from './routes/compete/organizer/$competitionId/volunteers'
 import { Route as CompeteOrganizerCompetitionIdSubmissionWindowsRouteImport } from './routes/compete/organizer/$competitionId/submission-windows'
 import { Route as CompeteOrganizerCompetitionIdSponsorsRouteImport } from './routes/compete/organizer/$competitionId/sponsors'
 import { Route as CompeteOrganizerCompetitionIdSettingsRouteImport } from './routes/compete/organizer/$competitionId/settings'
@@ -163,6 +162,7 @@ import { Route as AdminTeamsTeamIdSchedulingRouteImport } from './routes/admin/t
 import { Route as ProtectedSettingsBillingPurchaseIdRouteImport } from './routes/_protected/settings/billing/$purchaseId'
 import { Route as CompeteOrganizerSeriesGroupIdIndexRouteImport } from './routes/compete/organizer/series/$groupId/index'
 import { Route as CompeteOrganizerDashboardSeriesIndexRouteImport } from './routes/compete/organizer/_dashboard/series/index'
+import { Route as CompeteOrganizerCompetitionIdVolunteersIndexRouteImport } from './routes/compete/organizer/$competitionId/volunteers/index'
 import { Route as CompeteOrganizerCompetitionIdInvitesIndexRouteImport } from './routes/compete/organizer/$competitionId/invites/index'
 import { Route as CompeteOrganizerCompetitionIdEventsIndexRouteImport } from './routes/compete/organizer/$competitionId/events/index'
 import { Route as CompeteOrganizerCompetitionIdAthletesIndexRouteImport } from './routes/compete/organizer/$competitionId/athletes/index'
@@ -187,7 +187,11 @@ import { Route as CompeteOrganizerSeriesGroupIdEventMappingsRouteImport } from '
 import { Route as CompeteOrganizerSeriesGroupIdEditRouteImport } from './routes/compete/organizer/series/$groupId/edit'
 import { Route as CompeteOrganizerSeriesGroupIdDivisionsRouteImport } from './routes/compete/organizer/series/$groupId/divisions'
 import { Route as CompeteOrganizerDashboardSeriesNewRouteImport } from './routes/compete/organizer/_dashboard/series/new'
+import { Route as CompeteOrganizerCompetitionIdVolunteersSignupQuestionsRouteImport } from './routes/compete/organizer/$competitionId/volunteers/signup-questions'
+import { Route as CompeteOrganizerCompetitionIdVolunteersShiftsRouteImport } from './routes/compete/organizer/$competitionId/volunteers/shifts'
+import { Route as CompeteOrganizerCompetitionIdVolunteersJudgesRouteImport } from './routes/compete/organizer/$competitionId/volunteers/judges'
 import { Route as CompeteOrganizerCompetitionIdEventsEventIdRouteImport } from './routes/compete/organizer/$competitionId/events/$eventId'
+import { Route as CompeteOrganizerCompetitionIdAthletesFormQuestionsRouteImport } from './routes/compete/organizer/$competitionId/athletes/form-questions'
 import { Route as CompeteOrganizerCompetitionIdAthletesRegistrationIdRouteImport } from './routes/compete/organizer/$competitionId/athletes/$registrationId'
 import { Route as CompeteCohostCompetitionIdEventsEventIdRouteImport } from './routes/compete/cohost/$competitionId/events/$eventId'
 import { Route as CompeteSlugReviewEventIdSubmissionIdRouteImport } from './routes/compete/$slug/review/$eventId/$submissionId'
@@ -739,12 +743,6 @@ const CompeteOrganizerCompetitionIdWaiversRoute =
     path: '/waivers',
     getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
   } as any)
-const CompeteOrganizerCompetitionIdVolunteersRoute =
-  CompeteOrganizerCompetitionIdVolunteersRouteImport.update({
-    id: '/volunteers',
-    path: '/volunteers',
-    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
-  } as any)
 const CompeteOrganizerCompetitionIdSubmissionWindowsRoute =
   CompeteOrganizerCompetitionIdSubmissionWindowsRouteImport.update({
     id: '/submission-windows',
@@ -1064,6 +1062,12 @@ const CompeteOrganizerDashboardSeriesIndexRoute =
     path: '/series/',
     getParentRoute: () => CompeteOrganizerDashboardRoute,
   } as any)
+const CompeteOrganizerCompetitionIdVolunteersIndexRoute =
+  CompeteOrganizerCompetitionIdVolunteersIndexRouteImport.update({
+    id: '/volunteers/',
+    path: '/volunteers/',
+    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+  } as any)
 const CompeteOrganizerCompetitionIdInvitesIndexRoute =
   CompeteOrganizerCompetitionIdInvitesIndexRouteImport.update({
     id: '/invites/',
@@ -1207,10 +1211,34 @@ const CompeteOrganizerDashboardSeriesNewRoute =
     path: '/series/new',
     getParentRoute: () => CompeteOrganizerDashboardRoute,
   } as any)
+const CompeteOrganizerCompetitionIdVolunteersSignupQuestionsRoute =
+  CompeteOrganizerCompetitionIdVolunteersSignupQuestionsRouteImport.update({
+    id: '/volunteers/signup-questions',
+    path: '/volunteers/signup-questions',
+    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+  } as any)
+const CompeteOrganizerCompetitionIdVolunteersShiftsRoute =
+  CompeteOrganizerCompetitionIdVolunteersShiftsRouteImport.update({
+    id: '/volunteers/shifts',
+    path: '/volunteers/shifts',
+    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+  } as any)
+const CompeteOrganizerCompetitionIdVolunteersJudgesRoute =
+  CompeteOrganizerCompetitionIdVolunteersJudgesRouteImport.update({
+    id: '/volunteers/judges',
+    path: '/volunteers/judges',
+    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+  } as any)
 const CompeteOrganizerCompetitionIdEventsEventIdRoute =
   CompeteOrganizerCompetitionIdEventsEventIdRouteImport.update({
     id: '/events/$eventId',
     path: '/events/$eventId',
+    getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
+  } as any)
+const CompeteOrganizerCompetitionIdAthletesFormQuestionsRoute =
+  CompeteOrganizerCompetitionIdAthletesFormQuestionsRouteImport.update({
+    id: '/athletes/form-questions',
+    path: '/athletes/form-questions',
     getParentRoute: () => CompeteOrganizerCompetitionIdRoute,
   } as any)
 const CompeteOrganizerCompetitionIdAthletesRegistrationIdRoute =
@@ -1470,7 +1498,6 @@ export interface FileRoutesByFullPath {
   '/compete/organizer/$competitionId/settings': typeof CompeteOrganizerCompetitionIdSettingsRoute
   '/compete/organizer/$competitionId/sponsors': typeof CompeteOrganizerCompetitionIdSponsorsRoute
   '/compete/organizer/$competitionId/submission-windows': typeof CompeteOrganizerCompetitionIdSubmissionWindowsRoute
-  '/compete/organizer/$competitionId/volunteers': typeof CompeteOrganizerCompetitionIdVolunteersRoute
   '/compete/organizer/$competitionId/waivers': typeof CompeteOrganizerCompetitionIdWaiversRoute
   '/compete/organizer/new': typeof CompeteOrganizerDashboardNewRoute
   '/compete/organizer/onboard/pending': typeof CompeteOrganizerOnboardPendingRoute
@@ -1512,7 +1539,11 @@ export interface FileRoutesByFullPath {
   '/compete/$slug/review/$eventId/$submissionId': typeof CompeteSlugReviewEventIdSubmissionIdRoute
   '/compete/cohost/$competitionId/events/$eventId': typeof CompeteCohostCompetitionIdEventsEventIdRouteWithChildren
   '/compete/organizer/$competitionId/athletes/$registrationId': typeof CompeteOrganizerCompetitionIdAthletesRegistrationIdRoute
+  '/compete/organizer/$competitionId/athletes/form-questions': typeof CompeteOrganizerCompetitionIdAthletesFormQuestionsRoute
   '/compete/organizer/$competitionId/events/$eventId': typeof CompeteOrganizerCompetitionIdEventsEventIdRouteWithChildren
+  '/compete/organizer/$competitionId/volunteers/judges': typeof CompeteOrganizerCompetitionIdVolunteersJudgesRoute
+  '/compete/organizer/$competitionId/volunteers/shifts': typeof CompeteOrganizerCompetitionIdVolunteersShiftsRoute
+  '/compete/organizer/$competitionId/volunteers/signup-questions': typeof CompeteOrganizerCompetitionIdVolunteersSignupQuestionsRoute
   '/compete/organizer/series/new': typeof CompeteOrganizerDashboardSeriesNewRoute
   '/compete/organizer/series/$groupId/divisions': typeof CompeteOrganizerSeriesGroupIdDivisionsRoute
   '/compete/organizer/series/$groupId/edit': typeof CompeteOrganizerSeriesGroupIdEditRoute
@@ -1537,6 +1568,7 @@ export interface FileRoutesByFullPath {
   '/compete/organizer/$competitionId/athletes': typeof CompeteOrganizerCompetitionIdAthletesIndexRoute
   '/compete/organizer/$competitionId/events': typeof CompeteOrganizerCompetitionIdEventsIndexRoute
   '/compete/organizer/$competitionId/invites': typeof CompeteOrganizerCompetitionIdInvitesIndexRoute
+  '/compete/organizer/$competitionId/volunteers': typeof CompeteOrganizerCompetitionIdVolunteersIndexRoute
   '/compete/organizer/series': typeof CompeteOrganizerDashboardSeriesIndexRoute
   '/compete/organizer/series/$groupId/': typeof CompeteOrganizerSeriesGroupIdIndexRoute
   '/compete/cohost/$competitionId/events/$eventId/submissions': typeof CompeteCohostCompetitionIdEventsEventIdSubmissionsRouteWithChildren
@@ -1662,7 +1694,6 @@ export interface FileRoutesByTo {
   '/compete/organizer/$competitionId/settings': typeof CompeteOrganizerCompetitionIdSettingsRoute
   '/compete/organizer/$competitionId/sponsors': typeof CompeteOrganizerCompetitionIdSponsorsRoute
   '/compete/organizer/$competitionId/submission-windows': typeof CompeteOrganizerCompetitionIdSubmissionWindowsRoute
-  '/compete/organizer/$competitionId/volunteers': typeof CompeteOrganizerCompetitionIdVolunteersRoute
   '/compete/organizer/$competitionId/waivers': typeof CompeteOrganizerCompetitionIdWaiversRoute
   '/compete/organizer/new': typeof CompeteOrganizerDashboardNewRoute
   '/compete/organizer/onboard/pending': typeof CompeteOrganizerOnboardPendingRoute
@@ -1701,6 +1732,10 @@ export interface FileRoutesByTo {
   '/compete/$slug/claim/$token/decline': typeof CompeteSlugClaimTokenDeclineRoute
   '/compete/$slug/review/$eventId/$submissionId': typeof CompeteSlugReviewEventIdSubmissionIdRoute
   '/compete/organizer/$competitionId/athletes/$registrationId': typeof CompeteOrganizerCompetitionIdAthletesRegistrationIdRoute
+  '/compete/organizer/$competitionId/athletes/form-questions': typeof CompeteOrganizerCompetitionIdAthletesFormQuestionsRoute
+  '/compete/organizer/$competitionId/volunteers/judges': typeof CompeteOrganizerCompetitionIdVolunteersJudgesRoute
+  '/compete/organizer/$competitionId/volunteers/shifts': typeof CompeteOrganizerCompetitionIdVolunteersShiftsRoute
+  '/compete/organizer/$competitionId/volunteers/signup-questions': typeof CompeteOrganizerCompetitionIdVolunteersSignupQuestionsRoute
   '/compete/organizer/series/new': typeof CompeteOrganizerDashboardSeriesNewRoute
   '/compete/organizer/series/$groupId/divisions': typeof CompeteOrganizerSeriesGroupIdDivisionsRoute
   '/compete/organizer/series/$groupId/edit': typeof CompeteOrganizerSeriesGroupIdEditRoute
@@ -1724,6 +1759,7 @@ export interface FileRoutesByTo {
   '/compete/organizer/$competitionId/athletes': typeof CompeteOrganizerCompetitionIdAthletesIndexRoute
   '/compete/organizer/$competitionId/events': typeof CompeteOrganizerCompetitionIdEventsIndexRoute
   '/compete/organizer/$competitionId/invites': typeof CompeteOrganizerCompetitionIdInvitesIndexRoute
+  '/compete/organizer/$competitionId/volunteers': typeof CompeteOrganizerCompetitionIdVolunteersIndexRoute
   '/compete/organizer/series': typeof CompeteOrganizerDashboardSeriesIndexRoute
   '/compete/organizer/series/$groupId': typeof CompeteOrganizerSeriesGroupIdIndexRoute
   '/compete/organizer/$competitionId/invites/sources/$sourceId': typeof CompeteOrganizerCompetitionIdInvitesSourcesSourceIdRoute
@@ -1859,7 +1895,6 @@ export interface FileRoutesById {
   '/compete/organizer/$competitionId/settings': typeof CompeteOrganizerCompetitionIdSettingsRoute
   '/compete/organizer/$competitionId/sponsors': typeof CompeteOrganizerCompetitionIdSponsorsRoute
   '/compete/organizer/$competitionId/submission-windows': typeof CompeteOrganizerCompetitionIdSubmissionWindowsRoute
-  '/compete/organizer/$competitionId/volunteers': typeof CompeteOrganizerCompetitionIdVolunteersRoute
   '/compete/organizer/$competitionId/waivers': typeof CompeteOrganizerCompetitionIdWaiversRoute
   '/compete/organizer/_dashboard/new': typeof CompeteOrganizerDashboardNewRoute
   '/compete/organizer/onboard/pending': typeof CompeteOrganizerOnboardPendingRoute
@@ -1901,7 +1936,11 @@ export interface FileRoutesById {
   '/compete/$slug/review/$eventId/$submissionId': typeof CompeteSlugReviewEventIdSubmissionIdRoute
   '/compete/cohost/$competitionId/events/$eventId': typeof CompeteCohostCompetitionIdEventsEventIdRouteWithChildren
   '/compete/organizer/$competitionId/athletes/$registrationId': typeof CompeteOrganizerCompetitionIdAthletesRegistrationIdRoute
+  '/compete/organizer/$competitionId/athletes/form-questions': typeof CompeteOrganizerCompetitionIdAthletesFormQuestionsRoute
   '/compete/organizer/$competitionId/events/$eventId': typeof CompeteOrganizerCompetitionIdEventsEventIdRouteWithChildren
+  '/compete/organizer/$competitionId/volunteers/judges': typeof CompeteOrganizerCompetitionIdVolunteersJudgesRoute
+  '/compete/organizer/$competitionId/volunteers/shifts': typeof CompeteOrganizerCompetitionIdVolunteersShiftsRoute
+  '/compete/organizer/$competitionId/volunteers/signup-questions': typeof CompeteOrganizerCompetitionIdVolunteersSignupQuestionsRoute
   '/compete/organizer/_dashboard/series/new': typeof CompeteOrganizerDashboardSeriesNewRoute
   '/compete/organizer/series/$groupId/divisions': typeof CompeteOrganizerSeriesGroupIdDivisionsRoute
   '/compete/organizer/series/$groupId/edit': typeof CompeteOrganizerSeriesGroupIdEditRoute
@@ -1926,6 +1965,7 @@ export interface FileRoutesById {
   '/compete/organizer/$competitionId/athletes/': typeof CompeteOrganizerCompetitionIdAthletesIndexRoute
   '/compete/organizer/$competitionId/events/': typeof CompeteOrganizerCompetitionIdEventsIndexRoute
   '/compete/organizer/$competitionId/invites/': typeof CompeteOrganizerCompetitionIdInvitesIndexRoute
+  '/compete/organizer/$competitionId/volunteers/': typeof CompeteOrganizerCompetitionIdVolunteersIndexRoute
   '/compete/organizer/_dashboard/series/': typeof CompeteOrganizerDashboardSeriesIndexRoute
   '/compete/organizer/series/$groupId/': typeof CompeteOrganizerSeriesGroupIdIndexRoute
   '/compete/cohost/$competitionId/events/$eventId/submissions': typeof CompeteCohostCompetitionIdEventsEventIdSubmissionsRouteWithChildren
@@ -2061,7 +2101,6 @@ export interface FileRouteTypes {
     | '/compete/organizer/$competitionId/settings'
     | '/compete/organizer/$competitionId/sponsors'
     | '/compete/organizer/$competitionId/submission-windows'
-    | '/compete/organizer/$competitionId/volunteers'
     | '/compete/organizer/$competitionId/waivers'
     | '/compete/organizer/new'
     | '/compete/organizer/onboard/pending'
@@ -2103,7 +2142,11 @@ export interface FileRouteTypes {
     | '/compete/$slug/review/$eventId/$submissionId'
     | '/compete/cohost/$competitionId/events/$eventId'
     | '/compete/organizer/$competitionId/athletes/$registrationId'
+    | '/compete/organizer/$competitionId/athletes/form-questions'
     | '/compete/organizer/$competitionId/events/$eventId'
+    | '/compete/organizer/$competitionId/volunteers/judges'
+    | '/compete/organizer/$competitionId/volunteers/shifts'
+    | '/compete/organizer/$competitionId/volunteers/signup-questions'
     | '/compete/organizer/series/new'
     | '/compete/organizer/series/$groupId/divisions'
     | '/compete/organizer/series/$groupId/edit'
@@ -2128,6 +2171,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/$competitionId/athletes'
     | '/compete/organizer/$competitionId/events'
     | '/compete/organizer/$competitionId/invites'
+    | '/compete/organizer/$competitionId/volunteers'
     | '/compete/organizer/series'
     | '/compete/organizer/series/$groupId/'
     | '/compete/cohost/$competitionId/events/$eventId/submissions'
@@ -2253,7 +2297,6 @@ export interface FileRouteTypes {
     | '/compete/organizer/$competitionId/settings'
     | '/compete/organizer/$competitionId/sponsors'
     | '/compete/organizer/$competitionId/submission-windows'
-    | '/compete/organizer/$competitionId/volunteers'
     | '/compete/organizer/$competitionId/waivers'
     | '/compete/organizer/new'
     | '/compete/organizer/onboard/pending'
@@ -2292,6 +2335,10 @@ export interface FileRouteTypes {
     | '/compete/$slug/claim/$token/decline'
     | '/compete/$slug/review/$eventId/$submissionId'
     | '/compete/organizer/$competitionId/athletes/$registrationId'
+    | '/compete/organizer/$competitionId/athletes/form-questions'
+    | '/compete/organizer/$competitionId/volunteers/judges'
+    | '/compete/organizer/$competitionId/volunteers/shifts'
+    | '/compete/organizer/$competitionId/volunteers/signup-questions'
     | '/compete/organizer/series/new'
     | '/compete/organizer/series/$groupId/divisions'
     | '/compete/organizer/series/$groupId/edit'
@@ -2315,6 +2362,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/$competitionId/athletes'
     | '/compete/organizer/$competitionId/events'
     | '/compete/organizer/$competitionId/invites'
+    | '/compete/organizer/$competitionId/volunteers'
     | '/compete/organizer/series'
     | '/compete/organizer/series/$groupId'
     | '/compete/organizer/$competitionId/invites/sources/$sourceId'
@@ -2449,7 +2497,6 @@ export interface FileRouteTypes {
     | '/compete/organizer/$competitionId/settings'
     | '/compete/organizer/$competitionId/sponsors'
     | '/compete/organizer/$competitionId/submission-windows'
-    | '/compete/organizer/$competitionId/volunteers'
     | '/compete/organizer/$competitionId/waivers'
     | '/compete/organizer/_dashboard/new'
     | '/compete/organizer/onboard/pending'
@@ -2491,7 +2538,11 @@ export interface FileRouteTypes {
     | '/compete/$slug/review/$eventId/$submissionId'
     | '/compete/cohost/$competitionId/events/$eventId'
     | '/compete/organizer/$competitionId/athletes/$registrationId'
+    | '/compete/organizer/$competitionId/athletes/form-questions'
     | '/compete/organizer/$competitionId/events/$eventId'
+    | '/compete/organizer/$competitionId/volunteers/judges'
+    | '/compete/organizer/$competitionId/volunteers/shifts'
+    | '/compete/organizer/$competitionId/volunteers/signup-questions'
     | '/compete/organizer/_dashboard/series/new'
     | '/compete/organizer/series/$groupId/divisions'
     | '/compete/organizer/series/$groupId/edit'
@@ -2516,6 +2567,7 @@ export interface FileRouteTypes {
     | '/compete/organizer/$competitionId/athletes/'
     | '/compete/organizer/$competitionId/events/'
     | '/compete/organizer/$competitionId/invites/'
+    | '/compete/organizer/$competitionId/volunteers/'
     | '/compete/organizer/_dashboard/series/'
     | '/compete/organizer/series/$groupId/'
     | '/compete/cohost/$competitionId/events/$eventId/submissions'
@@ -3266,13 +3318,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompeteOrganizerCompetitionIdWaiversRouteImport
       parentRoute: typeof CompeteOrganizerCompetitionIdRoute
     }
-    '/compete/organizer/$competitionId/volunteers': {
-      id: '/compete/organizer/$competitionId/volunteers'
-      path: '/volunteers'
-      fullPath: '/compete/organizer/$competitionId/volunteers'
-      preLoaderRoute: typeof CompeteOrganizerCompetitionIdVolunteersRouteImport
-      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
-    }
     '/compete/organizer/$competitionId/submission-windows': {
       id: '/compete/organizer/$competitionId/submission-windows'
       path: '/submission-windows'
@@ -3651,6 +3696,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompeteOrganizerDashboardSeriesIndexRouteImport
       parentRoute: typeof CompeteOrganizerDashboardRoute
     }
+    '/compete/organizer/$competitionId/volunteers/': {
+      id: '/compete/organizer/$competitionId/volunteers/'
+      path: '/volunteers'
+      fullPath: '/compete/organizer/$competitionId/volunteers'
+      preLoaderRoute: typeof CompeteOrganizerCompetitionIdVolunteersIndexRouteImport
+      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+    }
     '/compete/organizer/$competitionId/invites/': {
       id: '/compete/organizer/$competitionId/invites/'
       path: '/invites'
@@ -3819,11 +3871,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompeteOrganizerDashboardSeriesNewRouteImport
       parentRoute: typeof CompeteOrganizerDashboardRoute
     }
+    '/compete/organizer/$competitionId/volunteers/signup-questions': {
+      id: '/compete/organizer/$competitionId/volunteers/signup-questions'
+      path: '/volunteers/signup-questions'
+      fullPath: '/compete/organizer/$competitionId/volunteers/signup-questions'
+      preLoaderRoute: typeof CompeteOrganizerCompetitionIdVolunteersSignupQuestionsRouteImport
+      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+    }
+    '/compete/organizer/$competitionId/volunteers/shifts': {
+      id: '/compete/organizer/$competitionId/volunteers/shifts'
+      path: '/volunteers/shifts'
+      fullPath: '/compete/organizer/$competitionId/volunteers/shifts'
+      preLoaderRoute: typeof CompeteOrganizerCompetitionIdVolunteersShiftsRouteImport
+      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+    }
+    '/compete/organizer/$competitionId/volunteers/judges': {
+      id: '/compete/organizer/$competitionId/volunteers/judges'
+      path: '/volunteers/judges'
+      fullPath: '/compete/organizer/$competitionId/volunteers/judges'
+      preLoaderRoute: typeof CompeteOrganizerCompetitionIdVolunteersJudgesRouteImport
+      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+    }
     '/compete/organizer/$competitionId/events/$eventId': {
       id: '/compete/organizer/$competitionId/events/$eventId'
       path: '/events/$eventId'
       fullPath: '/compete/organizer/$competitionId/events/$eventId'
       preLoaderRoute: typeof CompeteOrganizerCompetitionIdEventsEventIdRouteImport
+      parentRoute: typeof CompeteOrganizerCompetitionIdRoute
+    }
+    '/compete/organizer/$competitionId/athletes/form-questions': {
+      id: '/compete/organizer/$competitionId/athletes/form-questions'
+      path: '/athletes/form-questions'
+      fullPath: '/compete/organizer/$competitionId/athletes/form-questions'
+      preLoaderRoute: typeof CompeteOrganizerCompetitionIdAthletesFormQuestionsRouteImport
       parentRoute: typeof CompeteOrganizerCompetitionIdRoute
     }
     '/compete/organizer/$competitionId/athletes/$registrationId': {
@@ -4430,14 +4510,18 @@ interface CompeteOrganizerCompetitionIdRouteChildren {
   CompeteOrganizerCompetitionIdSettingsRoute: typeof CompeteOrganizerCompetitionIdSettingsRoute
   CompeteOrganizerCompetitionIdSponsorsRoute: typeof CompeteOrganizerCompetitionIdSponsorsRoute
   CompeteOrganizerCompetitionIdSubmissionWindowsRoute: typeof CompeteOrganizerCompetitionIdSubmissionWindowsRoute
-  CompeteOrganizerCompetitionIdVolunteersRoute: typeof CompeteOrganizerCompetitionIdVolunteersRoute
   CompeteOrganizerCompetitionIdWaiversRoute: typeof CompeteOrganizerCompetitionIdWaiversRoute
   CompeteOrganizerCompetitionIdIndexRoute: typeof CompeteOrganizerCompetitionIdIndexRoute
   CompeteOrganizerCompetitionIdAthletesRegistrationIdRoute: typeof CompeteOrganizerCompetitionIdAthletesRegistrationIdRoute
+  CompeteOrganizerCompetitionIdAthletesFormQuestionsRoute: typeof CompeteOrganizerCompetitionIdAthletesFormQuestionsRoute
   CompeteOrganizerCompetitionIdEventsEventIdRoute: typeof CompeteOrganizerCompetitionIdEventsEventIdRouteWithChildren
+  CompeteOrganizerCompetitionIdVolunteersJudgesRoute: typeof CompeteOrganizerCompetitionIdVolunteersJudgesRoute
+  CompeteOrganizerCompetitionIdVolunteersShiftsRoute: typeof CompeteOrganizerCompetitionIdVolunteersShiftsRoute
+  CompeteOrganizerCompetitionIdVolunteersSignupQuestionsRoute: typeof CompeteOrganizerCompetitionIdVolunteersSignupQuestionsRoute
   CompeteOrganizerCompetitionIdAthletesIndexRoute: typeof CompeteOrganizerCompetitionIdAthletesIndexRoute
   CompeteOrganizerCompetitionIdEventsIndexRoute: typeof CompeteOrganizerCompetitionIdEventsIndexRoute
   CompeteOrganizerCompetitionIdInvitesIndexRoute: typeof CompeteOrganizerCompetitionIdInvitesIndexRoute
+  CompeteOrganizerCompetitionIdVolunteersIndexRoute: typeof CompeteOrganizerCompetitionIdVolunteersIndexRoute
   CompeteOrganizerCompetitionIdInvitesSourcesSourceIdRoute: typeof CompeteOrganizerCompetitionIdInvitesSourcesSourceIdRoute
 }
 
@@ -4481,22 +4565,30 @@ const CompeteOrganizerCompetitionIdRouteChildren: CompeteOrganizerCompetitionIdR
       CompeteOrganizerCompetitionIdSponsorsRoute,
     CompeteOrganizerCompetitionIdSubmissionWindowsRoute:
       CompeteOrganizerCompetitionIdSubmissionWindowsRoute,
-    CompeteOrganizerCompetitionIdVolunteersRoute:
-      CompeteOrganizerCompetitionIdVolunteersRoute,
     CompeteOrganizerCompetitionIdWaiversRoute:
       CompeteOrganizerCompetitionIdWaiversRoute,
     CompeteOrganizerCompetitionIdIndexRoute:
       CompeteOrganizerCompetitionIdIndexRoute,
     CompeteOrganizerCompetitionIdAthletesRegistrationIdRoute:
       CompeteOrganizerCompetitionIdAthletesRegistrationIdRoute,
+    CompeteOrganizerCompetitionIdAthletesFormQuestionsRoute:
+      CompeteOrganizerCompetitionIdAthletesFormQuestionsRoute,
     CompeteOrganizerCompetitionIdEventsEventIdRoute:
       CompeteOrganizerCompetitionIdEventsEventIdRouteWithChildren,
+    CompeteOrganizerCompetitionIdVolunteersJudgesRoute:
+      CompeteOrganizerCompetitionIdVolunteersJudgesRoute,
+    CompeteOrganizerCompetitionIdVolunteersShiftsRoute:
+      CompeteOrganizerCompetitionIdVolunteersShiftsRoute,
+    CompeteOrganizerCompetitionIdVolunteersSignupQuestionsRoute:
+      CompeteOrganizerCompetitionIdVolunteersSignupQuestionsRoute,
     CompeteOrganizerCompetitionIdAthletesIndexRoute:
       CompeteOrganizerCompetitionIdAthletesIndexRoute,
     CompeteOrganizerCompetitionIdEventsIndexRoute:
       CompeteOrganizerCompetitionIdEventsIndexRoute,
     CompeteOrganizerCompetitionIdInvitesIndexRoute:
       CompeteOrganizerCompetitionIdInvitesIndexRoute,
+    CompeteOrganizerCompetitionIdVolunteersIndexRoute:
+      CompeteOrganizerCompetitionIdVolunteersIndexRoute,
     CompeteOrganizerCompetitionIdInvitesSourcesSourceIdRoute:
       CompeteOrganizerCompetitionIdInvitesSourcesSourceIdRoute,
   }

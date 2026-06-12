@@ -79,7 +79,7 @@ Uses `getOrganizerRegistrationsFn` for the full registration list with detailed 
 - Transfer registration to a different division (see [[registration#Division Transfer]])
 - Transfer registration to a different person (purchase transfer)
 - CSV export of athlete data
-- Registration questions editor (custom questions athletes answer during signup) — lives on the `tab=registration-rules` view, reached via the sidebar's "Form questions" link (the page has no on-page tab bar; the `tab` search param selects the view)
+- Registration questions editor (custom questions athletes answer during signup) — lives on its own route at `/athletes/form-questions`, reached via the sidebar's "Form questions" link; it has its own loader fetching only the question list
 - Pending teammate invitations tab for team divisions
 - Per-athlete deep link to the [[organizer-dashboard#Registrations (Athletes)#Athlete Detail Page]] via the "View Details" item in the row's captain-scoped actions dropdown (the athlete name itself is plain text — not a link — to keep the row visually calm)
 - For in-person competitions only, a "Checked In" column shows the `checkedInAt` timestamp on the captain's row (see [[registration#Day-of Check-In]]). The CSV export and mobile card view include the same column under the same gate.
@@ -163,9 +163,9 @@ Only available when `competitionType === "online"`. Fetches workouts and competi
 
 ## Volunteers
 
-Manages competition staff across four views selected by the `tab` search param: roster, shifts, judge scheduling, and signup questions.
+Manages competition staff across four dedicated routes: roster (`/volunteers`), shifts (`/volunteers/shifts`), judge scheduling (`/volunteers/judges`), and signup questions (`/volunteers/signup-questions`).
 
-Navigation happens through the sidebar's deep links (Volunteer roster, Volunteer shifts, Judge assignments, Signup questions) rather than an on-page tab bar — the in-page tabs were removed because they duplicated the sidebar.
+Each route has its own loader fetching only the data that view needs (the former single `volunteers` route loaded everything for all four views behind a `?tab=` search param). Navigation happens through the sidebar links (Volunteer roster, Volunteer shifts, Judge assignments, Signup questions); there is no on-page tab bar. The judges route redirects online competitions back to the roster since judge scheduling is in-person only.
 
 ### Volunteer Roster
 
@@ -189,7 +189,7 @@ Assigns judges to heats with rotation patterns so judges move between lanes acro
 
 Fetches heats, events, judge volunteers, rotations, heat assignments, and version history. Uses the `JudgeSchedulingContainer` component tree (rotation editor, timeline, overview, publish button). Supports rotation patterns: stay, shift right, random. Judge assignment versions allow publishing/reverting schedules.
 
-The volunteers and judges-ai route loaders load all per-event judge data (heat assignments, rotations + event defaults, version history, active versions) through one batched call — [[apps/wodsmith-start/src/server-fns/judge-scheduling-fns.ts#getJudgeSchedulingDataForEventsFn]] — which issues a constant number of `inArray` queries for any event count and returns records keyed by trackWorkoutId. This replaced four per-event server-fn fan-outs (4N round trips, ~10N queries). The single-event fns (`getJudgeHeatAssignmentsFn`, `getRotationsForEventFn`, `getVersionHistoryFn`, `getActiveVersionFn`) remain for targeted refreshes. The "adjust for occupied lanes" feature (`adjustRotationsForOccupiedLanesFn`) splits rotations to skip unoccupied lanes; cohost routes use `cohostAdjustRotationsForOccupiedLanesFn` via the `onAdjustRotationsForOccupiedLanes` override prop on `RotationTimeline`.
+The volunteers/judges and judges-ai route loaders load all per-event judge data (heat assignments, rotations + event defaults, version history, active versions) through one batched call — [[apps/wodsmith-start/src/server-fns/judge-scheduling-fns.ts#getJudgeSchedulingDataForEventsFn]] — which issues a constant number of `inArray` queries for any event count and returns records keyed by trackWorkoutId. This replaced four per-event server-fn fan-outs (4N round trips, ~10N queries). The single-event fns (`getJudgeHeatAssignmentsFn`, `getRotationsForEventFn`, `getVersionHistoryFn`, `getActiveVersionFn`) remain for targeted refreshes. The "adjust for occupied lanes" feature (`adjustRotationsForOccupiedLanesFn`) splits rotations to skip unoccupied lanes; cohost routes use `cohostAdjustRotationsForOccupiedLanesFn` via the `onAdjustRotationsForOccupiedLanes` override prop on `RotationTimeline`.
 
 ### AI Judge Scheduling
 

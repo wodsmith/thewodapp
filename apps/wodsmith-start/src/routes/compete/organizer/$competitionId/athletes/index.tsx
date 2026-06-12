@@ -34,7 +34,6 @@ import {
 import React, { useState } from "react"
 import { toast } from "sonner"
 import { z } from "zod"
-import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -76,7 +75,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { INVITATION_STATUS } from "@/db/schemas/teams"
 import {
   getOrganizerRegistrationsFn,
@@ -119,10 +117,6 @@ type SortColumn = (typeof sortColumns)[number]
 type SortDirection = "asc" | "desc"
 
 const athletesSearchSchema = z.object({
-  tab: z
-    .enum(["athletes", "registration-rules"])
-    .optional()
-    .default("athletes"),
   division: z.string().optional(),
   // questionFilters: { questionId: ["value1", "value2"] }
   questionFilters: z.record(z.string(), z.array(z.string())).optional(),
@@ -213,7 +207,6 @@ export const Route = createFileRoute(
       currentWaiverFilters: deps?.waiverFilters || [],
       currentSortBy: deps?.sortBy as SortColumn | undefined,
       currentSortDir: deps?.sortDir as SortDirection | undefined,
-      teamId: competition.organizingTeamId,
     }
   },
 })
@@ -236,7 +229,6 @@ function AthletesPage() {
     currentWaiverFilters,
     currentSortBy,
     currentSortDir,
-    teamId,
   } = Route.useLoaderData()
   /**
    * Resolve refund status for a given purchaseId. Returns:
@@ -257,7 +249,6 @@ function AthletesPage() {
   )
   const navigate = useNavigate()
   const router = useRouter()
-  const { tab } = Route.useSearch()
   const removeRegistration = useServerFn(removeRegistrationFn)
   const refundRegistration = useServerFn(refundRegistrationFn)
   const cancelPurchaseTransfer = useServerFn(cancelPurchaseTransferFn)
@@ -289,10 +280,6 @@ function AthletesPage() {
     divisionLabel: string | null
     commercePurchaseId: string | null
   } | null>(null)
-
-  const handleQuestionsChange = () => {
-    router.invalidate()
-  }
 
   const handleCancelTransfer = async (transferId: string) => {
     try {
@@ -926,84 +913,7 @@ function AthletesPage() {
 
   return (
     <>
-      <Tabs value={tab} className="w-full">
-        <TabsContent value="registration-rules" className="flex flex-col gap-6">
-          {/* Inherited Series Questions (read-only) */}
-          {questions.some((q) => q.source === "series") && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Link2 className="h-5 w-5" />
-                  Series registration questions
-                </CardTitle>
-                <CardDescription>
-                  These questions are inherited from the series and apply to all
-                  competitions.{" "}
-                  {competition.groupId && (
-                    <Link
-                      to="/compete/organizer/series/$groupId"
-                      params={{ groupId: competition.groupId }}
-                      className="text-primary underline underline-offset-4 hover:text-primary/80"
-                    >
-                      Manage on series page
-                    </Link>
-                  )}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {questions
-                    .filter((q) => q.source === "series")
-                    .map((question) => (
-                      <div
-                        key={question.id}
-                        className="flex items-start gap-3 p-4 border rounded-lg bg-muted/50"
-                      >
-                        <div className="flex-1 space-y-2">
-                          <div className="flex items-start justify-between gap-2">
-                            <h4 className="font-medium">{question.label}</h4>
-                            <Badge
-                              variant="outline"
-                              className="flex items-center gap-1 shrink-0"
-                            >
-                              <Link2 className="h-3 w-3" />
-                              From Series
-                            </Badge>
-                          </div>
-                          {question.helpText && (
-                            <p className="text-sm text-muted-foreground">
-                              {question.helpText}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Badge variant="secondary">{question.type}</Badge>
-                            <Badge
-                              variant={
-                                question.required ? "destructive" : "outline"
-                              }
-                            >
-                              {question.required ? "Required" : "Optional"}
-                            </Badge>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Competition-specific Registration Questions Editor */}
-          <RegistrationQuestionsEditor
-            entityType="competition"
-            entityId={competition.id}
-            teamId={teamId}
-            questions={questions.filter((q) => q.source === "competition")}
-            onQuestionsChange={handleQuestionsChange}
-          />
-        </TabsContent>
-
-        <TabsContent value="athletes" className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6">
           {/* Athletes Section */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
@@ -2220,8 +2130,7 @@ function AthletesPage() {
               )}
             </div>
           )}
-        </TabsContent>
-      </Tabs>
+      </div>
 
       <AlertDialog
         open={!!removingRegistration}

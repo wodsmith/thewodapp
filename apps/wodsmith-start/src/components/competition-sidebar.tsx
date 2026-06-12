@@ -123,7 +123,7 @@ const getNavigation = (
         { label: "Athletes", href: `${basePath}/athletes`, icon: Users },
         {
           label: "Form questions",
-          href: `${basePath}/athletes?tab=registration-rules`,
+          href: `${basePath}/athletes/form-questions`,
           icon: ClipboardList,
         },
         {
@@ -144,21 +144,21 @@ const getNavigation = (
         },
         {
           label: "Volunteer shifts",
-          href: `${basePath}/volunteers?tab=shifts`,
+          href: `${basePath}/volunteers/shifts`,
           icon: Calendar,
         },
         ...(competitionType !== "online"
           ? [
               {
                 label: "Judge assignments",
-                href: `${basePath}/volunteers?tab=schedule`,
+                href: `${basePath}/volunteers/judges`,
                 icon: ClipboardCheck,
               },
             ]
           : []),
         {
           label: "Signup questions",
-          href: `${basePath}/volunteers?tab=registration-rules`,
+          href: `${basePath}/volunteers/signup-questions`,
           icon: ClipboardList,
         },
       ],
@@ -319,42 +319,32 @@ export function CompetitionSidebar({
 }: CompetitionSidebarProps) {
   const router = useRouterState()
   const pathname = router.location.pathname
-  const search = router.location.search as Record<string, unknown>
   const basePath = `/compete/organizer/${competitionId}`
   const navigation = getNavigation(basePath, competitionType)
-  const tabRoutedPaths = new Set([
-    `${basePath}/athletes`,
-    `${basePath}/volunteers`,
-  ])
+
+  // Some nav hrefs nest under others (e.g. /athletes/form-questions under
+  // /athletes), so the active item is the one with the longest href that
+  // prefixes the current pathname.
+  const matchesPathname = (href: string) =>
+    pathname === href || pathname.startsWith(`${href}/`)
+
+  const activeHref = navigation.groups
+    .flatMap((group) => group.items)
+    .filter((item) => matchesPathname(item.href))
+    .reduce<string | null>(
+      (longest, item) =>
+        longest === null || item.href.length > longest.length
+          ? item.href
+          : longest,
+      null,
+    )
 
   const isActive = (item: NavItem) => {
-    const [hrefPath, hrefSearch] = item.href.split("?")
-    const hrefParams = new URLSearchParams(hrefSearch)
-
-    if (hrefPath === basePath) {
+    if (item.href === basePath) {
       // Overview is active only when exactly on base path
-      return pathname === basePath && hrefParams.size === 0
+      return pathname === basePath
     }
-
-    if (!pathname.startsWith(hrefPath)) {
-      return false
-    }
-
-    for (const [key, value] of hrefParams) {
-      if (search[key] !== value) {
-        return false
-      }
-    }
-
-    if (
-      hrefParams.size === 0 &&
-      tabRoutedPaths.has(hrefPath) &&
-      typeof search.tab === "string"
-    ) {
-      return false
-    }
-
-    return true
+    return item.href === activeHref
   }
 
   return (
