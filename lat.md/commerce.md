@@ -14,7 +14,7 @@ Athletes pay registration fees via Stripe Checkout, handled by `src/workflows/st
 
 Competitions set a `defaultRegistrationFeeCents` (default $0 = free). Division-specific fees can override the default. The checkout flow creates a Stripe session, redirects the athlete, and a webhook confirms payment.
 
-Stripe Checkout sessions do not enable Stripe-hosted promotion-code entry. WODsmith coupons are collected before checkout and, when applied, are attached to the session as a transient Stripe coupon discount.
+Stripe Checkout sessions do not enable Stripe-hosted promotion-code entry. WODsmith coupons are collected before checkout and, when applied, are attached to the session as a transient Stripe coupon discount. The destination-charge application fee is computed from undiscounted totals (coupons are organizer-funded) but clamped to the post-discount charge by [[apps/wodsmith-start/src/server/commerce/utils.ts#calculateApplicationFeeCents]] — Stripe rejects sessions whose fee exceeds the amount charged, reachable when a large coupon meets organizer-absorbed fees. The clamp is logged for reconciliation.
 
 ## Coupons
 

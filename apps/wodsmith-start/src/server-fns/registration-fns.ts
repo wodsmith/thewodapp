@@ -86,6 +86,7 @@ import {
   multiplyFeeBreakdown,
 } from "@/server/commerce/addons"
 import { recordRefundInitiated } from "@/server/commerce/financial-events"
+import { calculateApplicationFeeCents } from "@/server/commerce/utils"
 import {
   assertInviteClaimable,
   findActiveInviteForEmail,
@@ -1148,10 +1149,24 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
       organizingTeam?.stripeConnectedAccountId &&
       organizingTeam.stripeAccountStatus === "VERIFIED"
     ) {
-      const applicationFeeAmount = Math.max(
-        0,
-        totalChargeCents - totalOrganizerNetCents,
-      )
+      const applicationFeeAmount = calculateApplicationFeeCents({
+        totalChargeCents,
+        totalOrganizerNetCents,
+        discountCents: couponDiscount,
+      })
+      if (applicationFeeAmount < totalChargeCents - totalOrganizerNetCents) {
+        logWarning({
+          message:
+            "[Registration] Application fee clamped to post-discount charge",
+          attributes: {
+            competitionId: input.competitionId,
+            totalChargeCents,
+            totalOrganizerNetCents,
+            couponDiscountCents: couponDiscount,
+            applicationFeeAmount,
+          },
+        })
+      }
 
       sessionParams.payment_intent_data = {
         application_fee_amount: applicationFeeAmount,
