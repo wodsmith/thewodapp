@@ -243,14 +243,20 @@ function MerchPage() {
       toast.error("Enter a valid price")
       return
     }
+    // Number() (not parseInt) so decimal input like "2.5" is rejected
+    // instead of silently truncated.
+    const parseWholeNumber = (raw: string): number => {
+      const value = Number(raw)
+      return Number.isInteger(value) ? value : Number.NaN
+    }
     const maxPerAthlete = draft.maxPerAthlete.trim()
-      ? parseInt(draft.maxPerAthlete, 10)
+      ? parseWholeNumber(draft.maxPerAthlete)
       : null
     if (
       maxPerAthlete !== null &&
       (Number.isNaN(maxPerAthlete) || maxPerAthlete <= 0)
     ) {
-      toast.error("Max per athlete must be a positive number (or blank)")
+      toast.error("Max per athlete must be a positive whole number (or blank)")
       return
     }
     const variants = draft.variants
@@ -258,10 +264,15 @@ function MerchPage() {
       .map((v) => ({
         ...(v.id ? { id: v.id } : {}),
         label: v.label.trim(),
-        stockQty: v.stock.trim() === "" ? null : parseInt(v.stock, 10),
+        stockQty: v.stock.trim() === "" ? null : parseWholeNumber(v.stock),
       }))
-    if (variants.some((v) => v.stockQty !== null && Number.isNaN(v.stockQty))) {
-      toast.error("Stock must be a number (or blank for untracked)")
+    if (
+      variants.some(
+        (v) =>
+          v.stockQty !== null && (Number.isNaN(v.stockQty) || v.stockQty < 0),
+      )
+    ) {
+      toast.error("Stock must be a whole number of 0 or more (or blank)")
       return
     }
 
