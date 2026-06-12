@@ -18,11 +18,21 @@ import {
   getVenueHeatCountFn,
   copyHeatsFromEventFn,
 } from '@/server-fns/competition-heats-fns'
+import {
+  competitionHeatAssignmentsTable,
+  competitionHeatsTable,
+  competitionRegistrationsTable,
+  competitionVenuesTable,
+} from '@/db/schemas/competitions'
+import {scalingLevelsTable} from '@/db/schemas/scaling'
+import {userTable} from '@/db/schemas/users'
 
 // Track query sequences for debugging
 let querySequence: string[] = []
 
-// Create a more sophisticated mock that properly tracks and returns data
+// Table-aware mock: results are dispatched by the table passed to from(),
+// not by call order, because getHeatsForCompetitionFn runs its batch
+// lookups in parallel (the call order is no longer deterministic).
 function createDbMock(config: {
   heats?: unknown[]
   venues?: unknown[]
@@ -31,6 +41,7 @@ function createDbMock(config: {
   registrations?: unknown[]
   users?: unknown[]
   regDivisions?: unknown[]
+  competition?: unknown
 }) {
   const defaults = {
     heats: [],
@@ -40,69 +51,60 @@ function createDbMock(config: {
     registrations: [],
     users: [],
     regDivisions: [],
+    competition: null,
     ...config,
   }
 
-  // Use counters to track which query we're on
-  let orderByCallCount = 0
-  let whereCallCount = 0
-
-  const createChain = (): Record<string, unknown> => {
-    const chain: Record<string, unknown> = {}
-
-    chain.select = vi.fn(() => chain)
-    chain.from = vi.fn((table) => {
-      querySequence.push(`from:${table?.name || 'unknown'}`)
-      return chain
-    })
-    chain.where = vi.fn(() => {
-      whereCallCount++
-      querySequence.push(`where:${whereCallCount}`)
-      return chain
-    })
-    chain.orderBy = vi.fn(() => {
-      orderByCallCount++
-      querySequence.push(`orderBy:${orderByCallCount}`)
-
-      // First orderBy is for heats, subsequent ones are for assignments
-      if (orderByCallCount === 1) {
-        return Promise.resolve(defaults.heats)
-      }
-      return Promise.resolve(defaults.assignments)
-    })
-    chain.inArray = vi.fn(() => chain)
-
-    // Make chain thenable for awaiting where() directly
-    chain.then = (
-      resolve: (value: unknown) => void,
-      _reject?: (err: unknown) => void,
-    ) => {
-      // This is called when awaiting after where() without orderBy()
-      // The order is: venues -> heat divisions -> (assignments by orderBy) -> registrations -> users -> reg divisions
-      // where() calls: 1=venues, 2=divisions, 3+=registrations/users/regDivisions batches
-      const currentWhere = whereCallCount
-
-      let result: unknown[] = []
-      if (currentWhere === 1) {
-        result = defaults.venues
-      } else if (currentWhere === 2) {
-        result = defaults.divisions
-      } else if (currentWhere === 3) {
-        result = defaults.registrations
-      } else if (currentWhere === 4) {
-        result = defaults.users
-      } else if (currentWhere === 5) {
-        result = defaults.regDivisions
-      }
-
-      resolve(result)
-      return Promise.resolve(result)
+  const resultForTable = (table: unknown): unknown[] => {
+    if (table === competitionHeatsTable) return defaults.heats
+    if (table === competitionVenuesTable) return defaults.venues
+    if (table === competitionHeatAssignmentsTable) return defaults.assignments
+    if (table === competitionRegistrationsTable) return defaults.registrations
+    if (table === userTable) return defaults.users
+    if (table === scalingLevelsTable) {
+      // Both heat divisions and registration divisions are read from
+      // scalingLevelsTable. Results are keyed into Maps by id, so
+      // returning the union is safe for either lookup.
+      return [...defaults.divisions, ...defaults.regDivisions]
     }
-
-    return chain
+    return []
   }
 
-  return createChain()
+  return {
+    select: vi.fn(() => {
+      // Each select() gets its own query object so concurrent queries
+      // don't share state.
+      let result: unknown[] = []
+      const q: Record<string, unknown> = {}
+      q.from = vi.fn((table: unknown) => {
+        result = resultForTable(table)
+        querySequence.push('from')
+        return q
+      })
+      q.where = vi.fn(() => {
+        querySequence.push('where')
+        return q
+      })
+      q.orderBy = vi.fn(() => {
+        querySequence.push('orderBy')
+        return Promise.resolve(result)
+      })
+      // Make the query thenable for awaiting where() directly
+      q.then = (
+        resolve: (value: unknown) => void,
+        _reject?: (err: unknown) => void,
+      ) => {
+        resolve(result)
+        return Promise.resolve(result)
+      }
+      return q
+    }),
+    query: {
+      competitionsTable: {
+        findFirst: vi.fn().mockResolvedValue(defaults.competition),
+      },
+    },
+  }
 }
 
 let mockDbInstance: ReturnType<typeof createDbMock>
@@ -110,6 +112,20 @@ let mockDbInstance: ReturnType<typeof createDbMock>
 vi.mock('@/db', () => ({
   getDb: vi.fn(() => mockDbInstance),
 }))
+
+// Mock session lookup so getHeatsForCompetitionFn's published-only filter
+// for non-organizer viewers is deterministic in tests. Defaults to an
+// anonymous viewer (null session) — set per test to simulate organizers.
+const mockGetSessionFromCookie = vi.fn()
+
+vi.mock('@/utils/auth', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/utils/auth')>()
+  return {
+    ...actual,
+    getSessionFromCookie: (...args: unknown[]) =>
+      mockGetSessionFromCookie(...args),
+  }
+})
 
 // Mock TanStack createServerFn to make server functions directly callable in tests
 vi.mock('@tanstack/react-start', () => ({
@@ -136,6 +152,8 @@ describe('Competition Heats Server Functions (TanStack)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     querySequence = []
+    // Default viewer is anonymous — only published heats are visible
+    mockGetSessionFromCookie.mockResolvedValue(null)
   })
 
   describe('getHeatsForCompetitionFn', () => {
@@ -156,6 +174,7 @@ describe('Competition Heats Server Functions (TanStack)', () => {
         trackWorkoutId: 'tw-1',
         heatNumber: 1,
         scheduledTime: new Date('2025-01-15T09:00:00Z'),
+        schedulePublishedAt: new Date('2025-01-14T00:00:00Z'),
         durationMinutes: 10,
         venueId: null,
         divisionId: null,
@@ -190,6 +209,7 @@ describe('Competition Heats Server Functions (TanStack)', () => {
         trackWorkoutId: 'tw-1',
         heatNumber: 1,
         scheduledTime: new Date('2025-01-15T09:00:00Z'),
+        schedulePublishedAt: new Date('2025-01-14T00:00:00Z'),
         durationMinutes: 10,
         venueId: 'venue-1',
         divisionId: null,
@@ -222,6 +242,7 @@ describe('Competition Heats Server Functions (TanStack)', () => {
         trackWorkoutId: 'tw-1',
         heatNumber: 1,
         scheduledTime: null,
+        schedulePublishedAt: new Date('2025-01-14T00:00:00Z'),
         durationMinutes: 10,
         venueId: null,
         divisionId: 'div-1',
@@ -256,6 +277,7 @@ describe('Competition Heats Server Functions (TanStack)', () => {
         trackWorkoutId: 'tw-1',
         heatNumber: 1,
         scheduledTime: null,
+        schedulePublishedAt: new Date('2025-01-14T00:00:00Z'),
         durationMinutes: 10,
         venueId: null,
         divisionId: null,
@@ -326,6 +348,7 @@ describe('Competition Heats Server Functions (TanStack)', () => {
         trackWorkoutId: 'tw-1',
         heatNumber: 1,
         scheduledTime: null,
+        schedulePublishedAt: new Date('2025-01-14T00:00:00Z'),
         durationMinutes: 10,
         venueId: null,
         divisionId: null,
@@ -378,6 +401,7 @@ describe('Competition Heats Server Functions (TanStack)', () => {
         trackWorkoutId: 'tw-1',
         heatNumber: 1,
         scheduledTime: null,
+        schedulePublishedAt: new Date('2025-01-14T00:00:00Z'),
         durationMinutes: 10,
         venueId: null,
         divisionId: null,
@@ -429,6 +453,7 @@ describe('Competition Heats Server Functions (TanStack)', () => {
         trackWorkoutId: 'tw-1',
         heatNumber: 1,
         scheduledTime: null,
+        schedulePublishedAt: new Date('2025-01-14T00:00:00Z'),
         durationMinutes: 10,
         venueId: null,
         divisionId: null,
@@ -473,6 +498,7 @@ describe('Competition Heats Server Functions (TanStack)', () => {
         trackWorkoutId: 'tw-1',
         heatNumber: 1,
         scheduledTime: new Date('2025-01-15T09:00:00Z'),
+        schedulePublishedAt: new Date('2025-01-14T00:00:00Z'),
         durationMinutes: 10,
         venueId: null,
         divisionId: null,
@@ -487,6 +513,7 @@ describe('Competition Heats Server Functions (TanStack)', () => {
         trackWorkoutId: 'tw-1',
         heatNumber: 2,
         scheduledTime: new Date('2025-01-15T09:15:00Z'),
+        schedulePublishedAt: new Date('2025-01-14T00:00:00Z'),
         durationMinutes: 10,
         venueId: null,
         divisionId: null,
@@ -507,6 +534,182 @@ describe('Competition Heats Server Functions (TanStack)', () => {
       expect(result.heats).toHaveLength(2)
       expect(result.heats[0]?.heatNumber).toBe(1)
       expect(result.heats[1]?.heatNumber).toBe(2)
+    })
+
+    it('hides unpublished heats from anonymous viewers', async () => {
+      const publishedHeat = {
+        id: 'heat-published',
+        competitionId: 'comp-1',
+        trackWorkoutId: 'tw-1',
+        heatNumber: 1,
+        scheduledTime: new Date('2025-01-15T09:00:00Z'),
+        schedulePublishedAt: new Date('2025-01-14T00:00:00Z'),
+        durationMinutes: 10,
+        venueId: null,
+        divisionId: null,
+        capacity: 8,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+
+      const draftHeat = {
+        id: 'heat-draft',
+        competitionId: 'comp-1',
+        trackWorkoutId: 'tw-1',
+        heatNumber: 2,
+        scheduledTime: new Date('2025-01-15T09:15:00Z'),
+        schedulePublishedAt: null, // Unpublished draft
+        durationMinutes: 10,
+        venueId: null,
+        divisionId: null,
+        capacity: 8,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+
+      // Anonymous viewer (default mock session is null)
+      mockDbInstance = createDbMock({
+        heats: [publishedHeat, draftHeat],
+        assignments: [],
+      })
+
+      const result = await getHeatsForCompetitionFn({
+        data: {competitionId: 'comp-1'},
+      })
+
+      expect(result.heats).toHaveLength(1)
+      expect(result.heats[0]?.id).toBe('heat-published')
+    })
+
+    it('returns unpublished heats to site admins', async () => {
+      const publishedHeat = {
+        id: 'heat-published',
+        competitionId: 'comp-1',
+        trackWorkoutId: 'tw-1',
+        heatNumber: 1,
+        scheduledTime: new Date('2025-01-15T09:00:00Z'),
+        schedulePublishedAt: new Date('2025-01-14T00:00:00Z'),
+        durationMinutes: 10,
+        venueId: null,
+        divisionId: null,
+        capacity: 8,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+
+      const draftHeat = {
+        id: 'heat-draft',
+        competitionId: 'comp-1',
+        trackWorkoutId: 'tw-1',
+        heatNumber: 2,
+        scheduledTime: null,
+        schedulePublishedAt: null, // Unpublished draft
+        durationMinutes: 10,
+        venueId: null,
+        divisionId: null,
+        capacity: 8,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+
+      mockGetSessionFromCookie.mockResolvedValue({
+        userId: 'admin-user',
+        user: {role: 'admin'},
+      })
+
+      mockDbInstance = createDbMock({
+        heats: [publishedHeat, draftHeat],
+        assignments: [],
+      })
+
+      const result = await getHeatsForCompetitionFn({
+        data: {competitionId: 'comp-1'},
+      })
+
+      expect(result.heats).toHaveLength(2)
+    })
+
+    it('returns unpublished heats to organizing team admins', async () => {
+      const draftHeat = {
+        id: 'heat-draft',
+        competitionId: 'comp-1',
+        trackWorkoutId: 'tw-1',
+        heatNumber: 1,
+        scheduledTime: null,
+        schedulePublishedAt: null, // Unpublished draft
+        durationMinutes: 10,
+        venueId: null,
+        divisionId: null,
+        capacity: 8,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+
+      mockGetSessionFromCookie.mockResolvedValue({
+        userId: 'organizer-user',
+        user: {role: 'user'},
+        teams: [
+          {
+            id: 'team-1',
+            role: {id: 'admin', name: 'Admin', isSystemRole: true},
+            permissions: [],
+          },
+        ],
+      })
+
+      mockDbInstance = createDbMock({
+        heats: [draftHeat],
+        assignments: [],
+        competition: {organizingTeamId: 'team-1'},
+      })
+
+      const result = await getHeatsForCompetitionFn({
+        data: {competitionId: 'comp-1'},
+      })
+
+      expect(result.heats).toHaveLength(1)
+      expect(result.heats[0]?.id).toBe('heat-draft')
+    })
+
+    it('hides unpublished heats from members of unrelated teams', async () => {
+      const draftHeat = {
+        id: 'heat-draft',
+        competitionId: 'comp-1',
+        trackWorkoutId: 'tw-1',
+        heatNumber: 1,
+        scheduledTime: null,
+        schedulePublishedAt: null, // Unpublished draft
+        durationMinutes: 10,
+        venueId: null,
+        divisionId: null,
+        capacity: 8,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+
+      mockGetSessionFromCookie.mockResolvedValue({
+        userId: 'random-user',
+        user: {role: 'user'},
+        teams: [
+          {
+            id: 'team-other',
+            role: {id: 'admin', name: 'Admin', isSystemRole: true},
+            permissions: [],
+          },
+        ],
+      })
+
+      mockDbInstance = createDbMock({
+        heats: [draftHeat],
+        assignments: [],
+        competition: {organizingTeamId: 'team-1'},
+      })
+
+      const result = await getHeatsForCompetitionFn({
+        data: {competitionId: 'comp-1'},
+      })
+
+      expect(result.heats).toEqual([])
     })
   })
 

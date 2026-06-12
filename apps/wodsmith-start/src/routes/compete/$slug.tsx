@@ -10,20 +10,12 @@ import { z } from "zod"
 import { CompetitionHero } from "@/components/competition-hero"
 import { CouponBanner } from "@/components/coupon-banner"
 import { JsonLd } from "@/components/json-ld"
-import { getAppUrlFn } from "@/lib/env"
 import { trackEvent } from "@/lib/posthog"
-import { cohostGetPermissionsFn } from "@/server-fns/cohost/cohost-competition-fns"
 import {
-  getPendingTeamInvitesFn,
-  getUserCompetitionRegistrationsFn,
-} from "@/server-fns/competition-detail-fns"
-import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
-import { getCompetitionBySlugFn } from "@/server-fns/competition-fns"
-import { listMyPendingCompetitionInvitesFn } from "@/server-fns/competition-invite-fns"
+  getPublicCompetitionPageDataFn,
+  getViewerCompetitionContextFn,
+} from "@/server-fns/competition-page-fns"
 import { getCouponByCodeFn } from "@/server-fns/coupon-fns"
-import { hasJudgesScheduleFn } from "@/server-fns/judge-scheduling-fns"
-import { getCompetitionSponsorsFn } from "@/server-fns/sponsor-fns"
-import { getTeamContactEmailFn } from "@/server-fns/team-fns"
 import { clearCouponSession, setCouponSession } from "@/utils/coupon-cookie"
 import {
   DEFAULT_TIMEZONE,
@@ -33,15 +25,22 @@ import {
 
 export const Route = createFileRoute("/compete/$slug")({
   component: CompetitionDetailLayout,
-  staleTime: 10_000, // Cache for 10 seconds (SWR behavior)
+  staleTime: 30_000, // Cache for 30 seconds (SWR behavior) — matches children
   validateSearch: z.object({
     coupon: z.string().optional(),
   }).parse,
   loader: async ({ params, context }) => {
     const { slug } = params
 
-    // Fetch competition by slug first (required to get competition.id)
-    const { competition } = await getCompetitionBySlugFn({ data: { slug } })
+    // Exactly 2 parallel server-fn calls: public page data + viewer context.
+    // Both take the slug and resolve the competition independently so
+    // neither waits on the other.
+    const [publicData, viewerData] = await Promise.all([
+      getPublicCompetitionPageDataFn({ data: { slug } }),
+      getViewerCompetitionContextFn({ data: { slug } }),
+    ])
+
+    const { competition } = publicData
 
     if (!competition) {
       throw notFound()
@@ -86,63 +85,11 @@ export const Route = createFileRoute("/compete/$slug")({
           )
         : false
 
-    // Parallel fetch remaining data from DB
-    const [
-      divisionsResult,
-      sponsorsResult,
-      organizerContactEmail,
-      userRegsResult,
-      pendingTeamInvitesResult,
-      pendingCompetitionInvitesResult,
-      judgesScheduleResult,
-      cohostPermissions,
-    ] = await Promise.all([
-      getPublicCompetitionDivisionsFn({
-        data: { competitionId: competition.id },
-      }),
-      getCompetitionSponsorsFn({
-        data: { competitionId: competition.id },
-      }),
-      getTeamContactEmailFn({
-        data: { teamId: competition.organizingTeamId },
-      }),
-      session
-        ? getUserCompetitionRegistrationsFn({
-            data: {
-              competitionId: competition.id,
-              userId: session.userId,
-            },
-          })
-        : Promise.resolve({ registrations: [] }),
-      session?.user?.email
-        ? getPendingTeamInvitesFn({
-            data: {
-              competitionId: competition.id,
-            },
-          })
-        : Promise.resolve({ invitations: [] }),
-      session
-        ? listMyPendingCompetitionInvitesFn({
-            data: {
-              championshipCompetitionId: competition.id,
-            },
-          })
-        : Promise.resolve({ invites: [] }),
-      hasJudgesScheduleFn({
-        data: { competitionId: competition.id },
-      }),
-      session && competition.competitionTeamId
-        ? cohostGetPermissionsFn({
-            data: { competitionTeamId: competition.competitionTeamId },
-          }).catch(() => null)
-        : Promise.resolve(null),
-    ])
-
-    const divisions = divisionsResult.divisions
-    const competitionCapacity = divisionsResult.competitionCapacity ?? null
-    const sponsors = sponsorsResult
-    const userRegistrations = userRegsResult.registrations
-    const isCohost = !!cohostPermissions
+    const divisions = publicData.divisions
+    const competitionCapacity = publicData.competitionCapacity ?? null
+    const sponsors = publicData.sponsors
+    const userRegistrations = viewerData.registrations
+    const isCohost = !!viewerData.cohostPermissions
 
     // Backward compatibility: first registration
     const userRegistration = userRegistrations[0] ?? null
@@ -158,7 +105,7 @@ export const Route = createFileRoute("/compete/$slug")({
       division: divisions.find((d) => d.id === reg.divisionId) ?? null,
     }))
 
-    const appUrl = await getAppUrlFn()
+    const appUrl = publicData.appUrl
     const ogBaseUrl = appUrl.includes("localhost")
       ? "http://localhost:8787"
       : "https://og.wodsmith.com"
@@ -177,13 +124,12 @@ export const Route = createFileRoute("/compete/$slug")({
       divisions,
       competitionCapacity,
       sponsors,
-      pendingTeamInvites: pendingTeamInvitesResult.invitations,
-      pendingCompetitionInvites: pendingCompetitionInvitesResult.invites,
+      pendingTeamInvites: viewerData.pendingTeamInvites,
+      pendingCompetitionInvites: viewerData.pendingCompetitionInvites,
       userDivision,
       userDivisions,
       maxSpots: undefined as number | undefined,
-      organizerContactEmail,
-      hasJudgesSchedule: judgesScheduleResult.hasSchedule,
+      hasJudgesSchedule: publicData.hasJudgesSchedule,
     }
   },
   head: ({ loaderData }) => {

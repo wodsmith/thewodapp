@@ -38,6 +38,7 @@ import {
   competitionHeatAssignmentsTable,
   competitionHeatsTable,
   competitionRegistrationsTable,
+  competitionsTable,
   competitionVenuesTable,
 } from "@/db/schemas/competitions"
 import {
@@ -50,7 +51,7 @@ import {
   trackWorkoutsTable,
 } from "@/db/schemas/programming"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { SYSTEM_ROLES_ENUM, TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { ROLES_ENUM, userTable } from "@/db/schemas/users"
 import { workouts } from "@/db/schemas/workouts"
 import { getSessionFromCookie } from "@/utils/auth"
@@ -251,124 +252,191 @@ const publishAllHeatsForEventInputSchema = z.object({
 // ============================================================================
 
 /**
+ * Determine whether the current viewer may see unpublished (draft) heats
+ * for a competition. True for site admins and for members of the
+ * competition's organizing team with an admin/owner role or the
+ * manage-programming permission (mirrors publishHeatScheduleFn's check).
+ * Anonymous visitors and unrelated users only see published heats.
+ */
+async function canViewUnpublishedHeats(
+  competitionId: string,
+): Promise<boolean> {
+  const session = await getSessionFromCookie()
+  if (!session?.userId) return false
+  if (session.user?.role === ROLES_ENUM.ADMIN) return true
+  if (!session.teams?.length) return false
+
+  const db = getDb()
+  const competition = await db.query.competitionsTable.findFirst({
+    where: eq(competitionsTable.id, competitionId),
+    columns: { organizingTeamId: true },
+  })
+  if (!competition) return false
+
+  const team = session.teams.find(
+    (t) => t.id === competition.organizingTeamId,
+  )
+  if (!team) return false
+
+  return (
+    team.role.id === SYSTEM_ROLES_ENUM.OWNER ||
+    team.role.id === SYSTEM_ROLES_ENUM.ADMIN ||
+    team.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
+  )
+}
+
+/**
  * Get all heats for a competition (full schedule)
- * Returns heats with assignments, sorted by scheduled time and heat number
+ * Returns heats with assignments, sorted by scheduled time and heat number.
+ * Organizer viewers (site admins / organizing-team admins, owners, or
+ * manage-programming members) receive all heats including unpublished
+ * drafts; everyone else (including anonymous visitors on the public
+ * schedule page) only receives heats with schedulePublishedAt set.
  */
 export const getHeatsForCompetitionFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) =>
     getHeatsForCompetitionInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    const db = getDb()
+    // The heats query and the viewer permission check are independent —
+    // run them in parallel. Each parallel branch uses its own getDb()
+    // connection because mysql2 serializes commands per connection.
+    const [allHeats, includeUnpublished] = await Promise.all([
+      getDb()
+        .select()
+        .from(competitionHeatsTable)
+        .where(eq(competitionHeatsTable.competitionId, data.competitionId))
+        .orderBy(
+          asc(competitionHeatsTable.scheduledTime),
+          asc(competitionHeatsTable.heatNumber),
+        ),
+      canViewUnpublishedHeats(data.competitionId),
+    ])
 
-    const heats = await db
-      .select()
-      .from(competitionHeatsTable)
-      .where(eq(competitionHeatsTable.competitionId, data.competitionId))
-      .orderBy(
-        asc(competitionHeatsTable.scheduledTime),
-        asc(competitionHeatsTable.heatNumber),
-      )
+    // Non-organizer viewers only see published heats — drafts stay hidden.
+    const heats = includeUnpublished
+      ? allHeats
+      : allHeats.filter((heat) => heat.schedulePublishedAt !== null)
 
     if (heats.length === 0) {
       return { heats: [] }
     }
 
-    // Get venue IDs and division IDs
+    // Get venue IDs, division IDs, and heat IDs
     const venueIds = heats
       .map((h) => h.venueId)
       .filter((id): id is string => id !== null)
     const divisionIds = heats
       .map((h) => h.divisionId)
       .filter((id): id is string => id !== null)
+    const heatIds = heats.map((h) => h.id)
 
-    // Fetch venues
-    const venues =
+    // Stage the remaining lookups into dependency groups and run them in
+    // parallel: venues ∥ divisions ∥ (assignments → registrations →
+    // (users ∥ regDivisions)). Each parallel branch gets its own getDb()
+    // connection; sequential steps within a branch reuse one connection.
+    const venuesPromise =
       venueIds.length > 0
-        ? await db
+        ? getDb()
             .select()
             .from(competitionVenuesTable)
             .where(inArray(competitionVenuesTable.id, venueIds))
-        : []
-    const venueMap = new Map(venues.map((v) => [v.id, v]))
+        : Promise.resolve([] as CompetitionVenue[])
 
-    // Fetch divisions
-    const divisions =
+    const divisionsPromise =
       divisionIds.length > 0
-        ? await db
+        ? getDb()
             .select({
               id: scalingLevelsTable.id,
               label: scalingLevelsTable.label,
             })
             .from(scalingLevelsTable)
             .where(inArray(scalingLevelsTable.id, divisionIds))
-        : []
+        : Promise.resolve([] as Array<{ id: string; label: string }>)
+
+    const assignmentChainPromise = (async () => {
+      const chainDb = getDb()
+
+      // Fetch assignments
+      const assignments = await chainDb
+        .select({
+          id: competitionHeatAssignmentsTable.id,
+          heatId: competitionHeatAssignmentsTable.heatId,
+          laneNumber: competitionHeatAssignmentsTable.laneNumber,
+          registrationId: competitionHeatAssignmentsTable.registrationId,
+        })
+        .from(competitionHeatAssignmentsTable)
+        .where(inArray(competitionHeatAssignmentsTable.heatId, heatIds))
+        .orderBy(asc(competitionHeatAssignmentsTable.laneNumber))
+
+      // Fetch registrations
+      const registrationIds = [
+        ...new Set(assignments.map((a) => a.registrationId)),
+      ]
+      const registrations =
+        registrationIds.length > 0
+          ? await chainDb
+              .select({
+                id: competitionRegistrationsTable.id,
+                teamName: competitionRegistrationsTable.teamName,
+                userId: competitionRegistrationsTable.userId,
+                divisionId: competitionRegistrationsTable.divisionId,
+                metadata: competitionRegistrationsTable.metadata,
+              })
+              .from(competitionRegistrationsTable)
+              .where(inArray(competitionRegistrationsTable.id, registrationIds))
+          : []
+
+      // Fetch users and registration divisions in parallel
+      const userIds = [...new Set(registrations.map((r) => r.userId))]
+      const regDivisionIds = [
+        ...new Set(
+          registrations
+            .map((r) => r.divisionId)
+            .filter((id): id is string => id !== null),
+        ),
+      ]
+      const [users, regDivisions] = await Promise.all([
+        userIds.length > 0
+          ? chainDb
+              .select({
+                id: userTable.id,
+                firstName: userTable.firstName,
+                lastName: userTable.lastName,
+              })
+              .from(userTable)
+              .where(inArray(userTable.id, userIds))
+          : Promise.resolve(
+              [] as Array<{
+                id: string
+                firstName: string | null
+                lastName: string | null
+              }>,
+            ),
+        regDivisionIds.length > 0
+          ? getDb()
+              .select({
+                id: scalingLevelsTable.id,
+                label: scalingLevelsTable.label,
+              })
+              .from(scalingLevelsTable)
+              .where(inArray(scalingLevelsTable.id, regDivisionIds))
+          : Promise.resolve([] as Array<{ id: string; label: string }>),
+      ])
+
+      return { assignments, registrations, users, regDivisions }
+    })()
+
+    const [venues, divisions, assignmentChain] = await Promise.all([
+      venuesPromise,
+      divisionsPromise,
+      assignmentChainPromise,
+    ])
+    const { assignments, registrations, users, regDivisions } = assignmentChain
+
+    const venueMap = new Map(venues.map((v) => [v.id, v]))
     const divisionMap = new Map(divisions.map((d) => [d.id, d]))
-
-    // Fetch assignments
-    const heatIds = heats.map((h) => h.id)
-    const assignments = await db
-      .select({
-        id: competitionHeatAssignmentsTable.id,
-        heatId: competitionHeatAssignmentsTable.heatId,
-        laneNumber: competitionHeatAssignmentsTable.laneNumber,
-        registrationId: competitionHeatAssignmentsTable.registrationId,
-      })
-      .from(competitionHeatAssignmentsTable)
-      .where(inArray(competitionHeatAssignmentsTable.heatId, heatIds))
-      .orderBy(asc(competitionHeatAssignmentsTable.laneNumber))
-
-    // Fetch registrations
-    const registrationIds = [
-      ...new Set(assignments.map((a) => a.registrationId)),
-    ]
-    const registrations =
-      registrationIds.length > 0
-        ? await db
-            .select({
-              id: competitionRegistrationsTable.id,
-              teamName: competitionRegistrationsTable.teamName,
-              userId: competitionRegistrationsTable.userId,
-              divisionId: competitionRegistrationsTable.divisionId,
-              metadata: competitionRegistrationsTable.metadata,
-            })
-            .from(competitionRegistrationsTable)
-            .where(inArray(competitionRegistrationsTable.id, registrationIds))
-        : []
-
-    // Fetch users
-    const userIds = [...new Set(registrations.map((r) => r.userId))]
-    const users =
-      userIds.length > 0
-        ? await db
-            .select({
-              id: userTable.id,
-              firstName: userTable.firstName,
-              lastName: userTable.lastName,
-            })
-            .from(userTable)
-            .where(inArray(userTable.id, userIds))
-        : []
     const userMap = new Map(users.map((u) => [u.id, u]))
-
-    // Fetch divisions for registrations
-    const regDivisionIds = [
-      ...new Set(
-        registrations
-          .map((r) => r.divisionId)
-          .filter((id): id is string => id !== null),
-      ),
-    ]
-    const regDivisions =
-      regDivisionIds.length > 0
-        ? await db
-            .select({
-              id: scalingLevelsTable.id,
-              label: scalingLevelsTable.label,
-            })
-            .from(scalingLevelsTable)
-            .where(inArray(scalingLevelsTable.id, regDivisionIds))
-        : []
     const regDivisionMap = new Map(regDivisions.map((d) => [d.id, d]))
 
     // Build registration map
@@ -2179,30 +2247,30 @@ export const getPublicEventHeatsFn = createServerFn({ method: "GET" })
       ),
     ]
 
-    // Fetch venues
-    const venues =
+    // Fetch venues and divisions in parallel. The heats connection (db) is
+    // idle now and is reused for one branch; the other branch gets its own
+    // getDb() connection since mysql2 serializes commands per connection.
+    const [venues, divisions] = await Promise.all([
       venueIds.length > 0
-        ? await db
+        ? db
             .select({
               id: competitionVenuesTable.id,
               name: competitionVenuesTable.name,
             })
             .from(competitionVenuesTable)
             .where(inArray(competitionVenuesTable.id, venueIds))
-        : []
-    const venueMap = new Map(venues.map((v) => [v.id, v]))
-
-    // Fetch divisions
-    const divisions =
+        : Promise.resolve([] as Array<{ id: string; name: string }>),
       divisionIds.length > 0
-        ? await db
+        ? getDb()
             .select({
               id: scalingLevelsTable.id,
               label: scalingLevelsTable.label,
             })
             .from(scalingLevelsTable)
             .where(inArray(scalingLevelsTable.id, divisionIds))
-        : []
+        : Promise.resolve([] as Array<{ id: string; label: string }>),
+    ])
+    const venueMap = new Map(venues.map((v) => [v.id, v]))
     const divisionMap = new Map(divisions.map((d) => [d.id, d]))
 
     // Build result
@@ -2274,43 +2342,42 @@ export const getPublicScheduleDataFn = createServerFn({ method: "GET" })
     ]
     const trackWorkoutIds = [...new Set(heats.map((h) => h.trackWorkoutId))]
 
-    // Fetch venues
-    const venues =
+    // Fetch venues, divisions, and trackWorkouts (with workout names via
+    // JOIN) in parallel. The heats connection (db) is idle now and is
+    // reused for the trackWorkouts branch; the other branches get their own
+    // getDb() connections since mysql2 serializes commands per connection.
+    const [venues, divisions, trackWorkouts] = await Promise.all([
       venueIds.length > 0
-        ? await db
+        ? getDb()
             .select({
               id: competitionVenuesTable.id,
               name: competitionVenuesTable.name,
             })
             .from(competitionVenuesTable)
             .where(inArray(competitionVenuesTable.id, venueIds))
-        : []
-    const venueMap = new Map(venues.map((v) => [v.id, v]))
-
-    // Fetch divisions
-    const divisions =
+        : Promise.resolve([] as Array<{ id: string; name: string }>),
       divisionIds.length > 0
-        ? await db
+        ? getDb()
             .select({
               id: scalingLevelsTable.id,
               label: scalingLevelsTable.label,
             })
             .from(scalingLevelsTable)
             .where(inArray(scalingLevelsTable.id, divisionIds))
-        : []
+        : Promise.resolve([] as Array<{ id: string; label: string }>),
+      db
+        .select({
+          id: trackWorkoutsTable.id,
+          workoutId: trackWorkoutsTable.workoutId,
+          trackOrder: trackWorkoutsTable.trackOrder,
+          workoutName: workouts.name,
+        })
+        .from(trackWorkoutsTable)
+        .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+        .where(inArray(trackWorkoutsTable.id, trackWorkoutIds)),
+    ])
+    const venueMap = new Map(venues.map((v) => [v.id, v]))
     const divisionMap = new Map(divisions.map((d) => [d.id, d]))
-
-    // Fetch trackWorkouts with workout names via JOIN
-    const trackWorkouts = await db
-      .select({
-        id: trackWorkoutsTable.id,
-        workoutId: trackWorkoutsTable.workoutId,
-        trackOrder: trackWorkoutsTable.trackOrder,
-        workoutName: workouts.name,
-      })
-      .from(trackWorkoutsTable)
-      .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
-      .where(inArray(trackWorkoutsTable.id, trackWorkoutIds))
 
     const trackWorkoutMap = new Map(trackWorkouts.map((tw) => [tw.id, tw]))
     const workoutNameMap = new Map(
