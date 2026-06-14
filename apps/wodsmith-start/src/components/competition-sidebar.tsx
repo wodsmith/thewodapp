@@ -100,6 +100,16 @@ const getNavigation = (
           href: `${basePath}/locations`,
           icon: MapPin,
         },
+        // Heat Schedule only for in-person competitions
+        ...(competitionType !== "online"
+          ? [
+              {
+                label: "Heat schedule",
+                href: `${basePath}/schedule`,
+                icon: Calendar,
+              },
+            ]
+          : []),
         // Submission Windows only for online competitions
         ...(competitionType === "online"
           ? [
@@ -166,16 +176,6 @@ const getNavigation = (
     {
       label: "Run competition",
       items: [
-        // Schedule only for in-person competitions
-        ...(competitionType !== "online"
-          ? [
-              {
-                label: "Heat schedule",
-                href: `${basePath}/schedule`,
-                icon: Calendar,
-              },
-            ]
-          : []),
         // Check-in landing page only for in-person competitions; it explains
         // the flow and opens the volunteer-facing kiosk in a new tab.
         ...(competitionType !== "online"

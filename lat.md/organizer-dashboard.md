@@ -62,6 +62,8 @@ The schedule page manages heats — time blocks where groups of athletes perform
 
 Fetches venues, events, heats, divisions, and registrations in parallel. Uses `SchedulePageClient` which contains `VenueManager` and `HeatScheduleManager` components. Heats have start times, lane counts, division/venue assignments, and athlete assignments. Only available for in-person competitions.
 
+The organizer sidebar places Heat schedule in the Setup group immediately after Venues & lanes because heat creation depends on configured venues and lanes.
+
 ## Locations (Venues)
 
 CRUD management of physical venues where competition events take place.
@@ -188,6 +190,8 @@ Uses `getCompetitionShiftsFn`. `ShiftList` and `ShiftFormDialog` components hand
 Assigns judges to heats with rotation patterns so judges move between lanes across events.
 
 Fetches heats, events, judge volunteers, rotations, heat assignments, and version history. Uses the `JudgeSchedulingContainer` component tree (rotation editor, timeline, overview, publish button). Supports rotation patterns: stay, shift right, random. Judge assignment versions allow publishing/reverting schedules.
+
+When the selected event has no athlete heats, the judge assignment and rotation areas use the shared organizer empty state with a CTA back to the heat scheduling page.
 
 The volunteers/judges and judges-ai route loaders load all per-event judge data (heat assignments, rotations + event defaults, version history, active versions) through one batched call — [[apps/wodsmith-start/src/server-fns/judge-scheduling-fns.ts#getJudgeSchedulingDataForEventsFn]] — which issues a constant number of `inArray` queries for any event count and returns records keyed by trackWorkoutId. This replaced four per-event server-fn fan-outs (4N round trips, ~10N queries). The single-event fns (`getJudgeHeatAssignmentsFn`, `getRotationsForEventFn`, `getVersionHistoryFn`, `getActiveVersionFn`) remain for targeted refreshes. The "adjust for occupied lanes" feature (`adjustRotationsForOccupiedLanesFn`) splits rotations to skip unoccupied lanes; cohost routes use `cohostAdjustRotationsForOccupiedLanesFn` via the `onAdjustRotationsForOccupiedLanes` override prop on `RotationTimeline`.
 
