@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "afe28247a233",
+  "strategy": "manual-commit",
+  "branch": "codex/organizer-route-consolidation",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/wodsmith-start/src/components/landing/disaster-prevention.tsx",
+    "apps/wodsmith-start/src/components/landing/final-cta.tsx",
+    "apps/wodsmith-start/src/components/landing/pain-strip.tsx",
+    "apps/wodsmith-start/src/components/landing/series-teaser.tsx",
+    "apps/wodsmith-start/src/components/landing/two-audiences.tsx",
+    "apps/wodsmith-start/src/components/landing/volunteer-scheduling.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/af/e28247a233/0/metadata.json",
+      "transcript": "/af/e28247a233/0/full.jsonl",
+      "context": "/af/e28247a233/0/context.md",
+      "content_hash": "/af/e28247a233/0/content_hash.txt",
+      "prompt": "/af/e28247a233/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 60,
+    "cache_creation_tokens": 108836,
+    "cache_read_tokens": 3024762,
+    "output_tokens": 33446,
+    "api_call_count": 35
+  }
+}

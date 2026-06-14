@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "afe28247a233",
+  "session_id": "ddf75784-e2d6-4ad3-a86e-89fb83911a3f",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-14T22:49:19.862012Z",
+  "branch": "codex/organizer-route-consolidation",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/wodsmith-start/src/components/landing/disaster-prevention.tsx",
+    "apps/wodsmith-start/src/components/landing/final-cta.tsx",
+    "apps/wodsmith-start/src/components/landing/pain-strip.tsx",
+    "apps/wodsmith-start/src/components/landing/series-teaser.tsx",
+    "apps/wodsmith-start/src/components/landing/two-audiences.tsx",
+    "apps/wodsmith-start/src/components/landing/volunteer-scheduling.tsx"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "fcb079d8-bd38-4076-b683-30f685ff0311",
+  "token_usage": {
+    "input_tokens": 60,
+    "cache_creation_tokens": 108836,
+    "cache_read_tokens": 3024762,
+    "output_tokens": 33446,
+    "api_call_count": 35
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-14T22:49:19.784776Z",
+    "agent_lines": 0,
+    "human_added": 39836,
+    "human_modified": 137,
+    "human_removed": 0,
+    "total_committed": 39971,
+    "agent_percentage": 0
+  }
+}
