@@ -1,7 +1,7 @@
 /**
- * Athlete Broadcasts Route
+ * Athlete Announcements Route
  *
- * Shows broadcasts the athlete has received for a competition.
+ * Shows announcements the athlete has received for a competition.
  */
 // @lat: [[organizer-dashboard#Broadcasts]]
 
@@ -19,7 +19,7 @@ import { listAthleteBroadcastsFn } from "@/server-fns/broadcast-fns"
 
 const parentRoute = getRouteApi("/compete/$slug")
 
-export const Route = createFileRoute("/compete/$slug/broadcasts")({
+export const Route = createFileRoute("/compete/$slug/announcements")({
 	staleTime: 10_000,
 	component: AthleteBroadcastsPage,
 	loader: async ({ parentMatchPromise }) => {

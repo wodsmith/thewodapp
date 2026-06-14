@@ -132,7 +132,7 @@ const getNavigation = (
       items: [
         { label: "Athletes", href: `${basePath}/athletes`, icon: Users },
         {
-          label: "Form questions",
+          label: "Registration questions",
           href: `${basePath}/athletes/form-questions`,
           icon: ClipboardList,
         },
@@ -167,7 +167,7 @@ const getNavigation = (
             ]
           : []),
         {
-          label: "Signup questions",
+          label: "Registration questions",
           href: `${basePath}/volunteers/signup-questions`,
           icon: ClipboardList,
         },
@@ -198,8 +198,8 @@ const getNavigation = (
           icon: BarChart3,
         },
         {
-          label: "Broadcasts",
-          href: `${basePath}/broadcasts`,
+          label: "Event announcements",
+          href: `${basePath}/announcements`,
           icon: Megaphone,
         },
       ],

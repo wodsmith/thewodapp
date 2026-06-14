@@ -1,5 +1,5 @@
 /**
- * Competition Broadcasts Route
+ * Competition Announcements Route
  *
  * Organizer page for sending one-way broadcast messages to athletes.
  * Supports audience filtering by division, volunteer role, and registration question answers.
@@ -48,7 +48,7 @@ import {
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 
 export const Route = createFileRoute(
-  "/compete/organizer/$competitionId/broadcasts",
+  "/compete/organizer/$competitionId/announcements",
 )({
   staleTime: 10_000,
   component: BroadcastsPage,
@@ -99,15 +99,17 @@ function BroadcastsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Broadcasts</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Event announcements
+          </h1>
           <p className="text-muted-foreground">
-            Send announcements to your registered athletes
+            Send event updates to athletes, volunteers, or both.
           </p>
         </div>
         {!isComposing && (
           <Button onClick={() => setIsComposing(true)}>
             <Plus className="mr-2 h-4 w-4" />
-            New Broadcast
+            New announcement
           </Button>
         )}
       </div>
@@ -130,13 +132,16 @@ function BroadcastsPage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Megaphone className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-1">No broadcasts yet</h3>
+            <h3 className="text-lg font-semibold mb-1">
+              No event announcements yet
+            </h3>
             <p className="text-muted-foreground text-sm mb-4">
-              Send your first broadcast to communicate with athletes
+              Send your first announcement to communicate with athletes and
+              volunteers.
             </p>
             <Button onClick={() => setIsComposing(true)}>
               <Plus className="mr-2 h-4 w-4" />
-              New Broadcast
+              New announcement
             </Button>
           </CardContent>
         </Card>
@@ -372,7 +377,7 @@ function ComposeCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>New Broadcast</CardTitle>
+        <CardTitle>New announcement</CardTitle>
         <CardDescription>
           Compose a message to send to athletes, volunteers, or everyone via
           email and in-app notification
@@ -393,7 +398,7 @@ function ComposeCard({
           <Label htmlFor="body">Message</Label>
           <Textarea
             id="body"
-            placeholder="Write your broadcast message..."
+            placeholder="Write your announcement..."
             rows={5}
             value={body}
             onChange={(e) => setBody(e.target.value)}
@@ -595,7 +600,7 @@ function ComposeCard({
             disabled={isSending || !title.trim() || !body.trim()}
           >
             <Send className="mr-2 h-4 w-4" />
-            {isSending ? "Sending..." : "Send broadcast"}
+            {isSending ? "Sending..." : "Send announcement"}
           </Button>
         </div>
       </CardContent>
