@@ -263,7 +263,7 @@ const PERMISSION_GROUPS_DISPLAY = [
     label: "Registration",
     items: [
       { key: "viewRegistrations", label: "View athletes" },
-      { key: "editRegistrations", label: "Edit athletes" },
+      { key: "editRegistrations", label: "Manage athletes" },
       { key: "waivers", label: "Waivers" },
     ],
   },

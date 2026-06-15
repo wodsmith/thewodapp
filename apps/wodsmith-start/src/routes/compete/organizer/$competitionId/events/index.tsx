@@ -49,9 +49,14 @@ export const Route = createFileRoute(
   staleTime: 10_000,
   component: EventsPage,
   validateSearch: eventsSearchSchema,
-  loader: async ({ params, parentMatchPromise }) => {
+  loaderDeps: ({ search }) => ({
+    tab: search.tab,
+  }),
+  loader: async ({ params, deps, parentMatchPromise }) => {
     const parentMatch = await parentMatchPromise
     const { competition } = parentMatch.loaderData!
+
+    const shouldLoadMappingData = deps.tab === "advanced-settings"
 
     // Parallel fetch events, divisions, movements, sponsors, and series mapping status
     const [
@@ -81,9 +86,11 @@ export const Route = createFileRoute(
       getCompetitionEventSeriesMappingStatusFn({
         data: { competitionId: params.competitionId },
       }),
-      getEventDivisionMappingsFn({
-        data: { competitionId: params.competitionId },
-      }),
+      shouldLoadMappingData
+        ? getEventDivisionMappingsFn({
+            data: { competitionId: params.competitionId },
+          })
+        : Promise.resolve(null),
     ])
 
     // Flatten sponsors from groups and ungrouped
@@ -215,13 +222,15 @@ function EventsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <EventDivisionMapper
-              competitionId={competition.id}
-              data={mappingData}
-              onSaved={async () => {
-                await router.invalidate()
-              }}
-            />
+            {mappingData ? (
+              <EventDivisionMapper
+                competitionId={competition.id}
+                data={mappingData}
+                onSaved={async () => {
+                  await router.invalidate()
+                }}
+              />
+            ) : null}
           </CardContent>
         </Card>
       </TabsContent>

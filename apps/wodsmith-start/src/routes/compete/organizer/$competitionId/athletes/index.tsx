@@ -10,6 +10,7 @@ import {
   createFileRoute,
   getRouteApi,
   Link,
+  redirect,
   useNavigate,
   useRouter,
 } from "@tanstack/react-router"
@@ -125,6 +126,8 @@ const athletesSearchSchema = z.object({
   // Sorting
   sortBy: z.enum(sortColumns).optional(),
   sortDir: z.enum(["asc", "desc"]).optional(),
+  // Legacy tab param retained only to redirect old links.
+  tab: z.enum(["athletes", "registration-rules"]).optional(),
 })
 
 export const Route = createFileRoute(
@@ -139,10 +142,18 @@ export const Route = createFileRoute(
     waiverFilters: search?.waiverFilters,
     sortBy: search?.sortBy,
     sortDir: search?.sortDir,
+    tab: search?.tab,
   }),
   loader: async ({ params, deps, parentMatchPromise }) => {
     const { competitionId } = params
     const divisionFilter = deps?.division
+
+    if (deps?.tab === "registration-rules") {
+      throw redirect({
+        to: "/compete/organizer/$competitionId/athletes/form-questions",
+        params: { competitionId },
+      })
+    }
 
     const parentMatch = await parentMatchPromise
     const { competition } = parentMatch.loaderData!

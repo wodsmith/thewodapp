@@ -3,7 +3,7 @@
  *
  * Shows announcements the athlete has received for a competition.
  */
-// @lat: [[organizer-dashboard#Broadcasts]]
+// @lat: [[organizer-dashboard#Event announcements]]
 
 import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { Megaphone } from "lucide-react"

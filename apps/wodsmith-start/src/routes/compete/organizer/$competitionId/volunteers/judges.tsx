@@ -4,6 +4,7 @@
  * Judge scheduling and rotations for in-person competitions. Online
  * competitions are redirected to the volunteer roster.
  */
+// @lat: [[organizer-dashboard#Volunteers#Judge Scheduling]]
 
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router"
 import { z } from "zod"

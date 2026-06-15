@@ -3,6 +3,7 @@
  *
  * Manages the custom questions volunteers answer when signing up.
  */
+// @lat: [[organizer-dashboard#Volunteers#Volunteer Signup Questions]]
 
 import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { RegistrationQuestionsEditor } from "@/components/competition-settings/registration-questions-editor"

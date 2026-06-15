@@ -4,7 +4,7 @@
  * Organizer page for sending one-way broadcast messages to athletes.
  * Supports audience filtering by division, volunteer role, and registration question answers.
  */
-// @lat: [[organizer-dashboard#Broadcasts]]
+// @lat: [[organizer-dashboard#Event announcements]]
 
 import { createFileRoute, getRouteApi, useRouter } from "@tanstack/react-router"
 import { Filter, Megaphone, Plus, Send, Users, X } from "lucide-react"
@@ -362,12 +362,12 @@ function ComposeCard({
         },
       })
       toast.success(
-        `Broadcast sent to ${result.recipientCount} recipient${result.recipientCount === 1 ? "" : "s"}`,
+        `Announcement sent to ${result.recipientCount} recipient${result.recipientCount === 1 ? "" : "s"}`,
       )
       onSent()
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : "Failed to send broadcast",
+        err instanceof Error ? err.message : "Failed to send announcement",
       )
     } finally {
       setIsSending(false)

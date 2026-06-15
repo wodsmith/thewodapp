@@ -1,5 +1,7 @@
 "use client"
 
+// @lat: [[organizer-dashboard#Volunteers#Judge Scheduling]]
+
 import { Link, useNavigate } from "@tanstack/react-router"
 import { CalendarDays, ClipboardList, Search, Settings2 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
