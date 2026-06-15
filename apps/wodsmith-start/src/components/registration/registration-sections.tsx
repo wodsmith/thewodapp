@@ -720,6 +720,15 @@ export function CouponCodeSection({
   )
 }
 
+export interface AddonLineItem {
+  key: string
+  name: string
+  variantLabel: string | null
+  quantity: number
+  /** All-in line total (per-unit charge × quantity) */
+  lineTotalCents: number
+}
+
 export function FeeSummarySection({
   competitionId,
   selectedDivisionIds,
@@ -727,6 +736,7 @@ export function FeeSummarySection({
   divisionFees,
   onFeesLoaded,
   activeCoupon,
+  addonLineItems = [],
 }: {
   competitionId: string
   selectedDivisionIds: string[]
@@ -737,9 +747,15 @@ export function FeeSummarySection({
     fees: { isFree: boolean; totalChargeCents?: number } | null,
   ) => void
   activeCoupon: { code: string; amountOffCents: number } | null
+  addonLineItems?: AddonLineItem[]
 }) {
   const isMulti = selectedDivisionIds.length > 1
   const hasSelectedDivisions = selectedDivisionIds.length > 0
+  const hasAddons = addonLineItems.length > 0
+  const addonTotalCents = addonLineItems.reduce(
+    (sum, item) => sum + item.lineTotalCents,
+    0,
+  )
   const selectedFeeValues = selectedDivisionIds
     .map((divisionId) => divisionFees.get(divisionId))
     .filter((fee): fee is number => fee !== undefined)
@@ -749,7 +765,11 @@ export function FeeSummarySection({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Registration Fee{isMulti ? "s" : ""}</CardTitle>
+        <CardTitle>
+          {hasAddons
+            ? "Order Summary"
+            : `Registration Fee${isMulti ? "s" : ""}`}
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {!hasSelectedDivisions ? (
@@ -761,7 +781,7 @@ export function FeeSummarySection({
         ) : null}
         {selectedDivisionIds.map((divisionId) => {
           const division = getDivision(divisionId)
-          const hideDivTotal = isMulti || !!activeCoupon
+          const hideDivTotal = isMulti || !!activeCoupon || hasAddons
           return (
             <div key={divisionId}>
               {isMulti && (
@@ -781,7 +801,7 @@ export function FeeSummarySection({
         {hasSelectedDivisions && hasLoadedSelectedFees
           ? (() => {
               const subtotal = selectedFeeValues.reduce((sum, c) => sum + c, 0)
-              if (!activeCoupon) {
+              if (!activeCoupon && !hasAddons) {
                 if (!isMulti) return null
                 return (
                   <div className="flex justify-between font-medium pt-2 border-t">
@@ -792,28 +812,42 @@ export function FeeSummarySection({
                   </div>
                 )
               }
-              const discount = Math.min(activeCoupon.amountOffCents, subtotal)
-              const total = subtotal - discount
+              const discount = activeCoupon
+                ? Math.min(activeCoupon.amountOffCents, subtotal)
+                : 0
+              // Coupons only ever discount registration fees — merch is
+              // always full price (matches the server's discount base).
+              const total = subtotal - discount + addonTotalCents
               return (
                 <>
-                  {isMulti && (
+                  {(isMulti || hasAddons) && (
                     <div className="flex justify-between text-sm pt-2 border-t">
-                      <span>Subtotal</span>
+                      <span>Registration subtotal</span>
                       <span>${(subtotal / 100).toFixed(2)}</span>
                     </div>
                   )}
-                  <div
-                    className={cn(
-                      "flex justify-between text-sm text-emerald-700 dark:text-emerald-400",
-                      !isMulti && "pt-2 border-t",
-                    )}
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <Tag className="h-3.5 w-3.5" />
-                      Coupon ({activeCoupon.code})
-                    </span>
-                    <span>-${(discount / 100).toFixed(2)}</span>
-                  </div>
+                  {activeCoupon && (
+                    <div className="flex justify-between text-sm text-emerald-700 dark:text-emerald-400">
+                      <span className="flex items-center gap-1.5">
+                        <Tag className="h-3.5 w-3.5" />
+                        Coupon ({activeCoupon.code})
+                      </span>
+                      <span>-${(discount / 100).toFixed(2)}</span>
+                    </div>
+                  )}
+                  {addonLineItems.map((item) => (
+                    <div
+                      key={item.key}
+                      className="flex justify-between text-sm"
+                    >
+                      <span>
+                        {item.name}
+                        {item.variantLabel ? ` (${item.variantLabel})` : ""}
+                        {item.quantity > 1 ? ` × ${item.quantity}` : ""}
+                      </span>
+                      <span>${(item.lineTotalCents / 100).toFixed(2)}</span>
+                    </div>
+                  ))}
                   <div className="flex justify-between font-medium pt-2 border-t">
                     <span>Total</span>
                     <span className="text-lg">${(total / 100).toFixed(2)}</span>

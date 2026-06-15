@@ -1,13 +1,13 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
 import {
+  datetime,
   index,
   int,
   mysqlTable,
   text,
-  varchar,
   uniqueIndex,
-  datetime,
+  varchar,
 } from "drizzle-orm/mysql-core"
 import {
   commonColumns,
@@ -17,9 +17,9 @@ import {
   createPurchaseTransferId,
 } from "./common"
 import { competitionsTable } from "./competitions"
+import { productCouponRedemptionsTable } from "./coupons"
 import { scalingLevelsTable } from "./scaling"
 import { userTable } from "./users"
-import { productCouponRedemptionsTable } from "./coupons"
 
 // Commerce product types
 export const COMMERCE_PRODUCT_TYPE = {
@@ -107,6 +107,12 @@ export const commercePurchaseTable = mysqlTable(
     competitionId: varchar({ length: 255 }),
     divisionId: varchar({ length: 255 }),
 
+    // Context for ADDON purchases (registration merch)
+    // References competition_product_variants.id; null for no-variant products
+    variantId: varchar({ length: 255 }),
+    // Units purchased in this line (always 1 for registrations)
+    quantity: int({ unsigned: true }).notNull().default(1),
+
     // Amounts (all in cents)
     totalCents: int().notNull(), // Amount charged to customer
     platformFeeCents: int().notNull(), // Wodsmith revenue
@@ -132,6 +138,7 @@ export const commercePurchaseTable = mysqlTable(
     ),
     index("commerce_purchase_competition_idx").on(table.competitionId),
     index("commerce_purchase_stripe_pi_idx").on(table.stripePaymentIntentId),
+    index("commerce_purchase_variant_idx").on(table.variantId),
   ],
 )
 

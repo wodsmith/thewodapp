@@ -4,7 +4,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, asc, count, eq, gt, ne, sql } from "drizzle-orm"
+import { and, asc, count, eq, gt, isNotNull, ne, sql } from "drizzle-orm"
 import { z } from "zod"
 import { type Database, getDb } from "@/db"
 import {
@@ -662,6 +662,9 @@ export const getPublicCompetitionDivisionsFn = createServerFn({ method: "GET" })
           and(
             eq(commercePurchaseTable.competitionId, data.competitionId),
             eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
+            // ADDON (merch) purchases have no division; the null group would
+            // otherwise inflate the competition-wide pending sum below.
+            isNotNull(commercePurchaseTable.divisionId),
             gt(
               commercePurchaseTable.createdAt,
               new Date(
@@ -908,7 +911,11 @@ export const initializeCompetitionDivisionsFn = createServerFn({
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "initialize_competition_divisions", competition: { id: data.competitionId }, teamId: data.teamId })
+    getEvlog()?.set({
+      action: "initialize_competition_divisions",
+      competition: { id: data.competitionId },
+      teamId: data.teamId,
+    })
 
     // Verify competition exists and belongs to team
     const [competition] = await db
@@ -1048,7 +1055,11 @@ export const addCompetitionDivisionFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "create_division", competition: { id: data.competitionId }, teamId: data.teamId })
+    getEvlog()?.set({
+      action: "create_division",
+      competition: { id: data.competitionId },
+      teamId: data.teamId,
+    })
 
     const { scalingGroupId } = await ensureCompetitionOwnedScalingGroup({
       competitionId: data.competitionId,
@@ -1066,7 +1077,10 @@ export const addCompetitionDivisionFn = createServerFn({ method: "POST" })
 
       // Create competition_divisions row for the new division
       const [competition] = await tx
-        .select({ defaultRegistrationFeeCents: competitionsTable.defaultRegistrationFeeCents })
+        .select({
+          defaultRegistrationFeeCents:
+            competitionsTable.defaultRegistrationFeeCents,
+        })
         .from(competitionsTable)
         .where(eq(competitionsTable.id, data.competitionId))
       const defaultFee = competition?.defaultRegistrationFeeCents ?? 0
@@ -1104,7 +1118,11 @@ export const updateCompetitionDivisionFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "update_division", division: { id: data.divisionId, competitionId: data.competitionId }, teamId: data.teamId })
+    getEvlog()?.set({
+      action: "update_division",
+      division: { id: data.divisionId, competitionId: data.competitionId },
+      teamId: data.teamId,
+    })
 
     const { scalingGroupId } = await ensureCompetitionOwnedScalingGroup({
       competitionId: data.competitionId,
@@ -1150,7 +1168,11 @@ export const deleteCompetitionDivisionFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "delete_division", division: { id: data.divisionId, competitionId: data.competitionId }, teamId: data.teamId })
+    getEvlog()?.set({
+      action: "delete_division",
+      division: { id: data.divisionId, competitionId: data.competitionId },
+      teamId: data.teamId,
+    })
 
     const { scalingGroupId } = await ensureCompetitionOwnedScalingGroup({
       competitionId: data.competitionId,
@@ -1228,7 +1250,11 @@ export const reorderCompetitionDivisionsFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "reorder_divisions", competition: { id: data.competitionId }, teamId: data.teamId })
+    getEvlog()?.set({
+      action: "reorder_divisions",
+      competition: { id: data.competitionId },
+      teamId: data.teamId,
+    })
 
     const { scalingGroupId } = await ensureCompetitionOwnedScalingGroup({
       competitionId: data.competitionId,
@@ -1277,7 +1303,11 @@ export const updateDivisionDescriptionFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "update_division_description", division: { id: data.divisionId, competitionId: data.competitionId }, teamId: data.teamId })
+    getEvlog()?.set({
+      action: "update_division_description",
+      division: { id: data.divisionId, competitionId: data.competitionId },
+      teamId: data.teamId,
+    })
 
     const { scalingGroupId } = await ensureCompetitionOwnedScalingGroup({
       competitionId: data.competitionId,
@@ -1349,7 +1379,15 @@ export const updateCompetitionDefaultCapacityFn = createServerFn({
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "update_competition_default_capacity", competition: { id: data.competitionId }, capacity: { defaultMaxSpotsPerDivision: data.defaultMaxSpotsPerDivision, maxTotalRegistrations: data.maxTotalRegistrations }, teamId: data.teamId })
+    getEvlog()?.set({
+      action: "update_competition_default_capacity",
+      competition: { id: data.competitionId },
+      capacity: {
+        defaultMaxSpotsPerDivision: data.defaultMaxSpotsPerDivision,
+        maxTotalRegistrations: data.maxTotalRegistrations,
+      },
+      teamId: data.teamId,
+    })
 
     // Verify competition exists and belongs to team
     const [competition] = await db
@@ -1402,7 +1440,15 @@ export const updateDivisionCapacityFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "update_division_capacity", division: { id: data.divisionId, competitionId: data.competitionId, maxSpots: data.maxSpots }, teamId: data.teamId })
+    getEvlog()?.set({
+      action: "update_division_capacity",
+      division: {
+        id: data.divisionId,
+        competitionId: data.competitionId,
+        maxSpots: data.maxSpots,
+      },
+      teamId: data.teamId,
+    })
 
     const { scalingGroupId } = await ensureCompetitionOwnedScalingGroup({
       competitionId: data.competitionId,
@@ -1589,6 +1635,9 @@ export const getCompetitionSpotsAvailableFn = createServerFn({ method: "GET" })
           and(
             eq(commercePurchaseTable.competitionId, data.competitionId),
             eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
+            // ADDON (merch) purchases share competitionId but have no
+            // division and must not occupy registration capacity.
+            isNotNull(commercePurchaseTable.divisionId),
             gt(
               commercePurchaseTable.createdAt,
               new Date(
@@ -1647,7 +1696,11 @@ export const switchCompetitionScalingGroupFn = createServerFn({
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "switch_competition_scaling_group", competition: { id: data.competitionId }, teamId: data.teamId })
+    getEvlog()?.set({
+      action: "switch_competition_scaling_group",
+      competition: { id: data.competitionId },
+      teamId: data.teamId,
+    })
 
     return switchCompetitionScalingGroupCore({
       db,

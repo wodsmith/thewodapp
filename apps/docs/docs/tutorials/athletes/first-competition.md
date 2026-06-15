@@ -74,6 +74,8 @@ Fill in your registration details:
 
 Required fields are marked with `*`. The form won't submit until they're all complete.
 
+**Notice** that some competitions also show an **Event merch** section — optional extras like an event t-shirt the organizer sells alongside registration. Pick a size and quantity if you want one (it's added to the same payment, and you collect it at the venue), or skip it entirely.
+
 ## Step 5: Sign the Waiver
 
 Most competitions require an electronic waiver before paying.

@@ -197,6 +197,18 @@ export async function seed(client: Connection): Promise<void> {
 			updated_at: ts,
 			update_counter: 0,
 		},
+		{
+			id: "feat_registration_addons",
+			key: "registration_addons",
+			name: "Registration Add-ons",
+			description:
+				"Sell merch and add-ons (e.g., event tees) during competition registration",
+			category: "team",
+			is_active: 1,
+			created_at: ts,
+			updated_at: ts,
+			update_counter: 0,
+		},
 	])
 
 	// Limits

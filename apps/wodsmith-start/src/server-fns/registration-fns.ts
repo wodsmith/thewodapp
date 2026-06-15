@@ -15,9 +15,14 @@ import { createServerFn } from "@tanstack/react-start"
 import { and, eq, inArray, isNull, ne, or, sql } from "drizzle-orm"
 import type Stripe from "stripe"
 import { z } from "zod"
+import { FEATURES } from "@/config/features"
 import { CLAIM_TOKEN_EXPIRATION_SECONDS } from "@/constants"
 import { getDb } from "@/db"
-import type { ProductCoupon } from "@/db/schema"
+import type {
+  CompetitionProduct,
+  CompetitionProductVariant,
+  ProductCoupon,
+} from "@/db/schema"
 import {
   affiliatesTable,
   COMMERCE_PAYMENT_STATUS,
@@ -27,6 +32,8 @@ import {
   commercePurchaseTable,
   competitionEventsTable,
   competitionHeatAssignmentsTable,
+  competitionProductsTable,
+  competitionProductVariantsTable,
   competitionRegistrationAnswersTable,
   competitionRegistrationQuestionsTable,
   competitionRegistrationsTable,
@@ -50,6 +57,10 @@ import {
   userTable,
 } from "@/db/schema"
 import {
+  COMPETITION_INVITE_STATUS,
+  competitionInvitesTable,
+} from "@/db/schemas/competition-invites"
+import {
   buildFeeConfig,
   calculateCompetitionFees,
   type FeeBreakdown,
@@ -71,9 +82,11 @@ import {
 } from "@/lib/registration-stubs"
 import { getStripe } from "@/lib/stripe"
 import {
-  COMPETITION_INVITE_STATUS,
-  competitionInvitesTable,
-} from "@/db/schemas/competition-invites"
+  getAddonUnitBreakdown,
+  multiplyFeeBreakdown,
+} from "@/server/commerce/addons"
+import { recordRefundInitiated } from "@/server/commerce/financial-events"
+import { calculateApplicationFeeCents } from "@/server/commerce/utils"
 import {
   assertInviteClaimable,
   findActiveInviteForEmail,
@@ -83,8 +96,12 @@ import {
 } from "@/server/competition-invites/claim"
 import { assertInviteWithinAllocation } from "@/server/competition-invites/identity"
 import { normalizeInviteEmail } from "@/server/competition-invites/issue"
-import { recordRefundInitiated } from "@/server/commerce/financial-events"
 import { recordRedemption, validateCoupon } from "@/server/coupons"
+import { hasFeature } from "@/server/entitlements"
+import {
+  canFulfillQuantity,
+  isAddonPurchasable,
+} from "@/utils/addon-availability"
 import { requireVerifiedEmail } from "@/utils/auth"
 import { createToken, getClaimTokenKey } from "@/utils/auth-utils"
 import {
@@ -116,6 +133,13 @@ const registrationItemSchema = z.object({
     .optional(),
 })
 
+const addOnSelectionSchema = z.object({
+  productId: z.string().min(1, "Add-on product ID is required"),
+  // Required iff the product has variants (validated against the catalog)
+  variantId: z.string().min(1).optional(),
+  quantity: z.number().int().min(1).max(20),
+})
+
 const initiateRegistrationPaymentInputSchema = z.object({
   competitionId: z.string().min(1, "Competition ID is required"),
   // Multi-division support: array of division entries
@@ -126,6 +150,18 @@ const initiateRegistrationPaymentInputSchema = z.object({
       (items) => new Set(items.map((i) => i.divisionId)).size === items.length,
       { message: "Duplicate division selections are not allowed" },
     ),
+  // Optional registration add-ons (merch) bought in the same checkout.
+  // Entitlement-gated per organizing team; always paid via Stripe.
+  addOns: z
+    .array(addOnSelectionSchema)
+    .max(20)
+    .refine(
+      (addOns) =>
+        new Set(addOns.map((a) => `${a.productId}:${a.variantId ?? ""}`))
+          .size === addOns.length,
+      { message: "Duplicate add-on selections are not allowed" },
+    )
+    .optional(),
   // Shared fields
   affiliateName: z.string().max(255).optional(),
   couponCode: z.string().max(100).optional(),
@@ -489,6 +525,95 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
     // 3.7. Validate required questions have answers
     await validateRequiredQuestions(input.competitionId, input.answers)
 
+    // 3.8. Validate add-on (merch) selections. Add-ons are gated behind the
+    // REGISTRATION_ADDONS entitlement on the organizing team and are always
+    // paid — selecting any forces the Stripe path even when every division
+    // is free. Stock here is a soft check; the checkout workflow re-checks
+    // atomically at payment confirmation and auto-refunds on loss.
+    interface ValidatedAddon {
+      product: CompetitionProduct
+      variant: CompetitionProductVariant | null
+      quantity: number
+    }
+    const validatedAddons: ValidatedAddon[] = []
+    if (input.addOns && input.addOns.length > 0) {
+      const addonsEnabled = await hasFeature(
+        competition.organizingTeamId,
+        FEATURES.REGISTRATION_ADDONS,
+      )
+      if (!addonsEnabled) {
+        throw new Error("Add-ons are not available for this competition")
+      }
+
+      const addonProducts = await db.query.competitionProductsTable.findMany({
+        where: and(
+          eq(competitionProductsTable.competitionId, input.competitionId),
+          inArray(
+            competitionProductsTable.id,
+            input.addOns.map((a) => a.productId),
+          ),
+        ),
+      })
+      const addonVariants =
+        addonProducts.length > 0
+          ? await db.query.competitionProductVariantsTable.findMany({
+              where: inArray(
+                competitionProductVariantsTable.productId,
+                addonProducts.map((p) => p.id),
+              ),
+            })
+          : []
+
+      for (const selection of input.addOns) {
+        const product = addonProducts.find((p) => p.id === selection.productId)
+        if (!product || !isAddonPurchasable(product, competitionTimezone)) {
+          throw new Error("One of the selected add-ons is no longer available")
+        }
+        const variantsForProduct = addonVariants.filter(
+          (v) => v.productId === product.id,
+        )
+        let variant: CompetitionProductVariant | null = null
+        if (variantsForProduct.length > 0) {
+          variant =
+            variantsForProduct.find((v) => v.id === selection.variantId) ?? null
+          if (!variant) {
+            throw new Error(`Please choose an option for ${product.name}`)
+          }
+        } else if (selection.variantId) {
+          throw new Error(`Invalid option for ${product.name}`)
+        }
+        if (!canFulfillQuantity(variant, selection.quantity)) {
+          throw new Error(
+            variant
+              ? `${product.name} (${variant.label}) is sold out`
+              : `${product.name} is sold out`,
+          )
+        }
+        validatedAddons.push({
+          product,
+          variant,
+          quantity: selection.quantity,
+        })
+      }
+
+      // maxPerAthlete applies across variants of the same product
+      const quantityByProduct = new Map<string, number>()
+      for (const addon of validatedAddons) {
+        quantityByProduct.set(
+          addon.product.id,
+          (quantityByProduct.get(addon.product.id) ?? 0) + addon.quantity,
+        )
+      }
+      for (const [productId, total] of quantityByProduct) {
+        const product = addonProducts.find((p) => p.id === productId)
+        if (product?.maxPerAthlete != null && total > product.maxPerAthlete) {
+          throw new Error(
+            `Maximum ${product.maxPerAthlete} per athlete for ${product.name}`,
+          )
+        }
+      }
+    }
+
     // 4. Get registration fee for each division
     const itemFees = await Promise.all(
       input.items.map(async (item) => ({
@@ -523,9 +648,11 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
       })
     }
 
-    // Adjust total after coupon
+    // Adjust total after coupon. Add-ons are always paid (coupons never
+    // discount merch), so any selection forces the Stripe path.
     const discountedTotalFeeCents = totalFeeCents - couponDiscount
-    const allFree = discountedTotalFeeCents === 0
+    const allFree =
+      discountedTotalFeeCents === 0 && validatedAddons.length === 0
 
     // 5. For paid items, verify organizer has Stripe connected
     // Fetch organizing team once with all needed columns (also used for Stripe connection below)
@@ -554,6 +681,106 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
         organizerFeePercentage: organizingTeam.organizerFeePercentage,
         organizerFeeFixed: organizingTeam.organizerFeeFixed,
       }
+    }
+
+    // Settle an invite for a registration created WITHOUT a Stripe purchase
+    // (free divisions). The paid path tags purchase metadata with `inviteId`
+    // and the workflow flips the invite post-webhook, but free registrations
+    // skip Stripe entirely — flip inline or the invite stays `pending`
+    // forever. Runs the authoritative allocation re-check at the write site:
+    // the preflight alone is not enough because free flows leave no
+    // in-flight purchase rows for `getOccupiedCountForBucket` to see — two
+    // concurrent free claims could both pass the preflight and overfill the
+    // (source, division) bucket. On a lost race the just-created
+    // registrations are marked REMOVED so they don't squat division
+    // capacity, and the user gets a clear error. The status=pending guard on
+    // the flip keeps a racing claim/decline from being stomped.
+    const settleInviteForFreeRegistration = async (
+      registrationIdsToRollback: string[],
+      claimedRegistrationId: string,
+    ): Promise<void> => {
+      if (!inviteIdForPurchase) return
+      if (inviteSourceIdForGuardrail) {
+        const inviteDivisionId =
+          inviteDivisionIdForPurchase ?? input.items[0].divisionId
+        const [allocation, occupiedCount] = await Promise.all([
+          resolveAllocationForInvite({
+            invite: {
+              sourceId: inviteSourceIdForGuardrail,
+              championshipDivisionId: inviteDivisionId,
+              championshipCompetitionId: input.competitionId,
+            },
+          }),
+          getOccupiedCountForBucket({
+            sourceId: inviteSourceIdForGuardrail,
+            championshipCompetitionId: input.competitionId,
+            championshipDivisionId: inviteDivisionId,
+            // Same self-exclusion as the preflight: this invite's own
+            // stale pending purchases shouldn't block its own free flip.
+            excludeInviteId: inviteIdForPurchase,
+          }),
+        ])
+        const allocationCheck = assertInviteWithinAllocation({
+          invite: { sourceId: inviteSourceIdForGuardrail },
+          allocation: allocation ?? 0,
+          acceptedCount: occupiedCount,
+        })
+        if (!allocationCheck.ok) {
+          await db
+            .update(competitionRegistrationsTable)
+            .set({
+              status: REGISTRATION_STATUS.REMOVED,
+              updatedAt: new Date(),
+            })
+            .where(
+              inArray(
+                competitionRegistrationsTable.id,
+                registrationIdsToRollback,
+              ),
+            )
+          logWarning({
+            message:
+              "[Registration] Free-checkout invite blocked at write-time allocation recheck; rolled back registrations",
+            attributes: {
+              inviteId: inviteIdForPurchase,
+              sourceId: inviteSourceIdForGuardrail,
+              championshipDivisionId: inviteDivisionId,
+              allocation: allocation ?? 0,
+              occupiedCount,
+              rolledBackRegistrationIds: registrationIdsToRollback,
+            },
+          })
+          throw new Error(
+            "All invitation spots from this qualifying source for this division are filled.",
+          )
+        }
+      }
+      const now = new Date()
+      await db
+        .update(competitionInvitesTable)
+        .set({
+          status: COMPETITION_INVITE_STATUS.ACCEPTED_PAID,
+          paidAt: now,
+          claimedRegistrationId,
+          claimToken: null,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(competitionInvitesTable.id, inviteIdForPurchase),
+            eq(
+              competitionInvitesTable.status,
+              COMPETITION_INVITE_STATUS.PENDING,
+            ),
+          ),
+        )
+      logInfo({
+        message: "[Registration] Free-checkout invite flipped to accepted_paid",
+        attributes: {
+          inviteId: inviteIdForPurchase,
+          registrationId: claimedRegistrationId,
+        },
+      })
     }
 
     // 6. ALL FREE - create registrations directly
@@ -617,105 +844,13 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
         },
       })
 
-      // Mirror the Stripe-workflow invite flip when an invite-locked
-      // checkout zeroes out (e.g. 100% coupon). The paid path tags
-      // purchase metadata with `inviteId` and the workflow flips the
-      // invite to `accepted_paid` post-webhook, but the free branch
-      // skips Stripe entirely — so we have to flip inline or the invite
-      // stays `pending` indefinitely. Guarded by status=pending so a
-      // racing claim/decline doesn't get stomped.
+      // Invite-locked checkout that zeroed out (e.g. 100% coupon): settle
+      // the invite inline since no Stripe purchase will carry it.
       if (inviteIdForPurchase && firstRegistrationId) {
-        // Authoritative allocation re-check at the write site. The
-        // preflight (above, before the allFree branch) is alone not
-        // enough for free invites: the free path skips Stripe, so
-        // `getOccupiedCountForBucket` sees no in-flight purchase rows
-        // for either flow — two concurrent free claims can both pass
-        // the preflight and overfill the (source, division) bucket.
-        // Re-running the check here catches any peer that has already
-        // flipped to accepted_paid; if we lose the race, mark the
-        // just-created registrations REMOVED so they don't squat
-        // division capacity and surface a clear error to the user.
-        if (inviteSourceIdForGuardrail) {
-          const inviteDivisionId =
-            inviteDivisionIdForPurchase ?? input.items[0].divisionId
-          const [allocation, occupiedCount] = await Promise.all([
-            resolveAllocationForInvite({
-              invite: {
-                sourceId: inviteSourceIdForGuardrail,
-                championshipDivisionId: inviteDivisionId,
-                championshipCompetitionId: input.competitionId,
-              },
-            }),
-            getOccupiedCountForBucket({
-              sourceId: inviteSourceIdForGuardrail,
-              championshipCompetitionId: input.competitionId,
-              championshipDivisionId: inviteDivisionId,
-              // Same self-exclusion as the preflight: this invite's own
-              // stale pending purchases shouldn't block its own free flip.
-              excludeInviteId: inviteIdForPurchase,
-            }),
-          ])
-          const allocationCheck = assertInviteWithinAllocation({
-            invite: { sourceId: inviteSourceIdForGuardrail },
-            allocation: allocation ?? 0,
-            acceptedCount: occupiedCount,
-          })
-          if (!allocationCheck.ok) {
-            await db
-              .update(competitionRegistrationsTable)
-              .set({
-                status: REGISTRATION_STATUS.REMOVED,
-                updatedAt: new Date(),
-              })
-              .where(
-                inArray(
-                  competitionRegistrationsTable.id,
-                  createdRegistrationIds,
-                ),
-              )
-            logWarning({
-              message:
-                "[Registration] Free-checkout invite blocked at write-time allocation recheck; rolled back registrations",
-              attributes: {
-                inviteId: inviteIdForPurchase,
-                sourceId: inviteSourceIdForGuardrail,
-                championshipDivisionId: inviteDivisionId,
-                allocation: allocation ?? 0,
-                occupiedCount,
-                rolledBackRegistrationIds: createdRegistrationIds,
-              },
-            })
-            throw new Error(
-              "All invitation spots from this qualifying source for this division are filled.",
-            )
-          }
-        }
-        const now = new Date()
-        await db
-          .update(competitionInvitesTable)
-          .set({
-            status: COMPETITION_INVITE_STATUS.ACCEPTED_PAID,
-            paidAt: now,
-            claimedRegistrationId: firstRegistrationId,
-            claimToken: null,
-            updatedAt: now,
-          })
-          .where(
-            and(
-              eq(competitionInvitesTable.id, inviteIdForPurchase),
-              eq(
-                competitionInvitesTable.status,
-                COMPETITION_INVITE_STATUS.PENDING,
-              ),
-            ),
-          )
-        logInfo({
-          message: "[Registration] Free-checkout invite flipped to accepted_paid",
-          attributes: {
-            inviteId: inviteIdForPurchase,
-            registrationId: firstRegistrationId,
-          },
-        })
+        await settleInviteForFreeRegistration(
+          createdRegistrationIds,
+          firstRegistrationId,
+        )
       }
 
       // Record coupon redemption if a coupon covered the full amount
@@ -817,6 +952,22 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
           },
         })
 
+        // An invited FREE division can land here when add-ons force the
+        // Stripe path (allFree requires zero add-ons). No purchase row
+        // carries the inviteId for the workflow to flip, so settle the
+        // invite inline exactly like the all-free branch. Throwing on a
+        // lost allocation race aborts before the Stripe session is
+        // created, so the add-ons are never charged.
+        if (
+          inviteIdForPurchase &&
+          item.divisionId === inviteDivisionIdForPurchase
+        ) {
+          await settleInviteForFreeRegistration(
+            [result.registrationId],
+            result.registrationId,
+          )
+        }
+
         continue
       }
 
@@ -878,6 +1029,91 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
       })
     }
 
+    // 8.5. Add-on (merch) line items. Each selection becomes its own
+    // purchase row referencing a lazily created ADDON commerce product
+    // (resourceId = catalog product id). Pricing is per-unit all-in
+    // (percentage platform fee only — no fixed fee on merch) multiplied by
+    // quantity, so the form summary, the Stripe line item, and the purchase
+    // row are cent-identical. The checkout workflow completes these without
+    // creating registrations.
+    for (const {
+      product: addonProduct,
+      variant,
+      quantity,
+    } of validatedAddons) {
+      let addonCommerceProduct = await db.query.commerceProductTable.findFirst({
+        where: and(
+          eq(commerceProductTable.type, COMMERCE_PRODUCT_TYPE.ADDON),
+          eq(commerceProductTable.resourceId, addonProduct.id),
+        ),
+      })
+      if (!addonCommerceProduct) {
+        const addonCommerceProductId = createCommerceProductId()
+        await db.insert(commerceProductTable).values({
+          id: addonCommerceProductId,
+          name: addonProduct.name,
+          type: COMMERCE_PRODUCT_TYPE.ADDON,
+          resourceId: addonProduct.id,
+          priceCents: addonProduct.priceCents,
+        })
+        addonCommerceProduct = await db.query.commerceProductTable.findFirst({
+          where: eq(commerceProductTable.id, addonCommerceProductId),
+        })
+      }
+      if (!addonCommerceProduct) {
+        throw new Error("Failed to get or create add-on product")
+      }
+
+      const unitBreakdown = getAddonUnitBreakdown(
+        addonProduct.priceCents,
+        feeConfig,
+      )
+      const lineBreakdown = multiplyFeeBreakdown(unitBreakdown, quantity)
+
+      const purchaseId = createCommercePurchaseId()
+      purchaseIds.push(purchaseId)
+
+      await db.insert(commercePurchaseTable).values({
+        id: purchaseId,
+        userId,
+        productId: addonCommerceProduct.id,
+        status: COMMERCE_PURCHASE_STATUS.PENDING,
+        competitionId: input.competitionId,
+        divisionId: null,
+        variantId: variant?.id ?? null,
+        quantity,
+        totalCents: lineBreakdown.totalChargeCents,
+        platformFeeCents: lineBreakdown.platformFeeCents,
+        stripeFeeCents: lineBreakdown.stripeFeeCents,
+        organizerNetCents: lineBreakdown.organizerNetCents,
+        metadata: JSON.stringify({
+          addonProductId: addonProduct.id,
+          addonName: addonProduct.name,
+          variantLabel: variant?.label ?? null,
+          quantity,
+          unitPriceCents: addonProduct.priceCents,
+          unitChargeCents: unitBreakdown.totalChargeCents,
+        }),
+      })
+
+      totalChargeCents += lineBreakdown.totalChargeCents
+      totalOrganizerNetCents += lineBreakdown.organizerNetCents
+
+      lineItems.push({
+        price_data: {
+          currency: "usd",
+          unit_amount: unitBreakdown.totalChargeCents,
+          product_data: {
+            name: variant
+              ? `${addonProduct.name} (${variant.label})`
+              : addonProduct.name,
+            description: `Event add-on - ${competition.name}`,
+          },
+        },
+        quantity,
+      })
+    }
+
     // If no paid items remain (all were free after splitting), return
     if (purchaseIds.length === 0 || lineItems.length === 0) {
       return {
@@ -913,10 +1149,24 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
       organizingTeam?.stripeConnectedAccountId &&
       organizingTeam.stripeAccountStatus === "VERIFIED"
     ) {
-      const applicationFeeAmount = Math.max(
-        0,
-        totalChargeCents - totalOrganizerNetCents,
-      )
+      const applicationFeeAmount = calculateApplicationFeeCents({
+        totalChargeCents,
+        totalOrganizerNetCents,
+        discountCents: couponDiscount,
+      })
+      if (applicationFeeAmount < totalChargeCents - totalOrganizerNetCents) {
+        logWarning({
+          message:
+            "[Registration] Application fee clamped to post-discount charge",
+          attributes: {
+            competitionId: input.competitionId,
+            totalChargeCents,
+            totalOrganizerNetCents,
+            couponDiscountCents: couponDiscount,
+            applicationFeeAmount,
+          },
+        })
+      }
 
       sessionParams.payment_intent_data = {
         application_fee_amount: applicationFeeAmount,
@@ -964,6 +1214,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
         purchaseIds: purchaseIds.join(","),
         competitionId: input.competitionId,
         lineItemCount: lineItems.length,
+        addonCount: validatedAddons.length,
         totalCents: totalChargeCents,
         hasConnectedAccount: !!organizingTeam?.stripeConnectedAccountId,
       },
@@ -2562,15 +2813,11 @@ export const refundRegistrationFn = createServerFn({ method: "POST" })
     }
 
     if (purchase.status !== COMMERCE_PURCHASE_STATUS.COMPLETED) {
-      throw new Error(
-        "Cannot refund: purchase is not completed",
-      )
+      throw new Error("Cannot refund: purchase is not completed")
     }
 
     if (!purchase.stripePaymentIntentId) {
-      throw new Error(
-        "Cannot refund: purchase has no Stripe payment intent",
-      )
+      throw new Error("Cannot refund: purchase has no Stripe payment intent")
     }
     const stripePaymentIntentId = purchase.stripePaymentIntentId
 

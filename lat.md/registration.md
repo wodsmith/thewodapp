@@ -16,12 +16,15 @@ The flow validates in order:
 3. Division capacity not exceeded
 4. Competition-wide capacity not exceeded
 5. Required registration questions answered
-6. Fee calculated per division (division-specific fee overrides competition default)
-7. Coupon applied if provided by link session data or manual entry
+6. Add-on (merch) selections validated when present — entitlement, availability, variant, quantity caps, soft stock; see [[commerce#Registration Add-ons]]
+7. Fee calculated per division (division-specific fee overrides competition default)
+8. Coupon applied if provided by link session data or manual entry
 
-For **free** competitions (or fully discounted by coupon): calls `registerForCompetition` directly and returns immediately.
+For **free** competitions (or fully discounted by coupon): calls `registerForCompetition` directly and returns immediately. Selecting any add-on disables this shortcut — add-ons are always paid, so a free division plus a paid shirt still routes through Stripe.
 
-For **paid** competitions: creates `commercePurchaseTable` records (one per division), builds Stripe Checkout line items with fee breakdown, creates a Stripe Checkout Session, and redirects the athlete. Registration is finalized asynchronously by the [[registration#Stripe Checkout Workflow]].
+For **paid** competitions: creates `commercePurchaseTable` records (one per division, plus one per add-on selection), builds Stripe Checkout line items with fee breakdown, creates a Stripe Checkout Session, and redirects the athlete. Registration is finalized asynchronously by the [[registration#Stripe Checkout Workflow]]; add-on purchases complete through the same workflow's ADDON branch without creating registrations.
+
+The registration form renders an optional "Event merch" order-bump section between the coupon input and the fee summary when the organizer has purchasable add-ons ([[apps/wodsmith-start/src/components/registration/addons-section.tsx#AddOnsSection]]).
 
 Coupon codes are resolved before redirecting to Stripe; see [[commerce#Coupons#Registration coupon entry]] for the shared link/manual entry behavior.
 
@@ -89,7 +92,7 @@ Volunteer application unit tests in [[apps/wodsmith-start/test/server-fns/volunt
 
 Both division-level and competition-wide capacity are enforced at registration time and again at payment completion.
 
-Division capacity uses `calculateDivisionCapacity` with `divisionMaxSpots` (per-division override) falling back to `competitionDefaultMax`. Competition-wide capacity checks `maxTotalRegistrations`. Pending purchases (within a time window) count toward occupied spots to prevent overselling during concurrent checkouts.
+Division capacity uses `calculateDivisionCapacity` with `divisionMaxSpots` (per-division override) falling back to `competitionDefaultMax`. Competition-wide capacity checks `maxTotalRegistrations`. Pending purchases (within a time window) count toward occupied spots to prevent overselling during concurrent checkouts. Only registration purchases count: pending ADDON (merch) purchases share the competitionId but carry a null divisionId and are excluded (`isNotNull(divisionId)`) so a shirt in checkout can never occupy an athlete spot or trigger a competition-full auto-refund.
 
 Invite-locked registration bypasses the public `isFull` derived from this calc when resolving the invited division's eligibility — see [[competition-invites#Registration hand-off from claim]]. The bypass is necessary because the public count includes the invitee's *own* pending Stripe hold, which would otherwise self-fill the division on retry. Caps are still enforced by the per-(source, division) allocation guardrail and the payment-time re-check.
 

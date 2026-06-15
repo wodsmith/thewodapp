@@ -9,9 +9,11 @@ import type {
   Team,
   Waiver,
 } from "@/db/schema"
+import type { PublicAddon } from "@/server-fns/competition-addon-fns"
 import type { PublicCompetitionDivision } from "@/server-fns/competition-divisions-fns"
 import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
 import type { CompetitionCapacityResult } from "@/utils/competition-capacity"
+import { AddOnsSection } from "./addons-section"
 import {
   AffiliateSection,
   CapacityBanners,
@@ -53,6 +55,8 @@ export interface RegistrationFormProps {
   removedDivisionIds?: string[]
   previousAnswers?: Array<{ questionId: string; answer: string }>
   signedWaiverIds?: string[]
+  /** Purchasable add-ons (merch); empty when none or not entitled */
+  addons?: PublicAddon[]
 }
 
 interface PublicProps extends RegistrationFormProps {
@@ -149,6 +153,12 @@ export function PublicRegistrationForm(props: PublicProps) {
           disabled={fieldsDisabled}
           isApplying={r.isApplyingCoupon}
         />
+        <AddOnsSection
+          addons={r.addons}
+          quantities={r.addonQuantities}
+          onQuantityChange={r.setAddonQuantity}
+          disabled={fieldsDisabled}
+        />
         <FeeSummarySection
           competitionId={props.competition.id}
           selectedDivisionIds={r.selectedDivisionIds}
@@ -156,6 +166,7 @@ export function PublicRegistrationForm(props: PublicProps) {
           divisionFees={r.divisionFees}
           onFeesLoaded={r.handleFeesLoaded}
           activeCoupon={r.activeCoupon}
+          addonLineItems={r.addonLineItems}
         />
         <TeamDetailsSection
           selectedTeamDivisions={r.selectedTeamDivisions}
@@ -290,6 +301,12 @@ export function InviteRegistrationForm(props: InviteProps) {
           disabled={fieldsDisabled}
           isApplying={r.isApplyingCoupon}
         />
+        <AddOnsSection
+          addons={r.addons}
+          quantities={r.addonQuantities}
+          onQuantityChange={r.setAddonQuantity}
+          disabled={fieldsDisabled}
+        />
         <FeeSummarySection
           competitionId={props.competition.id}
           selectedDivisionIds={r.selectedDivisionIds}
@@ -297,6 +314,7 @@ export function InviteRegistrationForm(props: InviteProps) {
           divisionFees={r.divisionFees}
           onFeesLoaded={r.handleFeesLoaded}
           activeCoupon={r.activeCoupon}
+          addonLineItems={r.addonLineItems}
         />
         <TeamDetailsSection
           selectedTeamDivisions={r.selectedTeamDivisions}
