@@ -5,7 +5,6 @@ import {
   Eye,
   EyeOff,
   Layers,
-  Pencil,
   UserPlus,
 } from "lucide-react"
 import type { ReactNode } from "react"
@@ -196,12 +195,6 @@ export function CompetitionHeader({ competition }: CompetitionHeaderProps) {
         </div>
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-2">
-        <a href={`/compete/organizer/${competition.id}/edit`}>
-          <Button variant="outline" size="sm">
-            <Pencil className="mr-2 h-4 w-4" />
-            Edit
-          </Button>
-        </a>
         <Link to="/compete/$slug" params={{ slug: competition.slug }}>
           <Button variant="outline" size="sm">
             <ExternalLink className="mr-2 h-4 w-4" />
