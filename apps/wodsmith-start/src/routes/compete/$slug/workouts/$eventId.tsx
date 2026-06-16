@@ -103,27 +103,37 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
         .sort((a, b) => a.trackOrder - b.trackOrder)
 
       const mappings = pageData.eventDivisionMappings
-      const mappedDivisionIds = (() => {
-        if (!mappings.hasMappings || !athleteRegisteredDivisionIds.length) {
-          return athleteRegisteredDivisionIds
-        }
+      const relevantMappedDivisionIds = (() => {
+        if (!mappings.hasMappings) return undefined
         const parentId = pageData.event?.parentEventId
         const relevantMappings = mappings.mappings.filter(
           (m) =>
             m.trackWorkoutId === eventId ||
             (parentId && m.trackWorkoutId === parentId),
         )
-        if (relevantMappings.length === 0) return athleteRegisteredDivisionIds
-        const mappedSet = new Set(relevantMappings.map((m) => m.divisionId))
+        if (relevantMappings.length === 0) return undefined
+        return [...new Set(relevantMappings.map((m) => m.divisionId))]
+      })()
+
+      const selectableDivisionIds = (() => {
+        if (!mappings.hasMappings || !athleteRegisteredDivisionIds.length) {
+          return athleteRegisteredDivisionIds
+        }
+        if (!relevantMappedDivisionIds) return athleteRegisteredDivisionIds
+        const mappedSet = new Set(relevantMappedDivisionIds)
         return athleteRegisteredDivisionIds.filter((id) => mappedSet.has(id))
       })()
 
       const initialSubmissionDivisionId =
-        (deps.division && mappedDivisionIds.includes(deps.division)
+        (deps.division && selectableDivisionIds.includes(deps.division)
           ? deps.division
-          : mappedDivisionIds[0]) ?? undefined
+          : selectableDivisionIds[0]) ?? undefined
 
-      return { childEvents, initialSubmissionDivisionId }
+      return {
+        childEvents,
+        initialSubmissionDivisionId,
+        submissionDivisionIds: relevantMappedDivisionIds,
+      }
     }
 
     // For online competitions, fetch video submissions in ONE batched call
@@ -137,8 +147,11 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
         const pageData = await pageDataPromise
         if (!pageData.event) return {}
 
-        const { childEvents, initialSubmissionDivisionId } =
-          resolveSubmissionContext(pageData)
+        const {
+          childEvents,
+          initialSubmissionDivisionId,
+          submissionDivisionIds,
+        } = resolveSubmissionContext(pageData)
         const targetIds =
           childEvents.length > 0 ? childEvents.map((c) => c.id) : [eventId]
 
@@ -156,32 +169,14 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
             workout: null,
             existingScore: null,
           }
-          return Object.fromEntries(
-            targetIds.map((id) => [id, stub] as const),
-          )
+          return Object.fromEntries(targetIds.map((id) => [id, stub] as const))
         }
-        if (userRegistrations.length === 0) {
-          const stub: VideoSubmissionResult = {
-            submissions: [],
-            teamSize: 1,
-            isCaptain: true,
-            canSubmit: false,
-            reason:
-              "You must be registered for this competition to submit a video",
-            isRegistered: false,
-            workout: null,
-            existingScore: null,
-          }
-          return Object.fromEntries(
-            targetIds.map((id) => [id, stub] as const),
-          )
-        }
-
         const { results } = await getBatchEventVideoSubmissionsFn({
           data: {
             competitionId: competition.id,
             trackWorkoutIds: targetIds,
             divisionId: initialSubmissionDivisionId,
+            divisionIds: submissionDivisionIds,
           },
         })
         return results
@@ -384,7 +379,9 @@ function EventDetailsPage() {
           )
           // No mappings for this specific event → show all divisions
           if (eventMappings.length === 0) return divisions
-          const mappedDivisionIds = new Set(eventMappings.map((m) => m.divisionId))
+          const mappedDivisionIds = new Set(
+            eventMappings.map((m) => m.divisionId),
+          )
           return divisions.filter((d) => mappedDivisionIds.has(d.id))
         })()
       : divisions
@@ -392,7 +389,10 @@ function EventDetailsPage() {
   // Filter the athlete's registered divisions by event-division mappings
   // so the division picker only shows divisions mapped to this event
   const filteredRegisteredDivisions = (() => {
-    if (!eventDivisionMappings.hasMappings || !athleteRegisteredDivisions.length) {
+    if (
+      !eventDivisionMappings.hasMappings ||
+      !athleteRegisteredDivisions.length
+    ) {
       return athleteRegisteredDivisions
     }
     const parentId = event.parentEventId
@@ -403,7 +403,9 @@ function EventDetailsPage() {
     )
     if (eventMappings.length === 0) return athleteRegisteredDivisions
     const mappedDivisionIds = new Set(eventMappings.map((m) => m.divisionId))
-    return athleteRegisteredDivisions.filter((d) => mappedDivisionIds.has(d.divisionId))
+    return athleteRegisteredDivisions.filter((d) =>
+      mappedDivisionIds.has(d.divisionId),
+    )
   })()
 
   // Constrain initialDivisionId to filtered divisions so unmapped divisions aren't used
@@ -419,7 +421,7 @@ function EventDetailsPage() {
   const sidebarSubmission =
     videoSubmission ??
     (childEvents.length > 0
-      ? Object.values(childVideoSubmissions)[0] ?? null
+      ? (Object.values(childVideoSubmissions)[0] ?? null)
       : null)
 
   // Sort division descriptions by position
@@ -498,7 +500,11 @@ function EventDetailsPage() {
               <div className="space-y-1">
                 <div className="flex items-center gap-3">
                   <Badge variant="outline" className="text-xs font-medium">
-                    Event {eventPosition > 0 ? eventPosition : formatTrackOrder(event.trackOrder)} of {totalVisibleEvents}
+                    Event{" "}
+                    {eventPosition > 0
+                      ? eventPosition
+                      : formatTrackOrder(event.trackOrder)}{" "}
+                    of {totalVisibleEvents}
                   </Badge>
                   {event.sponsorName && (
                     <span className="text-xs text-muted-foreground">

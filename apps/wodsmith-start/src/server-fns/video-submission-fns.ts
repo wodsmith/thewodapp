@@ -213,6 +213,7 @@ async function getAthleteRegistration(
   competitionId: string,
   userId: string,
   divisionId?: string,
+  divisionIds?: string[],
 ): Promise<{
   id: string
   divisionId: string | null
@@ -222,7 +223,7 @@ async function getAthleteRegistration(
 } | null> {
   const db = getDb()
 
-  // Build where conditions — include divisionId filter when provided
+  // Build where conditions — include division filtering when provided
   const conditions = [
     eq(competitionRegistrationsTable.eventId, competitionId),
     eq(competitionRegistrationsTable.userId, userId),
@@ -230,6 +231,10 @@ async function getAthleteRegistration(
   ]
   if (divisionId) {
     conditions.push(eq(competitionRegistrationsTable.divisionId, divisionId))
+  } else if (divisionIds?.length) {
+    conditions.push(
+      inArray(competitionRegistrationsTable.divisionId, divisionIds),
+    )
   }
 
   // First, look for the user's own registration (works for captains and individuals)
@@ -694,6 +699,7 @@ export const getBatchEventVideoSubmissionsFn = createServerFn({
         competitionId: z.string().min(1),
         trackWorkoutIds: z.array(z.string().min(1)).min(1),
         divisionId: z.string().optional(),
+        divisionIds: z.array(z.string().min(1)).optional(),
       })
       .parse(data),
   )
@@ -725,6 +731,7 @@ export const getBatchEventVideoSubmissionsFn = createServerFn({
         data.competitionId,
         session.userId,
         data.divisionId,
+        data.divisionIds,
       )
 
       if (!registration) {
@@ -1332,8 +1339,7 @@ export const submitVideoFn = createServerFn({ method: "POST" })
     // the score is only sent with the first slot (videoIndex 0) and shared
     // across the team's submission, so subsequent slots intentionally arrive
     // without a score and must not be rejected here.
-    const hasRoundScores =
-      data.roundScores && data.roundScores.length > 0
+    const hasRoundScores = data.roundScores && data.roundScores.length > 0
     const hasScore = data.score || hasRoundScores
 
     if (data.videoIndex === 0 && !hasScore) {
@@ -1652,10 +1658,7 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
       .where(
         and(
           eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId),
-          ne(
-            competitionRegistrationsTable.status,
-            REGISTRATION_STATUS.REMOVED,
-          ),
+          ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
         ),
       )
       .orderBy(asc(videoSubmissionsTable.videoIndex))

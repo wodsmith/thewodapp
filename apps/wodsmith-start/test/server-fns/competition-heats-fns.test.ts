@@ -75,13 +75,27 @@ function createDbMock(config: {
       // Each select() gets its own query object so concurrent queries
       // don't share state.
       let result: unknown[] = []
+      let currentTable: unknown
       const q: Record<string, unknown> = {}
       q.from = vi.fn((table: unknown) => {
+        currentTable = table
         result = resultForTable(table)
         querySequence.push('from')
         return q
       })
-      q.where = vi.fn(() => {
+      q.where = vi.fn((condition: unknown) => {
+        if (
+          currentTable === competitionHeatsTable &&
+          conditionReferencesColumn(condition, 'schedulePublishedAt')
+        ) {
+          result = result.filter(
+            (row) =>
+              typeof row === 'object' &&
+              row !== null &&
+              'schedulePublishedAt' in row &&
+              row.schedulePublishedAt !== null,
+          )
+        }
         querySequence.push('where')
         return q
       })
@@ -105,6 +119,17 @@ function createDbMock(config: {
       },
     },
   }
+}
+
+function conditionReferencesColumn(condition: unknown, columnName: string): boolean {
+  if (!condition || typeof condition !== 'object') return false
+  if ('name' in condition && condition.name === columnName) return true
+  if ('queryChunks' in condition && Array.isArray(condition.queryChunks)) {
+    return condition.queryChunks.some((chunk) =>
+      conditionReferencesColumn(chunk, columnName),
+    )
+  }
+  return false
 }
 
 let mockDbInstance: ReturnType<typeof createDbMock>

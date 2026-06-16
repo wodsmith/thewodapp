@@ -70,8 +70,12 @@ export const getPublicWorkoutsPageDataFn = createServerFn({ method: "GET" })
     getPublicWorkoutsPageDataInputSchema.parse(data),
   )
   .handler(async ({ data }) => {
-    const { competitionId, divisionIds, includeVenues, includeSubmissionStatuses } =
-      data
+    const {
+      competitionId,
+      divisionIds,
+      includeVenues,
+      includeSubmissionStatuses,
+    } = data
 
     // Wave 1: workouts and event-division mappings are independent.
     // Each in-process server fn call opens its own DB connection.
@@ -81,12 +85,7 @@ export const getPublicWorkoutsPageDataFn = createServerFn({ method: "GET" })
       }),
       getPublicEventDivisionMappingsFn({
         data: { competitionId },
-      }).catch(
-        (): PublicEventDivisionMappings => ({
-          mappings: [],
-          hasMappings: false,
-        }),
-      ),
+      }),
     ])
 
     const workouts = workoutsResult.workouts
