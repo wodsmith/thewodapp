@@ -16,22 +16,30 @@ import type { CohostMembershipMetadata } from "@/db/schemas/cohost"
 
 const PERMISSION_GROUPS = [
   {
-    label: "Competition Setup",
+    label: "Setup",
     items: [
-      { key: "divisions" as const, label: "Divisions" },
-      { key: "viewRegistrations" as const, label: "View registrations" },
-      { key: "editRegistrations" as const, label: "Manage registrations" },
+      { key: "divisions" as const, label: "Divisions & capacity" },
       { key: "editEvents" as const, label: "Edit events" },
-      { key: "scoringConfig" as const, label: "Scoring config" },
+      { key: "locations" as const, label: "Venues & lanes" },
+      { key: "scoringConfig" as const, label: "Scoring rules" },
+    ],
+  },
+  {
+    label: "Registration",
+    items: [
+      { key: "viewRegistrations" as const, label: "View athletes" },
+      { key: "editRegistrations" as const, label: "Manage athletes" },
       { key: "waivers" as const, label: "Waivers" },
     ],
   },
   {
-    label: "Run Competition",
+    label: "Volunteers & judging",
+    items: [{ key: "volunteers" as const, label: "Volunteers & judging" }],
+  },
+  {
+    label: "Run competition",
     items: [
-      { key: "schedule" as const, label: "Schedule" },
-      { key: "locations" as const, label: "Locations" },
-      { key: "volunteers" as const, label: "Volunteers" },
+      { key: "schedule" as const, label: "Heat schedule" },
       { key: "results" as const, label: "Results" },
       { key: "leaderboardPreview" as const, label: "Leaderboard preview" },
     ],
@@ -58,15 +66,31 @@ type EditCohostPermissionsDialogProps = {
   /** Permission keys to hide (e.g. when team lacks entitlement) */
   hiddenPermissions?: string[]
 } & (
-  | { mode?: "competition"; membershipId: string; email?: never; groupId?: never }
+  | {
+      mode?: "competition"
+      membershipId: string
+      email?: never
+      groupId?: never
+    }
   | { mode: "series"; email: string; groupId: string; membershipId?: never }
 )
 
-export function EditCohostPermissionsDialog(props: EditCohostPermissionsDialogProps) {
-  const { open, onOpenChange, cohostName, currentPermissions, organizingTeamId, hiddenPermissions = [] } = props
+export function EditCohostPermissionsDialog(
+  props: EditCohostPermissionsDialogProps,
+) {
+  const {
+    open,
+    onOpenChange,
+    cohostName,
+    currentPermissions,
+    organizingTeamId,
+    hiddenPermissions = [],
+  } = props
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [permissions, setPermissions] = useState<Record<PermissionKey, boolean>>(() => ({
+  const [permissions, setPermissions] = useState<
+    Record<PermissionKey, boolean>
+  >(() => ({
     divisions: currentPermissions.divisions,
     editEvents: currentPermissions.editEvents,
     scoringConfig: currentPermissions.scoringConfig,
@@ -123,9 +147,13 @@ export function EditCohostPermissionsDialog(props: EditCohostPermissionsDialogPr
             permissions,
           },
         })
-        toast.success(`Permissions updated for ${cohostName} across all series competitions`)
+        toast.success(
+          `Permissions updated for ${cohostName} across all series competitions`,
+        )
       } else {
-        const { updateCohostPermissionsFn } = await import("@/server-fns/cohost-fns")
+        const { updateCohostPermissionsFn } = await import(
+          "@/server-fns/cohost-fns"
+        )
         await updateCohostPermissionsFn({
           data: {
             membershipId: props.membershipId,
@@ -173,12 +201,18 @@ export function EditCohostPermissionsDialog(props: EditCohostPermissionsDialogPr
                 </p>
 
                 {visibleItems.map((item) => (
-                  <div key={item.key} className="flex flex-row items-start space-x-3 space-y-0">
+                  <div
+                    key={item.key}
+                    className="flex flex-row items-start space-x-3 space-y-0"
+                  >
                     <Checkbox
                       id={`edit-perm-${item.key}`}
                       checked={permissions[item.key]}
                       onCheckedChange={(checked) =>
-                        setPermissions((prev) => ({ ...prev, [item.key]: !!checked }))
+                        setPermissions((prev) => ({
+                          ...prev,
+                          [item.key]: !!checked,
+                        }))
                       }
                     />
                     <label

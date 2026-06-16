@@ -2,8 +2,8 @@
  * Competition Invites — organizer route shell
  *
  * Phase 1 of ADR-0011. Tabs:
- *   - Candidates (live)
  *   - Sources (live)
+ *   - Candidates (live)
  *   - Sent (live)
  *
  * Loader enforces MANAGE_COMPETITIONS on the championship's organizing
@@ -301,7 +301,7 @@ function InvitesPage() {
       })
     }
   }, [flagEnabled, competitionId, navigate])
-  const [tab, setTab] = useState("candidates")
+  const [tab, setTab] = useState("sources")
   const [addSingleOpen, setAddSingleOpen] = useState(false)
   const [bulkOpen, setBulkOpen] = useState(false)
   const [sendOpen, setSendOpen] = useState(false)
@@ -916,10 +916,31 @@ function InvitesPage() {
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
-          <TabsTrigger value="candidates">Candidates</TabsTrigger>
           <TabsTrigger value="sources">Sources</TabsTrigger>
+          <TabsTrigger value="candidates">Candidates</TabsTrigger>
           <TabsTrigger value="sent">Sent</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="sources" className="mt-4">
+          <InviteSourcesList
+            sources={sources}
+            competitionNamesById={competitionNamesById}
+            seriesNamesById={seriesNamesById}
+            allocationsBySourceByDivision={allocationsBySourceByDivision}
+            championshipDivisions={championshipDivisions}
+            onAdd={() => {
+              setEditingSource(undefined)
+              setSourceDialogOpen(true)
+            }}
+            onEdit={(source) =>
+              navigate({
+                to: "/compete/organizer/$competitionId/invites/sources/$sourceId",
+                params: { competitionId, sourceId: source.id },
+              })
+            }
+            onDelete={(source) => setDeletingSource(source)}
+          />
+        </TabsContent>
 
         <TabsContent value="candidates" className="mt-4 space-y-6">
           {rosterCompetitions.length === 0 ? (
@@ -1324,27 +1345,6 @@ function InvitesPage() {
               </div>
             )}
           </section>
-        </TabsContent>
-
-        <TabsContent value="sources" className="mt-4">
-          <InviteSourcesList
-            sources={sources}
-            competitionNamesById={competitionNamesById}
-            seriesNamesById={seriesNamesById}
-            allocationsBySourceByDivision={allocationsBySourceByDivision}
-            championshipDivisions={championshipDivisions}
-            onAdd={() => {
-              setEditingSource(undefined)
-              setSourceDialogOpen(true)
-            }}
-            onEdit={(source) =>
-              navigate({
-                to: "/compete/organizer/$competitionId/invites/sources/$sourceId",
-                params: { competitionId, sourceId: source.id },
-              })
-            }
-            onDelete={(source) => setDeletingSource(source)}
-          />
         </TabsContent>
 
         <TabsContent value="sent" className="mt-4">
