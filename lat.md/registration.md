@@ -89,7 +89,7 @@ Volunteer application unit tests in [[apps/wodsmith-start/test/server-fns/volunt
 
 Both division-level and competition-wide capacity are enforced at registration time and again at payment completion.
 
-Division capacity uses `calculateDivisionCapacity` with `divisionMaxSpots` (per-division override) falling back to `competitionDefaultMax`. Competition-wide capacity checks `maxTotalRegistrations`. Pending purchases (within a time window) count toward occupied spots to prevent overselling during concurrent checkouts.
+Division capacity uses `calculateDivisionCapacity` with `divisionMaxSpots` (per-division override) falling back to `competitionDefaultMax`. Competition-wide capacity checks `maxTotalRegistrations` against all non-removed competition registrations, not just the currently displayed scaling group. Pending purchases (within a time window) count toward occupied spots to prevent overselling during concurrent checkouts.
 
 Invite-locked registration bypasses the public `isFull` derived from this calc when resolving the invited division's eligibility — see [[competition-invites#Registration hand-off from claim]]. The bypass is necessary because the public count includes the invitee's *own* pending Stripe hold, which would otherwise self-fill the division on retry. Caps are still enforced by the per-(source, division) allocation guardrail and the payment-time re-check.
 

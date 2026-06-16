@@ -14,13 +14,8 @@ import {
   getPublicScheduleDataFn,
   type PublicScheduleEvent,
 } from "@/server-fns/competition-heats-fns"
-import {
-  type DivisionDescription,
-  getBatchWorkoutDivisionDescriptionsFn,
-  getPublishedCompetitionWorkoutsWithDetailsFn,
-} from "@/server-fns/competition-workouts-fns"
-import { getPublicEventDivisionMappingsFn } from "@/server-fns/event-division-mapping-fns"
-import { getBatchSubmissionStatusFn } from "@/server-fns/video-submission-fns"
+import type { DivisionDescription } from "@/server-fns/competition-workouts-fns"
+import { getPublicWorkoutsPageDataFn } from "@/server-fns/competition-workouts-page-fns"
 import { useDeferredSchedule } from "@/utils/use-deferred-schedule"
 
 const parentRoute = getRouteApi("/compete/$slug")
@@ -36,7 +31,7 @@ export const Route = createFileRoute("/compete/$slug/")({
     if (!competition) {
       return {
         workouts: [],
-        divisionDescriptionsMap: {},
+        divisionDescriptionsMap: {} as Record<string, DivisionDescription[]>,
         submissionStatusMap: {} as Record<string, SubmissionStatus>,
         deferredSchedule: Promise.resolve({
           events: [] as PublicScheduleEvent[],
@@ -52,55 +47,31 @@ export const Route = createFileRoute("/compete/$slug/")({
       data: { competitionId },
     })
 
-    const workoutsResult = await getPublishedCompetitionWorkoutsWithDetailsFn({
-      data: { competitionId },
+    const divisionIds = divisions?.map((d) => d.id) ?? []
+    const userRegistration = parentMatch.loaderData?.userRegistration
+
+    // Single consolidated call for workouts + division descriptions +
+    // event-division mappings + the viewer's submission statuses (fetched
+    // server-side in the same wave as the descriptions, only for registered
+    // athletes on online competitions).
+    const pageData = await getPublicWorkoutsPageDataFn({
+      data: {
+        competitionId,
+        divisionIds,
+        includeSubmissionStatuses:
+          competition.competitionType === "online" && !!userRegistration,
+      },
     })
 
-    const workouts = workoutsResult.workouts
-    const divisionIds = divisions?.map((d) => d.id) ?? []
-    const divisionDescriptionsMap: Record<string, DivisionDescription[]> = {}
-
-    if (divisionIds.length > 0 && workouts.length > 0) {
-      const workoutIds = workouts.map((w) => w.workoutId)
-      const batchResult = await getBatchWorkoutDivisionDescriptionsFn({
-        data: { workoutIds, divisionIds },
-      })
-      Object.assign(divisionDescriptionsMap, batchResult.descriptionsByWorkout)
-    }
-
-    // Fetch submission statuses and event-division mappings in parallel
-    const userRegistration = parentMatch.loaderData?.userRegistration
-    let submissionStatusMap: Record<string, SubmissionStatus> = {}
-
-    const [submissionResult, eventDivisionMappings] = await Promise.all([
-      competition.competitionType === "online" &&
-      userRegistration &&
-      workouts.length > 0
-        ? getBatchSubmissionStatusFn({
-            data: {
-              competitionId,
-              trackWorkoutIds: workouts.map((w) => w.id),
-            },
-          })
-        : Promise.resolve(null),
-      getPublicEventDivisionMappingsFn({
-        data: { competitionId },
-      }).catch(() => ({
-        mappings: [] as Array<{ trackWorkoutId: string; divisionId: string }>,
-        hasMappings: false,
-      })),
-    ])
-
-    if (submissionResult) {
-      submissionStatusMap = submissionResult.statuses
-    }
+    const submissionStatusMap: Record<string, SubmissionStatus> =
+      pageData.submissionStatuses ?? {}
 
     return {
-      workouts,
-      divisionDescriptionsMap,
+      workouts: pageData.workouts,
+      divisionDescriptionsMap: pageData.divisionDescriptionsMap,
       submissionStatusMap,
       deferredSchedule,
-      eventDivisionMappings,
+      eventDivisionMappings: pageData.eventDivisionMappings,
     }
   },
 })
