@@ -209,6 +209,7 @@ export const judgeHeatAssignmentsTable = mysqlTable(
   (table) => [
     index("judge_heat_assignments_heat_idx").on(table.heatId),
     index("judge_heat_assignments_membership_idx").on(table.membershipId),
+    index("judge_heat_assignments_rotation_idx").on(table.rotationId),
     index("judge_heat_assignments_version_idx").on(table.versionId),
     // Ensure a volunteer can only be assigned once per heat per version
     uniqueIndex("judge_heat_assignments_unique_idx").on(

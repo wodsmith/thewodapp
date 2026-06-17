@@ -5,7 +5,7 @@
 
 import { createId } from "@paralleldrive/cuid2"
 import { createServerFn } from "@tanstack/react-start"
-import { and, asc, eq, inArray, isNull } from "drizzle-orm"
+import { and, asc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -499,27 +499,32 @@ export const getPublishedCompetitionWorkoutsWithDetailsFn = createServerFn({
     // Get all workout IDs for batch fetching movements and tags
     const workoutIds = trackWorkouts.map((tw) => tw.workoutId)
 
-    // Batch fetch movements for all workouts
-    const allMovements = await db
-      .select({
-        workoutId: workoutMovements.workoutId,
-        movementId: movements.id,
-        movementName: movements.name,
-      })
-      .from(workoutMovements)
-      .innerJoin(movements, eq(workoutMovements.movementId, movements.id))
-      .where(inArray(workoutMovements.workoutId, workoutIds))
-
-    // Batch fetch tags for all workouts
-    const allTags = await db
-      .select({
-        workoutId: workoutTags.workoutId,
-        tagId: tags.id,
-        tagName: tags.name,
-      })
-      .from(workoutTags)
-      .innerJoin(tags, eq(workoutTags.tagId, tags.id))
-      .where(inArray(workoutTags.workoutId, workoutIds))
+    // Batch fetch movements and tags for all workouts in parallel.
+    // Each branch needs its own getDb() connection — mysql2 serializes
+    // commands on a single connection, so sharing one db would run these
+    // sequentially on the wire.
+    const movementsDb = getDb()
+    const tagsDb = getDb()
+    const [allMovements, allTags] = await Promise.all([
+      movementsDb
+        .select({
+          workoutId: workoutMovements.workoutId,
+          movementId: movements.id,
+          movementName: movements.name,
+        })
+        .from(workoutMovements)
+        .innerJoin(movements, eq(workoutMovements.movementId, movements.id))
+        .where(inArray(workoutMovements.workoutId, workoutIds)),
+      tagsDb
+        .select({
+          workoutId: workoutTags.workoutId,
+          tagId: tags.id,
+          tagName: tags.name,
+        })
+        .from(workoutTags)
+        .innerJoin(tags, eq(workoutTags.tagId, tags.id))
+        .where(inArray(workoutTags.workoutId, workoutIds)),
+    ])
 
     // Create lookup maps for movements and tags
     const movementsByWorkout = new Map<
@@ -596,7 +601,7 @@ export const getPublicEventDetailsFn = createServerFn({
     })
 
     if (!track) {
-      return { event: null, resources: [], heatTimes: null, totalEvents: 0 }
+      return { event: null, resources: [], heatTimes: null }
     }
 
     // Get the track workout with workout details and sponsor
@@ -644,95 +649,90 @@ export const getPublicEventDetailsFn = createServerFn({
       .limit(1)
 
     if (trackWorkoutResult.length === 0) {
-      return { event: null, resources: [], heatTimes: null, totalEvents: 0 }
+      return { event: null, resources: [], heatTimes: null }
     }
 
     const event = trackWorkoutResult[0]
 
-    // Count total published top-level events in this track for "Event X of Y" display
-    const totalEventsResult = await db
-      .select({ id: trackWorkoutsTable.id })
-      .from(trackWorkoutsTable)
-      .where(
-        and(
-          eq(trackWorkoutsTable.trackId, event.trackId),
-          eq(trackWorkoutsTable.eventStatus, "published"),
-          isNull(trackWorkoutsTable.parentEventId),
-        ),
-      )
-    const totalEvents = totalEventsResult.length
+    // Fetch movements, tags, resources, and heats in parallel. Each branch
+    // needs its own getDb() connection — mysql2 serializes commands on a
+    // single connection, so sharing one db would run these sequentially.
+    const [workoutMovementsData, workoutTagsData, resources, heats] =
+      await Promise.all([
+        // Fetch movements for this workout
+        getDb()
+          .select({
+            movementId: movements.id,
+            movementName: movements.name,
+          })
+          .from(workoutMovements)
+          .innerJoin(movements, eq(workoutMovements.movementId, movements.id))
+          .where(eq(workoutMovements.workoutId, event.workoutId)),
+        // Fetch tags for this workout
+        getDb()
+          .select({
+            tagId: tags.id,
+            tagName: tags.name,
+          })
+          .from(workoutTags)
+          .innerJoin(tags, eq(workoutTags.tagId, tags.id))
+          .where(eq(workoutTags.workoutId, event.workoutId)),
+        // Fetch event resources
+        getDb()
+          .select()
+          .from(eventResourcesTable)
+          .where(eq(eventResourcesTable.eventId, data.eventId))
+          .orderBy(asc(eventResourcesTable.sortOrder)),
+        // Only fetch heats if the event's heatStatus is published
+        event.heatStatus === "published"
+          ? getDb()
+              .select({
+                scheduledTime: competitionHeatsTable.scheduledTime,
+                durationMinutes: competitionHeatsTable.durationMinutes,
+              })
+              .from(competitionHeatsTable)
+              .where(eq(competitionHeatsTable.trackWorkoutId, data.eventId))
+              .orderBy(asc(competitionHeatsTable.scheduledTime))
+          : Promise.resolve(
+              [] as Array<{
+                scheduledTime: Date | null
+                durationMinutes: number | null
+              }>,
+            ),
+      ])
 
-    // Fetch movements for this workout
-    const workoutMovementsData = await db
-      .select({
-        movementId: movements.id,
-        movementName: movements.name,
-      })
-      .from(workoutMovements)
-      .innerJoin(movements, eq(workoutMovements.movementId, movements.id))
-      .where(eq(workoutMovements.workoutId, event.workoutId))
-
-    // Fetch tags for this workout
-    const workoutTagsData = await db
-      .select({
-        tagId: tags.id,
-        tagName: tags.name,
-      })
-      .from(workoutTags)
-      .innerJoin(tags, eq(workoutTags.tagId, tags.id))
-      .where(eq(workoutTags.workoutId, event.workoutId))
-
-    // Fetch event resources
-    const resources = await db
-      .select()
-      .from(eventResourcesTable)
-      .where(eq(eventResourcesTable.eventId, data.eventId))
-      .orderBy(asc(eventResourcesTable.sortOrder))
-
-    // Only fetch heat times if the event's heatStatus is published
+    // Derive first/last heat times (heats is empty unless heatStatus is published)
     let heatTimes: {
       firstHeatStartTime: Date
       lastHeatEndTime: Date
     } | null = null
 
-    if (event.heatStatus === "published") {
-      // Fetch heats for this event to get first and last heat times
-      const heats = await db
-        .select({
-          scheduledTime: competitionHeatsTable.scheduledTime,
-          durationMinutes: competitionHeatsTable.durationMinutes,
-        })
-        .from(competitionHeatsTable)
-        .where(eq(competitionHeatsTable.trackWorkoutId, data.eventId))
-        .orderBy(asc(competitionHeatsTable.scheduledTime))
+    // Only include heats that have a scheduled time
+    const scheduledHeats = heats.filter((h) => h.scheduledTime !== null)
 
-      // Only include heats that have a scheduled time
-      const scheduledHeats = heats.filter((h) => h.scheduledTime !== null)
+    if (scheduledHeats.length > 0) {
+      const sortedHeats = scheduledHeats
+        .filter(
+          (h): h is typeof h & { scheduledTime: Date } =>
+            h.scheduledTime !== null,
+        )
+        .sort((a, b) => a.scheduledTime.getTime() - b.scheduledTime.getTime())
 
-      if (scheduledHeats.length > 0) {
-        const sortedHeats = scheduledHeats
-          .filter(
-            (h): h is typeof h & { scheduledTime: Date } =>
-              h.scheduledTime !== null,
+      if (sortedHeats.length > 0) {
+        const firstHeat = sortedHeats[0]!
+        const lastHeat = sortedHeats[sortedHeats.length - 1]!
+
+        // Calculate last heat end time (start time + duration)
+        const lastHeatEndTime = new Date(lastHeat.scheduledTime.getTime())
+        if (lastHeat.durationMinutes) {
+          lastHeatEndTime.setMinutes(
+            lastHeatEndTime.getMinutes() + lastHeat.durationMinutes,
           )
-          .sort((a, b) => a.scheduledTime.getTime() - b.scheduledTime.getTime())
+        }
 
-        if (sortedHeats.length > 0) {
-          const firstHeat = sortedHeats[0]!
-          const lastHeat = sortedHeats[sortedHeats.length - 1]!
-
-          // Calculate last heat end time (start time + duration)
-          const lastHeatEndTime = new Date(lastHeat.scheduledTime.getTime())
-          if (lastHeat.durationMinutes) {
-            lastHeatEndTime.setMinutes(
-              lastHeatEndTime.getMinutes() + lastHeat.durationMinutes,
-            )
-          }
-
-          heatTimes = {
-            firstHeatStartTime: firstHeat.scheduledTime!,
-            lastHeatEndTime,
-          }
+        heatTimes = {
+          firstHeatStartTime: firstHeat.scheduledTime!,
+          lastHeatEndTime,
         }
       }
     }
@@ -767,7 +767,6 @@ export const getPublicEventDetailsFn = createServerFn({
       event: enrichedEvent,
       resources,
       heatTimes,
-      totalEvents,
     }
   })
 
@@ -848,35 +847,39 @@ export const getBatchWorkoutDivisionDescriptionsFn = createServerFn({
       }
     }
 
-    const db = getDb()
-
-    // Get all divisions (shared across workouts)
-    const divisions = await db
-      .select({
-        divisionId: scalingLevelsTable.id,
-        divisionLabel: scalingLevelsTable.label,
-        position: scalingLevelsTable.position,
-      })
-      .from(scalingLevelsTable)
-      .where(inArray(scalingLevelsTable.id, data.divisionIds))
-
-    // Get descriptions for all workouts at once
-    const allDescriptions = await db
-      .select({
-        workoutId: workoutScalingDescriptionsTable.workoutId,
-        scalingLevelId: workoutScalingDescriptionsTable.scalingLevelId,
-        description: workoutScalingDescriptionsTable.description,
-      })
-      .from(workoutScalingDescriptionsTable)
-      .where(
-        and(
-          inArray(workoutScalingDescriptionsTable.workoutId, data.workoutIds),
-          inArray(
-            workoutScalingDescriptionsTable.scalingLevelId,
-            data.divisionIds,
+    // Fetch divisions and descriptions in parallel. Each branch needs its
+    // own getDb() connection — mysql2 serializes commands on a single
+    // connection, so sharing one db would run these sequentially.
+    const divisionsDb = getDb()
+    const descriptionsDb = getDb()
+    const [divisions, allDescriptions] = await Promise.all([
+      // Get all divisions (shared across workouts)
+      divisionsDb
+        .select({
+          divisionId: scalingLevelsTable.id,
+          divisionLabel: scalingLevelsTable.label,
+          position: scalingLevelsTable.position,
+        })
+        .from(scalingLevelsTable)
+        .where(inArray(scalingLevelsTable.id, data.divisionIds)),
+      // Get descriptions for all workouts at once
+      descriptionsDb
+        .select({
+          workoutId: workoutScalingDescriptionsTable.workoutId,
+          scalingLevelId: workoutScalingDescriptionsTable.scalingLevelId,
+          description: workoutScalingDescriptionsTable.description,
+        })
+        .from(workoutScalingDescriptionsTable)
+        .where(
+          and(
+            inArray(workoutScalingDescriptionsTable.workoutId, data.workoutIds),
+            inArray(
+              workoutScalingDescriptionsTable.scalingLevelId,
+              data.divisionIds,
+            ),
           ),
         ),
-      )
+    ])
 
     // Build description map: workoutId -> scalingLevelId -> description
     const descMap = new Map<string, Map<string, string | null>>()

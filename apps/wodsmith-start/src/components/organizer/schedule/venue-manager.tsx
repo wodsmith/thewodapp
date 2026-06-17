@@ -16,7 +16,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   Form,
@@ -353,13 +352,31 @@ export function VenueManager({
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight">Venues</h2>
+          <p className="text-sm text-muted-foreground">
+            Add and manage the locations where heats are scheduled.
+          </p>
+        </div>
+        {displayVenues.length > 0 ? (
+          <Button
+            onClick={() => setIsCreateOpen(true)}
+            className="w-full sm:w-auto"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add venue
+          </Button>
+        ) : null}
+      </div>
+
       {/* Venue List */}
       {displayVenues.length === 0 ? (
         <OrganizerEmptyState
           icon={MapPin}
           title="No venues yet"
-          description='Create locations like "Main Floor" or "Outside Rig" to assign heats to specific areas.'
-          actionLabel="Add Venue"
+          description='Create venues like "Main Floor" or "Outside Rig" with lane counts for heat scheduling.'
+          actionLabel="Add venue"
           actionIcon={<Plus className="mr-2 h-4 w-4" />}
           onAction={() => setIsCreateOpen(true)}
         />
@@ -372,7 +389,8 @@ export function VenueManager({
                   <div>
                     <h3 className="font-medium">{venue.name}</h3>
                     <p className="text-sm text-muted-foreground">
-                      {venue.laneCount} lanes • {venue.transitionMinutes}min
+                      {venue.laneCount} lanes · {venue.transitionMinutes} min
+                      heat interval
                     </p>
                     {venue.address && (
                       <p className="text-xs text-muted-foreground">
@@ -395,6 +413,7 @@ export function VenueManager({
                       size="icon"
                       onClick={() => handleDelete(venue)}
                       disabled={isDeleting}
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -419,14 +438,6 @@ export function VenueManager({
           }
         }}
       >
-        {displayVenues.length > 0 ? (
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Venue
-            </Button>
-          </DialogTrigger>
-        ) : null}
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create venue</DialogTitle>

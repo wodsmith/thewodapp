@@ -8,7 +8,7 @@ The layout route fetches competition data and verifies the user has organizer-le
 
 Access requires authentication plus one of: platform admin role, or owner/admin membership on the competition's `organizingTeamId`. The layout provides competition data to all child routes via `parentMatchPromise`, avoiding redundant fetches. Each child route uses `getRouteApi("/compete/organizer/$competitionId")` to access parent loader data.
 
-The layout header renders [[apps/wodsmith-start/src/components/competition-header.tsx#CompetitionHeader]], which groups publication, visibility, registration, and competition metadata into compact fields under the competition name. The registration field combines open/closed state with the registration date range so organizers can scan state and timing without reading a long inline sentence.
+The layout header renders [[apps/wodsmith-start/src/components/competition-header.tsx#CompetitionHeader]], which groups publication, visibility, registration, and competition metadata into compact fields under the competition name. The registration field combines open/closed state with the registration date range so organizers can scan state and timing without reading a long inline sentence. The header's actions are "View public page" and (for series competitions) "Go to Series" — there is no Edit button because the sidebar's "Competition details" link already navigates to the edit page.
 
 ## Overview Page
 
@@ -62,6 +62,8 @@ The schedule page manages heats — time blocks where groups of athletes perform
 
 Fetches venues, events, heats, divisions, and registrations in parallel. Uses `SchedulePageClient` which contains `VenueManager` and `HeatScheduleManager` components. Heats have start times, lane counts, division/venue assignments, and athlete assignments. Only available for in-person competitions.
 
+The organizer sidebar places Heat schedule in the Setup group immediately after Venues & lanes because heat creation depends on configured venues and lanes.
+
 ## Locations (Venues)
 
 CRUD management of physical venues where competition events take place.
@@ -79,7 +81,7 @@ Uses `getOrganizerRegistrationsFn` for the full registration list with detailed 
 - Transfer registration to a different division (see [[registration#Division Transfer]])
 - Transfer registration to a different person (purchase transfer)
 - CSV export of athlete data
-- Registration questions editor (custom questions athletes answer during signup)
+- Registration questions editor (custom questions athletes answer during signup) — lives on its own route at `/athletes/form-questions`, reached via the sidebar's "Registration questions" link; it has its own loader fetching only the question list
 - Pending teammate invitations tab for team divisions
 - Per-athlete deep link to the [[organizer-dashboard#Registrations (Athletes)#Athlete Detail Page]] via the "View Details" item in the row's captain-scoped actions dropdown (the athlete name itself is plain text — not a link — to keep the row visually calm)
 - For in-person competitions only, a "Checked In" column shows the `checkedInAt` timestamp on the captain's row (see [[registration#Day-of Check-In]]). The CSV export and mobile card view include the same column under the same gate.
@@ -163,7 +165,9 @@ Only available when `competitionType === "online"`. Fetches workouts and competi
 
 ## Volunteers
 
-Manages competition staff across four tabs: roster, shifts, judge scheduling, and signup questions.
+Manages competition staff across four dedicated routes: roster (`/volunteers`), shifts (`/volunteers/shifts`), judge scheduling (`/volunteers/judges`), and registration questions (`/volunteers/signup-questions`).
+
+Each route has its own loader fetching only the data that view needs (the former single `volunteers` route loaded everything for all four views behind a `?tab=` search param). Navigation happens through the sidebar links (Volunteer roster, Volunteer shifts, Judge assignments, Registration questions); there is no on-page tab bar. The judges route redirects online competitions back to the roster since judge scheduling is in-person only.
 
 ### Volunteer Roster
 
@@ -187,7 +191,9 @@ Assigns judges to heats with rotation patterns so judges move between lanes acro
 
 Fetches heats, events, judge volunteers, rotations, heat assignments, and version history. Uses the `JudgeSchedulingContainer` component tree (rotation editor, timeline, overview, publish button). Supports rotation patterns: stay, shift right, random. Judge assignment versions allow publishing/reverting schedules.
 
-The volunteers and judges-ai route loaders load all per-event judge data (heat assignments, rotations + event defaults, version history, active versions) through one batched call — [[apps/wodsmith-start/src/server-fns/judge-scheduling-fns.ts#getJudgeSchedulingDataForEventsFn]] — which issues a constant number of `inArray` queries for any event count and returns records keyed by trackWorkoutId. This replaced four per-event server-fn fan-outs (4N round trips, ~10N queries). The single-event fns (`getJudgeHeatAssignmentsFn`, `getRotationsForEventFn`, `getVersionHistoryFn`, `getActiveVersionFn`) remain for targeted refreshes. The "adjust for occupied lanes" feature (`adjustRotationsForOccupiedLanesFn`) splits rotations to skip unoccupied lanes; cohost routes use `cohostAdjustRotationsForOccupiedLanesFn` via the `onAdjustRotationsForOccupiedLanes` override prop on `RotationTimeline`.
+When the selected event has no athlete heats, the judge assignment and rotation areas use the shared organizer empty state with a CTA back to the heat scheduling page.
+
+The volunteers/judges and judges-ai route loaders load all per-event judge data (heat assignments, rotations + event defaults, version history, active versions) through one batched call — [[apps/wodsmith-start/src/server-fns/judge-scheduling-fns.ts#getJudgeSchedulingDataForEventsFn]] — which issues a constant number of `inArray` queries for any event count and returns records keyed by trackWorkoutId. This replaced four per-event server-fn fan-outs (4N round trips, ~10N queries). The single-event fns (`getJudgeHeatAssignmentsFn`, `getRotationsForEventFn`, `getVersionHistoryFn`, `getActiveVersionFn`) remain for targeted refreshes. The "adjust for occupied lanes" feature (`adjustRotationsForOccupiedLanesFn`) splits rotations to skip unoccupied lanes; cohost routes use `cohostAdjustRotationsForOccupiedLanesFn` via the `onAdjustRotationsForOccupiedLanes` override prop on `RotationTimeline`.
 
 ### AI Judge Scheduling
 
@@ -251,11 +257,11 @@ Aggregates multiple configuration forms on a single page: capacity defaults, sco
 
 Uses `CapacitySettingsForm`, `ScoringSettingsForm`, and `RotationSettingsForm` components.
 
-## Broadcasts
+## Event announcements
 
-One-way broadcast messaging from organizers to registered athletes.
+Event announcements are one-way messages from organizers to athletes, volunteers, or both.
 
-The broadcasts tab at [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/broadcasts.tsx]] lets organizers compose messages with audience filtering (all athletes, by division, all volunteers, volunteers by role, pending teammate invites, or public/everyone), preview recipient count, and send. Organizers can optionally narrow the audience by registration question answers — select questions show checkboxes, text/number questions offer an autocomplete tag input populated via [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#getDistinctAnswersFn]]. Multiple question filters are AND'd; values within each filter are OR'd. The answer lookup uses `Map<string, Set<string>>` to support multiple answers per registration/question (e.g. team registrations where different teammates answered differently). `partitionQuestionFilters` validates that all filter questionIds resolve to existing questions — stale or deleted filters throw an error rather than silently widening the recipient set. [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#sendBroadcastFn]] pre-renders the email template once and enqueues batches of up to 100 recipients into a Cloudflare Queue. The queue consumer at [[apps/wodsmith-start/src/server/broadcast-queue-consumer.ts#handleBroadcastEmailQueue]] sends emails via Resend with per-recipient idempotency keys, updating delivery status in [[apps/wodsmith-start/src/db/schemas/broadcasts.ts#competitionBroadcastRecipientsTable]]. The queue requires both a producer binding (`BROADCAST_EMAIL_QUEUE` in bindings) and a consumer registration (`eventSources` in [[apps/wodsmith-start/alchemy.run.ts]]) — without `eventSources`, messages are enqueued but never delivered. Athletes see broadcasts at [[apps/wodsmith-start/src/routes/compete/$slug/broadcasts.tsx]]. The broadcast list's delivery stats come from a single `GROUP BY (broadcastId, status)` count query in [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#listBroadcastsFn]] rather than two count queries per broadcast.
+The Event announcements page at [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/announcements.tsx]] lives at `/compete/organizer/{competitionId}/announcements` and lets organizers compose messages with audience filtering (all athletes, by division, all volunteers, volunteers by role, pending teammate invites, or public/everyone), preview recipient count, and send. Legacy `/broadcasts` URLs redirect to the announcement routes through [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/broadcasts.tsx]] and [[apps/wodsmith-start/src/routes/compete/$slug/broadcasts.tsx]]. Organizers can optionally narrow the audience by registration question answers — select questions show checkboxes, text/number questions offer an autocomplete tag input populated via [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#getDistinctAnswersFn]]. Multiple question filters are AND'd; values within each filter are OR'd. The answer lookup uses `Map<string, Set<string>>` to support multiple answers per registration/question (e.g. team registrations where different teammates answered differently). `partitionQuestionFilters` validates that all filter questionIds resolve to existing questions — stale or deleted filters throw an error rather than silently widening the recipient set. [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#sendBroadcastFn]] pre-renders the email template once and enqueues batches of up to 100 recipients into a Cloudflare Queue. The queue consumer at [[apps/wodsmith-start/src/server/broadcast-queue-consumer.ts#handleBroadcastEmailQueue]] sends emails via Resend with per-recipient idempotency keys, updating delivery status in [[apps/wodsmith-start/src/db/schemas/broadcasts.ts#competitionBroadcastRecipientsTable]]. The queue requires both a producer binding (`BROADCAST_EMAIL_QUEUE` in bindings) and a consumer registration (`eventSources` in [[apps/wodsmith-start/alchemy.run.ts]]) — without `eventSources`, messages are enqueued but never delivered. Athletes see announcements at [[apps/wodsmith-start/src/routes/compete/$slug/announcements.tsx]] (`/compete/{slug}/announcements`). The broadcast list's delivery stats come from a single `GROUP BY (broadcastId, status)` count query in [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#listBroadcastsFn]] rather than two count queries per broadcast.
 
 ### Audience expansion
 
@@ -283,7 +289,7 @@ The `pending_teammates` audience type targets only unclaimed invitations — use
 
 Optional `divisionId` narrows by inheriting `athleteTeamId`s from registrations in that division. Question filters are rejected at the schema layer ([[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#audienceFilterSchema]]) for this audience type since invitees have no registration answers to match against.
 
-The filter is exposed in the audience type picker in [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/broadcasts.tsx]] and produces invite-only recipient rows that appear in email delivery but not in the athlete in-app broadcasts list, since [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#listAthleteBroadcastsFn]] filters by `userId`.
+The filter is exposed in the audience type picker in [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/announcements.tsx]] and produces invite-only recipient rows that appear in email delivery but not in the athlete in-app announcements list, since [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#listAthleteBroadcastsFn]] filters by `userId`.
 
 ## Danger Zone
 

@@ -267,7 +267,22 @@ export function ShiftList({
   // Empty state
   if (shifts.length === 0) {
     return (
-      <>
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">
+              Volunteer shifts
+            </h2>
+            <p className="text-muted-foreground">
+              Manage time-based volunteer shifts for non-judge roles
+            </p>
+          </div>
+          <Button onClick={handleOpenCreateDialog} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            Add shift
+          </Button>
+        </div>
+
         <OrganizerEmptyState
           icon={CalendarDays}
           title="No volunteer shifts yet"
@@ -285,7 +300,7 @@ export function ShiftList({
           onCreateShift={onCreateShift}
           onUpdateShift={onUpdateShift}
         />
-      </>
+      </div>
     )
   }
 
@@ -295,7 +310,7 @@ export function ShiftList({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
-            Volunteer Shifts
+            Volunteer shifts
           </h2>
           <p className="text-muted-foreground">
             Manage time-based volunteer shifts for non-judge roles

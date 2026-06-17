@@ -413,7 +413,6 @@ function AthleteDetailPage() {
             <Link
               to="/compete/organizer/$competitionId/athletes"
               params={{ competitionId: competition.id }}
-              search={{ tab: "athletes" }}
             >
               <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
               All athletes

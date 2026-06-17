@@ -71,7 +71,7 @@ describe("getPendingTeamInvitesFn", () => {
     expect(mocks.getDb).not.toHaveBeenCalled()
   })
 
-  it("short-circuits when the competition has no athlete teams", async () => {
+  it("returns no invitations when the scoped query matches nothing", async () => {
     mocks.getSessionFromCookie.mockResolvedValueOnce({
       user: { email: "athlete@example.com" },
     })
@@ -82,7 +82,10 @@ describe("getPendingTeamInvitesFn", () => {
     })
 
     expect(result).toEqual({ invitations: [] })
-    expect(mocks.chain.select).toHaveBeenCalledTimes(1)
+    // One DB round trip: the outer invitation query. The second select()
+    // call is the EXISTS subquery builder, which is never executed on its own.
+    expect(mocks.chain.select).toHaveBeenCalledTimes(2)
+    expect(mocks.queryQueue).toHaveLength(0)
   })
 
   it("returns pending invites from the scoped invitation query", async () => {
@@ -100,14 +103,15 @@ describe("getPendingTeamInvitesFn", () => {
     mocks.getSessionFromCookie.mockResolvedValueOnce({
       user: { email: "Athlete@Example.com" },
     })
-    mocks.queryQueue.push([{ athleteTeamId: "team_1" }], [invitation])
+    mocks.queryQueue.push([invitation])
 
     const result = await getPendingTeamInvitesFn({
       data: { competitionId: "comp_1" },
     })
 
     expect(result).toEqual({ invitations: [invitation] })
-    expect(mocks.chain.select).toHaveBeenCalledTimes(2)
+    // Outer invitation query where() + the correlated EXISTS subquery where().
     expect(mocks.whereCalls).toHaveLength(2)
+    expect(mocks.queryQueue).toHaveLength(0)
   })
 })

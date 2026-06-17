@@ -191,7 +191,11 @@ jobs:
           echo "DATABASE_URL=$database_url" >> $GITHUB_ENV
           echo "::add-mask::$database_url"
 
+      # Prod schema changes are applied out-of-band via PlanetScale deploy
+      # requests, so never push drizzle schema changes to the prod (main)
+      # branch on deploy. Non-prod stages (demo/staging/dev) still push.
       - name: Push schema to PlanetScale branch
+        if: ${{ inputs.stage != 'prod' }}
         run: pnpm --filter wodsmith-start exec drizzle-kit push
         working-directory: .
         env:
