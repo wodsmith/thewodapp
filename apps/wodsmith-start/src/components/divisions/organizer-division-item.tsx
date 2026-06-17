@@ -18,8 +18,6 @@ import {
   AlertTriangle,
   ChevronDown,
   GripVertical,
-  Info,
-  Pencil,
   Trash2,
   Users,
 } from "lucide-react"
@@ -312,6 +310,9 @@ export function OrganizerDivisionItem({
                 }}
                 placeholder="Enter division name"
               />
+              <Badge variant="secondary" className="w-fit">
+                {teamSizeLabel}
+              </Badge>
             </div>
             <div className="space-y-1">
               <label
@@ -421,35 +422,27 @@ export function OrganizerDivisionItem({
               </Button>
             </CollapsibleTrigger>
           </div>
-          <div className="px-3 pb-3 md:pl-20">
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <Badge variant="secondary">{teamSizeLabel}</Badge>
-              {description ? (
-                <span className="inline-flex items-center gap-1">
-                  <Info className="h-3 w-3" />
-                  {description}
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1">
-                  <Pencil className="h-3 w-3" />
-                  Add category or gender notes in details
-                </span>
-              )}
-              {capacityState === "near" && (
-                <span className="font-medium text-amber-700">
-                  Near capacity
-                </span>
-              )}
-              {capacityState === "full" && (
-                <span className="font-medium text-orange-700">At capacity</span>
-              )}
-              {capacityState === "over" && (
-                <span className="font-medium text-destructive">
-                  Over capacity
-                </span>
-              )}
+          {capacityState !== "open" && (
+            <div className="px-3 pb-3 md:pl-20">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                {capacityState === "near" && (
+                  <span className="font-medium text-amber-700">
+                    Near capacity
+                  </span>
+                )}
+                {capacityState === "full" && (
+                  <span className="font-medium text-orange-700">
+                    At capacity
+                  </span>
+                )}
+                {capacityState === "over" && (
+                  <span className="font-medium text-destructive">
+                    Over capacity
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
+          )}
           <CollapsibleContent>
             <div className="px-3 pb-3 pl-3 sm:pl-14 space-y-3">
               <p className="text-xs text-muted-foreground">
