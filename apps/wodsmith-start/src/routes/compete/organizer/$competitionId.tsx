@@ -16,6 +16,7 @@ import {
 import { CompetitionHeader } from "@/components/competition-header"
 import { CompetitionSidebar } from "@/components/competition-sidebar"
 import { OrganizerBreadcrumb } from "@/components/organizer-breadcrumb"
+import { ImportShell } from "@/components/organizer-import/import-shell"
 import { PendingOrganizerBanner } from "@/components/pending-organizer-banner"
 import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 
@@ -149,8 +150,11 @@ function CompetitionLayout() {
           }}
         />
 
-        {/* Child route content */}
-        <Outlet />
+        {/* Child route content, wrapped so a dragged file on drop-enabled
+         * organizer pages (Volunteers / Judges) opens the import assistant. */}
+        <ImportShell>
+          <Outlet />
+        </ImportShell>
       </div>
     </CompetitionSidebar>
   )
