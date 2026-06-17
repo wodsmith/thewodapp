@@ -4,7 +4,6 @@ import {
   notFound,
   useNavigate,
 } from "@tanstack/react-router"
-import { createServerFn } from "@tanstack/react-start"
 import {
   ArrowLeft,
   Calendar,
@@ -34,48 +33,22 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { getUserCompetitionRegistrationsFn } from "@/server-fns/competition-detail-fns"
+import { getPublicEventPageDataFn } from "@/server-fns/competition-event-page-fns"
 import {
   getPublicEventHeatsFn,
-  getVenueForTrackWorkoutByDivisionFn,
+  type PublicScheduleHeat,
 } from "@/server-fns/competition-heats-fns"
+import type { DivisionDescription } from "@/server-fns/competition-workouts-fns"
 import {
-  getBatchWorkoutDivisionDescriptionsFn,
-  getPublicEventDetailsFn,
-  getPublishedCompetitionWorkoutsFn,
-} from "@/server-fns/competition-workouts-fns"
-import { getPublicEventDivisionMappingsFn } from "@/server-fns/event-division-mapping-fns"
-import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
-import { getVideoSubmissionFn } from "@/server-fns/video-submission-fns"
+  getBatchEventVideoSubmissionsFn,
+  type VideoSubmissionResult,
+} from "@/server-fns/video-submission-fns"
 import { getGoogleMapsUrl, hasAddressData } from "@/utils/address"
-import { getSessionFromCookie } from "@/utils/auth"
 import { formatTrackOrder } from "@/utils/format-track-order"
 
 const eventSearchSchema = z.object({
   division: z.string().optional(),
 })
-
-// Server function to get ALL athlete registered divisions for this competition
-const getAthleteRegisteredDivisionsFn = createServerFn({ method: "GET" })
-  .inputValidator((data: unknown) =>
-    z.object({ competitionId: z.string() }).parse(data),
-  )
-  .handler(async ({ data }) => {
-    const session = await getSessionFromCookie()
-    if (!session?.user?.id) {
-      return { divisionIds: [] }
-    }
-
-    const result = await getUserCompetitionRegistrationsFn({
-      data: { competitionId: data.competitionId, userId: session.user.id },
-    })
-
-    const divisionIds = result.registrations
-      .map((r) => r.divisionId)
-      .filter((id): id is string => id !== null)
-
-    return { divisionIds }
-  })
 
 export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
   component: EventDetailsPage,
@@ -88,6 +61,8 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
     const parentMatch = await parentMatchPromise
     const competition = parentMatch.loaderData?.competition
     const parentDivisions = parentMatch.loaderData?.divisions
+    const session = parentMatch.loaderData?.session ?? null
+    const userRegistrations = parentMatch.loaderData?.userRegistrations ?? []
 
     if (!competition) {
       throw notFound()
@@ -95,45 +70,140 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
 
     const divisions = parentDivisions ?? []
     const divisionIds = divisions.map((d) => d.id)
-    const defaultDivisionId = divisions[0]?.id ?? null
+    const isOnline = competition.competitionType === "online"
 
-    // Fetch all primary data in parallel — these are independent of one another.
-    // getPublishedCompetitionWorkoutsFn returns the full workout list (heavy);
-    // it now runs alongside the rest instead of after.
-    const [
-      eventResult,
-      judgingSheetsResult,
-      athleteDivisionsResult,
-      eventDivisionMappingResult,
-      allWorkoutsResult,
-      venueResult,
-    ] = await Promise.all([
-      getPublicEventDetailsFn({
-        data: { eventId, competitionId: competition.id },
-      }),
-      getEventJudgingSheetsFn({ data: { trackWorkoutId: eventId } }),
-      getAthleteRegisteredDivisionsFn({
-        data: { competitionId: competition.id },
-      }),
-      getPublicEventDivisionMappingsFn({
-        data: { competitionId: competition.id },
-      }),
-      getPublishedCompetitionWorkoutsFn({
-        data: { competitionId: competition.id },
-      }),
-      defaultDivisionId
-        ? getVenueForTrackWorkoutByDivisionFn({
-            data: { trackWorkoutId: eventId, divisionId: defaultDivisionId },
-          })
-        : Promise.resolve({ venue: null }),
+    // Athlete's registered division ids — derived from the parent route's
+    // registrations (the same getUserCompetitionRegistrationsFn data the old
+    // inline server fn re-queried).
+    const athleteRegisteredDivisionIds = userRegistrations
+      .map((r) => r.divisionId)
+      .filter((id): id is string => id !== null)
+
+    // ONE consolidated call for all public page data. Independent queries run
+    // in parallel server-side; the event-dependent division descriptions run
+    // as a second wave inside the fn.
+    const pageDataPromise = getPublicEventPageDataFn({
+      data: {
+        competitionId: competition.id,
+        trackWorkoutId: eventId,
+        divisionIds,
+      },
+    })
+
+    // Resolve child events and the division the submission form should
+    // initialize with: prefer the URL's division param when it matches a
+    // registered AND event-mapped division, so that the form initializes with
+    // the correct teamSize for team divisions; otherwise the first mapped
+    // registered division.
+    const resolveSubmissionContext = (
+      pageData: Awaited<typeof pageDataPromise>,
+    ) => {
+      const childEvents = pageData.workouts
+        .filter((w) => w.parentEventId === eventId)
+        .sort((a, b) => a.trackOrder - b.trackOrder)
+
+      const mappings = pageData.eventDivisionMappings
+      const relevantMappedDivisionIds = (() => {
+        if (!mappings.hasMappings) return undefined
+        const parentId = pageData.event?.parentEventId
+        const relevantMappings = mappings.mappings.filter(
+          (m) =>
+            m.trackWorkoutId === eventId ||
+            (parentId && m.trackWorkoutId === parentId),
+        )
+        if (relevantMappings.length === 0) return undefined
+        return [...new Set(relevantMappings.map((m) => m.divisionId))]
+      })()
+
+      const selectableDivisionIds = (() => {
+        if (!mappings.hasMappings || !athleteRegisteredDivisionIds.length) {
+          return athleteRegisteredDivisionIds
+        }
+        if (!relevantMappedDivisionIds) return athleteRegisteredDivisionIds
+        const mappedSet = new Set(relevantMappedDivisionIds)
+        return athleteRegisteredDivisionIds.filter((id) => mappedSet.has(id))
+      })()
+
+      const initialSubmissionDivisionId =
+        (deps.division && selectableDivisionIds.includes(deps.division)
+          ? deps.division
+          : selectableDivisionIds[0]) ?? undefined
+
+      return {
+        childEvents,
+        initialSubmissionDivisionId,
+        submissionDivisionIds: relevantMappedDivisionIds,
+      }
+    }
+
+    // For online competitions, fetch video submissions in ONE batched call
+    // (instead of one getVideoSubmissionFn call per child event). The target
+    // events (children vs the event itself) and the mapped division only
+    // emerge from the page data, so this chains off the same promise — a
+    // single dependent round-trip.
+    const videoDataPromise: Promise<Record<string, VideoSubmissionResult>> =
+      (async () => {
+        if (!isOnline) return {}
+        const pageData = await pageDataPromise
+        if (!pageData.event) return {}
+
+        const {
+          childEvents,
+          initialSubmissionDivisionId,
+          submissionDivisionIds,
+        } = resolveSubmissionContext(pageData)
+        const targetIds =
+          childEvents.length > 0 ? childEvents.map((c) => c.id) : [eventId]
+
+        // Anonymous visitors and users without a registration get the same
+        // stubs getVideoSubmissionFn would return — synthesized locally so we
+        // skip the server round-trip entirely.
+        if (!session) {
+          const stub: VideoSubmissionResult = {
+            submissions: [],
+            teamSize: 1,
+            isCaptain: true,
+            canSubmit: false,
+            reason: "Not authenticated",
+            isRegistered: false,
+            workout: null,
+            existingScore: null,
+          }
+          return Object.fromEntries(targetIds.map((id) => [id, stub] as const))
+        }
+        const { results } = await getBatchEventVideoSubmissionsFn({
+          data: {
+            competitionId: competition.id,
+            trackWorkoutIds: targetIds,
+            divisionId: initialSubmissionDivisionId,
+            divisionIds: submissionDivisionIds,
+          },
+        })
+        return results
+      })()
+
+    // Heat schedule stays OFF the loader's critical path: EventHeatSchedule
+    // resolves this promise in a client-side effect, so awaiting it here
+    // would delay first paint without putting heats in the SSR HTML.
+    const deferredEventHeats: Promise<{ heats: PublicScheduleHeat[] }> =
+      pageDataPromise.then((pd) =>
+        pd.event?.heatStatus === "published"
+          ? getPublicEventHeatsFn({ data: { trackWorkoutId: eventId } })
+          : { heats: [] as PublicScheduleHeat[] },
+      )
+
+    const [pageData, videoResults] = await Promise.all([
+      pageDataPromise,
+      videoDataPromise,
     ])
 
-    if (!eventResult.event) {
+    if (!pageData.event) {
       throw notFound()
     }
 
+    const event = pageData.event
+
     // Resolve athlete's registered divisions with labels
-    const athleteRegisteredDivisionIds = athleteDivisionsResult.divisionIds
     const athleteRegisteredDivisions = athleteRegisteredDivisionIds
       .map((divId) => {
         const div = divisions.find((d) => d.id === divId)
@@ -141,143 +211,49 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
       })
       .filter((d): d is { divisionId: string; label: string } => d !== null)
 
-    // Defer heat schedule fetch - not needed for initial render
-    const deferredEventHeats =
-      eventResult.event.heatStatus === "published"
-        ? getPublicEventHeatsFn({ data: { trackWorkoutId: eventId } })
-        : Promise.resolve({ heats: [] })
-
-    const childEvents = allWorkoutsResult.workouts
-      .filter((w) => w.parentEventId === eventId)
-      .sort((a, b) => a.trackOrder - b.trackOrder)
+    const { childEvents, initialSubmissionDivisionId } =
+      resolveSubmissionContext(pageData)
+    const hasChildEvents = childEvents.length > 0
 
     // Top-level events for "Event X of Y" display (filtered by division in component)
-    const allTopLevelEvents = allWorkoutsResult.workouts
+    const allTopLevelEvents = pageData.workouts
       .filter((w) => !w.parentEventId)
       .sort((a, b) => a.trackOrder - b.trackOrder)
       .map((w) => ({ id: w.id, trackOrder: w.trackOrder }))
 
-    // For online competitions, fetch video submissions
-    // Prefer the URL's division param when it matches a registered AND event-mapped division,
-    // so that the form initializes with the correct teamSize for team divisions.
-    // Filter athlete divisions by event-division mappings (same logic as component-side filtering)
-    const loaderEventMappings = eventDivisionMappingResult
-    const loaderMappedDivisionIds = (() => {
-      if (!loaderEventMappings.hasMappings || !athleteRegisteredDivisionIds.length) {
-        return athleteRegisteredDivisionIds
-      }
-      const parentId = eventResult.event.parentEventId
-      const relevantMappings = loaderEventMappings.mappings.filter(
-        (m) =>
-          m.trackWorkoutId === eventId ||
-          (parentId && m.trackWorkoutId === parentId),
-      )
-      if (relevantMappings.length === 0) return athleteRegisteredDivisionIds
-      const mappedSet = new Set(relevantMappings.map((m) => m.divisionId))
-      return athleteRegisteredDivisionIds.filter((id) => mappedSet.has(id))
-    })()
-    const initialSubmissionDivisionId =
-      (deps.division && loaderMappedDivisionIds.includes(deps.division)
-        ? deps.division
-        : loaderMappedDivisionIds[0]) ?? undefined
-    const hasChildEvents = childEvents.length > 0
-    const isOnline = competition.competitionType === "online"
-
-    // Workouts needing division descriptions: parent + each child
-    const descriptionWorkoutIds = [
-      eventResult.event.workoutId,
-      ...childEvents.map((c) => c.workoutId),
-    ]
-
-    // Fetch descriptions (single batch query) and video submissions in parallel
-    const [
-      descriptionsBatchResult,
-      parentVideoSubmission,
-      childVideoSubmissionResults,
-    ] = await Promise.all([
-      divisionIds.length > 0 && descriptionWorkoutIds.length > 0
-        ? getBatchWorkoutDivisionDescriptionsFn({
-            data: { workoutIds: descriptionWorkoutIds, divisionIds },
-          })
-        : Promise.resolve({
-            descriptionsByWorkout: {} as Record<
-              string,
-              Array<{
-                divisionId: string
-                divisionLabel: string
-                description: string | null
-                position: number
-              }>
-            >,
-          }),
-      isOnline && !hasChildEvents
-        ? getVideoSubmissionFn({
-            data: {
-              trackWorkoutId: eventId,
-              competitionId: competition.id,
-              divisionId: initialSubmissionDivisionId,
-            },
-          })
-        : Promise.resolve(null),
-      isOnline && hasChildEvents
-        ? Promise.all(
-            childEvents.map((child) =>
-              getVideoSubmissionFn({
-                data: {
-                  trackWorkoutId: child.id,
-                  competitionId: competition.id,
-                  divisionId: initialSubmissionDivisionId,
-                },
-              }),
-            ),
-          )
-        : Promise.resolve(
-            [] as Awaited<ReturnType<typeof getVideoSubmissionFn>>[],
-          ),
-    ])
-
     const divisionDescriptions =
-      descriptionsBatchResult.descriptionsByWorkout[
-        eventResult.event.workoutId
-      ] ?? []
+      pageData.descriptionsByWorkout[event.workoutId] ?? []
 
-    const childDivisionDescriptions: Record<
-      string,
-      Array<{
-        divisionId: string
-        divisionLabel: string
-        description: string | null
-        position: number
-      }>
-    > = {}
+    const childDivisionDescriptions: Record<string, DivisionDescription[]> = {}
     for (const child of childEvents) {
       childDivisionDescriptions[child.workoutId] =
-        descriptionsBatchResult.descriptionsByWorkout[child.workoutId] ?? []
+        pageData.descriptionsByWorkout[child.workoutId] ?? []
     }
 
-    const videoSubmissionResult = parentVideoSubmission
-    const childVideoSubmissions: Record<
-      string,
-      Awaited<ReturnType<typeof getVideoSubmissionFn>>
-    > = {}
-    for (let i = 0; i < childEvents.length; i++) {
-      childVideoSubmissions[childEvents[i].id] = childVideoSubmissionResults[i]
+    const videoSubmission =
+      isOnline && !hasChildEvents ? (videoResults[eventId] ?? null) : null
+    const childVideoSubmissions: Record<string, VideoSubmissionResult> = {}
+    if (isOnline && hasChildEvents) {
+      for (const child of childEvents) {
+        const result = videoResults[child.id]
+        if (result) {
+          childVideoSubmissions[child.id] = result
+        }
+      }
     }
 
     // If this is a sub-event, find the parent event for context
-    const parentEvent = eventResult.event.parentEventId
-      ? (allWorkoutsResult.workouts.find(
-          (w) => w.id === eventResult.event.parentEventId,
-        ) ?? null)
+    const parentEvent = event.parentEventId
+      ? (pageData.workouts.find((w) => w.id === event.parentEventId) ?? null)
       : null
 
     // Determine if athlete's division is mapped to this event
     // Events with no mappings are visible to all divisions.
     // Only events with explicit mappings are filtered by division.
-    const eventMappings = eventDivisionMappingResult
+    const eventMappings = pageData.eventDivisionMappings
     let isEventMappedToAthleteDivision = true
     if (eventMappings.hasMappings && athleteRegisteredDivisionIds.length > 0) {
-      const parentId = eventResult.event.parentEventId
+      const parentId = event.parentEventId
       // Check if this event (or parent) has ANY mappings at all
       const eventHasMappings = eventMappings.mappings.some(
         (m) =>
@@ -297,18 +273,18 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
 
     return {
       competition,
-      event: eventResult.event,
-      resources: eventResult.resources,
-      judgingSheets: judgingSheetsResult.sheets,
-      heatTimes: eventResult.heatTimes,
+      event,
+      resources: pageData.resources,
+      judgingSheets: pageData.judgingSheets,
+      heatTimes: pageData.heatTimes,
       allTopLevelEvents,
       divisionDescriptions,
       divisions,
       athleteRegisteredDivisions,
       athleteRegisteredDivisionId: athleteRegisteredDivisionIds[0] ?? null,
       initialSubmissionDivisionId: initialSubmissionDivisionId ?? null,
-      venue: venueResult.venue,
-      videoSubmission: videoSubmissionResult,
+      venue: pageData.venue,
+      videoSubmission,
       childVideoSubmissions,
       deferredEventHeats,
       childEvents,
@@ -403,7 +379,9 @@ function EventDetailsPage() {
           )
           // No mappings for this specific event → show all divisions
           if (eventMappings.length === 0) return divisions
-          const mappedDivisionIds = new Set(eventMappings.map((m) => m.divisionId))
+          const mappedDivisionIds = new Set(
+            eventMappings.map((m) => m.divisionId),
+          )
           return divisions.filter((d) => mappedDivisionIds.has(d.id))
         })()
       : divisions
@@ -411,7 +389,10 @@ function EventDetailsPage() {
   // Filter the athlete's registered divisions by event-division mappings
   // so the division picker only shows divisions mapped to this event
   const filteredRegisteredDivisions = (() => {
-    if (!eventDivisionMappings.hasMappings || !athleteRegisteredDivisions.length) {
+    if (
+      !eventDivisionMappings.hasMappings ||
+      !athleteRegisteredDivisions.length
+    ) {
       return athleteRegisteredDivisions
     }
     const parentId = event.parentEventId
@@ -422,7 +403,9 @@ function EventDetailsPage() {
     )
     if (eventMappings.length === 0) return athleteRegisteredDivisions
     const mappedDivisionIds = new Set(eventMappings.map((m) => m.divisionId))
-    return athleteRegisteredDivisions.filter((d) => mappedDivisionIds.has(d.divisionId))
+    return athleteRegisteredDivisions.filter((d) =>
+      mappedDivisionIds.has(d.divisionId),
+    )
   })()
 
   // Constrain initialDivisionId to filtered divisions so unmapped divisions aren't used
@@ -438,7 +421,7 @@ function EventDetailsPage() {
   const sidebarSubmission =
     videoSubmission ??
     (childEvents.length > 0
-      ? Object.values(childVideoSubmissions)[0] ?? null
+      ? (Object.values(childVideoSubmissions)[0] ?? null)
       : null)
 
   // Sort division descriptions by position
@@ -517,7 +500,11 @@ function EventDetailsPage() {
               <div className="space-y-1">
                 <div className="flex items-center gap-3">
                   <Badge variant="outline" className="text-xs font-medium">
-                    Event {eventPosition > 0 ? eventPosition : formatTrackOrder(event.trackOrder)} of {totalVisibleEvents}
+                    Event{" "}
+                    {eventPosition > 0
+                      ? eventPosition
+                      : formatTrackOrder(event.trackOrder)}{" "}
+                    of {totalVisibleEvents}
                   </Badge>
                   {event.sponsorName && (
                     <span className="text-xs text-muted-foreground">
@@ -635,9 +622,17 @@ function EventDetailsPage() {
                               </span>
                             )}
                         </div>
-                        <div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
-                          {child.workout.description || "Details coming soon."}
-                        </div>
+                        {child.workout.description ? (
+                          <div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
+                            {child.workout.description}
+                          </div>
+                        ) : (
+                          !childScale && (
+                            <div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
+                              Details coming soon.
+                            </div>
+                          )
+                        )}
                         {childScale && (
                           <div className="flex items-start gap-2 mt-1">
                             <Badge

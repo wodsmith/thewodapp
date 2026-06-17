@@ -3,7 +3,6 @@ import {
   getRouteApi,
   useNavigate,
 } from "@tanstack/react-router"
-import { createServerFn } from "@tanstack/react-start"
 import { Dumbbell, Filter } from "lucide-react"
 import { z } from "zod"
 import { CompetitionTabs } from "@/components/competition-tabs"
@@ -20,39 +19,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { getUserCompetitionRegistrationFn } from "@/server-fns/competition-detail-fns"
 import {
-  getBatchVenuesForTrackWorkoutsFn,
   getPublicScheduleDataFn,
   type PublicScheduleEvent,
 } from "@/server-fns/competition-heats-fns"
 import {
   type DivisionDescription,
-  getBatchWorkoutDivisionDescriptionsFn,
   getPublishedCompetitionWorkoutsWithDetailsFn,
 } from "@/server-fns/competition-workouts-fns"
-import { getPublicEventDivisionMappingsFn } from "@/server-fns/event-division-mapping-fns"
-import { getBatchSubmissionStatusFn } from "@/server-fns/video-submission-fns"
-import { getSessionFromCookie } from "@/utils/auth"
+import {
+  getPublicWorkoutsPageDataFn,
+  type PublicWorkoutVenueInfo,
+} from "@/server-fns/competition-workouts-page-fns"
 import { useDeferredSchedule } from "@/utils/use-deferred-schedule"
-
-// Server function to get athlete's registered division for this competition
-const getAthleteRegisteredDivisionFn = createServerFn({ method: "GET" })
-  .inputValidator((data: unknown) =>
-    z.object({ competitionId: z.string() }).parse(data),
-  )
-  .handler(async ({ data }) => {
-    const session = await getSessionFromCookie()
-    if (!session?.user?.id) {
-      return { divisionId: null }
-    }
-
-    const result = await getUserCompetitionRegistrationFn({
-      data: { competitionId: data.competitionId, userId: session.user.id },
-    })
-
-    return { divisionId: result.registration?.divisionId ?? null }
-  })
 
 const parentRoute = getRouteApi("/compete/$slug")
 
@@ -72,9 +51,9 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
     if (!competition) {
       return {
         workouts: [],
-        divisionDescriptionsMap: {},
-        venueMap: {},
-        athleteRegisteredDivisionId: null,
+        divisionDescriptionsMap: {} as Record<string, DivisionDescription[]>,
+        venueMap: {} as Record<string, PublicWorkoutVenueInfo | null>,
+        athleteRegisteredDivisionId: null as string | null,
         submissionStatusMap: {} as Record<string, SubmissionStatus>,
         deferredSchedule: Promise.resolve({
           events: [] as PublicScheduleEvent[],
@@ -93,102 +72,35 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
       data: { competitionId },
     })
 
-    // Fetch workouts, registered division, and event-division mappings in parallel
-    const [workoutsResult, athleteDivisionResult, eventDivisionMappingResult] =
-      await Promise.all([
-        getPublishedCompetitionWorkoutsWithDetailsFn({
-          data: { competitionId },
-        }),
-        getAthleteRegisteredDivisionFn({
-          data: { competitionId },
-        }),
-        getPublicEventDivisionMappingsFn({
-          data: { competitionId },
-        }),
-      ])
-
-    const workouts = workoutsResult.workouts
-    const athleteRegisteredDivisionId = athleteDivisionResult.divisionId
-
-    type VenueInfo = {
-      id: string
-      name: string
-      address: {
-        streetLine1?: string
-        city?: string
-        stateProvince?: string
-        postalCode?: string
-        countryCode?: string
-      } | null
-    }
+    // The athlete's registered division is already resolved by the parent
+    // route loader (first registration) — no need to re-fetch it here.
+    const athleteRegisteredDivisionId =
+      parentMatch.loaderData?.userRegistration?.divisionId ?? null
 
     const divisionIds = divisions?.map((d) => d.id) ?? []
-    const workoutIds = workouts.map((w) => w.workoutId)
-    const trackWorkoutIds = workouts.map((w) => w.id)
     const isOnline = competition.competitionType === "online"
 
-    const [
-      divisionDescriptionsResult,
-      batchVenuesResult,
-      submissionResult,
-    ] = await Promise.all([
-      divisionIds.length > 0 && workoutIds.length > 0
-        ? getBatchWorkoutDivisionDescriptionsFn({
-            data: { workoutIds, divisionIds },
-          })
-        : Promise.resolve({
-            descriptionsByWorkout: {} as Record<string, DivisionDescription[]>,
-          }),
-      trackWorkoutIds.length > 0
-        ? getBatchVenuesForTrackWorkoutsFn({
-            data: { trackWorkoutIds },
-          })
-        : Promise.resolve({
-            venues: {} as Awaited<
-              ReturnType<typeof getBatchVenuesForTrackWorkoutsFn>
-            >["venues"],
-          }),
-      isOnline && athleteRegisteredDivisionId && trackWorkoutIds.length > 0
-        ? getBatchSubmissionStatusFn({
-            data: { competitionId, trackWorkoutIds },
-          })
-        : Promise.resolve({ statuses: {} as Record<string, SubmissionStatus> }),
-    ])
-
-    const divisionDescriptionsMap = divisionDescriptionsResult.descriptionsByWorkout
-
-    const venueMap: Record<string, VenueInfo | null> = {}
-    for (const trackWorkoutId of trackWorkoutIds) {
-      const v = batchVenuesResult.venues[trackWorkoutId] ?? null
-      if (v) {
-        venueMap[trackWorkoutId] = {
-          id: v.id,
-          name: v.name,
-          address: v.address
-            ? {
-                streetLine1: v.address.streetLine1 ?? undefined,
-                city: v.address.city ?? undefined,
-                stateProvince: v.address.stateProvince ?? undefined,
-                postalCode: v.address.postalCode ?? undefined,
-                countryCode: v.address.countryCode ?? undefined,
-              }
-            : null,
-        }
-      } else {
-        venueMap[trackWorkoutId] = null
-      }
-    }
-
-    const submissionStatusMap = submissionResult.statuses
+    // Single consolidated call for workouts + division descriptions +
+    // event-division mappings + venues + the viewer's submission statuses
+    // (fetched server-side in the same wave as descriptions/venues, only
+    // for registered athletes on online competitions).
+    const pageData = await getPublicWorkoutsPageDataFn({
+      data: {
+        competitionId,
+        divisionIds,
+        includeVenues: true,
+        includeSubmissionStatuses: isOnline && !!athleteRegisteredDivisionId,
+      },
+    })
 
     return {
-      workouts,
-      divisionDescriptionsMap,
-      venueMap,
+      workouts: pageData.workouts,
+      divisionDescriptionsMap: pageData.divisionDescriptionsMap,
+      venueMap: pageData.venuesMap,
       athleteRegisteredDivisionId,
-      submissionStatusMap,
+      submissionStatusMap: pageData.submissionStatuses,
       deferredSchedule,
-      eventDivisionMappings: eventDivisionMappingResult,
+      eventDivisionMappings: pageData.eventDivisionMappings,
     }
   },
 })

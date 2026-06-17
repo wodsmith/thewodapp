@@ -1,4 +1,4 @@
-// @lat: [[organizer-dashboard#Broadcasts]]
+// @lat: [[organizer-dashboard#Event announcements]]
 /**
  * Cloudflare Queue consumer for organizer-sent email delivery.
  *

@@ -67,17 +67,22 @@ export const Route = createFileRoute("/compete/organizer/$competitionId")({
 // Map route paths to breadcrumb labels
 // Note: "results" label is handled dynamically based on competition type
 const routeLabels: Record<string, string> = {
-  divisions: "Divisions",
-  athletes: "Registrations",
+  "check-in": "Check-in",
+  divisions: "Divisions & capacity",
+  athletes: "Athletes",
+  "form-questions": "Athlete registration questions",
   invites: "Invites",
   events: "Events",
-  "event-divisions": "Event divisions",
+  "event-divisions": "Event visibility",
   "submission-windows": "Submission windows",
-  schedule: "Schedule",
-  locations: "Locations",
+  schedule: "Heat schedule",
+  locations: "Venues & lanes",
   volunteers: "Volunteers",
+  shifts: "Volunteer shifts",
+  judges: "Judge assignments",
+  "signup-questions": "Volunteer signup questions",
   waivers: "Waivers",
-  scoring: "Scoring",
+  scoring: "Scoring rules",
   results: "Results", // Overridden to "Submissions" for online competitions
   "leaderboard-preview": "Leaderboard preview",
   review: "Review",
@@ -86,7 +91,7 @@ const routeLabels: Record<string, string> = {
   coupons: "Coupons",
   sponsors: "Sponsors",
   settings: "Settings",
-  edit: "Edit",
+  edit: "Competition details",
   "danger-zone": "Danger zone",
 }
 

@@ -49,7 +49,10 @@ export const Route = createFileRoute("/compete/$slug/schedule")({
       }
     }
 
-    // For in-person competitions, fetch heats as usual
+    // For in-person competitions, fetch heats as usual.
+    // getHeatsForCompetitionFn only returns published heats
+    // (schedulePublishedAt set) for non-organizer viewers, so anonymous
+    // visitors never receive unpublished draft heats or their athletes.
     const [heatsResult, eventsResult] = await Promise.all([
       getHeatsForCompetitionFn({ data: { competitionId: competition.id } }),
       getPublishedCompetitionWorkoutsFn({

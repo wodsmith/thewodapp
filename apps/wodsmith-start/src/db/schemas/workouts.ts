@@ -131,20 +131,34 @@ export const workouts = mysqlTable(
 )
 
 // Workout Tags junction table
-export const workoutTags = mysqlTable("workout_tags", {
-  ...commonColumns,
-  id: varchar({ length: 255 }).primaryKey(),
-  workoutId: varchar({ length: 255 }).notNull(),
-  tagId: varchar({ length: 255 }).notNull(),
-})
+export const workoutTags = mysqlTable(
+  "workout_tags",
+  {
+    ...commonColumns,
+    id: varchar({ length: 255 }).primaryKey(),
+    workoutId: varchar({ length: 255 }).notNull(),
+    tagId: varchar({ length: 255 }).notNull(),
+  },
+  (table) => [
+    index("workout_tags_workout_idx").on(table.workoutId),
+    index("workout_tags_tag_idx").on(table.tagId),
+  ],
+)
 
 // Workout Movements junction table
-export const workoutMovements = mysqlTable("workout_movements", {
-  ...commonColumns,
-  id: varchar({ length: 255 }).primaryKey(),
-  workoutId: varchar({ length: 255 }),
-  movementId: varchar({ length: 255 }),
-})
+export const workoutMovements = mysqlTable(
+  "workout_movements",
+  {
+    ...commonColumns,
+    id: varchar({ length: 255 }).primaryKey(),
+    workoutId: varchar({ length: 255 }),
+    movementId: varchar({ length: 255 }),
+  },
+  (table) => [
+    index("workout_movements_workout_idx").on(table.workoutId),
+    index("workout_movements_movement_idx").on(table.movementId),
+  ],
+)
 
 // Results base table (consolidated)
 export const results = mysqlTable(

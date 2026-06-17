@@ -2,8 +2,8 @@
  * Competition Invites — organizer route shell
  *
  * Phase 1 of ADR-0011. Tabs:
- *   - Candidates (live)
  *   - Sources (live)
+ *   - Candidates (live)
  *   - Sent (live)
  *
  * Loader enforces MANAGE_COMPETITIONS on the championship's organizing
@@ -31,6 +31,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { z } from "zod"
+import { OrganizerEmptyState } from "@/components/organizer/empty-state"
 import { AddBespokeInviteeDialog } from "@/components/organizer/invites/add-bespoke-invitee-dialog"
 import { BulkAddInviteesDialog } from "@/components/organizer/invites/bulk-add-invitees-dialog"
 import {
@@ -129,7 +130,10 @@ export const Route = createFileRoute(
     }
 
     const parentMatch = await parentMatchPromise
-    const { competition } = parentMatch.loaderData!
+    const competition = parentMatch.loaderData?.competition
+    if (!competition) {
+      throw new Error("Competition not found")
+    }
 
     // listInviteSourcesFn enforces MANAGE_COMPETITIONS on the championship
     // team; it throws on missing permission, which the parent route's
@@ -297,7 +301,7 @@ function InvitesPage() {
       })
     }
   }, [flagEnabled, competitionId, navigate])
-  const [tab, setTab] = useState("candidates")
+  const [tab, setTab] = useState("sources")
   const [addSingleOpen, setAddSingleOpen] = useState(false)
   const [bulkOpen, setBulkOpen] = useState(false)
   const [sendOpen, setSendOpen] = useState(false)
@@ -912,17 +916,41 @@ function InvitesPage() {
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
-          <TabsTrigger value="candidates">Candidates</TabsTrigger>
           <TabsTrigger value="sources">Sources</TabsTrigger>
+          <TabsTrigger value="candidates">Candidates</TabsTrigger>
           <TabsTrigger value="sent">Sent</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="sources" className="mt-4">
+          <InviteSourcesList
+            sources={sources}
+            competitionNamesById={competitionNamesById}
+            seriesNamesById={seriesNamesById}
+            allocationsBySourceByDivision={allocationsBySourceByDivision}
+            championshipDivisions={championshipDivisions}
+            onAdd={() => {
+              setEditingSource(undefined)
+              setSourceDialogOpen(true)
+            }}
+            onEdit={(source) =>
+              navigate({
+                to: "/compete/organizer/$competitionId/invites/sources/$sourceId",
+                params: { competitionId, sourceId: source.id },
+              })
+            }
+            onDelete={(source) => setDeletingSource(source)}
+          />
+        </TabsContent>
+
         <TabsContent value="candidates" className="mt-4 space-y-6">
           {rosterCompetitions.length === 0 ? (
-            <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-              Add a qualification source on the <strong>Sources</strong> tab to
-              see athletes here.
-            </div>
+            <OrganizerEmptyState
+              icon={UserPlus}
+              title="No invite candidates yet"
+              description="Add a qualification source to see eligible athletes from prior competitions or series standings."
+              actionLabel="Add source"
+              onAction={() => setTab("sources")}
+            />
           ) : (
             <>
               <div className="flex flex-wrap items-end gap-3">
@@ -1091,10 +1119,17 @@ function InvitesPage() {
               </span>
             </div>
             {bespokeInvites.length === 0 ? (
-              <div className="rounded-lg border border-dashed bg-card p-8 text-center text-sm text-muted-foreground">
-                No bespoke invitees yet. Use <strong>Add invitee</strong> or{" "}
-                <strong>Bulk add</strong> to stage rows.
-              </div>
+              <OrganizerEmptyState
+                icon={UserPlus}
+                title="No direct invitees yet"
+                description="Stage individual athletes or upload a list before sending bespoke championship invites."
+                actionLabel="Add invitee"
+                actionIcon={<UserPlus className="mr-2 h-4 w-4" />}
+                onAction={() => setAddSingleOpen(true)}
+                secondaryActionLabel="Bulk add"
+                secondaryActionIcon={<Upload className="mr-2 h-4 w-4" />}
+                onSecondaryAction={() => setBulkOpen(true)}
+              />
             ) : (
               <div className="overflow-hidden rounded-lg border bg-card">
                 <Table>
@@ -1310,27 +1345,6 @@ function InvitesPage() {
               </div>
             )}
           </section>
-        </TabsContent>
-
-        <TabsContent value="sources" className="mt-4">
-          <InviteSourcesList
-            sources={sources}
-            competitionNamesById={competitionNamesById}
-            seriesNamesById={seriesNamesById}
-            allocationsBySourceByDivision={allocationsBySourceByDivision}
-            championshipDivisions={championshipDivisions}
-            onAdd={() => {
-              setEditingSource(undefined)
-              setSourceDialogOpen(true)
-            }}
-            onEdit={(source) =>
-              navigate({
-                to: "/compete/organizer/$competitionId/invites/sources/$sourceId",
-                params: { competitionId, sourceId: source.id },
-              })
-            }
-            onDelete={(source) => setDeletingSource(source)}
-          />
         </TabsContent>
 
         <TabsContent value="sent" className="mt-4">

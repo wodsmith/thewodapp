@@ -94,7 +94,7 @@ export function ScoringSettingsForm({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 pb-24">
       <ScoringConfigForm
         value={config}
         onChange={setConfig}
@@ -102,20 +102,22 @@ export function ScoringSettingsForm({
         disabled={isSaving}
       />
 
-      <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={isSaving}>
-          {isSaving ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="mr-2 h-4 w-4" />
-              Save scoring settings
-            </>
-          )}
-        </Button>
+      <div className="sticky bottom-0 z-10 -mx-4 border-t bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:-mx-6 sm:px-6">
+        <div className="flex justify-end">
+          <Button onClick={handleSave} disabled={isSaving}>
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Save scoring settings
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   )

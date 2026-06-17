@@ -48,12 +48,10 @@ function LocationsPage() {
   return (
     <div className="container max-w-4xl py-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          Locations & Venues
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight">Venues & lanes</h1>
         <p className="text-muted-foreground">
-          Manage venues for {competition.name}. Venues are physical locations
-          like "Main Floor" or "Outside Rig" where heats are scheduled.
+          Manage the places and lane counts that drive heat scheduling for{" "}
+          {competition.name}.
         </p>
       </div>
 

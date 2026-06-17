@@ -1,9 +1,12 @@
 "use client"
 
-import { Link } from "@tanstack/react-router"
-import { ClipboardList, Search, Settings2 } from "lucide-react"
+// @lat: [[organizer-dashboard#Volunteers#Judge Scheduling]]
+
+import { Link, useNavigate } from "@tanstack/react-router"
+import { CalendarDays, ClipboardList, Search, Settings2 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
+import { OrganizerEmptyState } from "@/components/organizer/empty-state"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -186,6 +189,7 @@ export function JudgeSchedulingContainer({
   rotationOverviewActionsSlot,
   overrides,
 }: JudgeSchedulingContainerProps) {
+  const navigate = useNavigate()
   const isOnline = competitionType === "online"
   const [assignments, setAssignments] =
     useState<JudgeHeatAssignment[]>(initialAssignments)
@@ -536,6 +540,13 @@ export function JudgeSchedulingContainer({
     })
   }
 
+  function handleGoToAthleteHeats() {
+    navigate({
+      to: "/compete/organizer/$competitionId/schedule",
+      params: { competitionId },
+    })
+  }
+
   if (events.length === 0) {
     return (
       <div className="py-12 text-center">
@@ -716,16 +727,14 @@ export function JudgeSchedulingContainer({
                 {/* Heats Grid */}
                 <div className="space-y-4">
                   {eventHeats.length === 0 ? (
-                    <Card>
-                      <CardContent className="py-8 text-center">
-                        <p className="text-muted-foreground">
-                          No heats scheduled for this event yet.
-                        </p>
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          Create heats in the Schedule section first.
-                        </p>
-                      </CardContent>
-                    </Card>
+                    <OrganizerEmptyState
+                      icon={CalendarDays}
+                      title="No athlete heats yet"
+                      description="Create athlete heats before assigning judges to lanes."
+                      actionLabel="Go to athlete heats"
+                      actionIcon={<CalendarDays className="mr-2 h-4 w-4" />}
+                      onAction={handleGoToAthleteHeats}
+                    />
                   ) : (
                     eventHeats.map((heat) => (
                       <JudgeHeatCard
@@ -870,17 +879,14 @@ export function JudgeSchedulingContainer({
               onAdjustRotationsForOccupiedLanes={overrides?.adjustRotationsForOccupiedLanes}
             />
           ) : (
-            <Card>
-              <CardContent className="py-8 text-center">
-                <p className="text-muted-foreground">
-                  No heats scheduled for this event yet.
-                </p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Create heats in the Schedule section before creating
-                  rotations.
-                </p>
-              </CardContent>
-            </Card>
+            <OrganizerEmptyState
+              icon={CalendarDays}
+              title="No athlete heats yet"
+              description="Create athlete heats before building judge rotations."
+              actionLabel="Go to athlete heats"
+              actionIcon={<CalendarDays className="mr-2 h-4 w-4" />}
+              onAction={handleGoToAthleteHeats}
+            />
           )}
         </section>
       )}
