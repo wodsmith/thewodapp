@@ -167,42 +167,11 @@ jobs:
         run: pnpm install --frozen-lockfile
         working-directory: .
 
-      - name: Setup pscale
-        uses: planetscale/setup-pscale-action@v1
-
-      - name: Generate PlanetScale branch password
-        env:
-          PLANETSCALE_SERVICE_TOKEN_ID: ${{ secrets.PLANETSCALE_SERVICE_TOKEN_ID }}
-          PLANETSCALE_SERVICE_TOKEN: ${{ secrets.PLANETSCALE_SERVICE_TOKEN }}
-        run: |
-          branch="${STAGE}"
-          if [ "$branch" = "prod" ]; then
-            branch="main"
-          fi
-
-          response=$(pscale password create ${{ secrets.PLANETSCALE_DATABASE_NAME }} "$branch" "" -f json --org ${{ secrets.PLANETSCALE_ORGANIZATION }})
-
-          id=$(echo "$response" | jq -r '.id')
-          host=$(echo "$response" | jq -r '.access_host_url')
-          username=$(echo "$response" | jq -r '.username')
-          password=$(echo "$response" | jq -r '.plain_text')
-          echo "PASSWORD_ID=$id" >> $GITHUB_ENV
-          database_url="mysql://$username:$password@$host/${{ secrets.PLANETSCALE_DATABASE_NAME }}"
-          echo "DATABASE_URL=$database_url" >> $GITHUB_ENV
-          echo "::add-mask::$database_url"
-
-      - name: Push schema to PlanetScale branch
-        run: pnpm --filter wodsmith-start exec drizzle-kit push
-        working-directory: .
-        env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
-
       - name: Deploy with Alchemy
         run: pnpm run deploy
         env:
           NODE_OPTIONS: --max-old-space-size=5120
           STAGE: ${{ env.STAGE }}
-          DATABASE_URL: ${{ env.DATABASE_URL }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           ALCHEMY_PASSWORD: ${{ secrets.ALCHEMY_PASSWORD }}
@@ -219,6 +188,7 @@ jobs:
           # AI configuration (optional)
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
+          CF_AIG_TOKEN: ${{ secrets.CF_AIG_TOKEN }}
           # Stripe secrets - prod and demo get their respective keys
           STRIPE_API_KEY: ${{ env.STAGE == 'prod' && secrets.STRIPE_SECRET_KEY || (env.STAGE == 'demo' && secrets.STRIPE_SECRET_KEY_DEMO || '') }}
           STRIPE_SECRET_KEY: ${{ env.STAGE == 'prod' && secrets.STRIPE_SECRET_KEY || (env.STAGE == 'demo' && secrets.STRIPE_SECRET_KEY_DEMO || '') }}
@@ -265,32 +235,6 @@ jobs:
         run: pnpm install --frozen-lockfile
         working-directory: .
 
-      - name: Setup pscale
-        uses: planetscale/setup-pscale-action@v1
-
-      - name: Generate PlanetScale demo branch password
-        env:
-          PLANETSCALE_SERVICE_TOKEN_ID: ${{ secrets.PLANETSCALE_SERVICE_TOKEN_ID }}
-          PLANETSCALE_SERVICE_TOKEN: ${{ secrets.PLANETSCALE_SERVICE_TOKEN }}
-        run: |
-          response=$(pscale password create ${{ secrets.PLANETSCALE_DATABASE_NAME }} demo "" -f json --org ${{ secrets.PLANETSCALE_ORGANIZATION }})
-
-          id=$(echo "$response" | jq -r '.id')
-          host=$(echo "$response" | jq -r '.access_host_url')
-          username=$(echo "$response" | jq -r '.username')
-          password=$(echo "$response" | jq -r '.plain_text')
-          echo "PASSWORD_ID=$id" >> $GITHUB_ENV
-          database_url="mysql://$username:$password@$host/${{ secrets.PLANETSCALE_DATABASE_NAME }}"
-          echo "DATABASE_URL=$database_url" >> $GITHUB_ENV
-          echo "::add-mask::$database_url"
-
-      - name: Push schema to PlanetScale demo branch
-        run: pnpm --filter wodsmith-start exec drizzle-kit push
-        working-directory: .
-        env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
-
-
       - name: Deploy with Alchemy
         run: pnpm run deploy
         env:
@@ -312,6 +256,7 @@ jobs:
           # AI configuration (optional)
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
+          CF_AIG_TOKEN: ${{ secrets.CF_AIG_TOKEN }}
           # Both point to same secret - STRIPE_API_KEY is for Alchemy webhook creation,
           # STRIPE_SECRET_KEY is for runtime API calls
           STRIPE_API_KEY: ${{ secrets.STRIPE_SECRET_KEY_DEMO }}
