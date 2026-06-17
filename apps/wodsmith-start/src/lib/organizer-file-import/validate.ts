@@ -126,6 +126,87 @@ export function isActionableVolunteer(proposal: VolunteerProposal): boolean {
   )
 }
 
+/**
+ * Per-row decision for the apply path. Pure: decides what should happen to each
+ * volunteer proposal so the server fn only performs the IO (invite + record).
+ */
+export type VolunteerApplyDecision =
+  | {
+      rowKey: string
+      outcome: "invite"
+      email: string
+      name: string | null
+      roleTypes: VolunteerProposal["roleTypes"]
+    }
+  | { rowKey: string; outcome: "skip"; reason: string }
+  | { rowKey: string; outcome: "fail"; reason: string }
+
+export interface PlanVolunteerApplyOptions {
+  /** rowKeys already written by a prior apply of this run (idempotency). */
+  alreadyAppliedRowKeys: ReadonlySet<string>
+  /** false when the competition has no volunteer team to invite into. */
+  hasCompetitionTeam: boolean
+  /** roles to use when a proposal carries none (e.g. ["judge"] on the judges page). */
+  defaultRoleTypes: VolunteerProposal["roleTypes"]
+}
+
+/**
+ * Decide, per proposal, whether to invite / skip / fail — without touching the
+ * DB. Mirrors the human-in-the-loop contract: only `create` proposals with an
+ * email and a competition team become writes; duplicates and no-email rows are
+ * surfaced, never silently invited.
+ */
+export function planVolunteerApply(
+  proposals: VolunteerProposal[],
+  options: PlanVolunteerApplyOptions,
+): VolunteerApplyDecision[] {
+  return proposals.map((proposal): VolunteerApplyDecision => {
+    if (options.alreadyAppliedRowKeys.has(proposal.rowKey)) {
+      return {
+        rowKey: proposal.rowKey,
+        outcome: "skip",
+        reason: "Already imported",
+      }
+    }
+    if (proposal.action !== "create") {
+      return {
+        rowKey: proposal.rowKey,
+        outcome: "skip",
+        reason:
+          proposal.matchKind === "existing_member"
+            ? "Already a volunteer — skipped"
+            : proposal.matchKind === "existing_invite"
+              ? "Already invited — skipped"
+              : "Skipped (no action)",
+      }
+    }
+    if (!proposal.email) {
+      return {
+        rowKey: proposal.rowKey,
+        outcome: "fail",
+        reason: "No email — cannot send an invitation",
+      }
+    }
+    if (!options.hasCompetitionTeam) {
+      return {
+        rowKey: proposal.rowKey,
+        outcome: "fail",
+        reason: "Competition has no volunteer team",
+      }
+    }
+    return {
+      rowKey: proposal.rowKey,
+      outcome: "invite",
+      email: proposal.email,
+      name: proposal.name,
+      roleTypes:
+        proposal.roleTypes.length > 0
+          ? proposal.roleTypes
+          : options.defaultRoleTypes,
+    }
+  })
+}
+
 export interface EventValidationResult {
   ok: boolean
   errors: string[]

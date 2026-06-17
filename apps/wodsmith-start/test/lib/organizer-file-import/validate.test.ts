@@ -5,6 +5,7 @@ import {
   type ExistingEvent,
   type ExistingVolunteer,
   isBlockedVolunteer,
+  planVolunteerApply,
   reconcileVolunteerProposal,
   validateEventProposal,
 } from "@/lib/organizer-file-import/validate"
@@ -104,6 +105,69 @@ describe("isBlockedVolunteer", () => {
   })
   it("does not block a create with an email", () => {
     expect(isBlockedVolunteer(makeVolunteer())).toBe(false)
+  })
+})
+
+describe("planVolunteerApply", () => {
+  const opts = {
+    alreadyAppliedRowKeys: new Set<string>(),
+    hasCompetitionTeam: true,
+    defaultRoleTypes: ["general"] as VolunteerProposal["roleTypes"],
+  }
+
+  it("plans an invite for a new create with an email", () => {
+    const [decision] = planVolunteerApply([makeVolunteer()], opts)
+    expect(decision.outcome).toBe("invite")
+    if (decision.outcome === "invite") {
+      expect(decision.email).toBe("new@x.com")
+      expect(decision.roleTypes).toEqual(["judge"])
+    }
+  })
+
+  it("uses defaultRoleTypes when the proposal carries none", () => {
+    const [decision] = planVolunteerApply(
+      [makeVolunteer({ roleTypes: [] })],
+      opts,
+    )
+    expect(decision.outcome).toBe("invite")
+    if (decision.outcome === "invite") {
+      expect(decision.roleTypes).toEqual(["general"])
+    }
+  })
+
+  it("skips a row already written by a prior apply (idempotent)", () => {
+    const [decision] = planVolunteerApply([makeVolunteer({ rowKey: "row-x" })], {
+      ...opts,
+      alreadyAppliedRowKeys: new Set(["row-x"]),
+    })
+    expect(decision).toMatchObject({ outcome: "skip", reason: "Already imported" })
+  })
+
+  it("skips a non-create (existing volunteer) proposal", () => {
+    const [decision] = planVolunteerApply(
+      [makeVolunteer({ action: "update", matchKind: "existing_member" })],
+      opts,
+    )
+    expect(decision.outcome).toBe("skip")
+    if (decision.outcome === "skip") {
+      expect(decision.reason).toMatch(/Already a volunteer/)
+    }
+  })
+
+  it("fails a create with no email", () => {
+    const [decision] = planVolunteerApply([makeVolunteer({ email: null })], opts)
+    expect(decision).toMatchObject({ outcome: "fail" })
+  })
+
+  it("fails when the competition has no volunteer team", () => {
+    const [decision] = planVolunteerApply([makeVolunteer()], {
+      ...opts,
+      hasCompetitionTeam: false,
+    })
+    expect(decision).toMatchObject({
+      outcome: "fail",
+      reason: "Competition has no volunteer team",
+    })
   })
 })
 

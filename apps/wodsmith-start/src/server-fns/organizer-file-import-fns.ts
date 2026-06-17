@@ -32,6 +32,10 @@ import {
   type VolunteerProposal,
 } from "@/lib/organizer-file-import/schemas"
 import {
+  planVolunteerApply,
+  type VolunteerApplyDecision,
+} from "@/lib/organizer-file-import/validate"
+import {
   type FileImportRunScope,
   loadFileImportScope,
   loadFileImportScopeByRun,
@@ -140,19 +144,32 @@ export const applyOrganizerImportFn = createServerFn({ method: "POST" })
     const appliedEntities = parseAppliedEntities(scope.run.appliedEntities)
     const alreadyApplied = new Set(appliedEntities.map((e) => e.rowKey))
 
-    for (const proposal of data.volunteerProposals) {
-      if (alreadyApplied.has(proposal.rowKey)) {
+    // Decide everything up front (pure), then only do IO for the invites.
+    const decisions = planVolunteerApply(data.volunteerProposals, {
+      alreadyAppliedRowKeys: alreadyApplied,
+      hasCompetitionTeam: !!scope.competitionTeamId,
+      defaultRoleTypes:
+        scope.routeKind === "judges"
+          ? (["judge"] as VolunteerProposal["roleTypes"])
+          : (["general"] as VolunteerProposal["roleTypes"]),
+    })
+
+    for (const decision of decisions) {
+      if (decision.outcome === "skip") {
         results.push(
-          skipped(proposal.rowKey, "volunteer_invite", "Already imported"),
+          skipped(decision.rowKey, "volunteer_invite", decision.reason),
         )
         continue
       }
-      const outcome = await applyVolunteerProposal(proposal, scope)
-      results.push(outcome.result)
-      if (outcome.entity) {
-        appliedEntities.push(outcome.entity)
-        alreadyApplied.add(proposal.rowKey)
+      if (decision.outcome === "fail") {
+        results.push(
+          failed(decision.rowKey, "volunteer_invite", decision.reason),
+        )
+        continue
       }
+      const outcome = await executeVolunteerInvite(decision, scope)
+      results.push(outcome.result)
+      if (outcome.entity) appliedEntities.push(outcome.entity)
     }
 
     for (const proposal of data.eventProposals) {
@@ -261,56 +278,32 @@ interface VolunteerApplyOutcome {
   entity?: AppliedEntity
 }
 
-async function applyVolunteerProposal(
-  proposal: VolunteerProposal,
+async function executeVolunteerInvite(
+  decision: Extract<VolunteerApplyDecision, { outcome: "invite" }>,
   scope: FileImportRunScope,
 ): Promise<VolunteerApplyOutcome> {
-  if (proposal.action !== "create") {
-    return {
-      result: skipped(
-        proposal.rowKey,
-        "volunteer_invite",
-        proposal.matchKind === "new"
-          ? "Skipped (no action)"
-          : "Already a volunteer — skipped",
-      ),
-    }
-  }
-  if (!proposal.email) {
+  // The planner only emits "invite" when a competition team exists; re-narrow
+  // for the type system (and as a defensive guard).
+  const competitionTeamId = scope.competitionTeamId
+  if (!competitionTeamId) {
     return {
       result: failed(
-        proposal.rowKey,
-        "volunteer_invite",
-        "No email — cannot send an invitation",
-      ),
-    }
-  }
-  if (!scope.competitionTeamId) {
-    return {
-      result: failed(
-        proposal.rowKey,
+        decision.rowKey,
         "volunteer_invite",
         "Competition has no volunteer team",
       ),
     }
   }
 
-  const roleTypes =
-    proposal.roleTypes.length > 0
-      ? proposal.roleTypes
-      : scope.routeKind === "judges"
-        ? (["judge"] as const)
-        : (["general"] as const)
-
   try {
     await inviteVolunteerFn({
       data: {
-        name: proposal.name ?? undefined,
-        email: proposal.email,
-        competitionTeamId: scope.competitionTeamId,
+        name: decision.name ?? undefined,
+        email: decision.email,
+        competitionTeamId,
         organizingTeamId: scope.organizingTeamId,
         competitionId: scope.competitionId,
-        roleTypes: [...roleTypes],
+        roleTypes: [...decision.roleTypes],
       },
     })
   } catch (err) {
@@ -320,7 +313,7 @@ async function applyVolunteerProposal(
     if (isDuplicate) {
       return {
         result: skipped(
-          proposal.rowKey,
+          decision.rowKey,
           "volunteer_invite",
           "Duplicate — skipped",
         ),
@@ -329,17 +322,17 @@ async function applyVolunteerProposal(
     logError({
       message: "[AgentImport] volunteer invite failed",
       error: err,
-      attributes: { rowKey: proposal.rowKey },
+      attributes: { rowKey: decision.rowKey },
     })
-    return { result: failed(proposal.rowKey, "volunteer_invite", message) }
+    return { result: failed(decision.rowKey, "volunteer_invite", message) }
   }
 
   // Capture the created invitation id so Undo can remove it.
   const db = getDb()
   const created = await db.query.teamInvitationTable.findFirst({
     where: and(
-      eq(teamInvitationTable.teamId, scope.competitionTeamId),
-      eq(teamInvitationTable.email, proposal.email.toLowerCase()),
+      eq(teamInvitationTable.teamId, competitionTeamId),
+      eq(teamInvitationTable.email, decision.email.toLowerCase()),
       eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
       eq(teamInvitationTable.isSystemRole, true),
     ),
@@ -349,17 +342,17 @@ async function applyVolunteerProposal(
 
   return {
     result: {
-      rowKey: proposal.rowKey,
+      rowKey: decision.rowKey,
       status: "applied",
       kind: "volunteer_invite",
       entityId: created?.id ?? null,
-      message: `Invited ${proposal.email}`,
+      message: `Invited ${decision.email}`,
     },
     entity: created
       ? {
           kind: "volunteer_invite",
           entityId: created.id,
-          rowKey: proposal.rowKey,
+          rowKey: decision.rowKey,
         }
       : undefined,
   }
