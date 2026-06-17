@@ -33,6 +33,14 @@ The primary web application containing all user-facing functionality.
 - `src/workflows/` — Multi-step business processes (registration, checkout)
 - `src/agents/` — Cloudflare Agents (Durable Object classes) for AI-augmented features
 
+#### Deploy pipeline
+
+The main app deploys to Cloudflare Workers via `.github/workflows/deploy.yml` using Alchemy IaC, with database schema handled differently per stage.
+
+A push to `main` auto-deploys the demo environment; production and other stages deploy via manual `workflow_dispatch` (prod requires GitHub environment approval and must run from `main`).
+
+Non-prod stages (demo, staging, dev) run `drizzle-kit push` against their PlanetScale branch during deploy, matching the push-based local dev workflow. Production schema changes are **not** pushed on deploy — they are applied out-of-band via PlanetScale deploy requests — so the prod deploy skips the schema-push step. This avoids `drizzle-kit push` hitting an interactive data-loss prompt (e.g. on leftover Vitess `_vt_*` artifact tables) that would hang the non-interactive CI job.
+
 ### apps/crm
 
 The CRM app is a separate TanStack Start application shell for future customer relationship workflows.
