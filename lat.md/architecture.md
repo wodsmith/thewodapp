@@ -183,6 +183,8 @@ Every AI feature is gated by a `features` row in the database; access is granted
 3. Agent WebSocket route — requires a valid session and an agent name ending in the current user id; because this route is handled before TanStack Start request context exists, [[apps/wodsmith-start/src/server.ts]] validates the raw request cookie via [[apps/wodsmith-start/src/utils/auth.ts#getSessionFromRequestCookie]]
 4. Agent's `@callable()` entrypoint — calls [[apps/wodsmith-start/src/server/judge-scheduler/access.ts#requireAiSchedulingAgentAccess]] with the user id from the authenticated agent name before loading roster context or burning Workers AI tokens; this path uses direct DB permission checks and avoids Start cookie helpers because Durable Objects do not have Start request context
 
+The organizer file-drop import agent reproduces this same four-layer contract through [[apps/wodsmith-start/src/server/organizer-file-import/access.ts#requireFileImportAgentAccess]] (plus run-scoped and request-scoped variants for the upload route and write fns) gated by the `AI_FILE_IMPORT` feature.
+
 ### AI judge scheduling
 
 [[apps/wodsmith-start/src/agents/judge-scheduler-agent.ts#JudgeSchedulerAgent]] proposes judge rotations for one event at a time.
@@ -200,3 +202,13 @@ Intent-based tools the agent calls (per Anthropic's "Building Effective Agents")
 - `mark_complete` — final summary
 
 The organizer page at [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/judges-ai.tsx]] mirrors the existing rotation timeline visuals (heats × lanes grid, color-coded coverage). Each streamed proposal renders with its confidence badge, rationale, and any soft violations; the organizer toggles per-proposal Accept/Reject. "Save as Draft" calls [[apps/wodsmith-start/src/server-fns/judge-scheduler-ai-fns.ts#applyAiProposalsFn]], which revalidates proposal membership, event ownership, lane bounds, and slot overlaps before writing `competition_judge_rotations`. The organizer still publishes via the existing rotation timeline screen so versioning + materialization stay in one place.
+
+### Organizer file-drop import
+
+[[apps/wodsmith-start/src/agents/organizer-file-import-agent.ts#OrganizerFileImportAgent]] turns a roster file dropped onto an organizer page into reviewed volunteer/judge invitations: the model proposes, the organizer confirms once, and only then does anything write.
+
+Dropping a file on `/volunteers` or `/volunteers/judges` (detected by [[apps/wodsmith-start/src/components/organizer-import/use-page-intent.ts#usePageIntent]]) creates an `agent_import_runs` row via [[apps/wodsmith-start/src/server-fns/organizer-file-import-fns.ts#createImportRunFn]] *before any model call* — the durable anchor for audit, retention, idempotency, and the Undo receipt. The file is POSTed to the private route [[apps/wodsmith-start/src/routes/api/agent-import/upload.ts]] which stores it under an unguessable R2 key (`agent-imports/{competitionId}/{importRunId}/{file}`) and returns no public URL, so PII stays server-side.
+
+The review drawer ([[apps/wodsmith-start/src/components/organizer-import/import-review-drawer.tsx#ImportReviewDrawer]], mounted by the layout shell [[apps/wodsmith-start/src/components/organizer-import/import-shell.tsx#ImportShell]]) connects the agent and calls `start`, which reads + parses the file server-side ([[apps/wodsmith-start/src/lib/organizer-file-import/parse.ts#parseImportFile]]) then runs `generateText` through the AI Gateway with PROPOSAL-ONLY tools (`get_page_context`, `get_import_table`, `propose_volunteer`, `revoke_proposal`, `ask_clarification`, `mark_complete`). Duplicate detection runs deterministically server-side in [[apps/wodsmith-start/src/lib/organizer-file-import/validate.ts#classifyVolunteer]], so existing-volunteer emails never reach the model. `refine(instruction)` re-drafts the list in words before confirming.
+
+Confirm is the only write path: [[apps/wodsmith-start/src/server-fns/organizer-file-import-fns.ts#applyOrganizerImportFn]] re-validates every proposal deterministically, invites each new volunteer via the existing [[apps/wodsmith-start/src/server/team-members.ts#inviteUserToTeam]] helper (sending invite emails on confirm), and records created entities on the run for the receipt and [[apps/wodsmith-start/src/server-fns/organizer-file-import-fns.ts#undoImportFn]] (which deletes created invitations but cannot un-send email). The MVP covers the volunteers/judges path; events/event-detail imports and the inline-diff surface are later phases.

@@ -137,6 +137,9 @@ export const createEventDivisionMappingId = () => `edm_${ulid()}`
 export const createBroadcastId = () => `bcast_${ulid()}`
 export const createBroadcastRecipientId = () => `brcpt_${ulid()}`
 
+// Agent file-drop import ID generators
+export const createAgentImportRunId = () => `aimp_${ulid()}`
+
 // Competition invite ID generators
 export const createCompetitionInviteSourceId = () => `cisrc_${ulid()}`
 export const createCompetitionInviteId = () => `cinv_${ulid()}`

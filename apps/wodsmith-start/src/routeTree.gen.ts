@@ -74,6 +74,7 @@ import { Route as CompeteSlugAnnouncementsRouteImport } from './routes/compete/$
 import { Route as ApiWorkoutsSearchRouteImport } from './routes/api/workouts/search'
 import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
 import { Route as ApiAuthTokenRouteImport } from './routes/api/auth/token'
+import { Route as ApiAgentImportUploadRouteImport } from './routes/api/agent-import/upload'
 import { Route as AdminTeamsScheduleRouteImport } from './routes/admin/teams/schedule'
 import { Route as AdminTeamsTeamIdRouteImport } from './routes/admin/teams/$teamId'
 import { Route as DemoStartSsrIndexRouteImport } from './routes/demo/start.ssr.index'
@@ -548,6 +549,11 @@ const ApiWebhooksStripeRoute = ApiWebhooksStripeRouteImport.update({
 const ApiAuthTokenRoute = ApiAuthTokenRouteImport.update({
   id: '/api/auth/token',
   path: '/api/auth/token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAgentImportUploadRoute = ApiAgentImportUploadRouteImport.update({
+  id: '/api/agent-import/upload',
+  path: '/api/agent-import/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminTeamsScheduleRoute = AdminTeamsScheduleRouteImport.update({
@@ -1423,6 +1429,7 @@ export interface FileRoutesByFullPath {
   '/compete/': typeof CompeteIndexRoute
   '/admin/teams/$teamId': typeof AdminTeamsTeamIdRouteWithChildren
   '/admin/teams/schedule': typeof AdminTeamsScheduleRouteWithChildren
+  '/api/agent-import/upload': typeof ApiAgentImportUploadRoute
   '/api/auth/token': typeof ApiAuthTokenRouteWithChildren
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
@@ -1623,6 +1630,7 @@ export interface FileRoutesByTo {
   '/transfer/$transferId': typeof TransferTransferIdRoute
   '/admin': typeof AdminIndexRoute
   '/compete': typeof CompeteIndexRoute
+  '/api/agent-import/upload': typeof ApiAgentImportUploadRoute
   '/api/auth/token': typeof ApiAuthTokenRouteWithChildren
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
@@ -1823,6 +1831,7 @@ export interface FileRoutesById {
   '/compete/': typeof CompeteIndexRoute
   '/admin/teams/$teamId': typeof AdminTeamsTeamIdRouteWithChildren
   '/admin/teams/schedule': typeof AdminTeamsScheduleRouteWithChildren
+  '/api/agent-import/upload': typeof ApiAgentImportUploadRoute
   '/api/auth/token': typeof ApiAuthTokenRouteWithChildren
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
@@ -2032,6 +2041,7 @@ export interface FileRouteTypes {
     | '/compete/'
     | '/admin/teams/$teamId'
     | '/admin/teams/schedule'
+    | '/api/agent-import/upload'
     | '/api/auth/token'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
@@ -2232,6 +2242,7 @@ export interface FileRouteTypes {
     | '/transfer/$transferId'
     | '/admin'
     | '/compete'
+    | '/api/agent-import/upload'
     | '/api/auth/token'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
@@ -2431,6 +2442,7 @@ export interface FileRouteTypes {
     | '/compete/'
     | '/admin/teams/$teamId'
     | '/admin/teams/schedule'
+    | '/api/agent-import/upload'
     | '/api/auth/token'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
@@ -2625,6 +2637,7 @@ export interface RootRouteChildren {
   ApiSitemapRoute: typeof ApiSitemapRoute
   ApiUploadRoute: typeof ApiUploadRoute
   TransferTransferIdRoute: typeof TransferTransferIdRoute
+  ApiAgentImportUploadRoute: typeof ApiAgentImportUploadRoute
   ApiAuthTokenRoute: typeof ApiAuthTokenRouteWithChildren
   ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
   ApiWorkoutsSearchRoute: typeof ApiWorkoutsSearchRoute
@@ -3104,6 +3117,13 @@ declare module '@tanstack/react-router' {
       path: '/api/auth/token'
       fullPath: '/api/auth/token'
       preLoaderRoute: typeof ApiAuthTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/agent-import/upload': {
+      id: '/api/agent-import/upload'
+      path: '/api/agent-import/upload'
+      fullPath: '/api/agent-import/upload'
+      preLoaderRoute: typeof ApiAgentImportUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/teams/schedule': {
@@ -4804,6 +4824,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiSitemapRoute: ApiSitemapRoute,
   ApiUploadRoute: ApiUploadRoute,
   TransferTransferIdRoute: TransferTransferIdRoute,
+  ApiAgentImportUploadRoute: ApiAgentImportUploadRoute,
   ApiAuthTokenRoute: ApiAuthTokenRouteWithChildren,
   ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
   ApiWorkoutsSearchRoute: ApiWorkoutsSearchRoute,
