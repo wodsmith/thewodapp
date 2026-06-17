@@ -1,6 +1,6 @@
-import { ulid } from "ulid"
 import { sql } from "drizzle-orm"
 import { datetime, int } from "drizzle-orm/mysql-core"
+import { ulid } from "ulid"
 
 /**
  * Common columns used across all tables
@@ -142,3 +142,6 @@ export const createCompetitionInviteSourceId = () => `cisrc_${ulid()}`
 export const createCompetitionInviteId = () => `cinv_${ulid()}`
 export const createCompetitionInviteSourceDivisionAllocationId = () =>
   `cisda_${ulid()}`
+
+// Organizer file-drop import ID generators
+export const createAgentImportRunId = () => `aimp_${ulid()}`
