@@ -15,6 +15,7 @@ import {
 } from "@tanstack/react-router"
 import { CompetitionHeader } from "@/components/competition-header"
 import { CompetitionSidebar } from "@/components/competition-sidebar"
+import { ImportShell } from "@/components/organizer-import/import-shell"
 import { OrganizerBreadcrumb } from "@/components/organizer-breadcrumb"
 import { PendingOrganizerBanner } from "@/components/pending-organizer-banner"
 import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
@@ -150,7 +151,15 @@ function CompetitionLayout() {
         />
 
         {/* Child route content */}
-        <Outlet />
+        <ImportShell
+          competition={{
+            id: competition.id,
+            name: competition.name,
+            organizingTeamId: competition.organizingTeamId,
+          }}
+        >
+          <Outlet />
+        </ImportShell>
       </div>
     </CompetitionSidebar>
   )

@@ -10,6 +10,8 @@ Access requires authentication plus one of: platform admin role, or owner/admin 
 
 The layout header renders [[apps/wodsmith-start/src/components/competition-header.tsx#CompetitionHeader]], which groups publication, visibility, registration, and competition metadata into compact fields under the competition name. The registration field combines open/closed state with the registration date range so organizers can scan state and timing without reading a long inline sentence. The header's actions are "View public page" and (for series competitions) "Go to Series" — there is no Edit button because the sidebar's "Competition details" link already navigates to the edit page.
 
+The layout also wraps child routes in [[apps/wodsmith-start/src/components/organizer-import/import-shell.tsx#ImportShell]], the always-mounted file-drop import surface. [[apps/wodsmith-start/src/components/organizer-import/use-page-intent.ts#usePageIntent]] maps the active route to an import intent — currently only `/volunteers` (volunteers) and `/volunteers/judges` (judges) enable the drop overlay and the persistent "Import from a file" dock; other organizer pages render nothing. Dropping (or picking) a file opens the agent-backed review drawer (see [[architecture#AI Agents#Organizer file-drop import]]).
+
 ## Overview Page
 
 The index page shows at-a-glance competition stats and quick action cards for common organizer tasks.

@@ -23,6 +23,7 @@ export const FEATURES = {
   AI_WORKOUT_GENERATION: "ai_workout_generation",
   AI_PROGRAMMING_ASSISTANT: "ai_programming_assistant",
   AI_JUDGE_SCHEDULING: "ai_judge_scheduling",
+  AI_FILE_IMPORT: "ai_file_import",
 
   // Team features (PRIORITY - Core Monetization)
   MULTI_TEAM_MANAGEMENT: "multi_team_management",

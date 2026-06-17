@@ -528,6 +528,23 @@ const judgeSchedulerAgent = DurableObjectNamespace("judge-scheduler-agent", {
 })
 
 /**
+ * Durable Object namespace for the organizer file-drop import agent.
+ *
+ * Each dropped file is an isolated session keyed by `${importRunId}__${userId}`
+ * (a fresh ULID per drop) so concurrent imports never collide and a
+ * reconnecting organizer reattaches to the same in-flight proposal stream.
+ *
+ * @see src/agents/organizer-file-import-agent.ts
+ */
+const organizerFileImportAgent = DurableObjectNamespace(
+  "organizer-file-import-agent",
+  {
+    className: "OrganizerFileImportAgent",
+    sqlite: true,
+  },
+)
+
+/**
  * Cloudflare Workers AI binding for built-in LLM inference.
  *
  * Currently used by the judge-scheduling agent to call
@@ -658,6 +675,8 @@ const website = await TanStackStart("app", {
     BROADCAST_EMAIL_QUEUE: broadcastEmailQueue,
     /** Durable Object namespace for the AI judge-scheduling agent */
     JUDGE_SCHEDULER_AGENT: judgeSchedulerAgent,
+    /** Durable Object namespace for the organizer file-drop import agent */
+    ORGANIZER_FILE_IMPORT_AGENT: organizerFileImportAgent,
     /** Cloudflare Workers AI binding for LLM inference */
     AI: aiBinding,
     /**
