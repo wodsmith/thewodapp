@@ -25,6 +25,7 @@ import { Route as CompeteCohostInviteRouteImport } from './routes/compete/cohost
 import { Route as CompeteCohostRouteImport } from './routes/compete/cohost'
 import { Route as CompeteSlugRouteImport } from './routes/compete/$slug'
 import { Route as ApiUploadRouteImport } from './routes/api/upload'
+import { Route as ApiAgentImportUploadRouteImport } from './routes/api/agent-import/upload'
 import { Route as ApiSitemapRouteImport } from './routes/api/sitemap'
 import { Route as ApiGetSessionRouteImport } from './routes/api/get-session'
 import { Route as ProtectedSettingsRouteImport } from './routes/_protected/settings'
@@ -293,6 +294,11 @@ const CompeteSlugRoute = CompeteSlugRouteImport.update({
 const ApiUploadRoute = ApiUploadRouteImport.update({
   id: '/api/upload',
   path: '/api/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAgentImportUploadRoute = ApiAgentImportUploadRouteImport.update({
+  id: '/api/agent-import/upload',
+  path: '/api/agent-import/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSitemapRoute = ApiSitemapRouteImport.update({
@@ -1414,6 +1420,7 @@ export interface FileRoutesByFullPath {
   '/api/get-session': typeof ApiGetSessionRoute
   '/api/sitemap': typeof ApiSitemapRoute
   '/api/upload': typeof ApiUploadRoute
+  '/api/agent-import/upload': typeof ApiAgentImportUploadRoute
   '/compete/$slug': typeof CompeteSlugRouteWithChildren
   '/compete/cohost': typeof CompeteCohostRouteWithChildren
   '/compete/cohost-invite': typeof CompeteCohostInviteRouteWithChildren
@@ -1617,6 +1624,7 @@ export interface FileRoutesByTo {
   '/api/get-session': typeof ApiGetSessionRoute
   '/api/sitemap': typeof ApiSitemapRoute
   '/api/upload': typeof ApiUploadRoute
+  '/api/agent-import/upload': typeof ApiAgentImportUploadRoute
   '/compete/cohost': typeof CompeteCohostRouteWithChildren
   '/compete/cohost-invite': typeof CompeteCohostInviteRouteWithChildren
   '/compete/organizer': typeof CompeteOrganizerDashboardIndexRoute
@@ -1814,6 +1822,7 @@ export interface FileRoutesById {
   '/api/get-session': typeof ApiGetSessionRoute
   '/api/sitemap': typeof ApiSitemapRoute
   '/api/upload': typeof ApiUploadRoute
+  '/api/agent-import/upload': typeof ApiAgentImportUploadRoute
   '/compete/$slug': typeof CompeteSlugRouteWithChildren
   '/compete/cohost': typeof CompeteCohostRouteWithChildren
   '/compete/cohost-invite': typeof CompeteCohostInviteRouteWithChildren
@@ -2023,6 +2032,7 @@ export interface FileRouteTypes {
     | '/api/get-session'
     | '/api/sitemap'
     | '/api/upload'
+    | '/api/agent-import/upload'
     | '/compete/$slug'
     | '/compete/cohost'
     | '/compete/cohost-invite'
@@ -2226,6 +2236,7 @@ export interface FileRouteTypes {
     | '/api/get-session'
     | '/api/sitemap'
     | '/api/upload'
+    | '/api/agent-import/upload'
     | '/compete/cohost'
     | '/compete/cohost-invite'
     | '/compete/organizer'
@@ -2422,6 +2433,7 @@ export interface FileRouteTypes {
     | '/api/get-session'
     | '/api/sitemap'
     | '/api/upload'
+    | '/api/agent-import/upload'
     | '/compete/$slug'
     | '/compete/cohost'
     | '/compete/cohost-invite'
@@ -2624,6 +2636,7 @@ export interface RootRouteChildren {
   ApiGetSessionRoute: typeof ApiGetSessionRoute
   ApiSitemapRoute: typeof ApiSitemapRoute
   ApiUploadRoute: typeof ApiUploadRoute
+  ApiAgentImportUploadRoute: typeof ApiAgentImportUploadRoute
   TransferTransferIdRoute: typeof TransferTransferIdRoute
   ApiAuthTokenRoute: typeof ApiAuthTokenRouteWithChildren
   ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
@@ -2761,6 +2774,13 @@ declare module '@tanstack/react-router' {
       path: '/api/upload'
       fullPath: '/api/upload'
       preLoaderRoute: typeof ApiUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/agent-import/upload': {
+      id: '/api/agent-import/upload'
+      path: '/api/agent-import/upload'
+      fullPath: '/api/agent-import/upload'
+      preLoaderRoute: typeof ApiAgentImportUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/sitemap': {
@@ -4803,6 +4823,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiGetSessionRoute: ApiGetSessionRoute,
   ApiSitemapRoute: ApiSitemapRoute,
   ApiUploadRoute: ApiUploadRoute,
+  ApiAgentImportUploadRoute: ApiAgentImportUploadRoute,
   TransferTransferIdRoute: TransferTransferIdRoute,
   ApiAuthTokenRoute: ApiAuthTokenRouteWithChildren,
   ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,

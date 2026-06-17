@@ -21,6 +21,7 @@ import { getAgentByName } from "agents"
 import { sendBatchToPostHog } from "evlog/posthog"
 import { createWorkersLogger, initWorkersLogger } from "evlog/workers"
 import type { JudgeSchedulerAgent } from "./agents/judge-scheduler-agent"
+import type { OrganizerFileImportAgent } from "./agents/organizer-file-import-agent"
 import { withEvlog } from "./lib/evlog"
 import {
   extractRequestInfo,
@@ -98,6 +99,7 @@ initWorkersLogger({
 
 // Workers runtime requires Durable Object classes to be exported from the entry point
 export { JudgeSchedulerAgent } from "./agents/judge-scheduler-agent"
+export { OrganizerFileImportAgent } from "./agents/organizer-file-import-agent"
 export { ManualRegistrationWorkflow } from "./workflows/manual-registration-workflow"
 // Workers runtime requires Workflow classes to be exported from the entry point
 export { StripeCheckoutWorkflow } from "./workflows/stripe-checkout-workflow"
@@ -140,6 +142,24 @@ const startEntry = createServerEntry({
         // class for the agents library's name-persistence helper.
         const ns =
           env.JUDGE_SCHEDULER_AGENT as unknown as DurableObjectNamespace<JudgeSchedulerAgent>
+        const stub = await getAgentByName(ns, name)
+        return stub.fetch(request)
+      }
+      if (namespace === "organizer-file-import-agent") {
+        // Instance names are `<importRunId>__<userId>`. Reject anything else so
+        // a caller can't materialize arbitrary DO identities by hitting the
+        // route directly (getAgentByName persists the name).
+        const match = /^([a-z0-9_-]{1,128})__([a-z0-9_-]{1,128})$/i.exec(name)
+        if (!match) {
+          return new Response("Invalid agent name", { status: 400 })
+        }
+        const [, , userId] = match
+        const session = await getSessionFromRequestCookie(request)
+        if (!session?.userId || session.userId !== userId) {
+          return new Response("Unauthorized", { status: 401 })
+        }
+        const ns =
+          env.ORGANIZER_FILE_IMPORT_AGENT as unknown as DurableObjectNamespace<OrganizerFileImportAgent>
         const stub = await getAgentByName(ns, name)
         return stub.fetch(request)
       }

@@ -17,6 +17,7 @@ declare global {
     // that aren't included in `wrangler types` output (Durable Objects, AI, etc.).
     interface Env {
       JUDGE_SCHEDULER_AGENT: DurableObjectNamespace
+      ORGANIZER_FILE_IMPORT_AGENT: DurableObjectNamespace
       AI: Ai
       /** Cloudflare account id — routed through AI Gateway by the agents */
       CF_ACCOUNT_ID: string
