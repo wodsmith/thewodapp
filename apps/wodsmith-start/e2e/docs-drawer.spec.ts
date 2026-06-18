@@ -13,23 +13,27 @@ test.describe('Docs drawer', () => {
     await page.goto('/compete/organizer')
     await waitForHydration(page)
 
-    // The floating button only renders once published docs are fetched for
+    // The floating launcher only renders once published docs are fetched for
     // the current route chain.
     const docsButton = page.getByRole('button', {
-      name: 'Open page documentation',
+      name: 'Open workspace panel',
     })
     await expect(docsButton).toBeVisible({timeout: 15000})
 
     await docsButton.click()
 
-    const sheet = page.getByRole('dialog')
+    // Opening the launcher reveals the workspace panel (a flex aside, not a
+    // dialog) with the Documentation tab active.
+    const panel = page.getByRole('complementary', {name: 'Workspace'})
     await expect(
-      sheet.getByRole('heading', {name: 'Documentation'}),
+      panel.getByRole('heading', {name: 'Documentation'}),
     ).toBeVisible()
-    await expect(sheet.getByText('Your first competition')).toBeVisible()
 
-    // Link docs render an external article button with the mapped URL.
-    await expect(sheet.getByRole('link', {name: /read article/i})).toHaveAttribute(
+    // The seeded "Your first competition" link doc renders as an external
+    // anchor pointing at the mapped docs.wodsmith.com URL.
+    await expect(
+      panel.getByRole('link', {name: 'Your first competition'}),
+    ).toHaveAttribute(
       'href',
       'https://docs.wodsmith.com/tutorials/organizers/first-competition',
     )

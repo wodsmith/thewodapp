@@ -52,7 +52,9 @@ Also covers: mp4/webm/mov/m4v extensions match case-insensitively, platform URLs
 
 ### Shows seeded docs end to end
 
-Playwright e2e: a signed-in organizer on the dashboard sees the floating Docs button, and opening the drawer shows the seeded "Your first competition" link doc — proving route matching, fetch, and rendering work against a real database.
+Playwright e2e: a signed-in organizer on the dashboard sees the floating workspace launcher and opening it shows the seeded "Your first competition" doc — proving route matching, fetch, and rendering work against a real database.
+
+The test targets the current component, not the old drawer: the launcher button is labeled "Open workspace panel", the opened panel is a `complementary` aside (not a dialog) headed "Documentation", and the link doc renders as an external anchor whose `href` is the mapped docs.wodsmith.com URL.
 
 Relies on the e2e pipeline running `db:push` + `db:seed` first, so the `22-route-docs` seeder's published docs exist for the `/compete/organizer/_dashboard/` route id. The Playwright web server sets `VITE_E2E` to hide the TanStack Devtools trigger, which otherwise floats over the bottom-right corner and intercepts clicks on the drawer button.
 
