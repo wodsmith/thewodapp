@@ -528,6 +528,24 @@ const judgeSchedulerAgent = DurableObjectNamespace("judge-scheduler-agent", {
 })
 
 /**
+ * Durable Object namespace for the organizer file-drop import agent.
+ *
+ * Each dropped file is an isolated agent instance keyed by
+ * `${importRunId}__${userId}`, so concurrent imports (or a reconnecting tab)
+ * never collide. The agent parses the uploaded file, drafts proposals, and
+ * streams them to the review surface; it never writes to the database.
+ *
+ * @see src/agents/organizer-file-import-agent.ts
+ */
+const organizerFileImportAgent = DurableObjectNamespace(
+  "organizer-file-import-agent",
+  {
+    className: "OrganizerFileImportAgent",
+    sqlite: true,
+  },
+)
+
+/**
  * Cloudflare Workers AI binding for built-in LLM inference.
  *
  * Currently used by the judge-scheduling agent to call
@@ -658,6 +676,8 @@ const website = await TanStackStart("app", {
     BROADCAST_EMAIL_QUEUE: broadcastEmailQueue,
     /** Durable Object namespace for the AI judge-scheduling agent */
     JUDGE_SCHEDULER_AGENT: judgeSchedulerAgent,
+    /** Durable Object namespace for the organizer file-drop import agent */
+    ORGANIZER_FILE_IMPORT_AGENT: organizerFileImportAgent,
     /** Cloudflare Workers AI binding for LLM inference */
     AI: aiBinding,
     /**
@@ -671,8 +691,7 @@ const website = await TanStackStart("app", {
     // Pulling from env lets forks / new deploys target their own
     // Cloudflare account without code changes.
     CF_ACCOUNT_ID:
-      process.env.CLOUDFLARE_ACCOUNT_ID ??
-      "317fb84f366ea1ab038ca90000953697",
+      process.env.CLOUDFLARE_ACCOUNT_ID ?? "317fb84f366ea1ab038ca90000953697",
     CF_AIG_GATEWAY: aiGatewayName,
     // App configuration
     // biome-ignore lint/style/noNonNullAssertion: Required env vars validated at deploy time

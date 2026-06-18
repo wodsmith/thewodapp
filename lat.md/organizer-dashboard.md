@@ -10,6 +10,12 @@ Access requires authentication plus one of: platform admin role, or owner/admin 
 
 The layout header renders [[apps/wodsmith-start/src/components/competition-header.tsx#CompetitionHeader]], which groups publication, visibility, registration, and competition metadata into compact fields under the competition name. The registration field combines open/closed state with the registration date range so organizers can scan state and timing without reading a long inline sentence. The header's actions are "View public page" and (for series competitions) "Go to Series" — there is no Edit button because the sidebar's "Competition details" link already navigates to the edit page.
 
+## Organizer File-Drop Import
+
+Dragging a file onto a drop-enabled organizer page opens an AI assistant that drafts changes for review — nothing is written until the organizer confirms once.
+
+[[apps/wodsmith-start/src/components/organizer-import/import-shell.tsx#ImportShell]] wraps the layout `Outlet`, so the affordance is available on every organizer page without per-page wiring. On an entitled team it renders a full-page drop overlay (native HTML5 drag/drop) plus a persistent "Import a file" dock. On drop it creates an import run, uploads the file privately, and opens [[apps/wodsmith-start/src/components/organizer-import/import-review-drawer.tsx#ImportReviewDrawer]], which streams proposals from [[apps/wodsmith-start/src/agents/organizer-file-import-agent.ts#OrganizerFileImportAgent]] as the preview itself (no checkbox grid — per-row exclude, inline duplicate/match badges and warnings), supports refine-by-prompt, and applies on a single Confirm with an Undo receipt. The current page intent (volunteers/judges) comes from [[apps/wodsmith-start/src/components/organizer-import/use-page-intent.ts#usePageIntent]]. See [[architecture#AI Agents#Organizer file-drop import]] for the agent and the confirm/undo write path. It is enabled on the Volunteers and Judges pages (creating volunteer invitations) and the Events list page (creating events); single-event updates remain review-only for now.
+
 ## Overview Page
 
 The index page shows at-a-glance competition stats and quick action cards for common organizer tasks.
