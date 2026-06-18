@@ -210,6 +210,12 @@ export function RegistrationSidebar({
   const hasMultipleRegistrations = userRegistrations.length > 1
   const hasPendingCompetitionInvites = pendingCompetitionInvites.length > 0
 
+  // Draft competitions are not open to the public, so suppress all
+  // registration-state cards (register CTA, "opens soon", "closed"). The
+  // server enforces this too; this keeps the UI from inviting a registration
+  // that would be rejected. Existing registrants/invitees still see their cards.
+  const isPublished = competition.status === "published"
+
   return (
     <div className="space-y-4">
       {pendingTeamInvites.length > 0 && (
@@ -299,7 +305,10 @@ export function RegistrationSidebar({
       )}
 
       {/* Registration CTA Card - shown when NOT registered at all */}
-      {!hasPendingCompetitionInvites && !isRegistered && registrationOpen && (
+      {isPublished &&
+        !hasPendingCompetitionInvites &&
+        !isRegistered &&
+        registrationOpen && (
         <Card
           className={`backdrop-blur-md ${
             urgency?.urgencyLevel === "critical"
@@ -392,7 +401,8 @@ export function RegistrationSidebar({
       )}
 
       {/* Registration Not Yet Open */}
-      {!hasPendingCompetitionInvites &&
+      {isPublished &&
+        !hasPendingCompetitionInvites &&
         !isRegistered &&
         !registrationOpen &&
         registrationNotYetOpen &&
@@ -413,7 +423,8 @@ export function RegistrationSidebar({
         )}
 
       {/* Registration Closed */}
-      {!hasPendingCompetitionInvites &&
+      {isPublished &&
+        !hasPendingCompetitionInvites &&
         !isRegistered &&
         !registrationOpen &&
         !registrationNotYetOpen &&

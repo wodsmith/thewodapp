@@ -97,6 +97,7 @@ function makeCompetition(overrides = {}) {
 		id: "comp-1",
 		name: "Test Competition",
 		slug: "test-competition",
+		status: "published",
 		organizingTeamId: "org-team-1",
 		competitionTeamId: "event-team-1",
 		startDate: "2025-06-15",
@@ -355,6 +356,24 @@ describe("registerForCompetition", () => {
 					divisionId: "div-rx",
 				}),
 			).rejects.toThrow("Registration has closed")
+		})
+
+		it("throws when competition is draft for non-override registration", async () => {
+			const competition = makeCompetition({ status: "draft" })
+			mockDb.query.competitionsTable = {
+				findFirst: vi.fn().mockResolvedValue(competition),
+				findMany: vi.fn().mockResolvedValue([]),
+			}
+			vi.mocked(hasDateStartedInTimezone).mockReturnValue(true)
+			vi.mocked(isDeadlinePassedInTimezone).mockReturnValue(false)
+
+			await expect(
+				registerForCompetition({
+					competitionId: "comp-1",
+					userId: "user-1",
+					divisionId: "div-rx",
+				}),
+			).rejects.toThrow("Registration is not open for this competition")
 		})
 	})
 

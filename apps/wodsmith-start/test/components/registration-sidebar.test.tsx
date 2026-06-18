@@ -48,6 +48,7 @@ const competition = {
   id: "comp_1",
   slug: "test-comp",
   name: "Test Competition",
+  status: "published",
   startDate: "2026-06-01",
   endDate: "2026-06-02",
   registrationOpensAt: "2026-01-01",
@@ -113,6 +114,35 @@ describe("RegistrationSidebar pending competition invites", () => {
       "href",
       "/compete/test-comp/claim/claim_token_abc",
     )
+    expect(screen.queryByText("Registration closed")).not.toBeInTheDocument()
+  })
+})
+
+describe("RegistrationSidebar draft competitions", () => {
+  const draftCompetition = {
+    ...competition,
+    status: "draft",
+  } as ComponentProps<typeof RegistrationSidebar>["competition"]
+
+  it("hides the register CTA for a draft competition even when the window is open", () => {
+    renderSidebar({ competition: draftCompetition, registrationOpen: true })
+
+    expect(
+      screen.queryByRole("link", { name: "Register now" }),
+    ).not.toBeInTheDocument()
+  })
+
+  it("shows the register CTA for a published competition with an open window", () => {
+    renderSidebar({ registrationOpen: true })
+
+    expect(
+      screen.getByRole("link", { name: "Register now" }),
+    ).toBeInTheDocument()
+  })
+
+  it("hides the registration-closed card for a draft competition", () => {
+    renderSidebar({ competition: draftCompetition, registrationOpen: false })
+
     expect(screen.queryByText("Registration closed")).not.toBeInTheDocument()
   })
 })
