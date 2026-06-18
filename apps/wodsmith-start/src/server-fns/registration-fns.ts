@@ -575,6 +575,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
           teamName: item.teamName,
           affiliateName: input.affiliateName,
           teammates: item.teammates,
+          isOrganizerOverride: inviteAuthorized,
         })
 
         createdRegistrationIds.push(result.registrationId)
@@ -791,6 +792,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
           teamName: item.teamName,
           affiliateName: input.affiliateName,
           teammates: item.teammates,
+          isOrganizerOverride: inviteAuthorized,
         })
 
         await db
