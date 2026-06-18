@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "4d04eaebe9ab",
+  "strategy": "manual-commit",
+  "branch": "worktree-delegated-singing-meadow",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/wodsmith-start/src/routes/compete/$slug/teams/$registrationId/index.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/4d/04eaebe9ab/0/metadata.json",
+      "transcript": "/4d/04eaebe9ab/0/full.jsonl",
+      "context": "/4d/04eaebe9ab/0/context.md",
+      "content_hash": "/4d/04eaebe9ab/0/content_hash.txt",
+      "prompt": "/4d/04eaebe9ab/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 15204,
+    "cache_creation_tokens": 66830,
+    "cache_read_tokens": 2138380,
+    "output_tokens": 14930,
+    "api_call_count": 32
+  }
+}
