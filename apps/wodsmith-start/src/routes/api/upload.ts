@@ -33,6 +33,7 @@ import { getSessionFromCookie } from "@/utils/auth"
 
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
 const DOCUMENT_TYPES = ["application/pdf"]
+const VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"]
 
 const PURPOSE_CONFIG: Record<
   string,
@@ -72,6 +73,12 @@ const PURPOSE_CONFIG: Record<
     maxSizeMb: 20,
     pathPrefix: "competitions/judging-sheets",
     allowedTypes: DOCUMENT_TYPES,
+  },
+  // Documentation drawer videos (site admin only, see upload-authorization)
+  "docs-video": {
+    maxSizeMb: 100,
+    pathPrefix: "docs/videos",
+    allowedTypes: VIDEO_TYPES,
   },
 }
 
@@ -172,7 +179,11 @@ export const Route = createFileRoute("/api/upload")({
             },
           })
           const allowedTypeNames =
-            purpose === "judging-sheet" ? "PDF" : "JPEG, PNG, WebP, GIF"
+            purpose === "judging-sheet"
+              ? "PDF"
+              : purpose === "docs-video"
+                ? "MP4, WebM, MOV"
+                : "JPEG, PNG, WebP, GIF"
           return json(
             { error: `Invalid file type. Allowed: ${allowedTypeNames}` },
             { status: 400 },

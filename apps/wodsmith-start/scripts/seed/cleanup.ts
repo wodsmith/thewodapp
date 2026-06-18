@@ -6,6 +6,10 @@ import type { Connection } from "mysql2/promise"
  */
 export async function cleanup(client: Connection): Promise<void> {
 	const tables = [
+		// Route docs (independent — no FKs, app-level cleanup)
+		"route_doc_routes",
+		"route_doc_versions",
+		"route_docs",
 		// Competition invites (before competitions)
 		"competition_invites",
 		"competition_invite_source_division_allocations",

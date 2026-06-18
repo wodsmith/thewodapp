@@ -4,6 +4,7 @@
 import { createFileRoute, Link, Outlet, redirect } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
 import {
+  BookOpen,
   Building2,
   ClipboardList,
   Home,
@@ -82,6 +83,11 @@ const platformNavItems = [
     title: "Demo Competitions",
     href: "/admin/demo-competitions",
     icon: Play,
+  },
+  {
+    title: "Documentation",
+    href: "/admin/docs",
+    icon: BookOpen,
   },
 ]
 

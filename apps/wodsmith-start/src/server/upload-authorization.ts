@@ -6,7 +6,7 @@
 
 import { eq } from "drizzle-orm"
 import { getDb } from "@/db"
-import { competitionsTable } from "@/db/schema"
+import { competitionsTable, ROLES_ENUM } from "@/db/schema"
 import { competitionGroupsTable } from "@/db/schemas/competitions"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { getSessionFromCookie } from "@/utils/auth"
@@ -121,6 +121,18 @@ export async function checkUploadAuthorization(
       authorized: false,
       error: "Not authorized to upload sponsor logo",
     }
+  }
+
+  // Documentation videos are platform-level content managed by site admins
+  if (purpose === "docs-video") {
+    const session = await getSessionFromCookie()
+    if (session?.user.role !== ROLES_ENUM.ADMIN) {
+      return {
+        authorized: false,
+        error: "Not authorized to upload documentation videos",
+      }
+    }
+    return { authorized: true }
   }
 
   return { authorized: true }
