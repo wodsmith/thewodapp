@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
 import {
+	bucketDocsForMatches,
 	isDirectVideoFileUrl,
+	labelForRouteId,
 	orderDocsForMatches,
 	type RouteDocForViewer,
 } from "@/utils/route-docs"
@@ -22,7 +24,7 @@ function makeDoc(
 }
 
 describe("route-docs", () => {
-	// @lat: [[route-docs#Docs drawer#Orders docs leaf-route first]]
+	// @lat: [[route-docs#Workspace sidebar#Orders docs leaf-route first]]
 	describe("orderDocsForMatches", () => {
 		const matchChain = [
 			"/compete/organizer",
@@ -105,7 +107,102 @@ describe("route-docs", () => {
 		})
 	})
 
-	// @lat: [[route-docs#Docs drawer#Detects direct video files]]
+	// @lat: [[route-docs#Workspace sidebar#Buckets page docs from section docs]]
+	describe("bucketDocsForMatches", () => {
+		const matchChain = [
+			"/compete/organizer",
+			"/compete/organizer/$competitionId",
+			"/compete/organizer/$competitionId/schedule",
+		]
+
+		it("splits leaf-route docs (page) from inherited layout docs (section)", () => {
+			const layoutDoc = makeDoc({
+				id: "layout",
+				routeIds: ["/compete/organizer/$competitionId"],
+			})
+			const leafDoc = makeDoc({
+				id: "leaf",
+				routeIds: ["/compete/organizer/$competitionId/schedule"],
+			})
+
+			const { page, section } = bucketDocsForMatches(
+				[layoutDoc, leafDoc],
+				matchChain,
+			)
+
+			expect(page.map((doc) => doc.id)).toEqual(["leaf"])
+			expect(section.map((doc) => doc.id)).toEqual(["layout"])
+		})
+
+		it("treats a doc mapped to both leaf and an ancestor as a page doc", () => {
+			const multiRouteDoc = makeDoc({
+				id: "multi",
+				routeIds: [
+					"/compete/organizer",
+					"/compete/organizer/$competitionId/schedule",
+				],
+			})
+
+			const { page, section } = bucketDocsForMatches([multiRouteDoc], matchChain)
+
+			expect(page.map((doc) => doc.id)).toEqual(["multi"])
+			expect(section).toEqual([])
+		})
+
+		it("matches an index-route leaf to its slashless doc mapping", () => {
+			// The competition overview is an index route, so its leaf match is
+			// slashed (`…/$competitionId/`) while the doc is mapped to the
+			// canonical slashless id.
+			const indexChain = [
+				"/compete/organizer",
+				"/compete/organizer/$competitionId",
+				"/compete/organizer/$competitionId/",
+			]
+			const overviewDoc = makeDoc({
+				id: "overview",
+				routeIds: ["/compete/organizer/$competitionId"],
+			})
+
+			const { page, section } = bucketDocsForMatches([overviewDoc], indexChain)
+
+			expect(page.map((doc) => doc.id)).toEqual(["overview"])
+			expect(section).toEqual([])
+		})
+
+		it("returns everything as section docs when the leaf has no docs", () => {
+			const layoutDoc = makeDoc({
+				id: "layout",
+				routeIds: ["/compete/organizer/$competitionId"],
+			})
+
+			const { page, section } = bucketDocsForMatches([layoutDoc], matchChain)
+
+			expect(page).toEqual([])
+			expect(section.map((doc) => doc.id)).toEqual(["layout"])
+		})
+	})
+
+	describe("labelForRouteId", () => {
+		it("maps known organizer segments to readable labels", () => {
+			expect(
+				labelForRouteId("/compete/organizer/$competitionId/schedule"),
+			).toBe("Heat schedule")
+			expect(labelForRouteId("/compete/organizer/$competitionId")).toBe(
+				"Competition",
+			)
+		})
+
+		it("ignores pathless layout segments and title-cases unknown ones", () => {
+			expect(labelForRouteId("/compete/organizer/_dashboard/widgets")).toBe(
+				"Widgets",
+			)
+			expect(labelForRouteId("/compete/organizer/$competitionId/foo-bar")).toBe(
+				"Foo Bar",
+			)
+		})
+	})
+
+	// @lat: [[route-docs#Workspace sidebar#Detects direct video files]]
 	describe("isDirectVideoFileUrl", () => {
 		it("accepts direct video file URLs (R2 uploads)", () => {
 			expect(

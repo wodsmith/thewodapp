@@ -3,7 +3,7 @@
  */
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router"
 import { createServerFn } from "@tanstack/react-start"
-import { RouteDocsDrawer } from "@/components/docs-drawer"
+import { WorkspaceSidebar } from "@/components/workspace-sidebar"
 import type { SessionValidationResult } from "@/types"
 import { getSessionFromCookie } from "@/utils/auth"
 import {
@@ -91,9 +91,8 @@ export const Route = createFileRoute("/compete/organizer")({
 
 function OrganizerLayout() {
   return (
-    <>
+    <WorkspaceSidebar>
       <Outlet />
-      <RouteDocsDrawer />
-    </>
+    </WorkspaceSidebar>
   )
 }

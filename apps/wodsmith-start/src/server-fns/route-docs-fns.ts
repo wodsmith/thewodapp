@@ -12,7 +12,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, desc, eq, inArray } from "drizzle-orm"
+import { and, desc, eq, inArray, like, max } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -27,7 +27,11 @@ import {
 } from "@/db/schema"
 import { getSessionFromCookie, requireAdmin } from "@/utils/auth"
 import { AppError } from "@/utils/errors"
-import { orderDocsForMatches, type RouteDocForViewer } from "@/utils/route-docs"
+import {
+  ORGANIZER_ROUTE_PREFIX,
+  orderDocsForMatches,
+  type RouteDocForViewer,
+} from "@/utils/route-docs"
 
 // ============================================================================
 // Input Schemas
@@ -64,9 +68,26 @@ const docIdInputSchema = z.object({
   docId: z.string().min(1),
 })
 
+const routeIdInputSchema = z.object({
+  routeId: z.string().min(1).max(255),
+})
+
 const restoreVersionInputSchema = z.object({
   docId: z.string().min(1),
   versionId: z.string().min(1),
+})
+
+const reorderDocsInputSchema = z.object({
+  // Docs in their new display order, each with the sortOrder to persist.
+  docs: z
+    .array(
+      z.object({
+        docId: z.string().min(1),
+        sortOrder: z.number().int().min(0).max(10_000),
+      }),
+    )
+    .min(1)
+    .max(500),
 })
 
 /**
@@ -161,6 +182,65 @@ export const getRouteDocsForRouteFn = createServerFn({ method: "GET" })
     }
   })
 
+/**
+ * List every published organizer doc with its route mappings, for the
+ * drawer's Browse view.
+ *
+ * Unlike the contextual viewer (which is scoped to the current match
+ * chain), this returns the whole published organizer doc set so the user
+ * can browse to help for adjacent pages without leaving the panel. Docs
+ * carry full content so the Browse → article transition needs no second
+ * fetch. Any signed-in user may read it; the drawer only mounts on
+ * organizer pages.
+ */
+export const getOrganizerDocsIndexFn = createServerFn({
+  method: "GET",
+}).handler(async (): Promise<{ docs: RouteDocForViewer[] }> => {
+  const session = await getSessionFromCookie()
+  if (!session) {
+    throw new AppError("NOT_AUTHORIZED", "Not authenticated")
+  }
+
+  const db = getDb()
+  const rows = await db
+    .select({
+      doc: routeDocsTable,
+      routeId: routeDocRoutesTable.routeId,
+    })
+    .from(routeDocRoutesTable)
+    .innerJoin(routeDocsTable, eq(routeDocRoutesTable.docId, routeDocsTable.id))
+    .where(
+      and(
+        like(routeDocRoutesTable.routeId, `${ORGANIZER_ROUTE_PREFIX}%`),
+        eq(routeDocsTable.isPublished, true),
+      ),
+    )
+
+  // Collapse the join to one entry per doc carrying all its organizer
+  // route ids (the Browse view groups docs by route).
+  const byId = new Map<string, RouteDocForViewer>()
+  for (const row of rows) {
+    const existing = byId.get(row.doc.id)
+    if (existing) {
+      existing.routeIds.push(row.routeId)
+      continue
+    }
+    byId.set(row.doc.id, {
+      id: row.doc.id,
+      title: row.doc.title,
+      description: row.doc.description,
+      type: row.doc.type,
+      content: row.doc.content,
+      videoUrl: row.doc.videoUrl,
+      linkUrl: row.doc.linkUrl,
+      sortOrder: row.doc.sortOrder,
+      routeIds: [row.routeId],
+    })
+  }
+
+  return { docs: Array.from(byId.values()) }
+})
+
 // ============================================================================
 // Admin CRUD
 // ============================================================================
@@ -189,6 +269,33 @@ export const getAllRouteDocsAdminFn = createServerFn({
 
   return { docs }
 })
+
+/**
+ * Next sort order slot for a route group (admin only).
+ *
+ * Returns max(sortOrder) + 1 among docs already mapped to the route, so a
+ * newly created doc lands at the end of that route's group. Returns 1 when
+ * the route has no docs yet.
+ */
+export const getNextSortOrderForRouteFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => routeIdInputSchema.parse(data))
+  .handler(async ({ data }): Promise<{ sortOrder: number }> => {
+    await requireAdmin()
+
+    const db = getDb()
+    const [row] = await db
+      .select({ maxSortOrder: max(routeDocsTable.sortOrder) })
+      .from(routeDocsTable)
+      .innerJoin(
+        routeDocRoutesTable,
+        eq(routeDocRoutesTable.docId, routeDocsTable.id),
+      )
+      .where(eq(routeDocRoutesTable.routeId, data.routeId))
+
+    // PlanetScale can return MAX() as a string — coerce before adding.
+    const current = Number(row?.maxSortOrder ?? 0)
+    return { sortOrder: current + 1 }
+  })
 
 /**
  * Get a single doc with routes and version history (admin only).
@@ -415,6 +522,31 @@ export const restoreRouteDocVersionFn = createServerFn({ method: "POST" })
           linkUrl: version.linkUrl,
         })
         .where(eq(routeDocsTable.id, data.docId))
+    })
+
+    return { success: true }
+  })
+
+/**
+ * Persist a new sort order for a set of docs (admin only).
+ *
+ * sortOrder is a content-independent field, so reordering never snapshots
+ * a version. Used by the admin list page to drag-reorder docs within a
+ * route group; the drawer reads docs ordered by sortOrder.
+ */
+export const reorderRouteDocsFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => reorderDocsInputSchema.parse(data))
+  .handler(async ({ data }): Promise<{ success: boolean }> => {
+    await requireAdmin()
+
+    const db = getDb()
+    await db.transaction(async (tx) => {
+      for (const { docId, sortOrder } of data.docs) {
+        await tx
+          .update(routeDocsTable)
+          .set({ sortOrder })
+          .where(eq(routeDocsTable.id, docId))
+      }
     })
 
     return { success: true }

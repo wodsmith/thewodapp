@@ -14,19 +14,35 @@ A doc has a `type` of `markdown`, `video`, or `link`, and stores only the field 
 
 Docs are keyed to TanStack Router **route IDs** (e.g. `/compete/organizer/$competitionId/schedule`), not concrete URLs. Route ids are static patterns — dynamic segments stay as `$param` — so one mapping covers every competition.
 
-The drawer reads the current match chain from `useMatches()` and queries docs for all matched route ids. Docs mapped to a layout route (e.g. `/compete/organizer/$competitionId`) therefore appear on every child page — useful for section-wide guides. [[apps/wodsmith-start/src/utils/route-docs.ts#orderDocsForMatches]] orders results leaf-most route first, then `sortOrder`, then title.
+The drawer reads the current match chain from `useMatches()` and queries docs for all matched route ids. Docs mapped to a layout route (e.g. `/compete/organizer/$competitionId`) therefore appear on every child page — useful for section-wide guides. [[apps/wodsmith-start/src/utils/route-docs.ts#orderDocsForMatches]] orders results leaf-most route first, then `sortOrder`, then title. [[apps/wodsmith-start/src/utils/route-docs.ts#bucketDocsForMatches]] then splits those results into **page** docs (mapped to the leaf route the user is on) and **section** docs (inherited from ancestor/layout routes), which the contextual view renders as separate groups.
 
-## Docs drawer
+## Workspace sidebar
 
-[[apps/wodsmith-start/src/components/docs-drawer.tsx#RouteDocsDrawer]] mounts once in the organizer layout (`/compete/organizer`). When published docs exist for the current route chain it shows a floating "Docs" button that opens a right-side sheet.
+[[apps/wodsmith-start/src/components/workspace-sidebar.tsx#WorkspaceSidebar]] wraps the organizer layout content (`/compete/organizer`) and opens a right-side panel from a floating launcher. It is named generically because it hosts more than help; Documentation is the first tab.
 
-Markdown renders inline via react-markdown; direct video files (R2 uploads) play in a native `<video>` element while platform URLs (YouTube/Vimeo) reuse the shared `VideoEmbed`; link docs render an external-link button. Doc lookups go through [[apps/wodsmith-start/src/server-fns/route-docs-fns.ts#getRouteDocsForRouteFn]] (session required) and are cached per route-chain for the browser session. Failures are swallowed — help content must never break a page.
+The panel is a **push sidebar**, not an overlay: it is a flex sibling of the page content, so opening it reflows the page to the left (`min-w-0 flex-1`) instead of dimming it behind a backdrop. The content stays fully interactive while docs are open, and the panel is `sticky top-0 h-screen` so it scrolls independently and stays in view as the user works. The panel and floating button are `md:`-gated — on narrow screens there is no room to push, so docs are hidden there.
+
+The panel is **tabbed** via a compact dark icon toolbar at the top (`WORKSPACE_TABS`): small tab icons on the left, a close button on the right. Today the only tab is Documentation, but the toolbar is built to grow — add a tool (e.g. an agent) by extending `WORKSPACE_TABS` and rendering its panel in `WorkspaceContent`.
+
+The documentation panel is a shallow navigation stack (depth ≤ 2) with three views, modeled on the contextual-help pattern used by Intercom/PostHog (answer first, browse second):
+
+- **Contextual** (default): the current page's docs list under an "On this page" group, with inherited layout docs under "In this section". Every doc is a uniform row (type icon, title, description) — markdown/video rows drill into the article view, link rows open externally — so no single doc is arbitrarily singled out. A "Browse all docs" footer enters the browse view.
+- **Article**: drilling into any markdown/video row opens a full-panel reading view with a Back control returning to whichever root the user came from. Link docs open their external URL directly (no article view).
+- **Browse**: lazily loads the full published organizer doc set via [[apps/wodsmith-start/src/server-fns/route-docs-fns.ts#getOrganizerDocsIndexFn]] (cached for the session) and groups it by route id, labeled with [[apps/wodsmith-start/src/utils/route-docs.ts#labelForRouteId]]. The current page's group is badged "This page" and floated to the top; a search box filters by title/description.
+
+Markdown renders via react-markdown with `remark-gfm` (GitHub-flavored markdown), styled by the `@tailwindcss/typography` `prose` classes (registered with `@plugin` in `src/styles.css`). Direct video files (R2 uploads) play in a native `<video>` element while platform URLs (YouTube/Vimeo) reuse the shared `VideoEmbed`. Contextual doc lookups go through [[apps/wodsmith-start/src/server-fns/route-docs-fns.ts#getRouteDocsForRouteFn]] (session required) and are cached per route-chain for the browser session. Failures are swallowed — help content must never break a page.
 
 ### Orders docs leaf-route first
 
 Verifies `orderDocsForMatches` puts page-specific docs above docs inherited from layout routes, so organizers always see the most contextually relevant help first when several docs apply to a route chain.
 
 Also covers: the deepest matched route wins when a doc maps to several routes, ties break by sortOrder then title, and the input array is not mutated.
+
+### Buckets page docs from section docs
+
+Verifies `bucketDocsForMatches` separates docs mapped to the current leaf route (the page the organizer is on) from docs inherited from ancestor/layout routes, so the contextual view can surface page-specific help prominently above section-wide help.
+
+Also covers: a doc mapped to both the leaf and an ancestor counts as a page doc; an index-route leaf (slashed, e.g. `…/$competitionId/`) matches its canonical slashless doc mapping; and when the leaf route has no docs everything falls through to the section bucket.
 
 ### Detects direct video files
 
@@ -44,7 +60,11 @@ Relies on the e2e pipeline running `db:push` + `db:seed` first, so the `22-route
 
 Site admins manage docs at `/admin/docs` (list, create, edit). All CRUD server functions in [[apps/wodsmith-start/src/server-fns/route-docs-fns.ts]] call `requireAdmin`.
 
-The edit form's route picker is populated at runtime from `router.routesById` filtered to the `/compete/organizer` prefix, so it always matches the deployed route tree with no hand-maintained list. Mappings whose route id no longer exists in the tree are highlighted as stale so admins can remove them after route renames.
+The list page [[apps/wodsmith-start/src/routes/admin/docs/index.tsx]] groups docs by mapped route id into collapsible sections (a doc mapped to multiple routes appears under each; unmapped docs collect in a "No routes mapped" group sorted last). A search box filters the groups by route id and auto-expands matches. Each mapped route group header has a `+` button linking to `/admin/docs/new?routeId=<id>`; [[apps/wodsmith-start/src/routes/admin/docs/new.tsx]] validates the `routeId` search param and pre-maps the new doc to that route via the form's `initialValues`. Its loader also calls [[apps/wodsmith-start/src/server-fns/route-docs-fns.ts#getNextSortOrderForRouteFn]] (max `sortOrder` among that route's docs, +1) to default the new doc's sort order to the end of the group.
+
+Within a group, docs render in `sortOrder` (then title) order — the same order the drawer shows them. Docs are drag-reorderable via a grip handle (`@atlaskit/pragmatic-drag-and-drop`, scoped per group with a `Symbol` instanceId so docs can't cross groups). A drop optimistically reassigns 1-based `sortOrder` to the group's docs and persists via [[apps/wodsmith-start/src/server-fns/route-docs-fns.ts#reorderRouteDocsFn]], reverting on failure. Reordering is content-independent, so it never snapshots a version. The list keeps a local copy of the loader's docs for these optimistic reorders but re-syncs it whenever the loader refetches, so docs created or edited elsewhere (the create/edit pages call `router.invalidate()` on success) appear without a manual reload.
+
+The edit form's route picker is populated at runtime from `router.routesById` filtered to the `/compete/organizer` prefix, so it always matches the deployed route tree with no hand-maintained list. Trailing-slash duplicates (e.g. `…/$competitionId/`) are dropped when their canonical slashless route id is also present. Mappings whose route id no longer exists in the tree are highlighted as stale so admins can remove them after route renames.
 
 Dev environments get starter content from the `22-route-docs` seeder: a markdown setup guide on the competition layout plus link docs pointing at docs.wodsmith.com organizer guides for key pages.
 

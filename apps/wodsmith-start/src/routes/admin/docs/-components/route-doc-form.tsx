@@ -17,6 +17,7 @@ import { Loader2, Upload } from "lucide-react"
 import { useMemo, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import Markdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import { toast } from "sonner"
 import { z } from "zod"
 import { Button } from "@/components/ui/button"
@@ -388,8 +389,24 @@ function MarkdownEditor({
         </Button>
       </div>
       {showPreview ? (
-        <div className="prose prose-sm dark:prose-invert max-w-none rounded-md border p-4">
-          <Markdown>{value || "*Nothing to preview*"}</Markdown>
+        <div className="prose prose-sm max-w-none rounded-md border p-4 text-foreground prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-strong:text-foreground dark:prose-invert">
+          <Markdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              a: ({ children, href }) => (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary underline hover:text-primary/80"
+                >
+                  {children}
+                </a>
+              ),
+            }}
+          >
+            {value || "*Nothing to preview*"}
+          </Markdown>
         </div>
       ) : (
         <Textarea
@@ -502,13 +519,20 @@ function RoutePicker({
   const router = useRouter()
   const [filter, setFilter] = useState("")
 
-  const allRouteIds = useMemo(
-    () =>
-      Object.keys(router.routesById)
-        .filter((routeId) => routeId.startsWith(ORGANIZER_ROUTE_PREFIX))
-        .sort(),
-    [router],
-  )
+  const allRouteIds = useMemo(() => {
+    const ids = Object.keys(router.routesById).filter((routeId) =>
+      routeId.startsWith(ORGANIZER_ROUTE_PREFIX),
+    )
+    const idSet = new Set(ids)
+    // Drop trailing-slash duplicates (e.g. `…/$competitionId/`) when the
+    // canonical slashless route id is also present.
+    return ids
+      .filter(
+        (routeId) =>
+          !(routeId.length > 1 && routeId.endsWith("/") && idSet.has(routeId.slice(0, -1))),
+      )
+      .sort()
+  }, [router])
 
   const visibleRouteIds = useMemo(() => {
     const query = filter.trim().toLowerCase()

@@ -2,22 +2,49 @@
  * Admin Documentation CMS — create page
  */
 
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  Link,
+  useNavigate,
+  useRouter,
+} from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { useState } from "react"
 import { toast } from "sonner"
-import { createRouteDocFn } from "@/server-fns/route-docs-fns"
+import { z } from "zod"
+import {
+  createRouteDocFn,
+  getNextSortOrderForRouteFn,
+} from "@/server-fns/route-docs-fns"
 import {
   RouteDocForm,
   type RouteDocFormValues,
 } from "./-components/route-doc-form"
 
+const newDocSearchSchema = z.object({
+  // Optional route id to pre-map the new doc to (from the list page + buttons).
+  routeId: z.string().min(1).max(255).optional(),
+})
+
 export const Route = createFileRoute("/admin/docs/new")({
+  validateSearch: newDocSearchSchema,
+  loaderDeps: ({ search }) => ({ routeId: search.routeId }),
+  loader: async ({ deps }) => {
+    // Pre-mapping to a route? Default the new doc to the end of that group.
+    if (!deps.routeId) return { sortOrder: 1 }
+    const { sortOrder } = await getNextSortOrderForRouteFn({
+      data: { routeId: deps.routeId },
+    })
+    return { sortOrder }
+  },
   component: NewDocPage,
 })
 
 function NewDocPage() {
   const navigate = useNavigate()
+  const router = useRouter()
+  const { routeId } = Route.useSearch()
+  const { sortOrder } = Route.useLoaderData()
   const createDoc = useServerFn(createRouteDocFn)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -38,6 +65,8 @@ function NewDocPage() {
         },
       })
       toast.success("Documentation created")
+      // Invalidate so the list page loader refetches the new doc.
+      await router.invalidate()
       navigate({ to: "/admin/docs" })
     } catch (error) {
       toast.error(
@@ -74,6 +103,9 @@ function NewDocPage() {
           submitLabel="Create doc"
           isSubmitting={isSubmitting}
           onSubmit={handleSubmit}
+          initialValues={
+            routeId ? { routeIds: [routeId], sortOrder } : undefined
+          }
         />
       </div>
     </div>
