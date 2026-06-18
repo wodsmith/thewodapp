@@ -21,7 +21,7 @@ const config = defineConfig({
     // Transforms TC39 decorators (e.g. @callable() in src/agents/*) since
     // Oxc — Vite's default TS transformer — doesn't yet support them.
     agents(),
-    devtools(),
+    devtools({ eventBusConfig: { port: 41000 } }),
     // this is the plugin that enables path aliases
     viteTsConfigPaths({
       projects: ["./tsconfig.json"],

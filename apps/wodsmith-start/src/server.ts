@@ -14,6 +14,7 @@
  */
 
 import { env, waitUntil } from "cloudflare:workers"
+import { OAuthProvider } from "@cloudflare/workers-oauth-provider"
 import type { ExecutionContext, MessageBatch } from "@cloudflare/workers-types"
 import * as Sentry from "@sentry/cloudflare"
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry"
@@ -28,7 +29,10 @@ import {
   logWarning,
   withRequestContext,
 } from "./lib/logging"
+import { runWithOAuthHelpers } from "./lib/oauth-context"
 import { getSentryOptions } from "./lib/sentry/server"
+import { handleAnonymousMcpRequest, mcpApiHandler } from "./mcp/handler"
+import { ALL_MCP_SCOPES } from "./mcp/scopes"
 import { getSessionFromRequestCookie, withSessionCache } from "./utils/auth"
 
 // Sensitive field names to redact as a safety net in the drain.
@@ -152,12 +156,20 @@ const startEntry = createServerEntry({
  * Wrap fetch handler with request context.
  * Only logs errors and slow requests to reduce noise - business logic
  * in server functions handles the meaningful logging.
+ *
+ * This is the OAuth provider's defaultHandler — any /mcp request that lacks
+ * a valid bearer token is funneled here and we serve it as an anonymous MCP
+ * session (public-only resources/tools work, organizer paths gate on scope).
  */
 async function fetchWithLogging(
   request: Request,
   _env: Env,
   _ctx: ExecutionContext,
 ): Promise<Response> {
+  const url = new URL(request.url)
+  if (url.pathname === "/mcp" || url.pathname.startsWith("/mcp/")) {
+    return handleAnonymousMcpRequest(request)
+  }
   const requestInfo = extractRequestInfo(request)
   const startTime = Date.now()
 
@@ -266,16 +278,65 @@ async function fetchWithLogging(
 }
 
 /**
+ * OAuth provider that fronts the entire worker.
+ *
+ * - `/mcp` requests with a valid bearer token → `mcpApiHandler` (auth context
+ *   on `ctx.props`).
+ * - `/oauth/token`, `/oauth/register`, `/.well-known/oauth-*` → served by the
+ *   provider itself.
+ * - Everything else (including unauthenticated `/mcp`, `/oauth/authorize`,
+ *   and all TanStack Start routes) → falls through to `fetchWithLogging`.
+ */
+// Wrap fetchWithLogging in a handler object with a non-optional `fetch`. The
+// OAuth provider's `defaultHandler` type requires `fetch` to be present, but
+// `ExportedHandler<Env>.fetch` is optional, so we adapt with a plain object.
+const defaultHandler = {
+  fetch(
+    request: Request,
+    env: unknown,
+    ctx: ExecutionContext,
+  ): Promise<Response> {
+    // The OAuth provider mutates `env` to add `OAUTH_PROVIDER` before calling
+    // us — capture it here so server functions can read it via AsyncLocalStorage
+    // (it's not visible through `cloudflare:workers`'s env import).
+    const helpers = (env as { OAUTH_PROVIDER?: unknown }).OAUTH_PROVIDER as
+      | import("@cloudflare/workers-oauth-provider").OAuthHelpers
+      | undefined
+    return runWithOAuthHelpers(helpers, () =>
+      fetchWithLogging(request, env as Env, ctx),
+    )
+  },
+}
+
+const oauthProvider = new OAuthProvider({
+  apiHandlers: {
+    "/mcp": mcpApiHandler,
+  },
+  defaultHandler,
+  authorizeEndpoint: "/oauth/authorize",
+  tokenEndpoint: "/oauth/token",
+  clientRegistrationEndpoint: "/oauth/register",
+  scopesSupported: [...ALL_MCP_SCOPES],
+})
+
+/**
  * Export the server entry with additional Cloudflare Workers handlers.
  *
  * Wrapped with Sentry.withSentry for server-side error tracking and APM.
  * This object conforms to Cloudflare's ExportedHandler interface:
- * - `fetch`: Handles all HTTP requests (with logging and request context)
- * - `queue`: Handles broadcast email queue messages
+ * - `fetch`: Routed through the OAuth provider, which delegates to either the
+ *   MCP API handler or the TanStack Start default handler.
+ * - `queue`: Handles broadcast email queue messages.
  */
 export default Sentry.withSentry((env: Env) => getSentryOptions(env), {
-  // HTTP requests with logging and request context
-  fetch: fetchWithLogging,
+  // HTTP requests are routed through the OAuth provider first.
+  async fetch(
+    request: Request,
+    env: Env,
+    ctx: ExecutionContext,
+  ): Promise<Response> {
+    return oauthProvider.fetch(request, env, ctx)
+  },
 
   // Cloudflare Queue consumer for broadcast email delivery.
   // Messages are enqueued by sendBroadcastFn and processed here asynchronously.
