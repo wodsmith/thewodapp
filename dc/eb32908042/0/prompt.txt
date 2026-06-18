@@ -1,0 +1,125 @@
+please check if registration is allowed for draft competitions, it should not be even if the registration window allows for registrations to happen
+
+---
+
+Stop hook feedback:
+The codebase has changes (12 lines) but `lat.md/` was not updated. Verify `lat.md/` is in sync — run `lat search` to find relevant sections. Run `lat check` at the end.
+
+---
+
+## Context
+
+- Current branch: worktree-sunny-wibbling-eclipse
+- Git status:  M apps/wodsmith-start/src/server-fns/registration-fns.ts
+ M apps/wodsmith-start/src/server/registration.ts
+ M lat.md/.cache/vectors.db
+ M lat.md/registration.md
+- Uncommitted changes: diff --git a/apps/wodsmith-start/src/server-fns/registration-fns.ts b/apps/wodsmith-start/src/server-fns/registration-fns.ts
+index 871c845a..d2996c77 100644
+--- a/apps/wodsmith-start/src/server-fns/registration-fns.ts
++++ b/apps/wodsmith-start/src/server-fns/registration-fns.ts
+@@ -411,6 +411,12 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
+ 
+     const competitionTimezone = competition.timezone || DEFAULT_TIMEZONE
+     if (!inviteAuthorized) {
++      // Draft competitions are not yet open to the public. Block here so we
++      // never create a Stripe checkout session (and charge the athlete) for a
++      // competition that isn't published, regardless of the registration window.
++      if (competition.status !== "published") {
++        throw new Error("Registration is not open for this competition")
++      }
+       if (
+         !hasDateStartedInTimezone(
+           competition.registrationOpensAt,
+diff --git a/apps/wodsmith-start/src/server/registration.ts b/apps/wodsmith-start/src/server/registration.ts
+index 5a31fc15..99e8e0b2 100644
+--- a/apps/wodsmith-start/src/server/registration.ts
++++ b/apps/wodsmith-start/src/server/registration.ts
+@@ -434,6 +434,12 @@ export async function registerForCompetition(
+   // 2. Check registration window (using competition's timezone)
+   // Organizer overrides bypass registration window checks
+   if (!params.isOrganizerOverride) {
++    // Draft competitions are not yet open to the public — block
++    // self-registration regardless of the registration window. Organizers
++    // can still manually register athletes via isOrganizerOverride.
++    if (competition.status !== "published") {
++      throw new Error("Registration is not open for this competition")
++    }
+     const competitionTimezone = competition.timezone || DEFAULT_TIMEZONE
+     if (
+       !hasDateStartedInTimezone(
+diff --git a/lat.md/.cache/vectors.db b/lat.md/.cache/vectors.db
+index 1e8e281f..08830c42 100644
+Binary files a/lat.md/.cache/vectors.db and b/lat.md/.cache/vectors.db differ
+diff --git a/lat.md/registration.md b/lat.md/registration.md
+index c67b2b52..ed27d6cf 100644
+--- a/lat.md/registration.md
++++ b/lat.md/registration.md
+@@ -11,13 +11,14 @@ Two entry points converge on the same core logic: athlete self-registration and
+ Athletes register themselves via `initiateRegistrationPaymentFn`, which handles both free and paid competitions.
+ 
+ The flow validates in order:
+-1. Registration window is open (checked against competition timezone)
+-2. Not already registered for the selected division(s)
+-3. Division capacity not exceeded
+-4. Competition-wide capacity not exceeded
+-5. Required registration questions answered
+-6. Fee calculated per division (division-specific fee overrides competition default)
+-7. Coupon applied if provided by link session data or manual entry
++1. Competition is `published` — draft competitions are never open to public self-registration, even if the registration window allows it. Checked at the entry point (so no Stripe checkout is created) and again in the shared core.
++2. Registration window is open (checked against competition timezone)
++3. Not already registered for the selected division(s)
++4. Division capacity not exceeded
++5. Competition-wide capacity not exceeded
++6. Required registration questions answered
++7. Fee calculated per division (division-specific fee overrides competition default)
++8. Coupon applied if provided by link session data or manual entry
+ 
+ For **free** competitions (or fully discounted by coupon): calls `registerForCompetition` directly and returns immediately.
+ 
+@@ -39,6 +40,7 @@ The `registerForCompetition` function in `src/server/registration.ts` is the sha
+ 
+ It handles:
+ - Competition and division validation (division must belong to competition's scaling group)
++- Draft guard: non-override callers (public self-registration, non-invite paid completion) are rejected unless the competition is `published`. `isOrganizerOverride` (manual registration, invite-authorized) bypasses this, mirroring the registration-window bypass.
+ - Duplicate registration prevention (per division, not per competition — multi-division is allowed)
+ - Team division logic: creates a `competition_team`, adds captain, stores pending teammates as JSON
+ - Team name uniqueness check (case-insensitive within competition)
+- Diff from main: (Bash completed with no output)
+- Recent commits: (Bash completed with no output)
+
+## Your Task
+
+Based on the current changes and branch:
+
+1. **Commit any uncommitted changes** if there are any (use a descriptive commit message based on the changes)
+2. **Push the current branch** to origin
+3. **Generate a PRD gif** by running the `prg` command
+4. **Create a pull request** using either:
+   - GitHub CLI (`gh pr create`) if available
+   - Or open the GitHub PR creation URL in the browser
+5. **Include in the PR**:
+   - A descriptive title (use  if provided, otherwise generate from commits)
+   - A comprehensive description (use  if provided, otherwise generate from changes)
+   - Reference to the PRD gif if successfully generated
+   - List of changes made
+   - Testing notes if applicable
+
+If the branch is already up to date with origin and there are no changes to commit, just create the PR.
+
+Make sure to handle cases where:
+- The `prd` command might not be available (continue without the gif)
+- GitHub CLI might not be available (fallback to opening the web URL)
+- The branch might already exist on origin
+
+---
+
+pull the pr comments and fix the broken tests in ci. use subagents
+
+---
+
+commit and push
+
+---
+
+shouldn't we hide the register component on the competition page?

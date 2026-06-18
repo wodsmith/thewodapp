@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "dceb32908042",
+  "strategy": "manual-commit",
+  "branch": "worktree-sunny-wibbling-eclipse",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/wodsmith-start/src/components/registration-sidebar.tsx",
+    "apps/wodsmith-start/src/server-fns/registration-fns.ts",
+    "apps/wodsmith-start/src/server/registration.ts",
+    "apps/wodsmith-start/test/components/registration-sidebar.test.tsx",
+    "lat.md/registration.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/dc/eb32908042/0/metadata.json",
+      "transcript": "/dc/eb32908042/0/full.jsonl",
+      "context": "/dc/eb32908042/0/context.md",
+      "content_hash": "/dc/eb32908042/0/content_hash.txt",
+      "prompt": "/dc/eb32908042/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1024,
+    "cache_creation_tokens": 31126,
+    "cache_read_tokens": 3777716,
+    "output_tokens": 12624,
+    "api_call_count": 28
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "dceb32908042",
+  "session_id": "c98a2ecc-bdbc-4d7e-bdf0-87106b97d784",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-18T05:55:33.423921Z",
+  "branch": "worktree-sunny-wibbling-eclipse",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/wodsmith-start/src/components/registration-sidebar.tsx",
+    "apps/wodsmith-start/src/server-fns/registration-fns.ts",
+    "apps/wodsmith-start/src/server/registration.ts",
+    "apps/wodsmith-start/test/components/registration-sidebar.test.tsx",
+    "lat.md/registration.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "7176670d-c87b-4b52-bea8-a9474cdb5591",
+  "checkpoint_transcript_start": 358,
+  "transcript_lines_at_start": 358,
+  "token_usage": {
+    "input_tokens": 1024,
+    "cache_creation_tokens": 31126,
+    "cache_read_tokens": 3777716,
+    "output_tokens": 12624,
+    "api_call_count": 28
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-18T05:55:33.344223Z",
+    "agent_lines": 0,
+    "human_added": 43,
+    "human_modified": 3,
+    "human_removed": 0,
+    "total_committed": 43,
+    "agent_percentage": 0
+  }
+}
