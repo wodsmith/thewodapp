@@ -174,7 +174,14 @@ describe("planVolunteerApply", () => {
 
 describe("planEventApply", () => {
   const existingEvents: ExistingEvent[] = [
-    { trackWorkoutId: "trwk_1", name: "Event 1" },
+    {
+      trackWorkoutId: "trwk_1",
+      workoutId: "wkt_1",
+      name: "Event 1",
+      scheme: "time",
+      scoreType: null,
+      description: "old description",
+    },
   ]
   const schemes = ["time", "reps", "load"]
   const baseOpts = {
@@ -222,15 +229,59 @@ describe("planEventApply", () => {
     expect(decision).toMatchObject({ outcome: "skip", reason: "Already imported" })
   })
 
-  it("skips an update proposal (deferred)", () => {
+  it("plans an update against an existing event with a before-snapshot", () => {
     const [decision] = planEventApply(
-      [makeEventProposal({ action: "update", targetTrackWorkoutId: "trwk_1" })],
+      [
+        makeEventProposal({
+          action: "update",
+          targetTrackWorkoutId: "trwk_1",
+          name: "Event 1 (edited)",
+          scheme: "reps",
+        }),
+      ],
       baseOpts,
     )
-    expect(decision.outcome).toBe("skip")
-    if (decision.outcome === "skip") {
-      expect(decision.reason).toMatch(/updates aren't enabled/)
+    expect(decision.outcome).toBe("update")
+    if (decision.outcome === "update") {
+      expect(decision.workoutId).toBe("wkt_1")
+      expect(decision.name).toBe("Event 1 (edited)")
+      expect(decision.scheme).toBe("reps")
+      expect(decision.before).toMatchObject({
+        workoutId: "wkt_1",
+        name: "Event 1",
+        scheme: "time",
+      })
     }
+  })
+
+  it("falls back to the current scheme when an update omits it", () => {
+    const [decision] = planEventApply(
+      [
+        makeEventProposal({
+          action: "update",
+          targetTrackWorkoutId: "trwk_1",
+          scheme: null,
+        }),
+      ],
+      baseOpts,
+    )
+    expect(decision.outcome).toBe("update")
+    if (decision.outcome === "update") {
+      expect(decision.scheme).toBe("time")
+    }
+  })
+
+  it("fails an update targeting an unknown event", () => {
+    const [decision] = planEventApply(
+      [
+        makeEventProposal({
+          action: "update",
+          targetTrackWorkoutId: "trwk_missing",
+        }),
+      ],
+      baseOpts,
+    )
+    expect(decision.outcome).toBe("fail")
   })
 
   it("fails a create with an unknown scheme", () => {
@@ -251,7 +302,16 @@ describe("planEventApply", () => {
 })
 
 describe("validateEventProposal", () => {
-  const events: ExistingEvent[] = [{ trackWorkoutId: "trwk_1", name: "Event 1" }]
+  const events: ExistingEvent[] = [
+    {
+      trackWorkoutId: "trwk_1",
+      workoutId: "wkt_1",
+      name: "Event 1",
+      scheme: "time",
+      scoreType: null,
+      description: null,
+    },
+  ]
   const schemes = ["time", "reps", "load"]
 
   function makeEvent(overrides: Partial<EventProposal> = {}): EventProposal {

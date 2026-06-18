@@ -12,12 +12,13 @@ import type {
 const h = vi.hoisted(() => ({
   loadScopeByRun: vi.fn(),
   requireAccess: vi.fn(() => Promise.resolve()),
-  loadExistingEvents: vi.fn(() => Promise.resolve([])),
+  loadExistingEvents: vi.fn((): Promise<unknown[]> => Promise.resolve([])),
   inviteVolunteer: vi.fn(() => Promise.resolve({ success: true })),
   createEvent: vi.fn(() =>
     Promise.resolve({ workoutId: "wkt_1", trackWorkoutId: "trwk_new" }),
   ),
   removeEvent: vi.fn(() => Promise.resolve({ success: true })),
+  saveEvent: vi.fn(() => Promise.resolve({ success: true })),
   getSession: vi.fn(() => Promise.resolve({ user: { id: "usr_organizer" } })),
 }))
 
@@ -59,6 +60,7 @@ vi.mock("@/server-fns/volunteer-fns", () => ({
 vi.mock("@/server-fns/competition-workouts-fns", () => ({
   createWorkoutAndAddToCompetitionFn: h.createEvent,
   removeWorkoutFromCompetitionFn: h.removeEvent,
+  saveCompetitionEventFn: h.saveEvent,
 }))
 
 import {
@@ -231,6 +233,45 @@ describe("applyOrganizerImportFn", () => {
       { kind: "event_create", entityId: "trwk_new", rowKey: "er1" },
     ])
   })
+
+  it("updates an event and records a before-snapshot for undo", async () => {
+    h.loadScopeByRun.mockResolvedValue(scopeWith(null, "event_detail"))
+    h.loadExistingEvents.mockResolvedValue([
+      {
+        trackWorkoutId: "trwk_1",
+        workoutId: "wkt_1",
+        name: "Old name",
+        scheme: "time",
+        scoreType: null,
+        description: "old",
+      },
+    ])
+
+    const result = await applyFn({
+      data: {
+        importRunId: "aimp_1",
+        volunteerProposals: [],
+        eventProposals: [
+          eventProposal({
+            action: "update",
+            targetTrackWorkoutId: "trwk_1",
+            name: "New name",
+            scheme: "reps",
+          }),
+        ],
+      },
+    })
+
+    expect(h.saveEvent).toHaveBeenCalledTimes(1)
+    expect(result.appliedCount).toBe(1)
+    const entity = recordedEntities()[0] as {
+      kind: string
+      entityId: string
+      before?: { name?: string; workoutId?: string }
+    }
+    expect(entity).toMatchObject({ kind: "event_update", entityId: "trwk_1" })
+    expect(entity.before).toMatchObject({ name: "Old name", workoutId: "wkt_1" })
+  })
 })
 
 describe("undoImportFn", () => {
@@ -281,6 +322,40 @@ describe("undoImportFn", () => {
 
     expect(h.removeEvent).toHaveBeenCalledWith({
       data: { trackWorkoutId: "trwk_new", teamId: "team_org" },
+    })
+    expect(result.undoneCount).toBe(1)
+  })
+
+  it("restores an updated event from its before-snapshot", async () => {
+    h.loadScopeByRun.mockResolvedValue(
+      scopeWith(
+        JSON.stringify([
+          {
+            kind: "event_update",
+            entityId: "trwk_1",
+            rowKey: "er1",
+            before: {
+              workoutId: "wkt_1",
+              name: "Old name",
+              scheme: "time",
+              scoreType: null,
+              description: "old",
+            },
+          },
+        ]),
+      ),
+    )
+
+    const result = await undoFn({ data: { importRunId: "aimp_1" } })
+
+    expect(h.saveEvent).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        trackWorkoutId: "trwk_1",
+        workoutId: "wkt_1",
+        name: "Old name",
+        scheme: "time",
+        teamId: "team_org",
+      }),
     })
     expect(result.undoneCount).toBe(1)
   })

@@ -113,7 +113,11 @@ export async function loadExistingEvents(
   const rows = await db
     .select({
       trackWorkoutId: trackWorkoutsTable.id,
+      workoutId: workouts.id,
       name: workouts.name,
+      scheme: workouts.scheme,
+      scoreType: workouts.scoreType,
+      description: workouts.description,
     })
     .from(trackWorkoutsTable)
     .innerJoin(
@@ -123,7 +127,14 @@ export async function loadExistingEvents(
     .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
     .where(eq(programmingTracksTable.competitionId, competitionId))
 
-  return rows.map((r) => ({ trackWorkoutId: r.trackWorkoutId, name: r.name }))
+  return rows.map((r) => ({
+    trackWorkoutId: r.trackWorkoutId,
+    workoutId: r.workoutId,
+    name: r.name,
+    scheme: r.scheme,
+    scoreType: r.scoreType ?? null,
+    description: r.description ?? null,
+  }))
 }
 
 /**

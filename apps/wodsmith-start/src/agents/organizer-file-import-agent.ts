@@ -366,6 +366,11 @@ function buildSystemPrompt(routeKind: string): string {
     ? `The organizer dropped this file on the ${routeKind === "judges" ? "Judges" : "Volunteers"} page. Treat it as a roster of people to invite as volunteers${routeKind === "judges" ? " (default their role to judge unless the file says otherwise)" : ""}.`
     : `The organizer dropped this file on the ${routeKind === "event_detail" ? "event detail" : "Events"} page. Treat it as event/workout information to create or update.`
 
+  const eventDetailRule =
+    routeKind === "event_detail"
+      ? `\n- This is the EVENT DETAIL page: propose a SINGLE propose_event_update for the event named in the kickoff (use its targetTrackWorkoutId). Put each field you change in changedFields as {"before": <current value>, "after": <new value>}; leave unchanged fields out. Do not create new events here.`
+      : ""
+
   return `You are an import assistant for a fitness-competition organizer tool. ${intent}
 
 STRICT RULES:
@@ -373,7 +378,7 @@ STRICT RULES:
 - Start by calling get_import_file once, then get_existing_volunteers and/or get_existing_events as relevant, so you can match against what already exists.
 - Emit one proposal per row via the propose_* tools. Use a fresh proposalId per proposal ("p1", "p2", …) and set rowKey to a stable identifier from the source row (prefer the email; else the name).
 - The system attaches duplicate/match info and warnings automatically — still set a concise, specific rationale (≤240 chars) and a confidence ('high'|'medium'|'low').
-- If the file's contents clearly do NOT match this page (e.g. a volunteer roster dropped on the Events page), call ask_clarification ONCE describing the mismatch and suggesting the right page, then stop.
+- If the file's contents clearly do NOT match this page (e.g. a volunteer roster dropped on the Events page), call ask_clarification ONCE describing the mismatch and suggesting the right page, then stop.${eventDetailRule}
 - When every row has a proposal, call mark_complete with a 1-2 sentence summary. Do not invent rows that aren't in the file.`
 }
 
@@ -383,12 +388,26 @@ function buildKickoffPrompt(routeKind: string, ctx: ImportContext): string {
     isVolunteerRoute(routeKind)
       ? `There are ${ctx.existingVolunteers.length} existing volunteers/invites to match against.`
       : `There are ${ctx.existingEvents.length} existing events to match against.`,
+  ]
+
+  if (routeKind === "event_detail" && ctx.run.eventId) {
+    const target = ctx.existingEvents.find(
+      (e) => e.trackWorkoutId === ctx.run.eventId,
+    )
+    if (target) {
+      lines.push(
+        `Update THIS event (targetTrackWorkoutId="${target.trackWorkoutId}"): current name="${target.name}", scheme="${target.scheme}", scoreType="${target.scoreType ?? ""}". Propose one propose_event_update with the changes described in the file.`,
+      )
+    }
+  }
+
+  lines.push(
     "",
     "FILE CONTENTS:",
     renderParsedForModel(ctx.parsed),
     "",
     "Begin by calling get_import_file, then the relevant get_existing_* tool.",
-  ]
+  )
   return lines.join("\n")
 }
 

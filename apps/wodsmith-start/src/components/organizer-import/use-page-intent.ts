@@ -9,9 +9,8 @@ export interface PageIntent {
 /**
  * Derive the file-drop intent from the active organizer route.
  *
- * Enabled on Volunteers and Judges (volunteer invites) and the Events list page
- * (event create). The event *detail* page is detected but deferred — single-event
- * updates need the inline-diff write path (see plan.md).
+ * Enabled on Volunteers and Judges (volunteer invites), the Events list page
+ * (event create), and the event detail page (single-event update).
  */
 export function usePageIntent(): PageIntent | null {
   const matches = useMatches()
@@ -24,9 +23,11 @@ export function usePageIntent(): PageIntent | null {
   if (routeId.includes("/volunteers")) {
     return { routeKind: "volunteers" }
   }
-  // Event detail (single-event update) is deferred — no drop affordance yet.
   if (routeId.includes("/events/$eventId")) {
-    return null
+    const params = (last?.params as { eventId?: string } | undefined) ?? {}
+    return params.eventId
+      ? { routeKind: "event_detail", eventId: params.eventId }
+      : null
   }
   if (routeId.includes("/events")) {
     return { routeKind: "events" }

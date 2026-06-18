@@ -22,7 +22,11 @@ export interface ExistingVolunteer {
 /** Minimal shape of an existing competition event used for update targeting. */
 export interface ExistingEvent {
   trackWorkoutId: string
+  workoutId: string
   name: string
+  scheme: string
+  scoreType: string | null
+  description: string | null
 }
 
 export interface VolunteerClassification {
@@ -249,6 +253,14 @@ export function validateEventProposal(
  * Per-row decision for applying event proposals. Pure. MVP supports `create`
  * only; updates are surfaced as skipped until the inline-diff write path lands.
  */
+export interface EventBeforeSnapshot {
+  workoutId: string
+  name: string
+  scheme: string
+  scoreType: string | null
+  description: string | null
+}
+
 export type EventApplyDecision =
   | {
       rowKey: string
@@ -257,6 +269,18 @@ export type EventApplyDecision =
       scheme: string
       scoreType: string | null
       description: string | null
+    }
+  | {
+      rowKey: string
+      outcome: "update"
+      trackWorkoutId: string
+      workoutId: string
+      name: string
+      scheme: string
+      scoreType: string | null
+      description: string | null
+      /** prior values so Undo can restore them via saveCompetitionEventFn. */
+      before: EventBeforeSnapshot
     }
   | { rowKey: string; outcome: "skip"; reason: string }
   | { rowKey: string; outcome: "fail"; reason: string }
@@ -280,43 +304,81 @@ export function planEventApply(
         reason: "Already imported",
       }
     }
-    if (proposal.action !== "create") {
+
+    if (proposal.action === "create") {
+      const validation = validateEventProposal(
+        proposal,
+        options.existingEvents,
+        options.allowedSchemes,
+      )
+      if (!validation.ok) {
+        return {
+          rowKey: proposal.rowKey,
+          outcome: "fail",
+          reason: validation.errors.join("; "),
+        }
+      }
+      if (
+        !proposal.scheme ||
+        !options.allowedSchemes.includes(proposal.scheme)
+      ) {
+        return {
+          rowKey: proposal.rowKey,
+          outcome: "fail",
+          reason: "Event needs a valid scoring scheme to create",
+        }
+      }
       return {
         rowKey: proposal.rowKey,
-        outcome: "skip",
-        reason:
-          proposal.action === "update"
-            ? "Event updates aren't enabled yet — review only"
-            : "Skipped",
+        outcome: "create",
+        name: proposal.name,
+        scheme: proposal.scheme,
+        scoreType: proposal.scoreType,
+        description: proposal.description,
       }
     }
-    const validation = validateEventProposal(
-      proposal,
-      options.existingEvents,
-      options.allowedSchemes,
-    )
-    if (!validation.ok) {
+
+    if (proposal.action === "update") {
+      const existing = options.existingEvents.find(
+        (e) => e.trackWorkoutId === proposal.targetTrackWorkoutId,
+      )
+      if (!proposal.targetTrackWorkoutId || !existing) {
+        return {
+          rowKey: proposal.rowKey,
+          outcome: "fail",
+          reason: "Update target event does not belong to this competition",
+        }
+      }
+      // Merge proposed changes over current values; only `scheme` is required
+      // by the underlying save, so fall back to the event's current scheme.
+      const scheme = proposal.scheme ?? existing.scheme
+      if (!options.allowedSchemes.includes(scheme)) {
+        return {
+          rowKey: proposal.rowKey,
+          outcome: "fail",
+          reason: `Unknown scoring scheme "${scheme}"`,
+        }
+      }
       return {
         rowKey: proposal.rowKey,
-        outcome: "fail",
-        reason: validation.errors.join("; "),
+        outcome: "update",
+        trackWorkoutId: existing.trackWorkoutId,
+        workoutId: existing.workoutId,
+        name: proposal.name || existing.name,
+        scheme,
+        scoreType: proposal.scoreType ?? existing.scoreType,
+        description: proposal.description ?? existing.description,
+        before: {
+          workoutId: existing.workoutId,
+          name: existing.name,
+          scheme: existing.scheme,
+          scoreType: existing.scoreType,
+          description: existing.description,
+        },
       }
     }
-    if (!proposal.scheme || !options.allowedSchemes.includes(proposal.scheme)) {
-      return {
-        rowKey: proposal.rowKey,
-        outcome: "fail",
-        reason: "Event needs a valid scoring scheme to create",
-      }
-    }
-    return {
-      rowKey: proposal.rowKey,
-      outcome: "create",
-      name: proposal.name,
-      scheme: proposal.scheme,
-      scoreType: proposal.scoreType,
-      description: proposal.description,
-    }
+
+    return { rowKey: proposal.rowKey, outcome: "skip", reason: "Skipped" }
   })
 }
 

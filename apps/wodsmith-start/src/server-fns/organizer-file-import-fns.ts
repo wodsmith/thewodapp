@@ -34,6 +34,7 @@ import {
 } from "@/lib/organizer-file-import/schemas"
 import {
   type EventApplyDecision,
+  type EventBeforeSnapshot,
   planEventApply,
   planVolunteerApply,
   type VolunteerApplyDecision,
@@ -48,6 +49,7 @@ import { loadExistingEvents } from "@/server/organizer-file-import/context"
 import {
   createWorkoutAndAddToCompetitionFn,
   removeWorkoutFromCompetitionFn,
+  saveCompetitionEventFn,
 } from "@/server-fns/competition-workouts-fns"
 import { inviteVolunteerFn } from "@/server-fns/volunteer-fns"
 import { getSessionFromCookie } from "@/utils/auth"
@@ -134,9 +136,9 @@ export const loadFileImportContextFn = createServerFn({ method: "GET" })
  * each volunteer proposal via the existing invite flow, records what it wrote on
  * the run row (for the receipt + Undo), and returns per-row results.
  *
- * Scope: volunteer creates (new invites) and event creates. Duplicates are
- * skipped, rows without an email / a valid scheme fail, and event UPDATES are
- * surfaced as skipped until the inline-diff write path lands.
+ * Scope: volunteer creates, event creates, and event updates. Duplicates are
+ * skipped, rows without an email / a valid scheme fail. Each write is recorded
+ * on the run for idempotent re-apply and the Undo receipt.
  */
 export const applyOrganizerImportFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => applyImportInputSchema.parse(data))
@@ -198,7 +200,10 @@ export const applyOrganizerImportFn = createServerFn({ method: "POST" })
           results.push(failed(decision.rowKey, "event_create", decision.reason))
           continue
         }
-        const outcome = await executeEventCreate(decision, scope)
+        const outcome =
+          decision.outcome === "update"
+            ? await executeEventUpdate(decision, scope)
+            : await executeEventCreate(decision, scope)
         results.push(outcome.result)
         if (outcome.entity) appliedEntities.push(outcome.entity)
       }
@@ -233,9 +238,10 @@ export const applyOrganizerImportFn = createServerFn({ method: "POST" })
   })
 
 /**
- * Reverse a confirmed import: delete the invitations it created (only if still
- * pending — an accepted invite became a real membership the organizer manages
- * elsewhere). Clears the recorded entities and marks the run rejected.
+ * Reverse a confirmed import: delete created invitations (only if still
+ * pending — an accepted invite became a real membership), remove created
+ * events, and restore updated events from their before-snapshot. Clears the
+ * recorded entities and marks the run rejected.
  */
 export const undoImportFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => undoImportInputSchema.parse(data))
@@ -286,6 +292,38 @@ export const undoImportFn = createServerFn({ method: "POST" })
               error: err,
               attributes: { trackWorkoutId: entity.entityId },
             })
+            skippedCount++
+          }
+          continue
+        }
+        if (entity.kind === "event_update") {
+          // Restore prior field values from the before-snapshot.
+          const before = entity.before as
+            | Partial<EventBeforeSnapshot>
+            | undefined
+          if (before?.workoutId && before.name && before.scheme) {
+            try {
+              await saveCompetitionEventFn({
+                data: {
+                  trackWorkoutId: entity.entityId,
+                  workoutId: before.workoutId,
+                  teamId: scope.organizingTeamId,
+                  name: before.name,
+                  scheme: before.scheme,
+                  description: before.description ?? undefined,
+                  scoreType: before.scoreType ?? undefined,
+                },
+              })
+              undoneCount++
+            } catch (err) {
+              logError({
+                message: "[AgentImport] undo event restore failed",
+                error: err,
+                attributes: { trackWorkoutId: entity.entityId },
+              })
+              skippedCount++
+            }
+          } else {
             skippedCount++
           }
           continue
@@ -435,6 +473,49 @@ async function executeEventCreate(
       attributes: { rowKey: decision.rowKey },
     })
     return { result: failed(decision.rowKey, "event_create", message) }
+  }
+}
+
+async function executeEventUpdate(
+  decision: Extract<EventApplyDecision, { outcome: "update" }>,
+  scope: FileImportRunScope,
+): Promise<VolunteerApplyOutcome> {
+  try {
+    await saveCompetitionEventFn({
+      data: {
+        trackWorkoutId: decision.trackWorkoutId,
+        workoutId: decision.workoutId,
+        teamId: scope.organizingTeamId,
+        name: decision.name,
+        scheme: decision.scheme,
+        description: decision.description ?? undefined,
+        scoreType: decision.scoreType ?? undefined,
+      },
+    })
+    return {
+      result: {
+        rowKey: decision.rowKey,
+        status: "applied",
+        kind: "event_update",
+        entityId: decision.trackWorkoutId,
+        message: `Updated "${decision.name}"`,
+      },
+      entity: {
+        kind: "event_update",
+        entityId: decision.trackWorkoutId,
+        rowKey: decision.rowKey,
+        // Spread into a plain object so it satisfies AppliedEntity.before.
+        before: { ...decision.before },
+      },
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    logError({
+      message: "[AgentImport] event update failed",
+      error: err,
+      attributes: { rowKey: decision.rowKey },
+    })
+    return { result: failed(decision.rowKey, "event_update", message) }
   }
 }
 

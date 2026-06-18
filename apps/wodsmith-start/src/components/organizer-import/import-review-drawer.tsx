@@ -72,7 +72,7 @@ export function ImportReviewDrawer({
   const status = agent.state?.status ?? "parsing"
   const proposals = agent.state?.volunteerProposals ?? []
   const eventProposals = agent.state?.eventProposals ?? []
-  const isEventMode = routeKind === "events"
+  const isEventMode = routeKind === "events" || routeKind === "event_detail"
   const thinkingLog = agent.state?.thinkingLog ?? []
   const parseWarnings = agent.state?.parseWarnings ?? []
   const clarification = agent.state?.clarification ?? null
@@ -104,7 +104,9 @@ export function ImportReviewDrawer({
   const includedEvents = useMemo(
     () =>
       eventProposals.filter(
-        (p) => !excluded.has(p.proposalId) && p.action === "create",
+        (p) =>
+          !excluded.has(p.proposalId) &&
+          (p.action === "create" || p.action === "update"),
       ),
     [eventProposals, excluded],
   )
@@ -314,7 +316,7 @@ export function ImportReviewDrawer({
                 <Send className="mr-2 h-4 w-4" />
               )}
               {isEventMode
-                ? `Confirm — create ${confirmCount} event${confirmCount === 1 ? "" : "s"}`
+                ? `Confirm — apply ${confirmCount} event change${confirmCount === 1 ? "" : "s"}`
                 : `Confirm — invite ${confirmCount} volunteer${
                     confirmCount === 1 ? "" : "s"
                   } (emails will send)`}
@@ -442,6 +444,12 @@ function MatchBadge({ proposal }: { proposal: VolunteerProposal }) {
   return <Badge>New</Badge>
 }
 
+function formatDiffValue(value: unknown): string {
+  if (value == null || value === "") return "—"
+  const str = typeof value === "string" ? value : String(value)
+  return str.length > 60 ? `${str.slice(0, 60)}…` : str
+}
+
 function EventProposalRow({
   proposal,
   excluded,
@@ -453,36 +461,53 @@ function EventProposalRow({
 }) {
   const isUpdate = proposal.action === "update"
   const isSkip = proposal.action === "skip"
+  const actionable =
+    proposal.action === "create" || proposal.action === "update"
+  const changedFields = Object.entries(proposal.changedFields ?? {})
   return (
     <div
       className={`rounded-md border p-3 transition-opacity ${
-        excluded || isUpdate || isSkip
-          ? "border-dashed opacity-60"
-          : "border-border"
+        excluded || isSkip ? "border-dashed opacity-60" : "border-border"
       }`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium">{proposal.name}</div>
-          {proposal.scheme && (
+          {proposal.scheme && !isUpdate && (
             <div className="text-xs text-muted-foreground">
               {proposal.scheme.replace(/-/g, " ")}
             </div>
           )}
         </div>
         {isUpdate ? (
-          <Badge variant="outline">Update (review only)</Badge>
+          <Badge variant="secondary">Update</Badge>
         ) : isSkip ? (
           <Badge variant="outline">Skip</Badge>
         ) : (
           <Badge>New event</Badge>
         )}
       </div>
-      {proposal.description && (
+
+      {isUpdate && changedFields.length > 0 && (
+        <ul className="mt-2 space-y-1">
+          {changedFields.map(([field, diff]) => (
+            <li key={field} className="text-xs">
+              <span className="font-medium">{field}</span>:{" "}
+              <span className="text-muted-foreground line-through">
+                {formatDiffValue(diff.before)}
+              </span>{" "}
+              → <span>{formatDiffValue(diff.after)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {!isUpdate && proposal.description && (
         <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">
           {proposal.description}
         </p>
       )}
+
       {proposal.warnings.length > 0 && (
         <ul className="mt-1.5 space-y-0.5">
           {proposal.warnings.map((w) => (
@@ -495,7 +520,8 @@ function EventProposalRow({
           ))}
         </ul>
       )}
-      {proposal.action === "create" && (
+
+      {actionable && (
         <div className="mt-2 flex justify-end">
           <Button
             size="sm"
