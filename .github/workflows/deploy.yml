@@ -196,7 +196,7 @@ jobs:
       # branch on deploy. Non-prod stages (demo/staging/dev) still push.
       - name: Push schema to PlanetScale branch
         if: ${{ inputs.stage != 'prod' }}
-        run: pnpm --filter wodsmith-start exec drizzle-kit push
+        run: pnpm --filter @repo/wodsmith-db db:push
         working-directory: .
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
@@ -289,7 +289,7 @@ jobs:
           echo "::add-mask::$database_url"
 
       - name: Push schema to PlanetScale demo branch
-        run: pnpm --filter wodsmith-start exec drizzle-kit push
+        run: pnpm --filter @repo/wodsmith-db db:push
         working-directory: .
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
