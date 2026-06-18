@@ -245,6 +245,81 @@ export function validateEventProposal(
   return { ok: errors.length === 0, errors }
 }
 
+/**
+ * Per-row decision for applying event proposals. Pure. MVP supports `create`
+ * only; updates are surfaced as skipped until the inline-diff write path lands.
+ */
+export type EventApplyDecision =
+  | {
+      rowKey: string
+      outcome: "create"
+      name: string
+      scheme: string
+      scoreType: string | null
+      description: string | null
+    }
+  | { rowKey: string; outcome: "skip"; reason: string }
+  | { rowKey: string; outcome: "fail"; reason: string }
+
+export interface PlanEventApplyOptions {
+  alreadyAppliedRowKeys: ReadonlySet<string>
+  existingEvents: ExistingEvent[]
+  /** WORKOUT_SCHEME_VALUES, passed in so the lib stays free of DB imports. */
+  allowedSchemes: readonly string[]
+}
+
+export function planEventApply(
+  proposals: EventProposal[],
+  options: PlanEventApplyOptions,
+): EventApplyDecision[] {
+  return proposals.map((proposal): EventApplyDecision => {
+    if (options.alreadyAppliedRowKeys.has(proposal.rowKey)) {
+      return {
+        rowKey: proposal.rowKey,
+        outcome: "skip",
+        reason: "Already imported",
+      }
+    }
+    if (proposal.action !== "create") {
+      return {
+        rowKey: proposal.rowKey,
+        outcome: "skip",
+        reason:
+          proposal.action === "update"
+            ? "Event updates aren't enabled yet — review only"
+            : "Skipped",
+      }
+    }
+    const validation = validateEventProposal(
+      proposal,
+      options.existingEvents,
+      options.allowedSchemes,
+    )
+    if (!validation.ok) {
+      return {
+        rowKey: proposal.rowKey,
+        outcome: "fail",
+        reason: validation.errors.join("; "),
+      }
+    }
+    if (!proposal.scheme || !options.allowedSchemes.includes(proposal.scheme)) {
+      return {
+        rowKey: proposal.rowKey,
+        outcome: "fail",
+        reason: "Event needs a valid scoring scheme to create",
+      }
+    }
+    return {
+      rowKey: proposal.rowKey,
+      outcome: "create",
+      name: proposal.name,
+      scheme: proposal.scheme,
+      scoreType: proposal.scoreType,
+      description: proposal.description,
+    }
+  })
+}
+
 function dedupe(values: string[]): string[] {
   return Array.from(new Set(values))
 }

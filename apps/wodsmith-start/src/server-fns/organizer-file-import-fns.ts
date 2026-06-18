@@ -22,6 +22,7 @@ import {
   teamInvitationTable,
 } from "@/db/schema"
 import { createAgentImportRunId } from "@/db/schemas/common"
+import { WORKOUT_SCHEME_VALUES } from "@/db/schemas/workouts"
 import { logError, logInfo } from "@/lib/logging"
 import {
   type ApplyImportResult,
@@ -32,6 +33,8 @@ import {
   type VolunteerProposal,
 } from "@/lib/organizer-file-import/schemas"
 import {
+  type EventApplyDecision,
+  planEventApply,
   planVolunteerApply,
   type VolunteerApplyDecision,
 } from "@/lib/organizer-file-import/validate"
@@ -41,6 +44,11 @@ import {
   loadFileImportScopeByRun,
   requireFileImportTeamAccess,
 } from "@/server/organizer-file-import/access"
+import { loadExistingEvents } from "@/server/organizer-file-import/context"
+import {
+  createWorkoutAndAddToCompetitionFn,
+  removeWorkoutFromCompetitionFn,
+} from "@/server-fns/competition-workouts-fns"
 import { inviteVolunteerFn } from "@/server-fns/volunteer-fns"
 import { getSessionFromCookie } from "@/utils/auth"
 
@@ -126,9 +134,9 @@ export const loadFileImportContextFn = createServerFn({ method: "GET" })
  * each volunteer proposal via the existing invite flow, records what it wrote on
  * the run row (for the receipt + Undo), and returns per-row results.
  *
- * MVP scope: volunteer creates (new invites). Duplicates are skipped, rows
- * without an email fail, and event proposals are deferred (skipped with a note)
- * until the event write path lands.
+ * Scope: volunteer creates (new invites) and event creates. Duplicates are
+ * skipped, rows without an email / a valid scheme fail, and event UPDATES are
+ * surfaced as skipped until the inline-diff write path lands.
  */
 export const applyOrganizerImportFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => applyImportInputSchema.parse(data))
@@ -172,14 +180,28 @@ export const applyOrganizerImportFn = createServerFn({ method: "POST" })
       if (outcome.entity) appliedEntities.push(outcome.entity)
     }
 
-    for (const proposal of data.eventProposals) {
-      results.push(
-        skipped(
-          proposal.rowKey,
-          "event_create",
-          "Event import will be available soon — review only for now.",
-        ),
-      )
+    if (data.eventProposals.length > 0) {
+      const existingEvents = await loadExistingEvents(scope.competitionId)
+      const eventDecisions = planEventApply(data.eventProposals, {
+        alreadyAppliedRowKeys: alreadyApplied,
+        existingEvents,
+        allowedSchemes: WORKOUT_SCHEME_VALUES,
+      })
+      for (const decision of eventDecisions) {
+        if (decision.outcome === "skip") {
+          results.push(
+            skipped(decision.rowKey, "event_create", decision.reason),
+          )
+          continue
+        }
+        if (decision.outcome === "fail") {
+          results.push(failed(decision.rowKey, "event_create", decision.reason))
+          continue
+        }
+        const outcome = await executeEventCreate(decision, scope)
+        results.push(outcome.result)
+        if (outcome.entity) appliedEntities.push(outcome.entity)
+      }
     }
 
     const appliedCount = results.filter((r) => r.status === "applied").length
@@ -233,23 +255,42 @@ export const undoImportFn = createServerFn({ method: "POST" })
       let skippedCount = 0
 
       for (const entity of entities) {
-        if (entity.kind !== "volunteer_invite") {
-          skippedCount++
+        if (entity.kind === "volunteer_invite") {
+          const invite = await db.query.teamInvitationTable.findFirst({
+            where: eq(teamInvitationTable.id, entity.entityId),
+            columns: { id: true, acceptedAt: true },
+          })
+          if (!invite || invite.acceptedAt) {
+            // Already accepted (now a membership) or already gone — leave it.
+            skippedCount++
+            continue
+          }
+          await db
+            .delete(teamInvitationTable)
+            .where(eq(teamInvitationTable.id, entity.entityId))
+          undoneCount++
           continue
         }
-        const invite = await db.query.teamInvitationTable.findFirst({
-          where: eq(teamInvitationTable.id, entity.entityId),
-          columns: { id: true, acceptedAt: true },
-        })
-        if (!invite || invite.acceptedAt) {
-          // Already accepted (now a membership) or already gone — leave it.
-          skippedCount++
+        if (entity.kind === "event_create") {
+          try {
+            await removeWorkoutFromCompetitionFn({
+              data: {
+                trackWorkoutId: entity.entityId,
+                teamId: scope.organizingTeamId,
+              },
+            })
+            undoneCount++
+          } catch (err) {
+            logError({
+              message: "[AgentImport] undo event delete failed",
+              error: err,
+              attributes: { trackWorkoutId: entity.entityId },
+            })
+            skippedCount++
+          }
           continue
         }
-        await db
-          .delete(teamInvitationTable)
-          .where(eq(teamInvitationTable.id, entity.entityId))
-        undoneCount++
+        skippedCount++
       }
 
       await db
@@ -355,6 +396,45 @@ async function executeVolunteerInvite(
           rowKey: decision.rowKey,
         }
       : undefined,
+  }
+}
+
+async function executeEventCreate(
+  decision: Extract<EventApplyDecision, { outcome: "create" }>,
+  scope: FileImportRunScope,
+): Promise<VolunteerApplyOutcome> {
+  try {
+    const { trackWorkoutId } = await createWorkoutAndAddToCompetitionFn({
+      data: {
+        competitionId: scope.competitionId,
+        teamId: scope.organizingTeamId,
+        name: decision.name,
+        scheme: decision.scheme,
+        description: decision.description ?? undefined,
+      },
+    })
+    return {
+      result: {
+        rowKey: decision.rowKey,
+        status: "applied",
+        kind: "event_create",
+        entityId: trackWorkoutId,
+        message: `Created "${decision.name}"`,
+      },
+      entity: {
+        kind: "event_create",
+        entityId: trackWorkoutId,
+        rowKey: decision.rowKey,
+      },
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    logError({
+      message: "[AgentImport] event create failed",
+      error: err,
+      attributes: { rowKey: decision.rowKey },
+    })
+    return { result: failed(decision.rowKey, "event_create", message) }
   }
 }
 

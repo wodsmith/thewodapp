@@ -27,6 +27,7 @@ import type { AgentImportRouteKind } from "@/db/schemas/agent-imports"
 import type {
   AgentState,
   ApplyImportResult,
+  EventProposal,
   VolunteerProposal,
 } from "@/lib/organizer-file-import/schemas"
 import {
@@ -70,6 +71,8 @@ export function ImportReviewDrawer({
 
   const status = agent.state?.status ?? "parsing"
   const proposals = agent.state?.volunteerProposals ?? []
+  const eventProposals = agent.state?.eventProposals ?? []
+  const isEventMode = routeKind === "events"
   const thinkingLog = agent.state?.thinkingLog ?? []
   const parseWarnings = agent.state?.parseWarnings ?? []
   const clarification = agent.state?.clarification ?? null
@@ -98,6 +101,14 @@ export function ImportReviewDrawer({
       ),
     [proposals, excluded],
   )
+  const includedEvents = useMemo(
+    () =>
+      eventProposals.filter(
+        (p) => !excluded.has(p.proposalId) && p.action === "create",
+      ),
+    [eventProposals, excluded],
+  )
+  const confirmCount = isEventMode ? includedEvents.length : included.length
 
   function toggleExcluded(proposalId: string) {
     setExcluded((prev) => {
@@ -109,19 +120,20 @@ export function ImportReviewDrawer({
   }
 
   async function handleConfirm() {
-    if (included.length === 0) return
+    if (confirmCount === 0) return
     setIsApplying(true)
     try {
       const result = await applyOrganizerImportFn({
         data: {
           importRunId,
-          volunteerProposals: included,
-          eventProposals: [],
+          volunteerProposals: isEventMode ? [] : included,
+          eventProposals: isEventMode ? includedEvents : [],
         },
       })
       setReceipt(result)
+      const appliedProposals = isEventMode ? includedEvents : included
       await agent.stub.markApplied({
-        proposalIds: included.map((p) => p.proposalId),
+        proposalIds: appliedProposals.map((p) => p.proposalId),
       })
       await router.invalidate()
     } catch (err) {
@@ -231,6 +243,7 @@ export function ImportReviewDrawer({
           ) : (
             !isWorking &&
             proposals.length === 0 &&
+            eventProposals.length === 0 &&
             !clarification && (
               <p className="py-8 text-center text-sm text-muted-foreground">
                 No importable rows were found in this file.
@@ -239,8 +252,20 @@ export function ImportReviewDrawer({
           )}
 
           {!receipt &&
+            !isEventMode &&
             proposals.map((p) => (
               <ProposalRow
+                key={p.proposalId}
+                proposal={p}
+                excluded={excluded.has(p.proposalId)}
+                onToggle={() => toggleExcluded(p.proposalId)}
+              />
+            ))}
+
+          {!receipt &&
+            isEventMode &&
+            eventProposals.map((p) => (
+              <EventProposalRow
                 key={p.proposalId}
                 proposal={p}
                 excluded={excluded.has(p.proposalId)}
@@ -255,7 +280,11 @@ export function ImportReviewDrawer({
               <Textarea
                 value={refineText}
                 onChange={(e) => setRefineText(e.target.value)}
-                placeholder="Refine in words — e.g. “make the coaches head judges, skip anyone without an email”"
+                placeholder={
+                  isEventMode
+                    ? "Refine in words — e.g. “skip the warm-up, set the AMRAP to 20 minutes”"
+                    : "Refine in words — e.g. “make the coaches head judges, skip anyone without an email”"
+                }
                 rows={2}
                 disabled={isWorking || isRefining}
               />
@@ -277,15 +306,18 @@ export function ImportReviewDrawer({
             <Button
               className="w-full"
               onClick={handleConfirm}
-              disabled={isApplying || isWorking || included.length === 0}
+              disabled={isApplying || isWorking || confirmCount === 0}
             >
               {isApplying ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Send className="mr-2 h-4 w-4" />
               )}
-              Confirm — invite {included.length} volunteer
-              {included.length === 1 ? "" : "s"} (emails will send)
+              {isEventMode
+                ? `Confirm — create ${confirmCount} event${confirmCount === 1 ? "" : "s"}`
+                : `Confirm — invite ${confirmCount} volunteer${
+                    confirmCount === 1 ? "" : "s"
+                  } (emails will send)`}
             </Button>
           </div>
         )}
@@ -410,14 +442,91 @@ function MatchBadge({ proposal }: { proposal: VolunteerProposal }) {
   return <Badge>New</Badge>
 }
 
+function EventProposalRow({
+  proposal,
+  excluded,
+  onToggle,
+}: {
+  proposal: EventProposal
+  excluded: boolean
+  onToggle: () => void
+}) {
+  const isUpdate = proposal.action === "update"
+  const isSkip = proposal.action === "skip"
+  return (
+    <div
+      className={`rounded-md border p-3 transition-opacity ${
+        excluded || isUpdate || isSkip
+          ? "border-dashed opacity-60"
+          : "border-border"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-medium">{proposal.name}</div>
+          {proposal.scheme && (
+            <div className="text-xs text-muted-foreground">
+              {proposal.scheme.replace(/-/g, " ")}
+            </div>
+          )}
+        </div>
+        {isUpdate ? (
+          <Badge variant="outline">Update (review only)</Badge>
+        ) : isSkip ? (
+          <Badge variant="outline">Skip</Badge>
+        ) : (
+          <Badge>New event</Badge>
+        )}
+      </div>
+      {proposal.description && (
+        <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">
+          {proposal.description}
+        </p>
+      )}
+      {proposal.warnings.length > 0 && (
+        <ul className="mt-1.5 space-y-0.5">
+          {proposal.warnings.map((w) => (
+            <li
+              key={w}
+              className="text-xs text-orange-600 dark:text-orange-400"
+            >
+              ⚠ {w}
+            </li>
+          ))}
+        </ul>
+      )}
+      {proposal.action === "create" && (
+        <div className="mt-2 flex justify-end">
+          <Button
+            size="sm"
+            variant={excluded ? "outline" : "ghost"}
+            className="h-7 text-xs"
+            onClick={onToggle}
+          >
+            {excluded ? (
+              <>
+                <Check className="mr-1 h-3 w-3" /> Include
+              </>
+            ) : (
+              <>
+                <X className="mr-1 h-3 w-3" /> Exclude
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ReceiptView({ receipt }: { receipt: ApplyImportResult }) {
   return (
     <Card>
       <CardContent className="space-y-2 py-4 text-sm">
         <p className="font-medium">Import complete</p>
         <ul className="space-y-1 text-muted-foreground">
-          <li>✅ {receipt.appliedCount} invited</li>
-          <li>↩ {receipt.skippedCount} skipped (duplicates / events)</li>
+          <li>✅ {receipt.appliedCount} applied</li>
+          <li>↩ {receipt.skippedCount} skipped</li>
           {receipt.failedCount > 0 && (
             <li className="text-destructive">
               ✕ {receipt.failedCount} could not be imported

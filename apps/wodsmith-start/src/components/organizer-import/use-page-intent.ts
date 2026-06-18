@@ -9,15 +9,14 @@ export interface PageIntent {
 /**
  * Derive the file-drop intent from the active organizer route.
  *
- * MVP only enables the drop on the Volunteers and Judges pages (the volunteer
- * write path). Events / event detail are detected but return `null` until the
- * event write path lands — see plan.md Phase 9.
+ * Enabled on Volunteers and Judges (volunteer invites) and the Events list page
+ * (event create). The event *detail* page is detected but deferred — single-event
+ * updates need the inline-diff write path (see plan.md).
  */
 export function usePageIntent(): PageIntent | null {
   const matches = useMatches()
   const last = matches[matches.length - 1]
   const routeId = (last?.routeId as string | undefined) ?? ""
-  const params = (last?.params as { eventId?: string } | undefined) ?? {}
 
   if (routeId.includes("/volunteers/judges")) {
     return { routeKind: "judges" }
@@ -25,11 +24,12 @@ export function usePageIntent(): PageIntent | null {
   if (routeId.includes("/volunteers")) {
     return { routeKind: "volunteers" }
   }
-  // Detected but not yet drop-enabled (review/apply for events is a follow-up).
+  // Event detail (single-event update) is deferred — no drop affordance yet.
   if (routeId.includes("/events/$eventId")) {
-    return params.eventId
-      ? null // { routeKind: "event_detail", eventId: params.eventId }
-      : null
+    return null
+  }
+  if (routeId.includes("/events")) {
+    return { routeKind: "events" }
   }
   return null
 }

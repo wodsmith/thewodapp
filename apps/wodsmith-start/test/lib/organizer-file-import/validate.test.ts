@@ -5,6 +5,7 @@ import {
   type ExistingEvent,
   type ExistingVolunteer,
   isBlockedVolunteer,
+  planEventApply,
   planVolunteerApply,
   reconcileVolunteerProposal,
   validateEventProposal,
@@ -168,6 +169,84 @@ describe("planVolunteerApply", () => {
       outcome: "fail",
       reason: "Competition has no volunteer team",
     })
+  })
+})
+
+describe("planEventApply", () => {
+  const existingEvents: ExistingEvent[] = [
+    { trackWorkoutId: "trwk_1", name: "Event 1" },
+  ]
+  const schemes = ["time", "reps", "load"]
+  const baseOpts = {
+    alreadyAppliedRowKeys: new Set<string>(),
+    existingEvents,
+    allowedSchemes: schemes,
+  }
+
+  function makeEventProposal(
+    overrides: Partial<EventProposal> = {},
+  ): EventProposal {
+    return {
+      proposalId: "e1",
+      rowKey: "erow-1",
+      action: "create",
+      targetTrackWorkoutId: null,
+      name: "Fran",
+      description: "21-15-9 thrusters and pull-ups",
+      scheme: "time",
+      scoreType: null,
+      timeCap: null,
+      changedFields: {},
+      confidence: "high",
+      rationale: "From the packet.",
+      warnings: [],
+      status: "pending",
+      ...overrides,
+    }
+  }
+
+  it("plans a create for a valid new event", () => {
+    const [decision] = planEventApply([makeEventProposal()], baseOpts)
+    expect(decision.outcome).toBe("create")
+    if (decision.outcome === "create") {
+      expect(decision.name).toBe("Fran")
+      expect(decision.scheme).toBe("time")
+    }
+  })
+
+  it("skips a row already applied", () => {
+    const [decision] = planEventApply([makeEventProposal({ rowKey: "e-x" })], {
+      ...baseOpts,
+      alreadyAppliedRowKeys: new Set(["e-x"]),
+    })
+    expect(decision).toMatchObject({ outcome: "skip", reason: "Already imported" })
+  })
+
+  it("skips an update proposal (deferred)", () => {
+    const [decision] = planEventApply(
+      [makeEventProposal({ action: "update", targetTrackWorkoutId: "trwk_1" })],
+      baseOpts,
+    )
+    expect(decision.outcome).toBe("skip")
+    if (decision.outcome === "skip") {
+      expect(decision.reason).toMatch(/updates aren't enabled/)
+    }
+  })
+
+  it("fails a create with an unknown scheme", () => {
+    const [decision] = planEventApply(
+      [makeEventProposal({ scheme: "bogus" })],
+      baseOpts,
+    )
+    expect(decision.outcome).toBe("fail")
+  })
+
+  it("fails a create with no scheme", () => {
+    const [decision] = planEventApply(
+      [makeEventProposal({ scheme: null })],
+      baseOpts,
+    )
+    expect(decision).toMatchObject({ outcome: "fail" })
   })
 })
 
