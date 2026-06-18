@@ -38,6 +38,7 @@ import {
 } from "@/lib/organizer-file-import/validate"
 import { requireFileImportAgentAccess } from "@/server/organizer-file-import/access"
 import {
+  findPriorAppliedImport,
   loadExistingEvents,
   loadExistingVolunteers,
   readImportFile,
@@ -111,8 +112,25 @@ export class OrganizerFileImportAgent extends Agent<Env, AgentState> {
       this.logActivity("thinking", "Reading the dropped file…")
 
       const ctx = await this.loadContext(input.importRunId, scope, userId)
-      if (ctx.parsed.warnings.length > 0) {
-        this.setState({ ...this.state, parseWarnings: ctx.parsed.warnings })
+      const warnings = [...ctx.parsed.warnings]
+      // Surface a soft warning if this exact file was already imported.
+      if (ctx.run.checksum) {
+        const prior = await findPriorAppliedImport(
+          scope.competitionId,
+          ctx.run.checksum,
+          ctx.run.id,
+        )
+        if (prior) {
+          const when = prior.appliedAt
+            ? ` on ${prior.appliedAt.toISOString().slice(0, 10)}`
+            : ""
+          warnings.unshift(
+            `This file looks identical to one already imported${when}. Importing again may create duplicates.`,
+          )
+        }
+      }
+      if (warnings.length > 0) {
+        this.setState({ ...this.state, parseWarnings: warnings })
       }
       this.setState({ ...this.state, status: "thinking" })
       this.logActivity("thinking", describeParsed(ctx.parsed, input.routeKind))

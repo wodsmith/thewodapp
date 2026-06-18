@@ -1,10 +1,12 @@
 import "server-only"
 
 import { env } from "cloudflare:workers"
-import { and, eq } from "drizzle-orm"
+import { and, desc, eq, ne } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
+  AGENT_IMPORT_STATUS,
   type AgentImportRun,
+  agentImportRunsTable,
   programmingTracksTable,
   SYSTEM_ROLES_ENUM,
   teamInvitationTable,
@@ -135,6 +137,46 @@ export async function loadExistingEvents(
     scoreType: r.scoreType ?? null,
     description: r.description ?? null,
   }))
+}
+
+export interface PriorImport {
+  appliedAt: Date | null
+  originalFilename: string | null
+}
+
+/**
+ * Find a previously APPLIED import of the same file (by checksum) in this
+ * competition, excluding the current run. Powers a "you already imported this"
+ * warning so an organizer doesn't accidentally double-apply a re-dropped file.
+ */
+export async function findPriorAppliedImport(
+  competitionId: string,
+  checksum: string,
+  excludeRunId: string,
+): Promise<PriorImport | null> {
+  const db = getDb()
+  const rows = await db
+    .select({
+      appliedAt: agentImportRunsTable.appliedAt,
+      originalFilename: agentImportRunsTable.originalFilename,
+    })
+    .from(agentImportRunsTable)
+    .where(
+      and(
+        eq(agentImportRunsTable.competitionId, competitionId),
+        eq(agentImportRunsTable.checksum, checksum),
+        eq(agentImportRunsTable.status, AGENT_IMPORT_STATUS.APPLIED),
+        ne(agentImportRunsTable.id, excludeRunId),
+      ),
+    )
+    .orderBy(desc(agentImportRunsTable.appliedAt))
+    .limit(1)
+  const row = rows[0]
+  if (!row) return null
+  return {
+    appliedAt: row.appliedAt ?? null,
+    originalFilename: row.originalFilename ?? null,
+  }
 }
 
 /**
