@@ -411,6 +411,12 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
 
     const competitionTimezone = competition.timezone || DEFAULT_TIMEZONE
     if (!inviteAuthorized) {
+      // Draft competitions are not yet open to the public. Block here so we
+      // never create a Stripe checkout session (and charge the athlete) for a
+      // competition that isn't published, regardless of the registration window.
+      if (competition.status !== "published") {
+        throw new Error("Registration is not open for this competition")
+      }
       if (
         !hasDateStartedInTimezone(
           competition.registrationOpensAt,

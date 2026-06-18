@@ -434,6 +434,12 @@ export async function registerForCompetition(
   // 2. Check registration window (using competition's timezone)
   // Organizer overrides bypass registration window checks
   if (!params.isOrganizerOverride) {
+    // Draft competitions are not yet open to the public — block
+    // self-registration regardless of the registration window. Organizers
+    // can still manually register athletes via isOrganizerOverride.
+    if (competition.status !== "published") {
+      throw new Error("Registration is not open for this competition")
+    }
     const competitionTimezone = competition.timezone || DEFAULT_TIMEZONE
     if (
       !hasDateStartedInTimezone(
