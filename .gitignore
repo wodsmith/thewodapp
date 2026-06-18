@@ -67,6 +67,15 @@ dist
 .hive/
 .beads/
 
+# lat.md semantic-search cache (regenerated locally)
+lat.md/.cache/
+
+# wzrrd publish tool local state
+.wzrrd/
+
+# Stray empty placeholder
+apps/wodsmith-start/docs/videos
+
 # Gas Town (added by gt)
 .runtime/
 .claude/

@@ -40,6 +40,7 @@ import { Route as CompeteSlugIndexRouteImport } from './routes/compete/$slug/ind
 import { Route as AdminTeamsIndexRouteImport } from './routes/admin/teams/index'
 import { Route as AdminOrganizerRequestsIndexRouteImport } from './routes/admin/organizer-requests/index'
 import { Route as AdminEntitlementsIndexRouteImport } from './routes/admin/entitlements/index'
+import { Route as AdminDocsIndexRouteImport } from './routes/admin/docs/index'
 import { Route as AdminDemoCompetitionsIndexRouteImport } from './routes/admin/demo-competitions/index'
 import { Route as AdminCompetitionsIndexRouteImport } from './routes/admin/competitions/index'
 import { Route as ProtectedWorkoutsIndexRouteImport } from './routes/_protected/workouts/index'
@@ -76,6 +77,8 @@ import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/str
 import { Route as ApiAuthTokenRouteImport } from './routes/api/auth/token'
 import { Route as AdminTeamsScheduleRouteImport } from './routes/admin/teams/schedule'
 import { Route as AdminTeamsTeamIdRouteImport } from './routes/admin/teams/$teamId'
+import { Route as AdminDocsNewRouteImport } from './routes/admin/docs/new'
+import { Route as AdminDocsDocIdRouteImport } from './routes/admin/docs/$docId'
 import { Route as DemoStartSsrIndexRouteImport } from './routes/demo/start.ssr.index'
 import { Route as CompeteOrganizerOnboardIndexRouteImport } from './routes/compete/organizer/onboard/index'
 import { Route as CompeteOrganizerDashboardIndexRouteImport } from './routes/compete/organizer/_dashboard/index'
@@ -371,6 +374,11 @@ const AdminEntitlementsIndexRoute = AdminEntitlementsIndexRouteImport.update({
   path: '/entitlements/',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminDocsIndexRoute = AdminDocsIndexRouteImport.update({
+  id: '/docs/',
+  path: '/docs/',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminDemoCompetitionsIndexRoute =
   AdminDemoCompetitionsIndexRouteImport.update({
     id: '/demo-competitions/',
@@ -558,6 +566,16 @@ const AdminTeamsScheduleRoute = AdminTeamsScheduleRouteImport.update({
 const AdminTeamsTeamIdRoute = AdminTeamsTeamIdRouteImport.update({
   id: '/teams/$teamId',
   path: '/teams/$teamId',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDocsNewRoute = AdminDocsNewRouteImport.update({
+  id: '/docs/new',
+  path: '/docs/new',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDocsDocIdRoute = AdminDocsDocIdRouteImport.update({
+  id: '/docs/$docId',
+  path: '/docs/$docId',
   getParentRoute: () => AdminRoute,
 } as any)
 const DemoStartSsrIndexRoute = DemoStartSsrIndexRouteImport.update({
@@ -1421,6 +1439,8 @@ export interface FileRoutesByFullPath {
   '/transfer/$transferId': typeof TransferTransferIdRoute
   '/admin/': typeof AdminIndexRoute
   '/compete/': typeof CompeteIndexRoute
+  '/admin/docs/$docId': typeof AdminDocsDocIdRoute
+  '/admin/docs/new': typeof AdminDocsNewRoute
   '/admin/teams/$teamId': typeof AdminTeamsTeamIdRouteWithChildren
   '/admin/teams/schedule': typeof AdminTeamsScheduleRouteWithChildren
   '/api/auth/token': typeof ApiAuthTokenRouteWithChildren
@@ -1456,6 +1476,7 @@ export interface FileRoutesByFullPath {
   '/workouts': typeof ProtectedWorkoutsIndexRoute
   '/admin/competitions': typeof AdminCompetitionsIndexRoute
   '/admin/demo-competitions': typeof AdminDemoCompetitionsIndexRoute
+  '/admin/docs': typeof AdminDocsIndexRoute
   '/admin/entitlements': typeof AdminEntitlementsIndexRoute
   '/admin/organizer-requests': typeof AdminOrganizerRequestsIndexRoute
   '/admin/teams': typeof AdminTeamsIndexRoute
@@ -1623,6 +1644,8 @@ export interface FileRoutesByTo {
   '/transfer/$transferId': typeof TransferTransferIdRoute
   '/admin': typeof AdminIndexRoute
   '/compete': typeof CompeteIndexRoute
+  '/admin/docs/$docId': typeof AdminDocsDocIdRoute
+  '/admin/docs/new': typeof AdminDocsNewRoute
   '/api/auth/token': typeof ApiAuthTokenRouteWithChildren
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
@@ -1654,6 +1677,7 @@ export interface FileRoutesByTo {
   '/workouts': typeof ProtectedWorkoutsIndexRoute
   '/admin/competitions': typeof AdminCompetitionsIndexRoute
   '/admin/demo-competitions': typeof AdminDemoCompetitionsIndexRoute
+  '/admin/docs': typeof AdminDocsIndexRoute
   '/admin/entitlements': typeof AdminEntitlementsIndexRoute
   '/admin/organizer-requests': typeof AdminOrganizerRequestsIndexRoute
   '/admin/teams': typeof AdminTeamsIndexRoute
@@ -1821,6 +1845,8 @@ export interface FileRoutesById {
   '/transfer/$transferId': typeof TransferTransferIdRoute
   '/admin/': typeof AdminIndexRoute
   '/compete/': typeof CompeteIndexRoute
+  '/admin/docs/$docId': typeof AdminDocsDocIdRoute
+  '/admin/docs/new': typeof AdminDocsNewRoute
   '/admin/teams/$teamId': typeof AdminTeamsTeamIdRouteWithChildren
   '/admin/teams/schedule': typeof AdminTeamsScheduleRouteWithChildren
   '/api/auth/token': typeof ApiAuthTokenRouteWithChildren
@@ -1857,6 +1883,7 @@ export interface FileRoutesById {
   '/_protected/workouts/': typeof ProtectedWorkoutsIndexRoute
   '/admin/competitions/': typeof AdminCompetitionsIndexRoute
   '/admin/demo-competitions/': typeof AdminDemoCompetitionsIndexRoute
+  '/admin/docs/': typeof AdminDocsIndexRoute
   '/admin/entitlements/': typeof AdminEntitlementsIndexRoute
   '/admin/organizer-requests/': typeof AdminOrganizerRequestsIndexRoute
   '/admin/teams/': typeof AdminTeamsIndexRoute
@@ -2030,6 +2057,8 @@ export interface FileRouteTypes {
     | '/transfer/$transferId'
     | '/admin/'
     | '/compete/'
+    | '/admin/docs/$docId'
+    | '/admin/docs/new'
     | '/admin/teams/$teamId'
     | '/admin/teams/schedule'
     | '/api/auth/token'
@@ -2065,6 +2094,7 @@ export interface FileRouteTypes {
     | '/workouts'
     | '/admin/competitions'
     | '/admin/demo-competitions'
+    | '/admin/docs'
     | '/admin/entitlements'
     | '/admin/organizer-requests'
     | '/admin/teams'
@@ -2232,6 +2262,8 @@ export interface FileRouteTypes {
     | '/transfer/$transferId'
     | '/admin'
     | '/compete'
+    | '/admin/docs/$docId'
+    | '/admin/docs/new'
     | '/api/auth/token'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
@@ -2263,6 +2295,7 @@ export interface FileRouteTypes {
     | '/workouts'
     | '/admin/competitions'
     | '/admin/demo-competitions'
+    | '/admin/docs'
     | '/admin/entitlements'
     | '/admin/organizer-requests'
     | '/admin/teams'
@@ -2429,6 +2462,8 @@ export interface FileRouteTypes {
     | '/transfer/$transferId'
     | '/admin/'
     | '/compete/'
+    | '/admin/docs/$docId'
+    | '/admin/docs/new'
     | '/admin/teams/$teamId'
     | '/admin/teams/schedule'
     | '/api/auth/token'
@@ -2465,6 +2500,7 @@ export interface FileRouteTypes {
     | '/_protected/workouts/'
     | '/admin/competitions/'
     | '/admin/demo-competitions/'
+    | '/admin/docs/'
     | '/admin/entitlements/'
     | '/admin/organizer-requests/'
     | '/admin/teams/'
@@ -2868,6 +2904,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminEntitlementsIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/docs/': {
+      id: '/admin/docs/'
+      path: '/docs'
+      fullPath: '/admin/docs'
+      preLoaderRoute: typeof AdminDocsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/demo-competitions/': {
       id: '/admin/demo-competitions/'
       path: '/demo-competitions'
@@ -3118,6 +3161,20 @@ declare module '@tanstack/react-router' {
       path: '/teams/$teamId'
       fullPath: '/admin/teams/$teamId'
       preLoaderRoute: typeof AdminTeamsTeamIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/docs/new': {
+      id: '/admin/docs/new'
+      path: '/docs/new'
+      fullPath: '/admin/docs/new'
+      preLoaderRoute: typeof AdminDocsNewRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/docs/$docId': {
+      id: '/admin/docs/$docId'
+      path: '/docs/$docId'
+      fullPath: '/admin/docs/$docId'
+      preLoaderRoute: typeof AdminDocsDocIdRouteImport
       parentRoute: typeof AdminRoute
     }
     '/demo/start/ssr/': {
@@ -4268,10 +4325,13 @@ const AdminTeamsScheduleRouteWithChildren =
 
 interface AdminRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminDocsDocIdRoute: typeof AdminDocsDocIdRoute
+  AdminDocsNewRoute: typeof AdminDocsNewRoute
   AdminTeamsTeamIdRoute: typeof AdminTeamsTeamIdRouteWithChildren
   AdminTeamsScheduleRoute: typeof AdminTeamsScheduleRouteWithChildren
   AdminCompetitionsIndexRoute: typeof AdminCompetitionsIndexRoute
   AdminDemoCompetitionsIndexRoute: typeof AdminDemoCompetitionsIndexRoute
+  AdminDocsIndexRoute: typeof AdminDocsIndexRoute
   AdminEntitlementsIndexRoute: typeof AdminEntitlementsIndexRoute
   AdminOrganizerRequestsIndexRoute: typeof AdminOrganizerRequestsIndexRoute
   AdminTeamsIndexRoute: typeof AdminTeamsIndexRoute
@@ -4279,10 +4339,13 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
+  AdminDocsDocIdRoute: AdminDocsDocIdRoute,
+  AdminDocsNewRoute: AdminDocsNewRoute,
   AdminTeamsTeamIdRoute: AdminTeamsTeamIdRouteWithChildren,
   AdminTeamsScheduleRoute: AdminTeamsScheduleRouteWithChildren,
   AdminCompetitionsIndexRoute: AdminCompetitionsIndexRoute,
   AdminDemoCompetitionsIndexRoute: AdminDemoCompetitionsIndexRoute,
+  AdminDocsIndexRoute: AdminDocsIndexRoute,
   AdminEntitlementsIndexRoute: AdminEntitlementsIndexRoute,
   AdminOrganizerRequestsIndexRoute: AdminOrganizerRequestsIndexRoute,
   AdminTeamsIndexRoute: AdminTeamsIndexRoute,

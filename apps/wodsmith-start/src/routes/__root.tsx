@@ -149,17 +149,22 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body>
         <PostHogProvider>{children}</PostHogProvider>
         <Toaster richColors position="top-right" />
-        <TanStackDevtools
-          config={{
-            position: "bottom-right",
-          }}
-          plugins={[
-            {
-              name: "Tanstack Router",
-              render: <TanStackRouterDevtoolsPanel />,
-            },
-          ]}
-        />
+        {/* The devtools trigger overlays the bottom-right corner and
+            intercepts pointer events, so it's disabled during Playwright
+            runs (VITE_E2E is set by playwright.config.ts). */}
+        {!import.meta.env.VITE_E2E && (
+          <TanStackDevtools
+            config={{
+              position: "bottom-right",
+            }}
+            plugins={[
+              {
+                name: "Tanstack Router",
+                render: <TanStackRouterDevtoolsPanel />,
+              },
+            ]}
+          />
+        )}
         <Scripts />
       </body>
     </html>
