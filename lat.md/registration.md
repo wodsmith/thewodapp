@@ -28,6 +28,8 @@ Coupon codes are resolved before redirecting to Stripe; see [[commerce#Coupons#R
 
 The registration form always shows the fee summary card. Before a division is selected, fee and total amounts render as dashes so the pricing area remains stable without implying a charge. Aggregate totals only use currently selected divisions so stale fee loads from a previous selection cannot briefly appear.
 
+[[apps/wodsmith-start/src/components/registration-sidebar.tsx#RegistrationSidebar]] suppresses every registration-state card (the "Register now" CTA and the "opens soon" / "closed" cards) unless `competition.status === "published"`, so a draft competition never invites a registration the server would reject. Existing registrants/invitees still see their own cards.
+
 ### Organizer Manual Registration
 
 Organizers register athletes from the dashboard via `createManualRegistrationFn`, bypassing the registration window.
