@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "b9d1dedc0a41",
+  "session_id": "49ada7ce-737a-4d3f-b1f7-3e89668d2830",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-18T04:15:48.514323Z",
+  "branch": "skill/data-fetching-perf-audit",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".claude/skills/data-fetching-perf-audit/SKILL.md",
+    ".claude/skills/data-fetching-perf-audit/references/anti-patterns.md",
+    ".claude/skills/data-fetching-perf-audit/references/stack-gotchas.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "af2f28ea-2870-458b-ad5a-fe0e13ff0af4",
+  "token_usage": {
+    "input_tokens": 15795,
+    "cache_creation_tokens": 97497,
+    "cache_read_tokens": 2450032,
+    "output_tokens": 31547,
+    "api_call_count": 30
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-18T04:15:48.444963Z",
+    "agent_lines": 0,
+    "human_added": 499,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 499,
+    "agent_percentage": 0
+  }
+}

@@ -1,0 +1,911 @@
+Base directory for this skill: /Users/zacjones/Documents/02.Areas/wodsmith/thewodapp-2/.claude/skills/skill-creator
+
+# Skill Creator
+
+This skill provides guidance for creating effective skills.
+
+## About Skills
+
+Skills are modular, self-contained packages that extend Claude's capabilities by providing
+specialized knowledge, workflows, and tools. Think of them as "onboarding guides" for specific
+domains or tasks—they transform Claude from a general-purpose agent into a specialized agent
+equipped with procedural knowledge that no model can fully possess.
+
+### What Skills Provide
+
+1. Specialized workflows - Multi-step procedures for specific domains
+2. Tool integrations - Instructions for working with specific file formats or APIs
+3. Domain expertise - Company-specific knowledge, schemas, business logic
+4. Bundled resources - Scripts, references, and assets for complex and repetitive tasks
+
+## Core Principles
+
+### Concise is Key
+
+The context window is a public good. Skills share the context window with everything else Claude needs: system prompt, conversation history, other Skills' metadata, and the actual user request.
+
+**Default assumption: Claude is already very smart.** Only add context Claude doesn't already have. Challenge each piece of information: "Does Claude really need this explanation?" and "Does this paragraph justify its token cost?"
+
+Prefer concise examples over verbose explanations.
+
+### Set Appropriate Degrees of Freedom
+
+Match the level of specificity to the task's fragility and variability:
+
+**High freedom (text-based instructions)**: Use when multiple approaches are valid, decisions depend on context, or heuristics guide the approach.
+
+**Medium freedom (pseudocode or scripts with parameters)**: Use when a preferred pattern exists, some variation is acceptable, or configuration affects behavior.
+
+**Low freedom (specific scripts, few parameters)**: Use when operations are fragile and error-prone, consistency is critical, or a specific sequence must be followed.
+
+Think of Claude as exploring a path: a narrow bridge with cliffs needs specific guardrails (low freedom), while an open field allows many routes (high freedom).
+
+### Anatomy of a Skill
+
+Every skill consists of a required SKILL.md file and optional bundled resources:
+
+```
+skill-name/
+├── SKILL.md (required)
+│   ├── YAML frontmatter metadata (required)
+│   │   ├── name: (required)
+│   │   └── description: (required)
+│   └── Markdown instructions (required)
+└── Bundled Resources (optional)
+    ├── scripts/          - Executable code (TypeScript/Bash/etc.)
+    ├── references/       - Documentation intended to be loaded into context as needed
+    └── assets/           - Files used in output (templates, icons, fonts, etc.)
+```
+
+#### SKILL.md (required)
+
+Every SKILL.md consists of:
+
+- **Frontmatter** (YAML): Contains `name` and `description` fields. These are the only fields that Claude reads to determine when the skill gets used, thus it is very important to be clear and comprehensive in describing what the skill is, and when it should be used.
+- **Body** (Markdown): Instructions and guidance for using the skill. Only loaded AFTER the skill triggers (if at all).
+
+#### Bundled Resources (optional)
+
+##### Scripts (`scripts/`)
+
+Executable code (TypeScript/Bash/etc.) for tasks that require deterministic reliability or are repeatedly rewritten.
+
+- **When to include**: When the same code is being rewritten repeatedly or deterministic reliability is needed
+- **Example**: `scripts/rotate-pdf.ts` for PDF rotation tasks
+- **Benefits**: Token efficient, deterministic, may be executed without loading into context
+- **Note**: Scripts may still need to be read by Claude for patching or environment-specific adjustments
+
+##### References (`references/`)
+
+Documentation and reference material intended to be loaded as needed into context to inform Claude's process and thinking.
+
+- **When to include**: For documentation that Claude should reference while working
+- **Examples**: `references/finance.md` for financial schemas, `references/mnda.md` for company NDA template, `references/policies.md` for company policies, `references/api_docs.md` for API specifications
+- **Use cases**: Database schemas, API documentation, domain knowledge, company policies, detailed workflow guides
+- **Benefits**: Keeps SKILL.md lean, loaded only when Claude determines it's needed
+- **Best practice**: If files are large (>10k words), include grep search patterns in SKILL.md
+- **Avoid duplication**: Information should live in either SKILL.md or references files, not both. Prefer references files for detailed information unless it's truly core to the skill—this keeps SKILL.md lean while making information discoverable without hogging the context window. Keep only essential procedural instructions and workflow guidance in SKILL.md; move detailed reference material, schemas, and examples to references files.
+
+##### Assets (`assets/`)
+
+Files not intended to be loaded into context, but rather used within the output Claude produces.
+
+- **When to include**: When the skill needs files that will be used in the final output
+- **Examples**: `assets/logo.png` for brand assets, `assets/slides.pptx` for PowerPoint templates, `assets/frontend-template/` for HTML/React boilerplate, `assets/font.ttf` for typography
+- **Use cases**: Templates, images, icons, boilerplate code, fonts, sample documents that get copied or modified
+- **Benefits**: Separates output resources from documentation, enables Claude to use files without loading them into context
+
+#### What to Not Include in a Skill
+
+A skill should only contain essential files that directly support its functionality. Do NOT create extraneous documentation or auxiliary files, including:
+
+- README.md
+- INSTALLATION_GUIDE.md
+- QUICK_REFERENCE.md
+- CHANGELOG.md
+- etc.
+
+The skill should only contain the information needed for an AI agent to do the job at hand. It should not contain auxilary context about the process that went into creating it, setup and testing procedures, user-facing documentation, etc. Creating additional documentation files just adds clutter and confusion.
+
+### Progressive Disclosure Design Principle
+
+Skills use a three-level loading system to manage context efficiently:
+
+1. **Metadata (name + description)** - Always in context (~100 words)
+2. **SKILL.md body** - When skill triggers (<5k words)
+3. **Bundled resources** - As needed by Claude (Unlimited because scripts can be executed without reading into context window)
+
+#### Progressive Disclosure Patterns
+
+Keep SKILL.md body to the essentials and under 500 lines to minimize context bloat. Split content into separate files when approaching this limit. When splitting out content into other files, it is very important to reference them from SKILL.md and describe clearly when to read them, to ensure the reader of the skill knows they exist and when to use them.
+
+**Key principle:** When a skill supports multiple variations, frameworks, or options, keep only the core workflow and selection guidance in SKILL.md. Move variant-specific details (patterns, examples, configuration) into separate reference files.
+
+**Pattern 1: High-level guide with references**
+
+```markdown
+# PDF Processing
+
+## Quick start
+
+Extract text with pdfplumber:
+[code example]
+
+## Advanced features
+
+- **Form filling**: See [FORMS.md](FORMS.md) for complete guide
+- **API reference**: See [REFERENCE.md](REFERENCE.md) for all methods
+- **Examples**: See [EXAMPLES.md](EXAMPLES.md) for common patterns
+```
+
+Claude loads FORMS.md, REFERENCE.md, or EXAMPLES.md only when needed.
+
+**Pattern 2: Domain-specific organization**
+
+For Skills with multiple domains, organize content by domain to avoid loading irrelevant context:
+
+```
+bigquery-skill/
+├── SKILL.md (overview and navigation)
+└── reference/
+    ├── finance.md (revenue, billing metrics)
+    ├── sales.md (opportunities, pipeline)
+    ├── product.md (API usage, features)
+    └── marketing.md (campaigns, attribution)
+```
+
+When a user asks about sales metrics, Claude only reads sales.md.
+
+Similarly, for skills supporting multiple frameworks or variants, organize by variant:
+
+```
+cloud-deploy/
+├── SKILL.md (workflow + provider selection)
+└── references/
+    ├── aws.md (AWS deployment patterns)
+    ├── gcp.md (GCP deployment patterns)
+    └── azure.md (Azure deployment patterns)
+```
+
+When the user chooses AWS, Claude only reads aws.md.
+
+**Pattern 3: Conditional details**
+
+Show basic content, link to advanced content:
+
+```markdown
+# DOCX Processing
+
+## Creating documents
+
+Use docx-js for new documents. See [DOCX-JS.md](DOCX-JS.md).
+
+## Editing documents
+
+For simple edits, modify the XML directly.
+
+**For tracked changes**: See [REDLINING.md](REDLINING.md)
+**For OOXML details**: See [OOXML.md](OOXML.md)
+```
+
+Claude reads REDLINING.md or OOXML.md only when the user needs those features.
+
+**Important guidelines:**
+
+- **Avoid deeply nested references** - Keep references one level deep from SKILL.md. All reference files should link directly from SKILL.md.
+- **Structure longer reference files** - For files longer than 100 lines, include a table of contents at the top so Claude can see the full scope when previewing.
+
+## Skill Creation Process
+
+Skill creation involves these steps:
+
+1. Understand the skill with concrete examples
+2. Plan reusable skill contents (scripts, references, assets)
+3. Initialize the skill (run init-skill.ts)
+4. Edit the skill (implement resources and write SKILL.md)
+5. Package the skill (run package-skill.ts)
+6. Iterate based on real usage
+
+Follow these steps in order, skipping only if there is a clear reason why they are not applicable.
+
+### Step 1: Understanding the Skill with Concrete Examples
+
+Skip this step only when the skill's usage patterns are already clearly understood. It remains valuable even when working with an existing skill.
+
+To create an effective skill, clearly understand concrete examples of how the skill will be used. This understanding can come from either direct user examples or generated examples that are validated with user feedback.
+
+For example, when building an image-editor skill, relevant questions include:
+
+- "What functionality should the image-editor skill support? Editing, rotating, anything else?"
+- "Can you give some examples of how this skill would be used?"
+- "I can imagine users asking for things like 'Remove the red-eye from this image' or 'Rotate this image'. Are there other ways you imagine this skill being used?"
+- "What would a user say that should trigger this skill?"
+
+To avoid overwhelming users, avoid asking too many questions in a single message. Start with the most important questions and follow up as needed for better effectiveness.
+
+Conclude this step when there is a clear sense of the functionality the skill should support.
+
+### Step 2: Planning the Reusable Skill Contents
+
+To turn concrete examples into an effective skill, analyze each example by:
+
+1. Considering how to execute on the example from scratch
+2. Identifying what scripts, references, and assets would be helpful when executing these workflows repeatedly
+
+Example: When building a `pdf-editor` skill to handle queries like "Help me rotate this PDF," the analysis shows:
+
+1. Rotating a PDF requires re-writing the same code each time
+2. A `scripts/rotate-pdf.ts` script would be helpful to store in the skill
+
+Example: When designing a `frontend-webapp-builder` skill for queries like "Build me a todo app" or "Build me a dashboard to track my steps," the analysis shows:
+
+1. Writing a frontend webapp requires the same boilerplate HTML/React each time
+2. An `assets/hello-world/` template containing the boilerplate HTML/React project files would be helpful to store in the skill
+
+Example: When building a `big-query` skill to handle queries like "How many users have logged in today?" the analysis shows:
+
+1. Querying BigQuery requires re-discovering the table schemas and relationships each time
+2. A `references/schema.md` file documenting the table schemas would be helpful to store in the skill
+
+To establish the skill's contents, analyze each concrete example to create a list of the reusable resources to include: scripts, references, and assets.
+
+### Step 3: Initializing the Skill
+
+At this point, it is time to actually create the skill.
+
+Skip this step only if the skill being developed already exists, and iteration or packaging is needed. In this case, continue to the next step.
+
+When creating a new skill from scratch, always run the `init-skill.ts` script. The script conveniently generates a new template skill directory that automatically includes everything a skill requires, making the skill creation process much more efficient and reliable.
+
+Usage:
+
+```bash
+bun scripts/init-skill.ts <skill-name> --path <output-directory>
+```
+
+The script:
+
+- Creates the skill directory at the specified path
+- Generates a SKILL.md template with proper frontmatter and TODO placeholders
+- Creates example resource directories: `scripts/`, `references/`, and `assets/`
+- Adds example files in each directory that can be customized or deleted
+
+After initialization, customize or remove the generated SKILL.md and example files as needed.
+
+### Step 4: Edit the Skill
+
+When editing the (newly-generated or existing) skill, remember that the skill is being created for another instance of Claude to use. Include information that would be beneficial and non-obvious to Claude. Consider what procedural knowledge, domain-specific details, or reusable assets would help another Claude instance execute these tasks more effectively.
+
+#### Learn Proven Design Patterns
+
+Consult these helpful guides based on your skill's needs:
+
+- **Multi-step processes**: See references/workflows.md for sequential workflows and conditional logic
+- **Specific output formats or quality standards**: See references/output-patterns.md for template and example patterns
+
+These files contain established best practices for effective skill design.
+
+#### Start with Reusable Skill Contents
+
+To begin implementation, start with the reusable resources identified above: `scripts/`, `references/`, and `assets/` files. Note that this step may require user input. For example, when implementing a `brand-guidelines` skill, the user may need to provide brand assets or templates to store in `assets/`, or documentation to store in `references/`.
+
+Added scripts must be tested by actually running them to ensure there are no bugs and that the output matches what is expected. If there are many similar scripts, only a representative sample needs to be tested to ensure confidence that they all work while balancing time to completion.
+
+Any example files and directories not needed for the skill should be deleted. The initialization script creates example files in `scripts/`, `references/`, and `assets/` to demonstrate structure, but most skills won't need all of them.
+
+#### Update SKILL.md
+
+**Writing Guidelines:** Always use imperative/infinitive form.
+
+##### Frontmatter
+
+Write the YAML frontmatter with `name` and `description`:
+
+- `name`: The skill name
+- `description`: This is the primary triggering mechanism for your skill, and helps Claude understand when to use the skill.
+  - Include both what the Skill does and specific triggers/contexts for when to use it.
+  - Include all "when to use" information here - Not in the body. The body is only loaded after triggering, so "When to Use This Skill" sections in the body are not helpful to Claude.
+  - Example description for a `docx` skill: "Comprehensive document creation, editing, and analysis with support for tracked changes, comments, formatting preservation, and text extraction. Use when Claude needs to work with professional documents (.docx files) for: (1) Creating new documents, (2) Modifying or editing content, (3) Working with tracked changes, (4) Adding comments, or any other document tasks"
+
+Do not include any other fields in YAML frontmatter.
+
+##### Body
+
+Write instructions for using the skill and its bundled resources.
+
+### Step 5: Packaging a Skill
+
+Once development of the skill is complete, it must be packaged into a distributable .skill file that gets shared with the user. The packaging process automatically validates the skill first to ensure it meets all requirements:
+
+```bash
+bun scripts/package-skill.ts <path/to/skill-folder>
+```
+
+Optional output directory specification:
+
+```bash
+bun scripts/package-skill.ts <path/to/skill-folder> ./dist
+```
+
+The packaging script will:
+
+1. **Validate** the skill automatically, checking:
+
+   - YAML frontmatter format and required fields
+   - Skill naming conventions and directory structure
+   - Description completeness and quality
+   - File organization and resource references
+
+2. **Package** the skill if validation passes, creating a .skill file named after the skill (e.g., `my-skill.skill`) that includes all files and maintains the proper directory structure for distribution. The .skill file is a zip file with a .skill extension.
+
+If validation fails, the script will report the errors and exit without creating a package. Fix any validation errors and run the packaging command again.
+
+### Step 6: Iterate
+
+After testing the skill, users may request improvements. Often this happens right after using the skill, with fresh context of how the skill performed.
+
+**Iteration workflow:**
+
+1. Use the skill on real tasks
+2. Notice struggles or inefficiencies
+3. Identify how SKILL.md or bundled resources should be updated
+4. Implement changes and test again
+
+
+ARGUMENTS: create a skill out of these two prs for doing a performance analysis for data fetching https://github.com/wodsmith/thewodapp/pull/502 https://github.com/wodsmith/thewodapp/pull/512
+
+---
+
+yeah, check out a branch and /create-pr
+
+---
+
+## Context
+
+- Current branch: skill/data-fetching-perf-audit
+- Git status: A  .claude/skills/data-fetching-perf-audit/SKILL.md
+A  .claude/skills/data-fetching-perf-audit/references/anti-patterns.md
+A  .claude/skills/data-fetching-perf-audit/references/stack-gotchas.md
+- Uncommitted changes: diff --git a/.claude/skills/data-fetching-perf-audit/SKILL.md b/.claude/skills/data-fetching-perf-audit/SKILL.md
+new file mode 100644
+index 00000000..65ee78a3
+--- /dev/null
++++ b/.claude/skills/data-fetching-perf-audit/SKILL.md
+@@ -0,0 +1,101 @@
++---
++name: data-fetching-perf-audit
++description: >-
++  Audit and optimize data fetching across TanStack Start route loaders, server
++  functions (createServerFn), and Drizzle/PlanetScale queries in wodsmith-start.
++  Use when a page or route group feels slow, when asked to do a "performance
++  analysis" / "perf audit" of data fetching, or to investigate loader
++  waterfalls, N+1 query patterns, sequential awaits of independent queries,
++  fake parallelism, over-fetching, or missing indexes. Triggers: slow compete
++  pages, slow organizer dashboard, "why is this loader slow", "optimize the
++  queries on X", "eliminate N+1", "reduce round trips", "batch these fetches".
++  Models the methodology proven in PRs #502 and #512.
++---
++
++# Data Fetching Performance Audit
++
++Find and fix data-fetching slowness in `wodsmith-start` — the layer between a
++route loader and the database. The wins are almost never "make the query
++faster"; they are **fewer round trips** and **real parallelism**. This skill
++encodes the audit methodology and the fix catalog proven in PR #502 (batch N+1
++across organizer routes) and PR #512 (eliminate waterfalls on public compete
++pages).
++
++## Why this stack is different
++
++Three facts drive every decision here. Internalize them before touching code:
++
++1. **A server fn called from a loader is an HTTP round trip.** On client-side
++   navigation, each `createServerFn` call the loader awaits is a separate
++   request. Three sequential `await fooFn()` calls = three serial network waves
++   before the page renders. Collapsing waves matters more than query speed.
++2. **`getDb()` wraps a single mysql2 connection, and mysql2 serializes commands
++   per connection.** `Promise.all([db.select()…, db.select()…])` on **one** `db`
++   runs sequentially on the wire — fake parallelism. Real parallelism requires
++   each branch to use its **own** `getDb()`.
++3. **The push-based DB workflow has no migrations dir.** Index changes are
++   schema edits applied with `pnpm db:push`, not generated migrations.
++
++## The audit workflow
++
++Work top-down: a page is slow because of how its loader composes server fns,
++which is slow because of how each server fn composes queries.
++
++1. **Scope.** Pick the route or route group (e.g. everything under
++   `/compete/organizer/$competitionId/`, or the public `/compete/$slug` tree).
++   Enumerate every route file in scope — don't sample.
++2. **Trace each loader → server fn → query chain.** For each route's `loader`,
++   list the server fns it awaits and whether they run sequentially or in
++   `Promise.all`. Open each server fn and list its internal DB queries and
++   whether *those* are sequential. Note anything called once per item in a list.
++3. **Classify** every finding against the [anti-pattern catalog](#anti-pattern-catalog).
++   Read `references/anti-patterns.md` for the detection signal, the fix, and
++   real before/after code for each.
++4. **Fix**, smallest blast radius first. Preserve loader data shapes so
++   components and their props are untouched (verify with `pnpm type-check`).
++   Keep single-item server fns alongside new batched ones — targeted refreshes
++   still need them.
++5. **Watch the two traps** in `references/stack-gotchas.md` — they will silently
++   undo your work (fake parallelism) or break the client build
++   (`cloudflare:workers` leaking into the bundle).
++6. **Verify** with the checklist below.
++
++For a thorough audit of a large route group, fan out: one agent per
++page/loader tracing its full chain, then an adversarial pass that re-checks
++each proposed fix for regressions (deferred-data drops, serialization,
++behavior changes). PR #512's analysis was a 10-agent trace reviewed by a
++20-agent adversarial pass. Scale the agent count to the scope.
++
++## Anti-pattern catalog
++
++Quick reference — full detection + fix + code in `references/anti-patterns.md`.
++
++| Anti-pattern | Smell | Fix |
++|---|---|---|
++| **Loader waterfall** | Loader `await`s fn A, then B with A's result, then C — each a round trip on client nav | Consolidate into one server fn (or ≤2 parallel) that composes the work in-process |
++| **N+1 server-fn call** | `items.map(i => someFn({ data: i.id }))` / a per-item call inside a loop | One batched fn taking `ids[]`, one `inArray` query, returns a `Record<id, …>` map |
++| **Sequential independent awaits** | `const a = await x(); const b = await y()` where `y` doesn't use `a` | `const [a, b] = await Promise.all([x(), y()])` |
++| **Fake parallelism** | `Promise.all` over one shared `getDb()` instance | One `getDb()` per parallel branch (mysql2 serializes per connection) |
++| **Over-fetching** | `select()` whole rows / full `users` (ships `passwordHash`, profile JSON); filtering in JS | Project only consumed columns; push filters into SQL (`where`) |
++| **Scan-to-check** | Fetch all rows then `.find`/`.some` in JS to test existence | Single `EXISTS`-scoped / `inArray` query |
++| **Missing hot-path index** | `inArray` / `eq` on a junction table (`workout_movements`, `workout_tags`) doing full scans | Add `index(...)` in the schema, apply with `pnpm db:push` |
++| **Dead query** | A fetched value that nothing in the loader/component consumes | Delete it |
++| **Per-item on critical path** | Non-essential data blocking first render | Defer it off the loader (chain un-awaited, hydrate client-side) |
++
++## Security while optimizing
++
++Tracing every fetch surfaces authz holes — fix them in the same pass (PR #512
++found two). Watch for: client-supplied `userId`/ids trusted without a session
++check (IDOR — derive identity from `getSessionFromCookie()`), and unpublished/
++draft data (e.g. heats with athlete names) returned to anonymous viewers. See
++`references/stack-gotchas.md`.
++
++## Verification checklist
++
++- [ ] `pnpm type-check` — loader data shapes unchanged (component contracts intact)
++- [ ] `pnpm build` — confirms no `@/db` / `cloudflare:workers` leaked into the client bundle
++- [ ] `pnpm test` — at parity with `main` (run suspected pre-existing failures on a clean `main` to confirm)
++- [ ] `pnpm check` (Biome) clean on changed files
++- [ ] If indexes changed: `pnpm db:push` applied (no migration files)
++- [ ] `lat check` passes; update `lat.md/architecture.md` to document new consolidated/batched fns
++- [ ] Each parallel branch verified to use its own `getDb()` (no fake parallelism)
+diff --git a/.claude/skills/data-fetching-perf-audit/references/anti-patterns.md b/.claude/skills/data-fetching-perf-audit/references/anti-patterns.md
+new file mode 100644
+index 00000000..3bcdb926
+--- /dev/null
++++ b/.claude/skills/data-fetching-perf-audit/references/anti-patterns.md
+@@ -0,0 +1,273 @@
++# Anti-pattern catalog: detection + fix + code
++
++Each section: how to spot it, how to fix it, and real before/after from
++`wodsmith-start` (PRs #502, #512). Code is illustrative — match the existing
++file's imports and style when applying.
++
++## Contents
++
++1. [Loader waterfall → consolidated server fn](#1-loader-waterfall)
++2. [N+1 server-fn call → batched map fn](#2-n1-server-fn-call)
++3. [Sequential independent awaits → Promise.all](#3-sequential-independent-awaits)
++4. [Fake parallelism → one getDb() per branch](#4-fake-parallelism)
++5. [Over-fetching → project + filter in SQL](#5-over-fetching)
++6. [Scan-to-check → EXISTS-scoped query](#6-scan-to-check)
++7. [Missing hot-path index](#7-missing-hot-path-index)
++8. [Dead query → delete](#8-dead-query)
++9. [Per-item on critical path → defer](#9-per-item-on-critical-path)
++
++---
++
++## 1. Loader waterfall
++
++**Detect.** A route `loader` awaits one server fn, then awaits a second using
++the first's result, then a third. Each await is an HTTP round trip on
++client-side navigation. A page that issues 3–6 sequential waves pays 3–6 serial
++network latencies before render.
++
++**Fix.** Collapse the waves into **one consolidated server fn** that composes
++the existing fns/queries in-process (server-to-server, no extra round trips), or
++into **≤2 parallel** fns when one is public and one is session-specific. Both
++take the same input (e.g. `slug`) so neither waits on the other — one extra
++cheap indexed lookup beats a serial HTTP wave. Keep the loader's returned data
++shape identical so components don't change.
++
++Reference fns: `getPublicCompetitionPageDataFn` + `getViewerCompetitionContextFn`
++(`src/server-fns/competition-page-fns.ts`), `getPublicWorkoutsPageDataFn`
++(`competition-workouts-page-fns.ts`), `getPublicEventPageDataFn`
++(`competition-event-page-fns.ts`).
++
++```ts
++// BEFORE — loader: 3 sequential round trips
++const comp = await getCompetitionFn({ data: { slug } })
++const divisions = await getDivisionsFn({ data: { competitionId: comp.id } })
++const sponsors = await getSponsorsFn({ data: { competitionId: comp.id } })
++
++// AFTER — one consolidated fn; public branches fan out in-process, each on its
++// own connection. Anonymous viewers get empty stubs with zero DB work.
++export const getPublicCompetitionPageDataFn = createServerFn({ method: "GET" })
++  .inputValidator((d: unknown) => competitionPageInputSchema.parse(d))
++  .handler(async ({ data }) => {
++    const { competition } = await getCompetitionBySlugFn({ data: { slug: data.slug } })
++    if (!competition) return { competition: null, divisions: [], sponsors: emptySponsors }
++    const [divisionsResult, sponsors, judgesScheduleResult] = await Promise.all([
++      getPublicCompetitionDivisionsForCompetition({ competition }),
++      getCompetitionSponsorsFn({ data: { competitionId: competition.id } }),
++      hasJudgesScheduleFn({ data: { competitionId: competition.id } }),
++    ])
++    return { competition, divisions: divisionsResult.divisions, sponsors, /* … */ }
++  })
++```
++
++Split public vs. session data when one half needs no session: the public fn
++does zero session work and is cacheable; the viewer fn reads the session **once**
++and short-circuits to empty stubs for anonymous visitors.
++
++---
++
++## 2. N+1 server-fn call
++
++**Detect.** A server fn (or multi-query fn) invoked once per item in a list:
++`volunteers.map(v => canInputScoresFn({ data: v.userId }))`, or a parent fetching
++child data once per child. Cost scales with list length — the classic N+1.
++
++**Fix.** Add a **batched fn** that takes an array of ids, issues **one
++`inArray` query**, and returns a `Record<id, …>` map (pre-filled with defaults so
++every requested id is present). Callers do a map lookup instead of a call.
++Exploit shared scope: if children share a parent's competition-scoped data, fetch
++it once for all of them rather than per child.
++
++Reference fns: `getScoreAccessMapFn` (`src/server-fns/volunteer-fns.ts`),
++`getJudgeSchedulingDataForEventsFn` (`judge-scheduling-fns.ts`),
++`getEventScoreEntryDataWithHeatsBatchFn` (`competition-score-fns.ts`),
++`getHeatsByWorkoutIdsInternal` (`competition-heats-fns.ts`).
++
++```ts
++// BEFORE — N queries, one per volunteer
++const access = {}
++for (const v of volunteers) {
++  access[v.userId] = await canInputScoresFn({ data: { userId: v.userId, competitionTeamId } })
++}
++
++// AFTER — one inArray query, returns userId -> boolean map
++export const getScoreAccessMapFn = createServerFn({ method: "GET" })
++  .inputValidator((d: unknown) =>
++    z.object({ userIds: z.array(z.string()), competitionTeamId: competitionTeamIdSchema }).parse(d),
++  )
++  .handler(async ({ data }): Promise<Record<string, boolean>> => {
++    const accessMap: Record<string, boolean> = {}
++    for (const userId of data.userIds) accessMap[userId] = false  // defaults
++    if (data.userIds.length === 0) return accessMap
++    const db = getDb()
++    const entitlements = await db
++      .select({ userId: entitlementTable.userId })
++      .from(entitlementTable)
++      .where(and(
++        inArray(entitlementTable.userId, data.userIds),
++        eq(entitlementTable.teamId, data.competitionTeamId),
++        eq(entitlementTable.entitlementTypeId, SCORE_INPUT_TYPE_ID),
++        isNull(entitlementTable.deletedAt),
++      ))
++    for (const e of entitlements) if (e.userId) accessMap[e.userId] = true
++    return accessMap
++  })
++```
++
++When batching collapses N calls to 1, the per-item result may now be missing for
++a bad id. Preserve prior behavior explicitly — e.g. `throw` "Event not found" if a
++child's data is absent from the batch result (matching the old per-child error)
++rather than silently dropping it. Also avoid re-introducing O(items × rows): group
++rows by their key in a single pass, don't `.filter` all rows per item.
++
++---
++
++## 3. Sequential independent awaits
++
++**Detect.** Inside a fn or loader, `const a = await x(); const b = await y()`
++where `y` does **not** use `a`. They are independent but run serially.
++
++**Fix.** `const [a, b] = await Promise.all([x(), y()])`. But across **server fns**
++this is real concurrency; across **raw queries on one `db`** it is not — see #4.
++
++Reference: pricing loader (5 independent fetches → one `Promise.all`), sponsors
++loader, `getCompetitionRevenueStats` (`src/server/commerce/fee-calculator.ts`),
++all in PR #502.
++
++---
++
++## 4. Fake parallelism
++
++**Detect.** `Promise.all([...])` whose branches all use the **same** `db` /
++`getDb()` instance. mysql2 serializes commands on a single connection, so this
++runs sequentially despite the `Promise.all` — the most insidious trap because it
++*looks* parallel.
++
++**Fix.** Give each parallel branch its **own** `getDb()`. In-process server-fn
++composition gets this for free (each fn calls `getDb()` internally), but raw
++queries you parallelize by hand must each open a connection.
++
++Reference: `getCompetitionLeaderboard` (`src/server/competition-leaderboard.ts`)
++runs three dependency-ordered parallel groups, each branch on its own connection.
++
++```ts
++// BEFORE — fake parallelism: one connection serializes both
++const db = getDb()
++const [competition, registrations] = await Promise.all([
++  db.select().from(competitionsTable).where(...),
++  db.select().from(registrationsTable).where(...),
++])
++
++// AFTER — one connection per branch actually runs them concurrently
++const competitionDb = getDb()
++const registrationsDb = getDb()
++const [competition, registrations] = await Promise.all([
++  competitionDb.select().from(competitionsTable).where(...),
++  registrationsDb.select().from(registrationsTable).where(...),
++])
++```
++
++Dependency-order the groups: group 1 fetches what group 2 needs; within a group,
++everything is independent and each branch has its own connection.
++
++---
++
++## 5. Over-fetching
++
++**Detect.** `db.select()` (whole row) when only a few columns are used —
++especially joining `users`, which ships `passwordHash` and `athleteProfile` JSON
++for every athlete onto the wire. Or fetching all rows and filtering by a field in
++JS.
++
++**Fix.** Project only the consumed columns with `select({ … })`, and push the
++filter into SQL with `where(...)` instead of a JS `.filter`.
++
++Reference: leaderboard registrations now project only the
++registration/user/division columns the ranking consumes and filter division in
++SQL (`src/server/competition-leaderboard.ts`, PR #512).
++
++```ts
++// BEFORE — full user rows + JS division filter
++const regs = (await db.select().from(registrationsTable)
++  .innerJoin(users, eq(users.id, registrationsTable.userId)))
++  .filter(r => r.division_id === divisionId)
++
++// AFTER — projected columns + SQL filter
++const regs = await db
++  .select({ id: registrationsTable.id, name: users.firstName, divisionId: registrationsTable.divisionId })
++  .from(registrationsTable)
++  .innerJoin(users, eq(users.id, registrationsTable.userId))
++  .where(eq(registrationsTable.divisionId, divisionId))
++```
++
++---
++
++## 6. Scan-to-check
++
++**Detect.** Fetching every row in a scope, then `.find`/`.some` in JS to test
++whether one exists — e.g. loading every registration in a competition just to see
++if a given email has a pending team invite.
++
++**Fix.** One `EXISTS`-correlated or `inArray`-scoped query that answers the
++question in SQL.
++
++Reference: pending team invites now use a single EXISTS-scoped query on the
++invitee email instead of scanning every registration
++(`getPendingTeamInvitesForEmail`, `src/server/competition-detail.ts`, PR #512).
++
++---
++
++## 7. Missing hot-path index
++
++**Detect.** Frequent `inArray`/`eq` lookups on a junction/global table that has
++no index on the looked-up column — a full table scan on every hit. PR #512 found
++`workout_movements` and `workout_tags` (global junction tables) were full-scanned
++on hot `inArray` lookups, plus `judge_heat_assignments(rotationId)`.
++
++**Fix.** Add the index in the Drizzle schema's table-extras callback, then apply
++with `pnpm db:push` — **no migration files** (push-based workflow; no migrations
++dir exists). Flag the `db:push` step explicitly in the PR.
++
++```ts
++// src/db/schemas/workouts.ts
++export const workoutTagsTable = mysqlTable(
++  "workout_tags",
++  { ...commonColumns, id: varchar({ length: 255 }).primaryKey(),
++    workoutId: varchar({ length: 255 }).notNull(), tagId: varchar({ length: 255 }).notNull() },
++  (table) => [
++    index("workout_tags_workout_idx").on(table.workoutId),
++    index("workout_tags_tag_idx").on(table.tagId),
++  ],
++)
++```
++
++---
++
++## 8. Dead query
++
++**Detect.** A fetched value that nothing downstream reads — a `totalEvents` count
++returned but never rendered, a `getTeamContactEmailFn` loader fetch whose result
++is unused, a duplicate mapping query. Grep the symbol; if no consumer, it's dead.
++
++**Fix.** Delete it. PR #512 removed `totalEvents`, a dead `getTeamContactEmailFn`
++fetch, a duplicate leaderboard mappings query, and redundant inline registration
++fns. Each deletion is one fewer query on the critical path.
++
++---
++
++## 9. Per-item on critical path
++
++**Detect.** Non-essential, expensive data (heats, schedules) awaited in the
++loader, blocking first paint, when the component could hydrate it after render.
++
++**Fix.** Keep it **off** the loader's critical path: chain the fn off the
++page-data promise **un-awaited** and let the component resolve it client-side
++(deferred data). Distinct from #1 — here the goal isn't fewer round trips but
++keeping a slow fetch out of the blocking path.
++
++Reference: event-detail published heats — the route chains `getPublicEventHeatsFn`
++off the page-data promise un-awaited and the heat-schedule component resolves it
++client-side (`src/routes/compete/$slug/workouts/$eventId.tsx`, PR #512).
++
++> Regression watch: when deferring, ensure the deferred promise is actually
++> forwarded to the component and not accidentally awaited or dropped — PR #512's
++> adversarial review caught a heats-deferral regression.
+diff --git a/.claude/skills/data-fetching-perf-audit/references/stack-gotchas.md b/.claude/skills/data-fetching-perf-audit/references/stack-gotchas.md
+new file mode 100644
+index 00000000..5f0d93c2
+--- /dev/null
++++ b/.claude/skills/data-fetching-perf-audit/references/stack-gotchas.md
+@@ -0,0 +1,125 @@
++# Stack gotchas
++
++Codebase-specific traps that silently undo a perf fix or break the build. The
++first two are the ones that bite hardest; read them before optimizing.
++
++## Contents
++
++1. [mysql2 single-connection serialization](#1-mysql2-single-connection-serialization)
++2. [cloudflare:workers leaking into the client bundle](#2-cloudflareworkers-leaking-into-the-client-bundle)
++3. [Push-based DB workflow (indexes)](#3-push-based-db-workflow)
++4. [Preserve loader data shapes](#4-preserve-loader-data-shapes)
++5. [Server fn = HTTP round trip; in-process composition is free](#5-server-fn--http-round-trip)
++6. [Security holes surface during the audit](#6-security-holes-surface-during-the-audit)
++7. [Caching is deferred, not free](#7-caching-is-deferred-not-free)
++
++---
++
++## 1. mysql2 single-connection serialization
++
++`getDb()` returns a Drizzle instance wrapping a **single mysql2 connection**, and
++mysql2 serializes commands per connection. Consequences:
++
++- `Promise.all([db.q1(), db.q2()])` on **one** `db` is **fake parallelism** — the
++  queries run back-to-back on the wire. The `Promise.all` makes it *look*
++  concurrent; it isn't.
++- Real concurrency requires **one `getDb()` per parallel branch**. In-process
++  server-fn composition gets this automatically (each fn opens its own
++  connection). Hand-written parallel raw queries must each call `getDb()`.
++
++```ts
++// Each parallel branch gets its OWN getDb() connection: a Drizzle instance
++// wraps a single mysql2 connection which serializes commands, so sharing one
++// instance across Promise.all branches would still execute sequentially.
++const competitionDb = getDb()
++const registrationsDb = getDb()
++const [competition, registrations] = await Promise.all([
++  competitionDb.select()...,
++  registrationsDb.select()...,
++])
++```
++
++> Do **not** "fix" this by memoizing `getDb()` into a shared pooled instance —
++> naive memoization would serialize all parallel queries again. Per-request
++> connection pooling is a deliberate infra decision, not a perf-audit change.
++
++## 2. cloudflare:workers leaking into the client bundle
++
++`@/db` imports `cloudflare:workers`, which Vite **cannot resolve in the browser**.
++TanStack Start's client compile strips `createServerFn` **handler bodies** (and
++their imports), but it **cannot strip exported plain functions**. So an exported
++plain helper that calls `getDb()`, living in a `src/server-fns/*` module, drags
++`@/db` → `cloudflare:workers` into the client graph and breaks the build:
++
++```
++[vite:import-analysis] Failed to resolve import "cloudflare:workers" from "src/db/index.ts"
++```
++
++This bites specifically when consolidating fns: extracting shared DB helpers as
++exported plain functions is the natural refactor, and it's the one that breaks.
++
++**Fix — follow the `src/server/` convention:**
++
++- DB-backed plain helpers go in `src/server/*.ts` with `import "server-only"` at
++  the top (e.g. `src/server/competition-detail.ts`,
++  `src/server/competition-divisions.ts`).
++- Client-safe pieces (Zod parsers, constants, plain types like
++  `parseCompetitionSettings`, `PublicCompetitionDivision`) go in `src/utils/*`
++  (e.g. `src/utils/competition-settings.ts`) so server modules can use them with
++  no cycle. Re-export from the original `*-fns.ts` so existing importers (incl.
++  client routes) stay unchanged.
++- `src/server-fns/*` files then reference the helpers **only inside handler
++  bodies**, which the client compiler strips.
++
++Always run `pnpm build` (not just `type-check`) after a consolidation — the
++client-bundle resolution error only appears at build time.
++
++## 3. Push-based DB workflow
++
++No migrations directory exists. Schema/index changes are applied with
++`pnpm db:push` during development. When a perf fix adds an index, the index lives
++in the Drizzle schema's table-extras callback and the PR must call out the
++`pnpm db:push` step explicitly. Do **not** hand-write SQL migrations.
++
++## 4. Preserve loader data shapes
++
++The goal is faster loading with **zero** change to what components receive. Keep
++each loader's returned object shape identical (same keys, same types) so child
++components and their props are untouched. `pnpm type-check` is the guardrail — if
++it passes, the contract held. The only acceptable shape change is deleting a
++genuinely dead field (e.g. `organizerContactEmail`), and only after confirming no
++consumer reads it.
++
++## 5. Server fn = HTTP round trip
++
++A `createServerFn` call awaited in a loader is a network request on client-side
++navigation. Composing fns **in-process** (one server fn calling another's logic
++server-side) costs no extra round trip. That's why consolidation works: the
++loader makes 1–2 calls, and the fan-out happens server-to-server. When you need
++two loader-level calls, make them parallel and have each resolve its own
++prerequisites (e.g. both take the `slug`) so neither blocks the other.
++
++## 6. Security holes surface during the audit
++
++Tracing every fetch is also an authz audit. Two real holes found in PR #512:
++
++- **IDOR:** `getUserCompetitionRegistrationsFn` accepted a client-supplied
++  `userId` with no session check — any visitor could read another user's
++  registrations. Fix: derive the user from `getSessionFromCookie()`, never trust
++  client input for identity.
++- **Draft exposure:** `getHeatsForCompetitionFn` returned unpublished heats —
++  including athlete names — to anonymous visitors. Fix: filter
++  `schedulePublishedAt IS NOT NULL` unless the viewer is a site admin or holds
++  owner/admin/`manage_programming` on the organizing team. Add regression tests
++  and verify every existing caller is unaffected.
++
++When over-fetching also leaks sensitive columns (`passwordHash`, profile JSON via
++full `users` rows), the projection fix in anti-pattern #5 is a security fix too.
++
++## 7. Caching is deferred, not free
++
++These optimizations are about call structure, not caching. Caching the
++now-consolidated public payloads (KV), enabling Hyperdrive query caching, and
++per-request connection pooling are separate infra decisions — Hyperdrive query
++caching is explicitly disabled in `alchemy.run.ts`; verify *why* before flipping
++it. Don't bundle these into a structural perf audit.
+- Diff from main: (Bash completed with no output)
+- Recent commits: (Bash completed with no output)
+
+## Your Task
+
+Based on the current changes and branch:
+
+1. **Commit any uncommitted changes** if there are any (use a descriptive commit message based on the changes)
+2. **Push the current branch** to origin
+3. **Generate a PRD gif** by running the `prg` command
+4. **Create a pull request** using either:
+   - GitHub CLI (`gh pr create`) if available
+   - Or open the GitHub PR creation URL in the browser
+5. **Include in the PR**:
+   - A descriptive title (use  if provided, otherwise generate from commits)
+   - A comprehensive description (use  if provided, otherwise generate from changes)
+   - Reference to the PRD gif if successfully generated
+   - List of changes made
+   - Testing notes if applicable
+
+If the branch is already up to date with origin and there are no changes to commit, just create the PR.
+
+Make sure to handle cases where:
+- The `prd` command might not be available (continue without the gif)
+- GitHub CLI might not be available (fallback to opening the web URL)
+- The branch might already exist on origin
