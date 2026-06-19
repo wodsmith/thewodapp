@@ -150,3 +150,8 @@ export const createRouteDocVersionId = () => `rdocver_${ulid()}`
 
 // Crew event settings ID generators
 export const createCrewEventSettingsId = () => `crewset_${ulid()}`
+
+// Crew import and confirmation ID generators
+export const createCrewImportId = () => `cimp_${ulid()}`
+export const createCrewImportRowId = () => `cimpr_${ulid()}`
+export const createCrewAssignmentConfirmationId = () => `caconf_${ulid()}`
