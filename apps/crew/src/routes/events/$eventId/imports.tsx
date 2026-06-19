@@ -638,8 +638,8 @@ function StatusBadge({ status }: { status: string }) {
 function formatKind(kind: string) {
   if (kind === "heat_schedule") return "Heat schedule"
   if (kind === "role_template") return "Role template"
-  if (kind === "unknown") return "Unknown"
-  return "Volunteers"
+  if (kind === "volunteers") return "Volunteers"
+  return "Unknown"
 }
 
 function formatStatus(status: string) {

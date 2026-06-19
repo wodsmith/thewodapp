@@ -46,7 +46,9 @@ Operator-facing durations render in compact hour/minute labels so workout block 
 
 ## Import CSV Preview
 
-Crew import preview is a private operator workflow for CSV-only volunteer and heat schedule uploads. It parses rows, maps columns, records preview rows in `crew_imports` and `crew_import_rows`, and does not apply rows to volunteer, invitation, heat, shift, or assignment production tables.
+Crew import preview is a private operator workflow for CSV-only volunteer and heat schedule uploads.
+
+[[apps/crew/src/routes/events/$eventId/imports.tsx]] renders upload, mapping, warnings, and history. [[apps/crew/src/routes/api/crew/import.ts]] accepts private preview uploads, while [[apps/crew/src/lib/crew/imports/preview.ts]] and [[apps/crew/src/server/crew-imports.ts]] parse and persist previews without applying rows.
 
 ### Private Upload Route
 

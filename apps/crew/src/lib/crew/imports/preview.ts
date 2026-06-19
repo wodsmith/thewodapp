@@ -216,7 +216,7 @@ function buildHeatScheduleRows(
 
     if (workout && normalized.normalized.heatNumber !== null) {
       const knownHeats = knownHeatsByWorkout.get(workout.id)
-      if (knownHeats && !knownHeats.has(normalized.normalized.heatNumber)) {
+      if (!knownHeats || !knownHeats.has(normalized.normalized.heatNumber)) {
         warnings.push({
           code: "unknown_heat",
           severity: "warning",

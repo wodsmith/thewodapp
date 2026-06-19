@@ -1,3 +1,4 @@
+// @lat: [[crew#Import CSV Preview#Parser Warnings]]
 import type { CsvParseResult, CsvRecord, ImportIssue } from "./types"
 
 interface ParseCsvOptions {
@@ -22,6 +23,23 @@ export function parseCsv(
           code: "missing_headers",
           severity: "error",
           message: "CSV must include a header row.",
+        },
+      ],
+      skippedRowCount: 0,
+    }
+  }
+
+  const duplicateHeaders = findDuplicateHeaders(headers)
+  if (duplicateHeaders.length > 0) {
+    return {
+      headers,
+      rows: [],
+      fileIssues: [
+        ...fileIssues,
+        {
+          code: "duplicate_headers",
+          severity: "error",
+          message: `CSV headers must be unique. Duplicate header${duplicateHeaders.length === 1 ? "" : "s"}: ${duplicateHeaders.join(", ")}.`,
         },
       ],
       skippedRowCount: 0,
@@ -152,6 +170,26 @@ function parseCsvRecords(input: string, issues: ImportIssue[]) {
   }
 
   return rows
+}
+
+function findDuplicateHeaders(headers: string[]) {
+  const seenHeaders = new Map<string, string>()
+  const duplicateHeaders = new Set<string>()
+
+  for (const header of headers) {
+    const label = header.trim()
+    if (!label) continue
+
+    const key = label.toLowerCase().replace(/\s+/g, " ")
+    const firstLabel = seenHeaders.get(key)
+    if (firstLabel) {
+      duplicateHeaders.add(firstLabel)
+    } else {
+      seenHeaders.set(key, label)
+    }
+  }
+
+  return [...duplicateHeaders]
 }
 
 function mapRecordToHeaders(headers: string[], record: string[]) {

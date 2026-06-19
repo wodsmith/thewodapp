@@ -1,9 +1,13 @@
+// @lat: [[crew#Import CSV Preview#Parser Warnings]]
 import type {
   ColumnMapping,
   CsvRecord,
   HeatScheduleImportRow,
   ImportIssue,
 } from "./types"
+
+const positiveIntegerTokenPattern =
+  /(?:^|[^A-Za-z0-9+\-.])([1-9]\d*)(?=$|[^A-Za-z0-9.])/
 
 export function normalizeHeatScheduleRow(
   record: CsvRecord,
@@ -79,10 +83,10 @@ function getMappedValue(
 }
 
 function parsePositiveInteger(value: string) {
-  const match = value.match(/\d+/)
+  const match = value.trim().match(positiveIntegerTokenPattern)
   if (!match) return null
 
-  const parsed = Number(match[0])
+  const parsed = Number(match[1])
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null
 }
 

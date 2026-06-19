@@ -1,3 +1,4 @@
+// @lat: [[crew#Import CSV Preview#Parser Warnings]]
 export const CREW_IMPORT_PARSER_VERSION = "crew-csv-preview-v1"
 
 export type CrewImportKind = "volunteers" | "heat_schedule"

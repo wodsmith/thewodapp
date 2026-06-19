@@ -1,5 +1,12 @@
 import { env } from "cloudflare:workers"
 
+export class CrewLocalAccessError extends Error {
+  constructor(featureName: string) {
+    super(`${featureName} access is local-operator only until Crew auth is wired.`)
+    this.name = "CrewLocalAccessError"
+  }
+}
+
 type CrewRuntimeEnv = typeof env & {
   NODE_ENV?: string
   STAGE?: string
@@ -7,9 +14,10 @@ type CrewRuntimeEnv = typeof env & {
   SITE_URL?: string
 }
 
-const localCrewStages = new Set(["dev", "local", "test", "preview"])
+const localCrewStages = new Set(["dev", "local", "test"])
 
-// @lat: [[crew#Event Setup Dashboard]] [[crew#Import CSV Preview#Private Upload Route]]
+// @lat: [[crew#Event Setup Dashboard]]
+// @lat: [[crew#Import CSV Preview#Private Upload Route]]
 export function requireLocalCrewOperatorAccess(featureName = "Crew operator") {
   const runtimeEnv = env as CrewRuntimeEnv
   const nodeEnv = runtimeEnv.NODE_ENV?.toLowerCase()
@@ -20,7 +28,7 @@ export function requireLocalCrewOperatorAccess(featureName = "Crew operator") {
   const isLocalUrl =
     appHost === "localhost" || appHost === "127.0.0.1" || appHost === "::1"
   const isProductionLike =
-    nodeEnv === "production" ||
+    (nodeEnv === "production" && !isLocalUrl) ||
     stage === "prod" ||
     stage === "production" ||
     stage === "demo" ||
@@ -28,9 +36,7 @@ export function requireLocalCrewOperatorAccess(featureName = "Crew operator") {
     appUrl.includes("wodsmith.com")
 
   if (isProductionLike || (!isLocalStage && !isLocalUrl)) {
-    throw new Error(
-      `${featureName} access is local-operator only until Crew auth is wired.`,
-    )
+    throw new CrewLocalAccessError(featureName)
   }
 }
 

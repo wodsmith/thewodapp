@@ -40,6 +40,23 @@ import { requireLocalCrewOperatorAccess } from "./crew-local-access"
 
 export const MAX_CREW_IMPORT_BYTES = 1_000_000
 
+export type CrewImportErrorCode =
+  | "EVENT_NOT_FOUND"
+  | "INVALID_FILE_TYPE"
+  | "INVALID_COLUMN_MAPPING"
+  | "PAYLOAD_TOO_LARGE"
+
+export class CrewImportError extends Error {
+  constructor(
+    public readonly code: CrewImportErrorCode,
+    public readonly publicMessage: string,
+    public readonly status = 400,
+  ) {
+    super(publicMessage)
+    this.name = "CrewImportError"
+  }
+}
+
 const uploadCrewImportInputSchema = z.object({
   eventId: z.string().min(1, "Event ID is required"),
   kind: z.enum([CREW_IMPORT_KIND.VOLUNTEERS, CREW_IMPORT_KIND.HEAT_SCHEDULE]),
@@ -113,13 +130,22 @@ export async function createCrewImportPreviewRecord(input: {
   requireLocalCrewOperatorAccess("Crew imports")
 
   const data = uploadCrewImportInputSchema.parse(input)
+  const fileSize = Math.max(data.fileSize, getCsvByteLength(data.csvText))
 
-  if (data.fileSize > MAX_CREW_IMPORT_BYTES) {
-    throw new Error("CSV is larger than the Crew preview limit.")
+  if (fileSize > MAX_CREW_IMPORT_BYTES) {
+    throw new CrewImportError(
+      "PAYLOAD_TOO_LARGE",
+      "CSV is larger than the Crew preview limit.",
+      413,
+    )
   }
 
-  if (!isCsvFilename(data.originalFilename) && !isCsvMimeType(data.mimeType)) {
-    throw new Error("Crew import preview accepts CSV files only.")
+  if (!isCsvUpload(data.originalFilename, data.mimeType)) {
+    throw new CrewImportError(
+      "INVALID_FILE_TYPE",
+      "Crew import preview accepts CSV files only.",
+      415,
+    )
   }
 
   const reference = await loadCrewImportReferenceData(data.eventId)
@@ -144,7 +170,7 @@ export async function createCrewImportPreviewRecord(input: {
     status,
     originalFilename: data.originalFilename,
     mimeType: data.mimeType ?? null,
-    fileSize: data.fileSize,
+    fileSize,
     sourcePlatform: data.sourcePlatform ?? null,
     createdAt,
   })
@@ -319,7 +345,7 @@ async function requireCrewEvent(eventId: string) {
     .limit(1)
 
   if (!event) {
-    throw new Error("Crew event not found.")
+    throw new CrewImportError("EVENT_NOT_FOUND", "Crew event not found.", 404)
   }
 
   return event
@@ -363,13 +389,22 @@ async function listWorkoutsForCompetition(eventId: string) {
   }))
 }
 
+function getCsvByteLength(csvText: string) {
+  return new TextEncoder().encode(csvText).byteLength
+}
+
+function isCsvUpload(filename: string, mimeType?: string | null) {
+  return isCsvFilename(filename) || isCsvMimeType(mimeType)
+}
+
 function isCsvMimeType(mimeType?: string | null) {
+  if (!mimeType) return false
+
+  const normalizedMimeType = mimeType.split(";")[0]?.trim().toLowerCase()
   return (
-    !mimeType ||
-    mimeType === "text/csv" ||
-    mimeType === "text/plain" ||
-    mimeType === "application/csv" ||
-    mimeType === "application/vnd.ms-excel"
+    normalizedMimeType === "text/csv" ||
+    normalizedMimeType === "application/csv" ||
+    normalizedMimeType === "application/vnd.ms-excel"
   )
 }
 

@@ -1,10 +1,13 @@
 // @lat: [[crew#Import CSV Preview#Private Upload Route]]
 import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
+import { ZodError } from "zod"
 import {
   createCrewImportPreviewRecord,
+  CrewImportError,
   MAX_CREW_IMPORT_BYTES,
 } from "../../../server/crew-imports"
+import { CrewLocalAccessError } from "../../../server/crew-local-access"
 import type {
   ColumnMapping,
   CrewImportKind,
@@ -36,14 +39,15 @@ export const Route = createFileRoute("/api/crew/import")({
           if (file.size > MAX_CREW_IMPORT_BYTES) {
             return json(
               { error: "CSV is larger than the Crew preview limit." },
-              { status: 400 },
+              { status: 413 },
             )
           }
 
+          const csvText = await file.text()
           const importPreview = await createCrewImportPreviewRecord({
             eventId,
             kind,
-            csvText: await file.text(),
+            csvText,
             originalFilename: file.name,
             mimeType: file.type || null,
             fileSize: file.size,
@@ -55,13 +59,8 @@ export const Route = createFileRoute("/api/crew/import")({
 
           return json({ importPreview })
         } catch (error) {
-          const message =
-            error instanceof Error
-              ? error.message
-              : "Failed to preview Crew import."
-          const status = message.includes("local-operator only") ? 403 : 400
-
-          return json({ error: message }, { status })
+          const response = getImportErrorResponse(error)
+          return json({ error: response.message }, { status: response.status })
         }
       },
     },
@@ -76,9 +75,21 @@ function getTextFormValue(formData: FormData, key: string) {
 function parseColumnMapping(value: string): ColumnMapping | undefined {
   if (!value) return undefined
 
-  const parsed = JSON.parse(value) as unknown
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(value) as unknown
+  } catch {
+    throw new CrewImportError(
+      "INVALID_COLUMN_MAPPING",
+      "Column mapping must be valid JSON.",
+    )
+  }
+
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    return undefined
+    throw new CrewImportError(
+      "INVALID_COLUMN_MAPPING",
+      "Column mapping must be a JSON object.",
+    )
   }
 
   const mapping: ColumnMapping = {}
@@ -87,4 +98,21 @@ function parseColumnMapping(value: string): ColumnMapping | undefined {
   }
 
   return mapping
+}
+
+function getImportErrorResponse(error: unknown) {
+  if (error instanceof CrewLocalAccessError) {
+    return { status: 403, message: error.message }
+  }
+
+  if (error instanceof CrewImportError) {
+    return { status: error.status, message: error.publicMessage }
+  }
+
+  if (error instanceof ZodError) {
+    return { status: 400, message: "Import request is invalid." }
+  }
+
+  console.error("Unexpected Crew import preview failure:", error)
+  return { status: 500, message: "Failed to preview Crew import." }
 }

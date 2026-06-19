@@ -1,3 +1,4 @@
+// @lat: [[crew#Import CSV Preview#Parser Warnings]]
 import type { ImportIssue, PreviewImportRow, VolunteerImportRow } from "./types"
 
 export function addDuplicateEmailWarnings(rows: PreviewImportRow[]) {

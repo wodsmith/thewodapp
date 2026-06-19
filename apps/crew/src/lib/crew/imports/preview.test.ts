@@ -44,6 +44,20 @@ describe("parseCsv", () => {
     )
     expect(parsed.rows[0]?.values.__extra_1).toBe("extra")
   })
+
+  it("rejects duplicate non-empty headers before row mapping", () => {
+    const parsed = parseCsv("Name,Email,email\nIan,first@example.com,second")
+
+    expect(parsed.rows).toHaveLength(0)
+    expect(parsed.fileIssues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "duplicate_headers",
+          severity: "error",
+        }),
+      ]),
+    )
+  })
 })
 
 describe("buildCrewImportPreview", () => {
@@ -117,5 +131,34 @@ describe("buildCrewImportPreview", () => {
       ]),
     )
     expect(preview.errorCount).toBe(0)
+  })
+
+  it("rejects signed negative heat numbers", () => {
+    const preview = buildCrewImportPreview({
+      kind: "heat_schedule",
+      context: previewContext,
+      csvText: "Workout,Heat,Start Time\nEvent 1,-3,9:00 AM",
+    })
+
+    expect(preview.rows[0]?.action).toBe("error")
+    expect(preview.rows[0]?.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "invalid_heat_number" }),
+      ]),
+    )
+  })
+
+  it("flags unknown heat when a known workout has no loaded heats", () => {
+    const preview = buildCrewImportPreview({
+      kind: "heat_schedule",
+      context: { ...previewContext, heats: [] },
+      csvText: "Workout,Heat,Start Time\nEvent 1,Heat 1,9:00 AM",
+    })
+
+    expect(preview.rows[0]?.warnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "unknown_heat" }),
+      ]),
+    )
   })
 })
