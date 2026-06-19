@@ -19,7 +19,9 @@ import { Route as EventsEventIdVolunteersRouteImport } from './routes/events/$ev
 import { Route as EventsEventIdSetupRouteImport } from './routes/events/$eventId/setup'
 import { Route as EventsEventIdScheduleRouteImport } from './routes/events/$eventId/schedule'
 import { Route as EventsEventIdImportsRouteImport } from './routes/events/$eventId/imports'
+import { Route as ESlugVolunteerRouteImport } from './routes/e/$slug/volunteer'
 import { Route as ApiCrewImportRouteImport } from './routes/api/crew/import'
+import { Route as ESlugScheduleTokenRouteImport } from './routes/e/$slug/schedule/$token'
 
 const EventsRoute = EventsRouteImport.update({
   id: '/events',
@@ -71,9 +73,19 @@ const EventsEventIdImportsRoute = EventsEventIdImportsRouteImport.update({
   path: '/imports',
   getParentRoute: () => EventsEventIdRoute,
 } as any)
+const ESlugVolunteerRoute = ESlugVolunteerRouteImport.update({
+  id: '/e/$slug/volunteer',
+  path: '/e/$slug/volunteer',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCrewImportRoute = ApiCrewImportRouteImport.update({
   id: '/api/crew/import',
   path: '/api/crew/import',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ESlugScheduleTokenRoute = ESlugScheduleTokenRouteImport.update({
+  id: '/e/$slug/schedule/$token',
+  path: '/e/$slug/schedule/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -84,11 +96,13 @@ export interface FileRoutesByFullPath {
   '/events/$eventId': typeof EventsEventIdRouteWithChildren
   '/events/new': typeof EventsNewRoute
   '/api/crew/import': typeof ApiCrewImportRoute
+  '/e/$slug/volunteer': typeof ESlugVolunteerRoute
   '/events/$eventId/imports': typeof EventsEventIdImportsRoute
   '/events/$eventId/schedule': typeof EventsEventIdScheduleRoute
   '/events/$eventId/setup': typeof EventsEventIdSetupRoute
   '/events/$eventId/volunteers': typeof EventsEventIdVolunteersRoute
   '/events/$eventId/': typeof EventsEventIdIndexRoute
+  '/e/$slug/schedule/$token': typeof ESlugScheduleTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -96,11 +110,13 @@ export interface FileRoutesByTo {
   '/events': typeof EventsRouteWithChildren
   '/events/new': typeof EventsNewRoute
   '/api/crew/import': typeof ApiCrewImportRoute
+  '/e/$slug/volunteer': typeof ESlugVolunteerRoute
   '/events/$eventId/imports': typeof EventsEventIdImportsRoute
   '/events/$eventId/schedule': typeof EventsEventIdScheduleRoute
   '/events/$eventId/setup': typeof EventsEventIdSetupRoute
   '/events/$eventId/volunteers': typeof EventsEventIdVolunteersRoute
   '/events/$eventId': typeof EventsEventIdIndexRoute
+  '/e/$slug/schedule/$token': typeof ESlugScheduleTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -110,11 +126,13 @@ export interface FileRoutesById {
   '/events/$eventId': typeof EventsEventIdRouteWithChildren
   '/events/new': typeof EventsNewRoute
   '/api/crew/import': typeof ApiCrewImportRoute
+  '/e/$slug/volunteer': typeof ESlugVolunteerRoute
   '/events/$eventId/imports': typeof EventsEventIdImportsRoute
   '/events/$eventId/schedule': typeof EventsEventIdScheduleRoute
   '/events/$eventId/setup': typeof EventsEventIdSetupRoute
   '/events/$eventId/volunteers': typeof EventsEventIdVolunteersRoute
   '/events/$eventId/': typeof EventsEventIdIndexRoute
+  '/e/$slug/schedule/$token': typeof ESlugScheduleTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -125,11 +143,13 @@ export interface FileRouteTypes {
     | '/events/$eventId'
     | '/events/new'
     | '/api/crew/import'
+    | '/e/$slug/volunteer'
     | '/events/$eventId/imports'
     | '/events/$eventId/schedule'
     | '/events/$eventId/setup'
     | '/events/$eventId/volunteers'
     | '/events/$eventId/'
+    | '/e/$slug/schedule/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -137,11 +157,13 @@ export interface FileRouteTypes {
     | '/events'
     | '/events/new'
     | '/api/crew/import'
+    | '/e/$slug/volunteer'
     | '/events/$eventId/imports'
     | '/events/$eventId/schedule'
     | '/events/$eventId/setup'
     | '/events/$eventId/volunteers'
     | '/events/$eventId'
+    | '/e/$slug/schedule/$token'
   id:
     | '__root__'
     | '/'
@@ -150,11 +172,13 @@ export interface FileRouteTypes {
     | '/events/$eventId'
     | '/events/new'
     | '/api/crew/import'
+    | '/e/$slug/volunteer'
     | '/events/$eventId/imports'
     | '/events/$eventId/schedule'
     | '/events/$eventId/setup'
     | '/events/$eventId/volunteers'
     | '/events/$eventId/'
+    | '/e/$slug/schedule/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -162,6 +186,8 @@ export interface RootRouteChildren {
   CalculatorRoute: typeof CalculatorRoute
   EventsRoute: typeof EventsRouteWithChildren
   ApiCrewImportRoute: typeof ApiCrewImportRoute
+  ESlugVolunteerRoute: typeof ESlugVolunteerRoute
+  ESlugScheduleTokenRoute: typeof ESlugScheduleTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -236,11 +262,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EventsEventIdImportsRouteImport
       parentRoute: typeof EventsEventIdRoute
     }
+    '/e/$slug/volunteer': {
+      id: '/e/$slug/volunteer'
+      path: '/e/$slug/volunteer'
+      fullPath: '/e/$slug/volunteer'
+      preLoaderRoute: typeof ESlugVolunteerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/crew/import': {
       id: '/api/crew/import'
       path: '/api/crew/import'
       fullPath: '/api/crew/import'
       preLoaderRoute: typeof ApiCrewImportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/e/$slug/schedule/$token': {
+      id: '/e/$slug/schedule/$token'
+      path: '/e/$slug/schedule/$token'
+      fullPath: '/e/$slug/schedule/$token'
+      preLoaderRoute: typeof ESlugScheduleTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -284,6 +324,8 @@ const rootRouteChildren: RootRouteChildren = {
   CalculatorRoute: CalculatorRoute,
   EventsRoute: EventsRouteWithChildren,
   ApiCrewImportRoute: ApiCrewImportRoute,
+  ESlugVolunteerRoute: ESlugVolunteerRoute,
+  ESlugScheduleTokenRoute: ESlugScheduleTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -1,0 +1,548 @@
+import { createId } from "@paralleldrive/cuid2"
+import { createServerFn } from "@tanstack/react-start"
+import { and, asc, eq, ne } from "drizzle-orm"
+import { z } from "zod"
+import { getDb } from "../db"
+import {
+  competitionRegistrationQuestionsTable,
+  competitionsTable,
+  volunteerRegistrationAnswersTable,
+} from "../db/schemas/competitions"
+import { createTeamInvitationId } from "../db/schemas/common"
+import {
+  CREW_EVENT_LIFECYCLE,
+  crewEventSettingsTable,
+} from "../db/schemas/crew-event-settings"
+import {
+  INVITATION_STATUS,
+  SYSTEM_ROLES_ENUM,
+  teamInvitationTable,
+  teamMembershipTable,
+} from "../db/schemas/teams"
+import { userTable } from "../db/schemas/users"
+import { waiversTable } from "../db/schemas/waivers"
+import type { VolunteerAvailability } from "../db/schemas/volunteers"
+import {
+  buildCrewVolunteerSignupMetadata,
+  crewVolunteerSignupInputSchema,
+  getCrewVolunteerTokenState,
+  isCrewVolunteerSignupSpam,
+  mergeCrewVolunteerSignupMetadata,
+  normalizeVolunteerSignupEmail,
+  planCrewVolunteerSignup,
+  validateCrewVolunteerSignupRequirements,
+  type CrewVolunteerSignupMetadata,
+} from "../lib/crew/volunteer-signup"
+import type { QuestionType } from "./registration-questions-fns"
+
+type DbClient = ReturnType<typeof getDb>
+
+export interface PublicCrewVolunteerEvent {
+  id: string
+  slug: string
+  name: string
+  description: string | null
+  startDate: string
+  endDate: string
+  timezone: string | null
+  competitionTeamId: string
+}
+
+export interface PublicCrewVolunteerQuestion {
+  id: string
+  competitionId: string | null
+  groupId: string | null
+  type: QuestionType
+  label: string
+  helpText: string | null
+  options: string[] | null
+  required: boolean
+  sortOrder: number
+}
+
+export interface PublicCrewVolunteerWaiver {
+  id: string
+  title: string
+  content: string
+}
+
+export interface CrewVolunteerSignupPageData {
+  event: PublicCrewVolunteerEvent | null
+  questions: PublicCrewVolunteerQuestion[]
+  waivers: PublicCrewVolunteerWaiver[]
+}
+
+export interface CrewVolunteerScheduleTokenData {
+  status: "valid" | "missing" | "expired" | "bad"
+  event: PublicCrewVolunteerEvent | null
+  volunteer: {
+    email: string
+    name: string | null
+    phone: string | null
+    availability: VolunteerAvailability | null
+    availabilityNotes: string | null
+    credentials: string | null
+    roleTypes: CrewVolunteerSignupMetadata["volunteerRoleTypes"]
+    invitationStatus: string
+  } | null
+}
+
+const getCrewVolunteerSignupPageInputSchema = z.object({
+  slug: z.string().trim().min(1, "Event slug is required").max(255),
+})
+
+const getCrewVolunteerScheduleTokenInputSchema = z.object({
+  slug: z.string().trim().min(1, "Event slug is required").max(255),
+  token: z.string().trim().min(1, "Token is required").max(255),
+})
+
+export const getCrewVolunteerSignupPageFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    getCrewVolunteerSignupPageInputSchema.parse(data),
+  )
+  .handler(async ({ data }): Promise<CrewVolunteerSignupPageData> => {
+    const db = getDb()
+    const event = await getPublicCrewEventBySlug(db, data.slug)
+    if (!event) {
+      return { event: null, questions: [], waivers: [] }
+    }
+
+    const [questions, waivers] = await Promise.all([
+      listVolunteerQuestions(db, event.id, event.groupId),
+      listRequiredVolunteerWaivers(db, event.id),
+    ])
+
+    return {
+      event: toPublicCrewVolunteerEvent(event),
+      questions,
+      waivers,
+    }
+  })
+
+export const submitCrewVolunteerSignupFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => crewVolunteerSignupInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    if (isCrewVolunteerSignupSpam(data)) {
+      return { success: true, applicationId: null, action: "accepted" as const }
+    }
+
+    const db = getDb()
+    const event = await getPublicCrewEventBySlug(db, data.eventSlug)
+    if (!event) {
+      throw new Error("Crew event not found")
+    }
+
+    const [questions, waivers, existingInvitations, existingMemberships] =
+      await Promise.all([
+        listVolunteerQuestions(db, event.id, event.groupId),
+        listRequiredVolunteerWaivers(db, event.id),
+        listVolunteerInvitations(db, event.competitionTeamId),
+        listVolunteerMemberships(db, event.competitionTeamId),
+      ])
+
+    const validationErrors = validateCrewVolunteerSignupRequirements(data, {
+      questions,
+      requiredWaiverIds: waivers.map((waiver) => waiver.id),
+    })
+    if (validationErrors.length > 0) {
+      throw new Error(validationErrors[0])
+    }
+
+    validateSubmittedQuestionIds(data.answers ?? [], questions)
+    validateSubmittedWaiverIds(data.waiverIds ?? [], waivers)
+
+    const plan = planCrewVolunteerSignup(data, {
+      existingInvitations,
+      existingMemberships,
+    })
+    if (plan.action === "reject") {
+      throw new Error(plan.message)
+    }
+
+    const timestamp = new Date()
+    const expiresAt = new Date(timestamp)
+    expiresAt.setFullYear(expiresAt.getFullYear() + 1)
+    const signupMetadata = buildCrewVolunteerSignupMetadata(data, timestamp)
+    const existingInvitation =
+      plan.action === "update_invitation"
+        ? existingInvitations.find(
+            (invitation) => invitation.id === plan.targetId,
+          )
+        : null
+    const metadata = mergeCrewVolunteerSignupMetadata(
+      existingInvitation?.metadata,
+      signupMetadata,
+    )
+    const email = normalizeVolunteerSignupEmail(data.signupEmail)
+    let invitationId = plan.targetId
+
+    await db.transaction(async (tx) => {
+      const client = tx as unknown as DbClient
+
+      if (plan.action === "create_invitation") {
+        invitationId = createTeamInvitationId()
+        await client.insert(teamInvitationTable).values({
+          id: invitationId,
+          teamId: event.competitionTeamId,
+          email,
+          roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
+          isSystemRole: true,
+          token: createId(),
+          invitedBy: null,
+          expiresAt,
+          status: INVITATION_STATUS.PENDING,
+          metadata,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        })
+      } else if (plan.action === "update_invitation" && invitationId) {
+        await client
+          .update(teamInvitationTable)
+          .set({
+            email,
+            roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
+            isSystemRole: true,
+            expiresAt,
+            status: INVITATION_STATUS.PENDING,
+            metadata,
+            updatedAt: timestamp,
+          })
+          .where(eq(teamInvitationTable.id, invitationId))
+      }
+
+      if (!invitationId) {
+        throw new Error("Volunteer application could not be saved")
+      }
+
+      await persistVolunteerAnswers(
+        client,
+        invitationId,
+        data.answers ?? [],
+        timestamp,
+      )
+    })
+
+    return {
+      success: true,
+      applicationId: invitationId,
+      action:
+        plan.action === "create_invitation"
+          ? ("created" as const)
+          : ("updated" as const),
+    }
+  })
+
+export const getCrewVolunteerScheduleTokenFn = createServerFn({
+  method: "GET",
+})
+  .inputValidator((data: unknown) =>
+    getCrewVolunteerScheduleTokenInputSchema.parse(data),
+  )
+  .handler(async ({ data }): Promise<CrewVolunteerScheduleTokenData> => {
+    const db = getDb()
+    const [row] = await db
+      .select({
+        event: publicCrewEventSelect,
+        invitation: {
+          id: teamInvitationTable.id,
+          email: teamInvitationTable.email,
+          token: teamInvitationTable.token,
+          status: teamInvitationTable.status,
+          expiresAt: teamInvitationTable.expiresAt,
+          metadata: teamInvitationTable.metadata,
+        },
+      })
+      .from(teamInvitationTable)
+      .innerJoin(
+        competitionsTable,
+        eq(teamInvitationTable.teamId, competitionsTable.competitionTeamId),
+      )
+      .innerJoin(
+        crewEventSettingsTable,
+        eq(crewEventSettingsTable.competitionId, competitionsTable.id),
+      )
+      .where(
+        and(
+          eq(competitionsTable.slug, data.slug),
+          eq(teamInvitationTable.token, data.token),
+          eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+          eq(teamInvitationTable.isSystemRole, true),
+          eq(crewEventSettingsTable.crewOnly, true),
+          ne(crewEventSettingsTable.lifecycle, CREW_EVENT_LIFECYCLE.ARCHIVED),
+        ),
+      )
+      .limit(1)
+
+    if (!row) {
+      return { status: "missing", event: null, volunteer: null }
+    }
+
+    const status = getCrewVolunteerTokenState(row.invitation)
+    if (status !== "valid") {
+      return { status, event: null, volunteer: null }
+    }
+
+    const metadata = parseVolunteerMetadata(row.invitation.metadata)
+
+    return {
+      status,
+      event: toPublicCrewVolunteerEvent(row.event),
+      volunteer: {
+        email: row.invitation.email,
+        name: metadata?.signupName ?? null,
+        phone: metadata?.signupPhone ?? null,
+        availability: metadata?.availability ?? null,
+        availabilityNotes: metadata?.availabilityNotes ?? null,
+        credentials: metadata?.credentials ?? null,
+        roleTypes: metadata?.volunteerRoleTypes ?? [],
+        invitationStatus: row.invitation.status,
+      },
+    }
+  })
+
+const publicCrewEventSelect = {
+  id: competitionsTable.id,
+  slug: competitionsTable.slug,
+  name: competitionsTable.name,
+  description: competitionsTable.description,
+  startDate: competitionsTable.startDate,
+  endDate: competitionsTable.endDate,
+  timezone: competitionsTable.timezone,
+  competitionTeamId: competitionsTable.competitionTeamId,
+  groupId: competitionsTable.groupId,
+}
+
+type InternalPublicCrewEvent = PublicCrewVolunteerEvent & {
+  groupId: string | null
+}
+
+async function getPublicCrewEventBySlug(db: DbClient, slug: string) {
+  const [event] = await db
+    .select(publicCrewEventSelect)
+    .from(crewEventSettingsTable)
+    .innerJoin(
+      competitionsTable,
+      eq(crewEventSettingsTable.competitionId, competitionsTable.id),
+    )
+    .where(
+      and(
+        eq(competitionsTable.slug, slug),
+        eq(crewEventSettingsTable.crewOnly, true),
+        ne(crewEventSettingsTable.lifecycle, CREW_EVENT_LIFECYCLE.ARCHIVED),
+      ),
+    )
+    .limit(1)
+
+  return event ?? null
+}
+
+function toPublicCrewVolunteerEvent(
+  event: InternalPublicCrewEvent,
+): PublicCrewVolunteerEvent {
+  return {
+    id: event.id,
+    slug: event.slug,
+    name: event.name,
+    description: event.description,
+    startDate: event.startDate,
+    endDate: event.endDate,
+    timezone: event.timezone,
+    competitionTeamId: event.competitionTeamId,
+  }
+}
+
+async function listVolunteerQuestions(
+  db: DbClient,
+  competitionId: string,
+  groupId: string | null,
+): Promise<PublicCrewVolunteerQuestion[]> {
+  const competitionQuestions = await db
+    .select()
+    .from(competitionRegistrationQuestionsTable)
+    .where(
+      and(
+        eq(competitionRegistrationQuestionsTable.competitionId, competitionId),
+        eq(competitionRegistrationQuestionsTable.questionTarget, "volunteer"),
+      ),
+    )
+    .orderBy(asc(competitionRegistrationQuestionsTable.sortOrder))
+
+  const seriesQuestions = groupId
+    ? await db
+        .select()
+        .from(competitionRegistrationQuestionsTable)
+        .where(
+          and(
+            eq(competitionRegistrationQuestionsTable.groupId, groupId),
+            eq(
+              competitionRegistrationQuestionsTable.questionTarget,
+              "volunteer",
+            ),
+          ),
+        )
+        .orderBy(asc(competitionRegistrationQuestionsTable.sortOrder))
+    : []
+
+  return [...seriesQuestions, ...competitionQuestions].map((question) => ({
+    id: question.id,
+    competitionId: question.competitionId,
+    groupId: question.groupId,
+    type: question.type as QuestionType,
+    label: question.label,
+    helpText: question.helpText,
+    options: parseQuestionOptions(question.options),
+    required: question.required,
+    sortOrder: question.sortOrder,
+  }))
+}
+
+async function listRequiredVolunteerWaivers(
+  db: DbClient,
+  competitionId: string,
+): Promise<PublicCrewVolunteerWaiver[]> {
+  return await db
+    .select({
+      id: waiversTable.id,
+      title: waiversTable.title,
+      content: waiversTable.content,
+    })
+    .from(waiversTable)
+    .where(
+      and(
+        eq(waiversTable.competitionId, competitionId),
+        eq(waiversTable.requiredForVolunteers, true),
+      ),
+    )
+    .orderBy(asc(waiversTable.position))
+}
+
+async function listVolunteerInvitations(
+  db: DbClient,
+  competitionTeamId: string,
+) {
+  return await db
+    .select({
+      id: teamInvitationTable.id,
+      email: teamInvitationTable.email,
+      acceptedAt: teamInvitationTable.acceptedAt,
+      status: teamInvitationTable.status,
+      metadata: teamInvitationTable.metadata,
+    })
+    .from(teamInvitationTable)
+    .where(
+      and(
+        eq(teamInvitationTable.teamId, competitionTeamId),
+        eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+        eq(teamInvitationTable.isSystemRole, true),
+      ),
+    )
+}
+
+async function listVolunteerMemberships(
+  db: DbClient,
+  competitionTeamId: string,
+) {
+  const rows = await db
+    .select({
+      id: teamMembershipTable.id,
+      email: userTable.email,
+      isActive: teamMembershipTable.isActive,
+    })
+    .from(teamMembershipTable)
+    .innerJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
+    .where(
+      and(
+        eq(teamMembershipTable.teamId, competitionTeamId),
+        eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+        eq(teamMembershipTable.isSystemRole, true),
+      ),
+    )
+
+  return rows.flatMap((row) =>
+    row.email ? [{ ...row, email: row.email }] : [],
+  )
+}
+
+function validateSubmittedQuestionIds(
+  answers: Array<{ questionId: string; answer: string }>,
+  questions: PublicCrewVolunteerQuestion[],
+) {
+  const questionIds = new Set(questions.map((question) => question.id))
+  const invalidAnswer = answers.find(
+    (answer) => !questionIds.has(answer.questionId),
+  )
+  if (invalidAnswer) {
+    throw new Error("One or more volunteer question answers are invalid")
+  }
+}
+
+function validateSubmittedWaiverIds(
+  waiverIds: string[],
+  waivers: PublicCrewVolunteerWaiver[],
+) {
+  const validWaiverIds = new Set(waivers.map((waiver) => waiver.id))
+  const invalidWaiverId = waiverIds.find(
+    (waiverId) => !validWaiverIds.has(waiverId),
+  )
+  if (invalidWaiverId) {
+    throw new Error("One or more volunteer waiver agreements are invalid")
+  }
+}
+
+async function persistVolunteerAnswers(
+  db: DbClient,
+  invitationId: string,
+  answers: Array<{ questionId: string; answer: string }>,
+  timestamp: Date,
+) {
+  const cleanedAnswers = answers
+    .map((answer) => ({
+      questionId: answer.questionId,
+      answer: answer.answer.trim(),
+    }))
+    .filter((answer) => answer.answer.length > 0)
+
+  if (cleanedAnswers.length === 0) return
+
+  for (const answer of cleanedAnswers) {
+    await db
+      .insert(volunteerRegistrationAnswersTable)
+      .values({
+        ...answer,
+        invitationId,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      })
+      .onDuplicateKeyUpdate({
+        set: {
+          answer: answer.answer,
+          updatedAt: timestamp,
+        },
+      })
+  }
+}
+
+function parseQuestionOptions(options: string | null): string[] | null {
+  if (!options) return null
+  try {
+    const parsed = JSON.parse(options)
+    return Array.isArray(parsed) ? parsed.filter(isString) : null
+  } catch {
+    return null
+  }
+}
+
+function parseVolunteerMetadata(
+  metadata: string | null,
+): CrewVolunteerSignupMetadata | null {
+  if (!metadata) return null
+  try {
+    return JSON.parse(metadata) as CrewVolunteerSignupMetadata
+  } catch {
+    return null
+  }
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === "string"
+}
