@@ -61,6 +61,14 @@ function EventShell() {
             Volunteers
           </Link>
           <Link
+            to="/events/$eventId/shifts"
+            params={{ eventId }}
+            activeProps={{ className: "bg-muted text-foreground" }}
+            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            Shifts
+          </Link>
+          <Link
             to="/events/$eventId/schedule"
             params={{ eventId }}
             activeProps={{ className: "bg-muted text-foreground" }}

@@ -5,8 +5,13 @@ import {
   crewSetupChecklistItems,
   parseCrewSettings,
 } from "@/lib/crew-event-setup"
+import { getCrewEventRosterShiftSummaryFn } from "@/server-fns/crew-roster-shift-fns"
 
 export const Route = createFileRoute("/events/$eventId/")({
+  loader: async ({ params }) =>
+    await getCrewEventRosterShiftSummaryFn({
+      data: { eventId: params.eventId },
+    }),
   component: EventOverviewPage,
 })
 
@@ -15,12 +20,13 @@ const parentRoute = getRouteApi("/events/$eventId")
 function EventOverviewPage() {
   const { eventId } = parentRoute.useParams()
   const { event } = parentRoute.useLoaderData()
+  const { rosterSummary, shiftSummary } = Route.useLoaderData()
   const parsedSettings = parseCrewSettings(event.settings.settings)
   const setupProgress = calculateSetupProgress(parsedSettings.setup)
 
   return (
     <section className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-6">
         <StatusPanel
           label="Lifecycle"
           value={formatCrewValue(event.settings.lifecycle)}
@@ -36,6 +42,11 @@ function EventOverviewPage() {
         <StatusPanel
           label="Setup"
           value={`${setupProgress.completed}/${setupProgress.total}`}
+        />
+        <StatusPanel label="Roster" value={rosterSummary.total.toString()} />
+        <StatusPanel
+          label="Shift slots"
+          value={`${shiftSummary.assignedSlots}/${shiftSummary.capacity}`}
         />
       </div>
 
