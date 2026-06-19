@@ -43,7 +43,7 @@ export function buildCrewStaffingMatrix(
   const context = normalizeCrewStaffingMatrixInput(input)
   const timeBlocks = buildTimeBlocks(context)
   const timeBlockById = new Map(timeBlocks.map((block) => [block.id, block]))
-  const coverageRows = buildCoverageRows(context)
+  const coverageRows = buildCoverageRows(context, timeBlocks)
   const judgeLaneGaps = buildJudgeLaneGaps(context)
   const assignmentWindows = buildAssignmentWindows(context)
   const doubleBookedVolunteers = buildDoubleBookedVolunteers(
@@ -109,12 +109,23 @@ function buildTimeBlocks(context: NormalizedCrewStaffingInput) {
     }
   })
 
-  return [...shiftBlocks, ...heatBlocks].sort(compareTimeBlock)
+  return [...shiftBlocks, ...heatBlocks]
+    .map((block, index) => ({ block, index }))
+    .sort(
+      (left, right) =>
+        compareTimeBlockDate(left.block, right.block) ||
+        left.index - right.index,
+    )
+    .map(({ block }) => block)
 }
 
 function buildCoverageRows(
   context: NormalizedCrewStaffingInput,
+  timeBlocks: CrewStaffingTimeBlock[],
 ): CrewStaffingCoverageRow[] {
+  const timeBlockOrder = new Map(
+    timeBlocks.map((block, index) => [block.id, index]),
+  )
   const shiftRows = context.shifts.map((shift) => buildShiftCoverageRow(shift))
   const heatRows = context.heats.map((heat) => {
     const laneNumbers = getHeatLaneNumbers(heat, context)
@@ -140,7 +151,9 @@ function buildCoverageRows(
     }
   })
 
-  return [...shiftRows, ...heatRows].sort(compareCoverageRow)
+  return [...shiftRows, ...heatRows].sort((left, right) =>
+    compareCoverageRow(left, right, timeBlockOrder),
+  )
 }
 
 function buildShiftCoverageRow(
@@ -246,20 +259,35 @@ function buildDoubleBookedVolunteers(
     const sortedWindows = [...windows].sort(compareAssignmentWindow)
     for (let index = 0; index < sortedWindows.length; index++) {
       const current = sortedWindows[index]
-      const next = sortedWindows[index + 1]
-      if (!current || !next) continue
-      if (overlaps(current, next)) {
-        const volunteer = context.rosterByMembershipId.get(membershipId)
-        doubleBooked.push({
-          membershipId,
-          volunteerName: getVolunteerName(volunteer, membershipId),
-          assignmentIds: [current.assignmentId, next.assignmentId].sort(
-            compareText,
-          ),
-          timeBlockIds: [current.timeBlockId, next.timeBlockId].sort(
-            compareText,
-          ),
-        })
+      if (!current) continue
+
+      for (
+        let nextIndex = index + 1;
+        nextIndex < sortedWindows.length;
+        nextIndex++
+      ) {
+        const next = sortedWindows[nextIndex]
+        if (!next) continue
+        if (
+          current.endTime &&
+          next.startTime &&
+          next.startTime >= current.endTime
+        ) {
+          break
+        }
+        if (overlaps(current, next)) {
+          const volunteer = context.rosterByMembershipId.get(membershipId)
+          doubleBooked.push({
+            membershipId,
+            volunteerName: getVolunteerName(volunteer, membershipId),
+            assignmentIds: [current.assignmentId, next.assignmentId].sort(
+              compareText,
+            ),
+            timeBlockIds: [current.timeBlockId, next.timeBlockId].sort(
+              compareText,
+            ),
+          })
+        }
       }
     }
   }
@@ -569,21 +597,25 @@ const NOON_MINUTE = 12 * 60
 
 function getLocalMinuteOfDay(date: Date, timezone: string | null | undefined) {
   if (!timezone) return date.getUTCHours() * 60 + date.getUTCMinutes()
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    hour: "numeric",
-    minute: "numeric",
-    hour12: false,
-    hourCycle: "h23",
-  })
-  const parts = formatter.formatToParts(date)
-  const hourPart = parts.find((part) => part.type === "hour")?.value
-  const minutePart = parts.find((part) => part.type === "minute")?.value
-  const hour = Number(hourPart)
-  const minute = Number(minutePart)
-  return Number.isFinite(hour) && Number.isFinite(minute)
-    ? (hour % 24) * 60 + minute
-    : date.getUTCHours() * 60 + date.getUTCMinutes()
+  try {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      hour: "numeric",
+      minute: "numeric",
+      hour12: false,
+      hourCycle: "h23",
+    })
+    const parts = formatter.formatToParts(date)
+    const hourPart = parts.find((part) => part.type === "hour")?.value
+    const minutePart = parts.find((part) => part.type === "minute")?.value
+    const hour = Number(hourPart)
+    const minute = Number(minutePart)
+    return Number.isFinite(hour) && Number.isFinite(minute)
+      ? (hour % 24) * 60 + minute
+      : date.getUTCHours() * 60 + date.getUTCMinutes()
+  } catch {
+    return date.getUTCHours() * 60 + date.getUTCMinutes()
+  }
 }
 
 function getVolunteerName(
@@ -613,19 +645,24 @@ function dedupeDoubleBookings(
   return [...byKey.values()].sort(compareDoubleBooking)
 }
 
-function compareTimeBlock(
+function compareTimeBlockDate(
   left: CrewStaffingTimeBlock,
   right: CrewStaffingTimeBlock,
 ) {
-  return compareDateThenText(left.startTime, right.startTime, left.id, right.id)
+  return compareDateThenText(left.startTime, right.startTime, "", "")
 }
 
 function compareCoverageRow(
   left: CrewStaffingCoverageRow,
   right: CrewStaffingCoverageRow,
+  timeBlockOrder: Map<string, number>,
 ) {
+  const leftOrder = timeBlockOrder.get(left.timeBlockId)
+  const rightOrder = timeBlockOrder.get(right.timeBlockId)
+
   return (
-    compareText(left.timeBlockId, right.timeBlockId) ||
+    (leftOrder ?? Number.POSITIVE_INFINITY) -
+      (rightOrder ?? Number.POSITIVE_INFINITY) ||
     compareText(left.roleType, right.roleType) ||
     compareText(left.id, right.id)
   )

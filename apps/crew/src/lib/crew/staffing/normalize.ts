@@ -152,13 +152,13 @@ function compareHeat(
   left: CrewStaffingHeatInput,
   right: CrewStaffingHeatInput,
 ) {
+  const leftTime =
+    toDateOrNull(left.scheduledTime)?.getTime() ?? Number.POSITIVE_INFINITY
+  const rightTime =
+    toDateOrNull(right.scheduledTime)?.getTime() ?? Number.POSITIVE_INFINITY
+
   return (
-    compareDateThenText(
-      toDateOrNull(left.scheduledTime),
-      toDateOrNull(right.scheduledTime),
-      left.id,
-      right.id,
-    ) ||
+    leftTime - rightTime ||
     left.heatNumber - right.heatNumber ||
     compareText(left.id, right.id)
   )

@@ -27,9 +27,9 @@ describe("Crew staffing matrix core", () => {
       ]),
     ).toEqual([
       ["heat:heat_1", "judge", 2, 1, 1],
+      ["shift:shift_medical", "medical", 2, 1, 1],
       ["heat:heat_2", "judge", 3, 1, 2],
       ["shift:shift_check_in", "check_in", 2, 1, 1],
-      ["shift:shift_medical", "medical", 2, 1, 1],
     ])
     expect(matrix.summary).toMatchObject({
       timeBlocks: 4,
@@ -40,6 +40,39 @@ describe("Crew staffing matrix core", () => {
       underfilledRows: 4,
       openCapacity: 5,
     })
+  })
+
+  it("sorts heats with equal start times by heat number before id", () => {
+    const matrix = buildCrewStaffingMatrix({
+      event: { id: "comp_1" },
+      heats: [
+        {
+          id: "heat_alpha",
+          trackWorkoutId: "tw_final",
+          heatNumber: 2,
+          scheduledTime: "2026-07-04T15:00:00.000Z",
+          durationMinutes: 12,
+          laneCount: 1,
+        },
+        {
+          id: "heat_zulu",
+          trackWorkoutId: "tw_final",
+          heatNumber: 1,
+          scheduledTime: "2026-07-04T15:00:00.000Z",
+          durationMinutes: 12,
+          laneCount: 1,
+        },
+      ],
+    })
+
+    expect(matrix.timeBlocks.map((block) => block.id)).toEqual([
+      "heat:heat_zulu",
+      "heat:heat_alpha",
+    ])
+    expect(matrix.coverageRows.map((row) => row.timeBlockId)).toEqual([
+      "heat:heat_zulu",
+      "heat:heat_alpha",
+    ])
   })
 
   it("reports judge lane gaps from occupied lanes and venue lane counts", () => {
@@ -169,6 +202,112 @@ describe("Crew staffing matrix core", () => {
       ["vsha_morning_crossing", "morning"],
     ])
     expect(matrix.summary.outsideAvailabilityAssignments).toBe(2)
+  })
+
+  it("reports every later assignment overlapped by a long assignment", () => {
+    const matrix = buildCrewStaffingMatrix({
+      event: { id: "comp_1" },
+      roster: [
+        {
+          membershipId: "tmem_staff",
+          name: "Staff One",
+          roleTypes: ["staff"],
+          isActive: true,
+        },
+      ],
+      shifts: [
+        {
+          id: "shift_long",
+          name: "Long block",
+          roleType: "staff",
+          startTime: "2026-07-04T15:00:00.000Z",
+          endTime: "2026-07-04T18:00:00.000Z",
+          capacity: 1,
+          assignments: [
+            {
+              id: "vsha_long",
+              membershipId: "tmem_staff",
+            },
+          ],
+        },
+        {
+          id: "shift_middle",
+          name: "Middle block",
+          roleType: "staff",
+          startTime: "2026-07-04T15:30:00.000Z",
+          endTime: "2026-07-04T16:00:00.000Z",
+          capacity: 1,
+          assignments: [
+            {
+              id: "vsha_middle",
+              membershipId: "tmem_staff",
+            },
+          ],
+        },
+        {
+          id: "shift_late",
+          name: "Late block",
+          roleType: "staff",
+          startTime: "2026-07-04T16:30:00.000Z",
+          endTime: "2026-07-04T17:00:00.000Z",
+          capacity: 1,
+          assignments: [
+            {
+              id: "vsha_late",
+              membershipId: "tmem_staff",
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(
+      matrix.doubleBookedVolunteers.map((booking) => booking.assignmentIds),
+    ).toEqual([
+      ["vsha_late", "vsha_long"],
+      ["vsha_long", "vsha_middle"],
+    ])
+    expect(matrix.summary.doubleBookedVolunteers).toBe(2)
+  })
+
+  it("falls back to UTC availability checks when event timezone is invalid", () => {
+    const matrix = buildCrewStaffingMatrix({
+      event: {
+        id: "comp_1",
+        timezone: "Not/AZone",
+      },
+      roster: [
+        {
+          membershipId: "tmem_morning",
+          name: "Morning Volunteer",
+          roleTypes: ["staff"],
+          availability: "morning",
+          isActive: true,
+        },
+      ],
+      shifts: [
+        {
+          id: "shift_invalid_timezone",
+          name: "Invalid timezone block",
+          roleType: "staff",
+          startTime: "2026-07-04T13:00:00.000Z",
+          endTime: "2026-07-04T14:00:00.000Z",
+          capacity: 1,
+          assignments: [
+            {
+              id: "vsha_invalid_timezone",
+              membershipId: "tmem_morning",
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(matrix.outsideAvailabilityAssignments).toHaveLength(1)
+    expect(matrix.outsideAvailabilityAssignments[0]).toMatchObject({
+      assignmentId: "vsha_invalid_timezone",
+      availability: "morning",
+    })
   })
 
   it("keeps missing and change-request confirmation gaps typed by assignment kind", () => {
