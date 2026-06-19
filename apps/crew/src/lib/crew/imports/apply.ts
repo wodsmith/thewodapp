@@ -85,6 +85,17 @@ export interface ExistingHeat {
   schedulePublishedAt?: Date | null
 }
 
+export interface ImportedHeatUpdateSnapshot {
+  trackWorkoutId: string
+  heatNumber: number
+  scheduledTime: Date | string | null
+  venueId: string | null
+  divisionId: string | null
+  durationMinutes: number | null
+  notes: string | null
+  schedulePublishedAt: Date | null
+}
+
 export interface HeatApplyContext {
   competitionStartDate: string
   timezone: string
@@ -538,6 +549,22 @@ export function markHeatUpdateSkippedForPublicationConflict(
   })
 }
 
+export function isImportedHeatUpdateAlreadyApplied(
+  currentHeat: ImportedHeatUpdateSnapshot,
+  row: HeatApplyRowPlan,
+) {
+  return (
+    currentHeat.schedulePublishedAt === null &&
+    currentHeat.trackWorkoutId === row.trackWorkoutId &&
+    currentHeat.heatNumber === row.heatNumber &&
+    getDateTime(currentHeat.scheduledTime) === getDateTime(row.scheduledTime) &&
+    currentHeat.venueId === row.venueId &&
+    currentHeat.divisionId === row.divisionId &&
+    currentHeat.durationMinutes === row.durationMinutes &&
+    currentHeat.notes === row.notes
+  )
+}
+
 export function mergeImportedJsonMetadata(
   existingMetadata: string | null | undefined,
   importedMetadata: string | null,
@@ -820,6 +847,11 @@ function getTrackWorkoutLookupKeys(workout: HeatApplyTrackWorkout) {
 function hasImportedScheduledTimeValue(value: unknown) {
   if (typeof value === "string") return value.trim().length > 0
   return value !== null && value !== undefined
+}
+
+function getDateTime(value: Date | string | null) {
+  if (!value) return null
+  return value instanceof Date ? value.getTime() : new Date(value).getTime()
 }
 
 function cloneIssues(issues: ImportIssue[]) {

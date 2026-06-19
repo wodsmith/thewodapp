@@ -47,6 +47,7 @@ import {
   buildVolunteerApplyPlan,
   getAppliedHeatSupportTargets,
   getMutationAffectedRows,
+  isImportedHeatUpdateAlreadyApplied,
   markHeatUpdateSkippedForPublicationConflict,
   mergeImportedJsonMetadata,
   normalizeLookupValue,
@@ -59,6 +60,7 @@ import {
   type HeatApplyRowPlan,
   type HeatApplyTrackWorkout,
   type HeatApplyVenue,
+  type ImportedHeatUpdateSnapshot,
   type VolunteerApplyRowPlan,
 } from "../lib/crew/imports/apply"
 import {
@@ -1149,7 +1151,36 @@ async function updateImportedHeat(
       ),
     )
 
-  return getMutationAffectedRows(updateResult) > 0
+  if (getMutationAffectedRows(updateResult) > 0) {
+    return true
+  }
+
+  const currentHeat = await getImportedHeatUpdateSnapshot(db, row.targetId)
+  return currentHeat
+    ? isImportedHeatUpdateAlreadyApplied(currentHeat, row)
+    : false
+}
+
+async function getImportedHeatUpdateSnapshot(
+  db: DbClient,
+  heatId: string,
+): Promise<ImportedHeatUpdateSnapshot | null> {
+  const [heat] = await db
+    .select({
+      trackWorkoutId: competitionHeatsTable.trackWorkoutId,
+      heatNumber: competitionHeatsTable.heatNumber,
+      scheduledTime: competitionHeatsTable.scheduledTime,
+      venueId: competitionHeatsTable.venueId,
+      divisionId: competitionHeatsTable.divisionId,
+      durationMinutes: competitionHeatsTable.durationMinutes,
+      notes: competitionHeatsTable.notes,
+      schedulePublishedAt: competitionHeatsTable.schedulePublishedAt,
+    })
+    .from(competitionHeatsTable)
+    .where(eq(competitionHeatsTable.id, heatId))
+    .limit(1)
+
+  return heat ?? null
 }
 
 async function updateImportRowAudit(

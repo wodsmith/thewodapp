@@ -5,6 +5,7 @@ import {
   buildVolunteerApplyPlan,
   getAppliedHeatSupportTargets,
   getMutationAffectedRows,
+  isImportedHeatUpdateAlreadyApplied,
   markHeatUpdateSkippedForPublicationConflict,
   mergeImportedJsonMetadata,
   parseImportedScheduledTime,
@@ -279,6 +280,61 @@ describe("buildHeatScheduleApplyPlan", () => {
     })
     expect(summary.updatedCount).toBe(0)
     expect(summary.skippedCount).toBe(1)
+  })
+
+  it("recognizes an identical unpublished heat update as an idempotent success", () => {
+    const plan = buildHeatScheduleApplyPlan([heatRow(2, 1, "9:00 AM")], context)
+    const row = plan.rows[0]
+    expect(row).toBeDefined()
+    if (!row) throw new Error("Expected heat update row")
+
+    expect(
+      isImportedHeatUpdateAlreadyApplied(
+        {
+          trackWorkoutId: "trwk_1",
+          heatNumber: 1,
+          scheduledTime: new Date("2026-06-20T15:00:00.000Z"),
+          venueId: "cvenue_1",
+          divisionId: "div_rx",
+          durationMinutes: 12,
+          notes: "Imported",
+          schedulePublishedAt: null,
+        },
+        row,
+      ),
+    ).toBe(true)
+
+    expect(
+      isImportedHeatUpdateAlreadyApplied(
+        {
+          trackWorkoutId: "trwk_1",
+          heatNumber: 1,
+          scheduledTime: new Date("2026-06-20T15:00:00.000Z"),
+          venueId: "cvenue_1",
+          divisionId: "div_rx",
+          durationMinutes: 12,
+          notes: "Imported",
+          schedulePublishedAt: new Date("2026-06-20T15:05:00.000Z"),
+        },
+        row,
+      ),
+    ).toBe(false)
+
+    expect(
+      isImportedHeatUpdateAlreadyApplied(
+        {
+          trackWorkoutId: "trwk_1",
+          heatNumber: 1,
+          scheduledTime: new Date("2026-06-20T15:12:00.000Z"),
+          venueId: "cvenue_1",
+          divisionId: "div_rx",
+          durationMinutes: 12,
+          notes: "Imported",
+          schedulePublishedAt: null,
+        },
+        row,
+      ),
+    ).toBe(false)
   })
 
   it("excludes published-skip and invalid-time heat rows from support targets", () => {
