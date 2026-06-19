@@ -18,6 +18,8 @@ type ExtendedEnv = typeof env & {
   SITE_URL?: string
   CRON_SECRET?: string
   INTERNAL_API_SECRET?: string
+  STRIPE_CLIENT_ID?: string
+  STRIPE_WEBHOOK_SECRET?: string
   // Slack integration
   SLACK_WEBHOOK_URL?: string
   SLACK_PURCHASE_NOTIFICATIONS_ENABLED?: string
@@ -56,7 +58,7 @@ export const getAppUrlFn = createServerFn({ method: "GET" }).handler(
  * @returns The STRIPE_CLIENT_ID environment variable or undefined if not set
  */
 export const getStripeClientId = createServerOnlyFn((): string | undefined => {
-  return env.STRIPE_CLIENT_ID
+  return extendedEnv.STRIPE_CLIENT_ID
 })
 
 /**
@@ -67,7 +69,7 @@ export const getStripeClientId = createServerOnlyFn((): string | undefined => {
  */
 export const getStripeWebhookSecret = createServerOnlyFn(
   (): string | undefined => {
-    return env.STRIPE_WEBHOOK_SECRET
+    return extendedEnv.STRIPE_WEBHOOK_SECRET
   },
 )
 

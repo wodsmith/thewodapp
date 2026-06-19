@@ -1,9 +1,11 @@
 {
   "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    "./src/types/env.d.ts",
-    "./test/vitest.d.ts"
+    "src/router.tsx",
+    "src/server.ts",
+    "src/routeTree.gen.ts",
+    "src/routes/**/*.ts",
+    "src/routes/**/*.tsx",
+    "src/types/env.d.ts"
   ],
   "exclude": ["alchemy.run.ts"],
   "compilerOptions": {
