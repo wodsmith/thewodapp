@@ -76,6 +76,12 @@ export function isSelectableType(type: string): boolean {
   )
 }
 
+export function selectableCompetitionTypes(): CompetitionTypeDef[] {
+  return Object.values(COMPETITION_TYPE_REGISTRY).filter((definition) =>
+    isSelectableType(definition.id),
+  )
+}
+
 export function canOrganizerEnterResults(type: string): boolean {
   return competitionCan(type, "organizerEntersResults")
 }

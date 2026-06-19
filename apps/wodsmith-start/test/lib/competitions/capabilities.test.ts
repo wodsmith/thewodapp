@@ -7,6 +7,7 @@ import {
 	resultsNavLabel,
 	isSelectableType,
 	leaderboardVariant,
+	selectableCompetitionTypes,
 } from "@/lib/competitions/capabilities"
 
 const CAPABILITIES: CompetitionCapability[] = [
@@ -82,6 +83,19 @@ describe("competition type capabilities", () => {
 
 		expect(leaderboardVariant("benchmark")).toBe("standard")
 		expect(isSelectableType("benchmark")).toBe(false)
+	})
+
+	// @lat: [[competition-type-capabilities#Create Picker Selectability Test]]
+	it("derives create-picker type options from selectable registry entries only", () => {
+		const selectableTypes = selectableCompetitionTypes()
+
+		expect(selectableTypes.map((type) => type.id)).toEqual([
+			"in-person",
+			"online",
+		])
+		for (const type of selectableTypes) {
+			expect(isSelectableType(type.id)).toBe(true)
+		}
 	})
 
 	// @lat: [[competition-type-capabilities#Results Entry and Sidebar Gates Test]]

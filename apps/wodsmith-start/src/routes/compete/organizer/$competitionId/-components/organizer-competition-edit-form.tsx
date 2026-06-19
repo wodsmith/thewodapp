@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import type { Competition, CompetitionGroup } from "@/db/schemas/competitions"
+import { selectableCompetitionTypes } from "@/lib/competitions/capabilities"
 import { updateCompetitionFn } from "@/server-fns/competition-fns"
 import { COMMON_US_TIMEZONES, DEFAULT_TIMEZONE } from "@/utils/timezone-utils"
 
@@ -343,12 +344,14 @@ export function OrganizerCompetitionEditForm({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="in-person">
-                    In-Person - Traditional venue-based competition
-                  </SelectItem>
-                  <SelectItem value="online">
-                    Online - Virtual competition with video submissions
-                  </SelectItem>
+                  {selectableCompetitionTypes().map((type) => (
+                    <SelectItem key={type.id} value={type.id}>
+                      {type.label}
+                      {type.id === "online"
+                        ? " - Virtual competition with video submissions"
+                        : " - Traditional venue-based competition"}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <FormDescription>
