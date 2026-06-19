@@ -46,6 +46,7 @@ import {
   DEFAULT_TIMEZONE,
   formatDateTimeInTimezone,
 } from "../utils/timezone-utils"
+import { getFirstExecuteValue } from "./db-execute"
 
 type DbClient = ReturnType<typeof getDb>
 
@@ -683,20 +684,4 @@ async function createCrewAssignmentConfirmationLockName(assignmentId: string) {
   return Array.from(new Uint8Array(digest), (byte) =>
     byte.toString(16).padStart(2, "0"),
   ).join("")
-}
-
-function getExecuteRows<T>(result: unknown): T[] {
-  if (Array.isArray(result)) {
-    if (Array.isArray(result[0])) return result[0] as T[]
-    return result as T[]
-  }
-
-  return ((result as { rows?: T[] })?.rows ?? []) as T[]
-}
-
-function getFirstExecuteValue(result: unknown): unknown {
-  const [row] = getExecuteRows<unknown>(result)
-  if (Array.isArray(row)) return row[0]
-  if (row && typeof row === "object") return Object.values(row)[0]
-  return row
 }

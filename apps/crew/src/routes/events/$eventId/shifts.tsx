@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start"
 import { Loader2, Plus, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
+import { getCrewAssignmentConfirmationStatusBadgeClassName } from "@/lib/crew/assignment-confirmation-display"
 import { formatCrewValue } from "@/lib/crew-event-display"
 import {
   isVolunteerCompatibleWithShift,
@@ -465,7 +466,7 @@ function ShiftCard({
 }
 
 function ConfirmationBadge({ status }: { status: string }) {
-  const className = getConfirmationBadgeClassName(status)
+  const className = getCrewAssignmentConfirmationStatusBadgeClassName(status)
 
   return (
     <span
@@ -474,28 +475,6 @@ function ConfirmationBadge({ status }: { status: string }) {
       {formatCrewValue(status)}
     </span>
   )
-}
-
-function getConfirmationBadgeClassName(status: string) {
-  if (status === "pending") {
-    return "border-amber-500/30 bg-amber-500/10 text-amber-700"
-  }
-  if (status === "confirmed") {
-    return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
-  }
-  if (status === "declined") {
-    return "border-destructive/30 bg-destructive/10 text-destructive"
-  }
-  if (status === "change_requested") {
-    return "border-sky-500/30 bg-sky-500/10 text-sky-700"
-  }
-  if (status === "cancelled") {
-    return "border-muted bg-muted text-muted-foreground"
-  }
-  if (status === "no_show") {
-    return "border-orange-500/30 bg-orange-500/10 text-orange-700"
-  }
-  return "border-muted bg-background text-muted-foreground"
 }
 
 function ShiftFields({
