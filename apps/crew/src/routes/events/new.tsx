@@ -34,7 +34,9 @@ function NewEventPage() {
   const [crewPlan, setCrewPlan] = useState<
     "self_serve" | "concierge" | "full_platform"
   >("self_serve")
-  const [settings, setSettings] = useState('{\n  "assumptions": []\n}')
+  const [settings, setSettings] = useState(
+    '{\n  "setup": {\n    "assumptions": ""\n  }\n}',
+  )
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -206,7 +208,7 @@ function NewEventPage() {
               className="min-h-24 w-full rounded-md border bg-background px-3 py-2 text-sm"
             />
           </Field>
-          <Field label="Crew assumptions" htmlFor="crew-assumptions" wide>
+          <Field label="Initial setup JSON" htmlFor="crew-assumptions" wide>
             <textarea
               id="crew-assumptions"
               value={settings}

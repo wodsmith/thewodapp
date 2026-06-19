@@ -45,6 +45,7 @@ function HomePage() {
               ["/events", "Crew event list"],
               ["/events/new", "Event setup placeholder"],
               ["/events/$eventId", "Event operations overview"],
+              ["/events/$eventId/setup", "Event setup dashboard"],
               ["/events/$eventId/volunteers", "Volunteer placeholder"],
               ["/events/$eventId/schedule", "Schedule placeholder"],
             ].map(([path, label]) => (
