@@ -16,6 +16,14 @@ Crew pilot readiness is a read-only operator surface for deciding whether a foun
 
 The checklist treats event basics, venues and lanes, workouts and heats, volunteer roster, shifts and assignments, judge publishing, and assignment confirmations as separate readiness categories. Judge publishing is a manual pilot checkpoint until the dedicated Crew judge rotation workflow exists.
 
+## Staffing Matrix Core
+
+Crew staffing matrix core is a pure data-shape layer for deriving event staffing coverage from existing Crew primitives.
+
+[[apps/crew/src/lib/crew/staffing/index.ts]] exports deterministic helpers that normalize venues, workouts, heats, athlete lane assignments, volunteer roster records, time-based shifts, shift assignments, judge heat assignments, and assignment confirmation status into staffing matrix output. The core reports filled and needed counts by role and time block, judge lane gaps, double-booked volunteers, outside-availability assignments, role and credential warnings, confirmation gaps, open capacity, and event-level summary counts.
+
+The matrix core is read-only. It does not create shifts, assign volunteers, publish judge rotations, send reminders, mutate imports, or add Crew schema.
+
 ## Staffing Calculator
 
 The public Crew calculator route estimates event-day staffing needs from event dimensions and editable role assumptions.
