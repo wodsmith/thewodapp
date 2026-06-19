@@ -28,11 +28,18 @@ import {
   competitionsTable,
   REGISTRATION_STATUS,
 } from "@/db/schemas/competitions"
-import { programmingTracksTable, trackWorkoutsTable } from "@/db/schemas/programming"
+import {
+  programmingTracksTable,
+  trackWorkoutsTable,
+} from "@/db/schemas/programming"
 import { scoresTable } from "@/db/schemas/scores"
+import {
+  createVideoSubmissionId,
+  videoSubmissionsTable,
+} from "@/db/schemas/video-submissions"
 import type { TiebreakScheme } from "@/db/schemas/workouts"
 import { workouts } from "@/db/schemas/workouts"
-import { createVideoSubmissionId, videoSubmissionsTable } from "@/db/schemas/video-submissions"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import {
   computeSortKey,
   encodeScore,
@@ -57,7 +64,10 @@ const submitVideoSchema = z.object({
   tiebreakScore: z.string().optional(),
 })
 
-async function checkVideoSubmissionWindow(competitionId: string, trackWorkoutId: string) {
+async function checkVideoSubmissionWindow(
+  competitionId: string,
+  trackWorkoutId: string,
+) {
   const db = getDb()
 
   const [competition] = await db
@@ -68,8 +78,11 @@ async function checkVideoSubmissionWindow(competitionId: string, trackWorkoutId:
 
   if (!competition) return { allowed: false, reason: "Competition not found" }
 
-  if (competition.competitionType !== "online") {
-    return { allowed: false, reason: "Video submissions are only for online competitions" }
+  if (!competitionCan(competition.competitionType, "videoSubmissions")) {
+    return {
+      allowed: false,
+      reason: "Video submissions are only for online competitions",
+    }
   }
 
   const [event] = await db
@@ -114,7 +127,10 @@ export const Route = createFileRoute("/api/compete/video/submit")({
 
       POST: async ({ request }: { request: Request }) => {
         const origin = request.headers.get("Origin")
-        const headers = { "Content-Type": "application/json", ...corsHeaders(origin) }
+        const headers = {
+          "Content-Type": "application/json",
+          ...corsHeaders(origin),
+        }
 
         const session = await getSessionFromBearerOrCookie(request)
         if (!session?.userId) {
@@ -147,7 +163,10 @@ export const Route = createFileRoute("/api/compete/video/submit")({
           const regConditions = [
             eq(competitionRegistrationsTable.eventId, data.competitionId),
             eq(competitionRegistrationsTable.userId, userId),
-            ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+            ne(
+              competitionRegistrationsTable.status,
+              REGISTRATION_STATUS.REMOVED,
+            ),
           ]
           if (data.divisionId) {
             regConditions.push(
@@ -178,7 +197,10 @@ export const Route = createFileRoute("/api/compete/video/submit")({
 
           if (!registration) {
             return json(
-              { error: "You must be registered for this competition to submit a video" },
+              {
+                error:
+                  "You must be registered for this competition to submit a video",
+              },
               { status: 403, headers },
             )
           }
@@ -190,7 +212,9 @@ export const Route = createFileRoute("/api/compete/video/submit")({
           )
           if (!windowCheck.allowed) {
             return json(
-              { error: windowCheck.reason ?? "Cannot submit video at this time" },
+              {
+                error: windowCheck.reason ?? "Cannot submit video at this time",
+              },
               { status: 422, headers },
             )
           }
@@ -213,7 +237,12 @@ export const Route = createFileRoute("/api/compete/video/submit")({
           if (existingSubmission) {
             await db
               .update(videoSubmissionsTable)
-              .set({ videoUrl: data.videoUrl, notes: data.notes ?? null, submittedAt: now, updatedAt: now })
+              .set({
+                videoUrl: data.videoUrl,
+                notes: data.notes ?? null,
+                submittedAt: now,
+                updatedAt: now,
+              })
               .where(eq(videoSubmissionsTable.id, existingSubmission.id))
             submissionId = existingSubmission.id
           } else {
@@ -242,21 +271,30 @@ export const Route = createFileRoute("/api/compete/video/submit")({
                 trackId: trackWorkoutsTable.trackId,
               })
               .from(trackWorkoutsTable)
-              .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+              .innerJoin(
+                workouts,
+                eq(trackWorkoutsTable.workoutId, workouts.id),
+              )
               .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
               .limit(1)
 
             if (!workoutRow) {
-              return json({ error: "Workout not found" }, { status: 404, headers })
+              return json(
+                { error: "Workout not found" },
+                { status: 404, headers },
+              )
             }
 
             const scheme = workoutRow.scheme as WorkoutScheme
-            const scoreType = (workoutRow.scoreType as ScoreType) || getDefaultScoreType(scheme)
+            const scoreType =
+              (workoutRow.scoreType as ScoreType) || getDefaultScoreType(scheme)
 
             const parseResult = parseScore(data.score, scheme)
             if (!parseResult.isValid) {
               return json(
-                { error: `Invalid score format: ${parseResult.error || "Please check your entry"}` },
+                {
+                  error: `Invalid score format: ${parseResult.error || "Please check your entry"}`,
+                },
                 { status: 422, headers },
               )
             }
@@ -265,7 +303,11 @@ export const Route = createFileRoute("/api/compete/video/submit")({
             let status: "scored" | "cap" = data.scoreStatus ?? "scored"
             let secondaryValue: number | null = null
 
-            if (scheme === "time-with-cap" && workoutRow.timeCap && encodedValue !== null) {
+            if (
+              scheme === "time-with-cap" &&
+              workoutRow.timeCap &&
+              encodedValue !== null
+            ) {
               const capMs = workoutRow.timeCap * 1000
               if (encodedValue >= capMs) {
                 status = "cap"
@@ -282,10 +324,15 @@ export const Route = createFileRoute("/api/compete/video/submit")({
 
             let tiebreakValue: number | null = null
             if (data.tiebreakScore && workoutRow.tiebreakScheme) {
-              tiebreakValue = encodeScore(data.tiebreakScore, workoutRow.tiebreakScheme as WorkoutScheme)
+              tiebreakValue = encodeScore(
+                data.tiebreakScore,
+                workoutRow.tiebreakScheme as WorkoutScheme,
+              )
             }
 
-            const timeCapMs = workoutRow.timeCap ? workoutRow.timeCap * 1000 : null
+            const timeCapMs = workoutRow.timeCap
+              ? workoutRow.timeCap * 1000
+              : null
 
             const sortKey =
               encodedValue !== null
@@ -300,7 +347,12 @@ export const Route = createFileRoute("/api/compete/video/submit")({
                         : undefined,
                     tiebreak:
                       tiebreakValue !== null && workoutRow.tiebreakScheme
-                        ? { scheme: workoutRow.tiebreakScheme as "time" | "reps", value: tiebreakValue }
+                        ? {
+                            scheme: workoutRow.tiebreakScheme as
+                              | "time"
+                              | "reps",
+                            value: tiebreakValue,
+                          }
                         : undefined,
                   })
                 : null
@@ -312,10 +364,14 @@ export const Route = createFileRoute("/api/compete/video/submit")({
               .limit(1)
 
             if (!track?.ownerTeamId) {
-              return json({ error: "Could not determine team ownership" }, { status: 500, headers })
+              return json(
+                { error: "Could not determine team ownership" },
+                { status: 500, headers },
+              )
             }
 
-            const statusOrder = status === "cap" ? STATUS_ORDER.cap : STATUS_ORDER.scored
+            const statusOrder =
+              status === "cap" ? STATUS_ORDER.cap : STATUS_ORDER.scored
 
             await db
               .insert(scoresTable)
@@ -330,7 +386,8 @@ export const Route = createFileRoute("/api/compete/video/submit")({
                 status,
                 statusOrder,
                 sortKey: sortKey ? sortKeyToString(sortKey) : null,
-                tiebreakScheme: (workoutRow.tiebreakScheme as TiebreakScheme) ?? null,
+                tiebreakScheme:
+                  (workoutRow.tiebreakScheme as TiebreakScheme) ?? null,
                 tiebreakValue,
                 timeCapMs,
                 secondaryValue,
@@ -344,7 +401,8 @@ export const Route = createFileRoute("/api/compete/video/submit")({
                   status,
                   statusOrder,
                   sortKey: sortKey ? sortKeyToString(sortKey) : null,
-                  tiebreakScheme: (workoutRow.tiebreakScheme as TiebreakScheme) ?? null,
+                  tiebreakScheme:
+                    (workoutRow.tiebreakScheme as TiebreakScheme) ?? null,
                   tiebreakValue,
                   timeCapMs,
                   secondaryValue,
@@ -360,7 +418,10 @@ export const Route = createFileRoute("/api/compete/video/submit")({
           )
         } catch (err) {
           console.error("[API] /api/compete/video/submit error:", err)
-          return json({ error: "Internal server error" }, { status: 500, headers })
+          return json(
+            { error: "Internal server error" },
+            { status: 500, headers },
+          )
         }
       },
     },

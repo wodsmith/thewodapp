@@ -33,6 +33,7 @@ import {
 import { scoresTable } from "@/db/schemas/scores"
 import type { TiebreakScheme } from "@/db/schemas/workouts"
 import { workouts } from "@/db/schemas/workouts"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import {
   computeSortKey,
   encodeScore,
@@ -67,7 +68,10 @@ async function checkSubmissionWindow(
     .where(eq(competitionsTable.id, competitionId))
     .limit(1)
 
-  if (!competition || competition.competitionType !== "online") {
+  if (
+    !competition ||
+    !competitionCan(competition.competitionType, "submissionWindows")
+  ) {
     return { isOpen: false, reason: "Not an online competition" }
   }
 

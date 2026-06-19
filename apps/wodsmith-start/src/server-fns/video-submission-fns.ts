@@ -38,6 +38,7 @@ import {
 import { videoVotesTable } from "@/db/schemas/video-votes"
 import type { TiebreakScheme } from "@/db/schemas/workouts"
 import { workouts } from "@/db/schemas/workouts"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import {
   computeSortKey,
   decodeScore,
@@ -109,7 +110,7 @@ function getStatusOrder(status: "scored" | "cap"): number {
 
 /**
  * Check if current time is within the event's submission window.
- * Only applies to online competitions.
+ * Only applies to competitions with video submissions.
  */
 async function checkSubmissionWindow(
   competitionId: string,
@@ -135,8 +136,7 @@ async function checkSubmissionWindow(
     return { allowed: false, reason: "Competition not found" }
   }
 
-  // Only check submission windows for online competitions
-  if (competition.competitionType !== "online") {
+  if (!competitionCan(competition.competitionType, "videoSubmissions")) {
     return {
       allowed: false,
       reason: "Video submissions are only for online competitions",
@@ -933,8 +933,7 @@ export const submitVideoFn = createServerFn({ method: "POST" })
     // the score is only sent with the first slot (videoIndex 0) and shared
     // across the team's submission, so subsequent slots intentionally arrive
     // without a score and must not be rejected here.
-    const hasRoundScores =
-      data.roundScores && data.roundScores.length > 0
+    const hasRoundScores = data.roundScores && data.roundScores.length > 0
     const hasScore = data.score || hasRoundScores
 
     if (data.videoIndex === 0 && !hasScore) {
@@ -1253,10 +1252,7 @@ export const getOrganizerSubmissionsFn = createServerFn({ method: "GET" })
       .where(
         and(
           eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId),
-          ne(
-            competitionRegistrationsTable.status,
-            REGISTRATION_STATUS.REMOVED,
-          ),
+          ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
         ),
       )
       .orderBy(asc(videoSubmissionsTable.videoIndex))

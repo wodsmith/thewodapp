@@ -15,14 +15,6 @@ import { and, eq, isNull, ne, type SQL } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
-  addRequestContextAttribute,
-  logEntityUpdated,
-  logError,
-  logInfo,
-  logWarning,
-  updateRequestContext,
-} from "@/lib/logging"
-import {
   competitionEventsTable,
   competitionRegistrationsTable,
   competitionsTable,
@@ -35,6 +27,15 @@ import {
 import { scoresTable } from "@/db/schemas/scores"
 import type { TiebreakScheme } from "@/db/schemas/workouts"
 import { workouts } from "@/db/schemas/workouts"
+import { competitionCan } from "@/lib/competitions/capabilities"
+import {
+  addRequestContextAttribute,
+  logEntityUpdated,
+  logError,
+  logInfo,
+  logWarning,
+  updateRequestContext,
+} from "@/lib/logging"
 import {
   computeSortKey,
   encodeScore,
@@ -148,8 +149,7 @@ async function checkSubmissionWindow(
     }
   }
 
-  // Only check submission windows for online competitions
-  if (competition.competitionType !== "online") {
+  if (!competitionCan(competition.competitionType, "submissionWindows")) {
     return {
       isOpen: false,
       opensAt: null,
@@ -278,9 +278,7 @@ async function resolveAthleteDivisionId({
   if (regs.length === 0) return { kind: "notFound" }
   if (regs.length > 1) return { kind: "ambiguous" }
   const divisionId = regs[0].divisionId
-  return divisionId
-    ? { kind: "specific", divisionId }
-    : { kind: "open" }
+  return divisionId ? { kind: "specific", divisionId } : { kind: "open" }
 }
 
 /**

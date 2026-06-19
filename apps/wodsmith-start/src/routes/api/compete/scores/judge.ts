@@ -40,6 +40,7 @@ import {
   type TiebreakScheme,
   workouts,
 } from "@/db/schemas/workouts"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import {
   computeSortKey,
   encodeRounds,
@@ -81,15 +82,22 @@ const judgeScoreSchema = z.object({
   workout: workoutInfoSchema.optional(),
 })
 
-function mapToNewStatus(status: ScoreStatus): "scored" | "cap" | "dq" | "withdrawn" {
+function mapToNewStatus(
+  status: ScoreStatus,
+): "scored" | "cap" | "dq" | "withdrawn" {
   switch (status) {
-    case "scored": return "scored"
-    case "cap": return "cap"
-    case "dq": return "dq"
+    case "scored":
+      return "scored"
+    case "cap":
+      return "cap"
+    case "dq":
+      return "dq"
     case "withdrawn":
     case "dns":
-    case "dnf": return "withdrawn"
-    default: return "scored"
+    case "dnf":
+      return "withdrawn"
+    default:
+      return "scored"
   }
 }
 
@@ -106,7 +114,10 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
 
       POST: async ({ request }: { request: Request }) => {
         const origin = request.headers.get("Origin")
-        const headers = { "Content-Type": "application/json", ...corsHeaders(origin) }
+        const headers = {
+          "Content-Type": "application/json",
+          ...corsHeaders(origin),
+        }
 
         const session = await getSessionFromBearerOrCookie(request)
         if (!session?.userId) {
@@ -131,11 +142,16 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
         const data = parsed.data
 
         // Check organizer team membership from parsed data
-        const isTeamMember = session.teams?.some((t) => t.id === data.organizingTeamId)
+        const isTeamMember = session.teams?.some(
+          (t) => t.id === data.organizingTeamId,
+        )
         const isSiteAdmin = session.user?.role === "admin"
 
         if (!isTeamMember && !isSiteAdmin) {
-          return json({ error: "Not authorized for this team" }, { status: 403, headers })
+          return json(
+            { error: "Not authorized for this team" },
+            { status: 403, headers },
+          )
         }
 
         const db = getDb()
@@ -158,7 +174,10 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
               .limit(1)
 
             if (!workoutRow) {
-              return json({ error: "Workout not found" }, { status: 404, headers })
+              return json(
+                { error: "Workout not found" },
+                { status: 404, headers },
+              )
             }
             workoutInfo = workoutRow
           }
@@ -170,7 +189,10 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
             .where(eq(competitionsTable.id, data.competitionId))
             .limit(1)
 
-          if (competition?.competitionType === "online") {
+          if (
+            competition &&
+            competitionCan(competition.competitionType, "submissionWindows")
+          ) {
             const [event] = await db
               .select({
                 submissionOpensAt: competitionEventsTable.submissionOpensAt,
@@ -180,7 +202,10 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
               .where(
                 and(
                   eq(competitionEventsTable.competitionId, data.competitionId),
-                  eq(competitionEventsTable.trackWorkoutId, data.trackWorkoutId),
+                  eq(
+                    competitionEventsTable.trackWorkoutId,
+                    data.trackWorkoutId,
+                  ),
                 ),
               )
               .limit(1)
@@ -197,8 +222,10 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
           }
 
           const scheme = workoutInfo.scheme as ScoringWorkoutScheme
-          const scoreType = (workoutInfo.scoreType as ScoreType) || getDefaultScoreType(scheme)
-          const workoutTiebreakScheme = (workoutInfo.tiebreakScheme as TiebreakScheme) ?? null
+          const scoreType =
+            (workoutInfo.scoreType as ScoreType) || getDefaultScoreType(scheme)
+          const workoutTiebreakScheme =
+            (workoutInfo.tiebreakScheme as TiebreakScheme) ?? null
 
           let encodedValue: number | null = null
           let encodedRounds: number[] = []
@@ -207,7 +234,9 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
           )
 
           if (data.roundScores && data.roundScores.length > 0) {
-            const roundInputs = data.roundScores.map((rs) => ({ raw: rs.score }))
+            const roundInputs = data.roundScores.map((rs) => ({
+              raw: rs.score,
+            }))
             const result = encodeRounds(roundInputs, scheme, scoreType)
             // Reject partial rounds so roundStatuses aligns with the rows
             // we insert below (encodeRounds silently drops null encodes).
@@ -264,13 +293,18 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
           let tiebreakValue: number | null = null
           if (data.tieBreakScore && workoutInfo.tiebreakScheme) {
             try {
-              tiebreakValue = encodeScore(data.tieBreakScore, workoutInfo.tiebreakScheme as ScoringWorkoutScheme)
+              tiebreakValue = encodeScore(
+                data.tieBreakScore,
+                workoutInfo.tiebreakScheme as ScoringWorkoutScheme,
+              )
             } catch {
               // ignore tiebreak encoding errors
             }
           }
 
-          const timeCapMs = workoutInfo.timeCap ? workoutInfo.timeCap * 1000 : null
+          const timeCapMs = workoutInfo.timeCap
+            ? workoutInfo.timeCap * 1000
+            : null
 
           const sortKey =
             encodedValue !== null
@@ -286,7 +320,10 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
                       : undefined,
                   tiebreak:
                     tiebreakValue !== null && workoutInfo.tiebreakScheme
-                      ? { scheme: workoutInfo.tiebreakScheme as "time" | "reps", value: tiebreakValue }
+                      ? {
+                          scheme: workoutInfo.tiebreakScheme as "time" | "reps",
+                          value: tiebreakValue,
+                        }
                       : undefined,
                 })
               : null
@@ -341,18 +378,22 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
               .where(and(...finalScoreConditions))
               .limit(1)
 
-            if (!finalScore) throw new Error("Failed to retrieve score after upsert")
+            if (!finalScore)
+              throw new Error("Failed to retrieve score after upsert")
 
             const id = finalScore.id
 
             if (data.roundScores && data.roundScores.length > 0) {
-              await tx.delete(scoreRoundsTable).where(eq(scoreRoundsTable.scoreId, id))
+              await tx
+                .delete(scoreRoundsTable)
+                .where(eq(scoreRoundsTable.scoreId, id))
 
               const roundsToInsert = data.roundScores.map((round, index) => {
                 let roundValue: number
 
                 if (scheme === "rounds-reps") {
-                  const roundsNum = Number.parseInt(round.parts?.[0] ?? round.score, 10) || 0
+                  const roundsNum =
+                    Number.parseInt(round.parts?.[0] ?? round.score, 10) || 0
                   const reps = Number.parseInt(round.parts?.[1] ?? "0", 10) || 0
                   roundValue = roundsNum * 100000 + reps
                 } else {
@@ -373,10 +414,16 @@ export const Route = createFileRoute("/api/compete/scores/judge")({
             return id
           })
 
-          return json({ success: true, data: { resultId: scoreId, isNew: true } }, { headers })
+          return json(
+            { success: true, data: { resultId: scoreId, isNew: true } },
+            { headers },
+          )
         } catch (err) {
           console.error("[API] /api/compete/scores/judge error:", err)
-          return json({ error: "Internal server error" }, { status: 500, headers })
+          return json(
+            { error: "Internal server error" },
+            { status: 500, headers },
+          )
         }
       },
     },
