@@ -78,7 +78,7 @@ const setMockSession = (session: unknown) => {
 function createTestCompetition(
 	overrides?: Partial<{
 		id: string
-		competitionType: "in_person" | "online"
+		competitionType: "in-person" | "online"
 	}>,
 ) {
 	return {
@@ -267,7 +267,7 @@ describe("Video Submission Server Functions (TanStack)", () => {
 
 		it("returns canSubmit false for in-person competitions", async () => {
 			const registration = createTestRegistration()
-			const competition = createTestCompetition({ competitionType: "in_person" })
+			const competition = createTestCompetition({ competitionType: "in-person" })
 
 			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
 			const orderByMock = mockDb.getChainMock().orderBy as ReturnType<typeof vi.fn>
@@ -561,6 +561,28 @@ describe("Video Submission Server Functions (TanStack)", () => {
 					},
 				}),
 			).rejects.toThrow("Submission window has closed")
+		})
+
+		it("throws for in-person competitions before writing video submissions", async () => {
+			const registration = createTestRegistration()
+			const competition = createTestCompetition({ competitionType: "in-person" })
+
+			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+			limitMock
+				.mockResolvedValueOnce([registration])
+				.mockResolvedValueOnce([competition])
+
+			await expect(
+				submitVideoFn({
+					data: {
+						trackWorkoutId: "tw-1",
+						competitionId: "comp-1",
+						videoUrl: "https://youtube.com/watch?v=test",
+					},
+				}),
+			).rejects.toThrow("Video submissions are only for online competitions")
+
+			expect(mockDb.insert).not.toHaveBeenCalled()
 		})
 
 		it("creates new video submission successfully", async () => {

@@ -14,6 +14,7 @@ import {
   competitionEventsTable,
   competitionsTable,
 } from "@/db/schemas/competitions"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import { corsHeaders } from "@/utils/bearer-auth"
 
 async function getSubmissionWindowStatus(
@@ -29,10 +30,15 @@ async function getSubmissionWindowStatus(
     .limit(1)
 
   if (!competition) {
-    return { isOpen: false, opensAt: null, closesAt: null, reason: "Competition not found" }
+    return {
+      isOpen: false,
+      opensAt: null,
+      closesAt: null,
+      reason: "Competition not found",
+    }
   }
 
-  if (competition.competitionType !== "online") {
+  if (!competitionCan(competition.competitionType, "submissionWindows")) {
     return {
       isOpen: false,
       opensAt: null,
@@ -56,7 +62,12 @@ async function getSubmissionWindowStatus(
     .limit(1)
 
   if (!event || !event.submissionOpensAt || !event.submissionClosesAt) {
-    return { isOpen: false, opensAt: null, closesAt: null, reason: "Submission window not configured" }
+    return {
+      isOpen: false,
+      opensAt: null,
+      closesAt: null,
+      reason: "Submission window not configured",
+    }
   }
 
   const now = new Date()
@@ -81,7 +92,11 @@ async function getSubmissionWindowStatus(
     }
   }
 
-  return { isOpen: true, opensAt: event.submissionOpensAt, closesAt: event.submissionClosesAt }
+  return {
+    isOpen: true,
+    opensAt: event.submissionOpensAt,
+    closesAt: event.submissionClosesAt,
+  }
 }
 
 export const Route = createFileRoute("/api/compete/scores/window-status")({
@@ -111,11 +126,17 @@ export const Route = createFileRoute("/api/compete/scores/window-status")({
         }
 
         try {
-          const status = await getSubmissionWindowStatus(competitionId, trackWorkoutId)
+          const status = await getSubmissionWindowStatus(
+            competitionId,
+            trackWorkoutId,
+          )
           return json(status, { headers })
         } catch (err) {
           console.error("[API] /api/compete/scores/window-status error:", err)
-          return json({ error: "Internal server error" }, { status: 500, headers })
+          return json(
+            { error: "Internal server error" },
+            { status: 500, headers },
+          )
         }
       },
     },

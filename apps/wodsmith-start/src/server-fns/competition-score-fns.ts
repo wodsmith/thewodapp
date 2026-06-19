@@ -15,16 +15,6 @@ import { and, eq, gt, inArray, isNull, ne, or } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
-  addRequestContextAttribute,
-  logEntityDeleted,
-  logEntityUpdated,
-  logError,
-  logInfo,
-  logWarning,
-  updateRequestContext,
-} from "@/lib/logging"
-import { getEvlog } from "@/lib/evlog"
-import {
   type CompetitionHeat,
   competitionEventsTable,
   competitionHeatAssignmentsTable,
@@ -41,7 +31,7 @@ import {
 } from "@/db/schemas/programming"
 import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { scoreRoundsTable, scoresTable } from "@/db/schemas/scores"
-import { teamMembershipTable } from "@/db/schemas/teams"
+import { TEAM_PERMISSIONS, teamMembershipTable } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
 import {
   SCORE_STATUS_VALUES,
@@ -51,7 +41,19 @@ import {
   type WorkoutScheme,
   workouts,
 } from "@/db/schemas/workouts"
+import { competitionCan } from "@/lib/competitions/capabilities"
+import { getEvlog } from "@/lib/evlog"
 import {
+  addRequestContextAttribute,
+  logEntityDeleted,
+  logEntityUpdated,
+  logError,
+  logInfo,
+  logWarning,
+  updateRequestContext,
+} from "@/lib/logging"
+import {
+  aggregateValues,
   computeSortKey,
   decodeScore,
   encodeRounds,
@@ -63,8 +65,6 @@ import {
 } from "@/lib/scoring"
 import { getSessionFromCookie } from "@/utils/auth"
 import { requireTeamPermission } from "@/utils/team-auth"
-import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
-import { aggregateValues } from "@/lib/scoring"
 
 // ============================================================================
 // Types
@@ -163,7 +163,7 @@ export interface EventScoreEntryDataWithHeats extends EventScoreEntryData {
 
 /**
  * Check if current time is within the event's submission window.
- * Only applies to online competitions.
+ * Only applies to competitions with submission windows.
  */
 async function isWithinSubmissionWindow(
   competitionId: string,
@@ -184,8 +184,7 @@ async function isWithinSubmissionWindow(
     return { allowed: false, reason: "Competition not found" }
   }
 
-  // Only check submission windows for online competitions
-  if (competition.competitionType !== "online") {
+  if (!competitionCan(competition.competitionType, "submissionWindows")) {
     return { allowed: true }
   }
 
@@ -926,9 +925,7 @@ export const getEventScoreEntryDataWithHeatsBatchFn = createServerFn({
     getEventScoreEntryDataBatchInputSchema.parse(data),
   )
   .handler(
-    async ({
-      data,
-    }): Promise<Record<string, EventScoreEntryDataWithHeats>> => {
+    async ({ data }): Promise<Record<string, EventScoreEntryDataWithHeats>> => {
       const db = getDb()
       if (data.trackWorkoutIds.length === 0) {
         return {}
@@ -1136,7 +1133,8 @@ export const getEventScoreEntryDataWithHeatsBatchFn = createServerFn({
               description: row.workoutDescription,
               scheme: row.workoutScheme as WorkoutScheme,
               scoreType: row.workoutScoreType as ScoreType | null,
-              tiebreakScheme: row.workoutTiebreakScheme as TiebreakScheme | null,
+              tiebreakScheme:
+                row.workoutTiebreakScheme as TiebreakScheme | null,
               timeCap: row.workoutTimeCap,
               repsPerRound: row.workoutRepsPerRound,
               roundsToScore: row.workoutRoundsToScore,

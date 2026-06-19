@@ -428,6 +428,65 @@ describe('Competition Score Server Functions (TanStack)', () => {
       ).rejects.toThrow('Workout info is required to save competition score')
     })
 
+    it('continues in-person score saves past the submission-window gate', async () => {
+      mockDbInstance = createDbMock({
+        withSubmissionWindowCheck: true,
+        competition: {competitionType: 'in-person'},
+      })
+
+      await expect(
+        saveCompetitionScoreFn({
+          data: {
+            competitionId: 'comp-1',
+            organizingTeamId: 'team-1',
+            trackWorkoutId: 'tw-1',
+            workoutId: 'wod-1',
+            registrationId: 'reg-1',
+            userId: 'user-1',
+            divisionId: 'div-1',
+            score: '5:00',
+            scoreStatus: 'scored',
+          },
+        }),
+      ).rejects.toThrow('Workout info is required to save competition score')
+    })
+
+    it('blocks online score saves after the submission window closes', async () => {
+      const now = new Date()
+      mockDbInstance = createDbMock({
+        withSubmissionWindowCheck: true,
+        competition: {competitionType: 'online'},
+        competitionEvent: {
+          submissionOpensAt: new Date(now.getTime() - 7200000),
+          submissionClosesAt: new Date(now.getTime() - 3600000),
+        },
+      })
+
+      await expect(
+        saveCompetitionScoreFn({
+          data: {
+            competitionId: 'comp-1',
+            organizingTeamId: 'team-1',
+            trackWorkoutId: 'tw-1',
+            workoutId: 'wod-1',
+            registrationId: 'reg-1',
+            userId: 'user-1',
+            divisionId: 'div-1',
+            score: '5:00',
+            scoreStatus: 'scored',
+            workout: {
+              scheme: 'time',
+              scoreType: 'min',
+              repsPerRound: null,
+              roundsToScore: 1,
+              timeCap: null,
+              tiebreakScheme: null,
+            },
+          },
+        }),
+      ).rejects.toThrow(/Submission window closed at/)
+    })
+
     it('saves a time score correctly', async () => {
       const teamResult = {ownerTeamId: 'team-1'}
       const finalScore = {id: 'score-new'}
