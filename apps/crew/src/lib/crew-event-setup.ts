@@ -81,8 +81,7 @@ export function parseCrewSettings(
         staffingLead: readText(parsedSetup.staffingLead),
         checklist: readChecklist(parsedSetup.checklist),
         internalNotes: readText(parsedSetup.internalNotes),
-        assumptions:
-          readText(parsedSetup.assumptions) || readRootAssumptions(parsed),
+        assumptions: readSetupAssumptions(parsedSetup, parsed),
       },
       baseSettings: parsed,
       parseError: null,
@@ -150,6 +149,17 @@ function readRootAssumptions(settings: Record<string, unknown>) {
   }
 
   return ""
+}
+
+function readSetupAssumptions(
+  setup: Record<string, unknown>,
+  rootSettings: Record<string, unknown>,
+) {
+  if (Object.hasOwn(setup, "assumptions")) {
+    return readText(setup.assumptions)
+  }
+
+  return readRootAssumptions(rootSettings)
 }
 
 function readText(value: unknown) {

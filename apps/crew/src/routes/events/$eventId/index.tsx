@@ -1,4 +1,5 @@
 import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router"
+import { formatCrewValue, getSafeHttpUrl } from "@/lib/crew-event-display"
 import {
   calculateSetupProgress,
   crewSetupChecklistItems,
@@ -22,15 +23,15 @@ function EventOverviewPage() {
       <div className="grid gap-4 md:grid-cols-4">
         <StatusPanel
           label="Lifecycle"
-          value={formatValue(event.settings.lifecycle)}
+          value={formatCrewValue(event.settings.lifecycle)}
         />
         <StatusPanel
           label="Concierge"
-          value={formatValue(event.settings.conciergeStatus)}
+          value={formatCrewValue(event.settings.conciergeStatus)}
         />
         <StatusPanel
           label="Plan"
-          value={formatValue(event.settings.crewPlan)}
+          value={formatCrewValue(event.settings.crewPlan)}
         />
         <StatusPanel
           label="Setup"
@@ -183,7 +184,12 @@ function EventOverviewPage() {
   )
 }
 
-function StatusPanel({ label, value }: { label: string; value: string }) {
+interface StatusPanelProps {
+  label: string
+  value: string
+}
+
+function StatusPanel({ label, value }: StatusPanelProps) {
   return (
     <section className="rounded-md border bg-card p-4 shadow-sm">
       <p className="text-sm text-muted-foreground">{label}</p>
@@ -192,26 +198,24 @@ function StatusPanel({ label, value }: { label: string; value: string }) {
   )
 }
 
-function Fact({
-  label,
-  value,
-  link,
-  mono = false,
-}: {
+interface FactProps {
   label: string
   value: string
   link?: string | null
   mono?: boolean
-}) {
+}
+
+function Fact({ label, value, link, mono = false }: FactProps) {
   const className = mono ? "break-all font-mono" : "break-words font-medium"
+  const safeLink = getSafeHttpUrl(link)
 
   return (
     <div>
       <dt className="text-muted-foreground">{label}</dt>
       <dd className={className}>
-        {link ? (
+        {safeLink ? (
           <a
-            href={link}
+            href={safeLink}
             target="_blank"
             rel="noreferrer"
             className="text-primary underline-offset-4 hover:underline"
@@ -226,7 +230,12 @@ function Fact({
   )
 }
 
-function NoteBlock({ label, value }: { label: string; value: string }) {
+interface NoteBlockProps {
+  label: string
+  value: string
+}
+
+function NoteBlock({ label, value }: NoteBlockProps) {
   return (
     <div className="rounded-md border bg-background p-3">
       <h3 className="font-medium">{label}</h3>
@@ -235,11 +244,11 @@ function NoteBlock({ label, value }: { label: string; value: string }) {
   )
 }
 
-function formatValue(value: string) {
-  return value.replaceAll("_", " ")
+interface ProgressBarProps {
+  value: number
 }
 
-function ProgressBar({ value }: { value: number }) {
+function ProgressBar({ value }: ProgressBarProps) {
   return (
     <div className="h-2 overflow-hidden rounded-full bg-muted">
       <div

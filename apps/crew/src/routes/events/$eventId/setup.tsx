@@ -17,6 +17,7 @@ export const Route = createFileRoute("/events/$eventId/setup")({
 
 const parentRoute = getRouteApi("/events/$eventId")
 
+// @lat: [[crew#Event Setup Dashboard]]
 function EventSetupPage() {
   const router = useRouter()
   const { event } = parentRoute.useLoaderData()
@@ -430,17 +431,14 @@ function EventSetupPage() {
   )
 }
 
-function Field({
-  label,
-  htmlFor,
-  wide = false,
-  children,
-}: {
+interface FieldProps {
   label: string
   htmlFor: string
   wide?: boolean
   children: ReactNode
-}) {
+}
+
+function Field({ label, htmlFor, wide = false, children }: FieldProps) {
   return (
     <label
       htmlFor={htmlFor}

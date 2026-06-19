@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
+import { formatCrewValue } from "@/lib/crew-event-display"
 import {
   calculateSetupProgress,
   parseCrewSettings,
@@ -40,6 +41,7 @@ function EventsPage() {
         </section>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
+          {/* @lat: [[crew#Event Setup Dashboard]] */}
           {events.map((event) => {
             const setupProgress = calculateSetupProgress(
               parseCrewSettings(event.settings.settings).setup,
@@ -63,20 +65,20 @@ function EventsPage() {
                     </p>
                   </div>
                   <span className="rounded-md bg-muted px-2 py-1 text-xs font-medium">
-                    {formatValue(event.settings.lifecycle)}
+                    {formatCrewValue(event.settings.lifecycle)}
                   </span>
                 </div>
                 <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
                   <div>
                     <dt className="text-muted-foreground">Plan</dt>
                     <dd className="font-medium">
-                      {formatValue(event.settings.crewPlan)}
+                      {formatCrewValue(event.settings.crewPlan)}
                     </dd>
                   </div>
                   <div>
                     <dt className="text-muted-foreground">Concierge</dt>
                     <dd className="font-medium">
-                      {formatValue(event.settings.conciergeStatus)}
+                      {formatCrewValue(event.settings.conciergeStatus)}
                     </dd>
                   </div>
                   <div>
@@ -112,11 +114,12 @@ function EventsPage() {
   )
 }
 
-function formatValue(value: string) {
-  return value.replaceAll("_", " ")
+interface ProgressBarProps {
+  value: number
 }
 
-function ProgressBar({ value }: { value: number }) {
+// @lat: [[crew#Event Setup Dashboard]]
+function ProgressBar({ value }: ProgressBarProps) {
   return (
     <div className="h-2 overflow-hidden rounded-full bg-muted">
       <div
