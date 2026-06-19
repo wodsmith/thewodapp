@@ -4,6 +4,8 @@ import { useServerFn } from "@tanstack/react-start"
 import { Loader2, Plus, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
+import { getCrewAssignmentConfirmationStatusBadgeClassName } from "@/lib/crew/assignment-confirmation-display"
+import { formatCrewValue } from "@/lib/crew-event-display"
 import {
   isVolunteerCompatibleWithShift,
   type CrewRosterVolunteer,
@@ -52,14 +54,25 @@ function EventShiftsPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-5">
         <StatusPanel label="Active volunteers" value={rosterSummary.active} />
         <StatusPanel label="Assignable" value={rosterSummary.assignable} />
         <StatusPanel
           label="Assigned slots"
           value={shiftSummary.assignedSlots}
         />
-        <StatusPanel label="Capacity" value={shiftSummary.capacity} />
+        <StatusPanel
+          label="Confirmed"
+          value={shiftSummary.confirmationSummary.confirmed}
+        />
+        <StatusPanel
+          label="Needs response"
+          value={
+            shiftSummary.confirmationSummary.pending +
+            shiftSummary.confirmationSummary.changeRequested +
+            shiftSummary.confirmationSummary.declined
+          }
+        />
       </div>
 
       <CreateShiftForm
@@ -347,12 +360,22 @@ function ShiftCard({
                   className="flex flex-col gap-3 rounded-md border bg-background p-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div>
-                    <div className="font-medium">
-                      {assignment.volunteer.name}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">
+                        {assignment.volunteer.name}
+                      </span>
+                      <ConfirmationBadge
+                        status={assignment.confirmation?.status ?? "pending"}
+                      />
                     </div>
                     <div className="text-sm text-muted-foreground">
                       {assignment.volunteer.email}
                     </div>
+                    {assignment.confirmation?.responseNote ? (
+                      <div className="mt-1 max-w-md text-sm text-muted-foreground">
+                        {assignment.confirmation.responseNote}
+                      </div>
+                    ) : null}
                   </div>
                   <button
                     type="button"
@@ -439,6 +462,18 @@ function ShiftCard({
         </form>
       </details>
     </section>
+  )
+}
+
+function ConfirmationBadge({ status }: { status: string }) {
+  const className = getCrewAssignmentConfirmationStatusBadgeClassName(status)
+
+  return (
+    <span
+      className={`inline-flex rounded-md border px-2 py-1 text-xs font-medium ${className}`}
+    >
+      {formatCrewValue(status)}
+    </span>
   )
 }
 

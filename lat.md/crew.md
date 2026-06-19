@@ -89,3 +89,9 @@ IDs use the `cimpr_` prefix.
 One row per volunteer or judge assignment confirmation. It tracks the assignment target, optional membership or invitation identity, confirmation status, response timing, reminder state, and only a token hash.
 
 Raw confirmation tokens are generated later for links and must not be persisted. IDs use the `caconf_` prefix.
+
+## Assignment Confirmation Responses
+
+Crew assignment confirmation links are token-only volunteer surfaces. Raw tokens are generated only while creating links, stored only as hashes, and used by [[apps/crew/src/routes/e/$slug/confirm/$token.tsx]] and [[apps/crew/src/routes/e/$slug/schedule/$token.tsx]] to show safe confirm, decline, and change-request flows without requiring a session.
+
+[[apps/crew/src/server-fns/crew-confirmation-fns.ts]] owns token lookup, transient email payload construction, and deterministic response transitions. [[apps/crew/src/lib/crew/assignment-confirmations.ts]] keeps the pure token and status helpers testable outside the server function layer.

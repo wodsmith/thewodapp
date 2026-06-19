@@ -26,7 +26,7 @@ function EventOverviewPage() {
 
   return (
     <section className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-6">
+      <div className="grid gap-4 md:grid-cols-7">
         <StatusPanel
           label="Lifecycle"
           value={formatCrewValue(event.settings.lifecycle)}
@@ -47,6 +47,10 @@ function EventOverviewPage() {
         <StatusPanel
           label="Shift slots"
           value={`${shiftSummary.assignedSlots}/${shiftSummary.capacity}`}
+        />
+        <StatusPanel
+          label="Confirmed"
+          value={`${shiftSummary.confirmationSummary.confirmed}/${shiftSummary.assignedSlots}`}
         />
       </div>
 

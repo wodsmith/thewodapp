@@ -1,6 +1,6 @@
 // @lat: [[crew#Roster Shifts Assignments]]
 import { createServerFn } from "@tanstack/react-start"
-import { and, asc, eq } from "drizzle-orm"
+import { and, asc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "../db"
 import { createVolunteerShiftAssignmentId } from "../db/schemas/common"
@@ -11,6 +11,7 @@ import {
   teamInvitationTable,
   teamMembershipTable,
 } from "../db/schemas/teams"
+import { userTable } from "../db/schemas/users"
 import {
   VOLUNTEER_ROLE_TYPE_VALUES,
   volunteerShiftAssignmentsTable,
@@ -31,9 +32,18 @@ import {
 } from "../lib/crew/roster-shifts"
 import { requireLocalCrewOperatorAccess } from "../server/crew-local-access"
 import {
+  cancelCrewShiftAssignmentConfirmations,
+  ensureCrewShiftAssignmentConfirmation,
+  loadCrewShiftAssignmentConfirmationMap,
+  summarizeCrewShiftAssignmentConfirmations,
+  type CrewShiftAssignmentConfirmationStatus,
+} from "./crew-confirmation-fns"
+import {
   DEFAULT_TIMEZONE,
   formatDateTimeInTimezone,
 } from "../utils/timezone-utils"
+
+type DbClient = ReturnType<typeof getDb>
 
 type CrewRosterCompetition = Pick<
   Competition,
@@ -57,6 +67,7 @@ export interface CrewShiftAssignmentItem {
   id: string
   membershipId: string
   notes: string | null
+  confirmation: CrewShiftAssignmentConfirmationStatus | null
   volunteer: CrewShiftAssignmentVolunteer
 }
 
@@ -96,6 +107,9 @@ export interface CrewShiftSummary {
   assignedSlots: number
   capacity: number
   openSlots: number
+  confirmationSummary: ReturnType<
+    typeof summarizeCrewShiftAssignmentConfirmations
+  >
 }
 
 const eventIdSchema = z.string().min(1, "Event ID is required")
@@ -342,9 +356,32 @@ export const deleteCrewShiftFn = createServerFn({ method: "POST" })
     const db = getDb()
 
     await db.transaction(async (tx) => {
-      await tx
-        .delete(volunteerShiftAssignmentsTable)
+      const [lockedShift] = await tx
+        .select({ id: volunteerShiftsTable.id })
+        .from(volunteerShiftsTable)
+        .where(eq(volunteerShiftsTable.id, data.shiftId))
+        .for("update")
+        .limit(1)
+      if (!lockedShift) {
+        throw new Error("Volunteer shift not found")
+      }
+
+      const assignments = await tx
+        .select({ id: volunteerShiftAssignmentsTable.id })
+        .from(volunteerShiftAssignmentsTable)
         .where(eq(volunteerShiftAssignmentsTable.shiftId, data.shiftId))
+        .for("update")
+      const assignmentIds = assignments.map((assignment) => assignment.id)
+
+      await cancelCrewShiftAssignmentConfirmations({
+        db: tx as unknown as DbClient,
+        assignmentIds,
+      })
+      if (assignmentIds.length > 0) {
+        await tx
+          .delete(volunteerShiftAssignmentsTable)
+          .where(inArray(volunteerShiftAssignmentsTable.id, assignmentIds))
+      }
       await tx
         .delete(volunteerShiftsTable)
         .where(eq(volunteerShiftsTable.id, data.shiftId))
@@ -391,8 +428,10 @@ export const assignCrewVolunteerToShiftFn = createServerFn({ method: "POST" })
             id: teamMembershipTable.id,
             isActive: teamMembershipTable.isActive,
             metadata: teamMembershipTable.metadata,
+            email: userTable.email,
           })
           .from(teamMembershipTable)
+          .leftJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
           .where(
             and(
               eq(teamMembershipTable.id, data.membershipId),
@@ -441,11 +480,26 @@ export const assignCrewVolunteerToShiftFn = createServerFn({ method: "POST" })
       }
 
       const assignmentId = createVolunteerShiftAssignmentId()
+      const now = new Date()
       await tx.insert(volunteerShiftAssignmentsTable).values({
         id: assignmentId,
         shiftId: shift.id,
         membershipId: membership.id,
         notes: emptyToNull(data.notes),
+        createdAt: now,
+        updatedAt: now,
+      })
+
+      const metadata = parseCrewRosterMetadata(membership.metadata)
+      await ensureCrewShiftAssignmentConfirmation({
+        db: tx as unknown as DbClient,
+        competitionId: event.id,
+        assignmentId,
+        membershipId: membership.id,
+        email:
+          emptyToNull(metadata.signupEmail) ?? emptyToNull(membership.email),
+        expiresAt: getAssignmentConfirmationExpiry(now),
+        now,
       })
 
       return { success: true, action: "assigned" as const, assignmentId }
@@ -463,14 +517,29 @@ export const removeCrewVolunteerShiftAssignmentFn = createServerFn({
     const shift = await requireCrewShift(event.id, data.shiftId)
     const db = getDb()
 
-    await db
-      .delete(volunteerShiftAssignmentsTable)
-      .where(
-        and(
-          eq(volunteerShiftAssignmentsTable.shiftId, shift.id),
-          eq(volunteerShiftAssignmentsTable.membershipId, data.membershipId),
-        ),
-      )
+    await db.transaction(async (tx) => {
+      const assignments = await tx
+        .select({ id: volunteerShiftAssignmentsTable.id })
+        .from(volunteerShiftAssignmentsTable)
+        .where(
+          and(
+            eq(volunteerShiftAssignmentsTable.shiftId, shift.id),
+            eq(volunteerShiftAssignmentsTable.membershipId, data.membershipId),
+          ),
+        )
+        .for("update")
+      const assignmentIds = assignments.map((assignment) => assignment.id)
+
+      await cancelCrewShiftAssignmentConfirmations({
+        db: tx as unknown as DbClient,
+        assignmentIds,
+      })
+      if (assignmentIds.length > 0) {
+        await tx
+          .delete(volunteerShiftAssignmentsTable)
+          .where(inArray(volunteerShiftAssignmentsTable.id, assignmentIds))
+      }
+    })
 
     return { success: true }
   })
@@ -549,6 +618,13 @@ async function loadCrewShifts(
       },
     },
   })
+  const assignmentIds = shifts.flatMap((shift) =>
+    shift.assignments.map((assignment) => assignment.id),
+  )
+  const confirmationMap = await loadCrewShiftAssignmentConfirmationMap(
+    db,
+    assignmentIds,
+  )
 
   return shifts.map((shift) => {
     const assignments = shift.assignments.map((assignment) => {
@@ -569,6 +645,7 @@ async function loadCrewShifts(
         id: assignment.id,
         membershipId: assignment.membershipId,
         notes: assignment.notes,
+        confirmation: confirmationMap.get(assignment.id) ?? null,
         volunteer: {
           membershipId: assignment.membershipId,
           name,
@@ -598,16 +675,35 @@ async function loadCrewShifts(
 }
 
 function summarizeCrewShifts(shifts: CrewShiftBoardItem[]): CrewShiftSummary {
-  return shifts.reduce<CrewShiftSummary>(
-    (summary, shift) => {
-      summary.totalShifts += 1
-      summary.assignedSlots += shift.assignedCount
-      summary.capacity += shift.capacity
-      summary.openSlots += shift.openSlots
-      return summary
+  const summary = shifts.reduce(
+    (nextSummary, shift) => {
+      nextSummary.totalShifts += 1
+      nextSummary.assignedSlots += shift.assignedCount
+      nextSummary.capacity += shift.capacity
+      nextSummary.openSlots += shift.openSlots
+      nextSummary.confirmations.push(
+        ...shift.assignments.map((assignment) => assignment.confirmation),
+      )
+      return nextSummary
     },
-    { totalShifts: 0, assignedSlots: 0, capacity: 0, openSlots: 0 },
+    {
+      totalShifts: 0,
+      assignedSlots: 0,
+      capacity: 0,
+      openSlots: 0,
+      confirmations: [] as Array<CrewShiftAssignmentConfirmationStatus | null>,
+    },
   )
+
+  return {
+    totalShifts: summary.totalShifts,
+    assignedSlots: summary.assignedSlots,
+    capacity: summary.capacity,
+    openSlots: summary.openSlots,
+    confirmationSummary: summarizeCrewShiftAssignmentConfirmations(
+      summary.confirmations,
+    ),
+  }
 }
 
 async function requireCrewShift(competitionId: string, shiftId: string) {
@@ -629,4 +725,10 @@ async function requireCrewShift(competitionId: string, shiftId: string) {
 function emptyToNull(value: string | null | undefined) {
   const trimmed = value?.trim()
   return trimmed ? trimmed : null
+}
+
+function getAssignmentConfirmationExpiry(now: Date) {
+  const expiresAt = new Date(now)
+  expiresAt.setDate(expiresAt.getDate() + 30)
+  return expiresAt
 }

@@ -34,6 +34,7 @@ import {
   validateCrewVolunteerSignupRequirements,
   type CrewVolunteerSignupMetadata,
 } from "../lib/crew/volunteer-signup"
+import { getFirstExecuteValue } from "./db-execute"
 import type { QuestionType } from "./registration-questions-fns"
 
 type DbClient = ReturnType<typeof getDb>
@@ -587,22 +588,6 @@ async function createVolunteerSignupLockName(
   return Array.from(new Uint8Array(digest), (byte) =>
     byte.toString(16).padStart(2, "0"),
   ).join("")
-}
-
-function getExecuteRows<T>(result: unknown): T[] {
-  if (Array.isArray(result)) {
-    if (Array.isArray(result[0])) return result[0] as T[]
-    return result as T[]
-  }
-
-  return ((result as { rows?: T[] })?.rows ?? []) as T[]
-}
-
-function getFirstExecuteValue(result: unknown): unknown {
-  const [row] = getExecuteRows<unknown>(result)
-  if (Array.isArray(row)) return row[0]
-  if (row && typeof row === "object") return Object.values(row)[0]
-  return row
 }
 
 function parseQuestionOptions(options: string | null): string[] | null {
