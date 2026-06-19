@@ -147,3 +147,6 @@ export const createCompetitionInviteSourceDivisionAllocationId = () =>
 export const createRouteDocId = () => `rdoc_${ulid()}`
 export const createRouteDocRouteId = () => `rdocrt_${ulid()}`
 export const createRouteDocVersionId = () => `rdocver_${ulid()}`
+
+// Crew event settings ID generators
+export const createCrewEventSettingsId = () => `crewset_${ulid()}`
