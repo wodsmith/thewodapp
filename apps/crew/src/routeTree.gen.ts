@@ -15,6 +15,7 @@ import { Route as EventsNewRouteImport } from './routes/events/new'
 import { Route as EventsEventIdRouteImport } from './routes/events/$eventId'
 import { Route as EventsEventIdIndexRouteImport } from './routes/events/$eventId/index'
 import { Route as EventsEventIdVolunteersRouteImport } from './routes/events/$eventId/volunteers'
+import { Route as EventsEventIdSetupRouteImport } from './routes/events/$eventId/setup'
 import { Route as EventsEventIdScheduleRouteImport } from './routes/events/$eventId/schedule'
 
 const EventsRoute = EventsRouteImport.update({
@@ -47,6 +48,11 @@ const EventsEventIdVolunteersRoute = EventsEventIdVolunteersRouteImport.update({
   path: '/volunteers',
   getParentRoute: () => EventsEventIdRoute,
 } as any)
+const EventsEventIdSetupRoute = EventsEventIdSetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
+  getParentRoute: () => EventsEventIdRoute,
+} as any)
 const EventsEventIdScheduleRoute = EventsEventIdScheduleRouteImport.update({
   id: '/schedule',
   path: '/schedule',
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/events/$eventId': typeof EventsEventIdRouteWithChildren
   '/events/new': typeof EventsNewRoute
   '/events/$eventId/schedule': typeof EventsEventIdScheduleRoute
+  '/events/$eventId/setup': typeof EventsEventIdSetupRoute
   '/events/$eventId/volunteers': typeof EventsEventIdVolunteersRoute
   '/events/$eventId/': typeof EventsEventIdIndexRoute
 }
@@ -67,6 +74,7 @@ export interface FileRoutesByTo {
   '/events': typeof EventsRouteWithChildren
   '/events/new': typeof EventsNewRoute
   '/events/$eventId/schedule': typeof EventsEventIdScheduleRoute
+  '/events/$eventId/setup': typeof EventsEventIdSetupRoute
   '/events/$eventId/volunteers': typeof EventsEventIdVolunteersRoute
   '/events/$eventId': typeof EventsEventIdIndexRoute
 }
@@ -77,6 +85,7 @@ export interface FileRoutesById {
   '/events/$eventId': typeof EventsEventIdRouteWithChildren
   '/events/new': typeof EventsNewRoute
   '/events/$eventId/schedule': typeof EventsEventIdScheduleRoute
+  '/events/$eventId/setup': typeof EventsEventIdSetupRoute
   '/events/$eventId/volunteers': typeof EventsEventIdVolunteersRoute
   '/events/$eventId/': typeof EventsEventIdIndexRoute
 }
@@ -88,6 +97,7 @@ export interface FileRouteTypes {
     | '/events/$eventId'
     | '/events/new'
     | '/events/$eventId/schedule'
+    | '/events/$eventId/setup'
     | '/events/$eventId/volunteers'
     | '/events/$eventId/'
   fileRoutesByTo: FileRoutesByTo
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/events/new'
     | '/events/$eventId/schedule'
+    | '/events/$eventId/setup'
     | '/events/$eventId/volunteers'
     | '/events/$eventId'
   id:
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
     | '/events/$eventId'
     | '/events/new'
     | '/events/$eventId/schedule'
+    | '/events/$eventId/setup'
     | '/events/$eventId/volunteers'
     | '/events/$eventId/'
   fileRoutesById: FileRoutesById
@@ -158,6 +170,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EventsEventIdVolunteersRouteImport
       parentRoute: typeof EventsEventIdRoute
     }
+    '/events/$eventId/setup': {
+      id: '/events/$eventId/setup'
+      path: '/setup'
+      fullPath: '/events/$eventId/setup'
+      preLoaderRoute: typeof EventsEventIdSetupRouteImport
+      parentRoute: typeof EventsEventIdRoute
+    }
     '/events/$eventId/schedule': {
       id: '/events/$eventId/schedule'
       path: '/schedule'
@@ -170,12 +189,14 @@ declare module '@tanstack/react-router' {
 
 interface EventsEventIdRouteChildren {
   EventsEventIdScheduleRoute: typeof EventsEventIdScheduleRoute
+  EventsEventIdSetupRoute: typeof EventsEventIdSetupRoute
   EventsEventIdVolunteersRoute: typeof EventsEventIdVolunteersRoute
   EventsEventIdIndexRoute: typeof EventsEventIdIndexRoute
 }
 
 const EventsEventIdRouteChildren: EventsEventIdRouteChildren = {
   EventsEventIdScheduleRoute: EventsEventIdScheduleRoute,
+  EventsEventIdSetupRoute: EventsEventIdSetupRoute,
   EventsEventIdVolunteersRoute: EventsEventIdVolunteersRoute,
   EventsEventIdIndexRoute: EventsEventIdIndexRoute,
 }

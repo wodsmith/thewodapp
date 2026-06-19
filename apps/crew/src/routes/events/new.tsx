@@ -34,7 +34,10 @@ function NewEventPage() {
   const [crewPlan, setCrewPlan] = useState<
     "self_serve" | "concierge" | "full_platform"
   >("self_serve")
-  const [settings, setSettings] = useState('{\n  "assumptions": []\n}')
+  // @lat: [[crew#Event Setup Dashboard]]
+  const [settings, setSettings] = useState(
+    '{\n  "setup": {\n    "assumptions": ""\n  }\n}',
+  )
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -206,7 +209,8 @@ function NewEventPage() {
               className="min-h-24 w-full rounded-md border bg-background px-3 py-2 text-sm"
             />
           </Field>
-          <Field label="Crew assumptions" htmlFor="crew-assumptions" wide>
+          {/* @lat: [[crew#Event Setup Dashboard]] */}
+          <Field label="Initial setup JSON" htmlFor="crew-assumptions" wide>
             <textarea
               id="crew-assumptions"
               value={settings}
@@ -236,17 +240,14 @@ function NewEventPage() {
   )
 }
 
-function Field({
-  label,
-  htmlFor,
-  wide = false,
-  children,
-}: {
+interface FieldProps {
   label: string
   htmlFor: string
   wide?: boolean
   children: ReactNode
-}) {
+}
+
+function Field({ label, htmlFor, wide = false, children }: FieldProps) {
   return (
     <label
       htmlFor={htmlFor}

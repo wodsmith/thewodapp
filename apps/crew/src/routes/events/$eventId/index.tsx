@@ -1,8 +1,10 @@
-import type { FormEvent, ReactNode } from "react"
-import { useEffect, useState } from "react"
-import { createFileRoute, getRouteApi, useRouter } from "@tanstack/react-router"
-import { toast } from "sonner"
-import { updateCrewEventSettingsFn } from "@/server-fns/crew-event-settings-fns"
+import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router"
+import { formatCrewValue, getSafeHttpUrl } from "@/lib/crew-event-display"
+import {
+  calculateSetupProgress,
+  crewSetupChecklistItems,
+  parseCrewSettings,
+} from "@/lib/crew-event-setup"
 
 export const Route = createFileRoute("/events/$eventId/")({
   component: EventOverviewPage,
@@ -11,311 +13,248 @@ export const Route = createFileRoute("/events/$eventId/")({
 const parentRoute = getRouteApi("/events/$eventId")
 
 function EventOverviewPage() {
-  const router = useRouter()
+  const { eventId } = parentRoute.useParams()
   const { event } = parentRoute.useLoaderData()
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [crewOnly, setCrewOnly] = useState(event.settings.crewOnly)
-  const [sourcePlatform, setSourcePlatform] = useState(
-    event.settings.sourcePlatform ?? "",
-  )
-  const [sourceEventUrl, setSourceEventUrl] = useState(
-    event.settings.sourceEventUrl ?? "",
-  )
-  const [externalRegistrationUrl, setExternalRegistrationUrl] = useState(
-    event.settings.externalRegistrationUrl ?? "",
-  )
-  const [lifecycle, setLifecycle] = useState(event.settings.lifecycle)
-  const [conciergeStatus, setConciergeStatus] = useState(
-    event.settings.conciergeStatus,
-  )
-  const [crewPlan, setCrewPlan] = useState(event.settings.crewPlan)
-  const [fullPlatformCreditCents, setFullPlatformCreditCents] = useState(
-    String(event.settings.fullPlatformCreditCents),
-  )
-  const [acquisitionSource, setAcquisitionSource] = useState(
-    event.settings.acquisitionSource ?? "",
-  )
-  const [settings, setSettings] = useState(event.settings.settings ?? "")
-
-  useEffect(() => {
-    setCrewOnly(event.settings.crewOnly)
-    setSourcePlatform(event.settings.sourcePlatform ?? "")
-    setSourceEventUrl(event.settings.sourceEventUrl ?? "")
-    setExternalRegistrationUrl(event.settings.externalRegistrationUrl ?? "")
-    setLifecycle(event.settings.lifecycle)
-    setConciergeStatus(event.settings.conciergeStatus)
-    setCrewPlan(event.settings.crewPlan)
-    setFullPlatformCreditCents(String(event.settings.fullPlatformCreditCents))
-    setAcquisitionSource(event.settings.acquisitionSource ?? "")
-    setSettings(event.settings.settings ?? "")
-  }, [event])
-
-  async function handleSubmit(submitEvent: FormEvent<HTMLFormElement>) {
-    submitEvent.preventDefault()
-    setIsSubmitting(true)
-
-    try {
-      await updateCrewEventSettingsFn({
-        data: {
-          competitionId: event.competition.id,
-          crewOnly,
-          sourcePlatform,
-          sourceEventUrl,
-          externalRegistrationUrl,
-          lifecycle,
-          conciergeStatus,
-          crewPlan,
-          fullPlatformCreditCents: Number(fullPlatformCreditCents || 0),
-          acquisitionSource,
-          settings,
-        },
-      })
-
-      toast.success("Crew settings saved")
-      await router.invalidate()
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to save settings",
-      )
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
+  const parsedSettings = parseCrewSettings(event.settings.settings)
+  const setupProgress = calculateSetupProgress(parsedSettings.setup)
 
   return (
-    <section className="grid gap-6 lg:grid-cols-[1fr_18rem]">
-      <form
-        onSubmit={handleSubmit}
-        className="rounded-md border bg-card p-5 shadow-sm"
-      >
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="text-xl font-semibold">Crew settings</h2>
-            <p className="text-sm text-muted-foreground">
-              One Crew settings row attached to this competition.
+    <section className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-4">
+        <StatusPanel
+          label="Lifecycle"
+          value={formatCrewValue(event.settings.lifecycle)}
+        />
+        <StatusPanel
+          label="Concierge"
+          value={formatCrewValue(event.settings.conciergeStatus)}
+        />
+        <StatusPanel
+          label="Plan"
+          value={formatCrewValue(event.settings.crewPlan)}
+        />
+        <StatusPanel
+          label="Setup"
+          value={`${setupProgress.completed}/${setupProgress.total}`}
+        />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
+        <section className="rounded-md border bg-card p-5 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold">Concierge dashboard</h2>
+              <p className="text-sm text-muted-foreground">
+                Operator view for source data, setup progress, and handoff
+                notes.
+              </p>
+            </div>
+            <Link
+              to="/events/$eventId/setup"
+              params={{ eventId }}
+              className="w-fit rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              Edit setup
+            </Link>
+          </div>
+
+          <div className="mt-6 space-y-3">
+            <div className="flex items-center justify-between gap-4 text-sm">
+              <span className="font-medium">Setup progress</span>
+              <span className="text-muted-foreground">
+                {setupProgress.percent}%
+              </span>
+            </div>
+            <ProgressBar value={setupProgress.percent} />
+          </div>
+
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            {crewSetupChecklistItems.map((item) => (
+              <div
+                key={item.key}
+                className="flex items-center gap-3 rounded-md border bg-background px-3 py-2 text-sm"
+              >
+                <span
+                  className={
+                    parsedSettings.setup.checklist[item.key]
+                      ? "size-2 rounded-full bg-emerald-500"
+                      : "size-2 rounded-full bg-muted-foreground/35"
+                  }
+                />
+                <span>{item.label}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <aside className="rounded-md border bg-card p-5 shadow-sm">
+          <h2 className="text-sm font-semibold uppercase text-muted-foreground">
+            Competition
+          </h2>
+          <dl className="mt-4 space-y-4 text-sm">
+            <Fact label="ID" value={event.competition.id} mono />
+            <Fact label="Slug" value={event.competition.slug} />
+            <Fact
+              label="Team"
+              value={event.competition.organizingTeamId}
+              mono
+            />
+            <Fact label="Status" value={event.competition.status} />
+          </dl>
+        </aside>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className="rounded-md border bg-card p-5 shadow-sm">
+          <h2 className="text-xl font-semibold">Source</h2>
+          <dl className="mt-4 grid gap-4 text-sm">
+            <Fact
+              label="Platform"
+              value={event.settings.sourcePlatform ?? "Not set"}
+            />
+            <Fact
+              label="Source event URL"
+              value={event.settings.sourceEventUrl ?? "Not set"}
+              link={event.settings.sourceEventUrl}
+            />
+            <Fact
+              label="External registration URL"
+              value={event.settings.externalRegistrationUrl ?? "Not set"}
+              link={event.settings.externalRegistrationUrl}
+            />
+            <Fact
+              label="Acquisition source"
+              value={event.settings.acquisitionSource ?? "Not set"}
+            />
+          </dl>
+        </section>
+
+        <section className="rounded-md border bg-card p-5 shadow-sm">
+          <h2 className="text-xl font-semibold">Operator notes</h2>
+          <dl className="mt-4 grid gap-4 text-sm">
+            <Fact
+              label="Desired go-live date"
+              value={parsedSettings.setup.desiredGoLiveDate || "Not set"}
+            />
+            <Fact
+              label="Staffing lead"
+              value={parsedSettings.setup.staffingLead || "Not set"}
+            />
+            <Fact
+              label="Volunteer target"
+              value={parsedSettings.setup.volunteerTarget || "Not set"}
+            />
+            <Fact
+              label="Source contact"
+              value={
+                [
+                  parsedSettings.setup.sourceContactName,
+                  parsedSettings.setup.sourceContactEmail,
+                ]
+                  .filter(Boolean)
+                  .join(" | ") || "Not set"
+              }
+            />
+          </dl>
+          {parsedSettings.parseError ? (
+            <p className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              Settings JSON could not be parsed. Saving setup will preserve the
+              previous text under legacySettingsText.
             </p>
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={crewOnly}
-              onChange={(changeEvent) =>
-                setCrewOnly(changeEvent.target.checked)
-              }
-              className="size-4"
-            />
-            Crew-only
-          </label>
+          ) : null}
+        </section>
+      </div>
+
+      <section className="rounded-md border bg-card p-5 shadow-sm">
+        <h2 className="text-xl font-semibold">Internal notes</h2>
+        <div className="mt-4 grid gap-4 text-sm lg:grid-cols-2">
+          <NoteBlock
+            label="Assumptions"
+            value={
+              parsedSettings.setup.assumptions || "No assumptions recorded."
+            }
+          />
+          <NoteBlock
+            label="Notes"
+            value={parsedSettings.setup.internalNotes || "No notes recorded."}
+          />
         </div>
-
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <Field label="Lifecycle" htmlFor="crew-settings-lifecycle">
-            <select
-              id="crew-settings-lifecycle"
-              value={lifecycle}
-              onChange={(changeEvent) =>
-                setLifecycle(
-                  changeEvent.target.value as
-                    | "draft"
-                    | "setup"
-                    | "importing"
-                    | "ready"
-                    | "archived",
-                )
-              }
-              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-            >
-              <option value="draft">Draft</option>
-              <option value="setup">Setup</option>
-              <option value="importing">Importing</option>
-              <option value="ready">Ready</option>
-              <option value="archived">Archived</option>
-            </select>
-          </Field>
-          <Field
-            label="Concierge status"
-            htmlFor="crew-settings-concierge-status"
-          >
-            <select
-              id="crew-settings-concierge-status"
-              value={conciergeStatus}
-              onChange={(changeEvent) =>
-                setConciergeStatus(
-                  changeEvent.target.value as
-                    | "not_started"
-                    | "in_progress"
-                    | "ready"
-                    | "blocked",
-                )
-              }
-              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-            >
-              <option value="not_started">Not started</option>
-              <option value="in_progress">In progress</option>
-              <option value="ready">Ready</option>
-              <option value="blocked">Blocked</option>
-            </select>
-          </Field>
-          <Field label="Crew plan" htmlFor="crew-settings-plan">
-            <select
-              id="crew-settings-plan"
-              value={crewPlan}
-              onChange={(changeEvent) =>
-                setCrewPlan(
-                  changeEvent.target.value as
-                    | "self_serve"
-                    | "concierge"
-                    | "full_platform",
-                )
-              }
-              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-            >
-              <option value="self_serve">Self serve</option>
-              <option value="concierge">Concierge</option>
-              <option value="full_platform">Full platform</option>
-            </select>
-          </Field>
-          <Field
-            label="Full platform credit cents"
-            htmlFor="crew-settings-credit-cents"
-          >
-            <input
-              id="crew-settings-credit-cents"
-              type="number"
-              min="0"
-              value={fullPlatformCreditCents}
-              onChange={(changeEvent) =>
-                setFullPlatformCreditCents(changeEvent.target.value)
-              }
-              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-            />
-          </Field>
-          <Field
-            label="Source platform"
-            htmlFor="crew-settings-source-platform"
-          >
-            <input
-              id="crew-settings-source-platform"
-              value={sourcePlatform}
-              onChange={(changeEvent) =>
-                setSourcePlatform(changeEvent.target.value)
-              }
-              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-            />
-          </Field>
-          <Field
-            label="Acquisition source"
-            htmlFor="crew-settings-acquisition-source"
-          >
-            <input
-              id="crew-settings-acquisition-source"
-              value={acquisitionSource}
-              onChange={(changeEvent) =>
-                setAcquisitionSource(changeEvent.target.value)
-              }
-              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-            />
-          </Field>
-          <Field
-            label="Source event URL"
-            htmlFor="crew-settings-source-event-url"
-            wide
-          >
-            <input
-              id="crew-settings-source-event-url"
-              value={sourceEventUrl}
-              onChange={(changeEvent) =>
-                setSourceEventUrl(changeEvent.target.value)
-              }
-              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-            />
-          </Field>
-          <Field
-            label="External registration URL"
-            htmlFor="crew-settings-external-registration-url"
-            wide
-          >
-            <input
-              id="crew-settings-external-registration-url"
-              value={externalRegistrationUrl}
-              onChange={(changeEvent) =>
-                setExternalRegistrationUrl(changeEvent.target.value)
-              }
-              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-            />
-          </Field>
-          <Field
-            label="Crew assumptions"
-            htmlFor="crew-settings-assumptions"
-            wide
-          >
-            <textarea
-              id="crew-settings-assumptions"
-              value={settings}
-              onChange={(changeEvent) => setSettings(changeEvent.target.value)}
-              className="min-h-36 w-full rounded-md border bg-background px-3 py-2 font-mono text-sm"
-            />
-          </Field>
-        </div>
-
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="mt-5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
-        >
-          {isSubmitting ? "Saving..." : "Save settings"}
-        </button>
-      </form>
-
-      <aside className="rounded-md border bg-card p-5 shadow-sm">
-        <h2 className="text-sm font-semibold uppercase text-muted-foreground">
-          Competition
-        </h2>
-        <dl className="mt-4 space-y-4 text-sm">
-          <div>
-            <dt className="text-muted-foreground">ID</dt>
-            <dd className="break-all font-mono">{event.competition.id}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Slug</dt>
-            <dd className="font-medium">{event.competition.slug}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Team</dt>
-            <dd className="break-all font-mono">
-              {event.competition.organizingTeamId}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Status</dt>
-            <dd className="font-medium">{event.competition.status}</dd>
-          </div>
-        </dl>
-      </aside>
+      </section>
     </section>
   )
 }
 
-function Field({
-  label,
-  htmlFor,
-  wide = false,
-  children,
-}: {
+interface StatusPanelProps {
   label: string
-  htmlFor: string
-  wide?: boolean
-  children: ReactNode
-}) {
+  value: string
+}
+
+function StatusPanel({ label, value }: StatusPanelProps) {
   return (
-    <label
-      htmlFor={htmlFor}
-      className={wide ? "space-y-2 sm:col-span-2" : "space-y-2"}
-    >
-      <span className="text-sm font-medium" id={`${htmlFor}-label`}>
-        {label}
-      </span>
-      {children}
-    </label>
+    <section className="rounded-md border bg-card p-4 shadow-sm">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <p className="mt-2 text-lg font-semibold">{value}</p>
+    </section>
+  )
+}
+
+interface FactProps {
+  label: string
+  value: string
+  link?: string | null
+  mono?: boolean
+}
+
+function Fact({ label, value, link, mono = false }: FactProps) {
+  const className = mono ? "break-all font-mono" : "break-words font-medium"
+  const safeLink = getSafeHttpUrl(link)
+
+  return (
+    <div>
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className={className}>
+        {safeLink ? (
+          <a
+            href={safeLink}
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary underline-offset-4 hover:underline"
+          >
+            {value}
+          </a>
+        ) : (
+          value
+        )}
+      </dd>
+    </div>
+  )
+}
+
+interface NoteBlockProps {
+  label: string
+  value: string
+}
+
+function NoteBlock({ label, value }: NoteBlockProps) {
+  return (
+    <div className="rounded-md border bg-background p-3">
+      <h3 className="font-medium">{label}</h3>
+      <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{value}</p>
+    </div>
+  )
+}
+
+interface ProgressBarProps {
+  value: number
+}
+
+function ProgressBar({ value }: ProgressBarProps) {
+  return (
+    <div className="h-2 overflow-hidden rounded-full bg-muted">
+      <div
+        className="h-full rounded-full bg-primary transition-all"
+        style={{ width: `${value}%` }}
+      />
+    </div>
   )
 }
