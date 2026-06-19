@@ -2,6 +2,7 @@ import { createFileRoute, getRouteApi } from "@tanstack/react-router"
 import { CompetitionTabs } from "@/components/competition-tabs"
 import { PublicSubmissionWindows } from "@/components/public-submission-windows"
 import { SchedulePageContent } from "@/components/schedule-page-content"
+import { getPublicScheduleMode } from "@/lib/competitions/scheduling-check-in-gates"
 import { getPublicCompetitionEventsFn } from "@/server-fns/competition-event-fns"
 import { getHeatsForCompetitionFn } from "@/server-fns/competition-heats-fns"
 import { getPublishedCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
@@ -26,10 +27,9 @@ export const Route = createFileRoute("/compete/$slug/schedule")({
       }
     }
 
-    const isOnline = competition.competitionType === "online"
+    const scheduleMode = getPublicScheduleMode(competition.competitionType)
 
-    // For online competitions, fetch submission windows instead of heats
-    if (isOnline) {
+    if (scheduleMode === "submissionWindows") {
       const [eventsResult, submissionResult] = await Promise.all([
         getPublishedCompetitionWorkoutsFn({
           data: { competitionId: competition.id },
@@ -49,7 +49,17 @@ export const Route = createFileRoute("/compete/$slug/schedule")({
       }
     }
 
-    // For in-person competitions, fetch heats as usual
+    if (scheduleMode === "unavailable") {
+      return {
+        heats: [],
+        events: [],
+        submissionWindows: [],
+        competitionStarted: false,
+        isOnline: false,
+        timezone: competition.timezone ?? "America/Denver",
+      }
+    }
+
     const [heatsResult, eventsResult] = await Promise.all([
       getHeatsForCompetitionFn({ data: { competitionId: competition.id } }),
       getPublishedCompetitionWorkoutsFn({

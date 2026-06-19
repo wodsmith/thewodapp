@@ -9,6 +9,7 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router"
 import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { canUseDayOfCheckIn } from "@/lib/competitions/scheduling-check-in-gates"
 import { getCompetitionWaiversFn } from "@/server-fns/waiver-fns"
 import { CheckInKiosk } from "./check-in/-components/check-in-kiosk"
 
@@ -24,7 +25,7 @@ export const Route = createFileRoute("/compete/$slug/check-in")({
       throw new Error("Competition not found")
     }
 
-    if (competition.competitionType === "online") {
+    if (!canUseDayOfCheckIn(competition.competitionType)) {
       throw redirect({
         to: "/compete/$slug",
         params: { slug: params.slug },
