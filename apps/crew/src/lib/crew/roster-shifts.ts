@@ -155,6 +155,13 @@ export function normalizeCrewRosterRoleTypes(
   )
 }
 
+export function getCrewRosterRoleTypes(
+  roleTypes: unknown,
+): VolunteerRoleType[] {
+  const normalized = normalizeCrewRosterRoleTypes(roleTypes)
+  return normalized.length > 0 ? normalized : [VOLUNTEER_ROLE_TYPES.GENERAL]
+}
+
 export function getCrewRosterStatus(
   record:
     | ({ source: "team_membership" } & Pick<
@@ -328,7 +335,7 @@ function toInvitationRosterRow(
   now: Date,
 ): CrewRosterVolunteer {
   const metadata = parseCrewRosterMetadata(invitation.metadata)
-  const roleTypes = normalizeCrewRosterRoleTypes(metadata.volunteerRoleTypes)
+  const roleTypes = getCrewRosterRoleTypes(metadata.volunteerRoleTypes)
 
   return {
     id: `invitation:${invitation.id}`,
@@ -343,8 +350,7 @@ function toInvitationRosterRow(
       { source: "team_invitation", ...invitation },
       now,
     ),
-    roleTypes:
-      roleTypes.length > 0 ? roleTypes : [VOLUNTEER_ROLE_TYPES.GENERAL],
+    roleTypes,
     availability: metadata.availability ?? null,
     availabilityNotes: metadata.availabilityNotes ?? null,
     credentials: metadata.credentials ?? null,
@@ -360,7 +366,7 @@ function toMembershipRosterRow(
   now: Date,
 ): CrewRosterVolunteer {
   const metadata = parseCrewRosterMetadata(membership.metadata)
-  const roleTypes = normalizeCrewRosterRoleTypes(metadata.volunteerRoleTypes)
+  const roleTypes = getCrewRosterRoleTypes(metadata.volunteerRoleTypes)
   const userName = [membership.user?.firstName, membership.user?.lastName]
     .filter(Boolean)
     .join(" ")
@@ -379,8 +385,7 @@ function toMembershipRosterRow(
       { source: "team_membership", ...membership },
       now,
     ),
-    roleTypes:
-      roleTypes.length > 0 ? roleTypes : [VOLUNTEER_ROLE_TYPES.GENERAL],
+    roleTypes,
     availability: metadata.availability ?? null,
     availabilityNotes: metadata.availabilityNotes ?? null,
     credentials: metadata.credentials ?? null,

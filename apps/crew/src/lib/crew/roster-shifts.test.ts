@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   buildCrewRoster,
+  getCrewRosterRoleTypes,
   normalizeCrewShiftTimes,
   summarizeCrewRoster,
   validateShiftAssignment,
@@ -110,6 +111,24 @@ describe("Crew roster helpers", () => {
     expect(roster).toHaveLength(1)
     expect(roster[0]?.source).toBe("team_membership")
     expect(roster[0]?.status).toBe("active")
+  })
+
+  it("defaults missing volunteer role metadata to general for roster and assignment paths", () => {
+    expect(getCrewRosterRoleTypes(undefined)).toEqual(["general"])
+    expect(getCrewRosterRoleTypes([])).toEqual(["general"])
+
+    expect(
+      validateShiftAssignment({
+        shiftRoleType: "general",
+        capacity: 1,
+        currentAssignmentMembershipIds: [],
+        volunteer: {
+          membershipId: "tmem_missing_roles",
+          roleTypes: getCrewRosterRoleTypes(undefined),
+          isActive: true,
+        },
+      }),
+    ).toEqual({ ok: true })
   })
 })
 

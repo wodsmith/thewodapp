@@ -20,7 +20,7 @@ import {
 import {
   buildCrewRoster,
   formatVolunteerRole,
-  normalizeCrewRosterRoleTypes,
+  getCrewRosterRoleTypes,
   normalizeCrewShiftTimes,
   parseCrewRosterMetadata,
   summarizeCrewRoster,
@@ -354,7 +354,7 @@ export const assignCrewVolunteerToShiftFn = createServerFn({ method: "POST" })
         ? {
             membershipId: membership.id,
             isActive: membership.isActive,
-            roleTypes: normalizeCrewRosterRoleTypes(
+            roleTypes: getCrewRosterRoleTypes(
               parseCrewRosterMetadata(membership.metadata).volunteerRoleTypes,
             ),
           }
@@ -480,9 +480,7 @@ async function loadCrewShifts(
   return shifts.map((shift) => {
     const assignments = shift.assignments.map((assignment) => {
       const metadata = parseCrewRosterMetadata(assignment.membership.metadata)
-      const roleTypes = normalizeCrewRosterRoleTypes(
-        metadata.volunteerRoleTypes,
-      )
+      const roleTypes = getCrewRosterRoleTypes(metadata.volunteerRoleTypes)
       const name =
         metadata.signupName ||
         [
