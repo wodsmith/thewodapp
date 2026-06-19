@@ -9,18 +9,23 @@ export const Route = createFileRoute("/events/new")({
   component: NewEventPage,
 })
 
+function getLocalDateInputValue() {
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = String(today.getMonth() + 1).padStart(2, "0")
+  const day = String(today.getDate()).padStart(2, "0")
+
+  return `${year}-${month}-${day}`
+}
+
 function NewEventPage() {
   const navigate = useNavigate()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [name, setName] = useState("Pilot Weekend")
   const [slug, setSlug] = useState("pilot-weekend")
   const [organizingTeamId, setOrganizingTeamId] = useState("")
-  const [startDate, setStartDate] = useState(() =>
-    new Date().toISOString().slice(0, 10),
-  )
-  const [endDate, setEndDate] = useState(() =>
-    new Date().toISOString().slice(0, 10),
-  )
+  const [startDate, setStartDate] = useState(getLocalDateInputValue)
+  const [endDate, setEndDate] = useState(getLocalDateInputValue)
   const [description, setDescription] = useState("")
   const [sourcePlatform, setSourcePlatform] = useState("")
   const [sourceEventUrl, setSourceEventUrl] = useState("")

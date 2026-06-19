@@ -47,10 +47,13 @@ const localCrewStages = new Set(["dev", "local", "test", "preview"])
 
 function requireLocalCrewSettingsAccess() {
   const runtimeEnv = env as CrewRuntimeEnv
-  const nodeEnv = runtimeEnv.NODE_ENV
-  const stage = runtimeEnv.STAGE
-  const appUrl = runtimeEnv.APP_URL ?? runtimeEnv.SITE_URL ?? ""
-  const isLocalStage = stage ? localCrewStages.has(stage) : true
+  const nodeEnv = runtimeEnv.NODE_ENV?.toLowerCase()
+  const stage = runtimeEnv.STAGE?.toLowerCase()
+  const appUrl = (runtimeEnv.APP_URL ?? runtimeEnv.SITE_URL ?? "").toLowerCase()
+  const appHost = getAppHost(appUrl)
+  const isLocalStage = stage ? localCrewStages.has(stage) : false
+  const isLocalUrl =
+    appHost === "localhost" || appHost === "127.0.0.1" || appHost === "::1"
   const isProductionLike =
     nodeEnv === "production" ||
     stage === "prod" ||
@@ -59,11 +62,24 @@ function requireLocalCrewSettingsAccess() {
     stage === "staging" ||
     appUrl.includes("wodsmith.com")
 
-  if (isProductionLike || !isLocalStage) {
+  if (isProductionLike || (!isLocalStage && !isLocalUrl)) {
     throw new Error(
       "Crew event settings are local-operator only until Crew auth is wired.",
     )
   }
+}
+
+function getAppHost(appUrl: string) {
+  if (!appUrl) return ""
+
+  try {
+    const url = new URL(appUrl)
+    if (url.hostname) return url.hostname
+  } catch {
+    // Fall back below for bare local hosts, like localhost:3000.
+  }
+
+  return appUrl.startsWith("[::1]") ? "::1" : (appUrl.split(":")[0] ?? "")
 }
 
 const lifecycleSchema = z.enum([
@@ -175,6 +191,19 @@ async function requireCrewEventCompetition(competitionId: string) {
   }
 }
 
+async function requireOrganizingTeam(organizingTeamId: string) {
+  const db = getDb()
+  const [team] = await db
+    .select({ id: teamTable.id })
+    .from(teamTable)
+    .where(eq(teamTable.id, organizingTeamId))
+    .limit(1)
+
+  if (!team) {
+    throw new Error("Organizing team not found")
+  }
+}
+
 async function getCrewEventByCompetitionId(
   competitionId: string,
 ): Promise<CrewEventDetails | null> {
@@ -268,6 +297,8 @@ export const createCrewEventFn = createServerFn({ method: "POST" })
       )
     }
 
+    await requireOrganizingTeam(data.organizingTeamId)
+
     let teamSlug = generateSlug(`${data.name}-event`)
     let teamSlugIsUnique = false
     let attempts = 0
@@ -292,19 +323,20 @@ export const createCrewEventFn = createServerFn({ method: "POST" })
     }
 
     const competitionTeamId = `team_${createId()}`
-    await db.insert(teamTable).values({
-      id: competitionTeamId,
-      name: `${data.name} (Event)`,
-      slug: teamSlug,
-      type: "competition_event",
-      parentOrganizationId: data.organizingTeamId,
-      description: `Competition event team for ${data.name}`,
-      creditBalance: 0,
-    })
-
     const competitionId = `comp_${createId()}`
-    try {
-      await db.insert(competitionsTable).values({
+
+    await db.transaction(async (tx) => {
+      await tx.insert(teamTable).values({
+        id: competitionTeamId,
+        name: `${data.name} (Event)`,
+        slug: teamSlug,
+        type: "competition_event",
+        parentOrganizationId: data.organizingTeamId,
+        description: `Competition event team for ${data.name}`,
+        creditBalance: 0,
+      })
+
+      await tx.insert(competitionsTable).values({
         id: competitionId,
         organizingTeamId: data.organizingTeamId,
         competitionTeamId,
@@ -316,26 +348,16 @@ export const createCrewEventFn = createServerFn({ method: "POST" })
         timezone: data.timezone,
         competitionType: "in-person",
       })
-    } catch (competitionError) {
-      try {
-        await db.delete(teamTable).where(eq(teamTable.id, competitionTeamId))
-      } catch (cleanupError) {
-        console.error("Failed to clean up competition team:", cleanupError)
-      }
 
-      throw new Error(
-        `Failed to create competition: ${competitionError instanceof Error ? competitionError.message : String(competitionError)}`,
-      )
-    }
-
-    await db.insert(crewEventSettingsTable).values({
-      competitionId,
-      sourcePlatform: data.sourcePlatform,
-      sourceEventUrl: data.sourceEventUrl,
-      externalRegistrationUrl: data.externalRegistrationUrl,
-      acquisitionSource: data.acquisitionSource,
-      crewPlan: data.crewPlan,
-      settings: data.settings,
+      await tx.insert(crewEventSettingsTable).values({
+        competitionId,
+        sourcePlatform: data.sourcePlatform,
+        sourceEventUrl: data.sourceEventUrl,
+        externalRegistrationUrl: data.externalRegistrationUrl,
+        acquisitionSource: data.acquisitionSource,
+        crewPlan: data.crewPlan,
+        settings: data.settings,
+      })
     })
 
     const event = await getCrewEventByCompetitionId(competitionId)

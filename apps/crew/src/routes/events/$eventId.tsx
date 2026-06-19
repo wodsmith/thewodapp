@@ -1,11 +1,11 @@
-import { createFileRoute, Link, Outlet } from "@tanstack/react-router"
+import { createFileRoute, Link, notFound, Outlet } from "@tanstack/react-router"
 import { getCrewEventFn } from "@/server-fns/crew-event-settings-fns"
 
 export const Route = createFileRoute("/events/$eventId")({
   loader: async ({ params }) => {
     const result = await getCrewEventFn({ data: { eventId: params.eventId } })
     if (!result.event) {
-      throw new Error("Crew event not found")
+      throw notFound()
     }
     return { event: result.event }
   },

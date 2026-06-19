@@ -1,26 +1,18 @@
 import type { FormEvent, ReactNode } from "react"
-import { useState } from "react"
-import { createFileRoute, useRouter } from "@tanstack/react-router"
+import { useEffect, useState } from "react"
+import { createFileRoute, getRouteApi, useRouter } from "@tanstack/react-router"
 import { toast } from "sonner"
-import {
-  getCrewEventFn,
-  updateCrewEventSettingsFn,
-} from "@/server-fns/crew-event-settings-fns"
+import { updateCrewEventSettingsFn } from "@/server-fns/crew-event-settings-fns"
 
 export const Route = createFileRoute("/events/$eventId/")({
-  loader: async ({ params }) => {
-    const result = await getCrewEventFn({ data: { eventId: params.eventId } })
-    if (!result.event) {
-      throw new Error("Crew event not found")
-    }
-    return { event: result.event }
-  },
   component: EventOverviewPage,
 })
 
+const parentRoute = getRouteApi("/events/$eventId")
+
 function EventOverviewPage() {
   const router = useRouter()
-  const { event } = Route.useLoaderData()
+  const { event } = parentRoute.useLoaderData()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [crewOnly, setCrewOnly] = useState(event.settings.crewOnly)
   const [sourcePlatform, setSourcePlatform] = useState(
@@ -44,6 +36,19 @@ function EventOverviewPage() {
     event.settings.acquisitionSource ?? "",
   )
   const [settings, setSettings] = useState(event.settings.settings ?? "")
+
+  useEffect(() => {
+    setCrewOnly(event.settings.crewOnly)
+    setSourcePlatform(event.settings.sourcePlatform ?? "")
+    setSourceEventUrl(event.settings.sourceEventUrl ?? "")
+    setExternalRegistrationUrl(event.settings.externalRegistrationUrl ?? "")
+    setLifecycle(event.settings.lifecycle)
+    setConciergeStatus(event.settings.conciergeStatus)
+    setCrewPlan(event.settings.crewPlan)
+    setFullPlatformCreditCents(String(event.settings.fullPlatformCreditCents))
+    setAcquisitionSource(event.settings.acquisitionSource ?? "")
+    setSettings(event.settings.settings ?? "")
+  }, [event])
 
   async function handleSubmit(submitEvent: FormEvent<HTMLFormElement>) {
     submitEvent.preventDefault()
