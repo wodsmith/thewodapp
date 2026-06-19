@@ -1,5 +1,6 @@
 import { createId } from "@paralleldrive/cuid2"
 import { createServerFn } from "@tanstack/react-start"
+import { env } from "cloudflare:workers"
 import { desc, eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "../db"
@@ -33,6 +34,36 @@ type CrewEventCompetition = Pick<
 export interface CrewEventDetails {
   settings: CrewEventSettings
   competition: CrewEventCompetition
+}
+
+type CrewRuntimeEnv = typeof env & {
+  NODE_ENV?: string
+  STAGE?: string
+  APP_URL?: string
+  SITE_URL?: string
+}
+
+const localCrewStages = new Set(["dev", "local", "test", "preview"])
+
+function requireLocalCrewSettingsAccess() {
+  const runtimeEnv = env as CrewRuntimeEnv
+  const nodeEnv = runtimeEnv.NODE_ENV
+  const stage = runtimeEnv.STAGE
+  const appUrl = runtimeEnv.APP_URL ?? runtimeEnv.SITE_URL ?? ""
+  const isLocalStage = stage ? localCrewStages.has(stage) : true
+  const isProductionLike =
+    nodeEnv === "production" ||
+    stage === "prod" ||
+    stage === "production" ||
+    stage === "demo" ||
+    stage === "staging" ||
+    appUrl.includes("wodsmith.com")
+
+  if (isProductionLike || !isLocalStage) {
+    throw new Error(
+      "Crew event settings are local-operator only until Crew auth is wired.",
+    )
+  }
 }
 
 const lifecycleSchema = z.enum([
@@ -163,6 +194,8 @@ async function getCrewEventByCompetitionId(
 
 export const listCrewEventsFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<{ events: CrewEventDetails[] }> => {
+    requireLocalCrewSettingsAccess()
+
     const db = getDb()
     const events = await db
       .select(crewEventSelect)
@@ -180,6 +213,8 @@ export const listCrewEventsFn = createServerFn({ method: "GET" }).handler(
 export const getCrewEventFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => getCrewEventInputSchema.parse(data))
   .handler(async ({ data }): Promise<{ event: CrewEventDetails | null }> => {
+    requireLocalCrewSettingsAccess()
+
     return { event: await getCrewEventByCompetitionId(data.eventId) }
   })
 
@@ -190,6 +225,7 @@ export const createCrewSettingsForCompetitionFn = createServerFn({
     createCrewSettingsForCompetitionInputSchema.parse(data),
   )
   .handler(async ({ data }): Promise<{ event: CrewEventDetails }> => {
+    requireLocalCrewSettingsAccess()
     await requireCrewEventCompetition(data.competitionId)
 
     const db = getDb()
@@ -217,6 +253,8 @@ export const createCrewSettingsForCompetitionFn = createServerFn({
 export const createCrewEventFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => createCrewEventInputSchema.parse(data))
   .handler(async ({ data }): Promise<{ event: CrewEventDetails }> => {
+    requireLocalCrewSettingsAccess()
+
     const db = getDb()
     const existingCompetition = await db
       .select({ id: competitionsTable.id })
@@ -313,6 +351,7 @@ export const updateCrewEventSettingsFn = createServerFn({ method: "POST" })
     updateCrewEventSettingsInputSchema.parse(data),
   )
   .handler(async ({ data }): Promise<{ event: CrewEventDetails }> => {
+    requireLocalCrewSettingsAccess()
     await requireCrewEventCompetition(data.competitionId)
 
     const updateData: Partial<typeof crewEventSettingsTable.$inferInsert> = {
