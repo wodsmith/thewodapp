@@ -72,15 +72,21 @@ Dev environments get starter content from the `22-route-docs` seeder: a markdown
 
 ## Video storage
 
-Documentation videos upload to R2 through the existing `/api/upload` route using the `docs-video` purpose (MP4/WebM/MOV, 32MB max, stored under `docs/videos/`).
+Documentation videos upload to R2 under `docs/videos/`; small files keep the `/api/upload` compatibility path while large files use a raw-body multipart route.
 
 Authorization in [[apps/wodsmith-start/src/server/upload-authorization.ts#checkUploadAuthorization]] restricts the purpose to site admins. Files are served from `R2_PUBLIC_URL` like other uploads; admins can alternatively paste YouTube/Vimeo URLs instead of uploading.
 
 ### PR-1 upload mitigation
 
-Docs-video upload is capped at 32MB and sends `file.stream()` to R2 so the Worker avoids the extra `file.arrayBuffer()` copy that exhausted memory on larger videos.
+Docs-video fallback upload is capped at 32MB and sends `file.stream()` to R2 so the Worker avoids the extra `file.arrayBuffer()` copy that exhausted memory on larger videos.
 
-The route still parses the multipart body with `request.formData()`, so this is not the final large-video architecture. Larger training videos should use YouTube/Vimeo until PR-2 adds a signed direct-to-R2 upload protocol.
+This remains the compatibility path for small files. Because `/api/upload` still parses multipart requests with `request.formData()`, the admin docs form sends larger local video files through the multipart route below instead of this fallback.
+
+### Multipart large-video upload
+
+Large admin docs videos upload through `/api/upload/docs-video`, which streams raw chunks to R2 multipart uploads and authorizes each step with a signed upload token.
+
+The route uses the existing `docs-video` authorization check for every initiate, part, complete, and abort request. It accepts MP4/WebM/MOV files up to 100MB, creates R2 multipart uploads under `docs/videos/{userId}/`, streams `PUT` request bodies directly into `uploadPart`, and completes only a validated contiguous part list returned by the client. This avoids sending the full video through `request.formData()` and avoids mutable multipart state in eventually consistent KV while preserving the small-file `/api/upload` fallback.
 
 ### Streams docs-video without second buffer
 
@@ -93,6 +99,26 @@ Verifies generic upload purposes still pass `file.arrayBuffer()` results to R2, 
 ### Rejects docs-video above demo-safe cap
 
 Verifies docs-video uploads above 32MB return the configured size error before R2 writes, keeping admin UI copy, route validation, and docs aligned around the proven-safe cap.
+
+### Initiates large multipart docs-video uploads
+
+Verifies the multipart route validates admin docs-video metadata, creates an R2 multipart upload, returns a signed upload token, and never reads multipart form data.
+
+### Streams raw multipart parts to R2
+
+Verifies each large docs-video part request passes the raw `Request.body` stream to R2 multipart upload, avoiding Worker-side full-file buffering.
+
+### Completes multipart docs-video uploads
+
+Verifies the multipart route completes a validated R2 part list and returns the public docs-video URL used by the admin form.
+
+### Rejects incomplete multipart docs-video uploads
+
+Verifies completion refuses provided part sets whose contiguous part numbers or byte total do not match the initiated file size, preventing truncated videos from being saved as successful uploads.
+
+### Aborts multipart docs-video uploads
+
+Verifies failed or canceled multipart uploads abort the R2 multipart session using the signed upload token without reading mutable KV metadata.
 
 ## Versioning
 

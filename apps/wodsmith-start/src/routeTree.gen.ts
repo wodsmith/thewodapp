@@ -25,6 +25,7 @@ import { Route as CompeteCohostInviteRouteImport } from './routes/compete/cohost
 import { Route as CompeteCohostRouteImport } from './routes/compete/cohost'
 import { Route as CompeteSlugRouteImport } from './routes/compete/$slug'
 import { Route as ApiUploadRouteImport } from './routes/api/upload'
+import { Route as ApiUploadDocsVideoRouteImport } from './routes/api/upload/docs-video'
 import { Route as ApiSitemapRouteImport } from './routes/api/sitemap'
 import { Route as ApiGetSessionRouteImport } from './routes/api/get-session'
 import { Route as ProtectedSettingsRouteImport } from './routes/_protected/settings'
@@ -297,6 +298,11 @@ const ApiUploadRoute = ApiUploadRouteImport.update({
   id: '/api/upload',
   path: '/api/upload',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ApiUploadDocsVideoRoute = ApiUploadDocsVideoRouteImport.update({
+  id: '/docs-video',
+  path: '/docs-video',
+  getParentRoute: () => ApiUploadRoute,
 } as any)
 const ApiSitemapRoute = ApiSitemapRouteImport.update({
   id: '/api/sitemap',
@@ -1431,7 +1437,8 @@ export interface FileRoutesByFullPath {
   '/settings': typeof ProtectedSettingsRouteWithChildren
   '/api/get-session': typeof ApiGetSessionRoute
   '/api/sitemap': typeof ApiSitemapRoute
-  '/api/upload': typeof ApiUploadRoute
+  '/api/upload': typeof ApiUploadRouteWithChildren
+  '/api/upload/docs-video': typeof ApiUploadDocsVideoRoute
   '/compete/$slug': typeof CompeteSlugRouteWithChildren
   '/compete/cohost': typeof CompeteCohostRouteWithChildren
   '/compete/cohost-invite': typeof CompeteCohostInviteRouteWithChildren
@@ -1637,7 +1644,8 @@ export interface FileRoutesByTo {
   '/dashboard': typeof ProtectedDashboardRoute
   '/api/get-session': typeof ApiGetSessionRoute
   '/api/sitemap': typeof ApiSitemapRoute
-  '/api/upload': typeof ApiUploadRoute
+  '/api/upload': typeof ApiUploadRouteWithChildren
+  '/api/upload/docs-video': typeof ApiUploadDocsVideoRoute
   '/compete/cohost': typeof CompeteCohostRouteWithChildren
   '/compete/cohost-invite': typeof CompeteCohostInviteRouteWithChildren
   '/compete/organizer': typeof CompeteOrganizerDashboardIndexRoute
@@ -1837,7 +1845,8 @@ export interface FileRoutesById {
   '/_protected/settings': typeof ProtectedSettingsRouteWithChildren
   '/api/get-session': typeof ApiGetSessionRoute
   '/api/sitemap': typeof ApiSitemapRoute
-  '/api/upload': typeof ApiUploadRoute
+  '/api/upload': typeof ApiUploadRouteWithChildren
+  '/api/upload/docs-video': typeof ApiUploadDocsVideoRoute
   '/compete/$slug': typeof CompeteSlugRouteWithChildren
   '/compete/cohost': typeof CompeteCohostRouteWithChildren
   '/compete/cohost-invite': typeof CompeteCohostInviteRouteWithChildren
@@ -2050,6 +2059,7 @@ export interface FileRouteTypes {
     | '/api/get-session'
     | '/api/sitemap'
     | '/api/upload'
+    | '/api/upload/docs-video'
     | '/compete/$slug'
     | '/compete/cohost'
     | '/compete/cohost-invite'
@@ -2256,6 +2266,7 @@ export interface FileRouteTypes {
     | '/api/get-session'
     | '/api/sitemap'
     | '/api/upload'
+    | '/api/upload/docs-video'
     | '/compete/cohost'
     | '/compete/cohost-invite'
     | '/compete/organizer'
@@ -2455,6 +2466,7 @@ export interface FileRouteTypes {
     | '/api/get-session'
     | '/api/sitemap'
     | '/api/upload'
+    | '/api/upload/docs-video'
     | '/compete/$slug'
     | '/compete/cohost'
     | '/compete/cohost-invite'
@@ -2659,7 +2671,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   ApiGetSessionRoute: typeof ApiGetSessionRoute
   ApiSitemapRoute: typeof ApiSitemapRoute
-  ApiUploadRoute: typeof ApiUploadRoute
+  ApiUploadRoute: typeof ApiUploadRouteWithChildren
   TransferTransferIdRoute: typeof TransferTransferIdRoute
   ApiAuthTokenRoute: typeof ApiAuthTokenRouteWithChildren
   ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
@@ -2798,6 +2810,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/upload'
       preLoaderRoute: typeof ApiUploadRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/upload/docs-video': {
+      id: '/api/upload/docs-video'
+      path: '/docs-video'
+      fullPath: '/api/upload/docs-video'
+      preLoaderRoute: typeof ApiUploadDocsVideoRouteImport
+      parentRoute: typeof ApiUploadRoute
     }
     '/api/sitemap': {
       id: '/api/sitemap'
@@ -4842,6 +4861,17 @@ const CompeteRouteChildren: CompeteRouteChildren = {
 const CompeteRouteWithChildren =
   CompeteRoute._addFileChildren(CompeteRouteChildren)
 
+interface ApiUploadRouteChildren {
+  ApiUploadDocsVideoRoute: typeof ApiUploadDocsVideoRoute
+}
+
+const ApiUploadRouteChildren: ApiUploadRouteChildren = {
+  ApiUploadDocsVideoRoute: ApiUploadDocsVideoRoute,
+}
+
+const ApiUploadRouteWithChildren =
+  ApiUploadRoute._addFileChildren(ApiUploadRouteChildren)
+
 interface ApiAuthTokenRouteChildren {
   ApiAuthTokenRefreshRoute: typeof ApiAuthTokenRefreshRoute
 }
@@ -4865,7 +4895,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   ApiGetSessionRoute: ApiGetSessionRoute,
   ApiSitemapRoute: ApiSitemapRoute,
-  ApiUploadRoute: ApiUploadRoute,
+  ApiUploadRoute: ApiUploadRouteWithChildren,
   TransferTransferIdRoute: TransferTransferIdRoute,
   ApiAuthTokenRoute: ApiAuthTokenRouteWithChildren,
   ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
