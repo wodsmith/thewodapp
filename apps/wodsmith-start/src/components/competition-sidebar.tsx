@@ -14,10 +14,10 @@ import {
   Calculator,
   Calendar,
   ClipboardCheck,
+  ClipboardList,
   ClipboardSignature,
   Clock,
   DollarSign,
-  Grid3X3,
   Handshake,
   Home,
   Layers,
@@ -94,24 +94,37 @@ const getNavigation = (
     },
     groups: [
       {
-        label: "Competition Setup",
+        label: "Setup",
         items: [
-          { label: "Divisions", href: `${basePath}/divisions`, icon: Layers },
+          {
+            label: "Competition details",
+            href: `${basePath}/edit`,
+            icon: Settings,
+          },
+          {
+            label: "Divisions & capacity",
+            href: `${basePath}/divisions`,
+            icon: Layers,
+          },
           { label: "Events", href: `${basePath}/events`, icon: Trophy },
           ...(canDisplayPhysicalVenue(type)
             ? [
                 {
-                  label: "Locations",
+                  label: "Venues & lanes",
                   href: `${basePath}/locations`,
                   icon: MapPin,
                 },
               ]
             : []),
-          {
-            label: "Event divisions",
-            href: `${basePath}/event-divisions`,
-            icon: Grid3X3,
-          },
+          ...(canUseHeatScheduling(type)
+            ? [
+                {
+                  label: "Heat schedule",
+                  href: `${basePath}/schedule`,
+                  icon: Calendar,
+                },
+              ]
+            : []),
           ...(competitionCan(type, "submissionWindows")
             ? [
                 {
@@ -121,42 +134,71 @@ const getNavigation = (
                 },
               ]
             : []),
-          { label: "Scoring", href: `${basePath}/scoring`, icon: Calculator },
-          { label: "Registrations", href: `${basePath}/athletes`, icon: Users },
-          { label: "Invites", href: `${basePath}/invites`, icon: Mail },
+          {
+            label: "Scoring rules",
+            href: `${basePath}/scoring`,
+            icon: Calculator,
+          },
+        ],
+      },
+      {
+        label: "Registration",
+        items: [
+          { label: "Athletes", href: `${basePath}/athletes`, icon: Users },
+          {
+            label: "Registration questions",
+            href: `${basePath}/athletes/form-questions`,
+            icon: ClipboardList,
+          },
           {
             label: "Waivers",
             href: `${basePath}/waivers`,
             icon: ClipboardSignature,
           },
+          { label: "Invites", href: `${basePath}/invites`, icon: Mail },
         ],
       },
       {
-        label: "Run Competition",
+        label: "Volunteers & judging",
         items: [
+          {
+            label: "Volunteer roster",
+            href: `${basePath}/volunteers`,
+            icon: UserCheck,
+          },
+          {
+            label: "Volunteer shifts",
+            href: `${basePath}/volunteers/shifts`,
+            icon: Calendar,
+          },
           ...(canUseHeatScheduling(type)
             ? [
                 {
-                  label: "Schedule",
-                  href: `${basePath}/schedule`,
-                  icon: Calendar,
-                },
-              ]
-            : []),
-          ...(canUseDayOfCheckIn(type)
-            ? [
-                {
-                  label: "Check-in",
-                  href: `${basePath}/check-in`,
+                  label: "Judge assignments",
+                  href: `${basePath}/volunteers/judges`,
                   icon: ClipboardCheck,
                 },
               ]
             : []),
           {
-            label: "Volunteers",
-            href: `${basePath}/volunteers`,
-            icon: UserCheck,
+            label: "Registration questions",
+            href: `${basePath}/volunteers/signup-questions`,
+            icon: ClipboardList,
           },
+        ],
+      },
+      {
+        label: "Run competition",
+        items: [
+          ...(canUseDayOfCheckIn(type)
+            ? [
+                {
+                  label: "Check-in / athlete status",
+                  href: `${basePath}/check-in`,
+                  icon: ClipboardCheck,
+                },
+              ]
+            : []),
           {
             label: resultsNavLabel(type),
             href: `${basePath}/results`,
@@ -168,8 +210,8 @@ const getNavigation = (
             icon: BarChart3,
           },
           {
-            label: "Broadcasts",
-            href: `${basePath}/broadcasts`,
+            label: "Event announcements",
+            href: `${basePath}/announcements`,
             icon: Megaphone,
           },
         ],
@@ -295,12 +337,29 @@ export function CompetitionSidebar({
   const basePath = `/compete/organizer/${competitionId}`
   const navigation = getNavigation(basePath, competitionType)
 
-  const isActive = (href: string) => {
-    if (href === basePath) {
+  // Some nav hrefs nest under others (e.g. /athletes/form-questions under
+  // /athletes), so the active item is the one with the longest href that
+  // prefixes the current pathname.
+  const matchesPathname = (href: string) =>
+    pathname === href || pathname.startsWith(`${href}/`)
+
+  const activeHref = navigation.groups
+    .flatMap((group) => group.items)
+    .filter((item) => matchesPathname(item.href))
+    .reduce<string | null>(
+      (longest, item) =>
+        longest === null || item.href.length > longest.length
+          ? item.href
+          : longest,
+      null,
+    )
+
+  const isActive = (item: NavItem) => {
+    if (item.href === basePath) {
       // Overview is active only when exactly on base path
       return pathname === basePath
     }
-    return pathname.startsWith(href)
+    return item.href === activeHref
   }
 
   return (
@@ -315,7 +374,7 @@ export function CompetitionSidebar({
               <SidebarMenu>
                 <NavMenuItem
                   item={navigation.overview}
-                  isActive={isActive(navigation.overview.href)}
+                  isActive={isActive(navigation.overview)}
                 />
               </SidebarMenu>
             </SidebarGroupContent>
@@ -331,7 +390,7 @@ export function CompetitionSidebar({
                     <NavMenuItem
                       key={item.href}
                       item={item}
-                      isActive={isActive(item.href)}
+                      isActive={isActive(item)}
                     />
                   ))}
                 </SidebarMenu>

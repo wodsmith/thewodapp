@@ -1,0 +1,806 @@
+import { AsyncLocalStorage } from "node:async_hooks"
+import { encodeHexLowerCase } from "@oslojs/encoding"
+import { init } from "@paralleldrive/cuid2"
+import { getCookie, setCookie } from "@tanstack/react-start/server"
+import { and, eq, gt, inArray, isNull, or } from "drizzle-orm"
+import ms from "ms"
+
+import { ACTIVE_TEAM_COOKIE_NAME, SESSION_COOKIE_NAME } from "@/constants"
+import { getDb } from "@/db"
+import {
+  ROLES_ENUM,
+  SYSTEM_ROLES_ENUM,
+  TEAM_PERMISSIONS,
+  type Team,
+  type TeamMembership,
+  teamEntitlementOverrideTable,
+  teamMembershipTable,
+  userTable,
+} from "@/db/schema"
+import { setEvlogUser } from "@/lib/evlog"
+import { AppError } from "@/utils/errors"
+
+/** Membership with team relation included */
+type TeamMembershipWithTeam = TeamMembership & {
+  team: Team | null
+}
+
+import { getTeamPlan } from "@/server/entitlements"
+import { getUserPersonalTeamId } from "@/server/user"
+import type { SessionValidationResult } from "@/types"
+import isProd from "@/utils/is-prod"
+import { addFreeMonthlyCreditsIfNeeded } from "./credits"
+import {
+  type CreateKVSessionParams,
+  CURRENT_SESSION_VERSION,
+  createKVSession,
+  deleteKVSession,
+  getKVSession,
+  type KVSession,
+  updateKVSession,
+} from "./kv-session"
+import { getInitials } from "./name-initials"
+
+const getSessionLength = () => {
+  return ms("30d")
+}
+
+/**
+ * This file is based on https://lucia-auth.com
+ */
+
+export async function getUserFromDB(userId: string) {
+  const db = getDb()
+  return await db.query.userTable.findFirst({
+    where: eq(userTable.id, userId),
+    columns: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      role: true,
+      emailVerified: true,
+      avatar: true,
+      createdAt: true,
+      updatedAt: true,
+      currentCredits: true,
+      lastCreditRefreshAt: true,
+    },
+  })
+}
+
+const createId = init({
+  length: 32,
+})
+
+export function generateSessionToken(): string {
+  return createId()
+}
+
+async function generateSessionId(token: string): Promise<string> {
+  const hashBuffer = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(token),
+  )
+  return encodeHexLowerCase(new Uint8Array(hashBuffer))
+}
+
+function encodeSessionCookie(userId: string, token: string): string {
+  return `${userId}:${token}`
+}
+
+function decodeSessionCookie(
+  cookie: string,
+): { userId: string; token: string } | null {
+  const parts = cookie.split(":")
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return null
+  return { userId: parts[0], token: parts[1] }
+}
+
+interface CreateSessionParams
+  extends Pick<
+    CreateKVSessionParams,
+    "authenticationType" | "passkeyCredentialId" | "userId"
+  > {
+  token: string
+}
+
+export async function getUserTeamsWithPermissions(userId: string): Promise<
+  {
+    id: string
+    name: string
+    slug: string
+    type: string
+    isPersonalTeam: boolean
+    role: {
+      id: string
+      name: string
+      isSystemRole: boolean
+    }
+    permissions: string[]
+    plan?: {
+      id: string
+      name: string
+      features: string[]
+      limits: Record<string, number>
+    }
+  }[]
+> {
+  const db = getDb()
+
+  // Get user's team memberships
+  const userTeamMemberships = (await db.query.teamMembershipTable.findMany({
+    where: eq(teamMembershipTable.userId, userId),
+    with: {
+      team: true,
+    },
+  })) as TeamMembershipWithTeam[]
+
+  // Get all custom role IDs that need to be fetched
+  const customRoleIds = userTeamMemberships
+    .filter((m) => !m.isSystemRole)
+    .map((m) => m.roleId)
+
+  // Fetch all custom roles in one query
+  const customRoles =
+    customRoleIds.length > 0
+      ? await db.query.teamRoleTable.findMany({
+          where: (table, { inArray }) => inArray(table.id, customRoleIds),
+        })
+      : []
+
+  // Create a map for quick role lookup
+  const roleMap = new Map(customRoles.map((role) => [role.id, role]))
+
+  // Fetch plans for all teams in parallel
+  const teamIds = userTeamMemberships.map((m) => m.teamId)
+  const teamPlansPromises = teamIds.map((teamId) => getTeamPlan(teamId))
+  const teamPlans = await Promise.all(teamPlansPromises)
+  const planMap = new Map(teamPlans.map((plan, i) => [teamIds[i], plan]))
+
+  // Fetch entitlement overrides for all teams in a single query
+  const overrides =
+    teamIds.length > 0
+      ? await db
+          .select({
+            teamId: teamEntitlementOverrideTable.teamId,
+            type: teamEntitlementOverrideTable.type,
+            key: teamEntitlementOverrideTable.key,
+            value: teamEntitlementOverrideTable.value,
+          })
+          .from(teamEntitlementOverrideTable)
+          .where(
+            and(
+              inArray(teamEntitlementOverrideTable.teamId, teamIds),
+              or(
+                isNull(teamEntitlementOverrideTable.expiresAt),
+                gt(teamEntitlementOverrideTable.expiresAt, new Date()),
+              ),
+            ),
+          )
+      : []
+
+  // Group overrides by teamId
+  const overridesByTeam = new Map<string, typeof overrides>()
+  for (const override of overrides) {
+    const existing = overridesByTeam.get(override.teamId) ?? []
+    existing.push(override)
+    overridesByTeam.set(override.teamId, existing)
+  }
+
+  // Process memberships without async operations
+  return userTeamMemberships.map((membership) => {
+    let roleName = ""
+    let permissions: string[] = []
+
+    // Handle system roles
+    if (membership.isSystemRole) {
+      roleName = membership.roleId // For system roles, roleId contains the role name
+
+      // For system roles, get permissions based on role
+      if (
+        membership.roleId === SYSTEM_ROLES_ENUM.OWNER ||
+        membership.roleId === SYSTEM_ROLES_ENUM.ADMIN
+      ) {
+        // Owners and admins have all permissions
+        permissions = Object.values(TEAM_PERMISSIONS)
+      } else if (membership.roleId === SYSTEM_ROLES_ENUM.MEMBER) {
+        // Default permissions for members
+        permissions = [
+          TEAM_PERMISSIONS.ACCESS_DASHBOARD,
+          TEAM_PERMISSIONS.CREATE_COMPONENTS,
+          TEAM_PERMISSIONS.EDIT_COMPONENTS,
+        ]
+      } else if (membership.roleId === SYSTEM_ROLES_ENUM.GUEST) {
+        // Guest permissions are limited
+        permissions = [TEAM_PERMISSIONS.ACCESS_DASHBOARD]
+      }
+    } else {
+      // Handle custom roles using pre-fetched data
+      const role = roleMap.get(membership.roleId)
+      if (role) {
+        roleName = role.name
+        // Parse the stored JSON permissions
+        permissions = role.permissions as string[]
+      }
+    }
+
+    const plan = planMap.get(membership.teamId)
+
+    // Merge entitlement overrides into plan data
+    const teamOverrides = overridesByTeam.get(membership.teamId) ?? []
+    let features = plan ? [...plan.entitlements.features] : []
+    const limits = plan ? { ...plan.entitlements.limits } : {}
+
+    for (const override of teamOverrides) {
+      if (override.type === "feature") {
+        const isEnabled = override.value === "true" || override.value === "1"
+        if (isEnabled && !features.includes(override.key)) {
+          features.push(override.key)
+        } else if (!isEnabled) {
+          features = features.filter((f) => f !== override.key)
+        }
+      } else if (override.type === "limit") {
+        const parsed = Number.parseInt(override.value, 10)
+        if (!Number.isNaN(parsed)) {
+          limits[override.key] = parsed
+        }
+      }
+    }
+
+    const team =
+      membership.team && "name" in membership.team ? membership.team : null
+    return {
+      id: membership.teamId,
+      name: team?.name ?? "",
+      slug: team?.slug ?? "",
+      type: team?.type ?? "gym",
+      isPersonalTeam: !!team?.isPersonalTeam,
+      role: {
+        id: membership.roleId,
+        name: roleName,
+        isSystemRole: !!membership.isSystemRole,
+      },
+      permissions,
+      plan: plan
+        ? {
+            id: plan.id,
+            name: plan.name,
+            features,
+            limits,
+          }
+        : undefined,
+    }
+  })
+}
+
+export async function createSession({
+  token,
+  userId,
+  authenticationType,
+  passkeyCredentialId,
+}: CreateSessionParams): Promise<KVSession> {
+  const sessionId = await generateSessionId(token)
+  const expiresAt = new Date(Date.now() + getSessionLength())
+
+  const user = await getUserFromDB(userId)
+
+  if (!user) {
+    throw new Error("User not found")
+  }
+
+  const teamsWithPermissions = await getUserTeamsWithPermissions(userId)
+
+  return createKVSession({
+    sessionId,
+    userId,
+    expiresAt,
+    user,
+    authenticationType,
+    passkeyCredentialId,
+    teams: teamsWithPermissions,
+  })
+}
+
+export async function createAndStoreSession(
+  userId: string,
+  authenticationType?: CreateKVSessionParams["authenticationType"],
+  passkeyCredentialId?: CreateKVSessionParams["passkeyCredentialId"],
+) {
+  const sessionToken = generateSessionToken()
+  const session = await createSession({
+    token: sessionToken,
+    userId,
+    authenticationType,
+    passkeyCredentialId,
+  })
+  await setSessionTokenCookie({
+    token: sessionToken,
+    userId,
+    expiresAt: new Date(session.expiresAt),
+  })
+
+  // Set personal team as active by default
+  const personalTeam = session.teams?.find((t) => t.isPersonalTeam)
+  if (personalTeam) {
+    await setActiveTeamCookie(personalTeam.id)
+  }
+}
+
+/**
+ * Public export for validating a session token + userId pair.
+ * Used by bearer auth middleware to validate Authorization header tokens.
+ */
+export async function validateSessionByToken(
+  token: string,
+  userId: string,
+): Promise<SessionValidationResult | null> {
+  return validateSessionToken(token, userId)
+}
+
+async function validateSessionToken(
+  token: string,
+  userId: string,
+): Promise<SessionValidationResult | null> {
+  const sessionId = await generateSessionId(token)
+
+  let session = await getKVSession(sessionId, userId)
+
+  if (!session) return null
+
+  // If the session has expired, delete it and return null
+  if (Date.now() >= session.expiresAt) {
+    await deleteKVSession(sessionId, userId)
+    return null
+  }
+
+  // Check if session version needs to be updated
+  if (!session.version || session.version !== CURRENT_SESSION_VERSION) {
+    session = await updateKVSession(
+      sessionId,
+      userId,
+      new Date(session.expiresAt),
+    )
+
+    if (!session) {
+      return null
+    }
+
+    // Update the user initials without mutation
+    session = {
+      ...session,
+      user: {
+        ...session.user,
+        initials: getInitials(
+          `${session.user.firstName} ${session.user.lastName}`,
+        ),
+      },
+    }
+
+    return session
+  }
+
+  // Check and refresh credits if needed
+  const currentCredits = await addFreeMonthlyCreditsIfNeeded(session)
+
+  // Create a new session object if credits need updating
+  let finalSession = session
+  if (
+    session?.user?.currentCredits &&
+    currentCredits !== session.user.currentCredits
+  ) {
+    finalSession = {
+      ...session,
+      user: { ...session.user, currentCredits },
+    }
+  }
+
+  // Add initials without mutation
+  finalSession = {
+    ...finalSession,
+    user: {
+      ...finalSession.user,
+      initials: getInitials(
+        `${finalSession.user.firstName} ${finalSession.user.lastName}`,
+      ),
+    },
+  }
+
+  return finalSession
+}
+
+export async function invalidateSession(
+  sessionId: string,
+  userId: string,
+): Promise<void> {
+  await deleteKVSession(sessionId, userId)
+}
+
+interface SetSessionTokenCookieParams {
+  token: string
+  userId: string
+  expiresAt: Date
+}
+
+export async function setSessionTokenCookie({
+  token,
+  userId,
+  expiresAt,
+}: SetSessionTokenCookieParams): Promise<void> {
+  setCookie(SESSION_COOKIE_NAME, encodeSessionCookie(userId, token), {
+    httpOnly: true,
+    // Use "lax" instead of "strict" to allow cookies on cross-site redirects (OAuth flows)
+    // Lax still provides CSRF protection (blocks embedded form submissions from other sites)
+    // but allows cookies on top-level navigations like OAuth callbacks from Stripe/Google
+    sameSite: "lax",
+    secure: isProd,
+    expires: expiresAt,
+    path: "/",
+  })
+}
+
+export async function deleteSessionTokenCookie(): Promise<void> {
+  setCookie(SESSION_COOKIE_NAME, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: isProd,
+    expires: new Date(0), // Set expiry to epoch to delete the cookie
+    path: "/",
+  })
+}
+
+/**
+ * Get the active team ID from cookie
+ * @returns The team ID or null if not set
+ */
+export async function getActiveTeamFromCookie(): Promise<string | null> {
+  const activeTeamCookie = getCookie(ACTIVE_TEAM_COOKIE_NAME)
+
+  if (!activeTeamCookie) {
+    return null
+  }
+
+  return activeTeamCookie
+}
+
+/**
+ * Set the active team cookie
+ * @param teamId - The team ID to set as active
+ */
+export async function setActiveTeamCookie(teamId: string): Promise<void> {
+  setCookie(ACTIVE_TEAM_COOKIE_NAME, teamId, {
+    httpOnly: true,
+    // Use "lax" for consistency with session cookie (allows OAuth redirects)
+    sameSite: "lax",
+    secure: isProd,
+    expires: new Date(Date.now() + getSessionLength()),
+    path: "/",
+  })
+}
+
+/**
+ * Delete the active team cookie
+ */
+export async function deleteActiveTeamCookie(): Promise<void> {
+  setCookie(ACTIVE_TEAM_COOKIE_NAME, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: isProd,
+    expires: new Date(0), // Set expiry to epoch to delete the cookie
+    path: "/",
+  })
+}
+
+/**
+ * Get the active team ID or fallback to user's personal team
+ * Validates that the active team exists in the user's session
+ * @param userId - The user's ID
+ * @returns The active team ID or personal team ID as fallback
+ */
+export async function getActiveOrPersonalTeamId(
+  userId: string,
+): Promise<string> {
+  const session = await getSessionFromCookie()
+  const activeTeamId = await getActiveTeamFromCookie()
+
+  // If no active team cookie, get personal team
+  if (!activeTeamId || !session?.teams) {
+    return getUserPersonalTeamId(userId)
+  }
+
+  // Validate that active team exists in user's session
+  const isValidTeam = session.teams.some((team) => team.id === activeTeamId)
+
+  if (!isValidTeam) {
+    // Active team is invalid, fall back to personal team
+    // Note: Cannot delete cookie here as this may be called from Server Components
+    // The stale cookie will be ignored and overwritten when user explicitly changes teams
+    return getUserPersonalTeamId(userId)
+  }
+
+  return activeTeamId
+}
+
+/**
+ * Per-request memoization for getSessionFromCookie.
+ * The fetch handler in server.ts wraps every request with withSessionCache,
+ * which means duplicate calls within the same request (e.g. handler + nested
+ * requireTeamPermission) share a single KV read instead of fanning out.
+ */
+interface SessionCacheStore {
+  session?: Promise<SessionValidationResult | null>
+}
+
+const sessionCacheStorage = new AsyncLocalStorage<SessionCacheStore>()
+
+export function withSessionCache<T>(fn: () => T): T {
+  return sessionCacheStorage.run({}, fn)
+}
+
+async function computeSessionFromCookie(): Promise<SessionValidationResult | null> {
+  const sessionCookie = getCookie(SESSION_COOKIE_NAME)
+
+  if (!sessionCookie) {
+    return null
+  }
+
+  const decoded = decodeSessionCookie(sessionCookie)
+
+  if (!decoded || !decoded.token || !decoded.userId) {
+    return null
+  }
+
+  const session = await validateSessionToken(decoded.token, decoded.userId)
+  if (session?.userId) {
+    setEvlogUser(session.userId)
+  }
+  return session
+}
+
+function getCookieFromHeader(
+  cookieHeader: string | null,
+  name: string,
+): string | null {
+  if (!cookieHeader) return null
+
+  const prefix = `${name}=`
+  for (const part of cookieHeader.split(";")) {
+    const trimmed = part.trim()
+    if (!trimmed.startsWith(prefix)) continue
+    const value = trimmed.slice(prefix.length)
+    try {
+      return decodeURIComponent(value)
+    } catch {
+      return value
+    }
+  }
+
+  return null
+}
+
+/**
+ * Validate the session cookie from a raw Request.
+ *
+ * Use this in custom Worker/Agent handlers that run before TanStack Start has
+ * installed its StartEvent AsyncLocalStorage context. Start route handlers and
+ * server functions should continue using getSessionFromCookie().
+ */
+export async function getSessionFromRequestCookie(
+  request: Request,
+): Promise<SessionValidationResult | null> {
+  const sessionCookie = getCookieFromHeader(
+    request.headers.get("Cookie"),
+    SESSION_COOKIE_NAME,
+  )
+
+  if (!sessionCookie) {
+    return null
+  }
+
+  const decoded = decodeSessionCookie(sessionCookie)
+  if (!decoded || !decoded.token || !decoded.userId) {
+    return null
+  }
+
+  const session = await validateSessionToken(decoded.token, decoded.userId)
+  if (session?.userId) {
+    setEvlogUser(session.userId)
+  }
+  return session
+}
+
+/**
+ * This function can only be called in a Server Components, Server Action or Route Handler
+ */
+export async function getSessionFromCookie(): Promise<SessionValidationResult | null> {
+  const cache = sessionCacheStorage.getStore()
+  if (!cache) {
+    return computeSessionFromCookie()
+  }
+  if (!cache.session) {
+    cache.session = computeSessionFromCookie()
+  }
+  return cache.session
+}
+
+export async function requireVerifiedEmail() {
+  const session = await getSessionFromCookie()
+
+  if (!session) {
+    throw new AppError("NOT_AUTHORIZED", "Not authenticated")
+  }
+
+  return session
+}
+
+export async function requireAdmin({
+  doNotThrowError = false,
+}: {
+  doNotThrowError?: boolean
+} = {}) {
+  const session = await getSessionFromCookie()
+
+  if (!session) {
+    throw new AppError("NOT_AUTHORIZED", "Not authenticated")
+  }
+
+  if (session.user.role !== ROLES_ENUM.ADMIN) {
+    if (doNotThrowError) {
+      return null
+    }
+
+    throw new AppError("FORBIDDEN", "Not authorized")
+  }
+
+  return session
+}
+
+/**
+ * Check if the current user is a site admin
+ * Returns false if not authenticated or not an admin (does not throw)
+ */
+export async function isAdmin(): Promise<boolean> {
+  const session = await getSessionFromCookie()
+  return session?.user?.role === ROLES_ENUM.ADMIN
+}
+
+export async function requireAdminForTeam({
+  doNotThrowError = false,
+  teamIdOrSlug,
+}: {
+  doNotThrowError?: boolean
+  teamIdOrSlug?: string
+} = {}) {
+  const session = await getSessionFromCookie()
+
+  if (!session) {
+    throw new AppError("NOT_AUTHORIZED", "Not authenticated")
+  }
+
+  const team = session?.teams?.find(
+    (t) => t.id === teamIdOrSlug || t.slug === teamIdOrSlug,
+  )
+
+  // Allow both OWNER and ADMIN roles
+  if (
+    !team ||
+    (team.role.name !== SYSTEM_ROLES_ENUM.OWNER &&
+      team.role.name !== SYSTEM_ROLES_ENUM.ADMIN)
+  ) {
+    if (doNotThrowError) {
+      return null
+    }
+
+    throw new AppError("FORBIDDEN", "Not authorized")
+  }
+
+  return session
+}
+
+interface DisposableEmailResponse {
+  disposable: string
+}
+
+interface MailcheckResponse {
+  status: number
+  email: string
+  domain: string
+  mx: boolean
+  disposable: boolean
+  public_domain: boolean
+  relay_domain: boolean
+  alias: boolean
+  role_account: boolean
+  did_you_mean: string | null
+}
+
+type ValidatorResult = {
+  success: boolean
+  isDisposable: boolean
+}
+
+/**
+ * Checks if an email is disposable using debounce.io
+ */
+async function checkWithDebounce(email: string): Promise<ValidatorResult> {
+  try {
+    const response = await fetch(
+      `https://disposable.debounce.io/?email=${encodeURIComponent(email)}`,
+    )
+
+    if (!response.ok) {
+      console.error("Debounce.io API error:", response.status)
+      return { success: false, isDisposable: false }
+    }
+
+    const data = (await response.json()) as DisposableEmailResponse
+
+    return { success: true, isDisposable: data.disposable === "true" }
+  } catch (error) {
+    console.error("Failed to check disposable email with debounce.io:", error)
+    return { success: false, isDisposable: false }
+  }
+}
+
+/**
+ * Checks if an email is disposable using mailcheck.ai
+ */
+async function checkWithMailcheck(email: string): Promise<ValidatorResult> {
+  try {
+    const response = await fetch(
+      `https://api.mailcheck.ai/email/${encodeURIComponent(email)}`,
+    )
+
+    if (!response.ok) {
+      console.error("Mailcheck.ai API error:", response.status)
+      return { success: false, isDisposable: false }
+    }
+
+    const data = (await response.json()) as MailcheckResponse
+    return { success: true, isDisposable: data.disposable }
+  } catch (error) {
+    console.error("Failed to check disposable email with mailcheck.ai:", error)
+    return { success: false, isDisposable: false }
+  }
+}
+
+/**
+ * Checks if an email is allowed for sign up by verifying it's not a disposable email
+ * Uses multiple services in sequence for redundancy.
+ *
+ * @throws {AppError} If email is disposable or if all services fail
+ */
+export async function canSignUp({ email }: { email: string }): Promise<void> {
+  // Skip disposable email check in development
+  if (!isProd) {
+    return
+  }
+
+  const validators = [checkWithDebounce, checkWithMailcheck]
+
+  for (const validator of validators) {
+    const result = await validator(email)
+
+    // If the validator failed (network error, rate limit, etc), try the next one
+    if (!result.success) {
+      continue
+    }
+
+    // If we got a successful response and it's disposable, reject the signup
+    if (result.isDisposable) {
+      throw new AppError(
+        "PRECONDITION_FAILED",
+        "Disposable email addresses are not allowed",
+      )
+    }
+
+    // If we got a successful response and it's not disposable, allow the signup
+    return
+  }
+
+  // If all validators failed, we can't verify the email
+  throw new AppError(
+    "PRECONDITION_FAILED",
+    "Unable to verify email address at this time. Please try again later.",
+  )
+}

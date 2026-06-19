@@ -1,9 +1,12 @@
 "use client"
 
-import { Link } from "@tanstack/react-router"
-import { ClipboardList, Search, Settings2 } from "lucide-react"
+// @lat: [[organizer-dashboard#Volunteers#Judge Scheduling]]
+
+import { Link, useNavigate } from "@tanstack/react-router"
+import { CalendarDays, ClipboardList, Search, Settings2 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
+import { OrganizerEmptyState } from "@/components/organizer/empty-state"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -29,7 +32,6 @@ import type {
 import type { LaneShiftPattern } from "@/db/schemas/volunteers"
 import { canUseHeatScheduling } from "@/lib/competitions/scheduling-check-in-gates"
 import { calculateCoverage } from "@/lib/judge-rotation-utils"
-import { formatTrackOrder } from "@/utils/format-track-order"
 import type { HeatWithAssignments } from "@/server-fns/competition-heats-fns"
 import type { CompetitionWorkout } from "@/server-fns/competition-workouts-fns"
 import {
@@ -42,6 +44,7 @@ import {
   type JudgeHeatAssignment,
   type JudgeVolunteerInfo,
 } from "@/server-fns/judge-scheduling-fns"
+import { formatTrackOrder } from "@/utils/format-track-order"
 
 import { DraggableJudge } from "./draggable-judge"
 import { EventDefaultsEditor } from "./event-defaults-editor"
@@ -187,6 +190,7 @@ export function JudgeSchedulingContainer({
   rotationOverviewActionsSlot,
   overrides,
 }: JudgeSchedulingContainerProps) {
+  const navigate = useNavigate()
   const hasHeatScheduling = canUseHeatScheduling(competitionType)
   const [assignments, setAssignments] =
     useState<JudgeHeatAssignment[]>(initialAssignments)
@@ -537,6 +541,13 @@ export function JudgeSchedulingContainer({
     })
   }
 
+  function handleGoToAthleteHeats() {
+    navigate({
+      to: "/compete/organizer/$competitionId/schedule",
+      params: { competitionId },
+    })
+  }
+
   if (events.length === 0) {
     return (
       <div className="py-12 text-center">
@@ -574,8 +585,7 @@ export function JudgeSchedulingContainer({
             <SelectContent>
               {events.map((event) => (
                 <SelectItem key={event.id} value={event.id}>
-                  {formatTrackOrder(event.trackOrder)} -{" "}
-                  {event.workout.name}
+                  {formatTrackOrder(event.trackOrder)} - {event.workout.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -639,128 +649,122 @@ export function JudgeSchedulingContainer({
             </Card>
           )}
 
-          <>
-            {/* Overview */}
-            <JudgeOverview
-              events={events}
-                heats={heats}
-                judgeAssignments={assignments}
-                filterEmptyLanes={filterEmptyLanes}
-                onFilterEmptyLanesChange={setFilterEmptyLanes}
-              />
+          {/* Overview */}
+          <JudgeOverview
+            events={events}
+            heats={heats}
+            judgeAssignments={assignments}
+            filterEmptyLanes={filterEmptyLanes}
+            onFilterEmptyLanesChange={setFilterEmptyLanes}
+          />
 
-              {/* Main content: judges panel + heats */}
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
-                {/* Available Judges Panel */}
-                <Card className="lg:sticky lg:top-4 lg:self-start">
-                  <CardContent className="p-4">
-                    <div className="mb-3 flex items-center justify-between">
-                      <h4 className="text-sm font-medium">Available Judges</h4>
-                      {selectedJudgeIds.size > 0 && (
-                        <button
-                          type="button"
-                          onClick={clearSelection}
-                          className="text-xs text-muted-foreground hover:text-foreground"
-                        >
-                          Clear ({selectedJudgeIds.size})
-                        </button>
-                      )}
-                    </div>
-                    {judges.length === 0 ? (
-                      <p className="py-4 text-center text-sm text-muted-foreground">
-                        No judges have been added yet. Add volunteers with the
-                        Judge role type in the Volunteers section above.
-                      </p>
-                    ) : (
-                      <>
-                        {/* Search Input */}
-                        <div className="relative mb-3">
-                          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                          <Input
-                            type="text"
-                            placeholder="Search judges..."
-                            value={availableJudgeSearch}
-                            onChange={(e) =>
-                              setAvailableJudgeSearch(e.target.value)
-                            }
-                            className="h-8 pl-8 text-sm"
-                          />
-                        </div>
-                        <div className="max-h-[55vh] space-y-1.5 overflow-y-auto">
-                          {filteredJudgesByAssignmentCount.map((judge) => (
-                            <DraggableJudge
-                              key={judge.membershipId}
-                              volunteer={judge}
-                              isSelected={selectedJudgeIds.has(
-                                judge.membershipId,
-                              )}
-                              onToggleSelect={handleToggleSelect}
-                              selectedIds={selectedJudgeIds}
-                              assignmentCount={judge.assignmentCount}
-                              isAssignedToCurrentEvent={assignedJudgeIds.has(
-                                judge.membershipId,
-                              )}
-                            />
-                          ))}
-                          {filteredJudgesByAssignmentCount.length === 0 &&
-                            availableJudgeSearch && (
-                              <p className="py-4 text-center text-sm text-muted-foreground">
-                                No judges match "{availableJudgeSearch}"
-                              </p>
-                            )}
-                        </div>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Heats Grid */}
-                <div className="space-y-4">
-                  {eventHeats.length === 0 ? (
-                    <Card>
-                      <CardContent className="py-8 text-center">
-                        <p className="text-muted-foreground">
-                          No heats scheduled for this event yet.
-                        </p>
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          Create heats in the Schedule section first.
-                        </p>
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    eventHeats.map((heat) => (
-                      <JudgeHeatCard
-                        key={heat.id}
-                        heat={heat}
-                        competitionId={competitionId}
-                        organizingTeamId={organizingTeamId}
-                        unassignedVolunteers={unassignedJudges}
-                        judgeAssignments={assignments.filter(
-                          (a) => a.heatId === heat.id,
-                        )}
-                        maxLanes={maxLanes}
-                        onDelete={() => {
-                          // No-op: Heat deletion should be done in Schedule section
-                          console.debug(
-                            "Heat deletion is handled in Schedule section",
-                          )
-                        }}
-                        onAssignmentChange={(newAssignments) =>
-                          handleAssignmentChange(heat.id, newAssignments)
-                        }
-                        onMoveAssignment={handleMoveAssignment}
-                        selectedJudgeIds={selectedJudgeIds}
-                        onClearSelection={clearSelection}
-                        filterEmptyLanes={filterEmptyLanes}
-                        athleteOccupiedLanes={occupiedLanesByHeat.get(
-                          heat.heatNumber,
-                        )}
-                      />
-                    ))
+          {/* Main content: judges panel + heats */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
+            {/* Available Judges Panel */}
+            <Card className="lg:sticky lg:top-4 lg:self-start">
+              <CardContent className="p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <h4 className="text-sm font-medium">Available Judges</h4>
+                  {selectedJudgeIds.size > 0 && (
+                    <button
+                      type="button"
+                      onClick={clearSelection}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Clear ({selectedJudgeIds.size})
+                    </button>
                   )}
                 </div>
-              </div>
-          </>
+                {judges.length === 0 ? (
+                  <p className="py-4 text-center text-sm text-muted-foreground">
+                    No judges have been added yet. Add volunteers with the Judge
+                    role type in the Volunteers section above.
+                  </p>
+                ) : (
+                  <>
+                    {/* Search Input */}
+                    <div className="relative mb-3">
+                      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        type="text"
+                        placeholder="Search judges..."
+                        value={availableJudgeSearch}
+                        onChange={(e) =>
+                          setAvailableJudgeSearch(e.target.value)
+                        }
+                        className="h-8 pl-8 text-sm"
+                      />
+                    </div>
+                    <div className="max-h-[55vh] space-y-1.5 overflow-y-auto">
+                      {filteredJudgesByAssignmentCount.map((judge) => (
+                        <DraggableJudge
+                          key={judge.membershipId}
+                          volunteer={judge}
+                          isSelected={selectedJudgeIds.has(judge.membershipId)}
+                          onToggleSelect={handleToggleSelect}
+                          selectedIds={selectedJudgeIds}
+                          assignmentCount={judge.assignmentCount}
+                          isAssignedToCurrentEvent={assignedJudgeIds.has(
+                            judge.membershipId,
+                          )}
+                        />
+                      ))}
+                      {filteredJudgesByAssignmentCount.length === 0 &&
+                        availableJudgeSearch && (
+                          <p className="py-4 text-center text-sm text-muted-foreground">
+                            No judges match "{availableJudgeSearch}"
+                          </p>
+                        )}
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Heats Grid */}
+            <div className="space-y-4">
+              {eventHeats.length === 0 ? (
+                <OrganizerEmptyState
+                  icon={CalendarDays}
+                  title="No athlete heats yet"
+                  description="Create athlete heats before assigning judges to lanes."
+                  actionLabel="Go to athlete heats"
+                  actionIcon={<CalendarDays className="mr-2 h-4 w-4" />}
+                  onAction={handleGoToAthleteHeats}
+                />
+              ) : (
+                eventHeats.map((heat) => (
+                  <JudgeHeatCard
+                    key={heat.id}
+                    heat={heat}
+                    competitionId={competitionId}
+                    organizingTeamId={organizingTeamId}
+                    unassignedVolunteers={unassignedJudges}
+                    judgeAssignments={assignments.filter(
+                      (a) => a.heatId === heat.id,
+                    )}
+                    maxLanes={maxLanes}
+                    onDelete={() => {
+                      // No-op: Heat deletion should be done in Schedule section
+                      console.debug(
+                        "Heat deletion is handled in Schedule section",
+                      )
+                    }}
+                    onAssignmentChange={(newAssignments) =>
+                      handleAssignmentChange(heat.id, newAssignments)
+                    }
+                    onMoveAssignment={handleMoveAssignment}
+                    selectedJudgeIds={selectedJudgeIds}
+                    onClearSelection={clearSelection}
+                    filterEmptyLanes={filterEmptyLanes}
+                    athleteOccupiedLanes={occupiedLanesByHeat.get(
+                      heat.heatNumber,
+                    )}
+                  />
+                ))
+              )}
+            </div>
+          </div>
         </section>
       )}
 
@@ -866,21 +870,22 @@ export function JudgeSchedulingContainer({
               onBatchCreateRotations={overrides?.batchCreateRotations}
               onBatchDeleteRotations={overrides?.batchDeleteRotations}
               onDeleteJudgeRotation={overrides?.deleteJudgeRotation}
-              onBatchUpdateVolunteerRotations={overrides?.batchUpdateVolunteerRotations}
-              onAdjustRotationsForOccupiedLanes={overrides?.adjustRotationsForOccupiedLanes}
+              onBatchUpdateVolunteerRotations={
+                overrides?.batchUpdateVolunteerRotations
+              }
+              onAdjustRotationsForOccupiedLanes={
+                overrides?.adjustRotationsForOccupiedLanes
+              }
             />
           ) : (
-            <Card>
-              <CardContent className="py-8 text-center">
-                <p className="text-muted-foreground">
-                  No heats scheduled for this event yet.
-                </p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Create heats in the Schedule section before creating
-                  rotations.
-                </p>
-              </CardContent>
-            </Card>
+            <OrganizerEmptyState
+              icon={CalendarDays}
+              title="No athlete heats yet"
+              description="Create athlete heats before building judge rotations."
+              actionLabel="Go to athlete heats"
+              actionIcon={<CalendarDays className="mr-2 h-4 w-4" />}
+              onAction={handleGoToAthleteHeats}
+            />
           )}
         </section>
       )}

@@ -430,8 +430,6 @@ export async function getCompetitionLeaderboard(params: {
    */
   bypassPublicationFilter?: boolean
 }): Promise<CompetitionLeaderboardResult> {
-  const db = getDb()
-
   logInfo({
     message: "[Leaderboard] getCompetitionLeaderboard start",
     attributes: {
@@ -441,10 +439,97 @@ export async function getCompetitionLeaderboard(params: {
     },
   })
 
-  // Get competition with settings
-  const competition = await db.query.competitionsTable.findFirst({
-    where: eq(competitionsTable.id, params.competitionId),
-  })
+  // ── Parallel group 1: competition, track → track workouts, registrations ──
+  // Each parallel branch gets its OWN getDb() connection: a Drizzle instance
+  // wraps a single mysql2 connection which serializes commands, so sharing one
+  // instance across Promise.all branches would still execute sequentially.
+  const competitionDb = getDb()
+  const registrationsDb = getDb()
+
+  const [competition, trackData, registrations] = await Promise.all([
+    // Get competition with settings
+    competitionDb.query.competitionsTable.findFirst({
+      where: eq(competitionsTable.id, params.competitionId),
+    }),
+    (async () => {
+      // Get competition track (getCompetitionTrack opens its own connection)
+      const track = await getCompetitionTrack(params.competitionId)
+      if (!track) return null
+
+      // Get all track workouts for this competition.
+      // In preview mode, include draft events too — organizers can enter scores
+      // on draft events and need to see them before publishing.
+      const trackWorkoutsDb = getDb()
+      const trackWorkouts = await trackWorkoutsDb
+        .select({
+          id: trackWorkoutsTable.id,
+          trackOrder: trackWorkoutsTable.trackOrder,
+          pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
+          workoutId: trackWorkoutsTable.workoutId,
+          parentEventId: trackWorkoutsTable.parentEventId,
+          eventStatus: trackWorkoutsTable.eventStatus,
+          workout: workouts,
+        })
+        .from(trackWorkoutsTable)
+        .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+        .where(
+          params.bypassPublicationFilter
+            ? eq(trackWorkoutsTable.trackId, track.id)
+            : and(
+                eq(trackWorkoutsTable.trackId, track.id),
+                eq(trackWorkoutsTable.eventStatus, "published"),
+              ),
+        )
+        .orderBy(trackWorkoutsTable.trackOrder)
+
+      return { track, trackWorkouts }
+    })(),
+    // Get all registrations for this competition, projected to only the
+    // columns consumed below (the full rows drag along user passwordHash,
+    // athleteProfile JSON, registration pendingTeammates, etc. for every
+    // athlete). The division filter is pushed into SQL when a division is
+    // selected — no downstream consumer needs the unfiltered set.
+    registrationsDb
+      .select({
+        registration: {
+          id: competitionRegistrationsTable.id,
+          divisionId: competitionRegistrationsTable.divisionId,
+          athleteTeamId: competitionRegistrationsTable.athleteTeamId,
+          captainUserId: competitionRegistrationsTable.captainUserId,
+          teamName: competitionRegistrationsTable.teamName,
+          metadata: competitionRegistrationsTable.metadata,
+        },
+        user: {
+          id: userTable.id,
+          firstName: userTable.firstName,
+          lastName: userTable.lastName,
+          email: userTable.email,
+        },
+        division: {
+          id: scalingLevelsTable.id,
+          label: scalingLevelsTable.label,
+          teamSize: scalingLevelsTable.teamSize,
+        },
+      })
+      .from(competitionRegistrationsTable)
+      .innerJoin(
+        userTable,
+        eq(competitionRegistrationsTable.userId, userTable.id),
+      )
+      .leftJoin(
+        scalingLevelsTable,
+        eq(competitionRegistrationsTable.divisionId, scalingLevelsTable.id),
+      )
+      .where(
+        and(
+          eq(competitionRegistrationsTable.eventId, params.competitionId),
+          ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+          params.divisionId
+            ? eq(competitionRegistrationsTable.divisionId, params.divisionId)
+            : undefined,
+        ),
+      ),
+  ])
 
   if (!competition) {
     logWarning({
@@ -481,40 +566,14 @@ export async function getCompetitionLeaderboard(params: {
     },
   })
 
-  // Get competition track
-  const track = await getCompetitionTrack(params.competitionId)
-  if (!track) {
+  if (!trackData) {
     logWarning({
       message: "[Leaderboard] No programming track for competition",
       attributes: { competitionId: params.competitionId },
     })
     return { entries: [], scoringConfig, events: [] }
   }
-
-  // Get all track workouts for this competition.
-  // In preview mode, include draft events too — organizers can enter scores
-  // on draft events and need to see them before publishing.
-  const trackWorkouts = await db
-    .select({
-      id: trackWorkoutsTable.id,
-      trackOrder: trackWorkoutsTable.trackOrder,
-      pointsMultiplier: trackWorkoutsTable.pointsMultiplier,
-      workoutId: trackWorkoutsTable.workoutId,
-      parentEventId: trackWorkoutsTable.parentEventId,
-      eventStatus: trackWorkoutsTable.eventStatus,
-      workout: workouts,
-    })
-    .from(trackWorkoutsTable)
-    .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
-    .where(
-      params.bypassPublicationFilter
-        ? eq(trackWorkoutsTable.trackId, track.id)
-        : and(
-            eq(trackWorkoutsTable.trackId, track.id),
-            eq(trackWorkoutsTable.eventStatus, "published"),
-          ),
-    )
-    .orderBy(trackWorkoutsTable.trackOrder)
+  const { track, trackWorkouts } = trackData
 
   const draftTrackWorkouts = trackWorkouts.filter(
     (tw) => tw.eventStatus !== "published",
@@ -546,6 +605,17 @@ export async function getCompetitionLeaderboard(params: {
     return { entries: [], scoringConfig, events: [] }
   }
 
+  // Registrations are already division-filtered in SQL when a division is
+  // selected, so they double as the filtered set here.
+  const filteredRegistrations = registrations
+
+  // Athlete teams whose memberships we need (team divisions only)
+  const athleteTeamIds = filteredRegistrations
+    .filter(
+      (r) => r.registration.athleteTeamId && (r.division?.teamSize ?? 1) > 1,
+    )
+    .map((r) => r.registration.athleteTeamId as string)
+
   // Filter workouts by division when a division is selected.
   // Two filtering mechanisms (event-division mappings take priority over heats):
   // 1. Event-division mappings: explicit organizer-configured event↔division assignments
@@ -554,128 +624,177 @@ export async function getCompetitionLeaderboard(params: {
   // Preview mode (organizer/cohost) skips event-level division filtering so the
   // preview surfaces every event in the competition as a column — unscored
   // cells render as "—". Registration-level division filtering still applies
-  // below so ranking stays scoped to the selected division.
-  let filteredTrackWorkouts = trackWorkouts
-  if (params.divisionId && !params.bypassPublicationFilter) {
-    // Check for explicit event-division mappings first
-    let eventDivisionMappings: Array<{ trackWorkoutId: string }> = []
-    try {
-      eventDivisionMappings = await db
-        .select({
-          trackWorkoutId: eventDivisionMappingsTable.trackWorkoutId,
-        })
-        .from(eventDivisionMappingsTable)
-        .where(
-          eq(eventDivisionMappingsTable.competitionId, params.competitionId),
-        )
-    } catch (error: unknown) {
-      if (
-        error &&
-        typeof error === "object" &&
-        "code" in error &&
-        (error as { code?: string | number }).code === "ER_NO_SUCH_TABLE"
-      ) {
-        // Table may not exist yet — skip mapping-based filtering
-      } else {
-        throw error
-      }
-    }
+  // so ranking stays scoped to the selected division.
+  //
+  // ── Parallel group 2: division-based event filtering + team memberships ──
+  // A `null` filtering result signals the heat-based "no relevant workouts"
+  // early return below.
+  const filterDivisionId =
+    params.divisionId && !params.bypassPublicationFilter
+      ? params.divisionId
+      : null
 
-    if (eventDivisionMappings.length > 0) {
-      // Mappings exist — filter to events mapped to this division
-      const mappedToDiv = await db
-        .select({
-          trackWorkoutId: eventDivisionMappingsTable.trackWorkoutId,
-        })
-        .from(eventDivisionMappingsTable)
-        .where(
-          and(
-            eq(eventDivisionMappingsTable.competitionId, params.competitionId),
-            eq(eventDivisionMappingsTable.divisionId, params.divisionId),
-          ),
-        )
+  const [divisionFilteredTrackWorkouts, allTeamMemberships] = await Promise.all(
+    [
+      (async (): Promise<typeof trackWorkouts | null> => {
+        if (!filterDivisionId) return trackWorkouts
+        const filterDb = getDb()
 
-      const mappedToSelectedDiv = new Set(
-        mappedToDiv.map((m) => m.trackWorkoutId),
-      )
-      const allMappedEventIds = new Set(
-        eventDivisionMappings.map((m) => m.trackWorkoutId),
-      )
-
-      // Only filter events that have explicit mappings; unmapped events stay visible
-      filteredTrackWorkouts = trackWorkouts.filter((tw) => {
-        const hasMapping =
-          allMappedEventIds.has(tw.id) ||
-          (tw.parentEventId && allMappedEventIds.has(tw.parentEventId))
-        if (!hasMapping) return true // unmapped → visible to all
-        return (
-          mappedToSelectedDiv.has(tw.id) ||
-          (tw.parentEventId && mappedToSelectedDiv.has(tw.parentEventId))
-        )
-      })
-    } else {
-      // No explicit mappings — fall back to heat-based filtering
-      const trackWorkoutIds = trackWorkouts.map((tw) => tw.id)
-      const heatsForWorkouts = await db
-        .select({
-          id: competitionHeatsTable.id,
-          trackWorkoutId: competitionHeatsTable.trackWorkoutId,
-          divisionId: competitionHeatsTable.divisionId,
-        })
-        .from(competitionHeatsTable)
-        .where(inArray(competitionHeatsTable.trackWorkoutId, trackWorkoutIds))
-
-      // Fetch assignments for mixed heats (divisionId=null)
-      const mixedHeatIds = heatsForWorkouts
-        .filter((h) => h.divisionId === null)
-        .map((h) => h.id)
-
-      const mixedHeatAssignments =
-        mixedHeatIds.length > 0
-          ? await db
-              .select({
-                heatId: competitionHeatAssignmentsTable.heatId,
-                divisionId: competitionRegistrationsTable.divisionId,
-              })
-              .from(competitionHeatAssignmentsTable)
-              .innerJoin(
-                competitionRegistrationsTable,
-                eq(
-                  competitionHeatAssignmentsTable.registrationId,
-                  competitionRegistrationsTable.id,
-                ),
-              )
-              .where(
-                and(
-                  inArray(competitionHeatAssignmentsTable.heatId, mixedHeatIds),
-                  ne(
-                    competitionRegistrationsTable.status,
-                    REGISTRATION_STATUS.REMOVED,
-                  ),
-                ),
-              )
-          : []
-
-      const relevantIds = getRelevantWorkoutIds({
-        heats: heatsForWorkouts,
-        mixedHeatAssignments,
-        divisionId: params.divisionId,
-      })
-
-      if (relevantIds) {
-        // Also include child events whose parent is relevant (children inherit parent's heat relevance)
-        filteredTrackWorkouts = trackWorkouts.filter(
-          (tw) =>
-            relevantIds.has(tw.id) ||
-            (tw.parentEventId && relevantIds.has(tw.parentEventId)),
-        )
-
-        if (filteredTrackWorkouts.length === 0) {
-          return { entries: [], scoringConfig, events: [] }
+        // Check for explicit event-division mappings first. A single query
+        // fetches every mapping for the competition; the division-specific
+        // subset is derived in JS instead of issuing a second, narrower query.
+        let eventDivisionMappings: Array<{
+          trackWorkoutId: string
+          divisionId: string
+        }> = []
+        try {
+          eventDivisionMappings = await filterDb
+            .select({
+              trackWorkoutId: eventDivisionMappingsTable.trackWorkoutId,
+              divisionId: eventDivisionMappingsTable.divisionId,
+            })
+            .from(eventDivisionMappingsTable)
+            .where(
+              eq(
+                eventDivisionMappingsTable.competitionId,
+                params.competitionId,
+              ),
+            )
+        } catch (error: unknown) {
+          if (
+            error &&
+            typeof error === "object" &&
+            "code" in error &&
+            (error as { code?: string | number }).code === "ER_NO_SUCH_TABLE"
+          ) {
+            // Table may not exist yet — skip mapping-based filtering
+          } else {
+            throw error
+          }
         }
-      }
-    }
+
+        if (eventDivisionMappings.length > 0) {
+          // Mappings exist — filter to events mapped to this division
+          const mappedToSelectedDiv = new Set(
+            eventDivisionMappings
+              .filter((m) => m.divisionId === filterDivisionId)
+              .map((m) => m.trackWorkoutId),
+          )
+          const allMappedEventIds = new Set(
+            eventDivisionMappings.map((m) => m.trackWorkoutId),
+          )
+
+          // Only filter events that have explicit mappings; unmapped events stay visible
+          return trackWorkouts.filter((tw) => {
+            const hasMapping =
+              allMappedEventIds.has(tw.id) ||
+              (tw.parentEventId && allMappedEventIds.has(tw.parentEventId))
+            if (!hasMapping) return true // unmapped → visible to all
+            return (
+              mappedToSelectedDiv.has(tw.id) ||
+              (tw.parentEventId && mappedToSelectedDiv.has(tw.parentEventId))
+            )
+          })
+        }
+
+        // No explicit mappings — fall back to heat-based filtering
+        const allTrackWorkoutIds = trackWorkouts.map((tw) => tw.id)
+        const heatsForWorkouts = await filterDb
+          .select({
+            id: competitionHeatsTable.id,
+            trackWorkoutId: competitionHeatsTable.trackWorkoutId,
+            divisionId: competitionHeatsTable.divisionId,
+          })
+          .from(competitionHeatsTable)
+          .where(
+            inArray(competitionHeatsTable.trackWorkoutId, allTrackWorkoutIds),
+          )
+
+        // Fetch assignments for mixed heats (divisionId=null)
+        const mixedHeatIds = heatsForWorkouts
+          .filter((h) => h.divisionId === null)
+          .map((h) => h.id)
+
+        const mixedHeatAssignments =
+          mixedHeatIds.length > 0
+            ? await filterDb
+                .select({
+                  heatId: competitionHeatAssignmentsTable.heatId,
+                  divisionId: competitionRegistrationsTable.divisionId,
+                })
+                .from(competitionHeatAssignmentsTable)
+                .innerJoin(
+                  competitionRegistrationsTable,
+                  eq(
+                    competitionHeatAssignmentsTable.registrationId,
+                    competitionRegistrationsTable.id,
+                  ),
+                )
+                .where(
+                  and(
+                    inArray(
+                      competitionHeatAssignmentsTable.heatId,
+                      mixedHeatIds,
+                    ),
+                    ne(
+                      competitionRegistrationsTable.status,
+                      REGISTRATION_STATUS.REMOVED,
+                    ),
+                  ),
+                )
+            : []
+
+        const relevantIds = getRelevantWorkoutIds({
+          heats: heatsForWorkouts,
+          mixedHeatAssignments,
+          divisionId: filterDivisionId,
+        })
+
+        if (relevantIds) {
+          // Also include child events whose parent is relevant (children inherit parent's heat relevance)
+          const heatFiltered = trackWorkouts.filter(
+            (tw) =>
+              relevantIds.has(tw.id) ||
+              (tw.parentEventId && relevantIds.has(tw.parentEventId)),
+          )
+
+          return heatFiltered.length === 0 ? null : heatFiltered
+        }
+
+        return trackWorkouts
+      })(),
+      // Get team members for team registrations, projected to the columns
+      // consumed below. Own connection so it runs concurrently.
+      athleteTeamIds.length > 0
+        ? getDb()
+            .select({
+              membership: {
+                teamId: teamMembershipTable.teamId,
+                userId: teamMembershipTable.userId,
+              },
+              user: {
+                id: userTable.id,
+                firstName: userTable.firstName,
+                lastName: userTable.lastName,
+              },
+            })
+            .from(teamMembershipTable)
+            .innerJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
+            .where(
+              and(
+                inArray(teamMembershipTable.teamId, athleteTeamIds),
+                eq(teamMembershipTable.isActive, true),
+              ),
+            )
+        : Promise.resolve([]),
+    ],
+  )
+
+  if (divisionFilteredTrackWorkouts === null) {
+    // Heat-based filtering matched no workouts for this division
+    return { entries: [], scoringConfig, events: [] }
   }
+  const filteredTrackWorkouts = divisionFilteredTrackWorkouts
 
   // Partition track workouts into parents, children, and standalone events.
   // Parent = has children referencing it. Child = has parentEventId. Standalone = neither.
@@ -710,29 +829,6 @@ export async function getCompetitionLeaderboard(params: {
     },
   })
 
-  // Get all registrations for this competition
-  const registrations = await db
-    .select({
-      registration: competitionRegistrationsTable,
-      user: userTable,
-      division: scalingLevelsTable,
-    })
-    .from(competitionRegistrationsTable)
-    .innerJoin(
-      userTable,
-      eq(competitionRegistrationsTable.userId, userTable.id),
-    )
-    .leftJoin(
-      scalingLevelsTable,
-      eq(competitionRegistrationsTable.divisionId, scalingLevelsTable.id),
-    )
-    .where(
-      and(
-        eq(competitionRegistrationsTable.eventId, params.competitionId),
-        ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
-      ),
-    )
-
   if (registrations.length === 0) {
     // Build parent name map for sub-event grouping
     const earlyParentNameMap = new Map<string, string>()
@@ -762,13 +858,6 @@ export async function getCompetitionLeaderboard(params: {
     return { entries: [], scoringConfig, events }
   }
 
-  // Filter by division if specified
-  const filteredRegistrations = params.divisionId
-    ? registrations.filter(
-        (r) => r.registration.divisionId === params.divisionId,
-      )
-    : registrations
-
   logInfo({
     message: "[Leaderboard] Registrations loaded",
     attributes: {
@@ -778,30 +867,6 @@ export async function getCompetitionLeaderboard(params: {
       filteredRegistrations: filteredRegistrations.length,
     },
   })
-
-  // Get team members for team registrations
-  const athleteTeamIds = filteredRegistrations
-    .filter(
-      (r) => r.registration.athleteTeamId && (r.division?.teamSize ?? 1) > 1,
-    )
-    .map((r) => r.registration.athleteTeamId as string)
-
-  const allTeamMemberships =
-    athleteTeamIds.length > 0
-      ? await db
-          .select({
-            membership: teamMembershipTable,
-            user: userTable,
-          })
-          .from(teamMembershipTable)
-          .innerJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
-          .where(
-            and(
-              inArray(teamMembershipTable.teamId, athleteTeamIds),
-              eq(teamMembershipTable.isActive, true),
-            ),
-          )
-      : []
 
   // Group memberships by teamId
   const membershipsByTeamId = new Map<
@@ -818,18 +883,44 @@ export async function getCompetitionLeaderboard(params: {
     membershipsByTeamId.set(teamId, existing)
   }
 
-  // Get all scores for competition events
+  // ── Parallel group 3: scores → round summaries chain + video submissions ──
   const trackWorkoutIds = filteredTrackWorkouts.map((tw) => tw.id)
   const userIds = filteredRegistrations.map((r) => r.user.id)
+  const registrationIds = filteredRegistrations.map((r) => r.registration.id)
 
-  const allScores = await fetchScores({
-    trackWorkoutIds,
-    userIds,
-    includeInvalid: params.bypassPublicationFilter === true,
-  })
-  const roundCapSummariesByScoreId = await fetchRoundCapSummaries(
-    allScores.map((s) => s.id),
-  )
+  const [scoresData, videoSubmissions] = await Promise.all([
+    (async () => {
+      // Get all scores for competition events. fetchScores and
+      // fetchRoundCapSummaries each open their own connection.
+      const allScores = await fetchScores({
+        trackWorkoutIds,
+        userIds,
+        includeInvalid: params.bypassPublicationFilter === true,
+      })
+      const roundCapSummariesByScoreId = await fetchRoundCapSummaries(
+        allScores.map((s) => s.id),
+      )
+      return { allScores, roundCapSummariesByScoreId }
+    })(),
+    // Fetch video submissions for competition types that accept them.
+    shouldFetchLeaderboardVideoSubmissions({
+      competitionType: competition.competitionType,
+      registrationCount: registrationIds.length,
+    })
+      ? getDb()
+          .select({
+            id: videoSubmissionsTable.id,
+            registrationId: videoSubmissionsTable.registrationId,
+            trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
+            videoUrl: videoSubmissionsTable.videoUrl,
+            videoIndex: videoSubmissionsTable.videoIndex,
+            reviewStatus: videoSubmissionsTable.reviewStatus,
+          })
+          .from(videoSubmissionsTable)
+          .where(inArray(videoSubmissionsTable.registrationId, registrationIds))
+      : Promise.resolve([]),
+  ])
+  const { allScores, roundCapSummariesByScoreId } = scoresData
 
   // Breakdown so we can see what the raw scores actually look like:
   // status tells us whether points get computed (only "scored"/"cap" earn
@@ -862,25 +953,6 @@ export async function getCompetitionLeaderboard(params: {
       includedInvalid: params.bypassPublicationFilter === true,
     },
   })
-
-  // Fetch video submissions for online competitions
-  const registrationIds = filteredRegistrations.map((r) => r.registration.id)
-  const videoSubmissions = shouldFetchLeaderboardVideoSubmissions({
-    competitionType: competition.competitionType,
-    registrationCount: registrationIds.length,
-  })
-    ? await db
-        .select({
-          id: videoSubmissionsTable.id,
-          registrationId: videoSubmissionsTable.registrationId,
-          trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
-          videoUrl: videoSubmissionsTable.videoUrl,
-          videoIndex: videoSubmissionsTable.videoIndex,
-          reviewStatus: videoSubmissionsTable.reviewStatus,
-        })
-        .from(videoSubmissionsTable)
-        .where(inArray(videoSubmissionsTable.registrationId, registrationIds))
-    : []
 
   // Index video submissions by registrationId+trackWorkoutId for fast lookup.
   // Two indexes are kept side by side:

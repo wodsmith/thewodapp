@@ -18,7 +18,11 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [wodsmith-start, crew]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -27,14 +31,17 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Check WODsmith schema ownership
+        run: pnpm check:schema-ownership
       - name: Generate Alchemy wrangler config for CI
         run: |
-          mkdir -p apps/wodsmith-start/.alchemy/local
+          mkdir -p apps/wodsmith-start/.alchemy/local apps/crew/.alchemy/local
+
           cat > apps/wodsmith-start/.alchemy/local/wrangler.jsonc << 'EOF'
           {
             "name": "wodsmith-app-ci",
             "main": "@tanstack/react-start/server-entry",
-            "compatibility_date": "2025-12-17",
+            "compatibility_date": "2026-06-19",
             "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
             "assets": {
               "directory": "../../dist/client",
@@ -54,16 +61,44 @@ jobs:
             "vars": {}
           }
           EOF
-      - run: pnpm turbo build --filter=wodsmith-start
+
+          cat > apps/crew/.alchemy/local/wrangler.jsonc << 'EOF'
+          {
+            "name": "wodsmith-crew-ci",
+            "main": "@tanstack/react-start/server-entry",
+            "compatibility_date": "2026-06-19",
+            "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
+            "assets": {
+              "directory": "../../dist/client",
+              "binding": "ASSETS",
+              "not_found_handling": "none",
+              "html_handling": "auto-trailing-slash",
+              "run_worker_first": false
+            },
+            "kv_namespaces": [{ "binding": "KV_SESSION", "id": "ci-placeholder" }],
+            "r2_buckets": [{ "binding": "R2_BUCKET", "bucket_name": "ci-placeholder" }],
+            "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "ci-placeholder" }],
+            "vars": {
+              "APP_URL": "http://localhost:3002",
+              "SITE_URL": "http://localhost:3002",
+              "DATABASE_URL": "mysql://ci-placeholder@localhost/wodsmith-db"
+            }
+          }
+          EOF
+      - run: pnpm turbo build --filter=${{ matrix.app }}
       - uses: actions/cache/save@v4
         with:
           path: .turbo
-          key: turbo-${{ github.sha }}
+          key: turbo-${{ github.sha }}-${{ matrix.app }}
 
   test:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [wodsmith-start]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -74,9 +109,9 @@ jobs:
       - uses: actions/cache/restore@v4
         with:
           path: .turbo
-          key: turbo-${{ github.sha }}
+          key: turbo-${{ github.sha }}-${{ matrix.app }}
       - run: pnpm install --frozen-lockfile
-      - run: pnpm turbo test --filter=wodsmith-start
+      - run: pnpm turbo test --filter=${{ matrix.app }}
         env:
           NODE_ENV: test
 
@@ -84,6 +119,10 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [wodsmith-start, crew, '@repo/wodsmith-db']
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -94,13 +133,17 @@ jobs:
       - uses: actions/cache/restore@v4
         with:
           path: .turbo
-          key: turbo-${{ github.sha }}
+          key: turbo-${{ github.sha }}-${{ matrix.package }}
       - run: pnpm install --frozen-lockfile
-      - run: pnpm turbo type-check --filter=wodsmith-start
+      - run: pnpm turbo type-check --filter=${{ matrix.package }}
 
   lint:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [wodsmith-start, crew]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -109,4 +152,4 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm turbo lint --filter=wodsmith-start
+      - run: pnpm turbo lint --filter=${{ matrix.app }}

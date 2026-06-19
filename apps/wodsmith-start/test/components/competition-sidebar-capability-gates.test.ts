@@ -37,10 +37,12 @@ describe("competition sidebar capability gates", () => {
     expect(inPersonLabels).toContain("Results")
     expect(inPersonLabels).toEqual(
       expect.arrayContaining([
-        "Locations",
-        "Schedule",
-        "Check-in",
-        "Volunteers",
+        "Venues & lanes",
+        "Heat schedule",
+        "Check-in / athlete status",
+        "Volunteer roster",
+        "Volunteer shifts",
+        "Judge assignments",
       ]),
     )
     expect(inPersonLabels).not.toContain("Submission windows")
@@ -48,10 +50,14 @@ describe("competition sidebar capability gates", () => {
 
     expect(onlineLabels).toContain("Submissions")
     expect(onlineLabels).toContain("Submission windows")
-    expect(onlineLabels).not.toEqual(expect.arrayContaining(["Locations"]))
-    expect(onlineLabels).not.toEqual(expect.arrayContaining(["Schedule"]))
-    expect(onlineLabels).not.toEqual(expect.arrayContaining(["Check-in"]))
-    expect(onlineLabels).toContain("Volunteers")
+    expect(onlineLabels).not.toEqual(expect.arrayContaining(["Venues & lanes"]))
+    expect(onlineLabels).not.toEqual(expect.arrayContaining(["Heat schedule"]))
+    expect(onlineLabels).not.toEqual(
+      expect.arrayContaining(["Check-in / athlete status"]),
+    )
+    expect(onlineLabels).not.toContain("Judge assignments")
+    expect(onlineLabels).toContain("Volunteer roster")
+    expect(onlineLabels).toContain("Volunteer shifts")
     expect(onlineLabels).not.toContain("Results")
   })
 

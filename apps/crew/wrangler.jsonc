@@ -1,0 +1,81 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"account_id": "317fb84f366ea1ab038ca90000953697",
+	"name": "wodsmith-crew",
+	"main": "@tanstack/react-start/server-entry",
+	"compatibility_date": "2026-06-19",
+	"compatibility_flags": [
+		"nodejs_compat",
+		"global_fetch_strictly_public"
+	],
+	"minify": true,
+	"observability": {
+		"enabled": true
+	},
+	/**
+	 * Smart Placement
+	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
+	 */
+	"placement": {
+		"mode": "smart"
+	},
+	/**
+	 * Bindings
+	 * Bindings allow your Worker to interact with resources on the Cloudflare Developer Platform, including
+	 * databases, object storage, AI inference, real-time communication and more.
+	 * https://developers.cloudflare.com/workers/runtime-apis/bindings/
+	 */
+	/**
+	 * Environment Variables
+	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
+	 * Commerce: App URL for Stripe redirects (set to production URL in production)
+	 * Note: Use secrets to store sensitive data.
+	 * https://developers.cloudflare.com/workers/configuration/secrets/
+	 */
+	"vars": {
+		"EMAIL_FROM": "team@mail.wodsmith.com",
+		"EMAIL_FROM_NAME": "WODsmith Crew",
+		"EMAIL_REPLY_TO": "support@mail.wodsmith.com",
+		"APP_URL": "https://crew.wodsmith.com",
+		"SITE_URL": "https://crew.wodsmith.com",
+		"DATABASE_URL": "mysql://crew-placeholder@localhost/wodsmith-db",
+		"R2_PUBLIC_URL": "",
+		"POSTHOG_KEY": "replace_me_posthog_project_key",
+		"TURNSTILE_SITE_KEY": "0x4AAAAAACF8K4v1TmFMOmtk",
+		"SENTRY_DSN": "https://a55d70f610d33fa3108b7faea06accb7@o4510933498462208.ingest.us.sentry.io/4510937818005504"
+	},
+	/**
+	 * KV Namespace Binding
+	 * Used for session storage
+	 */
+	"kv_namespaces": [
+		{
+			"binding": "KV_SESSION",
+			"id": "crew-session-placeholder"
+		}
+	],
+	/**
+	 * R2 Bucket Bindings
+	 * Object storage for file uploads
+	 */
+	"r2_buckets": [
+		{
+			"binding": "R2_BUCKET",
+			"bucket_name": "wodsmith-crew-uploads-prod"
+		},
+		{
+			"binding": "wodsmith_crew_uploads_dev",
+			"bucket_name": "wodsmith-crew-uploads-dev"
+		}
+	],
+	"hyperdrive": [
+		{
+			"binding": "HYPERDRIVE",
+			"id": "placeholder-set-after-deploy"
+		}
+	]
+}

@@ -75,28 +75,48 @@ type InviteCohostDialogProps = {
   /** Permission keys to hide (e.g. when team lacks entitlement) */
   hiddenPermissions?: string[]
 } & (
-  | { mode?: "competition"; competitionId: string; competitionTeamId: string; groupId?: never; competitions?: never }
-  | { mode: "series"; groupId: string; competitions: SeriesCompetitionOption[]; competitionId?: never; competitionTeamId?: never }
+  | {
+      mode?: "competition"
+      competitionId: string
+      competitionTeamId: string
+      groupId?: never
+      competitions?: never
+    }
+  | {
+      mode: "series"
+      groupId: string
+      competitions: SeriesCompetitionOption[]
+      competitionId?: never
+      competitionTeamId?: never
+    }
 )
 
 const PERMISSION_GROUPS = [
   {
-    label: "Competition Setup",
+    label: "Setup",
     items: [
-      { key: "divisions" as const, label: "Divisions" },
-      { key: "viewRegistrations" as const, label: "View registrations" },
-      { key: "editRegistrations" as const, label: "Manage registrations" },
+      { key: "divisions" as const, label: "Divisions & capacity" },
       { key: "editEvents" as const, label: "Edit events" },
-      { key: "scoringConfig" as const, label: "Scoring config" },
+      { key: "locations" as const, label: "Venues & lanes" },
+      { key: "scoringConfig" as const, label: "Scoring rules" },
+    ],
+  },
+  {
+    label: "Registration",
+    items: [
+      { key: "viewRegistrations" as const, label: "View athletes" },
+      { key: "editRegistrations" as const, label: "Manage athletes" },
       { key: "waivers" as const, label: "Waivers" },
     ],
   },
   {
-    label: "Run Competition",
+    label: "Volunteers & judging",
+    items: [{ key: "volunteers" as const, label: "Volunteers & judging" }],
+  },
+  {
+    label: "Run competition",
     items: [
-      { key: "schedule" as const, label: "Schedule" },
-      { key: "locations" as const, label: "Locations" },
-      { key: "volunteers" as const, label: "Volunteers" },
+      { key: "schedule" as const, label: "Heat schedule" },
       { key: "results" as const, label: "Results" },
       { key: "leaderboardPreview" as const, label: "Leaderboard preview" },
     ],
@@ -117,8 +137,13 @@ export function InviteCohostDialog(props: InviteCohostDialogProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   // Series mode: track which competitions are selected (default all)
-  const [selectedCompetitionIds, setSelectedCompetitionIds] = useState<Set<string>>(
-    () => new Set(props.mode === "series" ? props.competitions.map((c) => c.id) : []),
+  const [selectedCompetitionIds, setSelectedCompetitionIds] = useState<
+    Set<string>
+  >(
+    () =>
+      new Set(
+        props.mode === "series" ? props.competitions.map((c) => c.id) : [],
+      ),
   )
   const [compPopoverOpen, setCompPopoverOpen] = useState(false)
   const [compSearch, setCompSearch] = useState("")
@@ -178,7 +203,10 @@ export function InviteCohostDialog(props: InviteCohostDialogProps) {
             email: data.email,
             organizingTeamId,
             groupId: props.groupId,
-            competitionIds: competitionIds.length < props.competitions.length ? competitionIds : undefined,
+            competitionIds:
+              competitionIds.length < props.competitions.length
+                ? competitionIds
+                : undefined,
             permissions,
           },
         })
@@ -290,12 +318,17 @@ export function InviteCohostDialog(props: InviteCohostDialogProps) {
             {props.mode === "series" && props.competitions.length > 0 && (
               <div className="space-y-2">
                 <div>
-                  <p className="text-sm font-medium leading-none">Competitions</p>
+                  <p className="text-sm font-medium leading-none">
+                    Competitions
+                  </p>
                   <p className="mt-1 text-sm text-muted-foreground">
                     Select which competitions to invite to
                   </p>
                 </div>
-                <Popover open={compPopoverOpen} onOpenChange={setCompPopoverOpen}>
+                <Popover
+                  open={compPopoverOpen}
+                  onOpenChange={setCompPopoverOpen}
+                >
                   <PopoverTrigger asChild>
                     {/* biome-ignore lint/a11y/useSemanticElements: Custom combobox */}
                     <Button
@@ -306,7 +339,8 @@ export function InviteCohostDialog(props: InviteCohostDialogProps) {
                       className="w-full justify-between font-normal"
                     >
                       <span className="truncate">
-                        {selectedCompetitionIds.size === props.competitions.length
+                        {selectedCompetitionIds.size ===
+                        props.competitions.length
                           ? "All competitions"
                           : selectedCompetitionIds.size === 0
                             ? "None selected"
@@ -333,7 +367,8 @@ export function InviteCohostDialog(props: InviteCohostDialogProps) {
                         onClick={toggleAllCompetitions}
                         className="text-xs text-muted-foreground hover:text-foreground"
                       >
-                        {selectedCompetitionIds.size === props.competitions.length
+                        {selectedCompetitionIds.size ===
+                        props.competitions.length
                           ? "Deselect all"
                           : "Select all"}
                       </button>
@@ -347,7 +382,8 @@ export function InviteCohostDialog(props: InviteCohostDialogProps) {
                             onClick={() => toggleCompetition(comp.id)}
                             className={cn(
                               "flex w-full items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
-                              selectedCompetitionIds.has(comp.id) && "bg-accent",
+                              selectedCompetitionIds.has(comp.id) &&
+                                "bg-accent",
                             )}
                           >
                             <Check
@@ -376,7 +412,11 @@ export function InviteCohostDialog(props: InviteCohostDialogProps) {
                       {props.competitions
                         .filter((c) => selectedCompetitionIds.has(c.id))
                         .map((c) => (
-                          <Badge key={c.id} variant="secondary" className="text-xs">
+                          <Badge
+                            key={c.id}
+                            variant="secondary"
+                            className="text-xs"
+                          >
                             {c.name}
                           </Badge>
                         ))}

@@ -121,16 +121,40 @@ async function checkSubmissionWindow(
   opensAt?: Date
   closesAt?: Date
 }> {
-  const db = getDb()
+  // Competition type and event window are independent lookups — fetch them
+  // in parallel. Each branch needs its own getDb() connection: getDb()
+  // returns a single mysql2 connection per call and mysql2 serializes
+  // commands per connection, so sharing one would run these sequentially.
+  const dbCompetition = getDb()
+  const dbEvent = getDb()
 
-  // Get competition type
-  const [competition] = await db
-    .select({
-      competitionType: competitionsTable.competitionType,
-    })
-    .from(competitionsTable)
-    .where(eq(competitionsTable.id, competitionId))
-    .limit(1)
+  const [competitionRows, eventRows] = await Promise.all([
+    // Get competition type
+    dbCompetition
+      .select({
+        competitionType: competitionsTable.competitionType,
+      })
+      .from(competitionsTable)
+      .where(eq(competitionsTable.id, competitionId))
+      .limit(1),
+    // Get competition event with submission window
+    dbEvent
+      .select({
+        submissionOpensAt: competitionEventsTable.submissionOpensAt,
+        submissionClosesAt: competitionEventsTable.submissionClosesAt,
+      })
+      .from(competitionEventsTable)
+      .where(
+        and(
+          eq(competitionEventsTable.competitionId, competitionId),
+          eq(competitionEventsTable.trackWorkoutId, trackWorkoutId),
+        ),
+      )
+      .limit(1),
+  ])
+
+  const [competition] = competitionRows
+  const [event] = eventRows
 
   if (!competition) {
     return { allowed: false, reason: "Competition not found" }
@@ -142,21 +166,6 @@ async function checkSubmissionWindow(
       reason: "Video submissions are only for online competitions",
     }
   }
-
-  // Get competition event with submission window
-  const [event] = await db
-    .select({
-      submissionOpensAt: competitionEventsTable.submissionOpensAt,
-      submissionClosesAt: competitionEventsTable.submissionClosesAt,
-    })
-    .from(competitionEventsTable)
-    .where(
-      and(
-        eq(competitionEventsTable.competitionId, competitionId),
-        eq(competitionEventsTable.trackWorkoutId, trackWorkoutId),
-      ),
-    )
-    .limit(1)
 
   // If no event record exists, allow submission (backward compatibility)
   if (!event) {
@@ -204,6 +213,7 @@ async function getAthleteRegistration(
   competitionId: string,
   userId: string,
   divisionId?: string,
+  divisionIds?: string[],
 ): Promise<{
   id: string
   divisionId: string | null
@@ -213,7 +223,7 @@ async function getAthleteRegistration(
 } | null> {
   const db = getDb()
 
-  // Build where conditions — include divisionId filter when provided
+  // Build where conditions — include division filtering when provided
   const conditions = [
     eq(competitionRegistrationsTable.eventId, competitionId),
     eq(competitionRegistrationsTable.userId, userId),
@@ -221,6 +231,10 @@ async function getAthleteRegistration(
   ]
   if (divisionId) {
     conditions.push(eq(competitionRegistrationsTable.divisionId, divisionId))
+  } else if (divisionIds?.length) {
+    conditions.push(
+      inArray(competitionRegistrationsTable.divisionId, divisionIds),
+    )
   }
 
   // First, look for the user's own registration (works for captains and individuals)
@@ -349,8 +363,6 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
       }
     }
 
-    const db = getDb()
-
     // Check if user is registered for this competition (scoped to division when provided)
     const registration = await getAthleteRegistration(
       data.competitionId,
@@ -371,14 +383,73 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
       }
     }
 
-    // Check submission window
-    const windowCheck = await checkSubmissionWindow(
-      data.competitionId,
-      data.trackWorkoutId,
-    )
+    // Score belongs to the captain (or the individual athlete)
+    const scoreUserId = registration.captainUserId ?? session.userId
 
-    // Get team size for this division
-    const teamSize = await getTeamSize(registration.divisionId)
+    // Scope score lookup by division — null divisionId is its own scope
+    // (isNull), not a wildcard that would leak across divisions on a shared
+    // workout.
+    const scoreConditions = [
+      eq(scoresTable.competitionEventId, data.trackWorkoutId),
+      eq(scoresTable.userId, scoreUserId),
+      registration.divisionId
+        ? eq(scoresTable.scalingLevelId, registration.divisionId)
+        : isNull(scoresTable.scalingLevelId),
+    ]
+
+    // Independent context lookups — run in parallel. Each branch needs its
+    // own getDb() connection (mysql2 serializes commands per connection, so
+    // sharing one would execute these sequentially on the wire). The helper
+    // fns (checkSubmissionWindow, getTeamSize, getWorkoutDetails) each call
+    // getDb() internally.
+    const dbSubmissions = getDb()
+    const dbScore = getDb()
+
+    const [windowCheck, teamSize, submissions, workout, scoreRows] =
+      await Promise.all([
+        // Check submission window
+        checkSubmissionWindow(data.competitionId, data.trackWorkoutId),
+        // Get team size for this division
+        getTeamSize(registration.divisionId),
+        // Get all existing submissions for this registration + event (ordered by videoIndex)
+        dbSubmissions
+          .select({
+            id: videoSubmissionsTable.id,
+            videoIndex: videoSubmissionsTable.videoIndex,
+            videoUrl: videoSubmissionsTable.videoUrl,
+            notes: videoSubmissionsTable.notes,
+            submittedAt: videoSubmissionsTable.submittedAt,
+            updatedAt: videoSubmissionsTable.updatedAt,
+            reviewStatus: videoSubmissionsTable.reviewStatus,
+            statusUpdatedAt: videoSubmissionsTable.statusUpdatedAt,
+            reviewerNotes: videoSubmissionsTable.reviewerNotes,
+          })
+          .from(videoSubmissionsTable)
+          .where(
+            and(
+              eq(videoSubmissionsTable.registrationId, registration.id),
+              eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId),
+            ),
+          )
+          .orderBy(videoSubmissionsTable.videoIndex),
+        // Get workout details for score input
+        getWorkoutDetails(data.trackWorkoutId),
+        // Get existing score — for teams, look up by captain's userId
+        dbScore
+          .select({
+            id: scoresTable.id,
+            scoreValue: scoresTable.scoreValue,
+            status: scoresTable.status,
+            secondaryValue: scoresTable.secondaryValue,
+            tiebreakValue: scoresTable.tiebreakValue,
+            scheme: scoresTable.scheme,
+            verificationStatus: scoresTable.verificationStatus,
+            penaltyType: scoresTable.penaltyType,
+          })
+          .from(scoresTable)
+          .where(and(...scoreConditions))
+          .limit(1),
+      ])
 
     // Non-captain team members cannot submit
     const canSubmit = windowCheck.allowed && registration.isCaptain
@@ -386,32 +457,6 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
       ? "Only the team captain can submit videos and scores"
       : windowCheck.reason
 
-    // Get all existing submissions for this registration + event (ordered by videoIndex)
-    const submissions = await db
-      .select({
-        id: videoSubmissionsTable.id,
-        videoIndex: videoSubmissionsTable.videoIndex,
-        videoUrl: videoSubmissionsTable.videoUrl,
-        notes: videoSubmissionsTable.notes,
-        submittedAt: videoSubmissionsTable.submittedAt,
-        updatedAt: videoSubmissionsTable.updatedAt,
-        reviewStatus: videoSubmissionsTable.reviewStatus,
-        statusUpdatedAt: videoSubmissionsTable.statusUpdatedAt,
-        reviewerNotes: videoSubmissionsTable.reviewerNotes,
-      })
-      .from(videoSubmissionsTable)
-      .where(
-        and(
-          eq(videoSubmissionsTable.registrationId, registration.id),
-          eq(videoSubmissionsTable.trackWorkoutId, data.trackWorkoutId),
-        ),
-      )
-      .orderBy(videoSubmissionsTable.videoIndex)
-
-    // Get workout details for score input
-    const workout = await getWorkoutDetails(data.trackWorkoutId)
-
-    // Get existing score — for teams, look up by captain's userId
     let existingScore: {
       scoreValue: number | null
       displayScore: string | null
@@ -428,34 +473,7 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
       }>
     } | null = null
 
-    // Score belongs to the captain (or the individual athlete)
-    const scoreUserId = registration.captainUserId ?? session.userId
-
-    // Scope score lookup by division — null divisionId is its own scope
-    // (isNull), not a wildcard that would leak across divisions on a shared
-    // workout.
-    const scoreConditions = [
-      eq(scoresTable.competitionEventId, data.trackWorkoutId),
-      eq(scoresTable.userId, scoreUserId),
-      registration.divisionId
-        ? eq(scoresTable.scalingLevelId, registration.divisionId)
-        : isNull(scoresTable.scalingLevelId),
-    ]
-
-    const [score] = await db
-      .select({
-        id: scoresTable.id,
-        scoreValue: scoresTable.scoreValue,
-        status: scoresTable.status,
-        secondaryValue: scoresTable.secondaryValue,
-        tiebreakValue: scoresTable.tiebreakValue,
-        scheme: scoresTable.scheme,
-        verificationStatus: scoresTable.verificationStatus,
-        penaltyType: scoresTable.penaltyType,
-      })
-      .from(scoresTable)
-      .where(and(...scoreConditions))
-      .limit(1)
+    const [score] = scoreRows
 
     if (score) {
       let displayScore: string | null = null
@@ -476,6 +494,7 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
       }> = []
 
       if (workout && (workout.roundsToScore ?? 1) > 1) {
+        const db = getDb()
         const rounds = await db
           .select({
             roundNumber: scoreRoundsTable.roundNumber,
@@ -542,6 +561,15 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
       existingScore,
     }
   })
+
+/**
+ * Shape returned by getVideoSubmissionFn — also produced per-event by
+ * getBatchEventVideoSubmissionsFn so consumers can treat the two
+ * interchangeably (includes the not-authenticated / not-registered stubs).
+ */
+export type VideoSubmissionResult = Awaited<
+  ReturnType<typeof getVideoSubmissionFn>
+>
 
 /**
  * Batch-check submission status for multiple track workouts.
@@ -649,6 +677,384 @@ export const getBatchSubmissionStatusFn = createServerFn({ method: "GET" })
 
     return { statuses }
   })
+
+/**
+ * Batch version of getVideoSubmissionFn for the public event-detail page.
+ * Resolves session + registration + captain/teamSize context ONCE, then
+ * batches submission windows, submissions, workout details, and scores
+ * across all requested track workouts with inArray — instead of 7-9
+ * sequential queries per event.
+ *
+ * Returns per-trackWorkoutId results matching exactly what
+ * getVideoSubmissionFn returns for a single event (including the
+ * not-authenticated / not-registered stubs), so callers can treat the two
+ * interchangeably.
+ */
+export const getBatchEventVideoSubmissionsFn = createServerFn({
+  method: "GET",
+})
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        competitionId: z.string().min(1),
+        trackWorkoutIds: z.array(z.string().min(1)).min(1),
+        divisionId: z.string().optional(),
+        divisionIds: z.array(z.string().min(1)).optional(),
+      })
+      .parse(data),
+  )
+  .handler(
+    async ({
+      data,
+    }): Promise<{ results: Record<string, VideoSubmissionResult> }> => {
+      const session = await getSessionFromCookie()
+      if (!session?.userId) {
+        const results: Record<string, VideoSubmissionResult> = {}
+        for (const twId of data.trackWorkoutIds) {
+          results[twId] = {
+            submissions: [],
+            teamSize: 1,
+            isCaptain: true,
+            canSubmit: false,
+            reason: "Not authenticated",
+            isRegistered: false,
+            workout: null,
+            existingScore: null,
+          }
+        }
+        return { results }
+      }
+
+      // Resolve the registration once (scoped to division when provided) —
+      // it's shared across every requested event.
+      const registration = await getAthleteRegistration(
+        data.competitionId,
+        session.userId,
+        data.divisionId,
+        data.divisionIds,
+      )
+
+      if (!registration) {
+        const results: Record<string, VideoSubmissionResult> = {}
+        for (const twId of data.trackWorkoutIds) {
+          results[twId] = {
+            submissions: [],
+            teamSize: 1,
+            isCaptain: true,
+            canSubmit: false,
+            reason:
+              "You must be registered for this competition to submit a video",
+            isRegistered: false,
+            workout: null,
+            existingScore: null,
+          }
+        }
+        return { results }
+      }
+
+      // Score belongs to the captain (or the individual athlete)
+      const scoreUserId = registration.captainUserId ?? session.userId
+
+      // Batch all per-event context in parallel. Each parallel branch needs
+      // its own getDb() connection — mysql2 serializes commands per
+      // connection, so sharing one would run these sequentially on the wire.
+      // getTeamSize() opens its own connection internally.
+      const dbCompetition = getDb()
+      const dbEvents = getDb()
+      const dbSubmissions = getDb()
+      const dbWorkouts = getDb()
+      const dbScores = getDb()
+
+      const [
+        teamSize,
+        competitionRows,
+        eventRows,
+        submissionRows,
+        workoutRows,
+        scoreRows,
+      ] = await Promise.all([
+        getTeamSize(registration.divisionId),
+        dbCompetition
+          .select({ competitionType: competitionsTable.competitionType })
+          .from(competitionsTable)
+          .where(eq(competitionsTable.id, data.competitionId))
+          .limit(1),
+        dbEvents
+          .select({
+            trackWorkoutId: competitionEventsTable.trackWorkoutId,
+            submissionOpensAt: competitionEventsTable.submissionOpensAt,
+            submissionClosesAt: competitionEventsTable.submissionClosesAt,
+          })
+          .from(competitionEventsTable)
+          .where(
+            and(
+              eq(competitionEventsTable.competitionId, data.competitionId),
+              inArray(
+                competitionEventsTable.trackWorkoutId,
+                data.trackWorkoutIds,
+              ),
+            ),
+          ),
+        dbSubmissions
+          .select({
+            trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
+            id: videoSubmissionsTable.id,
+            videoIndex: videoSubmissionsTable.videoIndex,
+            videoUrl: videoSubmissionsTable.videoUrl,
+            notes: videoSubmissionsTable.notes,
+            submittedAt: videoSubmissionsTable.submittedAt,
+            updatedAt: videoSubmissionsTable.updatedAt,
+            reviewStatus: videoSubmissionsTable.reviewStatus,
+            statusUpdatedAt: videoSubmissionsTable.statusUpdatedAt,
+            reviewerNotes: videoSubmissionsTable.reviewerNotes,
+          })
+          .from(videoSubmissionsTable)
+          .where(
+            and(
+              eq(videoSubmissionsTable.registrationId, registration.id),
+              inArray(
+                videoSubmissionsTable.trackWorkoutId,
+                data.trackWorkoutIds,
+              ),
+            ),
+          )
+          .orderBy(videoSubmissionsTable.videoIndex),
+        dbWorkouts
+          .select({
+            trackWorkoutId: trackWorkoutsTable.id,
+            workoutId: workouts.id,
+            name: workouts.name,
+            scheme: workouts.scheme,
+            scoreType: workouts.scoreType,
+            timeCap: workouts.timeCap,
+            tiebreakScheme: workouts.tiebreakScheme,
+            repsPerRound: workouts.repsPerRound,
+            roundsToScore: workouts.roundsToScore,
+          })
+          .from(trackWorkoutsTable)
+          .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+          .where(inArray(trackWorkoutsTable.id, data.trackWorkoutIds)),
+        dbScores
+          .select({
+            id: scoresTable.id,
+            competitionEventId: scoresTable.competitionEventId,
+            scoreValue: scoresTable.scoreValue,
+            status: scoresTable.status,
+            secondaryValue: scoresTable.secondaryValue,
+            tiebreakValue: scoresTable.tiebreakValue,
+            scheme: scoresTable.scheme,
+            verificationStatus: scoresTable.verificationStatus,
+            penaltyType: scoresTable.penaltyType,
+          })
+          .from(scoresTable)
+          .where(
+            and(
+              inArray(scoresTable.competitionEventId, data.trackWorkoutIds),
+              eq(scoresTable.userId, scoreUserId),
+              // Null divisionId is its own scope (isNull), not a wildcard —
+              // same scoping as getVideoSubmissionFn.
+              registration.divisionId
+                ? eq(scoresTable.scalingLevelId, registration.divisionId)
+                : isNull(scoresTable.scalingLevelId),
+            ),
+          ),
+      ])
+
+      const competition = competitionRows[0]
+      const eventMap = new Map(eventRows.map((e) => [e.trackWorkoutId, e]))
+      const workoutMap = new Map(workoutRows.map((w) => [w.trackWorkoutId, w]))
+
+      const submissionsByEvent = new Map<string, typeof submissionRows>()
+      for (const s of submissionRows) {
+        const list = submissionsByEvent.get(s.trackWorkoutId) ?? []
+        list.push(s)
+        submissionsByEvent.set(s.trackWorkoutId, list)
+      }
+
+      // First score per event — mirrors getVideoSubmissionFn's `.limit(1)`.
+      const scoreMap = new Map<string, (typeof scoreRows)[number]>()
+      for (const s of scoreRows) {
+        if (s.competitionEventId && !scoreMap.has(s.competitionEventId)) {
+          scoreMap.set(s.competitionEventId, s)
+        }
+      }
+
+      // Round breakdowns only exist for multi-round workouts — fetch them in
+      // one batch for the scores that need them.
+      const multiRoundScoreIds: string[] = []
+      for (const twId of data.trackWorkoutIds) {
+        const workout = workoutMap.get(twId)
+        const score = scoreMap.get(twId)
+        if (score && workout && (workout.roundsToScore ?? 1) > 1) {
+          multiRoundScoreIds.push(score.id)
+        }
+      }
+
+      const roundsByScoreId = new Map<
+        string,
+        Array<{ roundNumber: number; value: number; status: string | null }>
+      >()
+      if (multiRoundScoreIds.length > 0) {
+        const dbRounds = getDb()
+        const rounds = await dbRounds
+          .select({
+            scoreId: scoreRoundsTable.scoreId,
+            roundNumber: scoreRoundsTable.roundNumber,
+            value: scoreRoundsTable.value,
+            status: scoreRoundsTable.status,
+          })
+          .from(scoreRoundsTable)
+          .where(inArray(scoreRoundsTable.scoreId, multiRoundScoreIds))
+          .orderBy(asc(scoreRoundsTable.roundNumber))
+
+        for (const r of rounds) {
+          const list = roundsByScoreId.get(r.scoreId) ?? []
+          list.push({
+            roundNumber: r.roundNumber,
+            value: r.value,
+            status: r.status,
+          })
+          roundsByScoreId.set(r.scoreId, list)
+        }
+      }
+
+      const now = new Date()
+      const results: Record<string, VideoSubmissionResult> = {}
+
+      for (const twId of data.trackWorkoutIds) {
+        // Replicates checkSubmissionWindow's per-event semantics using the
+        // batched competition + event rows.
+        let allowed = true
+        let windowReason: string | undefined
+        let opensAt: Date | undefined
+        let closesAt: Date | undefined
+
+        if (!competition) {
+          allowed = false
+          windowReason = "Competition not found"
+        } else if (competition.competitionType !== "online") {
+          allowed = false
+          windowReason = "Video submissions are only for online competitions"
+        } else {
+          const event = eventMap.get(twId)
+          // No event record / no configured window → submission allowed
+          // (backward compatibility, same as checkSubmissionWindow).
+          if (event?.submissionOpensAt && event?.submissionClosesAt) {
+            opensAt = new Date(event.submissionOpensAt)
+            closesAt = new Date(event.submissionClosesAt)
+            if (now < opensAt) {
+              allowed = false
+              windowReason = "Submission window has not opened yet"
+            } else if (now > closesAt) {
+              allowed = false
+              windowReason = "Submission window has closed"
+            }
+          }
+        }
+
+        // Non-captain team members cannot submit
+        const canSubmit = allowed && registration.isCaptain
+        const reason = !registration.isCaptain
+          ? "Only the team captain can submit videos and scores"
+          : windowReason
+
+        const workout = workoutMap.get(twId) ?? null
+        const score = scoreMap.get(twId)
+
+        let existingScore: {
+          scoreValue: number | null
+          displayScore: string | null
+          status: string | null
+          secondaryValue: number | null
+          tiebreakValue: number | null
+          verificationStatus: string | null
+          penaltyType: string | null
+          roundScores: Array<{
+            roundNumber: number
+            value: number
+            displayScore: string | null
+            status: string | null
+          }>
+        } | null = null
+
+        if (score) {
+          let displayScore: string | null = null
+          if (score.scoreValue !== null && score.scheme) {
+            displayScore = decodeScore(
+              score.scoreValue,
+              score.scheme as WorkoutScheme,
+              { compact: false },
+            )
+          }
+
+          const roundScores = (roundsByScoreId.get(score.id) ?? []).map(
+            (r) => ({
+              roundNumber: r.roundNumber,
+              value: r.value,
+              displayScore: score.scheme
+                ? decodeScore(r.value, score.scheme as WorkoutScheme, {
+                    compact: false,
+                  })
+                : null,
+              status: r.status,
+            }),
+          )
+
+          existingScore = {
+            scoreValue: score.scoreValue,
+            displayScore,
+            status: score.status,
+            secondaryValue: score.secondaryValue,
+            tiebreakValue: score.tiebreakValue,
+            verificationStatus: score.verificationStatus ?? null,
+            penaltyType: score.penaltyType ?? null,
+            roundScores,
+          }
+        }
+
+        results[twId] = {
+          submissions: (submissionsByEvent.get(twId) ?? []).map((s) => ({
+            id: s.id,
+            videoIndex: s.videoIndex,
+            videoUrl: s.videoUrl,
+            notes: s.notes,
+            submittedAt: s.submittedAt,
+            updatedAt: s.updatedAt,
+            reviewStatus: s.reviewStatus as ReviewStatus,
+            statusUpdatedAt: s.statusUpdatedAt,
+            reviewerNotes: s.reviewerNotes,
+          })),
+          teamSize,
+          isCaptain: registration.isCaptain,
+          canSubmit,
+          reason,
+          isRegistered: true,
+          submissionWindow:
+            opensAt && closesAt
+              ? {
+                  opensAt: opensAt.toISOString(),
+                  closesAt: closesAt.toISOString(),
+                }
+              : null,
+          workout: workout
+            ? {
+                workoutId: workout.workoutId,
+                name: workout.name,
+                scheme: workout.scheme as WorkoutScheme,
+                scoreType: workout.scoreType as ScoreType | null,
+                timeCap: workout.timeCap,
+                tiebreakScheme: workout.tiebreakScheme,
+                repsPerRound: workout.repsPerRound,
+                roundsToScore: workout.roundsToScore,
+              }
+            : null,
+          existingScore,
+        }
+      }
+
+      return { results }
+    },
+  )
 
 /**
  * Per-division submission & score data for the athlete score panel.
@@ -895,18 +1301,18 @@ export const submitVideoFn = createServerFn({ method: "POST" })
       throw new Error("Only the team captain can submit videos and scores")
     }
 
-    // Check submission window
-    const windowCheck = await checkSubmissionWindow(
-      data.competitionId,
-      data.trackWorkoutId,
-    )
+    // Submission window and team size are independent context lookups — run
+    // them in parallel (each helper opens its own DB connection internally).
+    const [windowCheck, teamSize] = await Promise.all([
+      checkSubmissionWindow(data.competitionId, data.trackWorkoutId),
+      getTeamSize(registration.divisionId),
+    ])
 
     if (!windowCheck.allowed) {
       throw new Error(windowCheck.reason ?? "Cannot submit video at this time")
     }
 
     // Validate videoIndex against team size
-    const teamSize = await getTeamSize(registration.divisionId)
     if (data.videoIndex >= teamSize) {
       throw new Error(
         `Video index ${data.videoIndex} exceeds team size of ${teamSize}`,

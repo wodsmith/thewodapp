@@ -1,0 +1,9 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /_auth/
+Disallow: /admin/
+Disallow: /dashboard/
+
+Sitemap: https://wodsmith.com/api/sitemap

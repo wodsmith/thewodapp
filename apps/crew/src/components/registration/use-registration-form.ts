@@ -1,0 +1,611 @@
+import { useNavigate } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
+import { useEffect, useState } from "react"
+import { toast } from "sonner"
+import type {
+  Competition,
+  ScalingGroup,
+  ScalingLevel,
+  Team,
+  Waiver,
+} from "@/db/schema"
+import { trackEvent } from "@/lib/posthog"
+import type { PublicCompetitionDivision } from "@/server-fns/competition-divisions-fns"
+import { validateCouponForCheckoutFn } from "@/server-fns/coupon-fns"
+import { initiateRegistrationPaymentFn } from "@/server-fns/registration-fns"
+import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
+import { signWaiverFn } from "@/server-fns/waiver-fns"
+import {
+  clearCouponSession,
+  getCouponSession,
+  setCouponSession,
+} from "@/utils/coupon-cookie"
+
+export interface Teammate {
+  email: string
+  firstName: string
+  lastName: string
+  affiliateName: string
+}
+
+export const OWN_TEAMMATE_EMAIL_ERROR =
+  "This is your account email. Enter your teammate's email instead."
+
+export interface TeamEntry {
+  divisionId: string
+  teamName: string
+  teammates: Teammate[]
+}
+
+export interface UseRegistrationFormInput {
+  competition: Competition & { organizingTeam: Team | null }
+  scalingGroup: ScalingGroup & { scalingLevels: ScalingLevel[] }
+  publicDivisions: PublicCompetitionDivision[]
+  waivers: Waiver[]
+  questions: RegistrationQuestion[]
+  defaultAffiliateName?: string
+  registeredDivisionIds?: string[]
+  removedDivisionIds?: string[]
+  previousAnswers?: Array<{ questionId: string; answer: string }>
+  signedWaiverIds?: string[]
+  paymentCanceled?: boolean
+  /**
+   * When set + eligible, the form starts with this division pre-selected
+   * (and the invite variant pins it).
+   */
+  initialDivisionId?: string
+  /**
+   * Forwarded to `initiateRegistrationPaymentFn` so the server can settle
+   * the matching invite (Phase 2C/D).
+   */
+  inviteToken?: string
+  /**
+   * Other members of the team the invitee was on in the qualifying source
+   * competition. Used to pre-seed teammate slots on the invited team
+   * division. Slots remain editable — the invitee can swap people. Empty
+   * (or absent) when the invite is bespoke or the prior registration was
+   * individual.
+   */
+  prefillTeammates?: Teammate[]
+  /** Prior team name from the source competition; pre-fills `teamName`. */
+  prefillTeamName?: string
+  /** Logged-in athlete email, used to prevent self-inviting as a teammate. */
+  userEmail?: string | null
+}
+
+const normalizeEmail = (email: string | null | undefined) =>
+  email?.trim().toLowerCase() ?? ""
+
+export function buildTeammateEmailErrors({
+  teamEntries,
+  selectedTeamDivisions,
+  userEmail,
+}: {
+  teamEntries: Map<string, TeamEntry>
+  selectedTeamDivisions: ScalingLevel[]
+  userEmail?: string | null
+}) {
+  const normalizedUserEmail = normalizeEmail(userEmail)
+  const errors = new Map<string, Map<number, string>>()
+  if (!normalizedUserEmail) return errors
+
+  for (const division of selectedTeamDivisions) {
+    const teamEntry = teamEntries.get(division.id)
+    if (!teamEntry?.teammates) continue
+
+    for (const [index, teammate] of teamEntry.teammates.entries()) {
+      if (normalizeEmail(teammate.email) !== normalizedUserEmail) continue
+
+      const divisionErrors = errors.get(division.id) ?? new Map()
+      divisionErrors.set(index, OWN_TEAMMATE_EMAIL_ERROR)
+      errors.set(division.id, divisionErrors)
+    }
+  }
+
+  return errors
+}
+
+export function useRegistrationForm(input: UseRegistrationFormInput) {
+  const {
+    competition,
+    scalingGroup,
+    publicDivisions,
+    waivers,
+    questions,
+    defaultAffiliateName,
+    registeredDivisionIds = [],
+    removedDivisionIds = [],
+    previousAnswers = [],
+    signedWaiverIds = [],
+    paymentCanceled,
+    initialDivisionId,
+    inviteToken,
+    prefillTeammates = [],
+    prefillTeamName = "",
+    userEmail,
+  } = input
+
+  const navigate = useNavigate()
+  const signWaiver = useServerFn(signWaiverFn)
+  const validateCouponForCheckout = useServerFn(validateCouponForCheckoutFn)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false)
+  const [couponCodeInput, setCouponCodeInput] = useState("")
+
+  // Active coupon from sessionStorage or manual entry.
+  const [activeCoupon, setActiveCoupon] = useState(() => {
+    const coupon = getCouponSession()
+    return coupon?.competitionSlug === competition.slug ? coupon : null
+  })
+
+  // Resolve initial division (eligible iff present + not registered/removed/full).
+  // Invite-locked URLs (`inviteToken` set) bypass the public `isFull` check —
+  // the invite IS the authorization, and the per-(source, division) allocation
+  // guardrail + payment-time re-check enforce the real cap. The public count
+  // also includes the invitee's own in-flight pending purchase, which would
+  // otherwise self-fill the division on a retry.
+  const invitedDivision = (() => {
+    if (!initialDivisionId) return null
+    const level = scalingGroup.scalingLevels.find(
+      (l) => l.id === initialDivisionId,
+    )
+    if (!level) return null
+    if (registeredDivisionIds.includes(level.id)) return null
+    if (removedDivisionIds.includes(level.id)) return null
+    if (!inviteToken) {
+      const pub = publicDivisions.find((d) => d.id === level.id)
+      if (pub?.isFull) return null
+    }
+    return level
+  })()
+
+  const [selectedDivisionIds, setSelectedDivisionIds] = useState<string[]>(
+    invitedDivision ? [invitedDivision.id] : [],
+  )
+  const [affiliateName, setAffiliateName] = useState(defaultAffiliateName ?? "")
+
+  const [teamEntries, setTeamEntries] = useState<Map<string, TeamEntry>>(() => {
+    const next = new Map<string, TeamEntry>()
+    if (invitedDivision && invitedDivision.teamSize > 1) {
+      const teammatesNeeded = invitedDivision.teamSize - 1
+      // Prior-team prefill (when arriving via an invite from a qualifying
+      // source competition): hydrate the first N slots with the prior
+      // teammates' email/name/affiliate so the invitee doesn't retype them.
+      // Truncates to `teammatesNeeded` if the prior team was larger; pads
+      // with empty rows if it was smaller.
+      const teammates: Teammate[] = Array.from(
+        { length: teammatesNeeded },
+        (_, i) => {
+          const seed = prefillTeammates[i]
+          return {
+            email: seed?.email ?? "",
+            firstName: seed?.firstName ?? "",
+            lastName: seed?.lastName ?? "",
+            affiliateName: seed?.affiliateName ?? "",
+          }
+        },
+      )
+      next.set(invitedDivision.id, {
+        divisionId: invitedDivision.id,
+        teamName: prefillTeamName,
+        teammates,
+      })
+    }
+    return next
+  })
+
+  const [divisionFees, setDivisionFees] = useState<Map<string, number>>(
+    new Map(),
+  )
+
+  // Prune fee entries for deselected divisions
+  useEffect(() => {
+    setDivisionFees((prev) => {
+      const selectedSet = new Set(selectedDivisionIds)
+      let changed = false
+      for (const key of prev.keys()) {
+        if (!selectedSet.has(key)) changed = true
+      }
+      if (!changed) return prev
+      const next = new Map<string, number>()
+      for (const [k, v] of prev) {
+        if (selectedSet.has(k)) next.set(k, v)
+      }
+      return next
+    })
+  }, [selectedDivisionIds])
+
+  const handleFeesLoaded = (
+    divisionId: string,
+    fees: { isFree: boolean; totalChargeCents?: number } | null,
+  ) => {
+    setDivisionFees((prev) => {
+      const next = new Map(prev)
+      if (fees && !fees.isFree && fees.totalChargeCents) {
+        next.set(divisionId, fees.totalChargeCents)
+      } else {
+        next.delete(divisionId)
+      }
+      return next
+    })
+  }
+
+  const [answers, setAnswers] = useState<
+    Array<{ questionId: string; answer: string }>
+  >(
+    questions.map((q) => {
+      const prev = previousAnswers.find((a) => a.questionId === q.id)
+      return { questionId: q.id, answer: prev?.answer ?? "" }
+    }),
+  )
+
+  const [agreedWaivers, setAgreedWaivers] = useState<Set<string>>(() => {
+    const signedSet = new Set(signedWaiverIds)
+    const preAgreed = new Set<string>()
+    for (const w of waivers) {
+      if (signedSet.has(w.id)) preAgreed.add(w.id)
+    }
+    return preAgreed
+  })
+
+  const requiredWaivers = waivers.filter((w) => w.required)
+  const allRequiredWaiversAgreed = requiredWaivers.every((w) =>
+    agreedWaivers.has(w.id),
+  )
+
+  const registeredDivisionIdSet = new Set(registeredDivisionIds)
+  const removedDivisionIdSet = new Set(removedDivisionIds)
+
+  // Track registration started on mount
+  useEffect(() => {
+    trackEvent("competition_registration_started", {
+      competition_id: competition.id,
+      competition_name: competition.name,
+      competition_slug: competition.slug,
+    })
+  }, [competition.id, competition.name, competition.slug])
+
+  // Show toast if returning from canceled payment
+  useEffect(() => {
+    if (paymentCanceled) {
+      toast.error("Payment was canceled. Please try again when you're ready.")
+    }
+  }, [paymentCanceled])
+
+  const getDivision = (divisionId: string) =>
+    scalingGroup.scalingLevels.find((l) => l.id === divisionId)
+
+  const handleDivisionToggle = (divisionId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedDivisionIds((prev) => [...prev, divisionId])
+      const division = getDivision(divisionId)
+      if (division && division.teamSize > 1) {
+        const teammatesNeeded = division.teamSize - 1
+        setTeamEntries((prev) => {
+          const next = new Map(prev)
+          next.set(divisionId, {
+            divisionId,
+            teamName: "",
+            teammates: Array.from({ length: teammatesNeeded }, () => ({
+              email: "",
+              firstName: "",
+              lastName: "",
+              affiliateName: "",
+            })),
+          })
+          return next
+        })
+      }
+    } else {
+      setSelectedDivisionIds((prev) => prev.filter((id) => id !== divisionId))
+      setTeamEntries((prev) => {
+        const next = new Map(prev)
+        next.delete(divisionId)
+        return next
+      })
+    }
+  }
+
+  const updateTeamEntry = (
+    divisionId: string,
+    field: "teamName",
+    value: string,
+  ) => {
+    setTeamEntries((prev) => {
+      const next = new Map(prev)
+      const entry = next.get(divisionId)
+      if (entry) next.set(divisionId, { ...entry, [field]: value })
+      return next
+    })
+  }
+
+  const updateTeammate = (
+    divisionId: string,
+    index: number,
+    field: keyof Teammate,
+    value: string,
+  ) => {
+    setTeamEntries((prev) => {
+      const next = new Map(prev)
+      const entry = next.get(divisionId)
+      if (entry) {
+        const teammates = [...entry.teammates]
+        teammates[index] = { ...teammates[index], [field]: value }
+        next.set(divisionId, { ...entry, teammates })
+      }
+      return next
+    })
+  }
+
+  const handleWaiverCheckChange = (waiverId: string, checked: boolean) => {
+    setAgreedWaivers((prev) => {
+      const newSet = new Set(prev)
+      if (checked) newSet.add(waiverId)
+      else newSet.delete(waiverId)
+      return newSet
+    })
+  }
+
+  const updateAnswer = (questionId: string, value: string) => {
+    setAnswers((prev) =>
+      prev.map((a) =>
+        a.questionId === questionId ? { ...a, answer: value } : a,
+      ),
+    )
+  }
+
+  const handleApplyCoupon = async () => {
+    const code = couponCodeInput.trim()
+    if (!code) {
+      toast.error("Enter a coupon code")
+      return
+    }
+
+    setIsApplyingCoupon(true)
+    try {
+      const result = await validateCouponForCheckout({
+        data: { code, competitionId: competition.id },
+      })
+
+      if (!result.valid || !result.coupon) {
+        toast.error("Invalid or expired coupon code")
+        return
+      }
+
+      const couponSession = {
+        code: result.coupon.code,
+        competitionSlug: competition.slug,
+        competitionName: competition.name,
+        amountOffCents: result.amountOffCents,
+      }
+      setCouponSession(couponSession)
+      setActiveCoupon(couponSession)
+      setCouponCodeInput("")
+      toast.success("Coupon applied")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to apply coupon")
+    } finally {
+      setIsApplyingCoupon(false)
+    }
+  }
+
+  const handleRemoveCoupon = () => {
+    clearCouponSession()
+    setActiveCoupon(null)
+  }
+
+  const buildRegistrationItems = () =>
+    selectedDivisionIds.map((divisionId) => {
+      const division = getDivision(divisionId)
+      const isTeam = (division?.teamSize ?? 1) > 1
+      const teamEntry = teamEntries.get(divisionId)
+      return {
+        divisionId,
+        teamName: isTeam ? teamEntry?.teamName : undefined,
+        teammates: isTeam ? teamEntry?.teammates : undefined,
+      }
+    })
+
+  const hasSelectedDivisions = selectedDivisionIds.length > 0
+  const competitionFull = false // capacity gating happens at the variant level
+  const selectedTeamDivisions = selectedDivisionIds
+    .map((id) => getDivision(id))
+    .filter((d): d is ScalingLevel => d !== undefined && d.teamSize > 1)
+  const teammateEmailErrors = buildTeammateEmailErrors({
+    teamEntries,
+    selectedTeamDivisions,
+    userEmail,
+  })
+  const hasTeammateEmailErrors = teammateEmailErrors.size > 0
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (selectedDivisionIds.length === 0) {
+      toast.error("Please select at least one division")
+      return
+    }
+    if (!affiliateName.trim()) {
+      toast.error("Please select your affiliate or Independent")
+      return
+    }
+
+    for (const divisionId of selectedDivisionIds) {
+      const division = getDivision(divisionId)
+      if (!division || division.teamSize <= 1) continue
+
+      const teamEntry = teamEntries.get(divisionId)
+      if (!teamEntry?.teamName?.trim()) {
+        toast.error(`Team name is required for ${division.label}`)
+        return
+      }
+      const teammatesNeeded = division.teamSize - 1
+      if (
+        !teamEntry.teammates ||
+        teamEntry.teammates.length !== teammatesNeeded
+      ) {
+        toast.error(
+          `Please add ${teammatesNeeded} teammate(s) for ${division.label}`,
+        )
+        return
+      }
+      for (const [index, teammate] of teamEntry.teammates.entries()) {
+        if (!teammate.email?.trim()) {
+          toast.error(`All teammate emails are required for ${division.label}`)
+          return
+        }
+        const teammateEmailError = teammateEmailErrors
+          .get(divisionId)
+          ?.get(index)
+        if (teammateEmailError) {
+          toast.error(teammateEmailError)
+          return
+        }
+      }
+    }
+
+    if (questions.length > 0) {
+      for (const question of questions) {
+        if (question.required) {
+          const answer = answers.find((a) => a.questionId === question.id)
+          if (!answer?.answer?.trim()) {
+            toast.error(
+              `Please answer the required question: ${question.label}`,
+            )
+            return
+          }
+        }
+      }
+    }
+
+    if (!allRequiredWaiversAgreed) {
+      toast.error("Please agree to all required waivers before registering")
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      for (const waiverId of agreedWaivers) {
+        const result = await signWaiver({
+          data: {
+            waiverId,
+            registrationId: undefined,
+            ipAddress: undefined,
+          },
+        })
+        if (!result.success) {
+          toast.error("Failed to sign waiver")
+          setIsSubmitting(false)
+          return
+        }
+      }
+
+      const items = buildRegistrationItems()
+
+      // The server resolves the token, verifies it matches the session +
+      // competition + division, and bypasses the public registration window.
+      // Phase 2D will additionally settle the matching invite to
+      // `accepted_paid` via Stripe metadata.
+      const result = await initiateRegistrationPaymentFn({
+        data: {
+          competitionId: competition.id,
+          items,
+          affiliateName: affiliateName || undefined,
+          answers,
+          couponCode: activeCoupon?.code,
+          ...(inviteToken ? { inviteToken } : {}),
+        },
+      })
+
+      if (result.isFree) {
+        if (activeCoupon) clearCouponSession()
+        trackEvent("competition_registration_completed", {
+          competition_id: competition.id,
+          competition_name: competition.name,
+          competition_slug: competition.slug,
+          division_count: items.length,
+        })
+        toast.success("Successfully registered!")
+        navigate({
+          to: `/compete/${competition.slug}/registered`,
+          search: { registration_id: result.registrationId ?? undefined },
+        })
+        return
+      }
+
+      if (result.checkoutUrl) {
+        if (activeCoupon) clearCouponSession()
+        trackEvent("competition_registration_payment_started", {
+          competition_id: competition.id,
+          competition_name: competition.name,
+          competition_slug: competition.slug,
+          division_count: items.length,
+        })
+        window.location.href = result.checkoutUrl
+        return
+      }
+
+      throw new Error("Failed to create checkout session")
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Registration failed"
+
+      trackEvent("competition_registration_failed", {
+        competition_id: competition.id,
+        competition_name: competition.name,
+        competition_slug: competition.slug,
+        error_type: "unknown",
+      })
+
+      toast.error(errorMessage)
+      setIsSubmitting(false)
+    }
+  }
+
+  return {
+    // pass-throughs (so variants don't need to re-pass everything)
+    competition,
+    scalingGroup,
+    publicDivisions,
+    waivers,
+    questions,
+
+    // state
+    isSubmitting,
+    isApplyingCoupon,
+    activeCoupon,
+    couponCodeInput,
+    invitedDivision,
+    selectedDivisionIds,
+    selectedTeamDivisions,
+    hasSelectedDivisions,
+    teammateEmailErrors,
+    hasTeammateEmailErrors,
+    affiliateName,
+    setAffiliateName,
+    setCouponCodeInput,
+    teamEntries,
+    divisionFees,
+    answers,
+    agreedWaivers,
+    allRequiredWaiversAgreed,
+    registeredDivisionIdSet,
+    removedDivisionIdSet,
+    competitionFull,
+
+    // handlers
+    getDivision,
+    handleDivisionToggle,
+    handleFeesLoaded,
+    handleApplyCoupon,
+    handleRemoveCoupon,
+    updateTeamEntry,
+    updateTeammate,
+    handleWaiverCheckChange,
+    updateAnswer,
+    onSubmit,
+  }
+}
+
+export type UseRegistrationFormReturn = ReturnType<typeof useRegistrationForm>

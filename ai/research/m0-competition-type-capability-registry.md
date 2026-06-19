@@ -135,11 +135,12 @@ export function competitionCapabilities(type: string) {
 
 Each cluster below maps `competitionType`/`isOnline`/`isInPerson` checks to the capability matching the site's **real intent** (not a blind `"online"`→helper swap). Line numbers are anchors; confirm at edit time.
 
-### videoSubmissions (~20 sites)
+### videoSubmissions (~22 sites)
 `competitionCan(type, "videoSubmissions")` (replaces `=== "online"` that gates submitting/reviewing/judging video+score):
 - `routes/api/compete/scores/submit.ts:70`, `routes/api/compete/video/submit.ts:71`, `routes/api/compete/scores/window-status.ts:35`, `routes/api/compete/scores/judge.ts:173`
 - `server-fns/athlete-score-fns.ts:152`, `server-fns/competition-score-fns.ts:188`, `server-fns/video-submission-fns.ts:139` (the `checkSubmissionWindow` type gate)
 - `server/competition-leaderboard.ts:847` (fetch video submissions for the board)
+- `routes/compete/$slug/index.tsx:62/135` (submission status load + score panel for registered athletes)
 - `routes/compete/$slug/workouts/$eventId.tsx:184/213/222/665/692/712`, `routes/compete/$slug/workouts/index.tsx:128/151`
 - `routes/compete/$slug/review/$eventId/index.tsx:101`
 - `routes/compete/{organizer,cohost}/$competitionId/events/$eventId/submissions/index.tsx:104/101`
@@ -164,17 +165,20 @@ Each cluster below maps `competitionType`/`isOnline`/`isInPerson` checks to the 
 - `routes/compete/$slug/schedule.tsx:24/29/32/47/65/77/88`, `routes/compete/$slug/my-schedule.tsx:35/156`
 - in-person section of `organizer-competition-edit-form.tsx:365` (may split across `heatScheduling` + `physicalVenue`)
 
-### dayOfCheckIn (~3 sites)
+### dayOfCheckIn (~8 sites)
 `competitionCan(type, "dayOfCheckIn")`:
 - `routes/compete/$slug/check-in.tsx:27`, `routes/compete/organizer/$competitionId/check-in.tsx:23`, `server-fns/check-in-fns.ts:77` (`!== "in-person"`)
+- `components/registration-sidebar.tsx:295` (volunteer check-in kiosk link)
+- `routes/compete/organizer/$competitionId/athletes/index.tsx:823/854/1561/1686` (CSV/table/card check-in columns)
 
 ### physicalVenue (~4 sites)
 `competitionCan(type, "physicalVenue")`:
 - `components/competition-location-card.tsx:17/24/38`, `utils/address.ts:372`
 
-### volunteerScheduling (~12 sites)
+### volunteerScheduling (~13 sites)
 `competitionCan(type, "volunteerScheduling")` (today `isInPerson`):
 - `routes/compete/organizer/$competitionId/volunteers.tsx:275/278/282/289/310/322/382`
+- `routes/compete/organizer/$competitionId/volunteers/judges.tsx` (after route split, judge assignments should key off `heatScheduling`)
 - `routes/compete/cohost/$competitionId/volunteers.tsx:339/342/346/353/468/480/612`
 
 ### organizerEntersResults + nav labels (~25 sites)
@@ -265,7 +269,7 @@ It inherits video submission, opt-in publishing, the online leaderboard table, a
 - [ ] `src/lib/competitions/capabilities.ts` exists with the registry + `competitionCan` / `leaderboardVariant` / `isSelectableType` (+ optional `competitionCapabilities`).
 - [ ] Snapshot truth-table test passes for `"in-person"` and `"online"` across all capabilities (§7).
 - [ ] All ~121 `competitionType`-axis sites (44 files) converted to capability lookups; the 5 `scoringAlgorithm` sites untouched (and commented).
-- [ ] `rg 'competitionType\s*===\s*"online"|competitionType\s*!==\s*"online"|isOnline\b|isInPerson\b'` over `src` returns only the registry file + intentional type-identity reads (picker/filter/update).
+- [ ] `rg 'competitionType\s*(===|!==)\s*"(online|in-person)"|"(online|in-person)"\s*(===|!==)\s*competitionType|\bisOnline\b|\bisInPerson\b'` over `src` returns only the registry file + intentional type-identity reads (picker/filter/update).
 - [ ] Full existing test suite green; `pnpm type-check`, `pnpm check` pass.
 - [ ] No DB migration in the diff (`pnpm db:generate` produces nothing).
 - [ ] Manual smoke: an in-person and an online competition render identically to `main` (sidebars, leaderboard, submission/results flows, check-in, schedule, location).
