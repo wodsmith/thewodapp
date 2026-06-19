@@ -30,6 +30,18 @@ Roster shifts assignments normalize volunteer invitations, memberships, shifts, 
 
 The pure helpers preserve source identity for invitations and memberships, derive roster status, and keep role, availability, credential, import, and assignment details together so Crew pages can render staffing state without mutating event data.
 
+## Staffing Page Gap Report
+
+Crew staffing pages expose the matrix core as a read-only event operations report.
+
+[[apps/crew/src/server-fns/crew-staffing-fns.ts]] exposes a lightweight route-safe server-function wrapper.
+
+[[apps/crew/src/server-fns/crew-staffing-fns.server.ts]] hydrates the matrix from existing event, venue, heat, lane, roster, shift, active judge assignment, and confirmation data.
+
+[[apps/crew/src/routes/events/$eventId/staffing.tsx]] renders coverage, open capacity, judge lane gaps, conflicts, availability warnings, role warnings, confirmation gaps, and source counts without mutating schema or assignments.
+
+[[apps/crew/src/lib/crew/staffing/report.ts]] owns the deterministic event-level status and report summaries used by the page.
+
 ## Staffing Calculator
 
 The public Crew calculator route estimates event-day staffing needs from event dimensions and editable role assumptions.
