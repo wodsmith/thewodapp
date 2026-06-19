@@ -1,6 +1,13 @@
 # Cloudflare Workers Development Variables
 # Copy this file to .dev.vars and fill in values
-# These are loaded by `wrangler dev` and override .env variables
+# These are loaded by the Cloudflare Vite plugin (Miniflare) during `pnpm dev`
+# and override the `vars` in wrangler.jsonc.
+
+### Database (Required)
+# Local dev connects directly to PlanetScale via this URL (there is no
+# Hyperdrive binding locally — src/db/index.ts falls back to DATABASE_URL).
+# Use your PlanetScale dev branch connection string.
+DATABASE_URL=mysql://user:password@host/wodsmith-db?sslaccept=strict
 
 ### Stripe Configuration (Required for Stripe features)
 # Get your API keys from https://dashboard.stripe.com/apikeys
@@ -13,14 +20,14 @@ STRIPE_CLIENT_ID=ca_...
 
 # Webhook secret for Stripe webhook signature verification
 # Get from Stripe Dashboard > Developers > Webhooks > Add endpoint
-# For local dev, use Stripe CLI: `stripe listen --forward-to localhost:5173/api/stripe/webhook`
+# For local dev, use Stripe CLI: `stripe listen --forward-to localhost:3000/api/stripe/webhook`
 STRIPE_WEBHOOK_SECRET=whsec_...
 
 ### Client-side Stripe (VITE_ prefix exposes to client)
 VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
 
 ### App Configuration
-VITE_APP_URL=http://localhost:5173
+VITE_APP_URL=http://localhost:3000
 
 ### Cloudflare AI Gateway
 # Required by the AI judge-scheduling agent (and any future AI features)

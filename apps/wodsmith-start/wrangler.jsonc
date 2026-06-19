@@ -1,46 +1,46 @@
 /**
+ * Wrangler configuration for LOCAL DEVELOPMENT.
+ *
+ * `pnpm dev` runs the app through the official Cloudflare Vite plugin
+ * (`@cloudflare/vite-plugin`), which reads this file and emulates every binding
+ * below with Miniflare — no Cloudflare authentication required.
+ *
+ * Production / staging deploys do NOT use this file. Those go through Alchemy
+ * IaC (see alchemy.run.ts), which provisions the real Cloudflare resources and
+ * injects their bindings at deploy time. Keep the binding *names* here in sync
+ * with alchemy.run.ts so local dev matches deployed behaviour.
+ *
  * For more details on how to configure Wrangler, refer to:
  * https://developers.cloudflare.com/workers/wrangler/configuration/
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"account_id": "317fb84f366ea1ab038ca90000953697",
 	"name": "wodsmith-start",
-	"main": "@tanstack/react-start/server-entry",
+	// Custom TanStack Start server entry (re-exports Durable Object / Workflow
+	// classes and adds the queue consumer). TanStack Start also auto-detects
+	// src/server.ts, and the Cloudflare plugin uses the SSR build output.
+	"main": "src/server.ts",
 	"compatibility_date": "2025-09-02",
 	"compatibility_flags": [
 		"nodejs_compat",
 		"global_fetch_strictly_public"
 	],
-	"minify": true,
 	"observability": {
 		"enabled": true
 	},
 	/**
-	 * Smart Placement
-	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
-	 */
-	"placement": {
-		"mode": "smart"
-	},
-	/**
-	 * Bindings
-	 * Bindings allow your Worker to interact with resources on the Cloudflare Developer Platform, including
-	 * databases, object storage, AI inference, real-time communication and more.
-	 * https://developers.cloudflare.com/workers/runtime-apis/bindings/
-	 */
-	/**
 	 * Environment Variables
+	 * Local-dev defaults. Secrets (Stripe, Resend, Turnstile, DATABASE_URL, etc.)
+	 * are NOT committed here — put them in .dev.vars (see .dev.vars.example).
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
-	 * Commerce: App URL for Stripe redirects (set to production URL in production)
-	 * Note: Use secrets to store sensitive data.
-	 * https://developers.cloudflare.com/workers/configuration/secrets/
 	 */
 	"vars": {
+		"NODE_ENV": "development",
+		"APP_URL": "http://localhost:3000",
+		"SITE_URL": "http://localhost:3000",
 		"EMAIL_FROM": "team@mail.wodsmith.com",
 		"EMAIL_FROM_NAME": "WODsmith",
 		"EMAIL_REPLY_TO": "support@mail.wodsmith.com",
-		"APP_URL": "https://wodsmith.com",
 		"R2_PUBLIC_URL": "https://pub-10ec4eb87e8d4c7383ead07a9dd77fa5.r2.dev",
 		"POSTHOG_KEY": "phc_UCtCVOUXvpuKzF50prCLKIWWCFc61j5CPTbt99OrKsK",
 		"TURNSTILE_SITE_KEY": "0x4AAAAAACF8K4v1TmFMOmtk",
@@ -48,7 +48,7 @@
 	},
 	/**
 	 * KV Namespace Binding
-	 * Used for session storage
+	 * Used for session storage. Emulated by Miniflare locally.
 	 */
 	"kv_namespaces": [
 		{
@@ -58,7 +58,7 @@
 	],
 	/**
 	 * R2 Bucket Bindings
-	 * Object storage for file uploads
+	 * Object storage for file uploads. Emulated by Miniflare locally.
 	 */
 	"r2_buckets": [
 		{
@@ -66,8 +66,68 @@
 			"bucket_name": "wodsmith-wodsmith-uploads-prod"
 		},
 		{
-			"bucket_name": "wodsmith-uploads-dev",
-			"binding": "wodsmith_uploads_dev"
+			"binding": "wodsmith_uploads_dev",
+			"bucket_name": "wodsmith-uploads-dev"
 		}
-	]
+	],
+	// NOTE: The Workers AI (`ai`) binding is intentionally omitted here.
+	// Workers AI has no local emulation, so the Cloudflare Vite plugin would
+	// start a *remote* proxy session that requires `wrangler login` — defeating
+	// the no-auth local dev goal. The judge-scheduling agent's AI calls don't
+	// work locally without extra setup; everything else runs fully in Miniflare.
+	/**
+	 * Durable Object namespace for the AI judge-scheduling agent.
+	 * Mirrors the DurableObjectNamespace declared in alchemy.run.ts.
+	 */
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "JUDGE_SCHEDULER_AGENT",
+				"class_name": "JudgeSchedulerAgent"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": [
+				"JudgeSchedulerAgent"
+			]
+		}
+	],
+	/**
+	 * Cloudflare Workflows for async Stripe checkout + manual registration.
+	 * Binding names match alchemy.run.ts; class names are exported from
+	 * src/server.ts.
+	 */
+	"workflows": [
+		{
+			"binding": "STRIPE_CHECKOUT_WORKFLOW",
+			"name": "stripe-checkout-workflow-dev",
+			"class_name": "StripeCheckoutWorkflow"
+		},
+		{
+			"binding": "MANUAL_REGISTRATION_WORKFLOW",
+			"name": "manual-registration-workflow-dev",
+			"class_name": "ManualRegistrationWorkflow"
+		}
+	],
+	/**
+	 * Queue for async broadcast email delivery. This Worker is both producer
+	 * and consumer (see the queue() handler in src/server.ts).
+	 */
+	"queues": {
+		"producers": [
+			{
+				"binding": "BROADCAST_EMAIL_QUEUE",
+				"queue": "broadcast-email-queue-dev"
+			}
+		],
+		"consumers": [
+			{
+				"queue": "broadcast-email-queue-dev",
+				"max_concurrency": 1
+			}
+		]
+	}
 }

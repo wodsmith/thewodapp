@@ -33,6 +33,14 @@ The primary web application containing all user-facing functionality.
 - `src/workflows/` — Multi-step business processes (registration, checkout)
 - `src/agents/` — Cloudflare Agents (Durable Object classes) for AI-augmented features
 
+#### Local development
+
+`pnpm dev` runs the app entirely in Miniflare via the official Cloudflare Vite plugin (`@cloudflare/vite-plugin`) — no Cloudflare authentication required. Build and deploy still use Alchemy IaC.
+
+[[apps/wodsmith-start/vite.config.ts]] selects the Cloudflare-bindings plugin by Vite phase: the dev server (`command === "serve"`, not preview) uses `cloudflare()`, while build/deploy keeps `alchemy()`. The Cloudflare plugin reads bindings from `apps/wodsmith-start/wrangler.jsonc` and emulates KV, R2, Queues, Durable Objects, and Workflows locally. Binding *names* there must stay in sync with the deploy-time bindings in `alchemy.run.ts`.
+
+Two bindings are deliberately absent from the local config so the dev server never needs `wrangler login`: the Workers **AI** binding (no local emulation — it would start a remote proxy session) and **Hyperdrive**. Without Hyperdrive, [[apps/wodsmith-start/src/db/index.ts#getDb]] falls back to a direct PlanetScale connection via `DATABASE_URL`, which devs set in `.dev.vars` (see `.dev.vars.example`). AI-agent features therefore don't run locally without extra setup; everything else works.
+
 #### Deploy pipeline
 
 The main app deploys to Cloudflare Workers via `.github/workflows/deploy.yml` using Alchemy IaC, with database schema handled differently per stage.
