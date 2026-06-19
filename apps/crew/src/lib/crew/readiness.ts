@@ -1,3 +1,4 @@
+// @lat: [[crew#Pilot Readiness Checklist]]
 import type { CrewAssignmentConfirmationStatusSummary } from "./assignment-confirmations"
 import type { CrewRosterSummary } from "./roster-shifts"
 
@@ -215,18 +216,22 @@ function buildWorkoutsHeatsItem(
   const status =
     schedule.workoutCount === 0 || schedule.heatCount === 0
       ? "blocked"
-      : schedule.scheduledHeatCount < schedule.heatCount ||
+      : schedule.publishedWorkoutCount < schedule.workoutCount ||
+          schedule.scheduledHeatCount < schedule.heatCount ||
           schedule.publishedHeatCount < schedule.heatCount
         ? "needs_attention"
         : "ready"
+  const unpublishedWorkoutCount =
+    schedule.workoutCount - schedule.publishedWorkoutCount
 
   return {
     category: "workouts_heats",
     label: "Workouts and heats",
     status,
-    summary: `${schedule.workoutCount} workout${plural(schedule.workoutCount)}, ${schedule.heatCount} heat${plural(schedule.heatCount)}`,
+    summary: `${schedule.publishedWorkoutCount}/${schedule.workoutCount} workouts published, ${schedule.heatCount} heat${plural(schedule.heatCount)}`,
     details: [
       `${schedule.publishedWorkoutCount}/${schedule.workoutCount} workouts published.`,
+      `${unpublishedWorkoutCount} unpublished workout${plural(unpublishedWorkoutCount)} remaining.`,
       `${schedule.scheduledHeatCount}/${schedule.heatCount} heats scheduled.`,
       `${schedule.publishedHeatCount}/${schedule.heatCount} heat schedules published.`,
       `${input.imports.appliedHeatScheduleImportCount}/${input.imports.heatScheduleImportCount} heat schedule imports applied.`,

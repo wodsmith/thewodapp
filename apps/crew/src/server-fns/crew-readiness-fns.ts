@@ -1,6 +1,6 @@
 // @lat: [[crew#Pilot Readiness Checklist]]
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq } from "drizzle-orm"
+import { and, count, eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "../db"
 import {
@@ -121,12 +121,12 @@ async function requireCrewReadinessEvent(eventId: string) {
       timezone: competitionsTable.timezone,
       settingsText: crewEventSettingsTable.settings,
     })
-    .from(crewEventSettingsTable)
-    .innerJoin(
-      competitionsTable,
+    .from(competitionsTable)
+    .leftJoin(
+      crewEventSettingsTable,
       eq(crewEventSettingsTable.competitionId, competitionsTable.id),
     )
-    .where(eq(crewEventSettingsTable.competitionId, eventId))
+    .where(eq(competitionsTable.id, eventId))
     .limit(1)
 
   if (!event) {
@@ -239,11 +239,11 @@ async function loadJudgeSummary(
   const db = getDb()
   const [rotations, assignments, activeVersions] = await Promise.all([
     db
-      .select({ id: competitionJudgeRotationsTable.id })
+      .select({ count: count() })
       .from(competitionJudgeRotationsTable)
       .where(eq(competitionJudgeRotationsTable.competitionId, competitionId)),
     db
-      .select({ id: judgeHeatAssignmentsTable.id })
+      .select({ count: count() })
       .from(judgeHeatAssignmentsTable)
       .innerJoin(
         competitionHeatsTable,
@@ -251,7 +251,7 @@ async function loadJudgeSummary(
       )
       .where(eq(competitionHeatsTable.competitionId, competitionId)),
     db
-      .select({ id: judgeAssignmentVersionsTable.id })
+      .select({ count: count() })
       .from(judgeAssignmentVersionsTable)
       .innerJoin(
         trackWorkoutsTable,
@@ -270,8 +270,8 @@ async function loadJudgeSummary(
   ])
 
   return {
-    rotationCount: rotations.length,
-    assignmentCount: assignments.length,
-    activeVersionCount: activeVersions.length,
+    rotationCount: rotations[0]?.count ?? 0,
+    assignmentCount: assignments[0]?.count ?? 0,
+    activeVersionCount: activeVersions[0]?.count ?? 0,
   }
 }

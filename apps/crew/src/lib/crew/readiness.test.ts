@@ -1,3 +1,4 @@
+// @lat: [[crew#Pilot Readiness Checklist]]
 import { describe, expect, it } from "vitest"
 import { buildCrewReadinessChecklist } from "./readiness"
 import type { CrewReadinessInput } from "./readiness"
@@ -97,6 +98,23 @@ describe("Crew readiness checklist", () => {
       status: "needs_attention",
       summary: "3/7 assignments confirmed",
       details: ["2 no response.", "1 declined.", "1 change requested."],
+    })
+  })
+
+  it("keeps workout and heat readiness attention-worthy until workouts are published", () => {
+    const checklist = buildCrewReadinessChecklist({
+      ...readyInput,
+      schedule: {
+        ...readyInput.schedule,
+        publishedWorkoutCount: 3,
+      },
+    })
+
+    expect(
+      checklist.items.find((item) => item.category === "workouts_heats"),
+    ).toMatchObject({
+      status: "needs_attention",
+      summary: "3/4 workouts published, 20 heats",
     })
   })
 })

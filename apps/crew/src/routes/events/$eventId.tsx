@@ -1,3 +1,4 @@
+// @lat: [[crew#Pilot Readiness Checklist]]
 import { createFileRoute, Link, notFound, Outlet } from "@tanstack/react-router"
 import { getCrewEventFn } from "@/server-fns/crew-event-settings-fns"
 

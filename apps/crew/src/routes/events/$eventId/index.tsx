@@ -1,3 +1,4 @@
+// @lat: [[crew#Pilot Readiness Checklist]]
 import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router"
 import { formatCrewValue, getSafeHttpUrl } from "@/lib/crew-event-display"
 import {
