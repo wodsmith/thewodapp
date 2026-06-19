@@ -1,6 +1,7 @@
 import { render } from "@react-email/render"
 import { createServerFn } from "@tanstack/react-start"
-import { and, desc, eq, inArray, ne } from "drizzle-orm"
+// @lat: [[crew#Assignment Confirmation Responses]]
+import { and, desc, eq, inArray, ne, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "../db"
 import { competitionsTable, type Competition } from "../db/schemas/competitions"
@@ -115,6 +116,18 @@ export interface CrewAssignmentConfirmationEmailMessage {
   bodyHtml: string
   replyTo?: string
 }
+
+export type EnsureCrewShiftAssignmentConfirmationResult =
+  | {
+      id: string
+      action: "existing"
+      token: null
+    }
+  | {
+      id: string
+      action: "created"
+      token: string
+    }
 
 const publicTokenInputSchema = z.object({
   slug: z.string().trim().min(1, "Event slug is required").max(255),
@@ -250,52 +263,61 @@ export async function ensureCrewShiftAssignmentConfirmation(params: {
   email: string | null
   expiresAt: Date
   now?: Date
-}) {
+}): Promise<EnsureCrewShiftAssignmentConfirmationResult> {
   const now = params.now ?? new Date()
-  const [existing] = await params.db
-    .select({
-      id: crewAssignmentConfirmationsTable.id,
-      status: crewAssignmentConfirmationsTable.status,
-    })
-    .from(crewAssignmentConfirmationsTable)
-    .where(
-      and(
-        eq(
-          crewAssignmentConfirmationsTable.assignmentType,
-          CREW_ASSIGNMENT_CONFIRMATION_TYPE.VOLUNTEER_SHIFT,
-        ),
-        eq(crewAssignmentConfirmationsTable.assignmentId, params.assignmentId),
-        ne(
-          crewAssignmentConfirmationsTable.status,
-          CREW_ASSIGNMENT_CONFIRMATION_STATUS.CANCELLED,
-        ),
-      ),
-    )
-    .limit(1)
+  return await withCrewAssignmentConfirmationLock(
+    params.db,
+    params.assignmentId,
+    async () => {
+      const [existing] = await params.db
+        .select({
+          id: crewAssignmentConfirmationsTable.id,
+          status: crewAssignmentConfirmationsTable.status,
+        })
+        .from(crewAssignmentConfirmationsTable)
+        .where(
+          and(
+            eq(
+              crewAssignmentConfirmationsTable.assignmentType,
+              CREW_ASSIGNMENT_CONFIRMATION_TYPE.VOLUNTEER_SHIFT,
+            ),
+            eq(
+              crewAssignmentConfirmationsTable.assignmentId,
+              params.assignmentId,
+            ),
+            ne(
+              crewAssignmentConfirmationsTable.status,
+              CREW_ASSIGNMENT_CONFIRMATION_STATUS.CANCELLED,
+            ),
+          ),
+        )
+        .limit(1)
 
-  if (existing) {
-    return { id: existing.id, action: "existing" as const }
-  }
+      if (existing) {
+        return { id: existing.id, action: "existing", token: null }
+      }
 
-  const token = generateCrewAssignmentConfirmationToken()
-  const tokenHash = await hashCrewAssignmentConfirmationToken(token)
-  const confirmationId = createCrewAssignmentConfirmationId()
+      const token = generateCrewAssignmentConfirmationToken()
+      const tokenHash = await hashCrewAssignmentConfirmationToken(token)
+      const confirmationId = createCrewAssignmentConfirmationId()
 
-  await params.db.insert(crewAssignmentConfirmationsTable).values({
-    id: confirmationId,
-    competitionId: params.competitionId,
-    assignmentType: CREW_ASSIGNMENT_CONFIRMATION_TYPE.VOLUNTEER_SHIFT,
-    assignmentId: params.assignmentId,
-    membershipId: params.membershipId,
-    email: params.email,
-    tokenHash,
-    status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
-    expiresAt: params.expiresAt,
-    createdAt: now,
-    updatedAt: now,
-  })
+      await params.db.insert(crewAssignmentConfirmationsTable).values({
+        id: confirmationId,
+        competitionId: params.competitionId,
+        assignmentType: CREW_ASSIGNMENT_CONFIRMATION_TYPE.VOLUNTEER_SHIFT,
+        assignmentId: params.assignmentId,
+        membershipId: params.membershipId,
+        email: params.email,
+        tokenHash,
+        status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
+        expiresAt: params.expiresAt,
+        createdAt: now,
+        updatedAt: now,
+      })
 
-  return { id: confirmationId, action: "created" as const }
+      return { id: confirmationId, action: "created", token }
+    },
+  )
 }
 
 export async function cancelCrewShiftAssignmentConfirmations(params: {
@@ -493,24 +515,18 @@ async function getCrewAssignmentConfirmationByToken({
       crewEventSettingsTable,
       eq(crewEventSettingsTable.competitionId, competitionsTable.id),
     )
-    .innerJoin(
+    .leftJoin(
       volunteerShiftAssignmentsTable,
-      and(
-        eq(
-          crewAssignmentConfirmationsTable.assignmentId,
-          volunteerShiftAssignmentsTable.id,
-        ),
-        eq(
-          crewAssignmentConfirmationsTable.assignmentType,
-          CREW_ASSIGNMENT_CONFIRMATION_TYPE.VOLUNTEER_SHIFT,
-        ),
+      eq(
+        crewAssignmentConfirmationsTable.assignmentId,
+        volunteerShiftAssignmentsTable.id,
       ),
     )
-    .innerJoin(
+    .leftJoin(
       volunteerShiftsTable,
       eq(volunteerShiftAssignmentsTable.shiftId, volunteerShiftsTable.id),
     )
-    .innerJoin(
+    .leftJoin(
       teamMembershipTable,
       eq(volunteerShiftAssignmentsTable.membershipId, teamMembershipTable.id),
     )
@@ -518,6 +534,10 @@ async function getCrewAssignmentConfirmationByToken({
     .where(
       and(
         eq(crewAssignmentConfirmationsTable.tokenHash, tokenHash),
+        eq(
+          crewAssignmentConfirmationsTable.assignmentType,
+          CREW_ASSIGNMENT_CONFIRMATION_TYPE.VOLUNTEER_SHIFT,
+        ),
         eq(competitionsTable.slug, slug),
         eq(crewEventSettingsTable.crewOnly, true),
         ne(crewEventSettingsTable.lifecycle, CREW_EVENT_LIFECYCLE.ARCHIVED),
@@ -529,7 +549,11 @@ async function getCrewAssignmentConfirmationByToken({
     return emptyTokenData("missing")
   }
 
-  const status = getCrewAssignmentConfirmationTokenState(row.confirmation)
+  const tokenState = getCrewAssignmentConfirmationTokenState(row.confirmation)
+  const status =
+    tokenState === "valid" && (!row.assignment?.id || !row.shift?.id)
+      ? "bad"
+      : tokenState
   if (status !== "valid") {
     return {
       status,
@@ -540,7 +564,19 @@ async function getCrewAssignmentConfirmationByToken({
     }
   }
 
-  const metadata = parseCrewRosterMetadata(row.membership.metadata)
+  const assignment = row.assignment
+  const shift = row.shift
+  if (!assignment || !shift) {
+    return {
+      status: "bad",
+      event: row.event,
+      volunteer: null,
+      assignment: null,
+      confirmation: toConfirmationDisplay(row.confirmation),
+    }
+  }
+
+  const metadata = parseCrewRosterMetadata(row.membership?.metadata)
   const name =
     metadata.signupName ||
     [row.user?.firstName, row.user?.lastName].filter(Boolean).join(" ") ||
@@ -559,15 +595,15 @@ async function getCrewAssignmentConfirmationByToken({
       roleTypes: getCrewRosterRoleTypes(metadata.volunteerRoleTypes),
     },
     assignment: {
-      id: row.assignment.id,
-      shiftId: row.shift.id,
-      name: row.shift.name,
-      roleType: row.shift.roleType,
-      roleLabel: formatVolunteerRole(row.shift.roleType),
-      startTime: row.shift.startTime,
-      endTime: row.shift.endTime,
-      location: row.shift.location,
-      notes: row.shift.notes,
+      id: assignment.id,
+      shiftId: shift.id,
+      name: shift.name,
+      roleType: shift.roleType,
+      roleLabel: formatVolunteerRole(shift.roleType),
+      startTime: shift.startTime,
+      endTime: shift.endTime,
+      location: shift.location,
+      notes: shift.notes,
     },
     confirmation: toConfirmationDisplay(row.confirmation),
   }
@@ -612,4 +648,55 @@ function getResponseSuccessMessage(action: CrewAssignmentResponseAction) {
     return "Assignment declined. The organizer will see your response."
   }
   return "Change request sent. The organizer will see your note."
+}
+
+async function withCrewAssignmentConfirmationLock<T>(
+  db: DbClient,
+  assignmentId: string,
+  callback: () => Promise<T>,
+) {
+  let acquired = false
+  const lockName = await createCrewAssignmentConfirmationLockName(assignmentId)
+
+  try {
+    const result = await db.execute(
+      sql`SELECT GET_LOCK(${lockName}, 5) FROM dual`,
+    )
+    acquired = Number(getFirstExecuteValue(result) ?? 0) === 1
+    if (!acquired) {
+      throw new Error("Assignment confirmation could not be saved")
+    }
+
+    return await callback()
+  } finally {
+    if (acquired) {
+      await db.execute(sql`SELECT RELEASE_LOCK(${lockName}) FROM dual`)
+    }
+  }
+}
+
+async function createCrewAssignmentConfirmationLockName(assignmentId: string) {
+  const encoded = new TextEncoder().encode(
+    `crew-assignment-confirmation:${assignmentId}`,
+  )
+  const digest = await crypto.subtle.digest("SHA-256", encoded)
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("")
+}
+
+function getExecuteRows<T>(result: unknown): T[] {
+  if (Array.isArray(result)) {
+    if (Array.isArray(result[0])) return result[0] as T[]
+    return result as T[]
+  }
+
+  return ((result as { rows?: T[] })?.rows ?? []) as T[]
+}
+
+function getFirstExecuteValue(result: unknown): unknown {
+  const [row] = getExecuteRows<unknown>(result)
+  if (Array.isArray(row)) return row[0]
+  if (row && typeof row === "object") return Object.values(row)[0]
+  return row
 }

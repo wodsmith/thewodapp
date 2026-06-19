@@ -1,3 +1,4 @@
+// @lat: [[crew#Assignment Confirmation Responses]]
 import {
   CREW_ASSIGNMENT_CONFIRMATION_STATUS,
   type CrewAssignmentConfirmationStatus,

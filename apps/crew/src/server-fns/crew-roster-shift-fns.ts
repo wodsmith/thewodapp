@@ -1,6 +1,6 @@
 // @lat: [[crew#Roster Shifts Assignments]]
 import { createServerFn } from "@tanstack/react-start"
-import { and, asc, eq } from "drizzle-orm"
+import { and, asc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "../db"
 import { createVolunteerShiftAssignmentId } from "../db/schemas/common"
@@ -356,18 +356,32 @@ export const deleteCrewShiftFn = createServerFn({ method: "POST" })
     const db = getDb()
 
     await db.transaction(async (tx) => {
+      const [lockedShift] = await tx
+        .select({ id: volunteerShiftsTable.id })
+        .from(volunteerShiftsTable)
+        .where(eq(volunteerShiftsTable.id, data.shiftId))
+        .for("update")
+        .limit(1)
+      if (!lockedShift) {
+        throw new Error("Volunteer shift not found")
+      }
+
       const assignments = await tx
         .select({ id: volunteerShiftAssignmentsTable.id })
         .from(volunteerShiftAssignmentsTable)
         .where(eq(volunteerShiftAssignmentsTable.shiftId, data.shiftId))
+        .for("update")
+      const assignmentIds = assignments.map((assignment) => assignment.id)
 
       await cancelCrewShiftAssignmentConfirmations({
         db: tx as unknown as DbClient,
-        assignmentIds: assignments.map((assignment) => assignment.id),
+        assignmentIds,
       })
-      await tx
-        .delete(volunteerShiftAssignmentsTable)
-        .where(eq(volunteerShiftAssignmentsTable.shiftId, data.shiftId))
+      if (assignmentIds.length > 0) {
+        await tx
+          .delete(volunteerShiftAssignmentsTable)
+          .where(inArray(volunteerShiftAssignmentsTable.id, assignmentIds))
+      }
       await tx
         .delete(volunteerShiftsTable)
         .where(eq(volunteerShiftsTable.id, data.shiftId))
@@ -482,7 +496,8 @@ export const assignCrewVolunteerToShiftFn = createServerFn({ method: "POST" })
         competitionId: event.id,
         assignmentId,
         membershipId: membership.id,
-        email: metadata.signupEmail ?? membership.email ?? null,
+        email:
+          emptyToNull(metadata.signupEmail) ?? emptyToNull(membership.email),
         expiresAt: getAssignmentConfirmationExpiry(now),
         now,
       })
@@ -512,19 +527,18 @@ export const removeCrewVolunteerShiftAssignmentFn = createServerFn({
             eq(volunteerShiftAssignmentsTable.membershipId, data.membershipId),
           ),
         )
+        .for("update")
+      const assignmentIds = assignments.map((assignment) => assignment.id)
 
       await cancelCrewShiftAssignmentConfirmations({
         db: tx as unknown as DbClient,
-        assignmentIds: assignments.map((assignment) => assignment.id),
+        assignmentIds,
       })
-      await tx
-        .delete(volunteerShiftAssignmentsTable)
-        .where(
-          and(
-            eq(volunteerShiftAssignmentsTable.shiftId, shift.id),
-            eq(volunteerShiftAssignmentsTable.membershipId, data.membershipId),
-          ),
-        )
+      if (assignmentIds.length > 0) {
+        await tx
+          .delete(volunteerShiftAssignmentsTable)
+          .where(inArray(volunteerShiftAssignmentsTable.id, assignmentIds))
+      }
     })
 
     return { success: true }

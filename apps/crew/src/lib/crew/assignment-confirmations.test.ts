@@ -72,6 +72,7 @@ describe("Crew assignment response state transitions", () => {
       outcome: "updated",
       status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CONFIRMED,
       responseNote: null,
+      respondedAt: now,
     })
     expect(
       resolveCrewAssignmentConfirmationResponse(base, "decline", null, now),
@@ -79,6 +80,7 @@ describe("Crew assignment response state transitions", () => {
       ok: true,
       outcome: "updated",
       status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.DECLINED,
+      respondedAt: now,
     })
     expect(
       resolveCrewAssignmentConfirmationResponse(
@@ -92,6 +94,7 @@ describe("Crew assignment response state transitions", () => {
       outcome: "updated",
       status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CHANGE_REQUESTED,
       responseNote: "I can do the afternoon.",
+      respondedAt: now,
     })
   })
 
@@ -141,6 +144,24 @@ describe("Crew assignment response state transitions", () => {
     ).toMatchObject({
       ok: false,
       reason: "expired",
+    })
+  })
+
+  it("rejects cancelled confirmations as cancelled", () => {
+    expect(
+      resolveCrewAssignmentConfirmationResponse(
+        {
+          status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CANCELLED,
+          expiresAt: "2026-06-20T12:00:00.000Z",
+        },
+        "confirm",
+        null,
+        new Date("2026-06-19T12:00:00.000Z"),
+      ),
+    ).toMatchObject({
+      ok: false,
+      reason: "cancelled",
+      status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CANCELLED,
     })
   })
 })
