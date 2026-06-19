@@ -1,6 +1,7 @@
 // @lat: [[crew#Roster Shifts Assignments]]
 // @lat: [[crew#Server Function Runtime Boundary]]
 import { createServerFn } from "@tanstack/react-start"
+import { VOLUNTEER_ROLE_TYPE_VALUES } from "@repo/wodsmith-db/schemas/volunteers"
 import { z } from "zod"
 
 export type {
@@ -10,29 +11,13 @@ export type {
   CrewShiftSummary,
 } from "../server/crew-roster-shift.server"
 
-const volunteerRoleTypeValues = [
-  "judge",
-  "head_judge",
-  "equipment",
-  "medical",
-  "check_in",
-  "staff",
-  "scorekeeper",
-  "emcee",
-  "floor_manager",
-  "media",
-  "general",
-  "athlete_control",
-  "equipment_team",
-] as const
-
 const eventIdSchema = z.string().min(1, "Event ID is required")
 const eventInputSchema = z.object({ eventId: eventIdSchema })
 const shiftIdSchema = z.string().startsWith("vshf_", "Invalid shift ID")
 const membershipIdSchema = z
   .string()
   .startsWith("tmem_", "Invalid membership ID")
-const roleTypeSchema = z.enum(volunteerRoleTypeValues)
+const roleTypeSchema = z.enum(VOLUNTEER_ROLE_TYPE_VALUES)
 const shiftTextSchema = z.string().trim().max(1000).optional()
 const shiftDateSchema = z
   .string()

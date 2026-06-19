@@ -1,6 +1,5 @@
 // @lat: [[crew#Roster Shifts Assignments]]
 import { and, asc, eq, inArray } from "drizzle-orm"
-import { z } from "zod"
 import { getDb } from "../db"
 import { createVolunteerShiftAssignmentId } from "../db/schemas/common"
 import { competitionsTable, type Competition } from "../db/schemas/competitions"
@@ -12,7 +11,6 @@ import {
 } from "../db/schemas/teams"
 import { userTable } from "../db/schemas/users"
 import {
-  VOLUNTEER_ROLE_TYPE_VALUES,
   volunteerShiftAssignmentsTable,
   volunteerShiftsTable,
   type VolunteerRoleType,
@@ -111,66 +109,45 @@ export interface CrewShiftSummary {
   >
 }
 
-const eventIdSchema = z.string().min(1, "Event ID is required")
-const shiftIdSchema = z.string().startsWith("vshf_", "Invalid shift ID")
-const membershipIdSchema = z
-  .string()
-  .startsWith("tmem_", "Invalid membership ID")
-const roleTypeSchema = z.enum(VOLUNTEER_ROLE_TYPE_VALUES)
-const shiftTextSchema = z.string().trim().max(1000).optional()
-const shiftDateSchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD")
-const shiftTimeSchema = z
-  .string()
-  .regex(/^([01]?\d|2[0-3]):([0-5]\d)$/, "Time must be HH:mm")
-
-const shiftInputSchema = z.object({
-  eventId: eventIdSchema,
-  name: z.string().trim().min(1, "Name is required").max(200),
-  roleType: roleTypeSchema,
-  date: shiftDateSchema,
-  startTime: shiftTimeSchema,
-  endTime: shiftTimeSchema,
-  location: z.string().trim().max(200).optional(),
-  capacity: z.coerce.number().int().min(1).max(500),
-  notes: shiftTextSchema,
-})
-
-const updateShiftInputSchema = shiftInputSchema
-  .extend({
-    shiftId: shiftIdSchema,
-  })
-  .partial({
-    name: true,
-    roleType: true,
-    date: true,
-    startTime: true,
-    endTime: true,
-    location: true,
-    capacity: true,
-    notes: true,
-  })
-  .required({
-    eventId: true,
-    shiftId: true,
-  })
-
-const shiftAssignmentInputSchema = z.object({
-  eventId: eventIdSchema,
-  shiftId: shiftIdSchema,
-  membershipId: membershipIdSchema,
-  notes: z.string().trim().max(500).optional(),
-})
-
-const deleteShiftInputSchema = z.object({
-  eventId: eventIdSchema,
-  shiftId: shiftIdSchema,
-})
-
-export async function getCrewRosterPage(data: {
+interface CrewEventInput {
   eventId: string
-}): Promise<CrewRosterPageData> {
+}
+
+interface CrewShiftInput extends CrewEventInput {
+  name: string
+  roleType: VolunteerRoleType
+  date: string
+  startTime: string
+  endTime: string
+  location?: string
+  capacity: number
+  notes?: string
+}
+
+interface UpdateCrewShiftInput extends CrewEventInput {
+  shiftId: string
+  name?: string
+  roleType?: VolunteerRoleType
+  date?: string
+  startTime?: string
+  endTime?: string
+  location?: string
+  capacity?: number
+  notes?: string
+}
+
+interface DeleteCrewShiftInput extends CrewEventInput {
+  shiftId: string
+}
+
+interface CrewShiftAssignmentInput extends DeleteCrewShiftInput {
+  membershipId: string
+  notes?: string
+}
+
+export async function getCrewRosterPage(
+  data: CrewEventInput,
+): Promise<CrewRosterPageData> {
   requireLocalCrewOperatorAccess("Crew roster")
 
   const event = await requireCrewRosterEvent(data.eventId)
@@ -187,9 +164,9 @@ export async function getCrewRosterPage(data: {
   }
 }
 
-export async function getCrewShiftBoard(data: {
-  eventId: string
-}): Promise<CrewShiftBoardData> {
+export async function getCrewShiftBoard(
+  data: CrewEventInput,
+): Promise<CrewShiftBoardData> {
   requireLocalCrewOperatorAccess("Crew shifts")
 
   const event = await requireCrewRosterEvent(data.eventId)
@@ -207,9 +184,7 @@ export async function getCrewShiftBoard(data: {
   }
 }
 
-export async function getCrewEventRosterShiftSummary(data: {
-  eventId: string
-}) {
+export async function getCrewEventRosterShiftSummary(data: CrewEventInput) {
   requireLocalCrewOperatorAccess("Crew dashboard")
 
   const event = await requireCrewRosterEvent(data.eventId)
@@ -224,7 +199,7 @@ export async function getCrewEventRosterShiftSummary(data: {
   }
 }
 
-export async function createCrewShift(data: z.infer<typeof shiftInputSchema>) {
+export async function createCrewShift(data: CrewShiftInput) {
   requireLocalCrewOperatorAccess("Crew shifts")
 
   const event = await requireCrewRosterEvent(data.eventId)
@@ -250,9 +225,7 @@ export async function createCrewShift(data: z.infer<typeof shiftInputSchema>) {
   return { success: true }
 }
 
-export async function updateCrewShift(
-  data: z.infer<typeof updateShiftInputSchema>,
-) {
+export async function updateCrewShift(data: UpdateCrewShiftInput) {
   requireLocalCrewOperatorAccess("Crew shifts")
 
   const event = await requireCrewRosterEvent(data.eventId)
@@ -331,9 +304,7 @@ export async function updateCrewShift(
   return { success: true }
 }
 
-export async function deleteCrewShift(
-  data: z.infer<typeof deleteShiftInputSchema>,
-) {
+export async function deleteCrewShift(data: DeleteCrewShiftInput) {
   requireLocalCrewOperatorAccess("Crew shifts")
 
   await requireCrewRosterEvent(data.eventId)
@@ -376,7 +347,7 @@ export async function deleteCrewShift(
 }
 
 export async function assignCrewVolunteerToShift(
-  data: z.infer<typeof shiftAssignmentInputSchema>,
+  data: CrewShiftAssignmentInput,
 ) {
   requireLocalCrewOperatorAccess("Crew shifts")
 
@@ -491,7 +462,7 @@ export async function assignCrewVolunteerToShift(
 }
 
 export async function removeCrewVolunteerShiftAssignment(
-  data: z.infer<typeof shiftAssignmentInputSchema>,
+  data: CrewShiftAssignmentInput,
 ) {
   requireLocalCrewOperatorAccess("Crew shifts")
 

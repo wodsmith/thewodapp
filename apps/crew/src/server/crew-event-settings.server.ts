@@ -1,17 +1,16 @@
 import { createId } from "@paralleldrive/cuid2"
 import { desc, eq } from "drizzle-orm"
-import { z } from "zod"
 import { getDb } from "../db"
 import {
-  CREW_CONCIERGE_STATUS,
-  CREW_EVENT_LIFECYCLE,
-  CREW_PLAN,
+  type CrewConciergeStatus,
   type CrewEventSettings,
+  type CrewEventLifecycle,
+  type CrewPlan,
   crewEventSettingsTable,
 } from "../db/schemas/crew-event-settings"
 import { type Competition, competitionsTable } from "../db/schemas/competitions"
 import { teamTable } from "../db/schemas/teams"
-import { requireLocalCrewOperatorAccess } from "../server/crew-local-access"
+import { requireLocalCrewOperatorAccess } from "./crew-local-access"
 import { generateSlug } from "../utils/slugify"
 
 type CrewEventCompetition = Pick<
@@ -39,81 +38,51 @@ function requireLocalCrewSettingsAccess() {
   requireLocalCrewOperatorAccess("Crew event settings")
 }
 
-const lifecycleSchema = z.enum([
-  CREW_EVENT_LIFECYCLE.DRAFT,
-  CREW_EVENT_LIFECYCLE.SETUP,
-  CREW_EVENT_LIFECYCLE.IMPORTING,
-  CREW_EVENT_LIFECYCLE.READY,
-  CREW_EVENT_LIFECYCLE.ARCHIVED,
-])
+type NullableTextInput = string | null | undefined
 
-const conciergeStatusSchema = z.enum([
-  CREW_CONCIERGE_STATUS.NOT_STARTED,
-  CREW_CONCIERGE_STATUS.IN_PROGRESS,
-  CREW_CONCIERGE_STATUS.READY,
-  CREW_CONCIERGE_STATUS.BLOCKED,
-])
+interface GetCrewEventInput {
+  eventId: string
+}
 
-const crewPlanSchema = z.enum([
-  CREW_PLAN.SELF_SERVE,
-  CREW_PLAN.CONCIERGE,
-  CREW_PLAN.FULL_PLATFORM,
-])
+interface CreateCrewEventInput {
+  organizingTeamId: string
+  name: string
+  slug: string
+  startDate: string
+  endDate: string
+  description?: NullableTextInput
+  timezone: string
+  sourcePlatform?: NullableTextInput
+  sourceEventUrl?: NullableTextInput
+  externalRegistrationUrl?: NullableTextInput
+  acquisitionSource?: NullableTextInput
+  crewPlan: CrewPlan
+  settings?: NullableTextInput
+}
 
-const dateStringSchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
+interface CreateCrewSettingsForCompetitionInput {
+  competitionId: string
+  sourcePlatform?: NullableTextInput
+  sourceEventUrl?: NullableTextInput
+  externalRegistrationUrl?: NullableTextInput
+  acquisitionSource?: NullableTextInput
+  crewPlan: CrewPlan
+  settings?: NullableTextInput
+}
 
-const nullableTextInput = z
-  .string()
-  .trim()
-  .transform((value) => (value.length > 0 ? value : null))
-  .nullable()
-  .optional()
-
-const getCrewEventInputSchema = z.object({
-  eventId: z.string().min(1, "Event ID is required"),
-})
-
-const createCrewEventInputSchema = z.object({
-  organizingTeamId: z.string().min(1, "Organizing team ID is required"),
-  name: z.string().min(1, "Event name is required"),
-  slug: z.string().min(1, "Slug is required"),
-  startDate: dateStringSchema,
-  endDate: dateStringSchema,
-  description: nullableTextInput,
-  timezone: z.string().min(1).default("America/Denver"),
-  sourcePlatform: nullableTextInput,
-  sourceEventUrl: nullableTextInput,
-  externalRegistrationUrl: nullableTextInput,
-  acquisitionSource: nullableTextInput,
-  crewPlan: crewPlanSchema.default(CREW_PLAN.SELF_SERVE),
-  settings: nullableTextInput,
-})
-
-const createCrewSettingsForCompetitionInputSchema = z.object({
-  competitionId: z.string().min(1, "Competition ID is required"),
-  sourcePlatform: nullableTextInput,
-  sourceEventUrl: nullableTextInput,
-  externalRegistrationUrl: nullableTextInput,
-  acquisitionSource: nullableTextInput,
-  crewPlan: crewPlanSchema.default(CREW_PLAN.SELF_SERVE),
-  settings: nullableTextInput,
-})
-
-const updateCrewEventSettingsInputSchema = z.object({
-  competitionId: z.string().min(1, "Competition ID is required"),
-  crewOnly: z.boolean().optional(),
-  sourcePlatform: nullableTextInput,
-  sourceEventUrl: nullableTextInput,
-  externalRegistrationUrl: nullableTextInput,
-  lifecycle: lifecycleSchema.optional(),
-  conciergeStatus: conciergeStatusSchema.optional(),
-  crewPlan: crewPlanSchema.optional(),
-  fullPlatformCreditCents: z.number().int().min(0).optional(),
-  acquisitionSource: nullableTextInput,
-  settings: nullableTextInput,
-})
+interface UpdateCrewEventSettingsInput {
+  competitionId: string
+  crewOnly?: boolean
+  sourcePlatform?: NullableTextInput
+  sourceEventUrl?: NullableTextInput
+  externalRegistrationUrl?: NullableTextInput
+  lifecycle?: CrewEventLifecycle
+  conciergeStatus?: CrewConciergeStatus
+  crewPlan?: CrewPlan
+  fullPlatformCreditCents?: number
+  acquisitionSource?: NullableTextInput
+  settings?: NullableTextInput
+}
 
 const crewEventSelect = {
   settings: crewEventSettingsTable,
@@ -197,7 +166,7 @@ export async function listCrewEvents(): Promise<{
 }
 
 export async function getCrewEvent(
-  data: z.infer<typeof getCrewEventInputSchema>,
+  data: GetCrewEventInput,
 ): Promise<{ event: CrewEventDetails | null }> {
   requireLocalCrewSettingsAccess()
 
@@ -205,7 +174,7 @@ export async function getCrewEvent(
 }
 
 export async function createCrewSettingsForCompetition(
-  data: z.infer<typeof createCrewSettingsForCompetitionInputSchema>,
+  data: CreateCrewSettingsForCompetitionInput,
 ): Promise<{ event: CrewEventDetails }> {
   requireLocalCrewSettingsAccess()
   await requireCrewEventCompetition(data.competitionId)
@@ -233,7 +202,7 @@ export async function createCrewSettingsForCompetition(
 }
 
 export async function createCrewEvent(
-  data: z.infer<typeof createCrewEventInputSchema>,
+  data: CreateCrewEventInput,
 ): Promise<{ event: CrewEventDetails }> {
   requireLocalCrewSettingsAccess()
 
@@ -322,7 +291,7 @@ export async function createCrewEvent(
 }
 
 export async function updateCrewEventSettings(
-  data: z.infer<typeof updateCrewEventSettingsInputSchema>,
+  data: UpdateCrewEventSettingsInput,
 ): Promise<{ event: CrewEventDetails }> {
   requireLocalCrewSettingsAccess()
   await requireCrewEventCompetition(data.competitionId)

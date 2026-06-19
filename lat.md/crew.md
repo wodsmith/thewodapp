@@ -4,9 +4,11 @@ Crew is a concierge-first event operations surface that reuses normal WODsmith c
 
 ## Server Function Runtime Boundary
 
-Route and client code import lightweight `createServerFn` wrappers from `apps/crew/src/server-fns`. Those wrappers may validate input, but DB and Workers-runtime-backed implementation belongs in server-only `*.server.ts` modules and should be loaded inside the wrapper `handler()`.
+Route and client code import lightweight `createServerFn` wrappers from [[apps/crew/src/server-fns]].
 
-This prevents Vite client import analysis from walking through `apps/crew/src/db/index.ts` to `cloudflare:workers` while preserving stable server-function import paths for routes and client components.
+Those wrappers may validate input, but DB and Workers-runtime-backed implementation belongs in server-only `*.server.ts` modules under [[apps/crew/src/server]] and should be loaded inside the wrapper `handler()`.
+
+This prevents Vite client import analysis from walking through [[apps/crew/src/db/index.ts]] to `cloudflare:workers` while preserving stable server-function import paths.
 
 ## Event Setup Dashboard
 

@@ -1,7 +1,6 @@
 import { render } from "@react-email/render"
 // @lat: [[crew#Assignment Confirmation Responses]]
 import { and, desc, eq, inArray, ne, sql } from "drizzle-orm"
-import { z } from "zod"
 import { getDb } from "../db"
 import { competitionsTable, type Competition } from "../db/schemas/competitions"
 import { createCrewAssignmentConfirmationId } from "../db/schemas/common"
@@ -129,24 +128,24 @@ export type EnsureCrewShiftAssignmentConfirmationResult =
       token: string
     }
 
-const publicTokenInputSchema = z.object({
-  slug: z.string().trim().min(1, "Event slug is required").max(255),
-  token: z.string().trim().min(1, "Token is required").max(255),
-})
+interface PublicTokenInput {
+  slug: string
+  token: string
+}
 
-const publicTokenResponseInputSchema = publicTokenInputSchema.extend({
-  action: z.enum(["confirm", "decline", "request_change"]),
-  responseNote: z.string().trim().max(1000).optional(),
-})
+interface PublicTokenResponseInput extends PublicTokenInput {
+  action: CrewAssignmentResponseAction
+  responseNote?: string
+}
 
 export async function getCrewAssignmentConfirmationToken(
-  data: z.infer<typeof publicTokenInputSchema>,
+  data: PublicTokenInput,
 ): Promise<CrewAssignmentConfirmationTokenData> {
   return await getCrewAssignmentConfirmationByToken(data)
 }
 
 export async function respondCrewAssignmentConfirmationToken(
-  data: z.infer<typeof publicTokenResponseInputSchema>,
+  data: PublicTokenResponseInput,
 ): Promise<CrewAssignmentConfirmationResponseResult> {
   const db = getDb()
   const tokenHash = await hashCrewAssignmentConfirmationToken(data.token)
