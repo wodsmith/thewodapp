@@ -2,6 +2,7 @@
  * Address formatting and normalization utilities
  */
 
+import { canDisplayPhysicalVenue } from "@/lib/competitions/venue-volunteer-gates"
 import type { Address, LocationBadgeDisplay } from "@/types/address"
 
 /**
@@ -357,19 +358,18 @@ export function formatFullAddress(
 
 /**
  * Format location badge display for competition listings
- * Priority: online > city+state > city+country > city > name > team name > "Location TBA"
+ * Priority: no physical venue > city+state > city+country > city > name > team name > "Location TBA"
  * @param address - Address object (can be partial or null)
- * @param competitionType - Competition type ('in-person' or 'online')
+ * @param competitionType - Competition type
  * @param organizingTeamName - Fallback team name if no address data
  * @returns LocationBadgeDisplay with text and icon
  */
 export function formatLocationBadge(
   address: Partial<Address> | null | undefined,
-  competitionType: "in-person" | "online",
+  competitionType: string,
   organizingTeamName?: string | null,
 ): LocationBadgeDisplay {
-  // Online competitions always show globe icon with "Online"
-  if (competitionType === "online") {
+  if (!canDisplayPhysicalVenue(competitionType)) {
     return {
       text: "Online",
       icon: "globe",

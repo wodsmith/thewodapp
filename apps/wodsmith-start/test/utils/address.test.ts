@@ -408,6 +408,18 @@ describe("address utilities", () => {
 			})
 		})
 
+		it("fails closed for unknown competition types even with address data", () => {
+			const address: Partial<Address> = {
+				city: "Austin",
+				stateProvince: "TX",
+			}
+			const result = formatLocationBadge(address, "benchmark", null)
+			expect(result).toEqual({
+				text: "Online",
+				icon: "globe",
+			})
+		})
+
 		it("formats city and state for in-person competitions", () => {
 			const address: Partial<Address> = {
 				city: "Austin",
