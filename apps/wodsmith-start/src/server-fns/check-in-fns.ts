@@ -31,6 +31,7 @@ import {
   waiverSignaturesTable,
   waiversTable,
 } from "@/db/schemas/waivers"
+import { canUseDayOfCheckIn } from "@/lib/competitions/scheduling-check-in-gates"
 import { getSessionFromCookie } from "@/utils/auth"
 import { hasTeamPermission } from "@/utils/team-auth"
 
@@ -74,7 +75,7 @@ async function requireCheckInAccess(competitionId: string): Promise<{
     throw new Error("NOT_FOUND: Competition not found")
   }
 
-  if (competition.competitionType !== "in-person") {
+  if (!canUseDayOfCheckIn(competition.competitionType)) {
     throw new Error(
       "FORBIDDEN: Check-in is only available for in-person competitions",
     )

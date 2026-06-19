@@ -27,6 +27,7 @@ import type {
   JudgeAssignmentVersion,
 } from "@/db/schema"
 import type { LaneShiftPattern } from "@/db/schemas/volunteers"
+import { canUseHeatScheduling } from "@/lib/competitions/scheduling-check-in-gates"
 import { calculateCoverage } from "@/lib/judge-rotation-utils"
 import { formatTrackOrder } from "@/utils/format-track-order"
 import type { HeatWithAssignments } from "@/server-fns/competition-heats-fns"
@@ -186,7 +187,7 @@ export function JudgeSchedulingContainer({
   rotationOverviewActionsSlot,
   overrides,
 }: JudgeSchedulingContainerProps) {
-  const isOnline = competitionType === "online"
+  const hasHeatScheduling = canUseHeatScheduling(competitionType)
   const [assignments, setAssignments] =
     useState<JudgeHeatAssignment[]>(initialAssignments)
   const [selectedJudgeIds, setSelectedJudgeIds] = useState<Set<string>>(
@@ -586,7 +587,7 @@ export function JudgeSchedulingContainer({
        * active published version. Until the organizer publishes their
        * first draft, the section is hidden entirely (no empty-state
        * card) so the page focuses on building the schedule. */}
-      {!isOnline && eventActiveVersion && (
+      {hasHeatScheduling && eventActiveVersion && (
         <section className="space-y-6">
           <h3 className="text-lg font-semibold">Published Assignments</h3>
 
@@ -763,8 +764,7 @@ export function JudgeSchedulingContainer({
         </section>
       )}
 
-      {/* Rotations Section - Only for in-person competitions */}
-      {!isOnline && (
+      {hasHeatScheduling && (
         <section className="space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="text-lg font-semibold">Rotations</h3>
