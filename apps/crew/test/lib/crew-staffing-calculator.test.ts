@@ -42,6 +42,7 @@ function baseInputs(
 }
 
 describe("estimateCrewStaffing", () => {
+  // @lat: [[crew#Staffing Calculator#Role Basis]]
   it("scales lane judge assumptions by floors and lanes", () => {
     const estimate = estimateCrewStaffing(
       baseInputs({ lanes: 10, floors: 2 }),
@@ -55,6 +56,7 @@ describe("estimateCrewStaffing", () => {
     expect(estimate.judgeConcurrentPeople).toBe(22)
   })
 
+  // @lat: [[crew#Staffing Calculator#Shift Coverage]]
   it("converts heat time into shift slots for coverage", () => {
     const estimate = estimateCrewStaffing(
       baseInputs({ heats: 40, heatDurationMinutes: 12, shiftLengthHours: 4 }),
@@ -69,6 +71,7 @@ describe("estimateCrewStaffing", () => {
     expect(laneJudges?.shiftSlots).toBe(16)
   })
 
+  // @lat: [[crew#Staffing Calculator#Staffing Groups]]
   it("keeps judge and volunteer estimates separated", () => {
     const estimate = estimateCrewStaffing(baseInputs())
 
@@ -80,6 +83,7 @@ describe("estimateCrewStaffing", () => {
     )
   })
 
+  // @lat: [[crew#Staffing Calculator#Input Normalization]]
   it("normalizes invalid minimums without producing zero coverage", () => {
     const estimate = estimateCrewStaffing(
       baseInputs({
@@ -98,6 +102,7 @@ describe("estimateCrewStaffing", () => {
 })
 
 describe("formatStaffingDuration", () => {
+  // @lat: [[crew#Staffing Calculator#Duration Display]]
   it("formats full hours and mixed durations", () => {
     expect(formatStaffingDuration(45)).toBe("45m")
     expect(formatStaffingDuration(120)).toBe("2h")

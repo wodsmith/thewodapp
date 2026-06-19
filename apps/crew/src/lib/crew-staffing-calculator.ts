@@ -1,3 +1,4 @@
+// @lat: [[crew#Staffing Calculator#Inputs and Role Assumptions]]
 export type StaffingRoleGroup = "judge" | "volunteer"
 
 export type StaffingRoleBasis = "event" | "floor" | "lane" | "lanePerFloor"
@@ -42,6 +43,7 @@ export interface StaffingCalculatorEstimate {
   roleEstimates: StaffingRoleEstimate[]
 }
 
+// @lat: [[crew#Staffing Calculator#Default Assumptions]]
 export const defaultStaffingRoleAssumptions: StaffingRoleAssumption[] = [
   {
     id: "lane-judges",
@@ -96,6 +98,7 @@ export const defaultStaffingCalculatorInputs: StaffingCalculatorInputs = {
   roleAssumptions: defaultStaffingRoleAssumptions,
 }
 
+// @lat: [[crew#Staffing Calculator#Shift Coverage]]
 export function estimateCrewStaffing(
   inputs: StaffingCalculatorInputs,
 ): StaffingCalculatorEstimate {
@@ -143,6 +146,7 @@ export function estimateCrewStaffing(
   }
 }
 
+// @lat: [[crew#Staffing Calculator#Duration Display]]
 export function formatStaffingDuration(minutes: number) {
   const hours = Math.floor(minutes / 60)
   const remainingMinutes = minutes % 60
@@ -153,7 +157,8 @@ export function formatStaffingDuration(minutes: number) {
   return `${hours}h ${remainingMinutes}m`
 }
 
-function normalizeStaffingCalculatorInputs(
+// @lat: [[crew#Staffing Calculator#Input Normalization]]
+export function normalizeStaffingCalculatorInputs(
   inputs: StaffingCalculatorInputs,
 ): StaffingCalculatorInputs {
   return {

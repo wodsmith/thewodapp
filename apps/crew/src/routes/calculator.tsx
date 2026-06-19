@@ -5,6 +5,7 @@ import {
   defaultStaffingCalculatorInputs,
   estimateCrewStaffing,
   formatStaffingDuration,
+  normalizeStaffingCalculatorInputs,
   type StaffingCalculatorInputs,
   type StaffingRoleAssumption,
   type StaffingRoleBasis,
@@ -18,7 +19,7 @@ export const Route = createFileRoute("/calculator")({
 
 function StaffingCalculatorPage() {
   const [inputs, setInputs] = useState<StaffingCalculatorInputs>(
-    defaultStaffingCalculatorInputs,
+    normalizeStaffingCalculatorInputs(defaultStaffingCalculatorInputs),
   )
   const estimate = useMemo(() => estimateCrewStaffing(inputs), [inputs])
 
@@ -30,22 +31,26 @@ function StaffingCalculatorPage() {
     value: string,
   ) {
     const nextValue = Number(value)
-    setInputs((current) => ({
-      ...current,
-      [key]: Number.isFinite(nextValue) ? nextValue : 0,
-    }))
+    setInputs((current) =>
+      normalizeStaffingCalculatorInputs({
+        ...current,
+        [key]: Number.isFinite(nextValue) ? nextValue : 0,
+      }),
+    )
   }
 
   function updateRole(
     roleId: string,
     updates: Partial<StaffingRoleAssumption>,
   ) {
-    setInputs((current) => ({
-      ...current,
-      roleAssumptions: current.roleAssumptions.map((role) =>
-        role.id === roleId ? { ...role, ...updates } : role,
-      ),
-    }))
+    setInputs((current) =>
+      normalizeStaffingCalculatorInputs({
+        ...current,
+        roleAssumptions: current.roleAssumptions.map((role) =>
+          role.id === roleId ? { ...role, ...updates } : role,
+        ),
+      }),
+    )
   }
 
   return (
