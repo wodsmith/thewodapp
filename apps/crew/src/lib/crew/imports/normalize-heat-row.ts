@@ -6,8 +6,9 @@ import type {
   ImportIssue,
 } from "./types"
 
+// Keep sign and decimal boundaries symmetrical so signed labels never parse.
 const positiveIntegerTokenPattern =
-  /(?:^|[^A-Za-z0-9+\-.])([1-9]\d*)(?=$|[^A-Za-z0-9.])/
+  /(?:^|[^A-Za-z0-9+\-.])([1-9]\d*)(?=$|[^A-Za-z0-9+\-.])/
 
 export function normalizeHeatScheduleRow(
   record: CsvRecord,

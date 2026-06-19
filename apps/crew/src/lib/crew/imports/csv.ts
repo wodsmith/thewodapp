@@ -29,8 +29,8 @@ export function parseCsv(
     }
   }
 
-  const duplicateHeaders = findDuplicateHeaders(headers)
-  if (duplicateHeaders.length > 0) {
+  const duplicateHeaderGroups = findDuplicateHeaderGroups(headers)
+  if (duplicateHeaderGroups.length > 0) {
     return {
       headers,
       rows: [],
@@ -39,7 +39,7 @@ export function parseCsv(
         {
           code: "duplicate_headers",
           severity: "error",
-          message: `CSV headers must be unique. Duplicate header${duplicateHeaders.length === 1 ? "" : "s"}: ${duplicateHeaders.join(", ")}.`,
+          message: `CSV headers must be unique. Duplicate header group${duplicateHeaderGroups.length === 1 ? "" : "s"}: ${duplicateHeaderGroups.join("; ")}.`,
         },
       ],
       skippedRowCount: 0,
@@ -172,24 +172,29 @@ function parseCsvRecords(input: string, issues: ImportIssue[]) {
   return rows
 }
 
-function findDuplicateHeaders(headers: string[]) {
-  const seenHeaders = new Map<string, string>()
-  const duplicateHeaders = new Set<string>()
+function findDuplicateHeaderGroups(headers: string[]) {
+  const headersByNormalizedLabel = new Map<
+    string,
+    Array<{ columnNumber: number; label: string }>
+  >()
 
-  for (const header of headers) {
+  headers.forEach((header, index) => {
     const label = header.trim()
-    if (!label) continue
+    if (!label) return
 
     const key = label.toLowerCase().replace(/\s+/g, " ")
-    const firstLabel = seenHeaders.get(key)
-    if (firstLabel) {
-      duplicateHeaders.add(firstLabel)
-    } else {
-      seenHeaders.set(key, label)
-    }
-  }
+    const group = headersByNormalizedLabel.get(key) ?? []
+    group.push({ columnNumber: index + 1, label })
+    headersByNormalizedLabel.set(key, group)
+  })
 
-  return [...duplicateHeaders]
+  return [...headersByNormalizedLabel.values()]
+    .filter((group) => group.length > 1)
+    .map((group) =>
+      group
+        .map((header) => `${header.label} (column ${header.columnNumber})`)
+        .join(" / "),
+    )
 }
 
 function mapRecordToHeaders(headers: string[], record: string[]) {

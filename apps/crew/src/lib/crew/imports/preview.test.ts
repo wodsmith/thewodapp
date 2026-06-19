@@ -57,6 +57,9 @@ describe("parseCsv", () => {
         }),
       ]),
     )
+    expect(parsed.fileIssues[0]?.message).toContain(
+      "Email (column 2) / email (column 3)",
+    )
   })
 })
 
@@ -133,19 +136,21 @@ describe("buildCrewImportPreview", () => {
     expect(preview.errorCount).toBe(0)
   })
 
-  it("rejects signed negative heat numbers", () => {
-    const preview = buildCrewImportPreview({
-      kind: "heat_schedule",
-      context: previewContext,
-      csvText: "Workout,Heat,Start Time\nEvent 1,-3,9:00 AM",
-    })
+  it("rejects sign-adjacent heat numbers", () => {
+    for (const heatLabel of ["-3", "+3", "3-", "3+"]) {
+      const preview = buildCrewImportPreview({
+        kind: "heat_schedule",
+        context: previewContext,
+        csvText: `Workout,Heat,Start Time\nEvent 1,${heatLabel},9:00 AM`,
+      })
 
-    expect(preview.rows[0]?.action).toBe("error")
-    expect(preview.rows[0]?.errors).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ code: "invalid_heat_number" }),
-      ]),
-    )
+      expect(preview.rows[0]?.action).toBe("error")
+      expect(preview.rows[0]?.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ code: "invalid_heat_number" }),
+        ]),
+      )
+    }
   })
 
   it("flags unknown heat when a known workout has no loaded heats", () => {
