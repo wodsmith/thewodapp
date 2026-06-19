@@ -1,0 +1,492 @@
+"use client"
+
+import { useRouter } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
+import {
+  CalendarDays,
+  Clock,
+  Edit2,
+  MapPin,
+  Plus,
+  Trash2,
+  Users,
+} from "lucide-react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { toast } from "sonner"
+import { OrganizerEmptyState } from "@/components/organizer/empty-state"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
+  VOLUNTEER_ROLE_LABELS,
+  type VolunteerShift,
+} from "@/db/schemas/volunteers"
+import {
+  deleteShiftFn,
+  type getCompetitionShiftsFn,
+} from "@/server-fns/volunteer-shift-fns"
+import { ShiftAssignmentPanel } from "./shift-assignment-panel"
+import { ShiftFormDialog } from "./shift-form-dialog"
+
+// Type inferred from getCompetitionShiftsFn return type
+type ShiftWithAssignments = Awaited<
+  ReturnType<typeof getCompetitionShiftsFn>
+>[number]
+
+// Get badge variant based on capacity fill
+function getCapacityBadgeVariant(
+  assigned: number,
+  capacity: number,
+): "default" | "secondary" | "destructive" | "outline" {
+  if (assigned >= capacity) return "default" // Full
+  if (assigned > 0) return "secondary" // Partially filled
+  return "outline" // Empty
+}
+
+interface DayGroup {
+  dateKey: string
+  label: string
+  shifts: ShiftWithAssignments[]
+}
+
+function formatTime(date: Date): string {
+  return date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  })
+}
+
+function formatDayLabel(date: Date): string {
+  return date.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  })
+}
+
+function getDateKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+}
+
+function toDate(value: Date | string | number): Date {
+  if (value instanceof Date) return new Date(value.getTime())
+  return new Date(value)
+}
+
+interface ShiftListProps {
+  competitionId: string
+  competitionTeamId: string
+  shifts: ShiftWithAssignments[]
+  /** Optional callback to delete a shift. Defaults to organizer server fn. */
+  onDeleteShift?: (params: { shiftId: string }) => Promise<{ success: boolean }>
+  /** Optional callback to create a shift. Passed through to ShiftFormDialog. */
+  onCreateShift?: (params: {
+    competitionId: string
+    name: string
+    roleType: string
+    startTime: Date
+    endTime: Date
+    location?: string
+    capacity: number
+    notes?: string
+  }) => Promise<unknown>
+  /** Optional callback to update a shift. Passed through to ShiftFormDialog. */
+  onUpdateShift?: (params: {
+    shiftId: string
+    name?: string
+    roleType?: string
+    startTime?: Date
+    endTime?: Date
+    location?: string | null
+    capacity?: number
+    notes?: string | null
+  }) => Promise<unknown>
+  /** Optional callback to fetch volunteers. Passed through to ShiftAssignmentPanel. */
+  onGetVolunteers?: (params: {
+    competitionTeamId: string
+  }) => Promise<import("@/server-fns/volunteer-fns").TeamMembershipWithUser[]>
+  /** Optional callback to assign volunteer to shift. Passed through to ShiftAssignmentPanel. */
+  onAssignVolunteer?: (params: {
+    shiftId: string
+    membershipId: string
+  }) => Promise<unknown>
+  /** Optional callback to unassign volunteer from shift. Passed through to ShiftAssignmentPanel. */
+  onUnassignVolunteer?: (params: {
+    shiftId: string
+    membershipId: string
+  }) => Promise<unknown>
+}
+
+/**
+ * Admin component to display all shifts for a competition with add/edit/delete actions.
+ * Shifts are grouped by date and show name, role type, time, location, and assignment counts.
+ */
+export function ShiftList({
+  competitionId,
+  competitionTeamId,
+  shifts: initialShifts,
+  onDeleteShift,
+  onCreateShift,
+  onUpdateShift,
+  onGetVolunteers,
+  onAssignVolunteer,
+  onUnassignVolunteer,
+}: ShiftListProps) {
+  const router = useRouter()
+  const [shifts, setShifts] = useState(initialShifts)
+
+  // Sync local state when initialShifts changes (e.g., after router.invalidate())
+  useEffect(() => {
+    setShifts(initialShifts)
+  }, [initialShifts])
+
+  const [deletingShiftId, setDeletingShiftId] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [formDialogOpen, setFormDialogOpen] = useState(false)
+  const [editingShift, setEditingShift] = useState<VolunteerShift | undefined>(
+    undefined,
+  )
+  const [assignmentPanelOpen, setAssignmentPanelOpen] = useState(false)
+  const [selectedShift, setSelectedShift] =
+    useState<ShiftWithAssignments | null>(null)
+
+  const deleteShift = useServerFn(deleteShiftFn)
+
+  const handleOpenCreateDialog = useCallback(() => {
+    setEditingShift(undefined)
+    setFormDialogOpen(true)
+  }, [])
+
+  const handleOpenEditDialog = useCallback((shift: VolunteerShift) => {
+    setEditingShift(shift)
+    setFormDialogOpen(true)
+  }, [])
+
+  const handleOpenAssignmentPanel = useCallback(
+    (shift: ShiftWithAssignments) => {
+      setSelectedShift(shift)
+      setAssignmentPanelOpen(true)
+    },
+    [],
+  )
+
+  const handleAssignmentChange = useCallback(
+    (updatedShift: ShiftWithAssignments) => {
+      setShifts((prev) =>
+        prev.map((s) => (s.id === updatedShift.id ? updatedShift : s)),
+      )
+      setSelectedShift(updatedShift)
+    },
+    [],
+  )
+
+  // Group shifts by date
+  const dayGroups = useMemo<DayGroup[]>(() => {
+    const groups = new Map<string, DayGroup>()
+
+    // Sort shifts by start time first
+    const sortedShifts = [...shifts].sort((a, b) => {
+      const aTime = toDate(a.startTime).getTime()
+      const bTime = toDate(b.startTime).getTime()
+      return aTime - bTime
+    })
+
+    for (const shift of sortedShifts) {
+      const startDate = toDate(shift.startTime)
+      const dateKey = getDateKey(startDate)
+      const label = formatDayLabel(startDate)
+
+      const existing = groups.get(dateKey)
+      if (existing) {
+        existing.shifts.push(shift)
+      } else {
+        groups.set(dateKey, { dateKey, label, shifts: [shift] })
+      }
+    }
+
+    // Sort groups by date
+    return Array.from(groups.values()).sort((a, b) =>
+      a.dateKey.localeCompare(b.dateKey),
+    )
+  }, [shifts])
+
+  const handleDelete = async () => {
+    if (!deletingShiftId) return
+
+    setIsDeleting(true)
+    try {
+      if (onDeleteShift) {
+        await onDeleteShift({ shiftId: deletingShiftId })
+      } else {
+        await deleteShift({
+          data: { shiftId: deletingShiftId },
+        })
+      }
+      toast.success("Shift deleted successfully")
+      setShifts((prev) => prev.filter((s) => s.id !== deletingShiftId))
+      await router.invalidate()
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete shift",
+      )
+    } finally {
+      setIsDeleting(false)
+      setDeletingShiftId(null)
+    }
+  }
+
+  const shiftToDelete = deletingShiftId
+    ? shifts.find((s) => s.id === deletingShiftId)
+    : null
+
+  // Empty state
+  if (shifts.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">
+              Volunteer shifts
+            </h2>
+            <p className="text-muted-foreground">
+              Manage time-based volunteer shifts for non-judge roles
+            </p>
+          </div>
+          <Button onClick={handleOpenCreateDialog} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            Add shift
+          </Button>
+        </div>
+
+        <OrganizerEmptyState
+          icon={CalendarDays}
+          title="No volunteer shifts yet"
+          description="Create shifts for check-in, medical, equipment, scorekeeping, and other event-day roles."
+          actionLabel="Add Shift"
+          actionIcon={<Plus className="mr-2 h-4 w-4" />}
+          onAction={handleOpenCreateDialog}
+        />
+
+        <ShiftFormDialog
+          competitionId={competitionId}
+          open={formDialogOpen}
+          onOpenChange={setFormDialogOpen}
+          shift={editingShift}
+          onCreateShift={onCreateShift}
+          onUpdateShift={onUpdateShift}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header with Add button */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">
+            Volunteer shifts
+          </h2>
+          <p className="text-muted-foreground">
+            Manage time-based volunteer shifts for non-judge roles
+          </p>
+        </div>
+        <Button onClick={handleOpenCreateDialog} className="w-full sm:w-auto">
+          <Plus className="mr-2 h-4 w-4" />
+          Add shift
+        </Button>
+      </div>
+
+      {/* Shifts grouped by date */}
+      {dayGroups.map((group) => (
+        <Card key={group.dateKey}>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <CalendarDays className="h-5 w-5 text-muted-foreground" />
+              {group.label}
+            </CardTitle>
+            <CardDescription>
+              {group.shifts.length} shift{group.shifts.length !== 1 ? "s" : ""}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Shift Name</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Time</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Assigned</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {group.shifts.map((shift) => {
+                    const startTime = toDate(shift.startTime)
+                    const endTime = toDate(shift.endTime)
+                    const assignedCount = shift.assignments.length
+                    const capacityVariant = getCapacityBadgeVariant(
+                      assignedCount,
+                      shift.capacity,
+                    )
+
+                    return (
+                      <TableRow
+                        key={shift.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => handleOpenAssignmentPanel(shift)}
+                      >
+                        <TableCell className="font-medium">
+                          {shift.name}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {VOLUNTEER_ROLE_LABELS[shift.roleType] ||
+                              shift.roleType}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1 text-sm">
+                            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                            {formatTime(startTime)} - {formatTime(endTime)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {shift.location ? (
+                            <div className="flex items-center gap-1 text-sm">
+                              <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                              {shift.location}
+                            </div>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">
+                              -
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={capacityVariant}>
+                            <Users className="mr-1 h-3 w-3" />
+                            {assignedCount} / {shift.capacity}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleOpenEditDialog(shift)
+                              }}
+                              aria-label={`Edit ${shift.name}`}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setDeletingShiftId(shift.id)
+                              }}
+                              aria-label={`Delete ${shift.name}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        open={!!deletingShiftId}
+        onOpenChange={(open) => !open && setDeletingShiftId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete shift</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{shiftToDelete?.name}"?
+              {shiftToDelete && shiftToDelete.assignments.length > 0 && (
+                <>
+                  {" "}
+                  This shift has {shiftToDelete.assignments.length} volunteer
+                  {shiftToDelete.assignments.length !== 1 ? "s" : ""} assigned.
+                  They will be unassigned from this shift.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Create/Edit shift Dialog */}
+      <ShiftFormDialog
+        competitionId={competitionId}
+        open={formDialogOpen}
+        onOpenChange={setFormDialogOpen}
+        shift={editingShift}
+        onCreateShift={onCreateShift}
+        onUpdateShift={onUpdateShift}
+      />
+
+      {/* Assignment Panel */}
+      <ShiftAssignmentPanel
+        shift={selectedShift}
+        allShifts={shifts}
+        competitionTeamId={competitionTeamId}
+        open={assignmentPanelOpen}
+        onOpenChange={setAssignmentPanelOpen}
+        onAssignmentChange={handleAssignmentChange}
+        onGetVolunteers={onGetVolunteers}
+        onAssignVolunteer={onAssignVolunteer}
+        onUnassignVolunteer={onUnassignVolunteer}
+      />
+    </div>
+  )
+}

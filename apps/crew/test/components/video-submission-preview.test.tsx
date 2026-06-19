@@ -1,0 +1,606 @@
+import { render, screen } from "@testing-library/react"
+import { describe, expect, it, vi } from "vitest"
+import { VideoSubmissionPreview } from "@/components/compete/video-submission-preview"
+import type { ScoreType, WorkoutScheme } from "@/lib/scoring"
+
+// Mock lucide-react icons
+vi.mock("lucide-react", () => {
+	const icon =
+		(name: string) =>
+		({
+			className,
+			"aria-hidden": ariaHidden,
+		}: {
+			className?: string
+			"aria-hidden"?: boolean | "true" | "false"
+		}) => (
+			<span
+				data-testid={`icon-${name}`}
+				className={className}
+				aria-hidden={ariaHidden}
+			/>
+		)
+	return {
+		AlertTriangle: icon("alert-triangle"),
+		Ban: icon("ban"),
+		Calendar: icon("calendar"),
+		CheckCircle2: icon("check-circle"),
+		Clock: icon("clock"),
+		Edit3: icon("edit"),
+		ExternalLink: icon("external-link"),
+		Eye: icon("eye"),
+		FileText: icon("file-text"),
+		Trophy: icon("trophy"),
+		Youtube: icon("youtube"),
+	}
+})
+
+// Mock VideoEmbed component
+vi.mock("@/components/video-embed", () => ({
+	VideoEmbed: ({ url }: { url: string | null }) => (
+		<div data-testid="video-embed" data-url={url} />
+	),
+}))
+
+// Mock url utility
+vi.mock("@/utils/url", () => ({
+	isSafeUrl: (url: string) => {
+		try {
+			const parsed = new URL(url)
+			return (
+				parsed.protocol === "http:" || parsed.protocol === "https:"
+			)
+		} catch {
+			return false
+		}
+	},
+}))
+
+const now = new Date("2025-06-15T12:00:00Z")
+const earlier = new Date("2025-06-15T10:00:00Z")
+
+function createDefaultSubmission(
+	overrides?: Partial<{
+		id: string
+		videoIndex: number
+		videoUrl: string
+		notes: string | null
+		submittedAt: Date
+		updatedAt: Date
+	}>,
+) {
+	return {
+		id: "sub-1",
+		videoIndex: 0,
+		videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+		notes: null,
+		submittedAt: earlier,
+		updatedAt: earlier,
+		...overrides,
+	}
+}
+
+function createDefaultWorkout(
+	overrides?: Partial<{
+		name: string
+		scheme: WorkoutScheme
+		scoreType: ScoreType | null
+		timeCap: number | null
+		tiebreakScheme: string | null
+	}>,
+) {
+	return {
+		name: "Fran",
+		scheme: "time" as WorkoutScheme,
+		scoreType: "min" as ScoreType | null,
+		timeCap: null,
+		tiebreakScheme: null,
+		...overrides,
+	}
+}
+
+describe("VideoSubmissionPreview", () => {
+	describe("video display", () => {
+		it("renders VideoEmbed for YouTube URLs", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
+					canEdit={false}
+				/>,
+			)
+
+			const embed = screen.getByTestId("video-embed")
+			expect(embed).toBeTruthy()
+			expect(embed.getAttribute("data-url")).toBe(
+				"https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+			)
+		})
+
+		it("renders VideoEmbed for Vimeo URLs", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission({
+						videoUrl: "https://vimeo.com/123456",
+					})]}
+					teamSize={1}
+					canEdit={false}
+				/>,
+			)
+
+			const embed = screen.getByTestId("video-embed")
+			expect(embed).toBeTruthy()
+			expect(embed.getAttribute("data-url")).toBe(
+				"https://vimeo.com/123456",
+			)
+		})
+
+		it("renders VideoEmbed for WodProof URLs", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission({
+						videoUrl: "https://wodproofapp.com/cloud/?v=abc123test",
+					})]}
+					teamSize={1}
+					canEdit={false}
+				/>,
+			)
+
+			const embed = screen.getByTestId("video-embed")
+			expect(embed).toBeTruthy()
+			expect(embed.getAttribute("data-url")).toBe(
+				"https://wodproofapp.com/cloud/?v=abc123test",
+			)
+		})
+	})
+
+	describe("score display", () => {
+		it("displays score with scheme label", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
+					score={{
+						scoreValue: 300000,
+						displayScore: "5:00",
+						status: "scored",
+						secondaryValue: null,
+						tiebreakValue: null,
+					}}
+					workout={createDefaultWorkout()}
+					canEdit={false}
+				/>,
+			)
+
+			expect(screen.getByText("5:00")).toBeTruthy()
+			expect(screen.getByText("Your Time")).toBeTruthy()
+		})
+
+		it("shows 'Capped' badge when status is cap", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
+					score={{
+						scoreValue: 600000,
+						displayScore: "10:00",
+						status: "cap",
+						secondaryValue: 150,
+						tiebreakValue: null,
+					}}
+					workout={createDefaultWorkout({
+						scheme: "time-with-cap",
+						timeCap: 600,
+					})}
+					canEdit={false}
+				/>,
+			)
+
+			expect(screen.getByText("Capped")).toBeTruthy()
+		})
+
+		it("shows secondary value (reps at cap) when capped", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
+					score={{
+						scoreValue: 600000,
+						displayScore: "10:00",
+						status: "cap",
+						secondaryValue: 150,
+						tiebreakValue: null,
+					}}
+					workout={createDefaultWorkout({
+						scheme: "time-with-cap",
+						timeCap: 600,
+					})}
+					canEdit={false}
+				/>,
+			)
+
+			expect(
+				screen.getByText("150 reps completed at cap"),
+			).toBeTruthy()
+		})
+
+		it("does not show secondary value when not capped", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
+					score={{
+						scoreValue: 300000,
+						displayScore: "5:00",
+						status: "scored",
+						secondaryValue: null,
+						tiebreakValue: null,
+					}}
+					workout={createDefaultWorkout()}
+					canEdit={false}
+				/>,
+			)
+
+			expect(
+				screen.queryByText(/reps completed at cap/),
+			).toBeNull()
+		})
+
+		it("shows tiebreak time when present", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
+					score={{
+						scoreValue: 300000,
+						displayScore: "5:00",
+						status: "scored",
+						secondaryValue: null,
+						tiebreakValue: 225000, // 3:45
+					}}
+					workout={createDefaultWorkout({
+						tiebreakScheme: "time",
+					})}
+					canEdit={false}
+				/>,
+			)
+
+			expect(screen.getByText(/Tiebreak:/)).toBeTruthy()
+			expect(screen.getByText(/3:45/)).toBeTruthy()
+		})
+
+		it("does not show tiebreak when no tiebreak scheme", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
+					score={{
+						scoreValue: 300000,
+						displayScore: "5:00",
+						status: "scored",
+						secondaryValue: null,
+						tiebreakValue: 225000,
+					}}
+					workout={createDefaultWorkout({
+						tiebreakScheme: null,
+					})}
+					canEdit={false}
+				/>,
+			)
+
+			expect(screen.queryByText(/Tiebreak/)).toBeNull()
+		})
+
+		it("shows scheme-specific labels", () => {
+			const schemes: Array<{ scheme: WorkoutScheme; label: string }> = [
+				{ scheme: "reps", label: "Your Reps" },
+				{ scheme: "load", label: "Your Load" },
+				{ scheme: "rounds-reps", label: "Your Rounds + Reps" },
+				{ scheme: "calories", label: "Your Calories" },
+				{ scheme: "points", label: "Your Points" },
+				{ scheme: "pass-fail", label: "Your Rounds Passed" },
+			]
+
+			for (const { scheme, label } of schemes) {
+				const { unmount } = render(
+					<VideoSubmissionPreview
+						submissions={[createDefaultSubmission()]}
+					teamSize={1}
+						score={{
+							scoreValue: 100,
+							displayScore: "100",
+							status: "scored",
+							secondaryValue: null,
+							tiebreakValue: null,
+						}}
+						workout={createDefaultWorkout({ scheme })}
+						canEdit={false}
+					/>,
+				)
+
+				expect(screen.getByText(label)).toBeTruthy()
+				unmount()
+			}
+		})
+
+		it("shows 'Your Score' when no workout provided", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
+					score={{
+						scoreValue: 100,
+						displayScore: "100",
+						status: "scored",
+						secondaryValue: null,
+						tiebreakValue: null,
+					}}
+					canEdit={false}
+				/>,
+			)
+
+			expect(screen.getByText("Your Score")).toBeTruthy()
+		})
+	})
+
+	describe("notes display", () => {
+		it("shows notes when present", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission({
+						notes: "Great workout!",
+					})]}
+					teamSize={1}
+					canEdit={false}
+				/>,
+			)
+
+			expect(screen.getByText("Great workout!")).toBeTruthy()
+			expect(screen.getByText("Notes")).toBeTruthy()
+		})
+
+		it("does not show notes section when null", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission({ notes: null })]}
+					teamSize={1}
+					canEdit={false}
+				/>,
+			)
+
+			expect(screen.queryByText("Notes")).toBeNull()
+		})
+	})
+
+	describe("edit button", () => {
+		it("shows edit button when canEdit and onEdit provided", () => {
+			const onEdit = vi.fn()
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
+					canEdit={true}
+					onEdit={onEdit}
+				/>,
+			)
+
+			expect(screen.getByText("Edit")).toBeTruthy()
+		})
+
+		it("hides edit button when canEdit false", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
+					canEdit={false}
+					onEdit={vi.fn()}
+				/>,
+			)
+
+			expect(screen.queryByRole("button", { name: /edit/i })).toBeNull()
+		})
+
+		it("hides edit button when no onEdit handler", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
+					canEdit={true}
+				/>,
+			)
+
+			// The edit button in the header requires both canEdit AND onEdit
+			const editButtons = screen.queryAllByText("Edit")
+			// Should not have any edit buttons (the "Edit" text in header)
+			expect(editButtons.length).toBe(0)
+		})
+	})
+
+	describe("timestamps", () => {
+		it("shows submitted timestamp", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission({
+						submittedAt: new Date("2025-06-15T10:00:00Z"),
+					})]}
+					teamSize={1}
+					canEdit={false}
+				/>,
+			)
+
+			expect(screen.getByText(/Submitted/)).toBeTruthy()
+		})
+
+		it("shows updated timestamp when different from submitted", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission({
+						submittedAt: earlier,
+						updatedAt: now,
+					})]}
+					teamSize={1}
+					canEdit={false}
+				/>,
+			)
+
+			expect(screen.getByText(/Updated/)).toBeTruthy()
+		})
+
+		it("does not show updated timestamp when same as submitted", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission({
+						submittedAt: earlier,
+						updatedAt: earlier,
+					})]}
+					teamSize={1}
+					canEdit={false}
+				/>,
+			)
+
+			expect(screen.queryByText(/Updated/)).toBeNull()
+		})
+	})
+
+	describe("edit status banners", () => {
+		it("shows open window banner when canEdit", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
+					canEdit={true}
+				/>,
+			)
+
+			expect(
+				screen.getByText(
+					/you can still update your submission/i,
+				),
+			).toBeTruthy()
+		})
+
+		it("shows edit reason when canEdit is false and reason provided", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
+					canEdit={false}
+					editReason="Submission window closes tomorrow"
+				/>,
+			)
+
+			// editReason appears in both CardDescription and amber banner
+			expect(
+				screen.getAllByText("Submission window closes tomorrow")
+					.length,
+			).toBeGreaterThan(0)
+		})
+
+		it("shows default closed message when canEdit false and no reason", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
+					canEdit={false}
+				/>,
+			)
+
+			expect(
+				screen.getByText("Submission window is closed."),
+			).toBeTruthy()
+		})
+	})
+
+	describe("team display", () => {
+		it("shows Partner labels for team submissions", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[
+						createDefaultSubmission({ videoIndex: 0 }),
+						createDefaultSubmission({
+							id: "sub-2",
+							videoIndex: 1,
+							videoUrl: "https://vimeo.com/456",
+						}),
+					]}
+					teamSize={3}
+					canEdit={false}
+				/>,
+			)
+
+			expect(screen.getByText("Partner 1")).toBeTruthy()
+			expect(screen.getByText("Partner 2")).toBeTruthy()
+		})
+
+		it("shows team submission count in description", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[
+						createDefaultSubmission({ videoIndex: 0 }),
+						createDefaultSubmission({ id: "sub-2", videoIndex: 1 }),
+					]}
+					teamSize={3}
+					canEdit={true}
+				/>,
+			)
+
+			expect(
+				screen.getByText(
+					/2 of 3 videos submitted/,
+				),
+			).toBeTruthy()
+		})
+
+		it("shows Team score label for team with workout", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission()]}
+					teamSize={2}
+					score={{
+						scoreValue: 300000,
+						displayScore: "5:00",
+						status: "scored",
+						secondaryValue: null,
+						tiebreakValue: null,
+					}}
+					workout={createDefaultWorkout()}
+					canEdit={false}
+				/>,
+			)
+
+			expect(screen.getByText("Team Time")).toBeTruthy()
+		})
+
+		it("shows individual label when teamSize is 1", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
+					score={{
+						scoreValue: 300000,
+						displayScore: "5:00",
+						status: "scored",
+						secondaryValue: null,
+						tiebreakValue: null,
+					}}
+					workout={createDefaultWorkout()}
+					canEdit={false}
+				/>,
+			)
+
+			expect(screen.getByText("Your Time")).toBeTruthy()
+		})
+
+		it("does not show per-video labels for individual submissions", () => {
+			render(
+				<VideoSubmissionPreview
+					submissions={[createDefaultSubmission()]}
+					teamSize={1}
+					canEdit={false}
+				/>,
+			)
+
+			expect(screen.queryByText("Partner 1")).toBeNull()
+		})
+	})
+})

@@ -1,0 +1,182 @@
+import { render, screen } from "@testing-library/react"
+import type { ComponentProps, ReactNode } from "react"
+import { describe, expect, it, vi } from "vitest"
+import { RegistrationSidebar } from "@/components/registration-sidebar"
+
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({
+    children,
+    to,
+    params,
+    ...rest
+  }: {
+    children: ReactNode
+    to: string
+    params?: Record<string, string>
+  }) => {
+    let href = to
+    if (params?.slug) href = href.replace("$slug", params.slug)
+    if (params?.token) href = href.replace("$token", params.token)
+    return (
+      <a href={href} {...rest}>
+        {children}
+      </a>
+    )
+  },
+}))
+
+vi.mock("lucide-react", () => {
+  const icon =
+    (name: string) =>
+    ({ className }: { className?: string }) => (
+      <span data-testid={`icon-${name}`} className={className} />
+    )
+  return {
+    AlertTriangle: icon("alert-triangle"),
+    Calendar: icon("calendar"),
+    CheckCircle2: icon("check-circle"),
+    Clock: icon("clock"),
+    HandHeart: icon("hand-heart"),
+    MapPin: icon("map-pin"),
+    Plus: icon("plus"),
+    UserPlus: icon("user-plus"),
+    Users: icon("users"),
+  }
+})
+
+const competition = {
+  id: "comp_1",
+  slug: "test-comp",
+  name: "Test Competition",
+  status: "published",
+  startDate: "2026-06-01",
+  endDate: "2026-06-02",
+  registrationOpensAt: "2026-01-01",
+  registrationClosesAt: "2026-05-31",
+  timezone: "America/Denver",
+  organizingTeam: { id: "team_1", name: "Test Gym" },
+  group: null,
+} as ComponentProps<typeof RegistrationSidebar>["competition"]
+
+function renderSidebar(
+  props: Partial<ComponentProps<typeof RegistrationSidebar>> = {},
+) {
+  return render(
+    <RegistrationSidebar
+      competition={competition}
+      isRegistered={false}
+      registrationOpen={false}
+      {...props}
+    />,
+  )
+}
+
+describe("RegistrationSidebar pending competition invites", () => {
+  it("shows an accept invite CTA in place of the public registration CTA", () => {
+    renderSidebar({
+      registrationOpen: true,
+      pendingCompetitionInvites: [
+        {
+          id: "comp_invite_1",
+          token: "claim_token_abc",
+          divisionLabel: "Individual RX",
+          expiresAt: "2026-05-15",
+        },
+      ],
+    })
+
+    const link = screen.getByRole("link", { name: "Accept invite" })
+    expect(screen.getByText("Competition invite waiting")).toBeInTheDocument()
+    expect(screen.getByText(/Individual RX/)).toBeInTheDocument()
+    expect(link).toHaveAttribute(
+      "href",
+      "/compete/test-comp/claim/claim_token_abc",
+    )
+    expect(
+      screen.queryByRole("link", { name: "Register now" }),
+    ).not.toBeInTheDocument()
+  })
+
+  it("shows the invite CTA even when public registration is closed", () => {
+    renderSidebar({
+      registrationOpen: false,
+      pendingCompetitionInvites: [
+        {
+          id: "comp_invite_1",
+          token: "claim_token_abc",
+          divisionLabel: "Individual RX",
+          expiresAt: null,
+        },
+      ],
+    })
+
+    expect(screen.getByRole("link", { name: "Accept invite" })).toHaveAttribute(
+      "href",
+      "/compete/test-comp/claim/claim_token_abc",
+    )
+    expect(screen.queryByText("Registration closed")).not.toBeInTheDocument()
+  })
+})
+
+describe("RegistrationSidebar draft competitions", () => {
+  const draftCompetition = {
+    ...competition,
+    status: "draft",
+  } as ComponentProps<typeof RegistrationSidebar>["competition"]
+
+  it("hides the register CTA for a draft competition even when the window is open", () => {
+    renderSidebar({ competition: draftCompetition, registrationOpen: true })
+
+    expect(
+      screen.queryByRole("link", { name: "Register now" }),
+    ).not.toBeInTheDocument()
+  })
+
+  it("shows the register CTA for a published competition with an open window", () => {
+    renderSidebar({ registrationOpen: true })
+
+    expect(
+      screen.getByRole("link", { name: "Register now" }),
+    ).toBeInTheDocument()
+  })
+
+  it("hides the registration-closed card for a draft competition", () => {
+    renderSidebar({ competition: draftCompetition, registrationOpen: false })
+
+    expect(screen.queryByText("Registration closed")).not.toBeInTheDocument()
+  })
+})
+
+describe("RegistrationSidebar pending team invites", () => {
+  it("shows an accept team invite CTA when a pending invite exists", () => {
+    renderSidebar({
+      pendingTeamInvites: [{ id: "invite_1", token: "token_abc" }],
+    })
+
+    const link = screen.getByRole("link", { name: "Accept team invite" })
+    expect(screen.getByText("Team invite waiting")).toBeInTheDocument()
+    expect(link).toHaveAttribute("href", "/compete/invite/token_abc")
+  })
+
+  it("still shows the invite CTA when the user is already registered elsewhere", () => {
+    renderSidebar({
+      isRegistered: true,
+      userDivision: "Individual RX",
+      registrationId: "reg_1",
+      pendingTeamInvites: [{ id: "invite_1", token: "token_abc" }],
+    })
+
+    expect(
+      screen.getByRole("link", { name: "Accept team invite" }),
+    ).toBeInTheDocument()
+    expect(screen.getByText("You're Registered!")).toBeInTheDocument()
+  })
+
+  it("does not show the invite CTA when there are no pending invites", () => {
+    renderSidebar()
+
+    expect(
+      screen.queryByRole("link", { name: "Accept team invite" }),
+    ).not.toBeInTheDocument()
+  })
+})

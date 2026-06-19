@@ -1,0 +1,1445 @@
+/**
+ * Competition Invites — organizer route shell
+ *
+ * Phase 1 of ADR-0011. Tabs:
+ *   - Sources (live)
+ *   - Candidates (live)
+ *   - Sent (live)
+ *
+ * Loader enforces MANAGE_COMPETITIONS on the championship's organizing
+ * team via `listInviteSourcesFn`, which performs the same check
+ * server-side. A redirect fires on auth failure; a thrown error bubbles
+ * to the parent error boundary on permission failure.
+ */
+// @lat: [[competition-invites#Organizer route shell]]
+
+import {
+  createFileRoute,
+  getRouteApi,
+  redirect,
+  useNavigate,
+  useRouter,
+} from "@tanstack/react-router"
+import {
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  MailPlus,
+  Upload,
+  UserPlus,
+} from "lucide-react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { toast } from "sonner"
+import { z } from "zod"
+import { OrganizerEmptyState } from "@/components/organizer/empty-state"
+import { AddBespokeInviteeDialog } from "@/components/organizer/invites/add-bespoke-invitee-dialog"
+import { BulkAddInviteesDialog } from "@/components/organizer/invites/bulk-add-invitees-dialog"
+import {
+  ChampionshipRosterTable,
+  rosterRowKey,
+} from "@/components/organizer/invites/championship-roster-table"
+import { DeleteInviteSourceDialog } from "@/components/organizer/invites/delete-invite-source-dialog"
+import { EditInviteSourceDialog } from "@/components/organizer/invites/edit-invite-source-dialog"
+import { InviteSourcesList } from "@/components/organizer/invites/invite-sources-list"
+import {
+  SendInvitesDialog,
+  type SendRecipient,
+} from "@/components/organizer/invites/send-invites-dialog"
+import {
+  buildSentTabDivisions,
+  SentInvitesByDivision,
+} from "@/components/organizer/invites/sent-invites-by-division"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  COMPETITION_INVITE_ORIGIN,
+  COMPETITION_INVITE_STATUS,
+  type CompetitionInviteSource,
+} from "@/db/schemas/competition-invites"
+import { computeInviteSendCount } from "@/lib/competition-invites/send-count"
+import { usePostHog } from "@/lib/posthog"
+import type { RosterRow } from "@/server/competition-invites/roster"
+import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
+import {
+  getCompetitionGroupsFn,
+  getOrganizerCompetitionsFn,
+} from "@/server-fns/competition-fns"
+import {
+  type AuditInviteSummary,
+  getChampionshipRosterFn,
+  listActiveInvitesFn,
+  listAllInvitesFn,
+  listInviteSourceAllocationsFn,
+  listInviteSourcesFn,
+} from "@/server-fns/competition-invite-fns"
+
+const parentRoute = getRouteApi("/compete/organizer/$competitionId")
+
+const inviteSearchSchema = z.object({
+  /** Source competition filter (client-side). Empty string means "all". */
+  source: z.string().optional(),
+  /** Source division filter (client-side). Empty string means "all". */
+  div: z.string().optional(),
+  /** 1-indexed roster page. Omitted = page 1. `coerce` so manual deep
+   *  links (`?page=2`) survive — URL params arrive as strings and a
+   *  raw `z.number()` would throw at the validator. */
+  page: z.coerce.number().int().positive().optional(),
+})
+
+const ROSTER_PAGE_SIZE = 50
+
+const divisionMappingsSchema = z.array(
+  z.object({
+    sourceDivisionId: z.string(),
+    championshipDivisionId: z.string(),
+  }),
+)
+
+export const Route = createFileRoute(
+  "/compete/organizer/$competitionId/invites/",
+)({
+  staleTime: 10_000,
+  component: InvitesPage,
+  validateSearch: inviteSearchSchema,
+  loader: async ({ params, context, parentMatchPromise }) => {
+    const session = context.session
+    if (!session?.user?.id) {
+      throw redirect({
+        to: "/sign-in",
+        search: {
+          redirect: `/compete/organizer/${params.competitionId}/invites`,
+        },
+      })
+    }
+
+    const parentMatch = await parentMatchPromise
+    const competition = parentMatch.loaderData?.competition
+    if (!competition) {
+      throw new Error("Competition not found")
+    }
+
+    // listInviteSourcesFn enforces MANAGE_COMPETITIONS on the championship
+    // team; it throws on missing permission, which the parent route's
+    // error boundary handles consistently with the rest of the dashboard.
+    // organizingTeamId scopes the source pickers — same-org-only sources
+    // per ADR Open Question 6.
+    const [
+      sourcesResult,
+      divisionsResult,
+      organizerCompsResult,
+      organizerGroupsResult,
+      rosterResult,
+      activeInvitesResult,
+      allInvitesResult,
+      allocationsResult,
+    ] = await Promise.all([
+      listInviteSourcesFn({
+        data: { championshipCompetitionId: params.competitionId },
+      }),
+      getCompetitionDivisionsWithCountsFn({
+        data: {
+          competitionId: params.competitionId,
+          teamId: competition.organizingTeamId,
+        },
+      }),
+      getOrganizerCompetitionsFn({
+        data: { teamId: competition.organizingTeamId },
+      }),
+      getCompetitionGroupsFn({
+        data: { teamId: competition.organizingTeamId },
+      }),
+      // Single roster fetch — server fans out across all (sourceComp ×
+      // division) leaderboards in parallel and returns one flat list.
+      // The route component filters client-side on top of this.
+      getChampionshipRosterFn({
+        data: { championshipCompetitionId: params.competitionId },
+      }),
+      // Active invites scoped to the championship across every division —
+      // the "already invited" badge means "engaged at this championship,"
+      // not "invited to this specific division." The send dialog enforces
+      // per-division uniqueness server-side at issue time.
+      listActiveInvitesFn({
+        data: { championshipCompetitionId: params.competitionId },
+      }),
+      // All invites (active + terminal) for the Sent audit tab. Kept as
+      // a separate fetch from `listActiveInvitesFn` because the
+      // Candidates tab's bespoke-draft list relies on the active filter
+      // to keep terminal history out — see the rationale in
+      // `listAllInvitesFn`'s docstring.
+      listAllInvitesFn({
+        data: { championshipCompetitionId: params.competitionId },
+      }),
+      // ADR-0012: per-(source, division) allocation map. The Sent tab's
+      // chip denominators read from `allocationsBySourceByDivision`. The
+      // summed-by-division totals (`divisionAllocationTotals`) are no
+      // longer used as the headline denominator (see ADR-0013) — they
+      // now drive the mismatch warning that compares allocation intent
+      // against the division's actual cap.
+      listInviteSourceAllocationsFn({
+        data: { championshipCompetitionId: params.competitionId },
+      }),
+    ])
+    const {
+      sources,
+      competitionNamesById,
+      seriesNamesById,
+      seriesCompCountsById,
+    } = sourcesResult
+
+    const { allocationsBySourceByDivision, divisionAllocationTotals } =
+      allocationsResult
+
+    // ADR-0013: `buildSentTabDivisions` resolves each division's cap as
+    // `competition_divisions.maxSpots ?? competitions.defaultMaxSpotsPerDivision`
+    // — the same value `calculateDivisionCapacity` enforces at
+    // registration — and attaches `allocationTotal` (the resolved sum
+    // of per-source allocations) so the component can warn when the
+    // organizer's source-allocation plan disagrees with the division's
+    // actual cap. Extracted as a pure helper for unit-testability.
+    const championshipDivisions = buildSentTabDivisions({
+      divisions: divisionsResult.divisions ?? [],
+      defaultMaxSpotsPerDivision:
+        divisionsResult.defaultMaxSpotsPerDivision ?? null,
+      divisionAllocationTotals,
+    })
+
+    // Source pickers in the EditInviteSourceDialog exclude the championship
+    // itself — a competition cannot qualify athletes from its own leaderboard.
+    const competitionOptions = (organizerCompsResult.competitions ?? [])
+      .filter((c: { id: string }) => c.id !== params.competitionId)
+      .map((c: { id: string; name: string }) => ({ id: c.id, name: c.name }))
+    const seriesOptions = (organizerGroupsResult.groups ?? []).map(
+      (g: { id: string; name: string }) => ({ id: g.id, name: g.name }),
+    )
+
+    return {
+      sources,
+      competitionNamesById,
+      seriesNamesById,
+      seriesCompCountsById,
+      competitionOptions,
+      seriesOptions,
+      championshipDivisions,
+      roster: rosterResult,
+      activeInvites: activeInvitesResult.invites,
+      allInvites: allInvitesResult.invites,
+      allocationsBySourceByDivision,
+      divisionAllocationTotals,
+    }
+  },
+})
+
+const ALL_FILTER = "__all__"
+
+function ordinalSuffix(n: number): string {
+  const v = n % 100
+  if (v >= 11 && v <= 13) return "th"
+  switch (n % 10) {
+    case 1:
+      return "st"
+    case 2:
+      return "nd"
+    case 3:
+      return "rd"
+    default:
+      return "th"
+  }
+}
+
+const inviteKey = (id: string, divisionId: string) => `${id}|${divisionId}`
+
+function InvitesPage() {
+  const {
+    sources,
+    competitionNamesById,
+    seriesNamesById,
+    competitionOptions,
+    seriesOptions,
+    championshipDivisions,
+    roster,
+    allInvites,
+    allocationsBySourceByDivision,
+  } = Route.useLoaderData()
+  const { competition } = parentRoute.useLoaderData()
+  const { competitionId } = Route.useParams()
+  const search = Route.useSearch()
+  const router = useRouter()
+  const { posthog } = usePostHog()
+  const navigate = useNavigate()
+  const [flagEnabled, setFlagEnabled] = useState(() =>
+    posthog.isFeatureEnabled("competition-invites"),
+  )
+  useEffect(() => {
+    const unsubscribe = posthog.onFeatureFlags(() => {
+      setFlagEnabled(posthog.isFeatureEnabled("competition-invites"))
+    })
+    return unsubscribe
+  }, [posthog])
+  useEffect(() => {
+    if (flagEnabled === false) {
+      navigate({
+        to: "/compete/organizer/$competitionId",
+        replace: true,
+        params: { competitionId },
+      })
+    }
+  }, [flagEnabled, competitionId, navigate])
+  const [tab, setTab] = useState("sources")
+  const [addSingleOpen, setAddSingleOpen] = useState(false)
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const [sendOpen, setSendOpen] = useState(false)
+  const [sourceDialogOpen, setSourceDialogOpen] = useState(false)
+  const [editingSource, setEditingSource] = useState<
+    CompetitionInviteSource | undefined
+  >(undefined)
+  const [deletingSource, setDeletingSource] =
+    useState<CompetitionInviteSource | null>(null)
+  const [selectedRosterKeys, setSelectedRosterKeys] = useState<Set<string>>(
+    () => new Set(),
+  )
+  const [selectedDraftIds, setSelectedDraftIds] = useState<Set<string>>(
+    () => new Set(),
+  )
+
+  // Per-source explicit division mappings from the source's
+  // `divisionMappings` JSON, indexed by `(sourceId, sourceDivisionId)` →
+  // championship division id. Honors organizer-configured overrides
+  // (e.g. source "RX Men" → championship "Pro Men") that pure label
+  // matching would miss. Rows whose source isn't in the map (or whose
+  // source-division id isn't in the inner map) fall through to label
+  // matching in `mapRowToChampionshipDivisionId`.
+  const explicitMappingsBySource = useMemo(() => {
+    const map = new Map<string, Map<string, string>>()
+    for (const src of sources) {
+      if (!src.divisionMappings) continue
+      let raw: unknown
+      try {
+        raw = JSON.parse(src.divisionMappings)
+      } catch {
+        continue
+      }
+      const parsed = divisionMappingsSchema.safeParse(raw)
+      if (!parsed.success || parsed.data.length === 0) continue
+      map.set(
+        src.id,
+        new Map(
+          parsed.data.map((m) => [
+            m.sourceDivisionId,
+            m.championshipDivisionId,
+          ]),
+        ),
+      )
+    }
+    return map
+  }, [sources])
+
+  // Resolve a roster row to its championship-division id. Explicit
+  // `divisionMappings` overrides win; otherwise fall back to a
+  // case-insensitive trimmed match against the championship's division
+  // labels. Returns null when no mapping can be inferred — callers treat
+  // that as "no division-scoped invite for this row" and render the
+  // row as not-invited / selectable.
+  const mapRowToChampionshipDivisionId = useMemo(() => {
+    return (r: RosterRow): string | null => {
+      const explicit = explicitMappingsBySource
+        .get(r.sourceId)
+        ?.get(r.sourceDivisionId)
+      if (explicit) return explicit
+      const normalized = r.sourceDivisionLabel.trim().toLowerCase()
+      return (
+        championshipDivisions.find(
+          (d) => d.label.trim().toLowerCase() === normalized,
+        )?.id ?? null
+      )
+    }
+  }, [explicitMappingsBySource, championshipDivisions])
+
+  // Status-display lookup: includes declined rows so the championship
+  // roster table can render a "Declined" pill. Active invites win when
+  // both exist (re-issued pending row → display the new pending state,
+  // not the prior decline). Sourced from `allInvites` because
+  // `activeInvites` filters declined rows out at the SQL level.
+  const inviteForStatusByEmailAndDivision = useMemo(() => {
+    const map = new Map<string, AuditInviteSummary>()
+    // Pass 1: actives (pending / accepted_paid) take priority.
+    for (const inv of allInvites) {
+      if (inv.activeMarker === "active") {
+        map.set(
+          inviteKey(inv.email.toLowerCase(), inv.championshipDivisionId),
+          inv,
+        )
+      }
+    }
+    // Pass 2: declined fills gaps when there's no active row for the
+    // (athlete, division) pair. Prefer the most-recent declined row.
+    for (const inv of allInvites) {
+      if (inv.status !== COMPETITION_INVITE_STATUS.DECLINED) continue
+      const key = inviteKey(inv.email.toLowerCase(), inv.championshipDivisionId)
+      const prior = map.get(key)
+      if (!prior || prior.status === COMPETITION_INVITE_STATUS.DECLINED) {
+        const priorTs = prior?.lastUpdatedAt
+          ? new Date(prior.lastUpdatedAt).getTime()
+          : -Infinity
+        const currentTs = inv.lastUpdatedAt
+          ? new Date(inv.lastUpdatedAt).getTime()
+          : 0
+        if (!prior || currentTs >= priorTs) map.set(key, inv)
+      }
+    }
+    return map
+  }, [allInvites])
+
+  const inviteForStatusByUserIdAndDivision = useMemo(() => {
+    const map = new Map<string, AuditInviteSummary>()
+    for (const inv of allInvites) {
+      if (inv.activeMarker === "active" && inv.userId) {
+        map.set(inviteKey(inv.userId, inv.championshipDivisionId), inv)
+      }
+    }
+    for (const inv of allInvites) {
+      if (inv.status !== COMPETITION_INVITE_STATUS.DECLINED) continue
+      if (!inv.userId) continue
+      const key = inviteKey(inv.userId, inv.championshipDivisionId)
+      const prior = map.get(key)
+      if (!prior || prior.status === COMPETITION_INVITE_STATUS.DECLINED) {
+        const priorTs = prior?.lastUpdatedAt
+          ? new Date(prior.lastUpdatedAt).getTime()
+          : -Infinity
+        const currentTs = inv.lastUpdatedAt
+          ? new Date(inv.lastUpdatedAt).getTime()
+          : 0
+        if (!prior || currentTs >= priorTs) map.set(key, inv)
+      }
+    }
+    return map
+  }, [allInvites])
+
+  const lookupInviteForRow = (r: RosterRow): AuditInviteSummary | null => {
+    const championshipDivisionId = mapRowToChampionshipDivisionId(r)
+    if (!championshipDivisionId) return null
+    if (r.userId) {
+      const byUser = inviteForStatusByUserIdAndDivision.get(
+        inviteKey(r.userId, championshipDivisionId),
+      )
+      if (byUser) return byUser
+    }
+    if (r.athleteEmail) {
+      const byEmail = inviteForStatusByEmailAndDivision.get(
+        inviteKey(r.athleteEmail.toLowerCase(), championshipDivisionId),
+      )
+      if (byEmail) return byEmail
+    }
+    return null
+  }
+
+  // Row-level "already paid / registered" check, scoped to the row's
+  // mapped championship division. Drops accepted_paid rows from the
+  // recipient collector and selection counters — the athlete is
+  // already registered, so re-sending would just spam them.
+  // **Pending** rows stay in: the organizer can resend the same claim
+  // link with a fresh expiration date (the send pipeline picks them up
+  // via `alreadyActive` resolution `"resend"`).
+  //
+  // Mirrors the userId-first / email-fallback path that
+  // `lookupInviteForRow` uses for the table's status pill — if the two
+  // diverged, an athlete whose email changed post-invite would render
+  // as "Registered" in the status column but still slip into the
+  // recipient list. Inlined (rather than calling `lookupInviteForRow`)
+  // because this is a `useCallback` and `lookupInviteForRow` isn't
+  // hoisted yet at this point in the function body.
+  const isRowAlreadyAcceptedPaid = useCallback(
+    (r: RosterRow): boolean => {
+      const championshipDivisionId = mapRowToChampionshipDivisionId(r)
+      if (!championshipDivisionId) return false
+      const byUser = r.userId
+        ? inviteForStatusByUserIdAndDivision.get(
+            inviteKey(r.userId, championshipDivisionId),
+          )
+        : undefined
+      const byEmail = r.athleteEmail
+        ? inviteForStatusByEmailAndDivision.get(
+            inviteKey(r.athleteEmail.toLowerCase(), championshipDivisionId),
+          )
+        : undefined
+      const inv = byUser ?? byEmail
+      return inv?.status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID
+    },
+    [
+      mapRowToChampionshipDivisionId,
+      inviteForStatusByUserIdAndDivision,
+      inviteForStatusByEmailAndDivision,
+    ],
+  )
+
+  // Bespoke section reads from `allInvites` rather than `activeInvites`
+  // so declined / expired / revoked bespoke rows remain visible to the
+  // organizer (used to silently disappear from this list once their
+  // `activeMarker` flipped to NULL — exactly the "where did Susan go?"
+  // bug the audit-style view is meant to prevent). Status is rendered
+  // from `inv.status`; the `isDraft` check below is what gates which
+  // rows can still be selected for sending. Rows are sorted so
+  // actionable statuses (pending / accepted) stay on top and terminal
+  // statuses (declined, then expired / revoked) sink to the bottom —
+  // the organizer's primary scan path is "who do I still need to chase",
+  // not "who already opted out".
+  const bespokeInvites = useMemo(() => {
+    const list = allInvites.filter(
+      (inv) => inv.origin === COMPETITION_INVITE_ORIGIN.BESPOKE,
+    )
+    const bucketFor = (s: AuditInviteSummary["status"]): number => {
+      if (
+        s === COMPETITION_INVITE_STATUS.PENDING ||
+        s === COMPETITION_INVITE_STATUS.ACCEPTED_PAID
+      )
+        return 0
+      if (s === COMPETITION_INVITE_STATUS.DECLINED) return 1
+      return 2
+    }
+    return list
+      .slice()
+      .sort((a, b) => bucketFor(a.status) - bucketFor(b.status))
+  }, [allInvites])
+  // A bespoke "draft" is the staged-not-yet-sent shape from
+  // `bespoke.ts`: status=pending + no claimToken. Tightening the check
+  // beyond `claimUrl === null` keeps terminal rows (declined / accepted
+  // — which also null their token) from being treated as drafts.
+  const draftBespokeInvites = useMemo(
+    () =>
+      bespokeInvites.filter(
+        (inv) =>
+          inv.status === COMPETITION_INVITE_STATUS.PENDING &&
+          inv.claimUrl === null,
+      ),
+    [bespokeInvites],
+  )
+  // All pending bespoke rows the organizer can stage on a Send: drafts
+  // (no token yet) **plus** already-sent pending invites the organizer
+  // wants to resend. Terminal statuses (accepted_paid, declined, expired,
+  // revoked) stay out — `accepted_paid` is a "spam the registered athlete"
+  // hazard, and the others have nulled `activeMarker` so a fresh invite
+  // would be the right path, not a resend on the terminal row.
+  const sendableBespokeInvites = useMemo(
+    () =>
+      bespokeInvites.filter(
+        (inv) => inv.status === COMPETITION_INVITE_STATUS.PENDING,
+      ),
+    [bespokeInvites],
+  )
+  const sentBespokeCount = bespokeInvites.length - draftBespokeInvites.length
+
+  // Only `accepted_paid` rows are dropped from select-all on the
+  // candidates table — pending rows can be resent via the
+  // `redeliverInvite` path so they stay eligible for selection.
+  const isRowLockedFromSelection = (r: RosterRow) => {
+    const inv = lookupInviteForRow(r)
+    if (!inv) return false
+    return inv.status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID
+  }
+
+  const getInviteStatusForRow = (
+    r: RosterRow,
+  ): "pending" | "accepted_paid" | "declined" | null => {
+    const inv = lookupInviteForRow(r)
+    if (!inv) return null
+    if (
+      inv.status === COMPETITION_INVITE_STATUS.PENDING ||
+      inv.status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID ||
+      inv.status === COMPETITION_INVITE_STATUS.DECLINED
+    ) {
+      return inv.status
+    }
+    // Expired / revoked aren't surfaced in the roster — fall back to
+    // "no status" so the row reads as "Not invited" and stays
+    // selectable.
+    return null
+  }
+
+  const getInviteUrlForRow = (r: RosterRow): string | null =>
+    lookupInviteForRow(r)?.claimUrl ?? null
+
+  // Map championshipDivision id → label so we can resolve the invite's
+  // `championshipDivisionId` (the actual destination of the invite,
+  // which can differ from the row's source-division label) into a
+  // human-readable column value.
+  const championshipDivisionLabelById = useMemo<Record<string, string>>(
+    () => Object.fromEntries(championshipDivisions.map((d) => [d.id, d.label])),
+    [championshipDivisions],
+  )
+
+  const getInvitedDivisionLabelForRow = (r: RosterRow): string | null => {
+    const inv = lookupInviteForRow(r)
+    if (!inv) return null
+    // Only surface a division label for rows that are actively engaged
+    // at this championship — terminal rows (declined / expired /
+    // revoked) shouldn't read as "invited to X" because the invite is
+    // no longer live. Accepted_paid stays in because the athlete IS
+    // claimed against that division.
+    if (
+      inv.status !== COMPETITION_INVITE_STATUS.PENDING &&
+      inv.status !== COMPETITION_INVITE_STATUS.ACCEPTED_PAID
+    ) {
+      return null
+    }
+    return championshipDivisionLabelById[inv.championshipDivisionId] ?? null
+  }
+
+  // Origin matters: source-origin rows hit `sendAttempt=0` on the first
+  // dispatch, but bespoke drafts get bumped to `sendAttempt=1` by the
+  // activation `reissueInvite` before their first send. See
+  // `computeInviteSendCount` for the full rationale.
+  const getInviteSendCountForRow = (r: RosterRow): number | null => {
+    const inv = lookupInviteForRow(r)
+    if (!inv) return null
+    return computeInviteSendCount(inv)
+  }
+
+  const copyInviteLink = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url)
+      toast.success("Invite link copied")
+    } catch {
+      console.warn("Failed to copy invite link")
+      toast.error("Couldn't copy invite link. Please copy it manually.")
+    }
+  }
+
+  // Build the unique competition + division filter universe from the
+  // loaded rows. The filter selects show "All" plus every distinct
+  // competition / division that appeared in the roster fetch — keeping
+  // them in sync with the data is automatic this way.
+  const rosterCompetitions = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const r of roster.rows) {
+      if (!seen.has(r.sourceCompetitionId)) {
+        seen.set(r.sourceCompetitionId, r.sourceCompetitionName)
+      }
+    }
+    return Array.from(seen.entries()).map(([id, name]) => ({ id, name }))
+  }, [roster.rows])
+
+  const rosterDivisions = useMemo(() => {
+    // When a competition is picked, narrow division options to that
+    // competition's divisions; otherwise show every division surfaced
+    // anywhere in the roster.
+    const seen = new Map<string, string>()
+    for (const r of roster.rows) {
+      if (
+        search.source &&
+        search.source !== ALL_FILTER &&
+        r.sourceCompetitionId !== search.source
+      ) {
+        continue
+      }
+      if (!seen.has(r.sourceDivisionId)) {
+        seen.set(r.sourceDivisionId, r.sourceDivisionLabel)
+      }
+    }
+    return Array.from(seen.entries()).map(([id, label]) => ({ id, label }))
+  }, [roster.rows, search.source])
+
+  // When the candidates table is filtered to a single source division,
+  // resolve the championship division whose label matches so the Send
+  // dialog can open already pointed at it. Source and championship
+  // divisions are distinct entities (different ids) but typically share
+  // labels (e.g. "Rx Men"); a label match is the best signal we have
+  // without traversing per-source divisionMappings.
+  const filteredChampionshipDivisionId = useMemo<string | undefined>(() => {
+    if (!search.div || search.div === ALL_FILTER) return undefined
+    const sourceLabel = rosterDivisions.find((d) => d.id === search.div)?.label
+    if (!sourceLabel) return undefined
+    const normalized = sourceLabel.trim().toLowerCase()
+    return championshipDivisions.find(
+      (d) => d.label.trim().toLowerCase() === normalized,
+    )?.id
+  }, [search.div, rosterDivisions, championshipDivisions])
+
+  const filteredRosterRows = useMemo(() => {
+    return roster.rows.filter((r) => {
+      if (
+        search.source &&
+        search.source !== ALL_FILTER &&
+        r.sourceCompetitionId !== search.source
+      ) {
+        return false
+      }
+      if (
+        search.div &&
+        search.div !== ALL_FILTER &&
+        r.sourceDivisionId !== search.div
+      ) {
+        return false
+      }
+      return true
+    })
+  }, [roster.rows, search.source, search.div])
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredRosterRows.length / ROSTER_PAGE_SIZE),
+  )
+  // Clamp the requested page so deep links + filter narrowing don't
+  // leave the user on an empty page beyond the new last page.
+  const currentPage = Math.min(Math.max(1, search.page ?? 1), totalPages)
+  const pagedRosterRows = useMemo(() => {
+    const start = (currentPage - 1) * ROSTER_PAGE_SIZE
+    return filteredRosterRows.slice(start, start + ROSTER_PAGE_SIZE)
+  }, [filteredRosterRows, currentPage])
+
+  const goToPage = (page: number) => {
+    navigate({
+      to: "/compete/organizer/$competitionId/invites",
+      params: { competitionId },
+      search: {
+        source: search.source,
+        div: search.div,
+        page: page === 1 ? undefined : page,
+      },
+      replace: true,
+    })
+  }
+
+  // Build recipients from the FULL roster (not just the filtered view) so
+  // selections persist across filter changes — the organizer can build up
+  // a cross-filter recipient list and the count + Send dialog reflect the
+  // total. Dedupe by email so an athlete with placements in multiple
+  // (comp, division) leaderboards only sends one invite.
+  const recipients = useMemo<SendRecipient[]>(() => {
+    const sourceRecipients: SendRecipient[] = []
+    const seenEmail = new Set<string>()
+    for (const r of roster.rows) {
+      if (!r.athleteEmail) continue
+      if (!selectedRosterKeys.has(rosterRowKey(r))) continue
+      if (isRowAlreadyAcceptedPaid(r)) continue
+      const emailKey = r.athleteEmail.toLowerCase()
+      if (seenEmail.has(emailKey)) continue
+      seenEmail.add(emailKey)
+      sourceRecipients.push({
+        email: r.athleteEmail,
+        origin: COMPETITION_INVITE_ORIGIN.SOURCE,
+        sourceId: r.sourceId,
+        sourceCompetitionId: r.sourceCompetitionId,
+        sourcePlacement: r.sourcePlacement,
+        sourcePlacementLabel:
+          r.sourcePlacement != null
+            ? `${r.sourcePlacement}${ordinalSuffix(r.sourcePlacement)} — ${r.sourceCompetitionName} · ${r.sourceDivisionLabel}`
+            : `${r.sourceCompetitionName} · ${r.sourceDivisionLabel}`,
+        inviteeFirstName: r.athleteName.split(" ")[0] ?? null,
+        inviteeLastName: r.athleteName.split(" ").slice(1).join(" ") || null,
+        userId: r.userId,
+      })
+    }
+    // Pending bespokes — both staged drafts and already-sent rows the
+    // organizer is resending — funnel through the same recipient slot.
+    // The server pipeline detects the existing-active row in
+    // `issueInvitesForRecipients` and routes it to either `reissueInvite`
+    // (drafts) or `redeliverInvite` (resends) based on token state.
+    const bespokeRecipients: SendRecipient[] = sendableBespokeInvites
+      .filter((inv) => selectedDraftIds.has(inv.id))
+      .map((inv) => ({
+        email: inv.email,
+        origin: COMPETITION_INVITE_ORIGIN.BESPOKE,
+        bespokeReason: inv.bespokeReason,
+        inviteeFirstName: inv.inviteeFirstName,
+        inviteeLastName: inv.inviteeLastName,
+        userId: inv.userId,
+      }))
+    return [...sourceRecipients, ...bespokeRecipients]
+  }, [
+    roster.rows,
+    selectedRosterKeys,
+    isRowAlreadyAcceptedPaid,
+    sendableBespokeInvites,
+    selectedDraftIds,
+  ])
+
+  // Count of source-roster selections that are currently hidden by the
+  // filter — surfaces in the UI as "12 selected (8 outside current
+  // filter)" so the organizer always sees their cross-filter total.
+  const totalRosterSelectedCount = useMemo(() => {
+    const seen = new Set<string>()
+    for (const r of roster.rows) {
+      if (!r.athleteEmail) continue
+      if (!selectedRosterKeys.has(rosterRowKey(r))) continue
+      if (isRowAlreadyAcceptedPaid(r)) continue
+      const emailKey = r.athleteEmail.toLowerCase()
+      if (seen.has(emailKey)) continue
+      seen.add(emailKey)
+    }
+    return seen.size
+  }, [roster.rows, selectedRosterKeys, isRowAlreadyAcceptedPaid])
+
+  const visibleRosterSelectedCount = useMemo(() => {
+    const seen = new Set<string>()
+    for (const r of filteredRosterRows) {
+      if (!r.athleteEmail) continue
+      if (!selectedRosterKeys.has(rosterRowKey(r))) continue
+      if (isRowAlreadyAcceptedPaid(r)) continue
+      const emailKey = r.athleteEmail.toLowerCase()
+      if (seen.has(emailKey)) continue
+      seen.add(emailKey)
+    }
+    return seen.size
+  }, [filteredRosterRows, selectedRosterKeys, isRowAlreadyAcceptedPaid])
+
+  const hiddenSelectedCount =
+    totalRosterSelectedCount - visibleRosterSelectedCount
+
+  // ADR-0012 Phase 4: count of currently active (pending OR accepted_paid)
+  // invites grouped by `(sourceId, championshipDivisionId)`. Sourced from
+  // the audit projection — `activeMarker === "active"` filters the same
+  // pending-or-accepted_paid window the loader already exposes. Bespoke
+  // rows have null `sourceId` and are skipped (the dialog ignores bespoke
+  // recipients in its allocation check anyway).
+  const existingActiveCountsBySourceByDivision = useMemo<
+    Record<string, Record<string, number>>
+  >(() => {
+    const map: Record<string, Record<string, number>> = {}
+    for (const inv of allInvites) {
+      if (inv.activeMarker !== "active") continue
+      if (inv.origin !== COMPETITION_INVITE_ORIGIN.SOURCE) continue
+      if (!inv.sourceId) continue
+      if (!map[inv.sourceId]) map[inv.sourceId] = {}
+      const div = map[inv.sourceId]
+      div[inv.championshipDivisionId] =
+        (div[inv.championshipDivisionId] ?? 0) + 1
+    }
+    return map
+  }, [allInvites])
+
+  // ADR-0012 Phase 4: human-readable source label for the over-issue
+  // warning. The dialog has no access to competition / series name maps
+  // directly; reuse the route-level `resolveSourceLabel` helper here so
+  // both the warning row and the per-recipient breakdown speak the same
+  // names organizers see on the Sources tab.
+  const sourceLabelsById = useMemo<Record<string, string>>(() => {
+    const out: Record<string, string> = {}
+    for (const src of sources) {
+      out[src.id] = resolveSourceLabel(
+        src,
+        competitionNamesById,
+        seriesNamesById,
+      )
+    }
+    return out
+  }, [sources, competitionNamesById, seriesNamesById])
+
+  const toggleRosterSelection = (key: string) => {
+    setSelectedRosterKeys((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+  const toggleAllRoster = (selectAll: boolean) => {
+    setSelectedRosterKeys((prev) => {
+      // Select-all in the table header acts on the rows currently
+      // visible (filtered AND on the current page) — that's what the
+      // organizer can see ticked. Selections from other pages are
+      // preserved when toggling on, and only the current page's keys
+      // are removed when toggling off.
+      const next = new Set(prev)
+      for (const r of pagedRosterRows) {
+        if (!r.athleteEmail || isRowLockedFromSelection(r)) continue
+        if (selectAll) next.add(rosterRowKey(r))
+        else next.delete(rosterRowKey(r))
+      }
+      return next
+    })
+  }
+  const toggleDraftSelection = (id: string) => {
+    setSelectedDraftIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  if (flagEnabled === false) return null
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Invites</h1>
+          <p className="text-muted-foreground">
+            Define qualification sources and invite athletes to{" "}
+            {competition.name}.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setAddSingleOpen(true)}
+            disabled={championshipDivisions.length === 0}
+          >
+            <UserPlus className="mr-1 h-4 w-4" />
+            Add invitee
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setBulkOpen(true)}
+            disabled={championshipDivisions.length === 0}
+          >
+            <Upload className="mr-1 h-4 w-4" />
+            Bulk add
+          </Button>
+          <Button
+            onClick={() => setSendOpen(true)}
+            disabled={
+              recipients.length === 0 || championshipDivisions.length === 0
+            }
+          >
+            <MailPlus className="mr-1 h-4 w-4" />
+            Send invites ({recipients.length})
+          </Button>
+        </div>
+      </div>
+
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList>
+          <TabsTrigger value="sources">Sources</TabsTrigger>
+          <TabsTrigger value="candidates">Candidates</TabsTrigger>
+          <TabsTrigger value="sent">Sent</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="sources" className="mt-4">
+          <InviteSourcesList
+            sources={sources}
+            competitionNamesById={competitionNamesById}
+            seriesNamesById={seriesNamesById}
+            allocationsBySourceByDivision={allocationsBySourceByDivision}
+            championshipDivisions={championshipDivisions}
+            onAdd={() => {
+              setEditingSource(undefined)
+              setSourceDialogOpen(true)
+            }}
+            onEdit={(source) =>
+              navigate({
+                to: "/compete/organizer/$competitionId/invites/sources/$sourceId",
+                params: { competitionId, sourceId: source.id },
+              })
+            }
+            onDelete={(source) => setDeletingSource(source)}
+          />
+        </TabsContent>
+
+        <TabsContent value="candidates" className="mt-4 space-y-6">
+          {rosterCompetitions.length === 0 ? (
+            <OrganizerEmptyState
+              icon={UserPlus}
+              title="No invite candidates yet"
+              description="Add a qualification source to see eligible athletes from prior competitions or series standings."
+              actionLabel="Add source"
+              onAction={() => setTab("sources")}
+            />
+          ) : (
+            <>
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="space-y-1">
+                  <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Competition
+                  </div>
+                  <Select
+                    value={search.source ?? ALL_FILTER}
+                    onValueChange={(value) =>
+                      navigate({
+                        to: "/compete/organizer/$competitionId/invites",
+                        params: { competitionId },
+                        search: {
+                          source: value === ALL_FILTER ? undefined : value,
+                          // Reset division filter — it may not exist in the
+                          // newly-chosen comp's division set.
+                          div: undefined,
+                          // Reset page — row count changes; previous page
+                          // index may overshoot the new filtered list.
+                          page: undefined,
+                        },
+                        replace: true,
+                      })
+                    }
+                  >
+                    <SelectTrigger className="min-w-[18rem]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL_FILTER}>
+                        All competitions
+                      </SelectItem>
+                      {rosterCompetitions.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Division
+                  </div>
+                  <Select
+                    value={search.div ?? ALL_FILTER}
+                    onValueChange={(value) =>
+                      navigate({
+                        to: "/compete/organizer/$competitionId/invites",
+                        params: { competitionId },
+                        search: {
+                          source: search.source,
+                          div: value === ALL_FILTER ? undefined : value,
+                          page: undefined,
+                        },
+                        replace: true,
+                      })
+                    }
+                    disabled={rosterDivisions.length === 0}
+                  >
+                    <SelectTrigger className="min-w-[14rem]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL_FILTER}>All divisions</SelectItem>
+                      {rosterDivisions.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>
+                          {d.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
+                  <span>
+                    Showing{" "}
+                    {filteredRosterRows.length === 0
+                      ? 0
+                      : (currentPage - 1) * ROSTER_PAGE_SIZE + 1}
+                    –
+                    {Math.min(
+                      currentPage * ROSTER_PAGE_SIZE,
+                      filteredRosterRows.length,
+                    )}{" "}
+                    of {filteredRosterRows.length} athletes
+                    {filteredRosterRows.length !== roster.rows.length ? (
+                      <span className="ml-1">
+                        (filtered from {roster.rows.length})
+                      </span>
+                    ) : null}
+                  </span>
+                </div>
+              </div>
+              {totalRosterSelectedCount > 0 ? (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                  <div>
+                    <strong>{totalRosterSelectedCount}</strong> athlete
+                    {totalRosterSelectedCount === 1 ? "" : "s"} selected
+                    {hiddenSelectedCount > 0 ? (
+                      <span className="ml-1 text-muted-foreground">
+                        ({hiddenSelectedCount} outside current filter)
+                      </span>
+                    ) : null}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedRosterKeys(new Set())}
+                  >
+                    Clear selection
+                  </Button>
+                </div>
+              ) : null}
+              <ChampionshipRosterTable
+                rows={pagedRosterRows}
+                selectedKeys={selectedRosterKeys}
+                onToggleSelection={toggleRosterSelection}
+                onToggleAll={toggleAllRoster}
+                getInviteStatusForRow={getInviteStatusForRow}
+                getInviteUrlForRow={getInviteUrlForRow}
+                getInvitedDivisionLabelForRow={getInvitedDivisionLabelForRow}
+                getInviteSendCountForRow={getInviteSendCountForRow}
+                allocationsBySourceByDivision={allocationsBySourceByDivision}
+                championshipDivisions={championshipDivisions}
+              />
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-xs text-muted-foreground">
+                  Page {currentPage} of {totalPages}
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage <= 1}
+                    onClick={() => goToPage(currentPage - 1)}
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage >= totalPages}
+                    onClick={() => goToPage(currentPage + 1)}
+                    aria-label="Next page"
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+
+          <section className="space-y-3">
+            <div className="flex items-baseline gap-3">
+              <h2 className="text-sm font-semibold tracking-tight">
+                Bespoke / direct invites
+              </h2>
+              <span className="text-xs text-muted-foreground">
+                {draftBespokeInvites.length} draft
+                {draftBespokeInvites.length === 1 ? "" : "s"}
+                {sentBespokeCount > 0 ? ` · ${sentBespokeCount} sent` : ""}
+              </span>
+            </div>
+            {bespokeInvites.length === 0 ? (
+              <OrganizerEmptyState
+                icon={UserPlus}
+                title="No direct invitees yet"
+                description="Stage individual athletes or upload a list before sending bespoke championship invites."
+                actionLabel="Add invitee"
+                actionIcon={<UserPlus className="mr-2 h-4 w-4" />}
+                onAction={() => setAddSingleOpen(true)}
+                secondaryActionLabel="Bulk add"
+                secondaryActionIcon={<Upload className="mr-2 h-4 w-4" />}
+                onSecondaryAction={() => setBulkOpen(true)}
+              />
+            ) : (
+              <div className="overflow-hidden rounded-lg border bg-card">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-b bg-muted/30 hover:bg-muted/30">
+                      <TableHead className="w-12">
+                        <Checkbox
+                          checked={
+                            sendableBespokeInvites.length > 0 &&
+                            sendableBespokeInvites.every((inv) =>
+                              selectedDraftIds.has(inv.id),
+                            )
+                          }
+                          disabled={sendableBespokeInvites.length === 0}
+                          onCheckedChange={(v) => {
+                            setSelectedDraftIds(
+                              v === true
+                                ? new Set(
+                                    sendableBespokeInvites.map((inv) => inv.id),
+                                  )
+                                : new Set(),
+                            )
+                          }}
+                          aria-label="Select all sendable invitees"
+                        />
+                      </TableHead>
+                      <TableHead className="w-20 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        Rank
+                      </TableHead>
+                      <TableHead className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        Athlete
+                      </TableHead>
+                      <TableHead className="w-48 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        Qualified via
+                      </TableHead>
+                      <TableHead className="w-32 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        Status
+                      </TableHead>
+                      <TableHead className="w-32 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        Invited division
+                      </TableHead>
+                      <TableHead className="w-16 text-right">
+                        <span className="sr-only">Actions</span>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {bespokeInvites.map((inv) => {
+                      const name =
+                        [inv.inviteeFirstName, inv.inviteeLastName]
+                          .filter(Boolean)
+                          .join(" ") || inv.email
+                      const initial = name.charAt(0).toUpperCase()
+                      // Tighter than `claimUrl === null`: declined /
+                      // accepted_paid also null their token, so the loose
+                      // check would mis-classify them as drafts and leave
+                      // their checkbox enabled. Drafts are strictly the
+                      // staged-not-yet-sent shape from `bespoke.ts`.
+                      const isDraft =
+                        inv.status === COMPETITION_INVITE_STATUS.PENDING &&
+                        inv.claimUrl === null
+                      // Sendable = draft (first-time send) **or**
+                      // already-sent pending invite the organizer wants
+                      // to resend. Terminal statuses (accepted_paid,
+                      // declined, expired, revoked) stay locked.
+                      const isSendable =
+                        inv.status === COMPETITION_INVITE_STATUS.PENDING
+                      // For sent rows (non-draft), append a "(N×)"
+                      // suffix when the invite has been emailed more
+                      // than once. The first send carries no suffix
+                      // — adding "1×" everywhere would be noise without
+                      // telling the organizer anything new. Mirrors
+                      // the StatusPill logic in
+                      // championship-roster-table.tsx.
+                      const sendCount = computeInviteSendCount(inv)
+                      const sendCountSuffix =
+                        sendCount >= 2 ? ` ${sendCount}×` : ""
+                      const statusLabel =
+                        inv.status === "accepted_paid"
+                          ? "Accepted"
+                          : inv.status === "declined"
+                            ? "Declined"
+                            : inv.status === "expired"
+                              ? "Expired"
+                              : inv.status === "revoked"
+                                ? "Revoked"
+                                : isDraft
+                                  ? "Not invited"
+                                  : `Invited${sendCountSuffix}`
+                      // Palette mirrors the StatusPill in
+                      // championship-roster-table so the two tables
+                      // read consistently. Always `variant="outline"` —
+                      // the default variant ships `dark:bg-primary`
+                      // which paints over the tinted bg, producing the
+                      // orange-on-green effect on hover.
+                      const statusBadgeClass =
+                        inv.status === "accepted_paid"
+                          ? "border-sky-500/30 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 hover:border-sky-500/50"
+                          : inv.status === "declined"
+                            ? "border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 hover:border-rose-500/50"
+                            : inv.status === "expired" ||
+                                inv.status === "revoked"
+                              ? "border-zinc-500/30 bg-zinc-500/10 text-zinc-400 hover:bg-zinc-500/20"
+                              : isDraft
+                                ? "border-dashed text-muted-foreground"
+                                : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50"
+                      return (
+                        <TableRow key={inv.id}>
+                          <TableCell>
+                            <Checkbox
+                              checked={
+                                isSendable && selectedDraftIds.has(inv.id)
+                              }
+                              disabled={!isSendable}
+                              onCheckedChange={() =>
+                                isSendable && toggleDraftSelection(inv.id)
+                              }
+                              aria-label={
+                                isDraft
+                                  ? `Select ${inv.email}`
+                                  : isSendable
+                                    ? `Resend invite to ${inv.email}`
+                                    : `${inv.email} cannot be sent`
+                              }
+                              title={
+                                isDraft
+                                  ? undefined
+                                  : isSendable
+                                    ? "Resend will redeliver the same link with a fresh expiration date"
+                                    : undefined
+                              }
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <span className="tabular-nums font-medium">—</span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-semibold">
+                                {initial}
+                              </div>
+                              <div className="flex flex-col leading-tight">
+                                <span>{name}</span>
+                                {name !== inv.email ? (
+                                  <span className="text-xs text-muted-foreground">
+                                    {inv.email}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {inv.bespokeReason ?? "Direct invite"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={statusBadgeClass}
+                            >
+                              {statusLabel}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {(() => {
+                              // Only surface the invited-division label
+                              // for actively-engaged rows (pending or
+                              // accepted_paid) — terminal statuses keep
+                              // their championshipDivisionId on the row
+                              // but reading them as "invited to X" is
+                              // misleading when the invite is no longer
+                              // live. Mirrors the candidates table.
+                              const showLabel =
+                                inv.status ===
+                                  COMPETITION_INVITE_STATUS.PENDING ||
+                                inv.status ===
+                                  COMPETITION_INVITE_STATUS.ACCEPTED_PAID
+                              const label = showLabel
+                                ? championshipDivisionLabelById[
+                                    inv.championshipDivisionId
+                                  ]
+                                : null
+                              return label ? (
+                                <Badge variant="outline">{label}</Badge>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">
+                                  —
+                                </span>
+                              )
+                            })()}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {inv.claimUrl !== null ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Copy invite link"
+                                className="text-muted-foreground hover:text-foreground"
+                                onClick={() =>
+                                  inv.claimUrl && copyInviteLink(inv.claimUrl)
+                                }
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            ) : null}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </section>
+        </TabsContent>
+
+        <TabsContent value="sent" className="mt-4">
+          <SentInvitesByDivision
+            invites={allInvites}
+            divisions={championshipDivisions}
+            sources={sources}
+            competitionNamesById={competitionNamesById}
+            seriesNamesById={seriesNamesById}
+            allocationsBySourceByDivision={allocationsBySourceByDivision}
+            competitionId={competitionId}
+          />
+        </TabsContent>
+      </Tabs>
+
+      {championshipDivisions[0] ? (
+        <>
+          <AddBespokeInviteeDialog
+            open={addSingleOpen}
+            onOpenChange={setAddSingleOpen}
+            championshipCompetitionId={competitionId}
+            divisions={championshipDivisions}
+            defaultDivisionId={championshipDivisions[0].id}
+            onCreated={() => router.invalidate()}
+          />
+          <BulkAddInviteesDialog
+            open={bulkOpen}
+            onOpenChange={setBulkOpen}
+            championshipCompetitionId={competitionId}
+            divisions={championshipDivisions}
+            defaultDivisionId={championshipDivisions[0].id}
+            onCreated={() => router.invalidate()}
+          />
+          <SendInvitesDialog
+            open={sendOpen}
+            onOpenChange={setSendOpen}
+            championshipCompetitionId={competitionId}
+            championshipDivisions={championshipDivisions}
+            defaultDivisionId={filteredChampionshipDivisionId}
+            championshipName={competition.name}
+            recipients={recipients}
+            allocationsBySourceByDivision={allocationsBySourceByDivision}
+            existingActiveCountsBySourceByDivision={
+              existingActiveCountsBySourceByDivision
+            }
+            sourceLabelsById={sourceLabelsById}
+            onSent={() => {
+              setSelectedRosterKeys(new Set())
+              setSelectedDraftIds(new Set())
+              router.invalidate()
+            }}
+          />
+        </>
+      ) : null}
+
+      <EditInviteSourceDialog
+        open={sourceDialogOpen}
+        onOpenChange={setSourceDialogOpen}
+        championshipCompetitionId={competitionId}
+        source={editingSource}
+        competitionOptions={competitionOptions}
+        seriesOptions={seriesOptions}
+        onSaved={() => router.invalidate()}
+      />
+      <DeleteInviteSourceDialog
+        open={deletingSource !== null}
+        onOpenChange={(next) => {
+          if (!next) setDeletingSource(null)
+        }}
+        championshipCompetitionId={competitionId}
+        source={deletingSource}
+        sourceLabel={resolveSourceLabel(
+          deletingSource,
+          competitionNamesById,
+          seriesNamesById,
+        )}
+        onDeleted={() => router.invalidate()}
+      />
+    </div>
+  )
+}
+
+function resolveSourceLabel(
+  source: CompetitionInviteSource | null,
+  competitionNamesById: Record<string, string>,
+  seriesNamesById: Record<string, string>,
+): string {
+  if (!source) return ""
+  if (source.kind === "series") {
+    return source.sourceGroupId
+      ? (seriesNamesById[source.sourceGroupId] ?? "Unknown series")
+      : "Unknown series"
+  }
+  return source.sourceCompetitionId
+    ? (competitionNamesById[source.sourceCompetitionId] ??
+        "Unknown competition")
+    : "Unknown competition"
+}

@@ -1,0 +1,993 @@
+"use client"
+
+import { useRouter } from "@tanstack/react-router"
+import {
+  AlertCircle,
+  Calendar,
+  Check,
+  CheckCircle2,
+  ClipboardList,
+  X,
+} from "lucide-react"
+import { useEffect, useState } from "react"
+import { toast } from "sonner"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
+import { TableCell, TableRow } from "@/components/ui/table"
+import type { User } from "@/db/schema"
+import {
+  VOLUNTEER_AVAILABILITY,
+  VOLUNTEER_ROLE_LABELS,
+  VOLUNTEER_ROLE_TYPE_VALUES,
+  type VolunteerRoleType,
+} from "@/db/schemas/volunteers"
+import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
+import {
+  addVolunteerRoleTypeFn,
+  grantScoreAccessFn,
+  removeVolunteerRoleTypeFn,
+  revokeScoreAccessFn,
+  updateVolunteerMetadataFn,
+} from "@/server-fns/volunteer-fns"
+import { useSession } from "@/utils/auth-client"
+
+interface VolunteerWithAccess {
+  id: string
+  userId: string
+  teamId: string
+  roleId: string
+  isSystemRole: boolean
+  isActive: boolean
+  metadata: string | null
+  joinedAt: Date | null
+  createdAt: Date
+  expiresAt: Date | null
+  invitedAt: Date | null
+  invitedBy: string | null
+  user: User | null
+  hasScoreAccess: boolean
+  status?: "pending" | "approved" | "rejected"
+}
+
+interface VolunteerRowProps {
+  volunteer: VolunteerWithAccess
+  competitionId: string
+  competitionTeamId: string
+  organizingTeamId: string
+  isSelected?: boolean
+  onToggleSelect?: (shiftKey: boolean) => void
+  answers: Array<{ id: string; questionId: string; answer: string }>
+  questions: RegistrationQuestion[]
+  showWaiverStatus?: boolean
+  waiverStatuses?: VolunteerWaiverStatus[]
+  variant?: "row" | "card"
+  assignments: {
+    shifts: Array<{
+      id: string
+      shiftId: string
+      name: string
+      roleType: string
+      startTime: Date
+      endTime: Date
+      location: string | null
+      notes: string | null
+    }>
+    judgeHeats: Array<{
+      id: string
+      heatId: string
+      eventName: string
+      heatNumber: number
+      scheduledTime: Date | null
+      laneNumber: number | null
+      position: string | null
+    }>
+  }
+  /** Optional callback to add a role type. Defaults to organizer server fn. */
+  onAddRoleType?: (params: {
+    membershipId: string
+    competitionId: string
+    roleType: string
+  }) => Promise<{ success: boolean }>
+  /** Optional callback to remove a role type. Defaults to organizer server fn. */
+  onRemoveRoleType?: (params: {
+    membershipId: string
+    competitionId: string
+    roleType: string
+  }) => Promise<{ success: boolean }>
+  /** Optional callback to update volunteer metadata. Defaults to organizer server fn. */
+  onUpdateMetadata?: (params: {
+    membershipId: string
+    competitionId: string
+    metadata: Record<string, unknown>
+  }) => Promise<{ success: boolean }>
+  /** Optional callback to grant score access. Defaults to organizer server fn. */
+  onGrantScoreAccess?: (params: {
+    volunteerId: string
+    competitionTeamId: string
+    competitionId: string
+    grantedBy: string
+  }) => Promise<{ success: boolean }>
+  /** Optional callback to revoke score access. Defaults to organizer server fn. */
+  onRevokeScoreAccess?: (params: {
+    userId: string
+    competitionTeamId: string
+    competitionId: string
+  }) => Promise<{ success: boolean }>
+}
+
+type VolunteerWaiverStatus = {
+  id: string
+  title: string
+  signed: boolean
+}
+
+function getAvailabilityLabel(availability?: string): string | null {
+  switch (availability) {
+    case VOLUNTEER_AVAILABILITY.MORNING:
+      return "Morning"
+    case VOLUNTEER_AVAILABILITY.AFTERNOON:
+      return "Afternoon"
+    case VOLUNTEER_AVAILABILITY.ALL_DAY:
+      return "All Day"
+    default:
+      return null
+  }
+}
+
+function parseMetadata(metadata: string | null): {
+  roleTypes: VolunteerRoleType[]
+  status?: "pending" | "approved" | "rejected"
+  signupName?: string
+  signupEmail?: string
+  signupPhone?: string
+  availability?: string
+  // Direct invite fields
+  inviteName?: string
+  inviteEmail?: string
+} {
+  if (!metadata)
+    return {
+      roleTypes: [],
+    }
+  try {
+    const parsed = JSON.parse(metadata) as {
+      volunteerRoleTypes?: VolunteerRoleType[]
+      status?: "pending" | "approved" | "rejected"
+      signupName?: string
+      signupEmail?: string
+      signupPhone?: string
+      availability?: string
+      inviteName?: string
+      inviteEmail?: string
+    }
+    return {
+      roleTypes: parsed.volunteerRoleTypes ?? [],
+      status: parsed.status,
+      signupName: parsed.signupName,
+      signupEmail: parsed.signupEmail,
+      signupPhone: parsed.signupPhone,
+      availability: parsed.availability,
+      inviteName: parsed.inviteName,
+      inviteEmail: parsed.inviteEmail,
+    }
+  } catch {
+    return {
+      roleTypes: [],
+    }
+  }
+}
+
+function getInitials(
+  firstName: string | null,
+  lastName: string | null,
+): string {
+  const first = firstName?.[0] || ""
+  const last = lastName?.[0] || ""
+  return (first + last).toUpperCase() || "?"
+}
+
+function formatShiftTimeCompact(startTime: Date, endTime: Date): string {
+  const start = new Date(startTime)
+  const end = new Date(endTime)
+  const startStr = start.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  })
+  const endStr = end.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  })
+  return `${startStr} - ${endStr}`
+}
+
+function VolunteerWaiverStatusBadge({
+  status,
+  showTitle = false,
+}: {
+  status: VolunteerWaiverStatus
+  showTitle?: boolean
+}) {
+  if (status.signed) {
+    return (
+      <Badge className="w-fit max-w-full bg-green-600 text-xs hover:bg-green-700">
+        <CheckCircle2 className="mr-1 h-3 w-3" />
+        {showTitle && <span className="mr-1 truncate">{status.title}:</span>}
+        Signed
+      </Badge>
+    )
+  }
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex w-fit max-w-full items-center rounded-md bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          <AlertCircle className="mr-1 h-3 w-3" />
+          {showTitle && <span className="mr-1 truncate">{status.title}:</span>}
+          Missing
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72" align="start">
+        <div className="space-y-2">
+          <p className="text-sm font-semibold">Missing volunteer waivers</p>
+          <ul className="space-y-1 text-sm text-muted-foreground">
+            <li className="flex items-start gap-2">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+              <span>{status.title}</span>
+            </li>
+          </ul>
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+export function VolunteerRow({
+  volunteer,
+  competitionId,
+  competitionTeamId,
+  organizingTeamId,
+  isSelected = false,
+  onToggleSelect,
+  assignments,
+  answers,
+  questions,
+  showWaiverStatus = false,
+  waiverStatuses = [],
+  variant = "row",
+  onAddRoleType,
+  onRemoveRoleType,
+  onUpdateMetadata,
+  onGrantScoreAccess,
+  onRevokeScoreAccess,
+}: VolunteerRowProps) {
+  const [showResponses, setShowResponses] = useState(false)
+  const router = useRouter()
+  const session = useSession()
+  const metadata = parseMetadata(volunteer.metadata)
+  const [scoreAccess, setScoreAccess] = useState(volunteer.hasScoreAccess)
+  const [selectedRoles, setSelectedRoles] = useState<Set<VolunteerRoleType>>(
+    new Set(metadata.roleTypes),
+  )
+  const [status, setStatus] = useState(metadata.status || "approved")
+  const [isPending, setIsPending] = useState(false)
+
+  const metadataString = volunteer.metadata
+  useEffect(() => {
+    const parsed = parseMetadata(metadataString)
+    setSelectedRoles(new Set(parsed.roleTypes))
+  }, [metadataString])
+
+  useEffect(() => {
+    setScoreAccess(volunteer.hasScoreAccess)
+  }, [volunteer.hasScoreAccess])
+
+  const handleScoreAccessToggle = async (checked: boolean) => {
+    if (!volunteer.user) return
+
+    setScoreAccess(checked)
+    setIsPending(true)
+
+    try {
+      if (checked) {
+        if (onGrantScoreAccess) {
+          await onGrantScoreAccess({
+            volunteerId: volunteer.user.id,
+            competitionTeamId,
+            competitionId,
+            grantedBy: session?.userId ?? volunteer.user.id,
+          })
+        } else {
+          await grantScoreAccessFn({
+            data: {
+              volunteerId: volunteer.user.id,
+              competitionTeamId,
+              organizingTeamId,
+              competitionId,
+              grantedBy: session?.userId ?? volunteer.user.id,
+            },
+          })
+        }
+        toast.success("Score access granted")
+      } else {
+        if (onRevokeScoreAccess) {
+          await onRevokeScoreAccess({
+            userId: volunteer.user.id,
+            competitionTeamId,
+            competitionId,
+          })
+        } else {
+          await revokeScoreAccessFn({
+            data: {
+              userId: volunteer.user.id,
+              competitionTeamId,
+              organizingTeamId,
+              competitionId,
+            },
+          })
+        }
+        toast.success("Score access revoked")
+      }
+      router.invalidate()
+    } catch (error) {
+      setScoreAccess(!checked)
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : `Failed to ${checked ? "grant" : "revoke"} score access`,
+      )
+    } finally {
+      setIsPending(false)
+    }
+  }
+
+  const handleRoleTypeToggle = async (
+    roleType: VolunteerRoleType,
+    checked: boolean,
+  ) => {
+    const newRoles = new Set(selectedRoles)
+    if (checked) {
+      newRoles.add(roleType)
+    } else {
+      newRoles.delete(roleType)
+    }
+    setSelectedRoles(newRoles)
+    setIsPending(true)
+
+    try {
+      if (checked) {
+        if (onAddRoleType) {
+          await onAddRoleType({
+            membershipId: volunteer.id,
+            competitionId,
+            roleType,
+          })
+        } else {
+          await addVolunteerRoleTypeFn({
+            data: {
+              membershipId: volunteer.id,
+              organizingTeamId,
+              competitionId,
+              roleType,
+            },
+          })
+        }
+        toast.success("Role type added")
+      } else {
+        if (onRemoveRoleType) {
+          await onRemoveRoleType({
+            membershipId: volunteer.id,
+            competitionId,
+            roleType,
+          })
+        } else {
+          await removeVolunteerRoleTypeFn({
+            data: {
+              membershipId: volunteer.id,
+              organizingTeamId,
+              competitionId,
+              roleType,
+            },
+          })
+        }
+        toast.success("Role type removed")
+      }
+      // Invalidate route to refresh judge list in JudgeSchedulingContainer
+      await router.invalidate()
+    } catch (error) {
+      // Revert on error
+      if (checked) {
+        newRoles.delete(roleType)
+      } else {
+        newRoles.add(roleType)
+      }
+      setSelectedRoles(newRoles)
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : `Failed to ${checked ? "add" : "remove"} role type`,
+      )
+    } finally {
+      setIsPending(false)
+    }
+  }
+
+  const handleApprove = async () => {
+    setStatus("approved")
+    setIsPending(true)
+
+    try {
+      if (onUpdateMetadata) {
+        await onUpdateMetadata({
+          membershipId: volunteer.id,
+          competitionId,
+          metadata: { status: "approved" },
+        })
+      } else {
+        await updateVolunteerMetadataFn({
+          data: {
+            membershipId: volunteer.id,
+            organizingTeamId,
+            competitionId,
+            metadata: { status: "approved" },
+          },
+        })
+      }
+      toast.success("Volunteer approved")
+      router.invalidate()
+    } catch (error) {
+      setStatus("pending")
+      toast.error(
+        error instanceof Error ? error.message : "Failed to approve volunteer",
+      )
+    } finally {
+      setIsPending(false)
+    }
+  }
+
+  const handleReject = async () => {
+    setStatus("rejected")
+    setIsPending(true)
+
+    try {
+      if (onUpdateMetadata) {
+        await onUpdateMetadata({
+          membershipId: volunteer.id,
+          competitionId,
+          metadata: { status: "rejected" },
+        })
+      } else {
+        await updateVolunteerMetadataFn({
+          data: {
+            membershipId: volunteer.id,
+            organizingTeamId,
+            competitionId,
+            metadata: { status: "rejected" },
+          },
+        })
+      }
+      toast.success("Volunteer rejected")
+      router.invalidate()
+    } catch (error) {
+      setStatus("pending")
+      toast.error(
+        error instanceof Error ? error.message : "Failed to reject volunteer",
+      )
+    } finally {
+      setIsPending(false)
+    }
+  }
+
+  const isPendingVolunteer = status === "pending"
+  // Priority: user name > signup name > invite name > invite email > "Unknown"
+  const displayName = volunteer.user
+    ? `${volunteer.user.firstName ?? ""} ${volunteer.user.lastName ?? ""}`.trim() ||
+      volunteer.user.email ||
+      "Unknown"
+    : metadata.signupName ||
+      metadata.inviteName ||
+      metadata.inviteEmail ||
+      "Unknown"
+  // Priority: user email > signup email > invite email > "—"
+  const displayEmail = volunteer.user
+    ? (volunteer.user.email ?? "—")
+    : metadata.signupEmail || metadata.inviteEmail || "—"
+  const availabilityLabel = getAvailabilityLabel(metadata.availability)
+
+  if (variant === "card") {
+    return (
+      <div
+        className={`rounded-lg border bg-card p-4 ${isSelected ? "ring-2 ring-primary" : ""}`}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={() => {}}
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggleSelect?.(e.shiftKey)
+              }}
+              aria-label={`Select ${displayName}`}
+              className="shrink-0"
+            />
+            <Avatar className="h-8 w-8 shrink-0">
+              <AvatarImage
+                src={volunteer.user?.avatar ?? undefined}
+                alt={displayName}
+              />
+              <AvatarFallback className="text-xs">
+                {getInitials(
+                  volunteer.user?.firstName ?? null,
+                  volunteer.user?.lastName ?? null,
+                )}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col min-w-0">
+              <span className="font-medium truncate">{displayName}</span>
+              <span className="text-xs text-muted-foreground truncate">
+                {displayEmail}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            {answers.length > 0 && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 w-8 p-0"
+                onClick={() => setShowResponses(true)}
+              >
+                <ClipboardList className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {isPendingVolunteer && (
+            <Badge variant="outline" className="text-xs">
+              Pending
+            </Badge>
+          )}
+          {availabilityLabel && (
+            <Badge variant="outline" className="text-xs">
+              {availabilityLabel}
+            </Badge>
+          )}
+          {showWaiverStatus &&
+            waiverStatuses.map((status) => (
+              <VolunteerWaiverStatusBadge
+                key={status.id}
+                status={status}
+                showTitle
+              />
+            ))}
+          {Array.from(selectedRoles).map((roleType) => (
+            <Badge key={roleType} variant="outline" className="text-xs">
+              {VOLUNTEER_ROLE_LABELS[roleType]}
+            </Badge>
+          ))}
+        </div>
+
+        <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+          {(assignments.shifts.length > 0 ||
+            assignments.judgeHeats.length > 0) && (
+            <>
+              <span className="text-muted-foreground">Assignments</span>
+              <span>
+                {assignments.shifts.length > 0 &&
+                  `${assignments.shifts.length} shift${assignments.shifts.length !== 1 ? "s" : ""}`}
+                {assignments.shifts.length > 0 &&
+                  assignments.judgeHeats.length > 0 &&
+                  ", "}
+                {assignments.judgeHeats.length > 0 &&
+                  `${assignments.judgeHeats.length} heat${assignments.judgeHeats.length !== 1 ? "s" : ""}`}
+              </span>
+            </>
+          )}
+          <span className="text-muted-foreground">Score Access</span>
+          <span>
+            <Checkbox
+              checked={scoreAccess}
+              onCheckedChange={handleScoreAccessToggle}
+              disabled={isPending || !volunteer.user}
+            />
+          </span>
+        </div>
+
+        <div className="mt-3 flex items-center gap-2">
+          {isPendingVolunteer ? (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleReject}
+                disabled={isPending}
+                className="flex-1"
+              >
+                <X className="mr-1 h-4 w-4" />
+                Reject
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleApprove}
+                disabled={isPending}
+                className="flex-1"
+              >
+                <Check className="mr-1 h-4 w-4" />
+                Approve
+              </Button>
+            </>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className="rounded-md px-3 py-2 text-sm hover:bg-accent border"
+                disabled={isPending}
+              >
+                Edit roles
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel>Role Types</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {VOLUNTEER_ROLE_TYPE_VALUES.map((roleType) => (
+                  <DropdownMenuCheckboxItem
+                    key={roleType}
+                    checked={selectedRoles.has(roleType)}
+                    onCheckedChange={(checked) =>
+                      handleRoleTypeToggle(roleType, checked)
+                    }
+                    disabled={isPending}
+                  >
+                    {VOLUNTEER_ROLE_LABELS[roleType]}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+
+        {/* Responses Drawer */}
+        <Sheet open={showResponses} onOpenChange={setShowResponses}>
+          <SheetContent className="w-full sm:w-[400px] lg:w-[540px]">
+            <SheetHeader>
+              <SheetTitle>Registration Responses — {displayName}</SheetTitle>
+            </SheetHeader>
+            <div className="mt-6 flex flex-col gap-6">
+              {questions.map((question) => {
+                const answer = answers.find((a) => a.questionId === question.id)
+                return (
+                  <div key={question.id} className="flex flex-col gap-1">
+                    <p className="text-sm font-medium">{question.label}</p>
+                    {question.helpText && (
+                      <p className="text-xs text-muted-foreground">
+                        {question.helpText}
+                      </p>
+                    )}
+                    <p className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+                      {answer?.answer ?? (
+                        <span className="text-muted-foreground italic">
+                          No response
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                )
+              })}
+              {questions.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  No registration questions configured.
+                </p>
+              )}
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+    )
+  }
+
+  return (
+    <TableRow className={isSelected ? "bg-muted/50" : undefined}>
+      <TableCell className="w-12">
+        <Checkbox
+          checked={isSelected}
+          onCheckedChange={() => {}}
+          onClick={(e) => {
+            e.stopPropagation()
+            onToggleSelect?.(e.shiftKey)
+          }}
+          aria-label={`Select ${displayName}`}
+        />
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-3">
+          <Avatar className="h-8 w-8">
+            <AvatarImage
+              src={volunteer.user?.avatar ?? undefined}
+              alt={displayName}
+            />
+            <AvatarFallback className="text-xs">
+              {getInitials(
+                volunteer.user?.firstName ?? null,
+                volunteer.user?.lastName ?? null,
+              )}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex flex-col gap-1">
+            <span className="font-medium">{displayName}</span>
+            <div className="flex flex-wrap gap-1">
+              {isPendingVolunteer && (
+                <Badge variant="outline" className="w-fit text-xs">
+                  Pending
+                </Badge>
+              )}
+              {availabilityLabel && (
+                <Badge variant="outline" className="w-fit text-xs">
+                  {availabilityLabel}
+                </Badge>
+              )}
+            </div>
+          </div>
+        </div>
+      </TableCell>
+      <TableCell className="text-sm text-muted-foreground">
+        {displayEmail}
+      </TableCell>
+      <TableCell>
+        <div className="flex flex-wrap gap-1">
+          {Array.from(selectedRoles).map((roleType) => (
+            <Badge key={roleType} variant="outline">
+              {VOLUNTEER_ROLE_LABELS[roleType]}
+            </Badge>
+          ))}
+          {selectedRoles.size === 0 && (
+            <span className="text-sm text-muted-foreground">—</span>
+          )}
+        </div>
+      </TableCell>
+      {showWaiverStatus &&
+        waiverStatuses.map((status) => (
+          <TableCell key={status.id}>
+            <VolunteerWaiverStatusBadge status={status} />
+          </TableCell>
+        ))}
+      <TableCell>
+        {assignments.shifts.length === 0 &&
+        assignments.judgeHeats.length === 0 ? (
+          <span className="text-sm text-muted-foreground">—</span>
+        ) : (
+          <div className="flex flex-wrap gap-1">
+            {assignments.shifts.length > 0 && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+                  >
+                    <Calendar className="h-3 w-3 shrink-0" />
+                    <span className="underline decoration-dotted">
+                      {assignments.shifts.length} shift
+                      {assignments.shifts.length !== 1 ? "s" : ""}
+                    </span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-2" align="start">
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">
+                    Assigned Shifts
+                  </p>
+                  <div className="space-y-1.5">
+                    {[...assignments.shifts]
+                      .sort(
+                        (a, b) =>
+                          new Date(a.startTime).getTime() -
+                          new Date(b.startTime).getTime(),
+                      )
+                      .map((shift) => (
+                        <div key={shift.id} className="text-sm">
+                          <p className="font-medium">{shift.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatShiftTimeCompact(
+                              shift.startTime,
+                              shift.endTime,
+                            )}
+                          </p>
+                        </div>
+                      ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+            {assignments.judgeHeats.length > 0 && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+                  >
+                    <Calendar className="h-3 w-3 shrink-0" />
+                    <span className="underline decoration-dotted">
+                      {assignments.judgeHeats.length} heat
+                      {assignments.judgeHeats.length !== 1 ? "s" : ""}
+                    </span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-2" align="start">
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">
+                    Judge Assignments
+                  </p>
+                  <div className="space-y-1.5">
+                    {[...assignments.judgeHeats]
+                      .sort((a, b) => {
+                        if (a.scheduledTime && b.scheduledTime) {
+                          return (
+                            new Date(a.scheduledTime).getTime() -
+                            new Date(b.scheduledTime).getTime()
+                          )
+                        }
+                        return a.heatNumber - b.heatNumber
+                      })
+                      .map((heat) => (
+                        <div key={heat.id} className="text-sm">
+                          <p className="font-medium">
+                            {heat.eventName} - Heat {heat.heatNumber}
+                          </p>
+                          {heat.scheduledTime && (
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(heat.scheduledTime).toLocaleDateString(
+                                "en-US",
+                                {
+                                  weekday: "short",
+                                  month: "short",
+                                  day: "numeric",
+                                },
+                              )}{" "}
+                              {new Date(heat.scheduledTime).toLocaleTimeString(
+                                "en-US",
+                                { hour: "numeric", minute: "2-digit" },
+                              )}
+                            </p>
+                          )}
+                          {heat.laneNumber !== null && (
+                            <p className="text-xs text-muted-foreground">
+                              Lane {heat.laneNumber}
+                            </p>
+                          )}
+                          {heat.position && (
+                            <p className="text-xs text-muted-foreground">
+                              {heat.position}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
+        )}
+      </TableCell>
+      <TableCell>
+        <Checkbox
+          checked={scoreAccess}
+          onCheckedChange={handleScoreAccessToggle}
+          disabled={isPending || !volunteer.user}
+        />
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex items-center justify-end gap-2">
+          {answers.length > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowResponses(true)}
+            >
+              <ClipboardList className="mr-1 h-4 w-4" />
+              Responses
+            </Button>
+          )}
+          {isPendingVolunteer ? (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleReject}
+                disabled={isPending}
+              >
+                <X className="mr-1 h-4 w-4" />
+                Reject
+              </Button>
+              <Button size="sm" onClick={handleApprove} disabled={isPending}>
+                <Check className="mr-1 h-4 w-4" />
+                Approve
+              </Button>
+            </>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className="rounded-md px-3 py-2 text-sm hover:bg-accent"
+                disabled={isPending}
+              >
+                Edit roles
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Role Types</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {VOLUNTEER_ROLE_TYPE_VALUES.map((roleType) => (
+                  <DropdownMenuCheckboxItem
+                    key={roleType}
+                    checked={selectedRoles.has(roleType)}
+                    onCheckedChange={(checked) =>
+                      handleRoleTypeToggle(roleType, checked)
+                    }
+                    disabled={isPending}
+                  >
+                    {VOLUNTEER_ROLE_LABELS[roleType]}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+      </TableCell>
+
+      {/* Responses Drawer */}
+      <Sheet open={showResponses} onOpenChange={setShowResponses}>
+        <SheetContent className="w-full sm:w-[400px] lg:w-[540px]">
+          <SheetHeader>
+            <SheetTitle>Registration Responses — {displayName}</SheetTitle>
+          </SheetHeader>
+          <div className="mt-6 flex flex-col gap-6">
+            {questions.map((question) => {
+              const answer = answers.find((a) => a.questionId === question.id)
+              return (
+                <div key={question.id} className="flex flex-col gap-1">
+                  <p className="text-sm font-medium">{question.label}</p>
+                  {question.helpText && (
+                    <p className="text-xs text-muted-foreground">
+                      {question.helpText}
+                    </p>
+                  )}
+                  <p className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+                    {answer?.answer ?? (
+                      <span className="text-muted-foreground italic">
+                        No response
+                      </span>
+                    )}
+                  </p>
+                </div>
+              )
+            })}
+            {questions.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No registration questions configured.
+              </p>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+    </TableRow>
+  )
+}

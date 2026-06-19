@@ -1,0 +1,991 @@
+import {
+  Link,
+  createFileRoute,
+  notFound,
+  useNavigate,
+} from "@tanstack/react-router"
+import {
+  ArrowLeft,
+  Calendar,
+  Clock,
+  Dumbbell,
+  ExternalLink,
+  FileText,
+  Filter,
+  Link as LinkIcon,
+  MapPin,
+  Target,
+  Timer,
+  Trophy,
+} from "lucide-react"
+import { z } from "zod"
+import { VideoSubmissionForm } from "@/components/compete/video-submission-form"
+import { CompetitionTabs } from "@/components/competition-tabs"
+import { EventHeatSchedule } from "@/components/event-heat-schedule"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"
+import { getPublicEventPageDataFn } from "@/server-fns/competition-event-page-fns"
+import {
+  getPublicEventHeatsFn,
+  type PublicScheduleHeat,
+} from "@/server-fns/competition-heats-fns"
+import type { DivisionDescription } from "@/server-fns/competition-workouts-fns"
+import {
+  getBatchEventVideoSubmissionsFn,
+  type VideoSubmissionResult,
+} from "@/server-fns/video-submission-fns"
+import { getGoogleMapsUrl, hasAddressData } from "@/utils/address"
+import { formatTrackOrder } from "@/utils/format-track-order"
+
+const eventSearchSchema = z.object({
+  division: z.string().optional(),
+})
+
+export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
+  component: EventDetailsPage,
+  validateSearch: (search) => eventSearchSchema.parse(search),
+  loaderDeps: ({ search }) => ({ division: search.division }),
+  staleTime: 30_000,
+  loader: async ({ params, parentMatchPromise, deps }) => {
+    const { eventId } = params
+
+    const parentMatch = await parentMatchPromise
+    const competition = parentMatch.loaderData?.competition
+    const parentDivisions = parentMatch.loaderData?.divisions
+    const session = parentMatch.loaderData?.session ?? null
+    const userRegistrations = parentMatch.loaderData?.userRegistrations ?? []
+
+    if (!competition) {
+      throw notFound()
+    }
+
+    const divisions = parentDivisions ?? []
+    const divisionIds = divisions.map((d) => d.id)
+    const isOnline = competition.competitionType === "online"
+
+    // Athlete's registered division ids — derived from the parent route's
+    // registrations (the same getUserCompetitionRegistrationsFn data the old
+    // inline server fn re-queried).
+    const athleteRegisteredDivisionIds = userRegistrations
+      .map((r) => r.divisionId)
+      .filter((id): id is string => id !== null)
+
+    // ONE consolidated call for all public page data. Independent queries run
+    // in parallel server-side; the event-dependent division descriptions run
+    // as a second wave inside the fn.
+    const pageDataPromise = getPublicEventPageDataFn({
+      data: {
+        competitionId: competition.id,
+        trackWorkoutId: eventId,
+        divisionIds,
+      },
+    })
+
+    // Resolve child events and the division the submission form should
+    // initialize with: prefer the URL's division param when it matches a
+    // registered AND event-mapped division, so that the form initializes with
+    // the correct teamSize for team divisions; otherwise the first mapped
+    // registered division.
+    const resolveSubmissionContext = (
+      pageData: Awaited<typeof pageDataPromise>,
+    ) => {
+      const childEvents = pageData.workouts
+        .filter((w) => w.parentEventId === eventId)
+        .sort((a, b) => a.trackOrder - b.trackOrder)
+
+      const mappings = pageData.eventDivisionMappings
+      const relevantMappedDivisionIds = (() => {
+        if (!mappings.hasMappings) return undefined
+        const parentId = pageData.event?.parentEventId
+        const relevantMappings = mappings.mappings.filter(
+          (m) =>
+            m.trackWorkoutId === eventId ||
+            (parentId && m.trackWorkoutId === parentId),
+        )
+        if (relevantMappings.length === 0) return undefined
+        return [...new Set(relevantMappings.map((m) => m.divisionId))]
+      })()
+
+      const selectableDivisionIds = (() => {
+        if (!mappings.hasMappings || !athleteRegisteredDivisionIds.length) {
+          return athleteRegisteredDivisionIds
+        }
+        if (!relevantMappedDivisionIds) return athleteRegisteredDivisionIds
+        const mappedSet = new Set(relevantMappedDivisionIds)
+        return athleteRegisteredDivisionIds.filter((id) => mappedSet.has(id))
+      })()
+
+      const initialSubmissionDivisionId =
+        (deps.division && selectableDivisionIds.includes(deps.division)
+          ? deps.division
+          : selectableDivisionIds[0]) ?? undefined
+
+      return {
+        childEvents,
+        initialSubmissionDivisionId,
+        submissionDivisionIds: relevantMappedDivisionIds,
+      }
+    }
+
+    // For online competitions, fetch video submissions in ONE batched call
+    // (instead of one getVideoSubmissionFn call per child event). The target
+    // events (children vs the event itself) and the mapped division only
+    // emerge from the page data, so this chains off the same promise — a
+    // single dependent round-trip.
+    const videoDataPromise: Promise<Record<string, VideoSubmissionResult>> =
+      (async () => {
+        if (!isOnline) return {}
+        const pageData = await pageDataPromise
+        if (!pageData.event) return {}
+
+        const {
+          childEvents,
+          initialSubmissionDivisionId,
+          submissionDivisionIds,
+        } = resolveSubmissionContext(pageData)
+        const targetIds =
+          childEvents.length > 0 ? childEvents.map((c) => c.id) : [eventId]
+
+        // Anonymous visitors and users without a registration get the same
+        // stubs getVideoSubmissionFn would return — synthesized locally so we
+        // skip the server round-trip entirely.
+        if (!session) {
+          const stub: VideoSubmissionResult = {
+            submissions: [],
+            teamSize: 1,
+            isCaptain: true,
+            canSubmit: false,
+            reason: "Not authenticated",
+            isRegistered: false,
+            workout: null,
+            existingScore: null,
+          }
+          return Object.fromEntries(targetIds.map((id) => [id, stub] as const))
+        }
+        const { results } = await getBatchEventVideoSubmissionsFn({
+          data: {
+            competitionId: competition.id,
+            trackWorkoutIds: targetIds,
+            divisionId: initialSubmissionDivisionId,
+            divisionIds: submissionDivisionIds,
+          },
+        })
+        return results
+      })()
+
+    // Heat schedule stays OFF the loader's critical path: EventHeatSchedule
+    // resolves this promise in a client-side effect, so awaiting it here
+    // would delay first paint without putting heats in the SSR HTML.
+    const deferredEventHeats: Promise<{ heats: PublicScheduleHeat[] }> =
+      pageDataPromise.then((pd) =>
+        pd.event?.heatStatus === "published"
+          ? getPublicEventHeatsFn({ data: { trackWorkoutId: eventId } })
+          : { heats: [] as PublicScheduleHeat[] },
+      )
+
+    const [pageData, videoResults] = await Promise.all([
+      pageDataPromise,
+      videoDataPromise,
+    ])
+
+    if (!pageData.event) {
+      throw notFound()
+    }
+
+    const event = pageData.event
+
+    // Resolve athlete's registered divisions with labels
+    const athleteRegisteredDivisions = athleteRegisteredDivisionIds
+      .map((divId) => {
+        const div = divisions.find((d) => d.id === divId)
+        return div ? { divisionId: div.id, label: div.label } : null
+      })
+      .filter((d): d is { divisionId: string; label: string } => d !== null)
+
+    const { childEvents, initialSubmissionDivisionId } =
+      resolveSubmissionContext(pageData)
+    const hasChildEvents = childEvents.length > 0
+
+    // Top-level events for "Event X of Y" display (filtered by division in component)
+    const allTopLevelEvents = pageData.workouts
+      .filter((w) => !w.parentEventId)
+      .sort((a, b) => a.trackOrder - b.trackOrder)
+      .map((w) => ({ id: w.id, trackOrder: w.trackOrder }))
+
+    const divisionDescriptions =
+      pageData.descriptionsByWorkout[event.workoutId] ?? []
+
+    const childDivisionDescriptions: Record<string, DivisionDescription[]> = {}
+    for (const child of childEvents) {
+      childDivisionDescriptions[child.workoutId] =
+        pageData.descriptionsByWorkout[child.workoutId] ?? []
+    }
+
+    const videoSubmission =
+      isOnline && !hasChildEvents ? (videoResults[eventId] ?? null) : null
+    const childVideoSubmissions: Record<string, VideoSubmissionResult> = {}
+    if (isOnline && hasChildEvents) {
+      for (const child of childEvents) {
+        const result = videoResults[child.id]
+        if (result) {
+          childVideoSubmissions[child.id] = result
+        }
+      }
+    }
+
+    // If this is a sub-event, find the parent event for context
+    const parentEvent = event.parentEventId
+      ? (pageData.workouts.find((w) => w.id === event.parentEventId) ?? null)
+      : null
+
+    // Determine if athlete's division is mapped to this event
+    // Events with no mappings are visible to all divisions.
+    // Only events with explicit mappings are filtered by division.
+    const eventMappings = pageData.eventDivisionMappings
+    let isEventMappedToAthleteDivision = true
+    if (eventMappings.hasMappings && athleteRegisteredDivisionIds.length > 0) {
+      const parentId = event.parentEventId
+      // Check if this event (or parent) has ANY mappings at all
+      const eventHasMappings = eventMappings.mappings.some(
+        (m) =>
+          m.trackWorkoutId === eventId ||
+          (parentId && m.trackWorkoutId === parentId),
+      )
+      // Only filter if this event has explicit mappings
+      if (eventHasMappings) {
+        isEventMappedToAthleteDivision = eventMappings.mappings.some(
+          (m) =>
+            athleteRegisteredDivisionIds.includes(m.divisionId) &&
+            (m.trackWorkoutId === eventId ||
+              (parentId && m.trackWorkoutId === parentId)),
+        )
+      }
+    }
+
+    return {
+      competition,
+      event,
+      resources: pageData.resources,
+      judgingSheets: pageData.judgingSheets,
+      heatTimes: pageData.heatTimes,
+      allTopLevelEvents,
+      divisionDescriptions,
+      divisions,
+      athleteRegisteredDivisions,
+      athleteRegisteredDivisionId: athleteRegisteredDivisionIds[0] ?? null,
+      initialSubmissionDivisionId: initialSubmissionDivisionId ?? null,
+      venue: pageData.venue,
+      videoSubmission,
+      childVideoSubmissions,
+      deferredEventHeats,
+      childEvents,
+      childDivisionDescriptions,
+      parentEvent,
+      isEventMappedToAthleteDivision,
+      eventDivisionMappings: eventMappings,
+    }
+  },
+})
+
+function formatTime(seconds: number): string {
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${m}:${s.toString().padStart(2, "0")}`
+}
+
+function getSchemeLabel(scheme: string, timeCap?: number | null): string {
+  if (scheme === "time" || scheme === "time-with-cap") {
+    return timeCap ? "For Time (Capped)" : "For Time"
+  }
+  if (scheme === "amrap") return "AMRAP"
+  if (scheme === "emom") return "EMOM"
+  if (scheme === "load") return "For Load"
+  return scheme.replace(/-/g, " ").toUpperCase()
+}
+
+function formatHeatTime(date: Date, timezone?: string | null): string {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: timezone ?? undefined,
+  }).format(new Date(date))
+}
+
+function formatEventDateFromHeatTime(
+  heatTime: Date,
+  timezone?: string | null,
+): string {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: timezone ?? undefined,
+  }).format(new Date(heatTime))
+}
+
+function EventDetailsPage() {
+  const {
+    competition,
+    event,
+    resources,
+    judgingSheets,
+    heatTimes,
+    allTopLevelEvents,
+    divisionDescriptions,
+    divisions,
+    athleteRegisteredDivisions,
+    athleteRegisteredDivisionId,
+    initialSubmissionDivisionId,
+    venue,
+    videoSubmission,
+    childVideoSubmissions,
+    deferredEventHeats,
+    childEvents,
+    childDivisionDescriptions,
+    parentEvent,
+    isEventMappedToAthleteDivision,
+    eventDivisionMappings,
+  } = Route.useLoaderData()
+  const { slug, eventId } = Route.useParams()
+  const search = Route.useSearch()
+  const navigate = useNavigate({ from: Route.fullPath })
+
+  const workout = event.workout
+  const formattedTimeCap = workout.timeCap ? formatTime(workout.timeCap) : null
+  const schemeLabel = getSchemeLabel(workout.scheme, workout.timeCap)
+
+  // Filter divisions by event-division mappings (if configured).
+  // If this specific event has no mappings, show all divisions (unmapped = visible to all).
+  const filteredDivisions =
+    eventDivisionMappings.hasMappings && divisions
+      ? (() => {
+          const parentId = event.parentEventId
+          const eventMappings = eventDivisionMappings.mappings.filter(
+            (m) =>
+              m.trackWorkoutId === eventId ||
+              (parentId && m.trackWorkoutId === parentId),
+          )
+          // No mappings for this specific event → show all divisions
+          if (eventMappings.length === 0) return divisions
+          const mappedDivisionIds = new Set(
+            eventMappings.map((m) => m.divisionId),
+          )
+          return divisions.filter((d) => mappedDivisionIds.has(d.id))
+        })()
+      : divisions
+
+  // Filter the athlete's registered divisions by event-division mappings
+  // so the division picker only shows divisions mapped to this event
+  const filteredRegisteredDivisions = (() => {
+    if (
+      !eventDivisionMappings.hasMappings ||
+      !athleteRegisteredDivisions.length
+    ) {
+      return athleteRegisteredDivisions
+    }
+    const parentId = event.parentEventId
+    const eventMappings = eventDivisionMappings.mappings.filter(
+      (m) =>
+        m.trackWorkoutId === eventId ||
+        (parentId && m.trackWorkoutId === parentId),
+    )
+    if (eventMappings.length === 0) return athleteRegisteredDivisions
+    const mappedDivisionIds = new Set(eventMappings.map((m) => m.divisionId))
+    return athleteRegisteredDivisions.filter((d) =>
+      mappedDivisionIds.has(d.divisionId),
+    )
+  })()
+
+  // Constrain initialDivisionId to filtered divisions so unmapped divisions aren't used
+  const effectiveSubmissionDivisionId =
+    initialSubmissionDivisionId &&
+    filteredRegisteredDivisions.some(
+      (d) => d.divisionId === initialSubmissionDivisionId,
+    )
+      ? initialSubmissionDivisionId
+      : filteredRegisteredDivisions[0]?.divisionId
+
+  // For sidebar submission window display, use the first child's data for parent events
+  const sidebarSubmission =
+    videoSubmission ??
+    (childEvents.length > 0
+      ? (Object.values(childVideoSubmissions)[0] ?? null)
+      : null)
+
+  // Sort division descriptions by position
+  const sortedDivisions = [...divisionDescriptions].sort(
+    (a, b) => a.position - b.position,
+  )
+
+  // Default to athlete's registered division, otherwise first filtered division
+  const defaultDivisionId =
+    athleteRegisteredDivisionId ||
+    (filteredDivisions && filteredDivisions.length > 0
+      ? filteredDivisions[0].id
+      : undefined)
+  const selectedDivisionId = search.division || defaultDivisionId
+
+  // Get the selected division's scale info (separate from base description)
+  const selectedDivision = sortedDivisions.find(
+    (d) => d.divisionId === selectedDivisionId,
+  )
+  const divisionScale = selectedDivision?.description?.trim() || null
+  const divisionLabel = selectedDivision?.divisionLabel || null
+
+  // Compute division-filtered "Event X of Y" display
+  const visibleTopLevelEvents = (() => {
+    if (!eventDivisionMappings.hasMappings || !selectedDivisionId) {
+      return allTopLevelEvents
+    }
+    const eventsWithMappings = new Set(
+      eventDivisionMappings.mappings.map((m) => m.trackWorkoutId),
+    )
+    const mappedToSelectedDiv = new Set(
+      eventDivisionMappings.mappings
+        .filter((m) => m.divisionId === selectedDivisionId)
+        .map((m) => m.trackWorkoutId),
+    )
+    return allTopLevelEvents.filter(
+      (e) => !eventsWithMappings.has(e.id) || mappedToSelectedDiv.has(e.id),
+    )
+  })()
+  const lookupId = event.parentEventId ?? event.id
+  const eventPosition =
+    visibleTopLevelEvents.findIndex((e) => e.id === lookupId) + 1
+  const totalVisibleEvents = visibleTopLevelEvents.length
+
+  const handleDivisionChange = (divisionId: string) => {
+    navigate({
+      search: (prev) => ({ ...prev, division: divisionId }),
+      replace: true,
+    })
+  }
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+      {/* Main Content */}
+      <div className="space-y-4">
+        {/* Competition Tabs */}
+        <div className="sticky top-4 z-10">
+          <CompetitionTabs slug={slug} />
+        </div>
+
+        {/* Back to Workouts */}
+        <Link
+          to="/compete/$slug/workouts"
+          params={{ slug }}
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          All Workouts
+        </Link>
+
+        {/* Glassmorphism Content Container */}
+        <div className="rounded-2xl border border-black/10 bg-black/5 p-4 sm:p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
+          <div className="space-y-8">
+            {/* Header with Division Switcher */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-3">
+                  <Badge variant="outline" className="text-xs font-medium">
+                    Event{" "}
+                    {eventPosition > 0
+                      ? eventPosition
+                      : formatTrackOrder(event.trackOrder)}{" "}
+                    of {totalVisibleEvents}
+                  </Badge>
+                  {event.sponsorName && (
+                    <span className="text-xs text-muted-foreground">
+                      Presented by{" "}
+                      <span className="font-medium">{event.sponsorName}</span>
+                    </span>
+                  )}
+                </div>
+                <h1 className="text-2xl font-bold tracking-tight">
+                  {workout.name}
+                </h1>
+                {parentEvent && (
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">
+                      Part of{" "}
+                      <span className="font-medium">
+                        {parentEvent.workout.name}
+                      </span>
+                    </p>
+                    {parentEvent.workout.description && (
+                      <p className="text-sm text-muted-foreground">
+                        {parentEvent.workout.description}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {filteredDivisions && filteredDivisions.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-muted-foreground hidden sm:block" />
+                  <Select
+                    value={selectedDivisionId}
+                    onValueChange={handleDivisionChange}
+                  >
+                    <SelectTrigger className="w-full sm:w-[240px] h-10 font-medium">
+                      <SelectValue placeholder="Select Division" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredDivisions.map((division) => (
+                        <SelectItem
+                          key={division.id}
+                          value={division.id}
+                          className="cursor-pointer"
+                        >
+                          {division.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
+            {/* Event Description */}
+            <div className="space-y-4">
+              {/* Base workout description */}
+              {workout.description && (
+                <div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
+                  {workout.description}
+                </div>
+              )}
+
+              {/* Division-specific scale info */}
+              {divisionScale && (
+                <div className="border-t pt-4 mt-4">
+                  <div className="flex items-start gap-3">
+                    <Badge
+                      variant="secondary"
+                      className="shrink-0 text-xs font-medium"
+                    >
+                      {divisionLabel || "Division"}
+                    </Badge>
+                    <p className="font-mono text-sm whitespace-pre-wrap leading-relaxed text-muted-foreground">
+                      {divisionScale}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Sub-Workouts (parent events only) */}
+            {childEvents.length > 0 && (
+              <div className="space-y-6">
+                <Separator />
+                {childEvents.map((child) => {
+                  const childDescriptions =
+                    childDivisionDescriptions[child.workoutId] ?? []
+                  const childDivisionDesc = childDescriptions.find(
+                    (d) => d.divisionId === selectedDivisionId,
+                  )
+                  const childScale =
+                    childDivisionDesc?.description?.trim() || null
+                  const childScheme = getSchemeLabel(
+                    child.workout.scheme,
+                    child.workout.timeCap,
+                  )
+                  const childSubmission =
+                    childVideoSubmissions[child.id] ?? null
+
+                  return (
+                    <div key={child.id} className="space-y-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-base font-semibold">
+                            {child.workout.name}
+                          </h3>
+                          <Badge variant="secondary" className="text-xs">
+                            {childScheme}
+                          </Badge>
+                          {child.pointsMultiplier &&
+                            child.pointsMultiplier !== 100 && (
+                              <span className="text-xs text-muted-foreground">
+                                {child.pointsMultiplier / 100}x points
+                              </span>
+                            )}
+                        </div>
+                        {child.workout.description ? (
+                          <div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
+                            {child.workout.description}
+                          </div>
+                        ) : (
+                          !childScale && (
+                            <div className="font-mono text-sm whitespace-pre-wrap leading-relaxed">
+                              Details coming soon.
+                            </div>
+                          )
+                        )}
+                        {childScale && (
+                          <div className="flex items-start gap-2 mt-1">
+                            <Badge
+                              variant="secondary"
+                              className="shrink-0 text-xs"
+                            >
+                              {childDivisionDesc?.divisionLabel || "Division"}
+                            </Badge>
+                            <p className="font-mono text-sm whitespace-pre-wrap text-muted-foreground">
+                              {childScale}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Per-sub-event submission form for online competitions */}
+                      {competition.competitionType === "online" &&
+                        childSubmission && (
+                          <VideoSubmissionForm
+                            trackWorkoutId={child.id}
+                            competitionId={competition.id}
+                            timezone={competition.timezone}
+                            registeredDivisions={filteredRegisteredDivisions}
+                            initialData={childSubmission}
+                            initialDivisionId={effectiveSubmissionDivisionId}
+                          />
+                        )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Heat Schedule */}
+            {event.heatStatus === "published" && (
+              <EventHeatSchedule
+                deferredHeats={deferredEventHeats}
+                timezone={competition.timezone}
+              />
+            )}
+
+            {/* Video & Score Submission Form - For events without sub-events */}
+            {/* Only show when event is mapped to athlete's division (or no mappings configured) */}
+            {competition.competitionType === "online" &&
+              videoSubmission &&
+              childEvents.length === 0 &&
+              isEventMappedToAthleteDivision && (
+                <VideoSubmissionForm
+                  trackWorkoutId={event.id}
+                  competitionId={competition.id}
+                  timezone={competition.timezone}
+                  registeredDivisions={filteredRegisteredDivisions}
+                  initialData={videoSubmission}
+                  initialDivisionId={effectiveSubmissionDivisionId}
+                />
+              )}
+          </div>
+        </div>
+      </div>
+
+      {/* Sidebar */}
+      <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+        {/* Submission Info Card - For online competitions */}
+        {competition.competitionType === "online" &&
+          sidebarSubmission?.submissionWindow && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Submission Window</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                      Opens
+                    </p>
+                    <p className="font-medium text-sm">
+                      {formatHeatTime(
+                        new Date(sidebarSubmission.submissionWindow.opensAt),
+                        competition.timezone,
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                      Closes
+                    </p>
+                    <p className="font-medium text-sm">
+                      {formatHeatTime(
+                        new Date(sidebarSubmission.submissionWindow.closesAt),
+                        competition.timezone,
+                      )}
+                    </p>
+                  </div>
+                </div>
+                {sidebarSubmission.canSubmit ? (
+                  <p className="text-xs text-green-600 dark:text-green-400 font-medium">
+                    Submission window is open
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    {sidebarSubmission.reason}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+        {/* Event Info Card - Metadata */}
+        <Card>
+          <CardContent className="pt-6 space-y-4">
+            {/* Workout Type */}
+            <div className="flex items-start gap-3">
+              <Target className="h-4 w-4 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Format
+                </p>
+                <p className="font-medium text-sm">{schemeLabel}</p>
+              </div>
+            </div>
+
+            {/* Time Cap */}
+            {formattedTimeCap && (
+              <div className="flex items-start gap-3">
+                <Timer className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                    Time Cap
+                  </p>
+                  <p className="font-medium text-sm">{formattedTimeCap}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Movements */}
+            {workout.movements && workout.movements.length > 0 && (
+              <div className="flex items-start gap-3">
+                <Dumbbell className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                    Movements
+                  </p>
+                  <p className="font-medium text-sm">
+                    {workout.movements
+                      .map((m: { id: string; name: string }) => m.name)
+                      .join(", ")}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {heatTimes && (
+              <div className="flex items-start gap-3">
+                <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                    Date
+                  </p>
+                  <p className="font-medium text-sm">
+                    {formatEventDateFromHeatTime(
+                      heatTimes.firstHeatStartTime,
+                      competition.timezone,
+                    )}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {event.pointsMultiplier && event.pointsMultiplier !== 100 && (
+              <div className="flex items-start gap-3">
+                <Trophy className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                    Points Multiplier
+                  </p>
+                  <p className="font-medium text-sm">
+                    {event.pointsMultiplier / 100}x
+                  </p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Schedule Card */}
+        {heatTimes && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Schedule</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                      First Heat Starts
+                    </p>
+                    <p className="font-medium text-sm">
+                      {formatHeatTime(
+                        heatTimes.firstHeatStartTime,
+                        competition.timezone,
+                      )}
+                    </p>
+                  </div>
+                </div>
+                {heatTimes.firstHeatStartTime.getTime() !==
+                  heatTimes.lastHeatEndTime.getTime() && (
+                  <div className="flex items-start gap-3">
+                    <Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                        Last Heat Ends
+                      </p>
+                      <p className="font-medium text-sm">
+                        {formatHeatTime(
+                          heatTimes.lastHeatEndTime,
+                          competition.timezone,
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <Separator />
+              <p className="text-xs text-muted-foreground">
+                Timezone: {competition.timezone}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Venue Card */}
+        {venue?.address && hasAddressData(venue.address) && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Venue</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">{venue.name}</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {venue.address.streetLine1}
+                      {venue.address.streetLine2 && (
+                        <>
+                          <br />
+                          {venue.address.streetLine2}
+                        </>
+                      )}
+                      {(venue.address.city ||
+                        venue.address.stateProvince ||
+                        venue.address.postalCode) && (
+                        <>
+                          <br />
+                          {[venue.address.city, venue.address.stateProvince]
+                            .filter(Boolean)
+                            .join(", ")}{" "}
+                          {venue.address.postalCode}
+                        </>
+                      )}
+                      {venue.address.countryCode &&
+                        venue.address.countryCode !== "US" && (
+                          <>
+                            <br />
+                            {venue.address.countryCode}
+                          </>
+                        )}
+                    </p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" className="w-full" asChild>
+                  <a
+                    href={getGoogleMapsUrl(venue.address) ?? undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <MapPin className="h-4 w-4 mr-2" />
+                    Get Directions
+                  </a>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Event Resources Card */}
+        {resources && resources.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Quick Links</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-3">
+                {resources.map((resource) => (
+                  <li key={resource.id}>
+                    {resource.url ? (
+                      <a
+                        href={resource.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 text-sm hover:text-primary transition-colors group"
+                      >
+                        <LinkIcon className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
+                        <span className="flex-1">{resource.title}</span>
+                        <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                      </a>
+                    ) : (
+                      <div className="flex items-center gap-3 text-sm">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <span className="flex-1">{resource.title}</span>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Judge Sheets Card */}
+        {judgingSheets && judgingSheets.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Workout Documents</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-3">
+                {judgingSheets.map((sheet) => (
+                  <li key={sheet.id}>
+                    <a
+                      href={sheet.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 text-sm hover:text-primary transition-colors group"
+                    >
+                      <FileText className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
+                      <span className="flex-1">{sheet.title}</span>
+                      <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
+      </aside>
+    </div>
+  )
+}

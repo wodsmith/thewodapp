@@ -1,0 +1,229 @@
+/**
+ * Session Management Server Functions for TanStack Start
+ * Handles listing and revoking user sessions
+ *
+ * This file uses top-level imports for server-only modules.
+ */
+import { createServerFn } from "@tanstack/react-start"
+import { getCookie } from "@tanstack/react-start/server"
+import { UAParser } from "ua-parser-js"
+import { z } from "zod"
+import { FEATURES } from "@/config/features"
+import { hasFeature } from "@/server/entitlements"
+import type { SessionValidationResult } from "@/types"
+import { getActiveTeamFromCookie, getSessionFromCookie } from "@/utils/auth"
+import {
+  deleteKVSession,
+  getAllSessionIdsOfUser,
+  getKVSession,
+  type KVSession,
+} from "@/utils/kv-session"
+
+// ============================================================================
+// Theme Cookie Server Function
+// ============================================================================
+
+/** Theme preference stored in cookie */
+type ThemePreference = "light" | "dark" | "system"
+
+/**
+ * Get the theme cookie value for SSR.
+ * This must be a server function because getCookie is server-only.
+ */
+export const getThemeCookieFn = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const themeCookie = getCookie("theme") as ThemePreference | undefined
+    return themeCookie
+  },
+)
+
+// ============================================================================
+// Active Team Cookie Server Function
+// ============================================================================
+
+/**
+ * Get the active team ID from cookie for SSR.
+ * This must be a server function because getCookie is server-only.
+ */
+export const getActiveTeamIdFn = createServerFn({ method: "GET" }).handler(
+  async () => {
+    return getActiveTeamFromCookie()
+  },
+)
+
+// ============================================================================
+// Root Bootstrap Server Function
+// ============================================================================
+
+export interface RootBootstrap {
+  session: SessionValidationResult | null
+  themeCookie: ThemePreference | undefined
+  activeTeamId: string | null
+  hasWorkoutTracking: boolean
+}
+
+/**
+ * Single round-trip bootstrap for the root beforeLoad.
+ *
+ * Replaces 4 separate server fn calls (getOptionalSession, getThemeCookieFn,
+ * getActiveTeamIdFn, checkWorkoutTrackingAccess) with one HTTP request and
+ * one session lookup. The session cache (auth.withSessionCache) further
+ * deduplicates the session read with any other server fns running in the
+ * same request lifecycle (e.g. during SSR).
+ */
+export const getRootBootstrapFn = createServerFn({ method: "GET" }).handler(
+  async (): Promise<RootBootstrap> => {
+    const session = await getSessionFromCookie()
+    const themeCookie = getCookie("theme") as ThemePreference | undefined
+    const activeTeamId = await getActiveTeamFromCookie()
+
+    let hasWorkoutTracking = false
+    if (session?.user && activeTeamId) {
+      hasWorkoutTracking = await hasFeature(
+        activeTeamId,
+        FEATURES.WORKOUT_TRACKING,
+      )
+    }
+
+    return { session, themeCookie, activeTeamId, hasWorkoutTracking }
+  },
+)
+
+// ============================================================================
+// Type Definitions
+// ============================================================================
+
+export interface ParsedUserAgent {
+  ua: string
+  browser: {
+    name: string | undefined
+    version: string | undefined
+    major: string | undefined
+  }
+  device: {
+    model: string | undefined
+    type: string | undefined
+    vendor: string | undefined
+  }
+  engine: {
+    name: string | undefined
+    version: string | undefined
+  }
+  os: {
+    name: string | undefined
+    version: string | undefined
+  }
+}
+
+export interface SessionWithMeta extends KVSession {
+  isCurrentSession: boolean
+  expiration?: Date
+  createdAt: number
+  userAgent?: string | null
+  parsedUserAgent?: ParsedUserAgent
+}
+
+// ============================================================================
+// Input Schemas
+// ============================================================================
+
+const revokeSessionInputSchema = z.object({
+  sessionId: z.string().min(1, "Session ID is required"),
+})
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+function isValidSession(session: unknown): session is SessionWithMeta {
+  if (!session || typeof session !== "object") return false
+  const sessionObj = session as Record<string, unknown>
+  return "createdAt" in sessionObj && typeof sessionObj.createdAt === "number"
+}
+
+// ============================================================================
+// Server Functions
+// ============================================================================
+
+/**
+ * Get all sessions for the current user
+ */
+export const getUserSessionsFn = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const session = await getSessionFromCookie()
+
+    if (!session?.user?.id) {
+      throw new Error("Not authenticated")
+    }
+
+    if (!session.user.emailVerified) {
+      throw new Error("Email not verified")
+    }
+
+    const sessionIds = await getAllSessionIdsOfUser(session.user.id)
+    const sessions = await Promise.all(
+      sessionIds.map(async ({ key, absoluteExpiration }) => {
+        const sessionId = key.split(":")[2] // Format is "session:userId:sessionId"
+        if (!sessionId) {
+          return null
+        }
+        const sessionData = await getKVSession(sessionId, session.user.id)
+        if (!sessionData) return null
+
+        // Parse user agent on the server
+        const result = new UAParser(sessionData.userAgent ?? "").getResult()
+
+        return {
+          ...sessionData,
+          isCurrentSession: sessionId === session.id,
+          expiration: absoluteExpiration,
+          createdAt: sessionData.createdAt ?? 0,
+          parsedUserAgent: {
+            ua: result.ua,
+            browser: {
+              name: result.browser.name,
+              version: result.browser.version,
+              major: result.browser.major,
+            },
+            device: {
+              model: result.device.model,
+              type: result.device.type,
+              vendor: result.device.vendor,
+            },
+            engine: {
+              name: result.engine.name,
+              version: result.engine.version,
+            },
+            os: {
+              name: result.os.name,
+              version: result.os.version,
+            },
+          },
+        } as SessionWithMeta
+      }),
+    )
+
+    // Filter out any null sessions and sort by creation date
+    return sessions
+      .filter(isValidSession)
+      .sort((a, b) => b.createdAt - a.createdAt)
+  },
+)
+
+/**
+ * Revoke (delete) a specific session
+ */
+export const revokeSessionFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => revokeSessionInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+
+    if (!session?.user?.id) {
+      throw new Error("Not authenticated")
+    }
+
+    // Delete the session from KV
+    await deleteKVSession(data.sessionId, session.user.id)
+
+    return { success: true }
+  })

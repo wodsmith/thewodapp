@@ -1,0 +1,205 @@
+"use client"
+
+/**
+ * Invite Sources List — organizer-visible roster of all qualification
+ * sources feeding the championship, plus an allocated-spots summary card
+ * (matches `project/invites/sources.jsx` modulo visual polish).
+ */
+
+import { Layers, Trophy } from "lucide-react"
+import type React from "react"
+import { OrganizerEmptyState } from "@/components/organizer/empty-state"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import type { CompetitionInviteSource } from "@/db/schemas/competition-invites"
+
+interface InviteSourcesListProps {
+  sources: CompetitionInviteSource[]
+  competitionNamesById: Record<string, string>
+  seriesNamesById: Record<string, string>
+  /** ADR-0012: resolved per-(source, championshipDivision) allocation
+   *  map, summed per source. When supplied, each card's "qualifying
+   *  spots" line uses the authoritative resolved total. Optional so
+   *  tests can fall back to the source's `globalSpots` scalar. */
+  allocationsBySourceByDivision?: Record<string, Record<string, number>>
+  /** Championship divisions in display order — used to render the
+   *  per-division preview row under each source card. Optional; the
+   *  preview is hidden when omitted. */
+  championshipDivisions?: ReadonlyArray<{ id: string; label: string }>
+  onEdit?: (source: CompetitionInviteSource) => void
+  onDelete?: (source: CompetitionInviteSource) => void
+  onAdd?: () => void
+  /** Optional render-prop for extra content inside a source card (used to
+   *  drop in the series per-comp + global sub-tabs). */
+  renderSourceExtras?: (source: CompetitionInviteSource) => React.ReactNode
+}
+
+export function InviteSourcesList({
+  sources,
+  competitionNamesById,
+  seriesNamesById,
+  allocationsBySourceByDivision,
+  championshipDivisions,
+  onEdit,
+  onDelete,
+  onAdd,
+  renderSourceExtras,
+}: InviteSourcesListProps) {
+  // Authoritative resolved total per source. Falls back to the source's
+  // `globalSpots` scalar when the loader hasn't supplied the resolved
+  // map (older callers + unit tests). Note: the fallback omits per-
+  // division overrides — only the resolved map reflects them.
+  const resolvedTotalFor = (source: CompetitionInviteSource): number => {
+    const map = allocationsBySourceByDivision?.[source.id]
+    if (map) {
+      return Object.values(map).reduce((a, b) => a + b, 0)
+    }
+    return source.globalSpots ?? 0
+  }
+
+  const totalAllocated = sources.reduce(
+    (acc, s) => acc + resolvedTotalFor(s),
+    0,
+  )
+
+  if (sources.length === 0) {
+    return (
+      <OrganizerEmptyState
+        icon={Layers}
+        title="No qualification sources yet"
+        description="Add a competition or series source to identify athletes who qualify for this championship."
+        actionLabel={onAdd ? "Add source" : undefined}
+        onAction={onAdd}
+      />
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Qualification sources</CardTitle>
+            <CardDescription>
+              {sources.length} source{sources.length === 1 ? "" : "s"} ·{" "}
+              {totalAllocated} qualifying spots allocated.
+            </CardDescription>
+          </div>
+          {onAdd ? <Button onClick={onAdd}>Add source</Button> : null}
+        </CardHeader>
+      </Card>
+
+      <div className="space-y-3">
+        {sources.map((source) => {
+          const isSeriesPerComp = source.kind === "series"
+          const isSeriesGlobal = source.kind === "series_global"
+          const isSeriesKind = isSeriesPerComp || isSeriesGlobal
+          const Icon = isSeriesKind ? Layers : Trophy
+          const kindLabel = isSeriesPerComp
+            ? "Series"
+            : isSeriesGlobal
+              ? "Series global leaderboard"
+              : "Single competition"
+          const name = isSeriesKind
+            ? ((source.sourceGroupId
+                ? seriesNamesById[source.sourceGroupId]
+                : undefined) ?? "Unknown series")
+            : ((source.sourceCompetitionId
+                ? competitionNamesById[source.sourceCompetitionId]
+                : undefined) ?? "Unknown competition")
+          const allocated = resolvedTotalFor(source)
+          const perDivisionMap = allocationsBySourceByDivision?.[source.id]
+          const previewItems =
+            perDivisionMap && championshipDivisions
+              ? championshipDivisions
+                  .map((d) => ({
+                    label: d.label,
+                    spots: perDivisionMap[d.id] ?? 0,
+                  }))
+                  .filter((item) => item.spots > 0)
+              : []
+          return (
+            <Card key={source.id}>
+              <CardHeader className="flex flex-row items-start gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-muted">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <Badge variant={isSeriesKind ? "default" : "secondary"}>
+                      {kindLabel}
+                    </Badge>
+                  </div>
+                  <CardTitle className="mt-1 text-base">{name}</CardTitle>
+                  <CardDescription>
+                    Contributes{" "}
+                    <span className="font-semibold">{allocated}</span>{" "}
+                    qualifying spots to the championship.
+                  </CardDescription>
+                  {previewItems.length > 0 ? (
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {previewItems
+                        .map((item) => `${item.label} ${item.spots}`)
+                        .join(" · ")}
+                    </div>
+                  ) : null}
+                </div>
+                <div className="flex gap-2">
+                  {onEdit ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onEdit(source)}
+                    >
+                      Edit
+                    </Button>
+                  ) : null}
+                  {onDelete ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onDelete(source)}
+                    >
+                      Delete
+                    </Button>
+                  ) : null}
+                </div>
+              </CardHeader>
+              {isSeriesPerComp ? (
+                <CardContent>
+                  <div className="text-xs uppercase text-muted-foreground">
+                    Per-comp grouping
+                  </div>
+                  <div className="mt-1 text-sm">
+                    Per-division allocation set on the source detail page.
+                  </div>
+                </CardContent>
+              ) : (
+                <CardContent>
+                  <div className="text-xs uppercase text-muted-foreground">
+                    Top {source.globalSpots ?? 0}
+                  </div>
+                  <div className="mt-1 text-sm">
+                    {isSeriesGlobal
+                      ? `Top ${source.globalSpots ?? 0} from the series global leaderboard qualify per division.`
+                      : `Top ${source.globalSpots ?? 0} finishers qualify per division.`}
+                  </div>
+                </CardContent>
+              )}
+              {renderSourceExtras ? (
+                <CardContent>{renderSourceExtras(source)}</CardContent>
+              ) : null}
+            </Card>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
