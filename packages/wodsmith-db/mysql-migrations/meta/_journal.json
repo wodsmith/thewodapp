@@ -8,6 +8,13 @@
       "when": 1781838057550,
       "tag": "0000_crew-event-settings",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1781843267253,
+      "tag": "0001_crew-import-confirmation-schema",
+      "breakpoints": true
     }
   ]
 }
