@@ -1,5 +1,4 @@
 import type { ErrorComponentProps } from "@tanstack/react-router"
-import type { ReactNode } from "react"
 import {
   createRootRoute,
   HeadContent,
@@ -7,6 +6,7 @@ import {
   Outlet,
   Scripts,
 } from "@tanstack/react-router"
+import type { ReactNode } from "react"
 import { Toaster } from "sonner"
 
 import appCss from "../styles.css?url"
@@ -53,6 +53,15 @@ function RootComponent() {
             <span>WODsmith Crew</span>
           </Link>
           <nav className="flex items-center gap-1 text-sm">
+            <Link
+              to="/calculator"
+              activeProps={{
+                className: "bg-muted text-foreground",
+              }}
+              className="rounded-md px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              Calculator
+            </Link>
             <Link
               to="/events"
               activeProps={{

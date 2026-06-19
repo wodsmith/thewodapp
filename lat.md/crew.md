@@ -8,6 +8,42 @@ Crew event setup pages let an operator create and review a normal competition wi
 
 Additional setup dashboard state is stored in the existing `crew_event_settings.settings` JSON text field until a later slice proves that dedicated typed columns or tables are needed.
 
+## Staffing Calculator
+
+The public Crew calculator route estimates event-day staffing needs from event dimensions and editable role assumptions.
+
+It is deterministic planning math only; it does not create rosters, shifts, assignments, invitations, imports, or persisted setup state.
+
+### Inputs and Role Assumptions
+
+Calculator inputs model the minimum event dimensions operators need before scheduling.
+
+Those dimensions are lanes per floor, floor count, heat count, heat duration, shift length, and role assumptions. Role assumptions are grouped as judges or volunteers and use one of four bases: whole event, floor, lane, or lane per floor.
+
+### Default Assumptions
+
+Default assumptions seed the UI with lane judges, floor leads, score runners, equipment reset, athlete control, and check-in coverage. They are UI defaults only and must not be treated as saved event configuration.
+
+### Role Basis
+
+Lane-per-floor roles scale by `lanes * floors`; floor roles scale by floor count; lane roles scale by lane count; event roles scale once for the whole workout block.
+
+### Shift Coverage
+
+Shift coverage is estimated from `concurrent people * event minutes`, then rounded up by shift length to produce shift slots. The result is a coverage estimate, not a staffed shift board.
+
+### Staffing Groups
+
+Judge and volunteer totals stay separated in the estimate while also rolling up to a total concurrent headcount and total shift-slot count.
+
+### Input Normalization
+
+Calculator inputs are normalized before rendering and calculation: counts are whole numbers with a minimum of one, shift length has a quarter-hour minimum, and role multipliers cannot go below zero.
+
+### Duration Display
+
+Operator-facing durations render in compact hour/minute labels so workout block and shift length summaries stay scannable.
+
 ## Add Thin Crew Tables
 
 Crew-owned database tables live in `@repo/wodsmith-db` so Start and Crew consume one shared schema source. App DB files remain forwarding shims and do not own `mysqlTable` definitions.
