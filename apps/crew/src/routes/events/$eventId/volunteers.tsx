@@ -38,13 +38,17 @@ function VolunteersPage() {
         </Link>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-5">
         <StatusPanel label="Pending" value={summary.pending} />
         <StatusPanel label="Accepted" value={summary.accepted} />
         <StatusPanel label="Active" value={summary.active} />
         <StatusPanel
           label="Shift coverage"
           value={`${shiftSummary.assignedSlots}/${shiftSummary.capacity}`}
+        />
+        <StatusPanel
+          label="Confirmed"
+          value={shiftSummary.confirmationSummary.confirmed}
         />
       </div>
 

@@ -23,6 +23,7 @@ import { Route as EventsEventIdImportsRouteImport } from './routes/events/$event
 import { Route as ESlugVolunteerRouteImport } from './routes/e/$slug/volunteer'
 import { Route as ApiCrewImportRouteImport } from './routes/api/crew/import'
 import { Route as ESlugScheduleTokenRouteImport } from './routes/e/$slug/schedule/$token'
+import { Route as ESlugConfirmTokenRouteImport } from './routes/e/$slug/confirm/$token'
 
 const EventsRoute = EventsRouteImport.update({
   id: '/events',
@@ -94,6 +95,11 @@ const ESlugScheduleTokenRoute = ESlugScheduleTokenRouteImport.update({
   path: '/e/$slug/schedule/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ESlugConfirmTokenRoute = ESlugConfirmTokenRouteImport.update({
+  id: '/e/$slug/confirm/$token',
+  path: '/e/$slug/confirm/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -109,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/events/$eventId/shifts': typeof EventsEventIdShiftsRoute
   '/events/$eventId/volunteers': typeof EventsEventIdVolunteersRoute
   '/events/$eventId/': typeof EventsEventIdIndexRoute
+  '/e/$slug/confirm/$token': typeof ESlugConfirmTokenRoute
   '/e/$slug/schedule/$token': typeof ESlugScheduleTokenRoute
 }
 export interface FileRoutesByTo {
@@ -124,6 +131,7 @@ export interface FileRoutesByTo {
   '/events/$eventId/shifts': typeof EventsEventIdShiftsRoute
   '/events/$eventId/volunteers': typeof EventsEventIdVolunteersRoute
   '/events/$eventId': typeof EventsEventIdIndexRoute
+  '/e/$slug/confirm/$token': typeof ESlugConfirmTokenRoute
   '/e/$slug/schedule/$token': typeof ESlugScheduleTokenRoute
 }
 export interface FileRoutesById {
@@ -141,6 +149,7 @@ export interface FileRoutesById {
   '/events/$eventId/shifts': typeof EventsEventIdShiftsRoute
   '/events/$eventId/volunteers': typeof EventsEventIdVolunteersRoute
   '/events/$eventId/': typeof EventsEventIdIndexRoute
+  '/e/$slug/confirm/$token': typeof ESlugConfirmTokenRoute
   '/e/$slug/schedule/$token': typeof ESlugScheduleTokenRoute
 }
 export interface FileRouteTypes {
@@ -159,6 +168,7 @@ export interface FileRouteTypes {
     | '/events/$eventId/shifts'
     | '/events/$eventId/volunteers'
     | '/events/$eventId/'
+    | '/e/$slug/confirm/$token'
     | '/e/$slug/schedule/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -174,6 +184,7 @@ export interface FileRouteTypes {
     | '/events/$eventId/shifts'
     | '/events/$eventId/volunteers'
     | '/events/$eventId'
+    | '/e/$slug/confirm/$token'
     | '/e/$slug/schedule/$token'
   id:
     | '__root__'
@@ -190,6 +201,7 @@ export interface FileRouteTypes {
     | '/events/$eventId/shifts'
     | '/events/$eventId/volunteers'
     | '/events/$eventId/'
+    | '/e/$slug/confirm/$token'
     | '/e/$slug/schedule/$token'
   fileRoutesById: FileRoutesById
 }
@@ -199,6 +211,7 @@ export interface RootRouteChildren {
   EventsRoute: typeof EventsRouteWithChildren
   ApiCrewImportRoute: typeof ApiCrewImportRoute
   ESlugVolunteerRoute: typeof ESlugVolunteerRoute
+  ESlugConfirmTokenRoute: typeof ESlugConfirmTokenRoute
   ESlugScheduleTokenRoute: typeof ESlugScheduleTokenRoute
 }
 
@@ -302,6 +315,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ESlugScheduleTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/e/$slug/confirm/$token': {
+      id: '/e/$slug/confirm/$token'
+      path: '/e/$slug/confirm/$token'
+      fullPath: '/e/$slug/confirm/$token'
+      preLoaderRoute: typeof ESlugConfirmTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -346,6 +366,7 @@ const rootRouteChildren: RootRouteChildren = {
   EventsRoute: EventsRouteWithChildren,
   ApiCrewImportRoute: ApiCrewImportRoute,
   ESlugVolunteerRoute: ESlugVolunteerRoute,
+  ESlugConfirmTokenRoute: ESlugConfirmTokenRoute,
   ESlugScheduleTokenRoute: ESlugScheduleTokenRoute,
 }
 export const routeTree = rootRouteImport
