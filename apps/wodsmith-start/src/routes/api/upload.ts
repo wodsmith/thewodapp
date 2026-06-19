@@ -28,6 +28,7 @@ import {
   logWarning,
   updateRequestContext,
 } from "@/lib/logging"
+import { DOCS_VIDEO_MAX_SIZE_MB } from "@/lib/upload-limits"
 import { checkUploadAuthorization } from "@/server/upload-authorization"
 import { getSessionFromCookie } from "@/utils/auth"
 
@@ -76,10 +77,17 @@ const PURPOSE_CONFIG: Record<
   },
   // Documentation drawer videos (site admin only, see upload-authorization)
   "docs-video": {
-    maxSizeMb: 100,
+    maxSizeMb: DOCS_VIDEO_MAX_SIZE_MB,
     pathPrefix: "docs/videos",
     allowedTypes: VIDEO_TYPES,
   },
+}
+
+async function getR2UploadBody(file: File, purpose: string) {
+  if (purpose === "docs-video") {
+    return file.stream()
+  }
+  return await file.arrayBuffer()
 }
 
 export const Route = createFileRoute("/api/upload")({
@@ -198,7 +206,7 @@ export const Route = createFileRoute("/api/upload")({
           : `${config.pathPrefix}/${session.user.id}/${filename}`
 
         try {
-          await env.R2_BUCKET.put(key, await file.arrayBuffer(), {
+          await env.R2_BUCKET.put(key, await getR2UploadBody(file, purpose), {
             httpMetadata: {
               contentType: file.type,
             },
