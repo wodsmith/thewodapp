@@ -115,6 +115,62 @@ describe("Crew staffing matrix core", () => {
     })
   })
 
+  it("flags morning and afternoon volunteers assigned across the noon boundary", () => {
+    const matrix = buildCrewStaffingMatrix({
+      event: {
+        id: "comp_1",
+        timezone: "America/Denver",
+      },
+      roster: [
+        {
+          membershipId: "tmem_morning",
+          name: "Morning Volunteer",
+          roleTypes: ["staff"],
+          availability: "morning",
+          isActive: true,
+        },
+        {
+          membershipId: "tmem_afternoon",
+          name: "Afternoon Volunteer",
+          roleTypes: ["staff"],
+          availability: "afternoon",
+          isActive: true,
+        },
+      ],
+      shifts: [
+        {
+          id: "shift_noon_crossing",
+          name: "Noon crossing",
+          roleType: "staff",
+          startTime: "2026-07-04T17:30:00.000Z",
+          endTime: "2026-07-04T18:30:00.000Z",
+          capacity: 2,
+          assignments: [
+            {
+              id: "vsha_morning_crossing",
+              membershipId: "tmem_morning",
+            },
+            {
+              id: "vsha_afternoon_crossing",
+              membershipId: "tmem_afternoon",
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(
+      matrix.outsideAvailabilityAssignments.map((assignment) => [
+        assignment.assignmentId,
+        assignment.availability,
+      ]),
+    ).toEqual([
+      ["vsha_afternoon_crossing", "afternoon"],
+      ["vsha_morning_crossing", "morning"],
+    ])
+    expect(matrix.summary.outsideAvailabilityAssignments).toBe(2)
+  })
+
   it("keeps missing and change-request confirmation gaps typed by assignment kind", () => {
     const matrix = buildCrewStaffingMatrix({
       event: { id: "comp_1" },

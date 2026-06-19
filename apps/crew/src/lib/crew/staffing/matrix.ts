@@ -547,29 +547,43 @@ function isWithinAvailability(
   context: NormalizedCrewStaffingInput,
 ) {
   if (!timeBlock.startTime || !timeBlock.endTime) return true
-  const startHour = getLocalHour(
+  const startMinute = getLocalMinuteOfDay(
     timeBlock.startTime,
     context.input.event.timezone,
   )
-  const endHour = getLocalHour(timeBlock.endTime, context.input.event.timezone)
+  const endMinute = getLocalMinuteOfDay(
+    timeBlock.endTime,
+    context.input.event.timezone,
+  )
 
-  if (availability === VOLUNTEER_AVAILABILITY.MORNING) return startHour < 12
-  if (availability === VOLUNTEER_AVAILABILITY.AFTERNOON) return endHour >= 12
+  if (availability === VOLUNTEER_AVAILABILITY.MORNING) {
+    return startMinute < NOON_MINUTE && endMinute <= NOON_MINUTE
+  }
+  if (availability === VOLUNTEER_AVAILABILITY.AFTERNOON) {
+    return startMinute >= NOON_MINUTE && endMinute > NOON_MINUTE
+  }
   return true
 }
 
-function getLocalHour(date: Date, timezone: string | null | undefined) {
-  if (!timezone) return date.getUTCHours()
+const NOON_MINUTE = 12 * 60
+
+function getLocalMinuteOfDay(date: Date, timezone: string | null | undefined) {
+  if (!timezone) return date.getUTCHours() * 60 + date.getUTCMinutes()
   const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
     hour: "numeric",
+    minute: "numeric",
     hour12: false,
+    hourCycle: "h23",
   })
-  const hourPart = formatter
-    .formatToParts(date)
-    .find((part) => part.type === "hour")?.value
+  const parts = formatter.formatToParts(date)
+  const hourPart = parts.find((part) => part.type === "hour")?.value
+  const minutePart = parts.find((part) => part.type === "minute")?.value
   const hour = Number(hourPart)
-  return Number.isFinite(hour) ? hour : date.getUTCHours()
+  const minute = Number(minutePart)
+  return Number.isFinite(hour) && Number.isFinite(minute)
+    ? (hour % 24) * 60 + minute
+    : date.getUTCHours() * 60 + date.getUTCMinutes()
 }
 
 function getVolunteerName(
