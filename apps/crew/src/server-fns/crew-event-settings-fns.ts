@@ -44,7 +44,6 @@ type CrewRuntimeEnv = typeof env & {
 }
 
 const localCrewStages = new Set(["dev", "local", "test", "preview"])
-const localCrewNodeEnvs = new Set(["development", "test"])
 
 function requireLocalCrewSettingsAccess() {
   const runtimeEnv = env as CrewRuntimeEnv
@@ -53,9 +52,6 @@ function requireLocalCrewSettingsAccess() {
   const appUrl = (runtimeEnv.APP_URL ?? runtimeEnv.SITE_URL ?? "").toLowerCase()
   const appHost = getAppHost(appUrl)
   const isLocalStage = stage ? localCrewStages.has(stage) : false
-  const isLocalNodeEnv = nodeEnv
-    ? localCrewNodeEnvs.has(nodeEnv) && !appUrl
-    : false
   const isLocalUrl =
     appHost === "localhost" || appHost === "127.0.0.1" || appHost === "::1"
   const isProductionLike =
@@ -66,7 +62,7 @@ function requireLocalCrewSettingsAccess() {
     stage === "staging" ||
     appUrl.includes("wodsmith.com")
 
-  if (isProductionLike || (!isLocalStage && !isLocalNodeEnv && !isLocalUrl)) {
+  if (isProductionLike || (!isLocalStage && !isLocalUrl)) {
     throw new Error(
       "Crew event settings are local-operator only until Crew auth is wired.",
     )
@@ -83,8 +79,8 @@ function getAppHost(appUrl: string) {
     // Fall back below for bare local hosts, like localhost:3000.
   }
 
-  if (appUrl.startsWith("[::1]")) return "::1"
-  if (appUrl.startsWith("::1")) return "::1"
+  if (appUrl === "::1") return "::1"
+  if (appUrl === "[::1]" || appUrl.startsWith("[::1]:")) return "::1"
 
   return normalizeHost(appUrl.split(":")[0] ?? "")
 }
