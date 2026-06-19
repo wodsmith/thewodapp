@@ -219,7 +219,10 @@ function getReportStatus(params: {
   criticalIssues: number
   warningIssues: number
 }): CrewStaffingReportStatus {
-  if (!params.hasStaffingBlocks || params.criticalIssues > 0) {
+  if (!params.hasStaffingBlocks) {
+    return "needs_attention"
+  }
+  if (params.criticalIssues > 0) {
     return "critical"
   }
   if (params.warningIssues > 0) {

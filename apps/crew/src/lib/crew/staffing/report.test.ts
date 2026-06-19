@@ -114,6 +114,84 @@ describe("Crew staffing report", () => {
       "All current staffing blocks are filled and confirmed.",
     )
   })
+
+  it("marks setup-only events without staffing blocks as needing attention", () => {
+    const input: CrewStaffingMatrixInput = {
+      event: { id: "comp_1", timezone: "UTC" },
+      roster: [
+        {
+          membershipId: "tmem_1",
+          name: "Alex Volunteer",
+          roleTypes: [VOLUNTEER_ROLE_TYPES.GENERAL],
+          availability: VOLUNTEER_AVAILABILITY.ALL_DAY,
+          isActive: true,
+        },
+      ],
+    }
+
+    const report = buildCrewStaffingReport(
+      input,
+      buildCrewStaffingMatrix(input),
+    )
+
+    expect(report.status).toBe("needs_attention")
+    expect(report.summaryLabel).toBe("No staffing blocks")
+    expect(report.summaryDetail).toBe(
+      "Add shifts or scheduled heats before reviewing staffing.",
+    )
+    expect(report.issueSummary.every((issue) => issue.count === 0)).toBe(true)
+  })
+
+  it("marks warning-only confirmation gaps as needing attention", () => {
+    const input: CrewStaffingMatrixInput = {
+      event: { id: "comp_1", timezone: "UTC" },
+      roster: [
+        {
+          membershipId: "tmem_1",
+          name: "Alex Volunteer",
+          roleTypes: [VOLUNTEER_ROLE_TYPES.GENERAL],
+          availability: VOLUNTEER_AVAILABILITY.ALL_DAY,
+          isActive: true,
+        },
+      ],
+      shifts: [
+        {
+          id: "vshf_1",
+          name: "Morning floor",
+          roleType: VOLUNTEER_ROLE_TYPES.GENERAL,
+          startTime: "2026-06-19T09:00:00.000Z",
+          endTime: "2026-06-19T11:00:00.000Z",
+          capacity: 1,
+          assignments: [
+            {
+              id: "vsha_1",
+              membershipId: "tmem_1",
+              confirmation: {
+                type: CREW_ASSIGNMENT_CONFIRMATION_TYPE.VOLUNTEER_SHIFT,
+                status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
+              },
+            },
+          ],
+        },
+      ],
+    }
+
+    const report = buildCrewStaffingReport(
+      input,
+      buildCrewStaffingMatrix(input),
+    )
+
+    expect(report.status).toBe("needs_attention")
+    expect(report.summaryLabel).toBe("Responses needed")
+    expect(report.summaryDetail).toBe(
+      "Collect 1 outstanding assignment response.",
+    )
+    expect(
+      report.issueSummary.find(
+        (issue) => issue.key === "confirmation_no_responses",
+      ),
+    ).toMatchObject({ count: 1, severity: "warning" })
+  })
 })
 
 function createStaffingInput(): CrewStaffingMatrixInput {
