@@ -58,6 +58,7 @@ function EditablePointsPreview({
     )
   }
 
+  // scoringAlgorithm axis, not competitionType.
   // Online scoring - static display, no customization
   if (algorithm === "online" || baseTemplate === "online") {
     return (
@@ -651,6 +652,7 @@ export function ScoringConfigForm({
                   <RadioGroupItem value="online" id="algo-online" />
                   <Label htmlFor="algo-online">Online</Label>
                 </div>
+                {/* scoringAlgorithm axis, not competitionType. */}
                 {displayAlgorithm === "online" && (
                   <div className="ml-6 space-y-3">
                     <p className="text-xs text-muted-foreground">

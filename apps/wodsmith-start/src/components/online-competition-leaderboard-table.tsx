@@ -171,6 +171,7 @@ function RankCell({ rank, points }: { rank: number; points?: number }) {
 }
 
 function formatPoints(points: number, algorithm: ScoringAlgorithm): string {
+  // scoringAlgorithm axis, not competitionType.
   if (algorithm === "online" || algorithm === "p_score") {
     return String(points)
   }

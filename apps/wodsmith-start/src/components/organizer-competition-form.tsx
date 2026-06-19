@@ -27,6 +27,11 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import type { Competition, CompetitionGroup } from "@/db/schemas/competitions"
+import {
+  type CompetitionTypeId,
+  isSelectableCompetitionTypeValue,
+  selectableCompetitionTypeOptions,
+} from "@/lib/competitions/capabilities"
 import { trackEvent } from "@/lib/posthog"
 import { initializeCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import {
@@ -51,7 +56,10 @@ const formSchema = z
         /^[a-z0-9-]+$/,
         "Slug must be lowercase letters, numbers, and hyphens only",
       ),
-    competitionType: z.enum(["in-person", "online"]),
+    competitionType: z.custom<CompetitionTypeId>(
+      isSelectableCompetitionTypeValue,
+      "Select a supported competition type",
+    ),
     isMultiDay: z.boolean(),
     startDate: z.string().min(1, "Start date is required"),
     endDate: z.string().optional(),
@@ -452,12 +460,11 @@ export function OrganizerCompetitionForm({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="in-person">
-                    In-Person - Traditional venue-based competition
-                  </SelectItem>
-                  <SelectItem value="online">
-                    Online - Virtual competition with video submissions
-                  </SelectItem>
+                  {selectableCompetitionTypeOptions().map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.displayLabel}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <FormDescription>

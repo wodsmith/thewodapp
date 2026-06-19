@@ -3,10 +3,13 @@ import {
 	COMPETITION_TYPE_REGISTRY,
 	type CompetitionCapability,
 	competitionCan,
+	isSelectableCompetitionTypeValue,
 	resultsEntryMode,
 	resultsNavLabel,
 	isSelectableType,
 	leaderboardVariant,
+	selectableCompetitionTypeOptions,
+	selectableCompetitionTypes,
 } from "@/lib/competitions/capabilities"
 
 const CAPABILITIES: CompetitionCapability[] = [
@@ -82,6 +85,38 @@ describe("competition type capabilities", () => {
 
 		expect(leaderboardVariant("benchmark")).toBe("standard")
 		expect(isSelectableType("benchmark")).toBe(false)
+	})
+
+	// @lat: [[competition-type-capabilities#Create Picker Selectability Test]]
+	it("derives create-picker type options from selectable registry entries only", () => {
+		const selectableTypes = selectableCompetitionTypes()
+		const pickerOptions = selectableCompetitionTypeOptions()
+
+		expect(selectableTypes.map((type) => type.id)).toEqual([
+			"in-person",
+			"online",
+		])
+		for (const type of selectableTypes) {
+			expect(isSelectableType(type.id)).toBe(true)
+			expect(isSelectableCompetitionTypeValue(type.id)).toBe(true)
+		}
+		expect(isSelectableCompetitionTypeValue("benchmark")).toBe(false)
+		expect(isSelectableCompetitionTypeValue(null)).toBe(false)
+
+		expect(pickerOptions).toEqual([
+			{
+				id: "in-person",
+				label: "In-Person",
+				description: "Traditional venue-based competition",
+				displayLabel: "In-Person - Traditional venue-based competition",
+			},
+			{
+				id: "online",
+				label: "Online",
+				description: "Virtual competition with video submissions",
+				displayLabel: "Online - Virtual competition with video submissions",
+			},
+		])
 	})
 
 	// @lat: [[competition-type-capabilities#Results Entry and Sidebar Gates Test]]
