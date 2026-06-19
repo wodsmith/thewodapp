@@ -1,6 +1,7 @@
+// @lat: [[crew#Import Apply#Confirmed Mutation]]
 import { createId } from "@paralleldrive/cuid2"
 import { createServerFn } from "@tanstack/react-start"
-import { and, asc, eq, ne } from "drizzle-orm"
+import { and, asc, eq, ne, notInArray, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "../db"
 import {
@@ -36,6 +37,8 @@ import {
 import type { QuestionType } from "./registration-questions-fns"
 
 type DbClient = ReturnType<typeof getDb>
+const PUBLIC_DUPLICATE_VOLUNTEER_SIGNUP_ERROR =
+  "This volunteer application could not be submitted. Please contact the organizer if you already signed up."
 
 export interface PublicCrewVolunteerEvent {
   id: string
@@ -132,13 +135,10 @@ export const submitCrewVolunteerSignupFn = createServerFn({ method: "POST" })
       throw new Error("Crew event not found")
     }
 
-    const [questions, waivers, existingInvitations, existingMemberships] =
-      await Promise.all([
-        listVolunteerQuestions(db, event.id, event.groupId),
-        listRequiredVolunteerWaivers(db, event.id),
-        listVolunteerInvitations(db, event.competitionTeamId),
-        listVolunteerMemberships(db, event.competitionTeamId),
-      ])
+    const [questions, waivers] = await Promise.all([
+      listVolunteerQuestions(db, event.id, event.groupId),
+      listRequiredVolunteerWaivers(db, event.id),
+    ])
 
     const validationErrors = validateCrewVolunteerSignupRequirements(data, {
       questions,
@@ -151,84 +151,97 @@ export const submitCrewVolunteerSignupFn = createServerFn({ method: "POST" })
     validateSubmittedQuestionIds(data.answers ?? [], questions)
     validateSubmittedWaiverIds(data.waiverIds ?? [], waivers)
 
-    const plan = planCrewVolunteerSignup(data, {
-      existingInvitations,
-      existingMemberships,
-    })
-    if (plan.action === "reject") {
-      throw new Error(plan.message)
-    }
-
     const timestamp = new Date()
     const expiresAt = new Date(timestamp)
     expiresAt.setFullYear(expiresAt.getFullYear() + 1)
     const signupMetadata = buildCrewVolunteerSignupMetadata(data, timestamp)
-    const existingInvitation =
-      plan.action === "update_invitation"
-        ? existingInvitations.find(
-            (invitation) => invitation.id === plan.targetId,
-          )
-        : null
-    const metadata = mergeCrewVolunteerSignupMetadata(
-      existingInvitation?.metadata,
-      signupMetadata,
-    )
     const email = normalizeVolunteerSignupEmail(data.signupEmail)
-    let invitationId = plan.targetId
+    let invitationId: string | null = null
+    let action: "created" | "updated" = "created"
 
     await db.transaction(async (tx) => {
       const client = tx as unknown as DbClient
-
-      if (plan.action === "create_invitation") {
-        invitationId = createTeamInvitationId()
-        await client.insert(teamInvitationTable).values({
-          id: invitationId,
-          teamId: event.competitionTeamId,
-          email,
-          roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
-          isSystemRole: true,
-          token: createId(),
-          invitedBy: null,
-          expiresAt,
-          status: INVITATION_STATUS.PENDING,
-          metadata,
-          createdAt: timestamp,
-          updatedAt: timestamp,
-        })
-      } else if (plan.action === "update_invitation" && invitationId) {
-        await client
-          .update(teamInvitationTable)
-          .set({
-            email,
-            roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
-            isSystemRole: true,
-            expiresAt,
-            status: INVITATION_STATUS.PENDING,
-            metadata,
-            updatedAt: timestamp,
-          })
-          .where(eq(teamInvitationTable.id, invitationId))
-      }
-
-      if (!invitationId) {
-        throw new Error("Volunteer application could not be saved")
-      }
-
-      await persistVolunteerAnswers(
+      await withVolunteerSignupLock(
         client,
-        invitationId,
-        data.answers ?? [],
-        timestamp,
+        event.competitionTeamId,
+        email,
+        async () => {
+          const [existingInvitations, existingMemberships] = await Promise.all([
+            listVolunteerInvitations(client, event.competitionTeamId),
+            listVolunteerMemberships(client, event.competitionTeamId),
+          ])
+          const plan = planCrewVolunteerSignup(data, {
+            existingInvitations,
+            existingMemberships,
+          })
+
+          if (plan.action === "reject") {
+            throw new Error(PUBLIC_DUPLICATE_VOLUNTEER_SIGNUP_ERROR)
+          }
+
+          const existingInvitation =
+            plan.action === "update_invitation"
+              ? existingInvitations.find(
+                  (invitation) => invitation.id === plan.targetId,
+                )
+              : null
+          const metadata = mergeCrewVolunteerSignupMetadata(
+            existingInvitation?.metadata,
+            signupMetadata,
+          )
+
+          if (plan.action === "create_invitation") {
+            invitationId = createTeamInvitationId()
+            action = "created"
+            await client.insert(teamInvitationTable).values({
+              id: invitationId,
+              teamId: event.competitionTeamId,
+              email,
+              roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
+              isSystemRole: true,
+              token: createId(),
+              invitedBy: null,
+              expiresAt,
+              status: INVITATION_STATUS.PENDING,
+              metadata,
+              createdAt: timestamp,
+              updatedAt: timestamp,
+            })
+          } else if (plan.action === "update_invitation" && plan.targetId) {
+            invitationId = plan.targetId
+            action = "updated"
+            await client
+              .update(teamInvitationTable)
+              .set({
+                email,
+                roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
+                isSystemRole: true,
+                expiresAt,
+                status: INVITATION_STATUS.PENDING,
+                metadata,
+                updatedAt: timestamp,
+              })
+              .where(eq(teamInvitationTable.id, invitationId))
+          }
+
+          if (!invitationId) {
+            throw new Error("Volunteer application could not be saved")
+          }
+
+          await syncVolunteerAnswers(
+            client,
+            invitationId,
+            data.answers ?? [],
+            timestamp,
+          )
+        },
       )
     })
 
     return {
       success: true,
       applicationId: invitationId,
-      action:
-        plan.action === "create_invitation"
-          ? ("created" as const)
-          : ("updated" as const),
+      action,
     }
   })
 
@@ -489,7 +502,7 @@ function validateSubmittedWaiverIds(
   }
 }
 
-async function persistVolunteerAnswers(
+async function syncVolunteerAnswers(
   db: DbClient,
   invitationId: string,
   answers: Array<{ questionId: string; answer: string }>,
@@ -502,7 +515,22 @@ async function persistVolunteerAnswers(
     }))
     .filter((answer) => answer.answer.length > 0)
 
-  if (cleanedAnswers.length === 0) return
+  if (cleanedAnswers.length === 0) {
+    await db
+      .delete(volunteerRegistrationAnswersTable)
+      .where(eq(volunteerRegistrationAnswersTable.invitationId, invitationId))
+    return
+  }
+
+  await db.delete(volunteerRegistrationAnswersTable).where(
+    and(
+      eq(volunteerRegistrationAnswersTable.invitationId, invitationId),
+      notInArray(
+        volunteerRegistrationAnswersTable.questionId,
+        cleanedAnswers.map((answer) => answer.questionId),
+      ),
+    ),
+  )
 
   for (const answer of cleanedAnswers) {
     await db
@@ -520,6 +548,46 @@ async function persistVolunteerAnswers(
         },
       })
   }
+}
+
+async function withVolunteerSignupLock<T>(
+  db: DbClient,
+  competitionTeamId: string,
+  email: string,
+  callback: () => Promise<T>,
+) {
+  let acquired = false
+  const lockExpression = sql`SHA2(CONCAT('crew-volunteer:', ${competitionTeamId}, ':', ${email}), 256)`
+
+  try {
+    const result = await db.execute<VolunteerSignupLockRow>(
+      sql`SELECT GET_LOCK(${lockExpression}, 5) AS acquired`,
+    )
+    const rows = getExecuteRows<VolunteerSignupLockRow>(result)
+    acquired = Number(rows[0]?.acquired ?? 0) === 1
+    if (!acquired) {
+      throw new Error("Volunteer application could not be saved")
+    }
+
+    return await callback()
+  } finally {
+    if (acquired) {
+      await db.execute(sql`SELECT RELEASE_LOCK(${lockExpression})`)
+    }
+  }
+}
+
+interface VolunteerSignupLockRow {
+  acquired: number | string | null
+}
+
+function getExecuteRows<T>(result: unknown): T[] {
+  if (Array.isArray(result)) {
+    if (Array.isArray(result[0])) return result[0] as T[]
+    return result as T[]
+  }
+
+  return ((result as { rows?: T[] })?.rows ?? []) as T[]
 }
 
 function parseQuestionOptions(options: string | null): string[] | null {

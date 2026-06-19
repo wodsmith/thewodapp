@@ -1,3 +1,4 @@
+// @lat: [[crew#Import Apply#Confirmed Mutation]]
 import { z } from "zod"
 import { INVITATION_STATUS } from "../../db/schemas/teams"
 import {
@@ -202,6 +203,24 @@ export function planCrewVolunteerSignup(
   },
 ): CrewVolunteerSignupPlan {
   const email = normalizeVolunteerSignupEmail(input.signupEmail)
+  const matchingInvitations = context.existingInvitations.filter(
+    (invitation) => normalizeVolunteerSignupEmail(invitation.email) === email,
+  )
+  const acceptedInvitation = matchingInvitations.find(
+    (invitation) =>
+      invitation.acceptedAt || invitation.status === INVITATION_STATUS.ACCEPTED,
+  )
+
+  if (acceptedInvitation) {
+    return {
+      action: "reject",
+      targetId: acceptedInvitation.id,
+      reason: "accepted_invitation",
+      message:
+        "This email has already accepted a volunteer invitation for this event.",
+    }
+  }
+
   const existingMembership = context.existingMemberships.find(
     (membership) => normalizeVolunteerSignupEmail(membership.email) === email,
   )
@@ -225,25 +244,10 @@ export function planCrewVolunteerSignup(
     }
   }
 
-  const existingInvitation = context.existingInvitations.find(
-    (invitation) => normalizeVolunteerSignupEmail(invitation.email) === email,
-  )
+  const existingInvitation = matchingInvitations[0]
 
   if (!existingInvitation) {
     return { action: "create_invitation", targetId: null }
-  }
-
-  if (
-    existingInvitation.acceptedAt ||
-    existingInvitation.status === INVITATION_STATUS.ACCEPTED
-  ) {
-    return {
-      action: "reject",
-      targetId: existingInvitation.id,
-      reason: "accepted_invitation",
-      message:
-        "This email has already accepted a volunteer invitation for this event.",
-    }
   }
 
   return {

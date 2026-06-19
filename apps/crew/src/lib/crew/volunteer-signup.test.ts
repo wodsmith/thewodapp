@@ -115,6 +115,33 @@ describe("planCrewVolunteerSignup", () => {
       reason: "active_membership",
     })
   })
+
+  it("prioritizes accepted invitations over earlier pending invitations", () => {
+    const plan = planCrewVolunteerSignup(
+      { signupEmail: "ada@example.com" },
+      {
+        existingInvitations: [
+          {
+            id: "tinv_pending",
+            email: "ada@example.com",
+            status: INVITATION_STATUS.PENDING,
+          },
+          {
+            id: "tinv_accepted",
+            email: "ADA@example.com",
+            status: INVITATION_STATUS.ACCEPTED,
+          },
+        ],
+        existingMemberships: [],
+      },
+    )
+
+    expect(plan).toMatchObject({
+      action: "reject",
+      targetId: "tinv_accepted",
+      reason: "accepted_invitation",
+    })
+  })
 })
 
 describe("buildCrewVolunteerSignupMetadata", () => {

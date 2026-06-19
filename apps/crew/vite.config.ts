@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url"
 import { sentryVitePlugin } from "@sentry/vite-plugin"
 import tailwindcss from "@tailwindcss/vite"
 import { devtools } from "@tanstack/devtools-vite"
@@ -67,9 +68,10 @@ const config = defineConfig({
   // Resolve server-only as empty module (Next.js specific, not needed in TanStack Start)
   resolve: {
     alias: {
-      "@": new URL("./src", import.meta.url).pathname,
-      "server-only": new URL("./src/lib/server-only-stub.ts", import.meta.url)
-        .pathname,
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+      "server-only": fileURLToPath(
+        new URL("./src/lib/server-only-stub.ts", import.meta.url),
+      ),
     },
   },
   // Pre-bundle SSR dependencies to avoid mid-session optimization errors
