@@ -1,5 +1,5 @@
 import type { CloudflareOptions } from "@sentry/cloudflare"
-import { getAppUrl, getNodeEnv, getSentryDsn } from "@/lib/env"
+import { getAppUrl, getNodeEnv, getSentryDsn } from "../env"
 
 /**
  * Derive environment name from APP_URL for Sentry.
