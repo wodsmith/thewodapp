@@ -51,7 +51,7 @@ describe("competition sidebar capability gates", () => {
     expect(onlineLabels).not.toEqual(expect.arrayContaining(["Locations"]))
     expect(onlineLabels).not.toEqual(expect.arrayContaining(["Schedule"]))
     expect(onlineLabels).not.toEqual(expect.arrayContaining(["Check-in"]))
-    expect(onlineLabels).not.toEqual(expect.arrayContaining(["Volunteers"]))
+    expect(onlineLabels).toContain("Volunteers")
     expect(onlineLabels).not.toContain("Results")
   })
 
@@ -81,8 +81,19 @@ describe("competition sidebar capability gates", () => {
     expect(onlineLabels).toContain("Submission windows")
     expect(onlineLabels).not.toEqual(expect.arrayContaining(["Locations"]))
     expect(onlineLabels).not.toEqual(expect.arrayContaining(["Schedule"]))
-    expect(onlineLabels).not.toEqual(expect.arrayContaining(["Volunteers"]))
+    expect(onlineLabels).toContain("Volunteers")
     expect(onlineLabels).not.toContain("Results")
+  })
+
+  it("keeps cohost volunteers hidden when the cohost lacks volunteers permission", () => {
+    const labels = labelsFor(
+      getCohostSidebarNavigation("/compete/cohost/comp_1", "online", {
+        ...FULL_PERMISSIONS,
+        volunteers: false,
+      }),
+    )
+
+    expect(labels).not.toContain("Volunteers")
   })
 
   it("keeps cohost results hidden when the cohost lacks results permission", () => {

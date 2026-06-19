@@ -50,10 +50,7 @@ import {
   resultsNavLabel,
 } from "@/lib/competitions/capabilities"
 import { canUseHeatScheduling } from "@/lib/competitions/scheduling-check-in-gates"
-import {
-  canDisplayPhysicalVenue,
-  canUseVolunteerScheduling,
-} from "@/lib/competitions/venue-volunteer-gates"
+import { canDisplayPhysicalVenue } from "@/lib/competitions/venue-volunteer-gates"
 
 interface CohostSidebarProps {
   competitionId: string
@@ -165,7 +162,7 @@ const getNavigation = (
                 },
               ]
             : []),
-          ...(permissions?.volunteers && canUseVolunteerScheduling(type)
+          ...(permissions?.volunteers
             ? [
                 {
                   label: "Volunteers",

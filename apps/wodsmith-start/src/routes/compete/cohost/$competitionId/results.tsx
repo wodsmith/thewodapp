@@ -68,6 +68,10 @@ const searchParamsSchema = z.object({
   division: z.string().optional(),
 })
 
+export function getCohostResultsRouteMode(competitionType: string) {
+  return resultsEntryMode(competitionType)
+}
+
 export const Route = createFileRoute("/compete/cohost/$competitionId/results")({
   staleTime: 10_000,
   validateSearch: searchParamsSchema,
@@ -81,7 +85,7 @@ export const Route = createFileRoute("/compete/cohost/$competitionId/results")({
     const { competition } = parentMatch.loaderData!
 
     const competitionTeamId = competition.competitionTeamId!
-    const entryMode = resultsEntryMode(competition.competitionType)
+    const entryMode = getCohostResultsRouteMode(competition.competitionType)
 
     // Fetch events and divisions in parallel
     const [eventsResult, divisionsResult] = await Promise.all([

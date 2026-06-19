@@ -59,10 +59,7 @@ import {
   canUseDayOfCheckIn,
   canUseHeatScheduling,
 } from "@/lib/competitions/scheduling-check-in-gates"
-import {
-  canDisplayPhysicalVenue,
-  canUseVolunteerScheduling,
-} from "@/lib/competitions/venue-volunteer-gates"
+import { canDisplayPhysicalVenue } from "@/lib/competitions/venue-volunteer-gates"
 import { cn } from "@/utils/cn"
 
 interface CompetitionSidebarProps {
@@ -155,15 +152,11 @@ const getNavigation = (
                 },
               ]
             : []),
-          ...(canUseVolunteerScheduling(type)
-            ? [
-                {
-                  label: "Volunteers",
-                  href: `${basePath}/volunteers`,
-                  icon: UserCheck,
-                },
-              ]
-            : []),
+          {
+            label: "Volunteers",
+            href: `${basePath}/volunteers`,
+            icon: UserCheck,
+          },
           {
             label: resultsNavLabel(type),
             href: `${basePath}/results`,

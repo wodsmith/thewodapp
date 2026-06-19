@@ -61,6 +61,10 @@ const searchParamsSchema = z.object({
   division: z.string().optional(),
 })
 
+export function getOrganizerResultsRouteMode(competitionType: string) {
+  return resultsEntryMode(competitionType)
+}
+
 export const Route = createFileRoute(
   "/compete/organizer/$competitionId/results",
 )({
@@ -75,7 +79,7 @@ export const Route = createFileRoute(
     const parentMatch = await parentMatchPromise
     const { competition } = parentMatch.loaderData!
 
-    const entryMode = resultsEntryMode(competition.competitionType)
+    const entryMode = getOrganizerResultsRouteMode(competition.competitionType)
 
     // Fetch events and divisions in parallel
     const [eventsResult, divisionsResult] = await Promise.all([
