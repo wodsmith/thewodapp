@@ -18,6 +18,8 @@ import { Route as EventsEventIdIndexRouteImport } from './routes/events/$eventId
 import { Route as EventsEventIdVolunteersRouteImport } from './routes/events/$eventId/volunteers'
 import { Route as EventsEventIdSetupRouteImport } from './routes/events/$eventId/setup'
 import { Route as EventsEventIdScheduleRouteImport } from './routes/events/$eventId/schedule'
+import { Route as EventsEventIdImportsRouteImport } from './routes/events/$eventId/imports'
+import { Route as ApiCrewImportRouteImport } from './routes/api/crew/import'
 
 const EventsRoute = EventsRouteImport.update({
   id: '/events',
@@ -64,6 +66,16 @@ const EventsEventIdScheduleRoute = EventsEventIdScheduleRouteImport.update({
   path: '/schedule',
   getParentRoute: () => EventsEventIdRoute,
 } as any)
+const EventsEventIdImportsRoute = EventsEventIdImportsRouteImport.update({
+  id: '/imports',
+  path: '/imports',
+  getParentRoute: () => EventsEventIdRoute,
+} as any)
+const ApiCrewImportRoute = ApiCrewImportRouteImport.update({
+  id: '/api/crew/import',
+  path: '/api/crew/import',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -71,6 +83,8 @@ export interface FileRoutesByFullPath {
   '/events': typeof EventsRouteWithChildren
   '/events/$eventId': typeof EventsEventIdRouteWithChildren
   '/events/new': typeof EventsNewRoute
+  '/api/crew/import': typeof ApiCrewImportRoute
+  '/events/$eventId/imports': typeof EventsEventIdImportsRoute
   '/events/$eventId/schedule': typeof EventsEventIdScheduleRoute
   '/events/$eventId/setup': typeof EventsEventIdSetupRoute
   '/events/$eventId/volunteers': typeof EventsEventIdVolunteersRoute
@@ -81,6 +95,8 @@ export interface FileRoutesByTo {
   '/calculator': typeof CalculatorRoute
   '/events': typeof EventsRouteWithChildren
   '/events/new': typeof EventsNewRoute
+  '/api/crew/import': typeof ApiCrewImportRoute
+  '/events/$eventId/imports': typeof EventsEventIdImportsRoute
   '/events/$eventId/schedule': typeof EventsEventIdScheduleRoute
   '/events/$eventId/setup': typeof EventsEventIdSetupRoute
   '/events/$eventId/volunteers': typeof EventsEventIdVolunteersRoute
@@ -93,6 +109,8 @@ export interface FileRoutesById {
   '/events': typeof EventsRouteWithChildren
   '/events/$eventId': typeof EventsEventIdRouteWithChildren
   '/events/new': typeof EventsNewRoute
+  '/api/crew/import': typeof ApiCrewImportRoute
+  '/events/$eventId/imports': typeof EventsEventIdImportsRoute
   '/events/$eventId/schedule': typeof EventsEventIdScheduleRoute
   '/events/$eventId/setup': typeof EventsEventIdSetupRoute
   '/events/$eventId/volunteers': typeof EventsEventIdVolunteersRoute
@@ -106,6 +124,8 @@ export interface FileRouteTypes {
     | '/events'
     | '/events/$eventId'
     | '/events/new'
+    | '/api/crew/import'
+    | '/events/$eventId/imports'
     | '/events/$eventId/schedule'
     | '/events/$eventId/setup'
     | '/events/$eventId/volunteers'
@@ -116,6 +136,8 @@ export interface FileRouteTypes {
     | '/calculator'
     | '/events'
     | '/events/new'
+    | '/api/crew/import'
+    | '/events/$eventId/imports'
     | '/events/$eventId/schedule'
     | '/events/$eventId/setup'
     | '/events/$eventId/volunteers'
@@ -127,6 +149,8 @@ export interface FileRouteTypes {
     | '/events'
     | '/events/$eventId'
     | '/events/new'
+    | '/api/crew/import'
+    | '/events/$eventId/imports'
     | '/events/$eventId/schedule'
     | '/events/$eventId/setup'
     | '/events/$eventId/volunteers'
@@ -137,6 +161,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CalculatorRoute: typeof CalculatorRoute
   EventsRoute: typeof EventsRouteWithChildren
+  ApiCrewImportRoute: typeof ApiCrewImportRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -204,10 +229,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EventsEventIdScheduleRouteImport
       parentRoute: typeof EventsEventIdRoute
     }
+    '/events/$eventId/imports': {
+      id: '/events/$eventId/imports'
+      path: '/imports'
+      fullPath: '/events/$eventId/imports'
+      preLoaderRoute: typeof EventsEventIdImportsRouteImport
+      parentRoute: typeof EventsEventIdRoute
+    }
+    '/api/crew/import': {
+      id: '/api/crew/import'
+      path: '/api/crew/import'
+      fullPath: '/api/crew/import'
+      preLoaderRoute: typeof ApiCrewImportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface EventsEventIdRouteChildren {
+  EventsEventIdImportsRoute: typeof EventsEventIdImportsRoute
   EventsEventIdScheduleRoute: typeof EventsEventIdScheduleRoute
   EventsEventIdSetupRoute: typeof EventsEventIdSetupRoute
   EventsEventIdVolunteersRoute: typeof EventsEventIdVolunteersRoute
@@ -215,6 +255,7 @@ interface EventsEventIdRouteChildren {
 }
 
 const EventsEventIdRouteChildren: EventsEventIdRouteChildren = {
+  EventsEventIdImportsRoute: EventsEventIdImportsRoute,
   EventsEventIdScheduleRoute: EventsEventIdScheduleRoute,
   EventsEventIdSetupRoute: EventsEventIdSetupRoute,
   EventsEventIdVolunteersRoute: EventsEventIdVolunteersRoute,
@@ -242,6 +283,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CalculatorRoute: CalculatorRoute,
   EventsRoute: EventsRouteWithChildren,
+  ApiCrewImportRoute: ApiCrewImportRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

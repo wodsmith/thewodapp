@@ -1,6 +1,5 @@
 import { createId } from "@paralleldrive/cuid2"
 import { createServerFn } from "@tanstack/react-start"
-import { env } from "cloudflare:workers"
 import { desc, eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "../db"
@@ -13,6 +12,7 @@ import {
 } from "../db/schemas/crew-event-settings"
 import { type Competition, competitionsTable } from "../db/schemas/competitions"
 import { teamTable } from "../db/schemas/teams"
+import { requireLocalCrewOperatorAccess } from "../server/crew-local-access"
 import { generateSlug } from "../utils/slugify"
 
 type CrewEventCompetition = Pick<
@@ -36,59 +36,8 @@ export interface CrewEventDetails {
   competition: CrewEventCompetition
 }
 
-type CrewRuntimeEnv = typeof env & {
-  NODE_ENV?: string
-  STAGE?: string
-  APP_URL?: string
-  SITE_URL?: string
-}
-
-const localCrewStages = new Set(["dev", "local", "test", "preview"])
-
 function requireLocalCrewSettingsAccess() {
-  const runtimeEnv = env as CrewRuntimeEnv
-  const nodeEnv = runtimeEnv.NODE_ENV?.toLowerCase()
-  const stage = runtimeEnv.STAGE?.toLowerCase()
-  const appUrl = (runtimeEnv.APP_URL ?? runtimeEnv.SITE_URL ?? "").toLowerCase()
-  const appHost = getAppHost(appUrl)
-  const isLocalStage = stage ? localCrewStages.has(stage) : false
-  const isLocalUrl =
-    appHost === "localhost" || appHost === "127.0.0.1" || appHost === "::1"
-  const isProductionLike =
-    nodeEnv === "production" ||
-    stage === "prod" ||
-    stage === "production" ||
-    stage === "demo" ||
-    stage === "staging" ||
-    appUrl.includes("wodsmith.com")
-
-  if (isProductionLike || (!isLocalStage && !isLocalUrl)) {
-    throw new Error(
-      "Crew event settings are local-operator only until Crew auth is wired.",
-    )
-  }
-}
-
-function getAppHost(appUrl: string) {
-  if (!appUrl) return ""
-
-  try {
-    const url = new URL(appUrl)
-    if (url.hostname) return normalizeHost(url.hostname)
-  } catch {
-    // Fall back below for bare local hosts, like localhost:3000.
-  }
-
-  if (appUrl === "::1") return "::1"
-  if (appUrl === "[::1]" || appUrl.startsWith("[::1]:")) return "::1"
-
-  return normalizeHost(appUrl.split(":")[0] ?? "")
-}
-
-function normalizeHost(host: string) {
-  return host.startsWith("[") && host.endsWith("]")
-    ? host.slice(1, -1)
-    : host
+  requireLocalCrewOperatorAccess("Crew event settings")
 }
 
 const lifecycleSchema = z.enum([
