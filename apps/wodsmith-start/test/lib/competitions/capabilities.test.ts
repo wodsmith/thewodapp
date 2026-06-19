@@ -3,6 +3,8 @@ import {
 	COMPETITION_TYPE_REGISTRY,
 	type CompetitionCapability,
 	competitionCan,
+	resultsEntryMode,
+	resultsNavLabel,
 	isSelectableType,
 	leaderboardVariant,
 } from "@/lib/competitions/capabilities"
@@ -80,5 +82,14 @@ describe("competition type capabilities", () => {
 
 		expect(leaderboardVariant("benchmark")).toBe("standard")
 		expect(isSelectableType("benchmark")).toBe(false)
+	})
+
+	// @lat: [[competition-type-capabilities#Results Entry and Sidebar Gates Test]]
+	it("derives results-entry mode and nav labels from organizer-entered-results capability", () => {
+		expect(resultsEntryMode("in-person")).toBe("organizer-entered")
+		expect(resultsNavLabel("in-person")).toBe("Results")
+
+		expect(resultsEntryMode("online")).toBe("athlete-submitted")
+		expect(resultsNavLabel("online")).toBe("Submissions")
 	})
 })

@@ -6,18 +6,20 @@
  * Uses cohost server fns for auth.
  */
 
-import { Outlet, createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, Outlet } from "@tanstack/react-router"
+import { competitionCan } from "@/lib/competitions/capabilities"
+import { canUseHeatScheduling } from "@/lib/competitions/scheduling-check-in-gates"
 import { cohostGetDivisionsWithCountsFn } from "@/server-fns/cohost/cohost-division-fns"
 import { cohostGetCompetitionEventsFn } from "@/server-fns/cohost/cohost-event-fns"
+import { cohostGetEventResourcesFn } from "@/server-fns/cohost/cohost-event-resources-fns"
+import { cohostGetCompetitionSponsorsFn } from "@/server-fns/cohost/cohost-sponsor-fns"
 import {
   cohostGetEventFn,
-  cohostGetWorkoutsFn,
   cohostGetWorkoutDivisionDescriptionsFn,
+  cohostGetWorkoutsFn,
 } from "@/server-fns/cohost/cohost-workout-fns"
-import { cohostGetEventResourcesFn } from "@/server-fns/cohost/cohost-event-resources-fns"
 import { getEventJudgingSheetsFn } from "@/server-fns/judging-sheet-fns"
 import { getAllMovementsFn } from "@/server-fns/movement-fns"
-import { cohostGetCompetitionSponsorsFn } from "@/server-fns/cohost/cohost-sponsor-fns"
 
 export const Route = createFileRoute(
   "/compete/cohost/$competitionId/events/$eventId",
@@ -29,7 +31,10 @@ export const Route = createFileRoute(
     const { competition } = parentMatch.loaderData!
 
     const competitionTeamId = competition.competitionTeamId!
-    const isOnline = competition.competitionType === "online"
+    const usesSubmissionWindows = competitionCan(
+      competition.competitionType,
+      "submissionWindows",
+    )
 
     // Parallel fetch event, divisions, movements, sponsors, resources, judging sheets, and competition events
     const [
@@ -69,8 +74,7 @@ export const Route = createFileRoute(
       getEventJudgingSheetsFn({
         data: { trackWorkoutId: params.eventId },
       }).catch(() => ({ sheets: [] })),
-      // Fetch competition events (submission windows) for online competitions
-      isOnline
+      usesSubmissionWindows
         ? cohostGetCompetitionEventsFn({
             data: {
               competitionId: params.competitionId,
@@ -160,7 +164,12 @@ export const Route = createFileRoute(
       divisionDescriptions,
       resources: resourcesResult.resources,
       judgingSheets: judgingSheetsResult.sheets,
-      isOnline,
+      usesSubmissionWindows,
+      usesVideoSubmissions: competitionCan(
+        competition.competitionType,
+        "videoSubmissions",
+      ),
+      usesHeatScheduling: canUseHeatScheduling(competition.competitionType),
       submissionOpensAt: competitionEvent?.submissionOpensAt ?? null,
       submissionClosesAt: competitionEvent?.submissionClosesAt ?? null,
       timezone: competition.timezone || "America/Denver",

@@ -19,6 +19,14 @@ import { EventSubmissionWindowCard } from "@/components/organizer/event-submissi
 import { HeatSchedulePublishingCard } from "@/components/organizer/heat-schedule-publishing-card"
 import { Button } from "@/components/ui/button"
 import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
   cohostCreateEventResourceFn,
   cohostDeleteEventResourceFn,
   cohostReorderEventResourcesFn,
@@ -34,20 +42,10 @@ import {
   cohostPublishHeatScheduleFn,
 } from "@/server-fns/cohost/cohost-schedule-fns"
 import { cohostSaveEventFn } from "@/server-fns/cohost/cohost-workout-fns"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { formatTrackOrder } from "@/utils/format-track-order"
 
 const parentRoute = getRouteApi("/compete/cohost/$competitionId")
-const eventRoute = getRouteApi(
-  "/compete/cohost/$competitionId/events/$eventId",
-)
+const eventRoute = getRouteApi("/compete/cohost/$competitionId/events/$eventId")
 
 export const Route = createFileRoute(
   "/compete/cohost/$competitionId/events/$eventId/",
@@ -67,7 +65,9 @@ function EventEditPage() {
     divisionDescriptions,
     resources,
     judgingSheets: initialSheets,
-    isOnline,
+    usesSubmissionWindows,
+    usesVideoSubmissions,
+    usesHeatScheduling,
     submissionOpensAt,
     submissionClosesAt,
     timezone,
@@ -81,13 +81,21 @@ function EventEditPage() {
   // Cohost override wrappers that inject competitionTeamId
   const resourceOverrides = {
     createFn: (args: { data: any }) =>
-      cohostCreateEventResourceFn({ data: { ...args.data, competitionTeamId } }),
+      cohostCreateEventResourceFn({
+        data: { ...args.data, competitionTeamId },
+      }),
     updateFn: (args: { data: any }) =>
-      cohostUpdateEventResourceFn({ data: { ...args.data, competitionTeamId } }),
+      cohostUpdateEventResourceFn({
+        data: { ...args.data, competitionTeamId },
+      }),
     deleteFn: (args: { data: any }) =>
-      cohostDeleteEventResourceFn({ data: { ...args.data, competitionTeamId } }),
+      cohostDeleteEventResourceFn({
+        data: { ...args.data, competitionTeamId },
+      }),
     reorderFn: (args: { data: any }) =>
-      cohostReorderEventResourcesFn({ data: { ...args.data, competitionTeamId } }),
+      cohostReorderEventResourcesFn({
+        data: { ...args.data, competitionTeamId },
+      }),
   }
 
   const judgingOverrides = {
@@ -106,9 +114,13 @@ function EventEditPage() {
 
   const publishingOverrides = {
     publishHeatFn: (args: { data: any }) =>
-      cohostPublishHeatScheduleFn({ data: { ...args.data, competitionTeamId } }),
+      cohostPublishHeatScheduleFn({
+        data: { ...args.data, competitionTeamId },
+      }),
     publishAllFn: (args: { data: any }) =>
-      cohostPublishAllHeatsForEventFn({ data: { ...args.data, competitionTeamId } }),
+      cohostPublishAllHeatsForEventFn({
+        data: { ...args.data, competitionTeamId },
+      }),
   }
 
   const isParentEvent = childEvents.length > 0
@@ -162,45 +174,47 @@ function EventEditPage() {
         overrides={judgingOverrides}
       />
 
-      {/* Submission Window (online) or Heat Schedule Publishing (in-person) */}
-      {isOnline ? (
+      {usesSubmissionWindows || usesVideoSubmissions ? (
         <>
-          <EventSubmissionWindowCard
-            competitionId={competition.id}
-            eventName={event.workout.name}
-            submissionOpensAt={submissionOpensAt}
-            submissionClosesAt={submissionClosesAt}
-            timezone={timezone}
-            routePrefix="/compete/cohost"
-          />
+          {usesSubmissionWindows && (
+            <EventSubmissionWindowCard
+              competitionId={competition.id}
+              eventName={event.workout.name}
+              submissionOpensAt={submissionOpensAt}
+              submissionClosesAt={submissionClosesAt}
+              timezone={timezone}
+              routePrefix="/compete/cohost"
+            />
+          )}
 
-          {/* Video Submissions Review Link */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Video className="h-5 w-5" />
-                Video Submissions
-              </CardTitle>
-              <CardDescription>
-                Review athlete video submissions for this event
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button asChild variant="outline">
-                <Link
-                  to="/compete/cohost/$competitionId/events/$eventId/submissions"
-                  params={{
-                    competitionId: competition.id,
-                    eventId: event.id,
-                  }}
-                >
-                  View submissions
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
+          {usesVideoSubmissions && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Video className="h-5 w-5" />
+                  Video Submissions
+                </CardTitle>
+                <CardDescription>
+                  Review athlete video submissions for this event
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button asChild variant="outline">
+                  <Link
+                    to="/compete/cohost/$competitionId/events/$eventId/submissions"
+                    params={{
+                      competitionId: competition.id,
+                      eventId: event.id,
+                    }}
+                  >
+                    View submissions
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </>
-      ) : (
+      ) : usesHeatScheduling ? (
         <HeatSchedulePublishingCard
           trackWorkoutId={event.id}
           eventName={event.workout.name}
@@ -209,7 +223,7 @@ function EventEditPage() {
           overrides={publishingOverrides}
           routePrefix="/compete/cohost"
         />
-      )}
+      ) : null}
     </>
   )
 }
@@ -237,13 +251,21 @@ function ParentEventEditPage() {
 
   const resourceOverrides = {
     createFn: (args: { data: any }) =>
-      cohostCreateEventResourceFn({ data: { ...args.data, competitionTeamId } }),
+      cohostCreateEventResourceFn({
+        data: { ...args.data, competitionTeamId },
+      }),
     updateFn: (args: { data: any }) =>
-      cohostUpdateEventResourceFn({ data: { ...args.data, competitionTeamId } }),
+      cohostUpdateEventResourceFn({
+        data: { ...args.data, competitionTeamId },
+      }),
     deleteFn: (args: { data: any }) =>
-      cohostDeleteEventResourceFn({ data: { ...args.data, competitionTeamId } }),
+      cohostDeleteEventResourceFn({
+        data: { ...args.data, competitionTeamId },
+      }),
     reorderFn: (args: { data: any }) =>
-      cohostReorderEventResourcesFn({ data: { ...args.data, competitionTeamId } }),
+      cohostReorderEventResourcesFn({
+        data: { ...args.data, competitionTeamId },
+      }),
   }
 
   const judgingOverrides = {

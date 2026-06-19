@@ -35,6 +35,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
+import { resultsEntryMode } from "@/lib/competitions/capabilities"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import {
   getEventScoreEntryDataWithHeatsBatchFn,
@@ -74,7 +75,7 @@ export const Route = createFileRoute(
     const parentMatch = await parentMatchPromise
     const { competition } = parentMatch.loaderData!
 
-    const isOnline = competition.competitionType === "online"
+    const entryMode = resultsEntryMode(competition.competitionType)
 
     // Fetch events and divisions in parallel
     const [eventsResult, divisionsResult] = await Promise.all([
@@ -99,7 +100,7 @@ export const Route = createFileRoute(
     // query for every reviewable event (sub-events when present, otherwise the
     // standalone event itself) instead of materializing per-event submission
     // rows just to count them.
-    if (isOnline) {
+    if (entryMode === "athlete-submitted") {
       const reviewableEventIds: string[] = []
       for (const event of events) {
         if (event.parentEventId) {
@@ -123,7 +124,7 @@ export const Route = createFileRoute(
           : {}
 
       return {
-        isOnline: true as const,
+        resultsEntryMode: "athlete-submitted" as const,
         events,
         submissionCounts,
       }
@@ -212,7 +213,7 @@ export const Route = createFileRoute(
     const { childScoreDataList, scoreEntryData } = scoreData
 
     return {
-      isOnline: false as const,
+      resultsEntryMode: "organizer-entered" as const,
       events: topLevelEvents,
       divisions,
       selectedEventId,
@@ -231,8 +232,7 @@ export const Route = createFileRoute(
 function ResultsPage() {
   const loaderData = Route.useLoaderData()
 
-  // Route to appropriate component based on competition type
-  if (loaderData.isOnline) {
+  if (loaderData.resultsEntryMode === "athlete-submitted") {
     return <OnlineSubmissionsOverview data={loaderData} />
   }
 
@@ -269,7 +269,7 @@ function OnlineSubmissionsOverview({
   data,
 }: {
   data: {
-    isOnline: true
+    resultsEntryMode: "athlete-submitted"
     events: OverviewEvent[]
     submissionCounts: Record<string, CountEntry>
   }
@@ -602,7 +602,7 @@ function InPersonResultsEntry({
   data,
 }: {
   data: {
-    isOnline: false
+    resultsEntryMode: "organizer-entered"
     events: Array<{
       id: string
       workout: { name: string }
