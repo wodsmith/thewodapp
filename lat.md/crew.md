@@ -2,6 +2,12 @@
 
 Crew is a concierge-first event operations surface that reuses normal WODsmith competitions while adding thin Crew-specific setup, import, and assignment confirmation records.
 
+## Server Function Runtime Boundary
+
+Route and client code import lightweight `createServerFn` wrappers from `apps/crew/src/server-fns`. Those wrappers may validate input, but DB and Workers-runtime-backed implementation belongs in server-only `*.server.ts` modules and should be loaded inside the wrapper `handler()`.
+
+This prevents Vite client import analysis from walking through `apps/crew/src/db/index.ts` to `cloudflare:workers` while preserving stable server-function import paths for routes and client components.
+
 ## Event Setup Dashboard
 
 Crew event setup pages let an operator create and review a normal competition with one `crew_event_settings` row for lifecycle, source platform URLs, concierge status, crew plan, setup checklist progress, assumptions, and internal handoff notes.
