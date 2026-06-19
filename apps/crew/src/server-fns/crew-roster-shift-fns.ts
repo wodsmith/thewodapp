@@ -573,7 +573,7 @@ async function requireCrewRosterEvent(
   return event
 }
 
-async function loadCrewRoster(competitionTeamId: string) {
+export async function loadCrewRoster(competitionTeamId: string) {
   const db = getDb()
   const [invitations, memberships] = await Promise.all([
     db.query.teamInvitationTable.findMany({
@@ -599,7 +599,7 @@ async function loadCrewRoster(competitionTeamId: string) {
   return buildCrewRoster(invitations, memberships)
 }
 
-async function loadCrewShifts(
+export async function loadCrewShifts(
   competitionId: string,
 ): Promise<CrewShiftBoardItem[]> {
   const db = getDb()
@@ -674,7 +674,9 @@ async function loadCrewShifts(
   })
 }
 
-function summarizeCrewShifts(shifts: CrewShiftBoardItem[]): CrewShiftSummary {
+export function summarizeCrewShifts(
+  shifts: CrewShiftBoardItem[],
+): CrewShiftSummary {
   const summary = shifts.reduce(
     (nextSummary, shift) => {
       nextSummary.totalShifts += 1

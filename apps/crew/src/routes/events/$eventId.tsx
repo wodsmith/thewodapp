@@ -1,3 +1,4 @@
+// @lat: [[crew#Pilot Readiness Checklist]]
 import { createFileRoute, Link, notFound, Outlet } from "@tanstack/react-router"
 import { getCrewEventFn } from "@/server-fns/crew-event-settings-fns"
 
@@ -35,6 +36,14 @@ function EventShell() {
             className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             Overview
+          </Link>
+          <Link
+            to="/events/$eventId/readiness"
+            params={{ eventId }}
+            activeProps={{ className: "bg-muted text-foreground" }}
+            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            Readiness
           </Link>
           <Link
             to="/events/$eventId/setup"

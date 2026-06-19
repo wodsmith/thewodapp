@@ -8,6 +8,14 @@ Crew event setup pages let an operator create and review a normal competition wi
 
 Additional setup dashboard state is stored in the existing `crew_event_settings.settings` JSON text field until a later slice proves that dedicated typed columns or tables are needed.
 
+## Pilot Readiness Checklist
+
+Crew pilot readiness is a read-only operator surface for deciding whether a founding organizer event is ready for handoff.
+
+[[apps/crew/src/routes/events/$eventId/readiness.tsx]] renders the per-event checklist. [[apps/crew/src/server-fns/crew-readiness-fns.ts]] aggregates existing event, setup, venue, workout, heat, import, roster, shift, confirmation, and judge-publishing counts without creating schema or mutating event data. [[apps/crew/src/lib/crew/readiness.ts]] owns deterministic status, severity, progress, and summary derivation for the checklist.
+
+The checklist treats event basics, venues and lanes, workouts and heats, volunteer roster, shifts and assignments, judge publishing, and assignment confirmations as separate readiness categories. Judge publishing is a manual pilot checkpoint until the dedicated Crew judge rotation workflow exists.
+
 ## Staffing Calculator
 
 The public Crew calculator route estimates event-day staffing needs from event dimensions and editable role assumptions.
