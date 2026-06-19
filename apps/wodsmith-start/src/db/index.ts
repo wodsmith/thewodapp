@@ -8,12 +8,13 @@
  * - In local dev: Falls back to DATABASE_URL from .dev.vars.
  */
 
-import { createServerOnlyFn } from "@tanstack/react-start"
 import { env } from "cloudflare:workers"
-import { drizzle, type MySql2Database } from "drizzle-orm/mysql2"
-import mysql from "mysql2"
-
-import * as schema from "./schema"
+import {
+  createWodsmithDb,
+  createWodsmithMysqlConnection,
+  type WodsmithDb,
+} from "@repo/wodsmith-db/mysql"
+import { createServerOnlyFn } from "@tanstack/react-start"
 
 declare namespace Cloudflare {
   interface Env {
@@ -23,7 +24,7 @@ declare namespace Cloudflare {
 }
 
 // Type for the database instance
-export type Database = MySql2Database<typeof schema>
+export type Database = WodsmithDb
 
 /**
  * Get database connection (server-only)
@@ -46,26 +47,9 @@ export const getDb = createServerOnlyFn((): Database => {
     )
   }
 
-  // Strip 'ssl-mode' from the connection string — Hyperdrive injects it
-  // but mysql2 doesn't recognize it (uses `ssl` object instead) and warns/hangs.
-  const url = new URL(connectionString)
-  url.searchParams.delete("ssl-mode")
-  url.searchParams.delete("sslmode")
+  const connection = createWodsmithMysqlConnection(connectionString)
 
-  const connection = mysql.createConnection({
-    uri: url.toString(),
-    disableEval: true,
-    // Ensure DECIMAL columns are returned as numbers, not strings
-    supportBigNumbers: true,
-    bigNumberStrings: false,
-  })
-
-  return drizzle({
-    client: connection,
-    schema,
-    casing: "snake_case",
-    mode: "planetscale",
-  })
+  return createWodsmithDb(connection)
 })
 
 // Export env for other modules that need access to bindings (KV, R2, etc.)
