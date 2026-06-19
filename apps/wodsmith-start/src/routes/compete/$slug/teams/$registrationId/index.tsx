@@ -25,7 +25,7 @@ import {
   RefreshCw,
   Users,
 } from "lucide-react"
-import { useEffect, useState } from "react"
+import { type ReactNode, useEffect, useState } from "react"
 import { toast } from "sonner"
 import { z } from "zod"
 import { RegistrationAnswersForm } from "@/components/registration/registration-answers-form"
@@ -49,6 +49,7 @@ import {
   type TeamRosterResult,
 } from "@/server-fns/registration-fns"
 import { getUserCompetitionRegistrationsFn } from "@/server-fns/competition-detail-fns"
+import { cn } from "@/utils/cn"
 import {
   getCompetitionQuestionsFn,
   getRegistrationAnswersFn,
@@ -392,6 +393,42 @@ function DivisionSwitcher({
   )
 }
 
+const STATUS_TONES = {
+  confirmed: {
+    chip: "bg-green-500/10 text-green-700 dark:text-green-400",
+    dot: "bg-green-500",
+  },
+  pending: {
+    chip: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
+    dot: "bg-amber-500",
+  },
+  expired: {
+    chip: "bg-destructive/10 text-destructive",
+    dot: "bg-destructive",
+  },
+} as const
+
+function StatusBadge({
+  tone,
+  children,
+}: {
+  tone: keyof typeof STATUS_TONES
+  children: ReactNode
+}) {
+  const { chip, dot } = STATUS_TONES[tone]
+  return (
+    <Badge
+      className={cn(
+        "shrink-0 gap-1.5 whitespace-nowrap border-transparent font-medium",
+        chip,
+      )}
+    >
+      <span className={cn("size-1.5 rounded-full", dot)} />
+      {children}
+    </Badge>
+  )
+}
+
 function TeamManagementPage() {
   const {
     registration,
@@ -660,39 +697,40 @@ function TeamManagementPage() {
                   return (
                     <div
                       key={member.id}
-                      className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                      className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card"
                     >
-                      <div className="flex items-center gap-3">
-                        <Avatar className="w-10 h-10">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <Avatar className="w-10 h-10 shrink-0">
                           <AvatarImage src={member.user?.avatar || undefined} />
                           <AvatarFallback>
                             {member.user?.firstName?.[0] || "?"}
                             {member.user?.lastName?.[0] || ""}
                           </AvatarFallback>
                         </Avatar>
-                        <div>
+                        <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="font-medium">
+                            <span className="truncate font-medium">
                               {member.user?.firstName} {member.user?.lastName}
                             </span>
                             {member.isCaptain && (
-                              <Badge variant="secondary" className="text-xs">
+                              <Badge
+                                variant="secondary"
+                                className="shrink-0 text-xs"
+                              >
                                 <Crown className="w-3 h-3 mr-1" />
                                 Captain
                               </Badge>
                             )}
                           </div>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="truncate text-sm text-muted-foreground">
                             {member.user?.email}
                           </p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
                             {memberAffiliate || "Independent"}
                           </p>
                         </div>
                       </div>
-                      <Badge variant="outline" className="text-green-600">
-                        Confirmed
-                      </Badge>
+                      <StatusBadge tone="confirmed">Confirmed</StatusBadge>
                     </div>
                   )
                 })}
@@ -703,7 +741,7 @@ function TeamManagementPage() {
             {pending.length > 0 && (
               <div className="space-y-3">
                 <h4 className="text-sm font-medium flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-yellow-500" />
+                  <Clock className="w-4 h-4 text-amber-500" />
                   Pending Invitations
                 </h4>
                 <div className="space-y-2">
@@ -714,16 +752,18 @@ function TeamManagementPage() {
                     return (
                       <div
                         key={invite.id}
-                        className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                        className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card"
                       >
-                        <div className="flex items-center gap-3">
-                          <Avatar className="w-10 h-10">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <Avatar className="w-10 h-10 shrink-0">
                             <AvatarFallback>
                               <Mail className="w-4 h-4" />
                             </AvatarFallback>
                           </Avatar>
-                          <div>
-                            <p className="font-medium">{invite.email}</p>
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">
+                              {invite.email}
+                            </p>
                             <p className="text-sm text-muted-foreground">
                               Invited{" "}
                               {invite.invitedAt
@@ -732,12 +772,12 @@ function TeamManagementPage() {
                                   ).toLocaleDateString()
                                 : ""}
                             </p>
-                            <p className="text-xs text-muted-foreground mt-0.5">
+                            <p className="mt-0.5 truncate text-xs text-muted-foreground">
                               {pendingAffiliate || "Independent"}
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex shrink-0 items-center gap-2">
                           {isRegisteredUser && isExpired && (
                             <Button
                               variant="outline"
@@ -766,19 +806,9 @@ function TeamManagementPage() {
                               </Button>
                             )}
                           {isExpired ? (
-                            <Badge
-                              variant="outline"
-                              className="text-destructive"
-                            >
-                              Expired
-                            </Badge>
+                            <StatusBadge tone="expired">Expired</StatusBadge>
                           ) : (
-                            <Badge
-                              variant="outline"
-                              className="text-yellow-600"
-                            >
-                              Pending
-                            </Badge>
+                            <StatusBadge tone="pending">Pending</StatusBadge>
                           )}
                         </div>
                       </div>
