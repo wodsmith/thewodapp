@@ -557,14 +557,13 @@ async function withVolunteerSignupLock<T>(
   callback: () => Promise<T>,
 ) {
   let acquired = false
-  const lockExpression = sql`SHA2(CONCAT('crew-volunteer:', ${competitionTeamId}, ':', ${email}), 256)`
+  const lockName = await createVolunteerSignupLockName(competitionTeamId, email)
 
   try {
-    const result = await db.execute<VolunteerSignupLockRow>(
-      sql`SELECT GET_LOCK(${lockExpression}, 5) AS acquired`,
+    const result = await db.execute(
+      sql`SELECT GET_LOCK(${lockName}, 5) FROM dual`,
     )
-    const rows = getExecuteRows<VolunteerSignupLockRow>(result)
-    acquired = Number(rows[0]?.acquired ?? 0) === 1
+    acquired = Number(getFirstExecuteValue(result) ?? 0) === 1
     if (!acquired) {
       throw new Error("Volunteer application could not be saved")
     }
@@ -572,13 +571,22 @@ async function withVolunteerSignupLock<T>(
     return await callback()
   } finally {
     if (acquired) {
-      await db.execute(sql`SELECT RELEASE_LOCK(${lockExpression})`)
+      await db.execute(sql`SELECT RELEASE_LOCK(${lockName}) FROM dual`)
     }
   }
 }
 
-interface VolunteerSignupLockRow {
-  acquired: number | string | null
+async function createVolunteerSignupLockName(
+  competitionTeamId: string,
+  email: string,
+) {
+  const encoded = new TextEncoder().encode(
+    `crew-volunteer:${competitionTeamId}:${email}`,
+  )
+  const digest = await crypto.subtle.digest("SHA-256", encoded)
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("")
 }
 
 function getExecuteRows<T>(result: unknown): T[] {
@@ -588,6 +596,13 @@ function getExecuteRows<T>(result: unknown): T[] {
   }
 
   return ((result as { rows?: T[] })?.rows ?? []) as T[]
+}
+
+function getFirstExecuteValue(result: unknown): unknown {
+  const [row] = getExecuteRows<unknown>(result)
+  if (Array.isArray(row)) return row[0]
+  if (row && typeof row === "object") return Object.values(row)[0]
+  return row
 }
 
 function parseQuestionOptions(options: string | null): string[] | null {
