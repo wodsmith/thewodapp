@@ -44,6 +44,28 @@ Calculator inputs are normalized before rendering and calculation: counts are wh
 
 Operator-facing durations render in compact hour/minute labels so workout block and shift length summaries stay scannable.
 
+## Import CSV Preview
+
+Crew import preview is a private operator workflow for CSV-only volunteer and heat schedule uploads.
+
+[[apps/crew/src/routes/events/$eventId/imports.tsx]] renders upload, mapping, warnings, and history. [[apps/crew/src/routes/api/crew/import.ts]] accepts private preview uploads, while [[apps/crew/src/lib/crew/imports/preview.ts]] and [[apps/crew/src/server/crew-imports.ts]] parse and persist previews without applying rows.
+
+### Private Upload Route
+
+The Crew import upload route is `/api/crew/import`. It is separate from the existing public file upload path and does not write uploaded files to public object storage.
+
+### Parser Warnings
+
+CSV preview reports file-level errors, malformed rows, missing required fields, duplicate volunteer emails, unknown roles, unknown divisions, unknown workouts, and unknown existing heat references before any apply step exists.
+
+### Preview Records
+
+Preview persistence stores import metadata, headers, column mapping, summary counts, raw row payloads, normalized row payloads, planned actions, warnings, and errors in the Crew import tables.
+
+### No Apply
+
+This slice is preview and history only. Applying volunteer invitations, volunteer memberships, heat schedule rows, roster rows, shifts, and assignment confirmations belongs to later Crew import PRs.
+
 ## Add Thin Crew Tables
 
 Crew-owned database tables live in `@repo/wodsmith-db` so Start and Crew consume one shared schema source. App DB files remain forwarding shims and do not own `mysqlTable` definitions.
