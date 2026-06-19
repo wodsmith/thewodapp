@@ -45,6 +45,12 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import type { CohostMembershipMetadata } from "@/db/schemas/cohost"
+import {
+  competitionCan,
+  resultsNavLabel,
+} from "@/lib/competitions/capabilities"
+import { canUseHeatScheduling } from "@/lib/competitions/scheduling-check-in-gates"
+import { canDisplayPhysicalVenue } from "@/lib/competitions/venue-volunteer-gates"
 
 interface CohostSidebarProps {
   competitionId: string
@@ -70,161 +76,167 @@ const getNavigation = (
   basePath: string,
   competitionType?: "in-person" | "online",
   permissions?: CohostMembershipMetadata,
-): { overview: NavItem; groups: NavGroup[] } => ({
-  overview: {
-    label: "Overview",
-    href: basePath,
-    icon: Home,
-  },
-  groups: [
-    {
-      label: "Competition Setup",
-      items: [
-        ...(permissions?.divisions
-          ? [
-              {
-                label: "Divisions",
-                href: `${basePath}/divisions`,
-                icon: Layers,
-              },
-            ]
-          : []),
-        ...(permissions?.editEvents
-          ? [
-              { label: "Events", href: `${basePath}/events`, icon: Trophy },
-              ...(competitionType === "online"
-                ? [
-                    {
-                      label: "Submission windows",
-                      href: `${basePath}/submission-windows`,
-                      icon: Clock,
-                    },
-                  ]
-                : []),
-            ]
-          : []),
-        ...(permissions?.locations
-          ? [
-              {
-                label: "Locations",
-                href: `${basePath}/locations`,
-                icon: MapPin,
-              },
-            ]
-          : []),
-        ...(permissions?.scoringConfig
-          ? [
-              {
-                label: "Scoring",
-                href: `${basePath}/scoring`,
-                icon: Calculator,
-              },
-            ]
-          : []),
-        ...(permissions?.viewRegistrations
-          ? [
-              {
-                label: "Registrations",
-                href: `${basePath}/athletes`,
-                icon: Users,
-              },
-            ]
-          : []),
-        ...(permissions?.waivers
-          ? [
-              {
-                label: "Waivers",
-                href: `${basePath}/waivers`,
-                icon: ClipboardSignature,
-              },
-            ]
-          : []),
-      ],
+): { overview: NavItem; groups: NavGroup[] } => {
+  const type = competitionType ?? ""
+
+  return {
+    overview: {
+      label: "Overview",
+      href: basePath,
+      icon: Home,
     },
-    {
-      label: "Run Competition",
-      items: [
-        ...(competitionType !== "online" && permissions?.schedule
-          ? [
-              {
-                label: "Schedule",
-                href: `${basePath}/schedule`,
-                icon: Calendar,
-              },
-            ]
-          : []),
-        ...(permissions?.volunteers
-          ? [
-              {
-                label: "Volunteers",
-                href: `${basePath}/volunteers`,
-                icon: UserCheck,
-              },
-            ]
-          : []),
-        ...(permissions?.results
-          ? [
-              {
-                label: competitionType === "online" ? "Submissions" : "Results",
-                href: `${basePath}/results`,
-                icon: Medal,
-              },
-            ]
-          : []),
-        ...(permissions?.leaderboardPreview
-          ? [
-              {
-                label: "Leaderboard preview",
-                href: `${basePath}/leaderboard-preview`,
-                icon: BarChart3,
-              },
-            ]
-          : []),
-      ],
-    },
-    {
-      label: "Business",
-      items: [
-        ...(permissions?.pricing
-          ? [
-              {
-                label: "Pricing",
-                href: `${basePath}/pricing`,
-                icon: ReceiptText,
-              },
-            ]
-          : []),
-        ...(permissions?.revenue
-          ? [
-              {
-                label: "Revenue",
-                href: `${basePath}/revenue`,
-                icon: DollarSign,
-              },
-            ]
-          : []),
-        ...(permissions?.coupons
-          ? [
-              {
-                label: "Coupons",
-                href: `${basePath}/coupons`,
-                icon: Tag,
-              },
-            ]
-          : []),
-        ...(permissions?.sponsors
-          ? [
-              {
-                label: "Sponsors",
-                href: `${basePath}/sponsors`,
-                icon: Sparkles,
-              },
-            ]
-          : []),
-      ],
-    },
-  ].filter((group) => group.items.length > 0),
-})
+    groups: [
+      {
+        label: "Competition Setup",
+        items: [
+          ...(permissions?.divisions
+            ? [
+                {
+                  label: "Divisions",
+                  href: `${basePath}/divisions`,
+                  icon: Layers,
+                },
+              ]
+            : []),
+          ...(permissions?.editEvents
+            ? [
+                { label: "Events", href: `${basePath}/events`, icon: Trophy },
+                ...(competitionCan(type, "submissionWindows")
+                  ? [
+                      {
+                        label: "Submission windows",
+                        href: `${basePath}/submission-windows`,
+                        icon: Clock,
+                      },
+                    ]
+                  : []),
+              ]
+            : []),
+          ...(permissions?.locations && canDisplayPhysicalVenue(type)
+            ? [
+                {
+                  label: "Locations",
+                  href: `${basePath}/locations`,
+                  icon: MapPin,
+                },
+              ]
+            : []),
+          ...(permissions?.scoringConfig
+            ? [
+                {
+                  label: "Scoring",
+                  href: `${basePath}/scoring`,
+                  icon: Calculator,
+                },
+              ]
+            : []),
+          ...(permissions?.viewRegistrations
+            ? [
+                {
+                  label: "Registrations",
+                  href: `${basePath}/athletes`,
+                  icon: Users,
+                },
+              ]
+            : []),
+          ...(permissions?.waivers
+            ? [
+                {
+                  label: "Waivers",
+                  href: `${basePath}/waivers`,
+                  icon: ClipboardSignature,
+                },
+              ]
+            : []),
+        ],
+      },
+      {
+        label: "Run Competition",
+        items: [
+          ...(permissions?.schedule && canUseHeatScheduling(type)
+            ? [
+                {
+                  label: "Schedule",
+                  href: `${basePath}/schedule`,
+                  icon: Calendar,
+                },
+              ]
+            : []),
+          ...(permissions?.volunteers
+            ? [
+                {
+                  label: "Volunteers",
+                  href: `${basePath}/volunteers`,
+                  icon: UserCheck,
+                },
+              ]
+            : []),
+          ...(permissions?.results
+            ? [
+                {
+                  label: resultsNavLabel(type),
+                  href: `${basePath}/results`,
+                  icon: Medal,
+                },
+              ]
+            : []),
+          ...(permissions?.leaderboardPreview
+            ? [
+                {
+                  label: "Leaderboard preview",
+                  href: `${basePath}/leaderboard-preview`,
+                  icon: BarChart3,
+                },
+              ]
+            : []),
+        ],
+      },
+      {
+        label: "Business",
+        items: [
+          ...(permissions?.pricing
+            ? [
+                {
+                  label: "Pricing",
+                  href: `${basePath}/pricing`,
+                  icon: ReceiptText,
+                },
+              ]
+            : []),
+          ...(permissions?.revenue
+            ? [
+                {
+                  label: "Revenue",
+                  href: `${basePath}/revenue`,
+                  icon: DollarSign,
+                },
+              ]
+            : []),
+          ...(permissions?.coupons
+            ? [
+                {
+                  label: "Coupons",
+                  href: `${basePath}/coupons`,
+                  icon: Tag,
+                },
+              ]
+            : []),
+          ...(permissions?.sponsors
+            ? [
+                {
+                  label: "Sponsors",
+                  href: `${basePath}/sponsors`,
+                  icon: Sparkles,
+                },
+              ]
+            : []),
+        ],
+      },
+    ].filter((group) => group.items.length > 0),
+  }
+}
+
+export const getCohostSidebarNavigation = getNavigation
 
 function NavMenuItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
   const Icon = item.icon

@@ -19,6 +19,10 @@ import {
 } from "@/db/schemas/competitions"
 import { TEAM_PERMISSIONS, type Team, teamTable } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
+import {
+  type CompetitionTypeId,
+  isSelectableCompetitionTypeValue,
+} from "@/lib/competitions/capabilities"
 import { getEvlog } from "@/lib/evlog"
 import {
   addRequestContextAttribute,
@@ -92,7 +96,12 @@ const createCompetitionInputSchema = z.object({
   groupId: z.string().optional(),
   settings: z.string().optional(),
   timezone: z.string().optional(),
-  competitionType: z.enum(["in-person", "online"]).optional(),
+  competitionType: z
+    .custom<CompetitionTypeId>(
+      isSelectableCompetitionTypeValue,
+      "Select a supported competition type",
+    )
+    .optional(),
 })
 
 const updateCompetitionInputSchema = z.object({
@@ -108,7 +117,12 @@ const updateCompetitionInputSchema = z.object({
   settings: z.string().nullable().optional(),
   visibility: z.enum(["public", "private"]).optional(),
   status: z.enum(["draft", "published"]).optional(),
-  competitionType: z.enum(["in-person", "online"]).optional(),
+  competitionType: z
+    .custom<CompetitionTypeId>(
+      isSelectableCompetitionTypeValue,
+      "Select a supported competition type",
+    )
+    .optional(),
   profileImageUrl: z.string().nullable().optional(),
   bannerImageUrl: z.string().nullable().optional(),
   timezone: z.string().optional(),

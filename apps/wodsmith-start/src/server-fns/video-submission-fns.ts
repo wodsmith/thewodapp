@@ -38,6 +38,7 @@ import {
 import { videoVotesTable } from "@/db/schemas/video-votes"
 import type { TiebreakScheme } from "@/db/schemas/workouts"
 import { workouts } from "@/db/schemas/workouts"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import {
   computeSortKey,
   decodeScore,
@@ -109,7 +110,7 @@ function getStatusOrder(status: "scored" | "cap"): number {
 
 /**
  * Check if current time is within the event's submission window.
- * Only applies to online competitions.
+ * Only applies to competitions with video submissions.
  */
 async function checkSubmissionWindow(
   competitionId: string,
@@ -159,8 +160,7 @@ async function checkSubmissionWindow(
     return { allowed: false, reason: "Competition not found" }
   }
 
-  // Only check submission windows for online competitions
-  if (competition.competitionType !== "online") {
+  if (!competitionCan(competition.competitionType, "videoSubmissions")) {
     return {
       allowed: false,
       reason: "Video submissions are only for online competitions",

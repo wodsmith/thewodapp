@@ -24,6 +24,12 @@ Crew staffing matrix core is a pure data-shape layer for deriving event staffing
 
 The matrix core is read-only. It does not create shifts, assign volunteers, publish judge rotations, send reminders, mutate imports, or add Crew schema.
 
+## Roster Shifts Assignments
+
+Roster shifts assignments normalize volunteer invitations, memberships, shifts, and heat assignments into one Crew roster model for staffing views.
+
+The pure helpers preserve source identity for invitations and memberships, derive roster status, and keep role, availability, credential, import, and assignment details together so Crew pages can render staffing state without mutating event data.
+
 ## Staffing Page Gap Report
 
 Crew staffing pages expose the matrix core as a read-only event operations report.
@@ -93,6 +99,18 @@ Preview persistence stores import metadata, headers, column mapping, summary cou
 ### No Apply
 
 This slice is preview and history only. Applying volunteer invitations, volunteer memberships, heat schedule rows, roster rows, shifts, and assignment confirmations belongs to later Crew import PRs.
+
+## Import Apply
+
+Crew import apply turns previewed rows into persisted volunteer, heat, shift, and assignment records only after an operator confirms the import.
+
+The apply layer consumes parser output from the preview slice, plans create/update/skip/error operations, and returns summaries that can be persisted for audit without re-parsing the uploaded file.
+
+### Confirmed Mutation
+
+The confirmed mutation is the only apply path allowed to create or update Crew roster and scheduling data from parsed import rows.
+
+It keeps the destructive boundary explicit: preview remains read-only, while confirmation can create invitations, update memberships, and attach import metadata to the resulting records.
 
 ## Add Thin Crew Tables
 

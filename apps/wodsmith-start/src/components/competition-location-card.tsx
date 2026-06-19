@@ -1,11 +1,12 @@
 import { GlobeIcon, InfoIcon, MapPinIcon } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { canDisplayPhysicalVenue } from "@/lib/competitions/venue-volunteer-gates"
 import type { Address } from "@/types/address"
 import { formatFullAddress, hasAddressData } from "@/utils/address"
 
 interface CompetitionLocationCardProps {
   address: Partial<Address> | null
-  competitionType: "in-person" | "online"
+  competitionType: string
   organizingTeamName?: string | null
 }
 
@@ -14,40 +15,40 @@ export function CompetitionLocationCard({
   competitionType,
   organizingTeamName,
 }: CompetitionLocationCardProps) {
-  const isOnline = competitionType === "online"
+  const hasPhysicalVenue = canDisplayPhysicalVenue(competitionType)
   const hasAddress = hasAddressData(address)
 
   return (
     <Card className="border-white/10 bg-white/5 backdrop-blur-md">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          {isOnline ? (
+          {hasPhysicalVenue ? (
             <>
-              <GlobeIcon className="h-5 w-5" />
+              <MapPinIcon className="h-5 w-5" />
               Location
             </>
           ) : (
             <>
-              <MapPinIcon className="h-5 w-5" />
+              <GlobeIcon className="h-5 w-5" />
               Location
             </>
           )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {isOnline ? (
-          <p className="text-muted-foreground">
-            This is an online competition. No physical location required.
-          </p>
-        ) : hasAddress ? (
+        {hasPhysicalVenue && hasAddress ? (
           <div className="whitespace-pre-line">
             {formatFullAddress(address)}
           </div>
-        ) : (
+        ) : hasPhysicalVenue ? (
           <p className="text-muted-foreground">
             {organizingTeamName
               ? `Hosted by ${organizingTeamName}`
               : "Location to be announced"}
+          </p>
+        ) : (
+          <p className="text-muted-foreground">
+            This is an online competition. No physical location required.
           </p>
         )}
 

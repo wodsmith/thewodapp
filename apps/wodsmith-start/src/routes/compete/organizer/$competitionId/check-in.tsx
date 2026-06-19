@@ -10,6 +10,7 @@
 import { createFileRoute, getRouteApi, redirect } from "@tanstack/react-router"
 import { ClipboardCheck, ExternalLink } from "lucide-react"
 import { OrganizerEmptyState } from "@/components/organizer/empty-state"
+import { canUseDayOfCheckIn } from "@/lib/competitions/scheduling-check-in-gates"
 
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
 
@@ -19,8 +20,7 @@ export const Route = createFileRoute("/compete/organizer/$competitionId/check-in
       const parentMatch = await parentMatchPromise
       const competition = parentMatch.loaderData?.competition
 
-      // Check-in only exists for in-person competitions
-      if (!competition || competition.competitionType === "online") {
+      if (!competition || !canUseDayOfCheckIn(competition.competitionType)) {
         throw redirect({
           to: "/compete/organizer/$competitionId",
           params: { competitionId: params.competitionId },

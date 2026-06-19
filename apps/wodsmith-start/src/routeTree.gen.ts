@@ -25,7 +25,6 @@ import { Route as CompeteCohostInviteRouteImport } from './routes/compete/cohost
 import { Route as CompeteCohostRouteImport } from './routes/compete/cohost'
 import { Route as CompeteSlugRouteImport } from './routes/compete/$slug'
 import { Route as ApiUploadRouteImport } from './routes/api/upload'
-import { Route as ApiUploadDocsVideoRouteImport } from './routes/api/upload/docs-video'
 import { Route as ApiSitemapRouteImport } from './routes/api/sitemap'
 import { Route as ApiGetSessionRouteImport } from './routes/api/get-session'
 import { Route as ProtectedSettingsRouteImport } from './routes/_protected/settings'
@@ -75,6 +74,7 @@ import { Route as CompeteSlugBroadcastsRouteImport } from './routes/compete/$slu
 import { Route as CompeteSlugAnnouncementsRouteImport } from './routes/compete/$slug/announcements'
 import { Route as ApiWorkoutsSearchRouteImport } from './routes/api/workouts/search'
 import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
+import { Route as ApiUploadDocsVideoRouteImport } from './routes/api/upload/docs-video'
 import { Route as ApiAuthTokenRouteImport } from './routes/api/auth/token'
 import { Route as AdminTeamsScheduleRouteImport } from './routes/admin/teams/schedule'
 import { Route as AdminTeamsTeamIdRouteImport } from './routes/admin/teams/$teamId'
@@ -298,11 +298,6 @@ const ApiUploadRoute = ApiUploadRouteImport.update({
   id: '/api/upload',
   path: '/api/upload',
   getParentRoute: () => rootRouteImport,
-} as any)
-const ApiUploadDocsVideoRoute = ApiUploadDocsVideoRouteImport.update({
-  id: '/docs-video',
-  path: '/docs-video',
-  getParentRoute: () => ApiUploadRoute,
 } as any)
 const ApiSitemapRoute = ApiSitemapRouteImport.update({
   id: '/api/sitemap',
@@ -558,6 +553,11 @@ const ApiWebhooksStripeRoute = ApiWebhooksStripeRouteImport.update({
   id: '/api/webhooks/stripe',
   path: '/api/webhooks/stripe',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ApiUploadDocsVideoRoute = ApiUploadDocsVideoRouteImport.update({
+  id: '/docs-video',
+  path: '/docs-video',
+  getParentRoute: () => ApiUploadRoute,
 } as any)
 const ApiAuthTokenRoute = ApiAuthTokenRouteImport.update({
   id: '/api/auth/token',
@@ -1438,7 +1438,6 @@ export interface FileRoutesByFullPath {
   '/api/get-session': typeof ApiGetSessionRoute
   '/api/sitemap': typeof ApiSitemapRoute
   '/api/upload': typeof ApiUploadRouteWithChildren
-  '/api/upload/docs-video': typeof ApiUploadDocsVideoRoute
   '/compete/$slug': typeof CompeteSlugRouteWithChildren
   '/compete/cohost': typeof CompeteCohostRouteWithChildren
   '/compete/cohost-invite': typeof CompeteCohostInviteRouteWithChildren
@@ -1451,6 +1450,7 @@ export interface FileRoutesByFullPath {
   '/admin/teams/$teamId': typeof AdminTeamsTeamIdRouteWithChildren
   '/admin/teams/schedule': typeof AdminTeamsScheduleRouteWithChildren
   '/api/auth/token': typeof ApiAuthTokenRouteWithChildren
+  '/api/upload/docs-video': typeof ApiUploadDocsVideoRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
   '/compete/$slug/announcements': typeof CompeteSlugAnnouncementsRoute
@@ -1645,7 +1645,6 @@ export interface FileRoutesByTo {
   '/api/get-session': typeof ApiGetSessionRoute
   '/api/sitemap': typeof ApiSitemapRoute
   '/api/upload': typeof ApiUploadRouteWithChildren
-  '/api/upload/docs-video': typeof ApiUploadDocsVideoRoute
   '/compete/cohost': typeof CompeteCohostRouteWithChildren
   '/compete/cohost-invite': typeof CompeteCohostInviteRouteWithChildren
   '/compete/organizer': typeof CompeteOrganizerDashboardIndexRoute
@@ -1655,6 +1654,7 @@ export interface FileRoutesByTo {
   '/admin/docs/$docId': typeof AdminDocsDocIdRoute
   '/admin/docs/new': typeof AdminDocsNewRoute
   '/api/auth/token': typeof ApiAuthTokenRouteWithChildren
+  '/api/upload/docs-video': typeof ApiUploadDocsVideoRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
   '/compete/$slug/announcements': typeof CompeteSlugAnnouncementsRoute
@@ -1846,7 +1846,6 @@ export interface FileRoutesById {
   '/api/get-session': typeof ApiGetSessionRoute
   '/api/sitemap': typeof ApiSitemapRoute
   '/api/upload': typeof ApiUploadRouteWithChildren
-  '/api/upload/docs-video': typeof ApiUploadDocsVideoRoute
   '/compete/$slug': typeof CompeteSlugRouteWithChildren
   '/compete/cohost': typeof CompeteCohostRouteWithChildren
   '/compete/cohost-invite': typeof CompeteCohostInviteRouteWithChildren
@@ -1859,6 +1858,7 @@ export interface FileRoutesById {
   '/admin/teams/$teamId': typeof AdminTeamsTeamIdRouteWithChildren
   '/admin/teams/schedule': typeof AdminTeamsScheduleRouteWithChildren
   '/api/auth/token': typeof ApiAuthTokenRouteWithChildren
+  '/api/upload/docs-video': typeof ApiUploadDocsVideoRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/api/workouts/search': typeof ApiWorkoutsSearchRoute
   '/compete/$slug/announcements': typeof CompeteSlugAnnouncementsRoute
@@ -2059,7 +2059,6 @@ export interface FileRouteTypes {
     | '/api/get-session'
     | '/api/sitemap'
     | '/api/upload'
-    | '/api/upload/docs-video'
     | '/compete/$slug'
     | '/compete/cohost'
     | '/compete/cohost-invite'
@@ -2072,6 +2071,7 @@ export interface FileRouteTypes {
     | '/admin/teams/$teamId'
     | '/admin/teams/schedule'
     | '/api/auth/token'
+    | '/api/upload/docs-video'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
     | '/compete/$slug/announcements'
@@ -2266,7 +2266,6 @@ export interface FileRouteTypes {
     | '/api/get-session'
     | '/api/sitemap'
     | '/api/upload'
-    | '/api/upload/docs-video'
     | '/compete/cohost'
     | '/compete/cohost-invite'
     | '/compete/organizer'
@@ -2276,6 +2275,7 @@ export interface FileRouteTypes {
     | '/admin/docs/$docId'
     | '/admin/docs/new'
     | '/api/auth/token'
+    | '/api/upload/docs-video'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
     | '/compete/$slug/announcements'
@@ -2466,7 +2466,6 @@ export interface FileRouteTypes {
     | '/api/get-session'
     | '/api/sitemap'
     | '/api/upload'
-    | '/api/upload/docs-video'
     | '/compete/$slug'
     | '/compete/cohost'
     | '/compete/cohost-invite'
@@ -2479,6 +2478,7 @@ export interface FileRouteTypes {
     | '/admin/teams/$teamId'
     | '/admin/teams/schedule'
     | '/api/auth/token'
+    | '/api/upload/docs-video'
     | '/api/webhooks/stripe'
     | '/api/workouts/search'
     | '/compete/$slug/announcements'
@@ -2810,13 +2810,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/upload'
       preLoaderRoute: typeof ApiUploadRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/api/upload/docs-video': {
-      id: '/api/upload/docs-video'
-      path: '/docs-video'
-      fullPath: '/api/upload/docs-video'
-      preLoaderRoute: typeof ApiUploadDocsVideoRouteImport
-      parentRoute: typeof ApiUploadRoute
     }
     '/api/sitemap': {
       id: '/api/sitemap'
@@ -3160,6 +3153,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/webhooks/stripe'
       preLoaderRoute: typeof ApiWebhooksStripeRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/upload/docs-video': {
+      id: '/api/upload/docs-video'
+      path: '/docs-video'
+      fullPath: '/api/upload/docs-video'
+      preLoaderRoute: typeof ApiUploadDocsVideoRouteImport
+      parentRoute: typeof ApiUploadRoute
     }
     '/api/auth/token': {
       id: '/api/auth/token'
@@ -4869,8 +4869,9 @@ const ApiUploadRouteChildren: ApiUploadRouteChildren = {
   ApiUploadDocsVideoRoute: ApiUploadDocsVideoRoute,
 }
 
-const ApiUploadRouteWithChildren =
-  ApiUploadRoute._addFileChildren(ApiUploadRouteChildren)
+const ApiUploadRouteWithChildren = ApiUploadRoute._addFileChildren(
+  ApiUploadRouteChildren,
+)
 
 interface ApiAuthTokenRouteChildren {
   ApiAuthTokenRefreshRoute: typeof ApiAuthTokenRefreshRoute

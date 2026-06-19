@@ -10,6 +10,7 @@ import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router"
 import { z } from "zod"
 import type { JudgeAssignmentVersion } from "@/db/schema"
 import type { LaneShiftPattern } from "@/db/schemas/volunteers"
+import { canUseHeatScheduling } from "@/lib/competitions/scheduling-check-in-gates"
 import { getHeatsForCompetitionFn } from "@/server-fns/competition-heats-fns"
 import { getCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
 import {
@@ -47,8 +48,8 @@ export const Route = createFileRoute(
       throw new Error("Competition team not found")
     }
 
-    // Judge scheduling only applies to in-person competitions
-    if (competition.competitionType !== "in-person") {
+    // Judge scheduling only applies to competition types with heat scheduling.
+    if (!canUseHeatScheduling(competition.competitionType)) {
       throw redirect({
         to: "/compete/organizer/$competitionId/volunteers",
         params: { competitionId: params.competitionId },

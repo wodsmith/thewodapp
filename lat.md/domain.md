@@ -69,7 +69,7 @@ Each venue has a name, address, and capacity. Heats can be assigned to specific 
 
 One-way messages from organizers to competition athletes, delivered in-app and via email.
 
-Defined in [[apps/wodsmith-start/src/db/schemas/broadcasts.ts#competitionBroadcastsTable]] and [[apps/wodsmith-start/src/db/schemas/broadcasts.ts#competitionBroadcastRecipientsTable]]. Each broadcast targets a filtered audience via a JSON `audienceFilter`: all athletes, athletes by division, all volunteers, volunteers by role, or public (everyone). The audience can be further narrowed by registration question answers via an optional `questionFilters` array — multiple question filters are AND'd, with OR logic within each filter's values. Email delivery is handled asynchronously via Cloudflare Queue with Resend, using per-recipient idempotency keys to prevent duplicates on retry. Recipient delivery status tracks `queued`, `sent`, `failed`, or `skipped` (used when email is disabled or no API key is configured).
+Defined in [[packages/wodsmith-db/src/schemas/broadcasts.ts#competitionBroadcastsTable]] and [[packages/wodsmith-db/src/schemas/broadcasts.ts#competitionBroadcastRecipientsTable]]. Each broadcast targets a filtered audience via a JSON `audienceFilter`: all athletes, athletes by division, all volunteers, volunteers by role, or public (everyone). The audience can be further narrowed by registration question answers via an optional `questionFilters` array — multiple question filters are AND'd, with OR logic within each filter's values. Email delivery is handled asynchronously via Cloudflare Queue with Resend, using per-recipient idempotency keys to prevent duplicates on retry. Recipient delivery status tracks `queued`, `sent`, `failed`, or `skipped` (used when email is disabled or no API key is configured).
 
 ## Workouts
 
@@ -178,7 +178,7 @@ Legal documents that athletes and volunteers must sign before participating.
 
 Organizers create waiver templates per competition. Waivers can be required for athletes, volunteers, or both. Only athlete-required waivers appear in athlete registration and invite flows. Volunteers sign volunteer-required waivers during public signup or direct invite acceptance. Signature and acceptance timestamps are recorded.
 
-The waiver schema stores the athlete requirement as `required` and volunteer requirement as `requiredForVolunteers` / `required_for_volunteers` on [[apps/wodsmith-start/src/db/schemas/waivers.ts#waiversTable]].
+The waiver schema stores the athlete requirement as `required` and volunteer requirement as `requiredForVolunteers` / `required_for_volunteers` on [[packages/wodsmith-db/src/schemas/waivers.ts#waiversTable]].
 
 ## Video Submissions
 

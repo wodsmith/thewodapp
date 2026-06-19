@@ -17,20 +17,22 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { cohostGetRevenueStatsFn } from "@/server-fns/cohost/cohost-revenue-fns"
+import { competitionCan } from "@/lib/competitions/capabilities"
+import { canUseHeatScheduling } from "@/lib/competitions/scheduling-check-in-gates"
 import { cohostGetRegistrationsFn } from "@/server-fns/cohost/cohost-competition-fns"
-import {
-  cohostGetWorkoutsFn,
-  cohostUpdateWorkoutFn,
-} from "@/server-fns/cohost/cohost-workout-fns"
-import { cohostGetHeatsForCompetitionFn } from "@/server-fns/cohost/cohost-schedule-fns"
 import { cohostGetCompetitionEventsFn } from "@/server-fns/cohost/cohost-event-fns"
 import {
   type AllEventsResultsStatusResponse,
   cohostGetDivisionResultsStatusFn,
-  cohostPublishDivisionResultsFn,
   cohostPublishAllDivisionResultsFn,
+  cohostPublishDivisionResultsFn,
 } from "@/server-fns/cohost/cohost-results-fns"
+import { cohostGetRevenueStatsFn } from "@/server-fns/cohost/cohost-revenue-fns"
+import { cohostGetHeatsForCompetitionFn } from "@/server-fns/cohost/cohost-schedule-fns"
+import {
+  cohostGetWorkoutsFn,
+  cohostUpdateWorkoutFn,
+} from "@/server-fns/cohost/cohost-workout-fns"
 import {
   formatUTCDateFull,
   getLocalDateKey,
@@ -52,7 +54,11 @@ export const Route = createFileRoute("/compete/cohost/$competitionId/")({
     const { competition } = parentMatch.loaderData!
 
     const competitionTeamId = competition.competitionTeamId!
-    const isOnline = competition.competitionType === "online"
+    const usesSubmissionWindows = competitionCan(
+      competition.competitionType,
+      "submissionWindows",
+    )
+    const usesHeatScheduling = canUseHeatScheduling(competition.competitionType)
 
     // Parallel fetch: registrations, revenue stats, events, heats/submission windows, and division results
     const [
@@ -68,27 +74,39 @@ export const Route = createFileRoute("/compete/cohost/$competitionId/")({
       }).catch(() => ({ registrations: [] })),
       cohostGetRevenueStatsFn({
         data: { competitionId: params.competitionId, competitionTeamId },
-      }).catch(() => ({ stats: { totalGrossCents: 0, totalOrganizerNetCents: 0, purchaseCount: 0 } })),
+      }).catch(() => ({
+        stats: {
+          totalGrossCents: 0,
+          totalOrganizerNetCents: 0,
+          purchaseCount: 0,
+        },
+      })),
       cohostGetWorkoutsFn({
         data: {
           competitionId: params.competitionId,
           competitionTeamId,
         },
       }).catch(() => ({ workouts: [] })),
-      // Only fetch heats for in-person competitions
-      isOnline
-        ? Promise.resolve({ heats: [] })
-        : cohostGetHeatsForCompetitionFn({
+      usesHeatScheduling
+        ? cohostGetHeatsForCompetitionFn({
             data: { competitionId: params.competitionId, competitionTeamId },
-          }).catch(() => ({ heats: [] })),
+          }).catch(() => ({ heats: [] }))
+        : Promise.resolve({ heats: [] }),
       cohostGetDivisionResultsStatusFn({
         data: {
           competitionId: params.competitionId,
           competitionTeamId,
         },
-      }).catch(() => ({ divisions: [], events: [], totalPublishedCount: 0, totalCombinations: 0 } as AllEventsResultsStatusResponse)),
-      // Fetch competition events (submission windows) for online competitions
-      isOnline
+      }).catch(
+        () =>
+          ({
+            divisions: [],
+            events: [],
+            totalPublishedCount: 0,
+            totalCombinations: 0,
+          }) as AllEventsResultsStatusResponse,
+      ),
+      usesSubmissionWindows
         ? cohostGetCompetitionEventsFn({
             data: { competitionId: params.competitionId, competitionTeamId },
           }).catch(() => ({ events: [] }))
@@ -104,7 +122,8 @@ export const Route = createFileRoute("/compete/cohost/$competitionId/")({
       divisionResults: divisionResultsResult as AllEventsResultsStatusResponse,
       competitionTeamId,
       competitionEvents: competitionEventsResult.events,
-      isOnline,
+      usesSubmissionWindows,
+      usesHeatScheduling,
       timezone: competition.timezone || "America/Denver",
     }
   },
@@ -123,7 +142,8 @@ function CohostOverviewPage() {
     divisionResults,
     competitionTeamId,
     competitionEvents,
-    isOnline,
+    usesSubmissionWindows,
+    usesHeatScheduling,
     timezone,
   } = Route.useLoaderData()
   // Get competition and permissions from parent layout loader data
@@ -131,8 +151,12 @@ function CohostOverviewPage() {
 
   // Cohost server fn wrappers — these use competitionTeamId instead of organizingTeamId
   const cohostUpdateWorkout = useServerFn(cohostUpdateWorkoutFn)
-  const cohostPublishDivisionResults = useServerFn(cohostPublishDivisionResultsFn)
-  const cohostPublishAllDivisionResults = useServerFn(cohostPublishAllDivisionResultsFn)
+  const cohostPublishDivisionResults = useServerFn(
+    cohostPublishDivisionResultsFn,
+  )
+  const cohostPublishAllDivisionResults = useServerFn(
+    cohostPublishAllDivisionResultsFn,
+  )
 
   const handleCohostUpdateWorkout = async (params: {
     trackWorkoutId: string
@@ -244,12 +268,13 @@ function CohostOverviewPage() {
               organizingTeamId={competitionTeamId}
               divisionResults={divisionResults}
               onPublishDivisionResults={handleCohostPublishDivisionResults}
-              onPublishAllDivisionResults={handleCohostPublishAllDivisionResults}
+              onPublishAllDivisionResults={
+                handleCohostPublishAllDivisionResults
+              }
             />
           )}
 
-          {/* Submission Windows (online) or Heat Schedules (in-person) */}
-          {isOnline ? (
+          {usesSubmissionWindows ? (
             <QuickActionsSubmissionWindows
               competitionId={competition.id}
               events={events}
@@ -257,7 +282,7 @@ function CohostOverviewPage() {
               timezone={timezone}
               routePrefix="/compete/cohost"
             />
-          ) : (
+          ) : usesHeatScheduling ? (
             <QuickActionsHeats
               events={events}
               heats={heats}
@@ -265,7 +290,7 @@ function CohostOverviewPage() {
               competitionSlug={competition.slug}
               onUpdateWorkout={handleCohostUpdateWorkout}
             />
-          )}
+          ) : null}
 
           {/* Events publish toggle — only shown if cohost has editEvents permission */}
           {permissions?.editEvents && (

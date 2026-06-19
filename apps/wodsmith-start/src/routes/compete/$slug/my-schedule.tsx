@@ -1,6 +1,7 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router"
 import { ArrowLeft, ClipboardCheck, ClipboardList } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { canRunDayOfCheckIn } from "@/lib/competitions/scheduling-check-in-gates"
 import { canInputScoresFn } from "@/server-fns/volunteer-fns"
 import {
   getVolunteerMembershipFn,
@@ -29,12 +30,11 @@ export const Route = createFileRoute("/compete/$slug/my-schedule")({
       throw new Error("Competition not found")
     }
 
-    // Volunteers and organizers can run the day-of check-in kiosk for
-    // in-person competitions — surface it from their dashboard.
-    const canRunCheckIn =
-      competition.competitionType !== "online" &&
-      ((parentMatch.loaderData?.canManage ?? false) ||
-        (parentMatch.loaderData?.isVolunteer ?? false))
+    const canRunCheckIn = canRunDayOfCheckIn(
+      competition.competitionType,
+      (parentMatch.loaderData?.canManage ?? false) ||
+        (parentMatch.loaderData?.isVolunteer ?? false),
+    )
 
     // Check if competition has team
     if (!competition.competitionTeamId) {

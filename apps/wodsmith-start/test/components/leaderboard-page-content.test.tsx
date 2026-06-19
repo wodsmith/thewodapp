@@ -64,6 +64,37 @@ vi.mock("@/server-fns/leaderboard-fns", () => ({
 	getLeaderboardDataFn: vi.fn(),
 }))
 
+vi.mock("@/components/competition-leaderboard-table", async () => {
+	const actual = await vi.importActual<
+		typeof import("@/components/competition-leaderboard-table")
+	>("@/components/competition-leaderboard-table")
+
+	return {
+		...actual,
+		CompetitionLeaderboardTable: (
+			props: Parameters<typeof actual.CompetitionLeaderboardTable>[0],
+		) => (
+			<>
+				<div data-testid="standard-leaderboard-variant" />
+				<actual.CompetitionLeaderboardTable {...props} />
+			</>
+		),
+	}
+})
+
+vi.mock("@/components/online-competition-leaderboard-table", async () => {
+	const actual = await vi.importActual<
+		typeof import("@/components/online-competition-leaderboard-table")
+	>("@/components/online-competition-leaderboard-table")
+
+	return {
+		...actual,
+		OnlineCompetitionLeaderboardTable: (
+			_props: Parameters<typeof actual.OnlineCompetitionLeaderboardTable>[0],
+		) => <div data-testid="online-leaderboard-variant" />,
+	}
+})
+
 import { LeaderboardPageContent } from "@/components/leaderboard-page-content"
 import { getPublicCompetitionDivisionsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionLeaderboardFn } from "@/server-fns/leaderboard-fns"
@@ -167,6 +198,54 @@ describe("LeaderboardPageContent", () => {
 		vi.mocked(getPublicCompetitionDivisionsFn).mockResolvedValue({
 			divisions: mockDivisions,
 			competitionCapacity: null,
+		})
+	})
+
+	describe("Competition type leaderboard variants", () => {
+		it("renders the standard leaderboard variant for in-person competitions", async () => {
+			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(
+				mockLeaderboardResponse([createMockEntry()]),
+			)
+
+			render(
+				<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={mockCompetition}
+				/>,
+			)
+
+			await waitFor(() => {
+				expect(
+					screen.getByTestId("standard-leaderboard-variant"),
+				).toBeInTheDocument()
+			})
+			expect(
+				screen.queryByTestId("online-leaderboard-variant"),
+			).not.toBeInTheDocument()
+		})
+
+		it("renders the online leaderboard variant for online competitions", async () => {
+			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(
+				mockLeaderboardResponse([createMockEntry()]),
+			)
+
+			render(
+				<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={{ ...mockCompetition, competitionType: "online" }}
+				/>,
+			)
+
+			await waitFor(() => {
+				expect(
+					screen.getByTestId("online-leaderboard-variant"),
+				).toBeInTheDocument()
+			})
+			expect(
+				screen.queryByTestId("standard-leaderboard-variant"),
+			).not.toBeInTheDocument()
 		})
 	})
 

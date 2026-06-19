@@ -73,6 +73,7 @@ export function applyTiebreakers(input: TiebreakerInput): RankedAthlete[] {
     return []
   }
 
+  // scoringAlgorithm axis, not competitionType.
   // For online scoring, lower points = better (ascending sort)
   // For all other algorithms, higher points = better (descending sort)
   const lowerIsBetter = scoringAlgorithm === "online"

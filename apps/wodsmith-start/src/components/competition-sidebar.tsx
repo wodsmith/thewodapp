@@ -51,6 +51,15 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
+import {
+  competitionCan,
+  resultsNavLabel,
+} from "@/lib/competitions/capabilities"
+import {
+  canUseDayOfCheckIn,
+  canUseHeatScheduling,
+} from "@/lib/competitions/scheduling-check-in-gates"
+import { canDisplayPhysicalVenue } from "@/lib/competitions/venue-volunteer-gates"
 import { cn } from "@/utils/cn"
 
 interface CompetitionSidebarProps {
@@ -74,164 +83,170 @@ interface NavGroup {
 const getNavigation = (
   basePath: string,
   competitionType?: "in-person" | "online",
-): { overview: NavItem; groups: NavGroup[] } => ({
-  overview: {
-    label: "Overview",
-    href: basePath,
-    icon: Home,
-  },
-  groups: [
-    {
-      label: "Setup",
-      items: [
-        {
-          label: "Competition details",
-          href: `${basePath}/edit`,
-          icon: Settings,
-        },
-        {
-          label: "Divisions & capacity",
-          href: `${basePath}/divisions`,
-          icon: Layers,
-        },
-        { label: "Events", href: `${basePath}/events`, icon: Trophy },
-        {
-          label: "Venues & lanes",
-          href: `${basePath}/locations`,
-          icon: MapPin,
-        },
-        // Heat Schedule only for in-person competitions
-        ...(competitionType !== "online"
-          ? [
-              {
-                label: "Heat schedule",
-                href: `${basePath}/schedule`,
-                icon: Calendar,
-              },
-            ]
-          : []),
-        // Submission Windows only for online competitions
-        ...(competitionType === "online"
-          ? [
-              {
-                label: "Submission windows",
-                href: `${basePath}/submission-windows`,
-                icon: Clock,
-              },
-            ]
-          : []),
-        {
-          label: "Scoring rules",
-          href: `${basePath}/scoring`,
-          icon: Calculator,
-        },
-      ],
+): { overview: NavItem; groups: NavGroup[] } => {
+  const type = competitionType ?? ""
+
+  return {
+    overview: {
+      label: "Overview",
+      href: basePath,
+      icon: Home,
     },
-    {
-      label: "Registration",
-      items: [
-        { label: "Athletes", href: `${basePath}/athletes`, icon: Users },
-        {
-          label: "Registration questions",
-          href: `${basePath}/athletes/form-questions`,
-          icon: ClipboardList,
-        },
-        {
-          label: "Waivers",
-          href: `${basePath}/waivers`,
-          icon: ClipboardSignature,
-        },
-        { label: "Invites", href: `${basePath}/invites`, icon: Mail },
-      ],
-    },
-    {
-      label: "Volunteers & judging",
-      items: [
-        {
-          label: "Volunteer roster",
-          href: `${basePath}/volunteers`,
-          icon: UserCheck,
-        },
-        {
-          label: "Volunteer shifts",
-          href: `${basePath}/volunteers/shifts`,
-          icon: Calendar,
-        },
-        ...(competitionType !== "online"
-          ? [
-              {
-                label: "Judge assignments",
-                href: `${basePath}/volunteers/judges`,
-                icon: ClipboardCheck,
-              },
-            ]
-          : []),
-        {
-          label: "Registration questions",
-          href: `${basePath}/volunteers/signup-questions`,
-          icon: ClipboardList,
-        },
-      ],
-    },
-    {
-      label: "Run competition",
-      items: [
-        // Check-in landing page only for in-person competitions; it explains
-        // the flow and opens the volunteer-facing kiosk in a new tab.
-        ...(competitionType !== "online"
-          ? [
-              {
-                label: "Check-in / athlete status",
-                href: `${basePath}/check-in`,
-                icon: ClipboardCheck,
-              },
-            ]
-          : []),
-        {
-          label: competitionType === "online" ? "Submissions" : "Results",
-          href: `${basePath}/results`,
-          icon: Medal,
-        },
-        {
-          label: "Leaderboard preview",
-          href: `${basePath}/leaderboard-preview`,
-          icon: BarChart3,
-        },
-        {
-          label: "Event announcements",
-          href: `${basePath}/announcements`,
-          icon: Megaphone,
-        },
-      ],
-    },
-    {
-      label: "Business",
-      items: [
-        { label: "Pricing", href: `${basePath}/pricing`, icon: ReceiptText },
-        { label: "Revenue", href: `${basePath}/revenue`, icon: DollarSign },
-        { label: "Coupons", href: `${basePath}/coupons`, icon: Tag },
-        { label: "Sponsors", href: `${basePath}/sponsors`, icon: Sparkles },
-        {
-          label: "Co-Hosts",
-          href: `${basePath}/co-hosts`,
-          icon: Handshake,
-        },
-      ],
-    },
-    {
-      label: "Settings",
-      items: [
-        { label: "Settings", href: `${basePath}/settings`, icon: Settings },
-        {
-          label: "Danger zone",
-          href: `${basePath}/danger-zone`,
-          icon: AlertTriangle,
-          variant: "destructive" as const,
-        },
-      ],
-    },
-  ],
-})
+    groups: [
+      {
+        label: "Setup",
+        items: [
+          {
+            label: "Competition details",
+            href: `${basePath}/edit`,
+            icon: Settings,
+          },
+          {
+            label: "Divisions & capacity",
+            href: `${basePath}/divisions`,
+            icon: Layers,
+          },
+          { label: "Events", href: `${basePath}/events`, icon: Trophy },
+          ...(canDisplayPhysicalVenue(type)
+            ? [
+                {
+                  label: "Venues & lanes",
+                  href: `${basePath}/locations`,
+                  icon: MapPin,
+                },
+              ]
+            : []),
+          ...(canUseHeatScheduling(type)
+            ? [
+                {
+                  label: "Heat schedule",
+                  href: `${basePath}/schedule`,
+                  icon: Calendar,
+                },
+              ]
+            : []),
+          ...(competitionCan(type, "submissionWindows")
+            ? [
+                {
+                  label: "Submission windows",
+                  href: `${basePath}/submission-windows`,
+                  icon: Clock,
+                },
+              ]
+            : []),
+          {
+            label: "Scoring rules",
+            href: `${basePath}/scoring`,
+            icon: Calculator,
+          },
+        ],
+      },
+      {
+        label: "Registration",
+        items: [
+          { label: "Athletes", href: `${basePath}/athletes`, icon: Users },
+          {
+            label: "Registration questions",
+            href: `${basePath}/athletes/form-questions`,
+            icon: ClipboardList,
+          },
+          {
+            label: "Waivers",
+            href: `${basePath}/waivers`,
+            icon: ClipboardSignature,
+          },
+          { label: "Invites", href: `${basePath}/invites`, icon: Mail },
+        ],
+      },
+      {
+        label: "Volunteers & judging",
+        items: [
+          {
+            label: "Volunteer roster",
+            href: `${basePath}/volunteers`,
+            icon: UserCheck,
+          },
+          {
+            label: "Volunteer shifts",
+            href: `${basePath}/volunteers/shifts`,
+            icon: Calendar,
+          },
+          ...(canUseHeatScheduling(type)
+            ? [
+                {
+                  label: "Judge assignments",
+                  href: `${basePath}/volunteers/judges`,
+                  icon: ClipboardCheck,
+                },
+              ]
+            : []),
+          {
+            label: "Registration questions",
+            href: `${basePath}/volunteers/signup-questions`,
+            icon: ClipboardList,
+          },
+        ],
+      },
+      {
+        label: "Run competition",
+        items: [
+          ...(canUseDayOfCheckIn(type)
+            ? [
+                {
+                  label: "Check-in / athlete status",
+                  href: `${basePath}/check-in`,
+                  icon: ClipboardCheck,
+                },
+              ]
+            : []),
+          {
+            label: resultsNavLabel(type),
+            href: `${basePath}/results`,
+            icon: Medal,
+          },
+          {
+            label: "Leaderboard preview",
+            href: `${basePath}/leaderboard-preview`,
+            icon: BarChart3,
+          },
+          {
+            label: "Event announcements",
+            href: `${basePath}/announcements`,
+            icon: Megaphone,
+          },
+        ],
+      },
+      {
+        label: "Business",
+        items: [
+          { label: "Pricing", href: `${basePath}/pricing`, icon: ReceiptText },
+          { label: "Revenue", href: `${basePath}/revenue`, icon: DollarSign },
+          { label: "Coupons", href: `${basePath}/coupons`, icon: Tag },
+          { label: "Sponsors", href: `${basePath}/sponsors`, icon: Sparkles },
+          {
+            label: "Co-Hosts",
+            href: `${basePath}/co-hosts`,
+            icon: Handshake,
+          },
+        ],
+      },
+      {
+        label: "Settings",
+        items: [
+          { label: "Settings", href: `${basePath}/settings`, icon: Settings },
+          {
+            label: "Danger zone",
+            href: `${basePath}/danger-zone`,
+            icon: AlertTriangle,
+            variant: "destructive" as const,
+          },
+        ],
+      },
+    ],
+  }
+}
+
+export const getCompetitionSidebarNavigation = getNavigation
 
 function NavMenuItem({ item, isActive }: { item: NavItem; isActive: boolean }) {
   const Icon = item.icon

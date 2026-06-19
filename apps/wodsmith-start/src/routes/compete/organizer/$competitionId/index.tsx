@@ -18,6 +18,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { competitionCan } from "@/lib/competitions/capabilities"
+import {
+  canUseDayOfCheckIn,
+  canUseHeatScheduling,
+} from "@/lib/competitions/scheduling-check-in-gates"
 import { getCompetitionRevenueStatsFn } from "@/server-fns/commerce-fns"
 import { getCompetitionRegistrationsFn } from "@/server-fns/competition-detail-fns"
 import { getCompetitionEventsFn } from "@/server-fns/competition-event-fns"
@@ -47,7 +52,11 @@ export const Route = createFileRoute("/compete/organizer/$competitionId/")({
     const parentMatch = await parentMatchPromise
     const { competition } = parentMatch.loaderData!
 
-    const isOnline = competition.competitionType === "online"
+    const usesSubmissionWindows = competitionCan(
+      competition.competitionType,
+      "submissionWindows",
+    )
+    const usesHeatScheduling = canUseHeatScheduling(competition.competitionType)
 
     // Parallel fetch: registrations, revenue stats, events, heats/submission windows, and division results
     const [
@@ -70,20 +79,18 @@ export const Route = createFileRoute("/compete/organizer/$competitionId/")({
           teamId: competition.organizingTeamId,
         },
       }),
-      // Only fetch heats for in-person competitions
-      isOnline
-        ? Promise.resolve({ heats: [] })
-        : getHeatsForCompetitionFn({
+      usesHeatScheduling
+        ? getHeatsForCompetitionFn({
             data: { competitionId: params.competitionId },
-          }),
+          })
+        : Promise.resolve({ heats: [] }),
       getDivisionResultsStatusFn({
         data: {
           competitionId: params.competitionId,
           organizingTeamId: competition.organizingTeamId,
         },
       }),
-      // Fetch competition events (submission windows) for online competitions
-      isOnline
+      usesSubmissionWindows
         ? getCompetitionEventsFn({
             data: { competitionId: params.competitionId },
           })
@@ -99,7 +106,9 @@ export const Route = createFileRoute("/compete/organizer/$competitionId/")({
       divisionResults: divisionResultsResult as AllEventsResultsStatusResponse,
       organizingTeamId: competition.organizingTeamId,
       competitionEvents: competitionEventsResult.events,
-      isOnline,
+      usesSubmissionWindows,
+      usesHeatScheduling,
+      usesDayOfCheckIn: canUseDayOfCheckIn(competition.competitionType),
       timezone: competition.timezone || "America/Denver",
     }
   },
@@ -118,7 +127,9 @@ function CompetitionOverviewPage() {
     divisionResults,
     organizingTeamId,
     competitionEvents,
-    isOnline,
+    usesSubmissionWindows,
+    usesHeatScheduling,
+    usesDayOfCheckIn,
     timezone,
   } = Route.useLoaderData()
   // Get competition from parent layout loader data
@@ -189,22 +200,21 @@ function CompetitionOverviewPage() {
             />
           )}
 
-          {/* Submission Windows (online) or Heat Schedules (in-person) */}
-          {isOnline ? (
+          {usesSubmissionWindows ? (
             <QuickActionsSubmissionWindows
               competitionId={competition.id}
               events={events}
               competitionEvents={competitionEvents}
               timezone={timezone}
             />
-          ) : (
+          ) : usesHeatScheduling ? (
             <QuickActionsHeats
               events={events}
               heats={heats}
               organizingTeamId={organizingTeamId}
               competitionSlug={competition.slug}
             />
-          )}
+          ) : null}
 
           {/* Events - Full Width */}
           <QuickActionsEvents
@@ -333,7 +343,7 @@ function CompetitionOverviewPage() {
               <CardDescription>Athletes registered</CardDescription>
             </div>
             <div className="flex flex-wrap gap-2">
-              {!isOnline && (
+              {usesDayOfCheckIn && (
                 <Link
                   to="/compete/organizer/$competitionId/check-in"
                   params={{ competitionId: competition.id }}
