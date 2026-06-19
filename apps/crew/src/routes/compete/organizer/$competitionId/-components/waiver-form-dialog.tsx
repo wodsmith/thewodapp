@@ -1,0 +1,231 @@
+"use client"
+
+import { useServerFn } from "@tanstack/react-start"
+import type { SerializedEditorState } from "lexical"
+import { useState } from "react"
+import { toast } from "sonner"
+import { WaiversEditor } from "@/components/compete/waivers-editor"
+import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import type { Waiver } from "@/db/schemas/waivers"
+import { createWaiverFn, updateWaiverFn } from "@/server-fns/waiver-fns"
+
+export interface WaiverFormDialogOverrides {
+  createWaiver?: (opts: {
+    data: {
+      competitionId: string
+      teamId: string
+      title: string
+      content: string
+      required: boolean
+      requiredForVolunteers: boolean
+    }
+  }) => Promise<{ success: true; waiver: Waiver }>
+  updateWaiver?: (opts: {
+    data: {
+      waiverId: string
+      competitionId: string
+      teamId: string
+      title?: string
+      content?: string
+      required?: boolean
+      requiredForVolunteers?: boolean
+    }
+  }) => Promise<{ success: true; waiver: Waiver }>
+}
+
+interface WaiverFormDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  competitionId: string
+  teamId: string
+  waiver?: Waiver
+  onSuccess: (waiver: Waiver) => void
+  overrides?: WaiverFormDialogOverrides
+}
+
+export function WaiverFormDialog({
+  open,
+  onOpenChange,
+  competitionId,
+  teamId,
+  waiver,
+  onSuccess,
+  overrides,
+}: WaiverFormDialogProps) {
+  const [title, setTitle] = useState(waiver?.title ?? "")
+  const [content, setContent] = useState<SerializedEditorState | undefined>(
+    waiver?.content ? JSON.parse(waiver.content) : undefined,
+  )
+  const [required, setRequired] = useState(waiver?.required ?? true)
+  const [requiredForVolunteers, setRequiredForVolunteers] = useState(
+    waiver?.requiredForVolunteers ?? false,
+  )
+  const [isPending, setIsPending] = useState(false)
+
+  // Use overrides if provided, otherwise default organizer server fns via useServerFn
+  const defaultCreateWaiver = useServerFn(createWaiverFn)
+  const defaultUpdateWaiver = useServerFn(updateWaiverFn)
+  const createWaiver = overrides?.createWaiver ?? defaultCreateWaiver
+  const updateWaiver = overrides?.updateWaiver ?? defaultUpdateWaiver
+
+  const isEditing = !!waiver
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!title.trim()) {
+      toast.error("Title is required")
+      return
+    }
+
+    if (!content) {
+      toast.error("Content is required")
+      return
+    }
+
+    const contentString = JSON.stringify(content)
+
+    setIsPending(true)
+    try {
+      if (isEditing) {
+        const result = await updateWaiver({
+          data: {
+            waiverId: waiver.id,
+            competitionId,
+            teamId,
+            title,
+            content: contentString,
+            required,
+            requiredForVolunteers,
+          },
+        })
+
+        if (result.success && result.waiver) {
+          toast.success("Waiver updated")
+          onSuccess(result.waiver)
+        }
+      } else {
+        const result = await createWaiver({
+          data: {
+            competitionId,
+            teamId,
+            title,
+            content: contentString,
+            required,
+            requiredForVolunteers,
+          },
+        })
+
+        if (result.success && result.waiver) {
+          toast.success("Waiver created")
+          onSuccess(result.waiver)
+        }
+      }
+    } catch {
+      toast.error(
+        isEditing ? "Failed to update waiver" : "Failed to create waiver",
+      )
+    } finally {
+      setIsPending(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[90vh] max-w-3xl flex-col">
+        <DialogHeader>
+          <DialogTitle>{isEditing ? "Edit waiver" : "Add waiver"}</DialogTitle>
+          <DialogDescription>
+            {isEditing
+              ? "Update waiver details and content"
+              : "Create a new waiver for athletes or volunteers to sign"}
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="title">Title</Label>
+            <Input
+              id="title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g., Liability Waiver"
+              disabled={isPending}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="content">Content</Label>
+            <WaiversEditor
+              value={content}
+              onChange={setContent}
+              placeholder="Enter waiver terms and conditions..."
+              maxContentHeight="40vh"
+            />
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="required"
+              checked={required}
+              onCheckedChange={(checked) => setRequired(checked === true)}
+              disabled={isPending}
+            />
+            <Label
+              htmlFor="required"
+              className="cursor-pointer text-sm font-normal"
+            >
+              Required for athletes
+            </Label>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="requiredForVolunteers"
+              checked={requiredForVolunteers}
+              onCheckedChange={(checked) =>
+                setRequiredForVolunteers(checked === true)
+              }
+              disabled={isPending}
+            />
+            <Label
+              htmlFor="requiredForVolunteers"
+              className="cursor-pointer text-sm font-normal"
+            >
+              Required for volunteers
+            </Label>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isPending}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending
+                ? "Saving..."
+                : isEditing
+                  ? "Save changes"
+                  : "Create waiver"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}

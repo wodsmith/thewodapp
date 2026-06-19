@@ -1,0 +1,1152 @@
+/**
+ * Competition Detail Server Functions for TanStack Start
+ *
+ * Additional server functions for the competition detail pages
+ * that complement the base competition-fns.ts
+ *
+ * These functions provide data for:
+ * - Competition detail layout (registration counts, user status, permissions)
+ * - Registration sidebar (user registration, volunteer status)
+ * - Pending team invitations
+ *
+ * Note: Additional data like divisions, workouts, heats, and sponsors
+ * should be handled by separate dedicated server function files when needed.
+ */
+
+import { createServerFn } from "@tanstack/react-start"
+import { and, count, eq, inArray, isNull, ne } from "drizzle-orm"
+import { z } from "zod"
+import { getDb } from "@/db"
+import { addressesTable } from "@/db/schemas/addresses"
+import {
+  COMMERCE_PURCHASE_STATUS,
+  commercePurchaseTable,
+} from "@/db/schemas/commerce"
+import {
+  competitionRegistrationsTable,
+  competitionsTable,
+  REGISTRATION_STATUS,
+} from "@/db/schemas/competitions"
+import {
+  FINANCIAL_EVENT_TYPE,
+  financialEventTable,
+} from "@/db/schemas/financial-events"
+import {
+  INVITATION_STATUS,
+  type InvitationStatus,
+  SYSTEM_ROLES_ENUM,
+  TEAM_PERMISSIONS,
+  teamInvitationTable,
+  teamMembershipTable,
+  teamRoleTable,
+  teamTable,
+} from "@/db/schemas/teams"
+import { ROLES_ENUM } from "@/db/schemas/users"
+import type { LaneShiftPattern } from "@/db/schemas/volunteers"
+import { getEvlog } from "@/lib/evlog"
+import { getCohostPermissions } from "@/server/cohost"
+import {
+  getPendingTeamInvitesForEmail,
+  getUserCompetitionRegistrationsForUser,
+} from "@/server/competition-detail"
+import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
+import {
+  DEFAULT_TIMEZONE,
+  hasDateStartedInTimezone,
+  isDeadlinePassedInTimezone,
+} from "@/utils/timezone-utils"
+
+// ============================================================================
+// Input Schemas
+// ============================================================================
+
+const getCompetitionRegistrationsInputSchema = z.object({
+  competitionId: z.string().min(1, "Competition ID is required"),
+})
+
+const getUserRegistrationInputSchema = z.object({
+  competitionId: z.string().min(1, "Competition ID is required"),
+  /**
+   * @deprecated Ignored. The target user is always derived from the session
+   * server-side (trusting a client-supplied userId was an IDOR). Kept
+   * optional so existing callers that still pass session.userId validate.
+   */
+  userId: z.string().min(1, "User ID is required").optional(),
+})
+
+const getPendingTeamInvitesInputSchema = z.object({
+  competitionId: z.string().min(1, "Competition ID is required"),
+})
+
+const checkCanManageInputSchema = z.object({
+  organizingTeamId: z.string().min(1, "Organizing team ID is required"),
+  userId: z.string().min(1, "User ID is required"),
+})
+
+const checkIsVolunteerInputSchema = z.object({
+  competitionTeamId: z.string().nullable(),
+  userId: z.string().min(1, "User ID is required"),
+})
+
+const getCompetitionByIdInputSchema = z.object({
+  competitionId: z.string().min(1, "Competition ID is required"),
+})
+
+const updateCompetitionRotationSettingsInputSchema = z.object({
+  competitionId: z.string().min(1, "Competition ID is required"),
+  defaultHeatsPerRotation: z.number().int().min(1).max(10).optional(),
+  defaultLaneShiftPattern: z.enum(["stay", "shift_right"]).optional(),
+})
+
+const updateCompetitionScoringConfigInputSchema = z.object({
+  competitionId: z.string().min(1, "Competition ID is required"),
+  scoringConfig: z.object({
+    algorithm: z.enum([
+      "traditional",
+      "p_score",
+      "winner_takes_more",
+      "online",
+      "custom",
+    ]),
+    traditional: z
+      .object({
+        step: z.number().positive(),
+        firstPlacePoints: z.number().positive(),
+      })
+      .optional(),
+    pScore: z
+      .object({
+        allowNegatives: z.boolean(),
+        medianField: z.enum(["top_half", "all"]),
+      })
+      .optional(),
+    customTable: z
+      .object({
+        baseTemplate: z.enum(["traditional", "p_score", "winner_takes_more"]),
+        overrides: z.record(z.string(), z.number()),
+      })
+      .optional(),
+    tiebreaker: z.object({
+      primary: z.enum(["countback", "head_to_head", "none"]),
+      secondary: z.enum(["countback", "head_to_head", "none"]).optional(),
+      headToHeadEventId: z.string().optional(),
+    }),
+    statusHandling: z.object({
+      dnf: z.enum(["worst_performance", "zero", "last_place"]),
+      dns: z.enum(["worst_performance", "zero", "exclude"]),
+      withdrawn: z.enum(["zero", "exclude"]),
+    }),
+  }),
+})
+
+const deleteCompetitionInputSchema = z.object({
+  competitionId: z.string().min(1, "Competition ID is required"),
+  organizingTeamId: z.string().min(1, "Organizing team ID is required"),
+})
+
+const getPendingTeammateInvitationsInputSchema = z.object({
+  competitionId: z.string().min(1, "Competition ID is required"),
+})
+
+// ============================================================================
+// Permission Helpers
+// ============================================================================
+
+/**
+ * Require team permission or throw error
+ * Site admins bypass this check
+ */
+async function requireTeamPermission(
+  teamId: string,
+  permission: string,
+): Promise<void> {
+  const session = await getSessionFromCookie()
+  if (!session?.userId) {
+    throw new Error("Unauthorized")
+  }
+
+  // Site admins have all permissions
+  if (session.user?.role === ROLES_ENUM.ADMIN) return
+
+  const team = session.teams?.find((t) => t.id === teamId)
+  if (!team) {
+    throw new Error("Team not found")
+  }
+
+  if (!team.permissions.includes(permission)) {
+    throw new Error(`Missing required permission: ${permission}`)
+  }
+}
+
+// ============================================================================
+// Server Functions
+// ============================================================================
+
+/**
+ * Get a single competition by ID
+ * Used for the organizer layout route
+ */
+export const getCompetitionByIdFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => getCompetitionByIdInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const db = getDb()
+
+    const result = await db
+      .select({
+        id: competitionsTable.id,
+        organizingTeamId: competitionsTable.organizingTeamId,
+        competitionTeamId: competitionsTable.competitionTeamId,
+        groupId: competitionsTable.groupId,
+        slug: competitionsTable.slug,
+        name: competitionsTable.name,
+        description: competitionsTable.description,
+        startDate: competitionsTable.startDate,
+        endDate: competitionsTable.endDate,
+        registrationOpensAt: competitionsTable.registrationOpensAt,
+        registrationClosesAt: competitionsTable.registrationClosesAt,
+        timezone: competitionsTable.timezone,
+        settings: competitionsTable.settings,
+        defaultRegistrationFeeCents:
+          competitionsTable.defaultRegistrationFeeCents,
+        platformFeePercentage: competitionsTable.platformFeePercentage,
+        platformFeeFixed: competitionsTable.platformFeeFixed,
+        passStripeFeesToCustomer: competitionsTable.passStripeFeesToCustomer,
+        passPlatformFeesToCustomer:
+          competitionsTable.passPlatformFeesToCustomer,
+        visibility: competitionsTable.visibility,
+        status: competitionsTable.status,
+        competitionType: competitionsTable.competitionType,
+        profileImageUrl: competitionsTable.profileImageUrl,
+        bannerImageUrl: competitionsTable.bannerImageUrl,
+        defaultHeatsPerRotation: competitionsTable.defaultHeatsPerRotation,
+        defaultLaneShiftPattern: competitionsTable.defaultLaneShiftPattern,
+        defaultMaxSpotsPerDivision:
+          competitionsTable.defaultMaxSpotsPerDivision,
+        maxTotalRegistrations: competitionsTable.maxTotalRegistrations,
+        primaryAddressId: competitionsTable.primaryAddressId,
+        createdAt: competitionsTable.createdAt,
+        updatedAt: competitionsTable.updatedAt,
+        updateCounter: competitionsTable.updateCounter,
+        // Address fields
+        addressName: addressesTable.name,
+        addressStreetLine1: addressesTable.streetLine1,
+        addressStreetLine2: addressesTable.streetLine2,
+        addressCity: addressesTable.city,
+        addressStateProvince: addressesTable.stateProvince,
+        addressPostalCode: addressesTable.postalCode,
+        addressCountryCode: addressesTable.countryCode,
+        addressNotes: addressesTable.notes,
+      })
+      .from(competitionsTable)
+      .leftJoin(
+        addressesTable,
+        eq(competitionsTable.primaryAddressId, addressesTable.id),
+      )
+      .where(eq(competitionsTable.id, data.competitionId))
+      .limit(1)
+
+    if (!result[0]) {
+      return { competition: null }
+    }
+
+    // Reshape to include address as nested object
+    const {
+      addressName,
+      addressStreetLine1,
+      addressStreetLine2,
+      addressCity,
+      addressStateProvince,
+      addressPostalCode,
+      addressCountryCode,
+      addressNotes,
+      ...competition
+    } = result[0]
+
+    const primaryAddress = competition.primaryAddressId
+      ? {
+          name: addressName,
+          streetLine1: addressStreetLine1,
+          streetLine2: addressStreetLine2,
+          city: addressCity,
+          stateProvince: addressStateProvince,
+          postalCode: addressPostalCode,
+          countryCode: addressCountryCode,
+          notes: addressNotes,
+        }
+      : null
+
+    return { competition: { ...competition, primaryAddress } }
+  })
+
+/**
+ * Get registration count for a competition
+ * Used for the competition detail header
+ */
+export const getCompetitionRegistrationCountFn = createServerFn({
+  method: "GET",
+})
+  .inputValidator((data: unknown) =>
+    getCompetitionRegistrationsInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const db = getDb()
+
+    const result = await db
+      .select({ count: count() })
+      .from(competitionRegistrationsTable)
+      .where(
+        and(
+          eq(competitionRegistrationsTable.eventId, data.competitionId),
+          ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+        ),
+      )
+
+    const registrationCount = result[0]?.count ?? 0
+
+    return { count: registrationCount }
+  })
+
+/**
+ * Get all registrations for a competition
+ * Returns basic registration data without full relations
+ */
+export const getCompetitionRegistrationsFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    getCompetitionRegistrationsInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const db = getDb()
+
+    const registrations = await db
+      .select({
+        id: competitionRegistrationsTable.id,
+        eventId: competitionRegistrationsTable.eventId,
+        userId: competitionRegistrationsTable.userId,
+        divisionId: competitionRegistrationsTable.divisionId,
+        registeredAt: competitionRegistrationsTable.registeredAt,
+        teamName: competitionRegistrationsTable.teamName,
+        captainUserId: competitionRegistrationsTable.captainUserId,
+        athleteTeamId: competitionRegistrationsTable.athleteTeamId,
+      })
+      .from(competitionRegistrationsTable)
+      .where(
+        and(
+          eq(competitionRegistrationsTable.eventId, data.competitionId),
+          ne(competitionRegistrationsTable.status, REGISTRATION_STATUS.REMOVED),
+        ),
+      )
+      .orderBy(competitionRegistrationsTable.registeredAt)
+
+    return { registrations }
+  })
+
+/**
+ * Check whether all purchases for a Stripe checkout session are settled.
+ * Returns true when no purchases are still PENDING.
+ * Called from the client to determine when to stop polling.
+ */
+export const checkCheckoutCompletionFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    z.object({ sessionId: z.string() }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) {
+      throw new Error("Unauthorized")
+    }
+
+    const db = getDb()
+
+    const purchases = await db
+      .select({
+        id: commercePurchaseTable.id,
+        status: commercePurchaseTable.status,
+        userId: commercePurchaseTable.userId,
+      })
+      .from(commercePurchaseTable)
+      .where(
+        and(
+          eq(commercePurchaseTable.stripeCheckoutSessionId, data.sessionId),
+          eq(commercePurchaseTable.userId, session.userId),
+        ),
+      )
+
+    if (purchases.length === 0) {
+      return { ready: false, total: 0, pending: 0 }
+    }
+
+    const pending = purchases.filter(
+      (p) => p.status === COMMERCE_PURCHASE_STATUS.PENDING,
+    ).length
+
+    return { ready: pending === 0, total: purchases.length, pending }
+  })
+
+/**
+ * Get user's registration for a competition (first found)
+ * Checks both direct registration (as captain) and team membership
+ * For backward compatibility - returns single registration
+ */
+export const getUserCompetitionRegistrationFn = createServerFn({
+  method: "GET",
+})
+  .inputValidator((data: unknown) => getUserRegistrationInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const result = await getUserCompetitionRegistrationsFn({ data })
+    return { registration: result.registrations[0] ?? null }
+  })
+
+/**
+ * Get ALL of a user's registrations for a competition
+ * Checks both direct registrations (as captain) and team memberships
+ * Supports multi-division registration
+ *
+ * SECURITY: the target user is derived from the session — a client-supplied
+ * userId is ignored (it was an IDOR vector). Anonymous callers get [].
+ */
+export const getUserCompetitionRegistrationsFn = createServerFn({
+  method: "GET",
+})
+  .inputValidator((data: unknown) => getUserRegistrationInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) {
+      return { registrations: [] }
+    }
+
+    return getUserCompetitionRegistrationsForUser({
+      competitionId: data.competitionId,
+      userId: session.userId,
+    })
+  })
+
+/**
+ * Get pending team invitations for a user related to a competition
+ * Used to show invites to join competition teams
+ */
+export const getPendingTeamInvitesFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    getPendingTeamInvitesInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    const email = session?.user?.email?.toLowerCase()
+    if (!email) {
+      return { invitations: [] }
+    }
+
+    return getPendingTeamInvitesForEmail({
+      competitionId: data.competitionId,
+      email,
+    })
+  })
+
+/**
+ * Check if user can manage/organize a competition
+ * Checks team membership and permissions, or site admin status
+ */
+export const checkCanManageCompetitionFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => checkCanManageInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    // First check if user is a site admin - they can manage any competition
+    const session = await getSessionFromCookie()
+    if (session?.user?.role === ROLES_ENUM.ADMIN) {
+      return { canManage: true }
+    }
+
+    const db = getDb()
+
+    // Check if user is a member of the organizing team
+    const membership = await db
+      .select({
+        id: teamMembershipTable.id,
+        roleId: teamMembershipTable.roleId,
+        isSystemRole: teamMembershipTable.isSystemRole,
+      })
+      .from(teamMembershipTable)
+      .where(
+        and(
+          eq(teamMembershipTable.teamId, data.organizingTeamId),
+          eq(teamMembershipTable.userId, data.userId),
+          eq(teamMembershipTable.isActive, true),
+        ),
+      )
+      .limit(1)
+
+    if (!membership[0]) {
+      return { canManage: false }
+    }
+
+    // Check if user has admin or owner role
+    // System roles: ADMIN, OWNER would allow management
+    const isTeamAdmin =
+      membership[0].roleId === SYSTEM_ROLES_ENUM.ADMIN ||
+      membership[0].roleId === SYSTEM_ROLES_ENUM.OWNER
+
+    return { canManage: isTeamAdmin }
+  })
+
+/**
+ * Check if user is a volunteer for a competition
+ * Checks if user has volunteer role in the competition team
+ */
+export const checkIsVolunteerFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => checkIsVolunteerInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    if (!data.competitionTeamId) {
+      return { isVolunteer: false }
+    }
+
+    const db = getDb()
+
+    const membership = await db
+      .select({ id: teamMembershipTable.id })
+      .from(teamMembershipTable)
+      .where(
+        and(
+          eq(teamMembershipTable.teamId, data.competitionTeamId),
+          eq(teamMembershipTable.userId, data.userId),
+          eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+          eq(teamMembershipTable.isSystemRole, true),
+          eq(teamMembershipTable.isActive, true),
+        ),
+      )
+      .limit(1)
+
+    return { isVolunteer: !!membership[0] }
+  })
+
+/**
+ * Get registration status for a competition
+ * Returns whether registration is open, closed, or not yet open
+ * Uses timezone-aware date comparisons
+ */
+export const getRegistrationStatusFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        registrationOpensAt: z.string().nullable(),
+        registrationClosesAt: z.string().nullable(),
+        timezone: z.string().optional(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const timezone = data.timezone || DEFAULT_TIMEZONE
+    const regOpensAt = data.registrationOpensAt
+    const regClosesAt = data.registrationClosesAt
+
+    // Use timezone-aware comparisons
+    const hasOpened = hasDateStartedInTimezone(regOpensAt, timezone)
+    const hasClosed = isDeadlinePassedInTimezone(regClosesAt, timezone)
+
+    const registrationOpen = !!(
+      regOpensAt &&
+      regClosesAt &&
+      hasOpened &&
+      !hasClosed
+    )
+    const registrationClosed = hasClosed
+    const registrationNotYetOpen = !!(regOpensAt && !hasOpened)
+
+    return {
+      registrationOpen,
+      registrationClosed,
+      registrationNotYetOpen,
+    }
+  })
+
+// ============================================================================
+// Organizer Athletes View
+// ============================================================================
+
+const getOrganizerRegistrationsInputSchema = z.object({
+  competitionId: z.string().min(1, "Competition ID is required"),
+  divisionFilter: z.string().optional(),
+})
+
+/**
+ * Roll up refund events into a per-purchase map keyed by purchaseId. Negative
+ * `amountCents` values (sign convention from financial_events) are normalized
+ * to positive cents so the UI can compare refundedCents to totalCents
+ * directly. Refund events for purchaseIds not present in the totals map are
+ * dropped — they cannot be paired with a purchase total and would render an
+ * incomplete badge.
+ *
+ * Pure for testability; used by getOrganizerRegistrationsFn below.
+ */
+export function computeRefundsByPurchase(
+  refundEvents: Array<{ purchaseId: string; amountCents: number }>,
+  purchaseTotals: Map<string, number>,
+): Record<string, { refundedCents: number; totalCents: number }> {
+  const result: Record<string, { refundedCents: number; totalCents: number }> =
+    {}
+  for (const event of refundEvents) {
+    const totalCents = purchaseTotals.get(event.purchaseId)
+    if (totalCents === undefined) continue
+    const cents = Math.abs(event.amountCents)
+    const existing = result[event.purchaseId]
+    if (existing) {
+      existing.refundedCents += cents
+    } else {
+      result[event.purchaseId] = { refundedCents: cents, totalCents }
+    }
+  }
+  return result
+}
+
+/**
+ * Get registrations for organizer view with full user and division details.
+ *
+ * Returns refund metadata so the UI can decide whether to surface the "Refund
+ * Registration" action and render the appropriate refund-status badge:
+ * - `canRefund` is true when the organizing team has a verified Stripe Express
+ *   connected account (only Express accounts use platform-mediated refunds).
+ * - `refundsByPurchaseId` maps each refunded purchase to {refundedCents,
+ *   totalCents} so the UI shows "Refunded" for full refunds and "Partially
+ *   refunded" for partials, and so the dropdown action can be hidden once a
+ *   purchase has any refund recorded.
+ */
+export const getOrganizerRegistrationsFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    getOrganizerRegistrationsInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const db = getDb()
+
+    // Build where clause - include all registrations (removed shown grayed out)
+    const whereConditions = [
+      eq(competitionRegistrationsTable.eventId, data.competitionId),
+    ]
+
+    // Get registrations with user and division info using query builder
+    const registrations = await db.query.competitionRegistrationsTable.findMany(
+      {
+        where: and(...whereConditions),
+        orderBy: (table, { desc }) => [desc(table.registeredAt)],
+        with: {
+          user: {
+            columns: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              avatar: true,
+              gender: true,
+              dateOfBirth: true,
+              affiliateName: true,
+            },
+          },
+          division: {
+            columns: {
+              id: true,
+              label: true,
+              teamSize: true,
+            },
+          },
+          athleteTeam: {
+            with: {
+              memberships: {
+                columns: {
+                  id: true,
+                  userId: true,
+                  joinedAt: true,
+                },
+                where: eq(teamMembershipTable.isActive, true),
+                with: {
+                  user: {
+                    columns: {
+                      id: true,
+                      firstName: true,
+                      lastName: true,
+                      email: true,
+                      avatar: true,
+                      affiliateName: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    )
+
+    // Filter by division if specified (done in JS since we're using query builder)
+    const filteredRegistrations = data.divisionFilter
+      ? registrations.filter((r) => r.divisionId === data.divisionFilter)
+      : registrations
+
+    // Refund capability: organizing team Stripe Express + already-refunded set
+    const competition = await db.query.competitionsTable.findFirst({
+      where: eq(competitionsTable.id, data.competitionId),
+      columns: { organizingTeamId: true },
+    })
+
+    let canRefund = false
+    if (competition?.organizingTeamId) {
+      const team = await db.query.teamTable.findFirst({
+        where: eq(teamTable.id, competition.organizingTeamId),
+        columns: {
+          stripeConnectedAccountId: true,
+          stripeAccountStatus: true,
+          stripeAccountType: true,
+        },
+      })
+      canRefund =
+        !!team?.stripeConnectedAccountId &&
+        team.stripeAccountType === "express" &&
+        team.stripeAccountStatus === "VERIFIED"
+    }
+
+    const purchaseIds = filteredRegistrations
+      .map((r) => r.commercePurchaseId)
+      .filter((id): id is string => !!id)
+
+    let refundsByPurchaseId: Record<
+      string,
+      { refundedCents: number; totalCents: number }
+    > = {}
+    if (purchaseIds.length > 0) {
+      // Pull the totals (so the UI can detect full vs partial refunds) and
+      // refund events (REFUND_INITIATED only — counting INITIATED + COMPLETED
+      // would double-count once Stripe's webhook lands).
+      const [purchaseRows, refundEvents] = await Promise.all([
+        db
+          .select({
+            id: commercePurchaseTable.id,
+            totalCents: commercePurchaseTable.totalCents,
+          })
+          .from(commercePurchaseTable)
+          .where(inArray(commercePurchaseTable.id, purchaseIds)),
+        db
+          .select({
+            purchaseId: financialEventTable.purchaseId,
+            amountCents: financialEventTable.amountCents,
+          })
+          .from(financialEventTable)
+          .where(
+            and(
+              inArray(financialEventTable.purchaseId, purchaseIds),
+              eq(
+                financialEventTable.eventType,
+                FINANCIAL_EVENT_TYPE.REFUND_INITIATED,
+              ),
+            ),
+          ),
+      ])
+
+      const purchaseTotals = new Map(
+        purchaseRows.map((p) => [p.id, p.totalCents]),
+      )
+      refundsByPurchaseId = computeRefundsByPurchase(
+        refundEvents,
+        purchaseTotals,
+      )
+    }
+
+    return {
+      registrations: filteredRegistrations,
+      canRefund,
+      refundsByPurchaseId,
+    }
+  })
+
+/**
+ * Pending teammate invite with metadata for athletes page
+ */
+export interface PendingTeammateInvite {
+  id: string
+  email: string
+  athleteTeamId: string
+  registrationId: string | null
+  status: InvitationStatus
+  guestName?: string
+  pendingAnswers?: Array<{ questionId: string; answer: string }>
+  pendingSignatures?: Array<{
+    waiverId: string
+    signedAt: string
+    signatureName: string
+  }>
+  submittedAt?: string
+  createdAt: Date | null
+}
+
+/**
+ * Get pending teammate invitations for a competition (not yet accepted).
+ * Includes invitations that have pending data from the guest form.
+ * Requires organizer permission on the competition.
+ */
+export const getPendingTeammateInvitationsFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    getPendingTeammateInvitationsInputSchema.parse(data),
+  )
+  .handler(
+    async ({ data }): Promise<{ pendingInvites: PendingTeammateInvite[] }> => {
+      const db = getDb()
+
+      // Get competition to find organizing team
+      const competition = await db.query.competitionsTable.findFirst({
+        where: eq(competitionsTable.id, data.competitionId),
+        columns: { organizingTeamId: true, competitionTeamId: true },
+      })
+
+      if (!competition) {
+        throw new Error("Competition not found")
+      }
+
+      // Allow organizers (MANAGE_COMPETITIONS) or cohosts (viewRegistrations)
+      const session = await getSessionFromCookie()
+      if (!session?.userId) {
+        throw new Error("Unauthorized")
+      }
+
+      const isAdmin = session.user?.role === ROLES_ENUM.ADMIN
+      let hasOrganizerPerm = false
+      let cohostPerms: Awaited<ReturnType<typeof getCohostPermissions>> = null
+
+      if (!isAdmin) {
+        const organizerTeam = session.teams?.find(
+          (t) => t.id === competition.organizingTeamId,
+        )
+        hasOrganizerPerm =
+          organizerTeam?.permissions.includes(
+            TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+          ) ?? false
+
+        let hasCohostPerm = false
+        if (!hasOrganizerPerm && competition.competitionTeamId) {
+          cohostPerms = await getCohostPermissions(
+            session,
+            competition.competitionTeamId,
+          )
+          hasCohostPerm = cohostPerms?.viewRegistrations === true
+        }
+
+        if (!hasOrganizerPerm && !hasCohostPerm) {
+          throw new Error(
+            "Missing required permission: manage_competitions or cohost viewRegistrations",
+          )
+        }
+      }
+
+      // Guest-form question answers are sensitive (PII in free-text fields)
+      // and require editRegistrations/waivers. Waiver signature status and
+      // submittedAt timestamp are visible to anyone with viewRegistrations
+      // since cohosts need to see whether teammates signed/submitted.
+      const canViewPendingAnswers =
+        isAdmin ||
+        hasOrganizerPerm ||
+        cohostPerms?.editRegistrations === true ||
+        cohostPerms?.waivers === true
+
+      // Get all registrations for this competition to find their athlete teams
+      const registrations =
+        await db.query.competitionRegistrationsTable.findMany({
+          where: eq(competitionRegistrationsTable.eventId, data.competitionId),
+          columns: {
+            id: true,
+            athleteTeamId: true,
+            pendingTeammates: true,
+          },
+        })
+
+      if (registrations.length === 0) {
+        return { pendingInvites: [] }
+      }
+
+      const athleteTeamIds = registrations
+        .map((r) => r.athleteTeamId)
+        .filter((id): id is string => id !== null)
+
+      if (athleteTeamIds.length === 0) {
+        return { pendingInvites: [] }
+      }
+
+      // Create maps for registration data
+      const teamToRegistration = new Map<string, string>()
+      // Map of "teamId-email" -> teammate name from captain's registration
+      const teammateNames = new Map<string, string>()
+
+      for (const reg of registrations) {
+        if (reg.athleteTeamId) {
+          teamToRegistration.set(reg.athleteTeamId, reg.id)
+
+          // Parse pendingTeammates to get names entered by captain
+          if (reg.pendingTeammates) {
+            try {
+              const teammates = JSON.parse(reg.pendingTeammates) as Array<{
+                email: string
+                firstName?: string
+                lastName?: string
+              }>
+              for (const tm of teammates) {
+                const name = [tm.firstName, tm.lastName]
+                  .filter(Boolean)
+                  .join(" ")
+                  .trim()
+                if (name && tm.email) {
+                  teammateNames.set(
+                    `${reg.athleteTeamId}-${tm.email.toLowerCase()}`,
+                    name,
+                  )
+                }
+              }
+            } catch {
+              // Invalid JSON, ignore
+            }
+          }
+        }
+      }
+
+      // Get invitations for these athlete teams that haven't been claimed by a user
+      // Include both 'pending' and 'accepted' status (accepted = guest submitted form without account)
+      // Exclude cancelled invitations and those claimed by user with account
+      const allInvitations = await db.query.teamInvitationTable.findMany({
+        where: and(
+          inArray(teamInvitationTable.teamId, athleteTeamIds),
+          eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.MEMBER),
+          isNull(teamInvitationTable.acceptedAt), // Not yet claimed by user with account
+          ne(teamInvitationTable.status, INVITATION_STATUS.CANCELLED),
+        ),
+        columns: {
+          id: true,
+          email: true,
+          teamId: true,
+          status: true,
+          metadata: true,
+          createdAt: true,
+        },
+      })
+
+      const pendingInvites: PendingTeammateInvite[] = allInvitations.map(
+        (inv) => {
+          // Parse metadata to check for pending data
+          let pendingAnswers: PendingTeammateInvite["pendingAnswers"]
+          let pendingSignatures: PendingTeammateInvite["pendingSignatures"]
+          let submittedAt: string | undefined
+
+          if (inv.metadata) {
+            try {
+              const meta = JSON.parse(inv.metadata) as Record<string, unknown>
+              if (canViewPendingAnswers && Array.isArray(meta.pendingAnswers)) {
+                pendingAnswers =
+                  meta.pendingAnswers as PendingTeammateInvite["pendingAnswers"]
+              }
+              if (Array.isArray(meta.pendingSignatures)) {
+                pendingSignatures =
+                  meta.pendingSignatures as PendingTeammateInvite["pendingSignatures"]
+              }
+              if (typeof meta.submittedAt === "string") {
+                submittedAt = meta.submittedAt
+              }
+            } catch {
+              // Invalid JSON, ignore
+            }
+          }
+
+          // Get teammate name from captain's registration (pendingTeammates)
+          const guestName = teammateNames.get(
+            `${inv.teamId}-${inv.email.toLowerCase()}`,
+          )
+
+          return {
+            id: inv.id,
+            email: inv.email,
+            athleteTeamId: inv.teamId,
+            registrationId: teamToRegistration.get(inv.teamId) || null,
+            status:
+              (inv.status as InvitationStatus) || INVITATION_STATUS.PENDING,
+            guestName,
+            pendingAnswers,
+            pendingSignatures,
+            submittedAt,
+            createdAt: inv.createdAt,
+          }
+        },
+      )
+
+      return { pendingInvites }
+    },
+  )
+
+/**
+ * Update competition rotation settings
+ */
+export const updateCompetitionRotationSettingsFn = createServerFn({
+  method: "POST",
+})
+  .inputValidator((data: unknown) =>
+    updateCompetitionRotationSettingsInputSchema.parse(data),
+  )
+  .handler(async ({ data: input }) => {
+    const session = await requireVerifiedEmail()
+    if (!session) throw new Error("Unauthorized")
+
+    const db = getDb()
+
+    // Verify user has permission to manage this competition
+    const competition = await db.query.competitionsTable.findFirst({
+      where: eq(competitionsTable.id, input.competitionId),
+    })
+    if (!competition) throw new Error("Competition not found")
+
+    // Check permission
+    await requireTeamPermission(
+      competition.organizingTeamId,
+      TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+    )
+
+    getEvlog()?.set({
+      action: "update_rotation_settings",
+      competition: { id: input.competitionId },
+    })
+
+    // Update competition
+    await db
+      .update(competitionsTable)
+      .set({
+        defaultHeatsPerRotation: input.defaultHeatsPerRotation,
+        defaultLaneShiftPattern: input.defaultLaneShiftPattern as
+          | LaneShiftPattern
+          | undefined,
+        updatedAt: new Date(),
+      })
+      .where(eq(competitionsTable.id, input.competitionId))
+
+    return { success: true }
+  })
+
+/**
+ * Update competition scoring configuration
+ */
+export const updateCompetitionScoringConfigFn = createServerFn({
+  method: "POST",
+})
+  .inputValidator((data: unknown) =>
+    updateCompetitionScoringConfigInputSchema.parse(data),
+  )
+  .handler(async ({ data: input }) => {
+    const session = await requireVerifiedEmail()
+    if (!session) throw new Error("Unauthorized")
+
+    const db = getDb()
+
+    // Verify user has permission to manage this competition
+    const competition = await db.query.competitionsTable.findFirst({
+      where: eq(competitionsTable.id, input.competitionId),
+    })
+    if (!competition) throw new Error("Competition not found")
+
+    // Check permission
+    await requireTeamPermission(
+      competition.organizingTeamId,
+      TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+    )
+
+    getEvlog()?.set({
+      action: "update_scoring_config",
+      competition: { id: input.competitionId },
+      scoring: { algorithm: input.scoringConfig.algorithm },
+    })
+
+    // Parse existing settings and merge with new scoring config
+    let existingSettings: Record<string, unknown> = {}
+    if (competition.settings) {
+      try {
+        existingSettings = JSON.parse(competition.settings)
+      } catch {
+        // Ignore parse errors
+      }
+    }
+
+    const newSettings = {
+      ...existingSettings,
+      scoringConfig: input.scoringConfig,
+    }
+
+    // Update competition
+    await db
+      .update(competitionsTable)
+      .set({
+        settings: JSON.stringify(newSettings),
+        updatedAt: new Date(),
+      })
+      .where(eq(competitionsTable.id, input.competitionId))
+
+    return { success: true }
+  })
+
+/**
+ * Delete a competition
+ */
+export const deleteCompetitionFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => deleteCompetitionInputSchema.parse(data))
+  .handler(async ({ data: input }) => {
+    const session = await requireVerifiedEmail()
+    if (!session) throw new Error("Unauthorized")
+
+    const db = getDb()
+
+    // Check permission
+    await requireTeamPermission(
+      input.organizingTeamId,
+      TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
+    )
+
+    getEvlog()?.set({
+      action: "delete_competition",
+      competition: {
+        id: input.competitionId,
+        organizingTeamId: input.organizingTeamId,
+      },
+    })
+
+    // Get the competition to verify it exists and get the competitionTeamId
+    const competition = await db.query.competitionsTable.findFirst({
+      where: eq(competitionsTable.id, input.competitionId),
+    })
+    if (!competition) throw new Error("Competition not found")
+
+    // Check for existing registrations
+    const registrations = await db
+      .select({ count: count() })
+      .from(competitionRegistrationsTable)
+      .where(eq(competitionRegistrationsTable.eventId, input.competitionId))
+
+    const registrationCount = registrations[0]?.count ?? 0
+    if (registrationCount > 0) {
+      throw new Error(
+        `Cannot delete competition with ${registrationCount} existing registration(s). Please remove registrations first.`,
+      )
+    }
+
+    // Delete the competition and clean up related records in a transaction
+    await db.transaction(async (tx) => {
+      // Delete the competition (will cascade delete registrations due to schema)
+      await tx
+        .delete(competitionsTable)
+        .where(eq(competitionsTable.id, input.competitionId))
+
+      // Clean up competition_event team related records before deleting the team
+      // These tables don't have onDelete cascade, so we must delete manually
+      await tx
+        .delete(teamMembershipTable)
+        .where(eq(teamMembershipTable.teamId, competition.competitionTeamId))
+
+      await tx
+        .delete(teamRoleTable)
+        .where(eq(teamRoleTable.teamId, competition.competitionTeamId))
+
+      await tx
+        .delete(teamInvitationTable)
+        .where(eq(teamInvitationTable.teamId, competition.competitionTeamId))
+
+      // Delete the competition_event team
+      await tx
+        .delete(teamTable)
+        .where(eq(teamTable.id, competition.competitionTeamId))
+    })
+
+    return { success: true }
+  })
