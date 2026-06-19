@@ -37,7 +37,11 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import type { Competition, CompetitionGroup } from "@/db/schemas/competitions"
-import { selectableCompetitionTypeOptions } from "@/lib/competitions/capabilities"
+import {
+  type CompetitionTypeId,
+  isSelectableCompetitionTypeValue,
+  selectableCompetitionTypeOptions,
+} from "@/lib/competitions/capabilities"
 import { updateCompetitionFn } from "@/server-fns/competition-fns"
 import { COMMON_US_TIMEZONES, DEFAULT_TIMEZONE } from "@/utils/timezone-utils"
 
@@ -76,7 +80,10 @@ const formSchema = z
         /^[a-z0-9-]+$/,
         "Slug must be lowercase letters, numbers, and hyphens only",
       ),
-    competitionType: z.enum(["in-person", "online"]),
+    competitionType: z.custom<CompetitionTypeId>(
+      isSelectableCompetitionTypeValue,
+      "Select a supported competition type",
+    ),
     isMultiDay: z.boolean(),
     startDate: z.string().min(1, "Start date is required"),
     endDate: z.string().optional(),

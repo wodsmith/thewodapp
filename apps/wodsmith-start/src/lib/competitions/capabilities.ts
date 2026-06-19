@@ -62,6 +62,8 @@ export const COMPETITION_TYPE_REGISTRY: Readonly<
   },
 }
 
+export type CompetitionTypeId = keyof typeof COMPETITION_TYPE_REGISTRY
+
 export function competitionCan(
   type: string,
   capability: CompetitionCapability,
@@ -79,11 +81,17 @@ export function leaderboardVariant(type: string): LeaderboardVariant {
   )
 }
 
-export function isSelectableType(type: string): boolean {
+export function isSelectableType(type: string): type is CompetitionTypeId {
   return (
     COMPETITION_TYPE_REGISTRY[type as keyof typeof COMPETITION_TYPE_REGISTRY]
       ?.selectableOnCreate ?? false
   )
+}
+
+export function isSelectableCompetitionTypeValue(
+  value: unknown,
+): value is CompetitionTypeId {
+  return typeof value === "string" && isSelectableType(value)
 }
 
 export function selectableCompetitionTypes(): CompetitionTypeDef[] {
