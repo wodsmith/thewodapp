@@ -1,11 +1,13 @@
 import type { ChangeEvent, FormEvent, ReactNode } from "react"
 import { useMemo, useState } from "react"
 import { createFileRoute, getRouteApi, useRouter } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
 import {
   AlertTriangle,
   CheckCircle2,
   FileSpreadsheet,
   Loader2,
+  PlayCircle,
   Upload,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -23,7 +25,9 @@ import type {
   VolunteerImportRow,
 } from "@/lib/crew/imports/types"
 import {
+  applyCrewImportFn,
   getCrewImportsPageFn,
+  type CrewImportApplyResult,
   type CrewImportHistoryItem,
   type CrewImportReferenceData,
   type PersistedCrewImportPreview,
@@ -50,6 +54,15 @@ function EventImportsPage() {
   function handlePreviewComplete(preview: PersistedCrewImportPreview) {
     setLatestPreview(preview)
     setActiveTab(preview.kind)
+  }
+
+  async function handleApplyComplete(result: CrewImportApplyResult) {
+    setLatestPreview((current) =>
+      current && current.importId === result.importId
+        ? { ...current, status: result.status }
+        : current,
+    )
+    await router.invalidate()
   }
 
   return (
@@ -94,7 +107,13 @@ function EventImportsPage() {
             onPreviewComplete={handlePreviewComplete}
             onHistoryRefresh={() => router.invalidate()}
           />
-          <PreviewPanel preview={latestPreview} expectedKind={activeTab} />
+          <PreviewPanel
+            key={latestPreview?.importId ?? activeTab}
+            eventId={eventId}
+            preview={latestPreview}
+            expectedKind={activeTab}
+            onApplyComplete={handleApplyComplete}
+          />
         </div>
       ) : null}
 
@@ -286,12 +305,22 @@ function ImportUploadPanel({
 }
 
 function PreviewPanel({
+  eventId,
   preview,
   expectedKind,
+  onApplyComplete,
 }: {
+  eventId: string
   preview: PersistedCrewImportPreview | null
   expectedKind: CrewImportKind
+  onApplyComplete: (result: CrewImportApplyResult) => Promise<void>
 }) {
+  const applyImport = useServerFn(applyCrewImportFn)
+  const [isApplying, setIsApplying] = useState(false)
+  const [applyResult, setApplyResult] = useState<CrewImportApplyResult | null>(
+    null,
+  )
+
   if (!preview || preview.kind !== expectedKind) {
     return (
       <section className="rounded-md border bg-card p-5 shadow-sm">
@@ -304,6 +333,40 @@ function PreviewPanel({
     )
   }
 
+  const canApply = preview.status === "previewed"
+  const appliedCount = applyResult
+    ? applyResult.createdCount + applyResult.updatedCount
+    : 0
+
+  async function handleApply() {
+    if (!preview) return
+
+    const confirmed = window.confirm(
+      `Apply ${formatKind(preview.kind).toLowerCase()} import ${preview.importId}? This will mutate Crew data from the persisted preview rows.`,
+    )
+    if (!confirmed) return
+
+    setIsApplying(true)
+    try {
+      const result = await applyImport({
+        data: {
+          eventId,
+          importId: preview.importId,
+          confirmed: true,
+        },
+      })
+      setApplyResult(result)
+      await onApplyComplete(result)
+      toast.success("Import applied")
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to apply import",
+      )
+    } finally {
+      setIsApplying(false)
+    }
+  }
+
   return (
     <section className="space-y-4 rounded-md border bg-card p-5 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -313,7 +376,22 @@ function PreviewPanel({
             Import {preview.importId}
           </p>
         </div>
-        <StatusBadge status={preview.status} />
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge status={applyResult?.status ?? preview.status} />
+          <button
+            type="button"
+            onClick={handleApply}
+            disabled={!canApply || isApplying}
+            className="inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isApplying ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <PlayCircle className="size-4" />
+            )}
+            Apply
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -321,6 +399,14 @@ function PreviewPanel({
         <SummaryMetric label="Warnings" value={preview.warningCount} />
         <SummaryMetric label="Errors" value={preview.errorCount} />
       </div>
+
+      {applyResult ? (
+        <div className="grid gap-3 sm:grid-cols-3">
+          <SummaryMetric label="Applied" value={appliedCount} />
+          <SummaryMetric label="Created" value={applyResult.createdCount} />
+          <SummaryMetric label="Skipped" value={applyResult.skippedCount} />
+        </div>
+      ) : null}
 
       {preview.fileIssues.length > 0 ? (
         <IssueList issues={preview.fileIssues} />
@@ -523,6 +609,9 @@ function HistoryPanel({ history }: { history: CrewImportHistoryItem[] }) {
                 <th className="px-3 py-2 font-medium">Warnings</th>
                 <th className="px-3 py-2 font-medium">Errors</th>
                 <th className="px-3 py-2 font-medium">Created</th>
+                <th className="px-3 py-2 font-medium">Updated</th>
+                <th className="px-3 py-2 font-medium">Skipped</th>
+                <th className="px-3 py-2 font-medium">Uploaded</th>
               </tr>
             </thead>
             <tbody>
@@ -543,6 +632,9 @@ function HistoryPanel({ history }: { history: CrewImportHistoryItem[] }) {
                   <td className="px-3 py-2">{item.rowCount}</td>
                   <td className="px-3 py-2">{item.warningCount}</td>
                   <td className="px-3 py-2">{item.errorCount}</td>
+                  <td className="px-3 py-2">{item.createdCount}</td>
+                  <td className="px-3 py-2">{item.updatedCount}</td>
+                  <td className="px-3 py-2">{item.skippedCount}</td>
                   <td className="px-3 py-2">
                     {formatHistoryDate(item.createdAt)}
                   </td>
