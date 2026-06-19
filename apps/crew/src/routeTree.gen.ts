@@ -16,6 +16,7 @@ import { Route as EventsNewRouteImport } from './routes/events/new'
 import { Route as EventsEventIdRouteImport } from './routes/events/$eventId'
 import { Route as EventsEventIdIndexRouteImport } from './routes/events/$eventId/index'
 import { Route as EventsEventIdVolunteersRouteImport } from './routes/events/$eventId/volunteers'
+import { Route as EventsEventIdStaffingRouteImport } from './routes/events/$eventId/staffing'
 import { Route as EventsEventIdShiftsRouteImport } from './routes/events/$eventId/shifts'
 import { Route as EventsEventIdSetupRouteImport } from './routes/events/$eventId/setup'
 import { Route as EventsEventIdScheduleRouteImport } from './routes/events/$eventId/schedule'
@@ -59,6 +60,11 @@ const EventsEventIdIndexRoute = EventsEventIdIndexRouteImport.update({
 const EventsEventIdVolunteersRoute = EventsEventIdVolunteersRouteImport.update({
   id: '/volunteers',
   path: '/volunteers',
+  getParentRoute: () => EventsEventIdRoute,
+} as any)
+const EventsEventIdStaffingRoute = EventsEventIdStaffingRouteImport.update({
+  id: '/staffing',
+  path: '/staffing',
   getParentRoute: () => EventsEventIdRoute,
 } as any)
 const EventsEventIdShiftsRoute = EventsEventIdShiftsRouteImport.update({
@@ -120,6 +126,7 @@ export interface FileRoutesByFullPath {
   '/events/$eventId/schedule': typeof EventsEventIdScheduleRoute
   '/events/$eventId/setup': typeof EventsEventIdSetupRoute
   '/events/$eventId/shifts': typeof EventsEventIdShiftsRoute
+  '/events/$eventId/staffing': typeof EventsEventIdStaffingRoute
   '/events/$eventId/volunteers': typeof EventsEventIdVolunteersRoute
   '/events/$eventId/': typeof EventsEventIdIndexRoute
   '/e/$slug/confirm/$token': typeof ESlugConfirmTokenRoute
@@ -137,6 +144,7 @@ export interface FileRoutesByTo {
   '/events/$eventId/schedule': typeof EventsEventIdScheduleRoute
   '/events/$eventId/setup': typeof EventsEventIdSetupRoute
   '/events/$eventId/shifts': typeof EventsEventIdShiftsRoute
+  '/events/$eventId/staffing': typeof EventsEventIdStaffingRoute
   '/events/$eventId/volunteers': typeof EventsEventIdVolunteersRoute
   '/events/$eventId': typeof EventsEventIdIndexRoute
   '/e/$slug/confirm/$token': typeof ESlugConfirmTokenRoute
@@ -156,6 +164,7 @@ export interface FileRoutesById {
   '/events/$eventId/schedule': typeof EventsEventIdScheduleRoute
   '/events/$eventId/setup': typeof EventsEventIdSetupRoute
   '/events/$eventId/shifts': typeof EventsEventIdShiftsRoute
+  '/events/$eventId/staffing': typeof EventsEventIdStaffingRoute
   '/events/$eventId/volunteers': typeof EventsEventIdVolunteersRoute
   '/events/$eventId/': typeof EventsEventIdIndexRoute
   '/e/$slug/confirm/$token': typeof ESlugConfirmTokenRoute
@@ -176,6 +185,7 @@ export interface FileRouteTypes {
     | '/events/$eventId/schedule'
     | '/events/$eventId/setup'
     | '/events/$eventId/shifts'
+    | '/events/$eventId/staffing'
     | '/events/$eventId/volunteers'
     | '/events/$eventId/'
     | '/e/$slug/confirm/$token'
@@ -193,6 +203,7 @@ export interface FileRouteTypes {
     | '/events/$eventId/schedule'
     | '/events/$eventId/setup'
     | '/events/$eventId/shifts'
+    | '/events/$eventId/staffing'
     | '/events/$eventId/volunteers'
     | '/events/$eventId'
     | '/e/$slug/confirm/$token'
@@ -211,6 +222,7 @@ export interface FileRouteTypes {
     | '/events/$eventId/schedule'
     | '/events/$eventId/setup'
     | '/events/$eventId/shifts'
+    | '/events/$eventId/staffing'
     | '/events/$eventId/volunteers'
     | '/events/$eventId/'
     | '/e/$slug/confirm/$token'
@@ -276,6 +288,13 @@ declare module '@tanstack/react-router' {
       path: '/volunteers'
       fullPath: '/events/$eventId/volunteers'
       preLoaderRoute: typeof EventsEventIdVolunteersRouteImport
+      parentRoute: typeof EventsEventIdRoute
+    }
+    '/events/$eventId/staffing': {
+      id: '/events/$eventId/staffing'
+      path: '/staffing'
+      fullPath: '/events/$eventId/staffing'
+      preLoaderRoute: typeof EventsEventIdStaffingRouteImport
       parentRoute: typeof EventsEventIdRoute
     }
     '/events/$eventId/shifts': {
@@ -350,6 +369,7 @@ interface EventsEventIdRouteChildren {
   EventsEventIdScheduleRoute: typeof EventsEventIdScheduleRoute
   EventsEventIdSetupRoute: typeof EventsEventIdSetupRoute
   EventsEventIdShiftsRoute: typeof EventsEventIdShiftsRoute
+  EventsEventIdStaffingRoute: typeof EventsEventIdStaffingRoute
   EventsEventIdVolunteersRoute: typeof EventsEventIdVolunteersRoute
   EventsEventIdIndexRoute: typeof EventsEventIdIndexRoute
 }
@@ -360,6 +380,7 @@ const EventsEventIdRouteChildren: EventsEventIdRouteChildren = {
   EventsEventIdScheduleRoute: EventsEventIdScheduleRoute,
   EventsEventIdSetupRoute: EventsEventIdSetupRoute,
   EventsEventIdShiftsRoute: EventsEventIdShiftsRoute,
+  EventsEventIdStaffingRoute: EventsEventIdStaffingRoute,
   EventsEventIdVolunteersRoute: EventsEventIdVolunteersRoute,
   EventsEventIdIndexRoute: EventsEventIdIndexRoute,
 }
