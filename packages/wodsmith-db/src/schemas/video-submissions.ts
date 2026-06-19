@@ -1,0 +1,135 @@
+/**
+ * Video Submissions Schema
+ *
+ * Stores athlete video submissions for online competition events.
+ * Athletes can submit a video URL for their workout performance.
+ * Includes review status tracking for transparency during the verification process.
+ */
+
+import { createId } from "@paralleldrive/cuid2"
+import { relations } from "drizzle-orm"
+import {
+  datetime,
+  index,
+  int,
+  mysqlTable,
+  text,
+  uniqueIndex,
+  varchar,
+} from "drizzle-orm/mysql-core"
+import { commonColumns } from "./common"
+import { competitionRegistrationsTable } from "./competitions"
+import { userTable } from "./users"
+
+/**
+ * Review status values for video submissions
+ * - pending: Submitted and awaiting review
+ * - under_review: Currently being reviewed by an organizer
+ * - verified: Score has been confirmed as correct
+ * - adjusted: Score was modified during review
+ * - penalized: Penalties were applied to the submission
+ * - invalid: Submission cannot be scored (wrong movement, edited video, etc.)
+ */
+export const reviewStatuses = [
+  "pending",
+  "under_review",
+  "verified",
+  "adjusted",
+  "penalized",
+  "invalid",
+] as const
+export type ReviewStatus = (typeof reviewStatuses)[number]
+
+// ID generator
+export const createVideoSubmissionId = () => `vsub_${createId()}`
+
+/**
+ * Video Submissions Table
+ *
+ * Stores video submissions from athletes for online competition events.
+ * Each athlete can only have one video submission per event.
+ */
+export const videoSubmissionsTable = mysqlTable(
+  "video_submissions",
+  {
+    ...commonColumns,
+    id: varchar({ length: 255 })
+      .primaryKey()
+      .$defaultFn(createVideoSubmissionId),
+
+    // The registration this submission belongs to
+    registrationId: varchar({ length: 255 }).notNull(),
+
+    // The competition event (track workout) this submission is for
+    // Uses trackWorkoutId to match the competitionEventsTable pattern
+    trackWorkoutId: varchar({ length: 255 }).notNull(),
+
+    // 0-indexed position within a team's video submission set
+    // Individual submissions always use 0; teams use 0..teamSize-1
+    videoIndex: int().default(0).notNull(),
+
+    // The user who submitted the video
+    userId: varchar({ length: 255 }).notNull(),
+
+    // The video URL (typically YouTube, but can be other platforms)
+    videoUrl: varchar({ length: 2000 }).notNull(),
+
+    // Optional notes from the athlete
+    notes: text(),
+
+    // When the video was submitted
+    submittedAt: datetime().notNull(),
+
+    // Review status tracking for transparency
+    // Defaults to "pending" when submission is created
+    reviewStatus: varchar("review_status", { length: 50 })
+      .notNull()
+      .default("pending"),
+
+    // When the review status was last updated
+    // Null until status changes from initial pending state
+    statusUpdatedAt: datetime(),
+
+    // Optional notes from the reviewer explaining status changes
+    reviewerNotes: text("reviewer_notes"),
+
+    // When an organizer reviewed this submission (null = pending)
+    reviewedAt: datetime(),
+
+    // The organizer who reviewed this submission
+    reviewedBy: varchar({ length: 255 }),
+  },
+  (table) => [
+    // One video submission per registration per event per index
+    uniqueIndex("video_submissions_reg_event_idx").on(
+      table.registrationId,
+      table.trackWorkoutId,
+      table.videoIndex,
+    ),
+    // Lookup by user
+    index("video_submissions_user_idx").on(table.userId),
+    // Lookup by event
+    index("video_submissions_event_idx").on(table.trackWorkoutId),
+    // Lookup by registration
+    index("video_submissions_registration_idx").on(table.registrationId),
+  ],
+)
+
+// Relations
+export const videoSubmissionsRelations = relations(
+  videoSubmissionsTable,
+  ({ one }) => ({
+    registration: one(competitionRegistrationsTable, {
+      fields: [videoSubmissionsTable.registrationId],
+      references: [competitionRegistrationsTable.id],
+    }),
+    user: one(userTable, {
+      fields: [videoSubmissionsTable.userId],
+      references: [userTable.id],
+    }),
+  }),
+)
+
+// Type exports
+export type VideoSubmission = typeof videoSubmissionsTable.$inferSelect
+export type VideoSubmissionInsert = typeof videoSubmissionsTable.$inferInsert

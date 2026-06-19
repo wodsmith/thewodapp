@@ -1,0 +1,359 @@
+"use client"
+
+import {
+  AlertTriangle,
+  Ban,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  Edit3,
+  Trophy,
+} from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { VideoEmbed } from "@/components/video-embed"
+import { Separator } from "@/components/ui/separator"
+import type { ReviewStatus } from "@/db/schemas/video-submissions"
+import type { ScoreType, WorkoutScheme } from "@/lib/scoring"
+import { SubmissionStatusBadge } from "./submission-status-badge"
+
+interface SubmissionData {
+  id: string
+  videoIndex: number
+  videoUrl: string
+  notes: string | null
+  submittedAt: Date
+  updatedAt: Date
+  reviewStatus?: ReviewStatus
+  statusUpdatedAt?: Date | null
+  reviewerNotes?: string | null
+}
+
+interface VideoSubmissionPreviewProps {
+  submissions: SubmissionData[]
+  teamSize: number
+  score?: {
+    scoreValue: number | null
+    displayScore: string | null
+    status: string | null
+    secondaryValue: number | null
+    tiebreakValue: number | null
+    verificationStatus?: string | null
+    penaltyType?: string | null
+    roundScores?: Array<{
+      roundNumber: number
+      displayScore: string | null
+      status?: string | null
+    }>
+  } | null
+  workout?: {
+    name: string
+    scheme: WorkoutScheme
+    scoreType: ScoreType | null
+    timeCap: number | null
+    tiebreakScheme: string | null
+  } | null
+  canEdit: boolean
+  editReason?: string
+  timezone?: string | null
+  onEdit?: () => void
+}
+
+function formatSubmissionTime(
+  date: Date | string,
+  timezone?: string | null,
+): string {
+  const d = typeof date === "string" ? new Date(date) : date
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: timezone ?? undefined,
+  }).format(d)
+}
+
+function formatTiebreakTime(milliseconds: number): string {
+  const totalSeconds = Math.floor(milliseconds / 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`
+}
+
+function getSchemeLabel(scheme: WorkoutScheme): string {
+  switch (scheme) {
+    case "time":
+    case "time-with-cap":
+      return "Time"
+    case "rounds-reps":
+      return "Rounds + Reps"
+    case "reps":
+      return "Reps"
+    case "load":
+      return "Load"
+    case "calories":
+      return "Calories"
+    case "meters":
+      return "Meters"
+    case "feet":
+      return "Feet"
+    case "points":
+      return "Points"
+    case "emom":
+      return "Time"
+    case "pass-fail":
+      return "Rounds Passed"
+    default:
+      return "Score"
+  }
+}
+
+function VideoPreviewItem({
+  submission,
+  timezone,
+  label,
+}: {
+  submission: SubmissionData
+  timezone?: string | null
+  label?: string
+}) {
+  const hasUpdated =
+    new Date(submission.updatedAt).getTime() !==
+    new Date(submission.submittedAt).getTime()
+
+  return (
+    <div className="space-y-2">
+      {label && (
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium">{label}</p>
+          {submission.reviewStatus && (
+            <SubmissionStatusBadge
+              status={submission.reviewStatus}
+              statusUpdatedAt={submission.statusUpdatedAt ?? null}
+              reviewerNotes={submission.reviewerNotes ?? null}
+            />
+          )}
+        </div>
+      )}
+      <VideoEmbed url={submission.videoUrl} />
+      {submission.notes && (
+        <div className="rounded-lg bg-muted/50 p-4">
+          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
+            Notes
+          </p>
+          <p className="text-sm whitespace-pre-wrap">{submission.notes}</p>
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+        <div className="flex items-center gap-1.5">
+          <Calendar className="h-3.5 w-3.5" />
+          <span>
+            Submitted {formatSubmissionTime(submission.submittedAt, timezone)}
+          </span>
+        </div>
+        {hasUpdated && (
+          <div className="flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5" />
+            <span>
+              Updated {formatSubmissionTime(submission.updatedAt, timezone)}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export function VideoSubmissionPreview({
+  submissions,
+  teamSize,
+  score,
+  workout,
+  canEdit,
+  editReason,
+  timezone,
+  onEdit,
+}: VideoSubmissionPreviewProps) {
+  const isTeam = teamSize > 1
+  // For single submission without label, show review status in header
+  const singleSubmission = submissions.length === 1 ? submissions[0] : null
+
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+            <CardTitle className="text-lg">Submission Complete</CardTitle>
+            {!isTeam && singleSubmission?.reviewStatus && (
+              <SubmissionStatusBadge
+                status={singleSubmission.reviewStatus}
+                statusUpdatedAt={singleSubmission.statusUpdatedAt ?? null}
+                reviewerNotes={singleSubmission.reviewerNotes ?? null}
+              />
+            )}
+          </div>
+          {canEdit && onEdit && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 h-auto py-1 px-2 text-xs"
+              onClick={onEdit}
+            >
+              <Edit3 className="h-3 w-3" />
+              Edit
+            </Button>
+          )}
+        </div>
+        <CardDescription>
+          {canEdit
+            ? isTeam
+              ? `${submissions.length} of ${teamSize} videos submitted. You can still update while the submission window is open.`
+              : "Your submission is recorded. You can still update it while the submission window is open."
+            : editReason || "Submission window is closed."}
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        {/* Video Preview(s) */}
+        {submissions.map((submission) => (
+          <VideoPreviewItem
+            key={submission.id}
+            submission={submission}
+            timezone={timezone}
+            label={isTeam ? `Partner ${submission.videoIndex + 1}` : undefined}
+          />
+        ))}
+
+        {submissions.length > 1 && <Separator />}
+        {submissions.length === 1 && <Separator />}
+
+        {/* Invalid Score Banner */}
+        {score?.verificationStatus === "invalid" && (
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 space-y-1">
+            <div className="flex items-center gap-2">
+              <Ban className="h-4 w-4 text-red-600 dark:text-red-400" />
+              <p className="text-sm font-medium text-red-700 dark:text-red-300">
+                This submission has been marked invalid
+              </p>
+            </div>
+            {submissions.some((s) => s.reviewerNotes) && (
+              <p className="text-sm text-red-600/80 dark:text-red-400/80 ml-6">
+                {submissions.find((s) => s.reviewerNotes)?.reviewerNotes}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Penalty Banner */}
+        {score?.penaltyType && score.verificationStatus !== "invalid" && (
+          <div className="rounded-lg border border-orange-500/30 bg-orange-500/10 px-4 py-3 space-y-1">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+              <p className="text-sm font-medium text-orange-700 dark:text-orange-300">
+                {score.penaltyType === "major" ? "Major" : "Minor"} penalty
+                applied — your score has been adjusted
+              </p>
+            </div>
+            {submissions.some((s) => s.reviewerNotes) && (
+              <p className="text-sm text-orange-600/80 dark:text-orange-400/80 ml-6">
+                {submissions.find((s) => s.reviewerNotes)?.reviewerNotes}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Score Display */}
+        {score?.displayScore && (
+          <div className="flex items-start gap-3 rounded-lg bg-muted/50 p-4">
+            <Trophy className="h-5 w-5 text-amber-500 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+                {workout
+                  ? `${isTeam ? "Team" : "Your"} ${getSchemeLabel(workout.scheme)}`
+                  : isTeam
+                    ? "Team Score"
+                    : "Your Score"}
+              </p>
+              <p className="text-2xl font-mono font-bold">
+                {score.displayScore}
+                {score.status === "cap" && (
+                  <Badge variant="secondary" className="ml-2 text-xs">
+                    Capped
+                  </Badge>
+                )}
+              </p>
+              {score.roundScores && score.roundScores.length > 1 && (
+                <div className="mt-2 space-y-0.5">
+                  {score.roundScores.map((round) => (
+                    <div
+                      key={round.roundNumber}
+                      className="flex items-center gap-2 text-sm text-muted-foreground font-mono"
+                    >
+                      <span className="text-xs uppercase tracking-wider w-8">
+                        R{round.roundNumber}
+                      </span>
+                      <span>{round.displayScore ?? "—"}</span>
+                      {round.status === "cap" && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] px-1 py-0 h-4"
+                        >
+                          Cap
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {score.secondaryValue !== null && score.status === "cap" && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  {score.secondaryValue} reps completed at cap
+                </p>
+              )}
+              {score.tiebreakValue !== null && workout?.tiebreakScheme && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Tiebreak:{" "}
+                  {workout.tiebreakScheme === "time"
+                    ? formatTiebreakTime(score.tiebreakValue)
+                    : score.tiebreakValue}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Edit Status Banner */}
+        {canEdit && (
+          <div className="rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Edit3 className="h-4 w-4 text-green-600 dark:text-green-400" />
+              <p className="text-sm text-green-700 dark:text-green-300">
+                Submission window is open - you can still update your submission
+              </p>
+            </div>
+          </div>
+        )}
+
+        {!canEdit && editReason && (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                {editReason}
+              </p>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}

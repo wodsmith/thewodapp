@@ -11,13 +11,14 @@ Two entry points converge on the same core logic: athlete self-registration and 
 Athletes register themselves via `initiateRegistrationPaymentFn`, which handles both free and paid competitions.
 
 The flow validates in order:
-1. Registration window is open (checked against competition timezone)
-2. Not already registered for the selected division(s)
-3. Division capacity not exceeded
-4. Competition-wide capacity not exceeded
-5. Required registration questions answered
-6. Fee calculated per division (division-specific fee overrides competition default)
-7. Coupon applied if provided by link session data or manual entry
+1. Competition is `published` — draft competitions are never open to public self-registration, even if the registration window allows it. Checked at the entry point (so no Stripe checkout is created) and again in the shared core.
+2. Registration window is open (checked against competition timezone)
+3. Not already registered for the selected division(s)
+4. Division capacity not exceeded
+5. Competition-wide capacity not exceeded
+6. Required registration questions answered
+7. Fee calculated per division (division-specific fee overrides competition default)
+8. Coupon applied if provided by link session data or manual entry
 
 For **free** competitions (or fully discounted by coupon): calls `registerForCompetition` directly and returns immediately.
 
@@ -26,6 +27,8 @@ For **paid** competitions: creates `commercePurchaseTable` records (one per divi
 Coupon codes are resolved before redirecting to Stripe; see [[commerce#Coupons#Registration coupon entry]] for the shared link/manual entry behavior.
 
 The registration form always shows the fee summary card. Before a division is selected, fee and total amounts render as dashes so the pricing area remains stable without implying a charge. Aggregate totals only use currently selected divisions so stale fee loads from a previous selection cannot briefly appear.
+
+[[apps/wodsmith-start/src/components/registration-sidebar.tsx#RegistrationSidebar]] suppresses every registration-state card (the "Register now" CTA and the "opens soon" / "closed" cards) unless `competition.status === "published"`, so a draft competition never invites a registration the server would reject. Existing registrants/invitees still see their own cards.
 
 ### Organizer Manual Registration
 
@@ -39,6 +42,7 @@ The `registerForCompetition` function in `src/server/registration.ts` is the sha
 
 It handles:
 - Competition and division validation (division must belong to competition's scaling group)
+- Draft guard: non-override callers (public self-registration, non-invite paid completion) are rejected unless the competition is `published`. `isOrganizerOverride` (manual registration, invite-authorized) bypasses this, mirroring the registration-window bypass.
 - Duplicate registration prevention (per division, not per competition — multi-division is allowed)
 - Team division logic: creates a `competition_team`, adds captain, stores pending teammates as JSON
 - Team name uniqueness check (case-insensitive within competition)

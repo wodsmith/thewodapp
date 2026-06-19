@@ -1,0 +1,271 @@
+/**
+ * Team Authorization Utilities for TanStack Start
+ * Port from apps/wodsmith/src/utils/team-auth.ts
+ *
+ * This file is server-only and can use top-level imports for server modules.
+ * See tanstack-start-server-only skill for details.
+ */
+
+import { and, eq, gt, isNull, or } from "drizzle-orm"
+import { getCookie } from "@tanstack/react-start/server"
+import { ACTIVE_TEAM_COOKIE_NAME } from "@/constants"
+import { getDb } from "@/db"
+import { ROLES_ENUM } from "@/db/schema"
+import { competitionsTable } from "@/db/schemas/competitions"
+import { entitlementTable } from "@/db/schemas/entitlements"
+import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
+import { getCohostPermissions } from "@/server/cohost"
+import { getSessionFromCookie } from "./auth"
+
+/**
+ * Get the active team ID from cookie or fallback to first team
+ *
+ * Priority:
+ * 1. Cookie value (if user is still a member of that team)
+ * 2. First team in session (fallback)
+ * 3. null (if no teams)
+ *
+ * This handles stale cookies gracefully - if the cookie contains
+ * a team ID the user is no longer a member of, we fall back to
+ * the first available team.
+ *
+ * @returns The active team ID or null if no teams available
+ */
+export async function getActiveTeamId(): Promise<string | null> {
+  const session = await getSessionFromCookie()
+
+  // No session means no teams
+  if (!session) {
+    return null
+  }
+
+  const teams = session.teams ?? []
+
+  // No teams in session
+  if (teams.length === 0) {
+    return null
+  }
+
+  // Try to get team ID from cookie
+  const cookieTeamId = getCookie(ACTIVE_TEAM_COOKIE_NAME)
+
+  if (cookieTeamId) {
+    // Validate that the cookie team is still valid (user is a member)
+    const isValidTeam = teams.some((team) => team.id === cookieTeamId)
+
+    if (isValidTeam) {
+      return cookieTeamId
+    }
+    // Cookie is stale - fall through to first team fallback
+  }
+
+  // Fallback to first team
+  return teams[0]?.id ?? null
+}
+
+/**
+ * Check if the user has a specific permission in a team
+ */
+export async function hasTeamPermission(
+  teamId: string,
+  permission: string,
+): Promise<boolean> {
+  const session = await getSessionFromCookie()
+
+  if (!session) {
+    return false
+  }
+
+  // Admin bypass - site admins have all permissions
+  if (session.user.role === ROLES_ENUM.ADMIN) {
+    return true
+  }
+
+  const team = session.teams?.find((t) => t.id === teamId)
+
+  if (!team) {
+    return false
+  }
+
+  return team.permissions.includes(permission)
+}
+
+/**
+ * Require team permission (throws if doesn't have permission)
+ */
+export async function requireTeamPermission(
+  teamId: string,
+  permission: string,
+): Promise<void> {
+  const session = await getSessionFromCookie()
+
+  if (!session) {
+    throw new Error("NOT_AUTHORIZED: Not authenticated")
+  }
+
+  // Admin bypass - site admins have all permissions
+  if (session.user.role === ROLES_ENUM.ADMIN) {
+    return
+  }
+
+  const hasPermission = await hasTeamPermission(teamId, permission)
+
+  if (!hasPermission) {
+    throw new Error(
+      "FORBIDDEN: You don't have the required permission in this team",
+    )
+  }
+}
+
+/**
+ * Check if the user is a member of a specific team
+ * Site admins are considered members of all teams
+ */
+export async function isTeamMember(teamId: string): Promise<boolean> {
+  const session = await getSessionFromCookie()
+
+  if (!session) {
+    return false
+  }
+
+  // Admin bypass - site admins are members of all teams
+  if (session.user.role === ROLES_ENUM.ADMIN) {
+    return true
+  }
+
+  return session.teams?.some((team) => team.id === teamId) || false
+}
+
+/**
+ * Require team membership (throws if not a member)
+ */
+export async function requireTeamMembership(teamId: string): Promise<void> {
+  const session = await getSessionFromCookie()
+
+  if (!session) {
+    throw new Error("NOT_AUTHORIZED: Not authenticated")
+  }
+
+  const isMember = await isTeamMember(teamId)
+
+  if (!isMember) {
+    throw new Error("FORBIDDEN: You are not a member of this team")
+  }
+}
+
+/**
+ * Require team permission OR site admin role
+ * Allows admins to bypass team-based authorization
+ *
+ * @param teamId - The team ID to check permissions for
+ * @param permission - The permission required (bypassed for site admins)
+ * @returns Promise<void> - Resolves if authorized
+ * @throws Error if not authenticated or lacks both permission and admin role
+ */
+export async function requireTeamPermissionOrAdmin(
+  teamId: string,
+  permission: string,
+): Promise<void> {
+  const session = await getSessionFromCookie()
+
+  if (!session) {
+    throw new Error("NOT_AUTHORIZED: Not authenticated")
+  }
+
+  // Admin bypass - site admins can access any team's resources
+  if (session.user.role === ROLES_ENUM.ADMIN) {
+    return
+  }
+
+  // Normal team permission check
+  const hasPermission = await hasTeamPermission(teamId, permission)
+
+  if (!hasPermission) {
+    throw new Error(
+      "FORBIDDEN: You don't have the required permission in this team",
+    )
+  }
+}
+
+const SCORE_INPUT_TYPE_ID = "competition_score_input"
+
+/**
+ * Require submission review access: organizer permission OR volunteer score-input entitlement.
+ * Used by video submission, verification, and review note server functions.
+ * Returns the competition's organizingTeamId for callers that need it (e.g. review notes scoping).
+ */
+export async function requireSubmissionReviewAccess(
+	competitionId: string,
+): Promise<{ organizingTeamId: string }> {
+	const session = await getSessionFromCookie()
+
+	if (!session?.userId) {
+		throw new Error("NOT_AUTHORIZED: Not authenticated")
+	}
+
+	const db = getDb()
+	const [competition] = await db
+		.select({
+			organizingTeamId: competitionsTable.organizingTeamId,
+			competitionTeamId: competitionsTable.competitionTeamId,
+		})
+		.from(competitionsTable)
+		.where(eq(competitionsTable.id, competitionId))
+		.limit(1)
+
+	if (!competition) {
+		throw new Error("NOT_FOUND: Competition not found")
+	}
+
+	// Admin bypass
+	if (session.user.role === ROLES_ENUM.ADMIN) {
+		return { organizingTeamId: competition.organizingTeamId }
+	}
+
+	// Check organizer permission first (fast — session-based, no DB query)
+	const hasOrgPermission = await hasTeamPermission(
+		competition.organizingTeamId,
+		TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+	)
+	if (hasOrgPermission) {
+		return { organizingTeamId: competition.organizingTeamId }
+	}
+
+	// Without a competition team, no cohost or volunteer fallback is possible
+	if (!competition.competitionTeamId) {
+		throw new Error(
+			"FORBIDDEN: You don't have the required permission to review submissions",
+		)
+	}
+
+	// Allow cohosts with the results permission (matches cohost-submission-fns)
+	const cohostPerms = await getCohostPermissions(
+		session,
+		competition.competitionTeamId,
+	)
+	if (cohostPerms?.results) {
+		return { organizingTeamId: competition.organizingTeamId }
+	}
+
+	// Fall back to volunteer entitlement check
+	const entitlements = await db.query.entitlementTable.findMany({
+		where: and(
+			eq(entitlementTable.userId, session.userId),
+			eq(entitlementTable.teamId, competition.competitionTeamId),
+			eq(entitlementTable.entitlementTypeId, SCORE_INPUT_TYPE_ID),
+			isNull(entitlementTable.deletedAt),
+			or(
+				isNull(entitlementTable.expiresAt),
+				gt(entitlementTable.expiresAt, new Date()),
+			),
+		),
+	})
+
+	if (entitlements.length === 0) {
+		throw new Error(
+			"FORBIDDEN: You don't have the required permission to review submissions",
+		)
+	}
+
+	return { organizingTeamId: competition.organizingTeamId }
+}

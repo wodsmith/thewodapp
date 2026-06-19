@@ -1,0 +1,2046 @@
+/**
+ * Competition Invite Server Functions
+ *
+ * Phase 1 exposes CRUD over `competition_invite_sources`, plus the roster
+ * computation (added in a later commit). Every mutation requires
+ * `MANAGE_COMPETITIONS` on the championship's organizing team. When a
+ * source references another competition or series, we also require
+ * `MANAGE_COMPETITIONS` on that source's organizing team.
+ *
+ * Per ADR Open Question 6 (same-org only for MVP), the source's
+ * organizing team must currently match the championship's organizing
+ * team. This is a soft policy implemented here; the schema keeps the
+ * generality so we can relax the rule in a future phase by dropping this
+ * check.
+ */
+// @lat: [[competition-invites#Source server fns]]
+
+import { env } from "cloudflare:workers"
+import { render } from "@react-email/render"
+import { createServerFn } from "@tanstack/react-start"
+import {
+  and,
+  eq,
+  gt,
+  inArray,
+  isNotNull,
+  isNull,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm"
+import { z } from "zod"
+import { getDb } from "@/db"
+import {
+  COMPETITION_INVITE_ACTIVE_MARKER,
+  COMPETITION_INVITE_EMAIL_DELIVERY_STATUS,
+  COMPETITION_INVITE_ORIGIN,
+  COMPETITION_INVITE_SOURCE_KIND,
+  COMPETITION_INVITE_STATUS,
+  type CompetitionInvite,
+  competitionInviteSourceDivisionAllocationsTable,
+  competitionInvitesTable,
+} from "@/db/schemas/competition-invites"
+import {
+  competitionGroupsTable,
+  competitionRegistrationsTable,
+  competitionsTable,
+  REGISTRATION_STATUS,
+} from "@/db/schemas/competitions"
+import { scalingLevelsTable } from "@/db/schemas/scaling"
+import { TEAM_PERMISSIONS, teamTable } from "@/db/schemas/teams"
+import { userTable } from "@/db/schemas/users"
+import { getAppUrl } from "@/lib/env"
+import {
+  logEntityCreated,
+  logEntityDeleted,
+  logEntityUpdated,
+  logInfo,
+  logWarning,
+  withRequestContext,
+} from "@/lib/logging"
+import { CompetitionInviteEmail } from "@/react-email/competition-invites/invite-email"
+import type {
+  InviteEmailMessage,
+  QueueEmailMessage,
+} from "@/server/broadcast-queue-consumer"
+import {
+  listAllocationsForChampionship,
+  resolveSourceAllocations,
+} from "@/server/competition-invites/allocations"
+import {
+  createBespokeInvite as createBespokeInviteHelper,
+  createBespokeInvitesBulk as createBespokeInvitesBulkHelper,
+} from "@/server/competition-invites/bespoke"
+import {
+  assertInviteClaimable,
+  getOccupiedCountForBucket,
+  type InviteClaimableError,
+  InviteNotClaimableError,
+  resolveAllocationForInvite,
+  resolveInviteByToken,
+} from "@/server/competition-invites/claim"
+import { declineInvite } from "@/server/competition-invites/decline"
+import { assertInviteWithinAllocation } from "@/server/competition-invites/identity"
+import {
+  FreeCompetitionNotEligibleError,
+  type IssueInviteRecipient,
+  type IssueInvitesResult,
+  issueInvitesForRecipients,
+  normalizeInviteEmail,
+  redeliverInvite,
+  reissueInvite,
+} from "@/server/competition-invites/issue"
+import { getChampionshipRoster } from "@/server/competition-invites/roster"
+import {
+  createSource,
+  deleteSource,
+  getSourceById,
+  listSourcesForChampionship,
+  updateSource,
+} from "@/server/competition-invites/sources"
+import { getSessionFromCookie } from "@/utils/auth"
+import { requireTeamPermission } from "./requireTeamMembership"
+
+// ============================================================================
+// Input Schemas
+// ============================================================================
+
+const divisionMappingSchema = z.object({
+  sourceDivisionId: z.string().min(1),
+  championshipDivisionId: z.string().min(1),
+  spots: z.number().int().positive().nullable().optional(),
+})
+
+const kindSchema = z.enum([
+  COMPETITION_INVITE_SOURCE_KIND.COMPETITION,
+  COMPETITION_INVITE_SOURCE_KIND.SERIES,
+  COMPETITION_INVITE_SOURCE_KIND.SERIES_GLOBAL,
+])
+
+const listInviteSourcesInputSchema = z.object({
+  championshipCompetitionId: z.string().min(1),
+})
+
+const createInviteSourceInputSchema = z.object({
+  championshipCompetitionId: z.string().min(1),
+  kind: kindSchema,
+  sourceCompetitionId: z.string().min(1).nullable().optional(),
+  sourceGroupId: z.string().min(1).nullable().optional(),
+  globalSpots: z.number().int().positive().nullable().optional(),
+  divisionMappings: z.array(divisionMappingSchema).nullable().optional(),
+  sortOrder: z.number().int().min(0).optional(),
+  notes: z.string().max(2000).nullable().optional(),
+})
+
+const updateInviteSourceInputSchema = z.object({
+  id: z.string().min(1),
+  championshipCompetitionId: z.string().min(1),
+  kind: kindSchema.optional(),
+  sourceCompetitionId: z.string().min(1).nullable().optional(),
+  sourceGroupId: z.string().min(1).nullable().optional(),
+  globalSpots: z.number().int().positive().nullable().optional(),
+  divisionMappings: z.array(divisionMappingSchema).nullable().optional(),
+  sortOrder: z.number().int().min(0).optional(),
+  notes: z.string().max(2000).nullable().optional(),
+})
+
+const deleteInviteSourceInputSchema = z.object({
+  id: z.string().min(1),
+  championshipCompetitionId: z.string().min(1),
+})
+
+const getInviteSourceByIdInputSchema = z.object({
+  sourceId: z.string().min(1),
+})
+
+const getChampionshipRosterInputSchema = z.object({
+  championshipCompetitionId: z.string().min(1),
+})
+
+const getInviteByTokenInputSchema = z.object({
+  token: z.string().min(1),
+  slug: z.string().min(1),
+})
+
+const declineInviteInputSchema = z.object({
+  token: z.string().min(1),
+  slug: z.string().min(1),
+})
+
+const issueInvitesRecipientSchema = z.object({
+  email: z.string().email().max(255),
+  origin: z.enum([
+    COMPETITION_INVITE_ORIGIN.SOURCE,
+    COMPETITION_INVITE_ORIGIN.BESPOKE,
+  ]),
+  sourceId: z.string().min(1).nullable().optional(),
+  sourceCompetitionId: z.string().min(1).nullable().optional(),
+  sourcePlacement: z.number().int().positive().nullable().optional(),
+  sourcePlacementLabel: z.string().max(255).nullable().optional(),
+  bespokeReason: z.string().max(255).nullable().optional(),
+  inviteeFirstName: z.string().max(255).nullable().optional(),
+  inviteeLastName: z.string().max(255).nullable().optional(),
+  userId: z.string().min(1).nullable().optional(),
+})
+
+// YYYY-MM-DD calendar string. We pass the date as a string (rather than
+// a `Date`) so the email-label calendar day always matches what the
+// organizer typed in the picker. Sending a `Date` and formatting it on
+// Workers (TZ=UTC) used to render "one day later" for any organizer
+// west of UTC because `new Date("YYYY-MM-DDTHH:MM:SS")` parses as the
+// browser's local time and then crosses the UTC boundary.
+const calendarDayRegex = /^\d{4}-\d{2}-\d{2}$/
+
+const issueInvitesInputSchema = z.object({
+  championshipCompetitionId: z.string().min(1),
+  championshipDivisionId: z.string().min(1),
+  rsvpDeadlineDate: z
+    .string()
+    .regex(calendarDayRegex, "Expected YYYY-MM-DD calendar date")
+    .refine((value) => {
+      const [yearStr, monthStr, dayStr] = value.split("-")
+      const year = Number(yearStr)
+      const month = Number(monthStr)
+      const day = Number(dayStr)
+      const d = new Date(Date.UTC(year, month - 1, day))
+      return (
+        d.getUTCFullYear() === year &&
+        d.getUTCMonth() === month - 1 &&
+        d.getUTCDate() === day
+      )
+    }, "Invalid calendar date"),
+  subject: z.string().min(1).max(255),
+  bodyText: z.string().max(10_000).optional(),
+  recipients: z.array(issueInvitesRecipientSchema).min(1).max(500),
+})
+
+const bespokeInviteInputSchema = z.object({
+  championshipCompetitionId: z.string().min(1),
+  championshipDivisionId: z.string().min(1),
+  email: z.string().email().max(255),
+  inviteeFirstName: z.string().max(255).nullable().optional(),
+  inviteeLastName: z.string().max(255).nullable().optional(),
+  bespokeReason: z.string().max(255).nullable().optional(),
+})
+
+const listBespokeInvitesInputSchema = z.object({
+  championshipCompetitionId: z.string().min(1),
+  /** Optional. When omitted, returns active invites across every division of
+   *  the championship (used by the roster page where the organizer hasn't
+   *  picked a target championship division yet — the choice is deferred to
+   *  send time). */
+  championshipDivisionId: z.string().min(1).optional(),
+})
+
+const listMyPendingCompetitionInvitesInputSchema = z.object({
+  championshipCompetitionId: z.string().min(1),
+})
+
+const bespokeBulkInviteInputSchema = z.object({
+  championshipCompetitionId: z.string().min(1),
+  championshipDivisionId: z.string().min(1),
+  pasteText: z.string().max(200_000),
+})
+
+// ============================================================================
+// Permission Helpers
+// ============================================================================
+
+/**
+ * Resolve the organizing team for a competition. Throws if the
+ * competition does not exist.
+ *
+ * Not exported: keeping this internal lets the tanstack-start compiler's
+ * dead-code-elimination prune this function (and its `getDb` import
+ * chain) from the client bundle. Exporting would pin the `cloudflare:workers`
+ * import through `@/db` and break the dev server's client environment.
+ */
+async function getCompetitionOrganizingTeamId(
+  competitionId: string,
+): Promise<string> {
+  const db = getDb()
+  const [row] = await db
+    .select({ organizingTeamId: competitionsTable.organizingTeamId })
+    .from(competitionsTable)
+    .where(eq(competitionsTable.id, competitionId))
+    .limit(1)
+  if (!row) throw new Error("Competition not found")
+  return row.organizingTeamId
+}
+
+async function getSeriesOrganizingTeamId(groupId: string): Promise<string> {
+  const db = getDb()
+  const [row] = await db
+    .select({ organizingTeamId: competitionGroupsTable.organizingTeamId })
+    .from(competitionGroupsTable)
+    .where(eq(competitionGroupsTable.id, groupId))
+    .limit(1)
+  if (!row) throw new Error("Series not found")
+  return row.organizingTeamId
+}
+
+/**
+ * Require `MANAGE_COMPETITIONS` on both the championship and any referenced
+ * source (competition or series). Per ADR Open Question 6, the two
+ * organizing teams must currently match (same-org only for MVP).
+ *
+ * The source reference is resolved via `kind` (not "whichever id is set")
+ * so a request like `kind: "series"` with both a benign
+ * `sourceCompetitionId` and an attacker-controlled `sourceGroupId`
+ * cannot bypass the series-side permission check.
+ */
+async function requireSourcePermissions(params: {
+  championshipCompetitionId: string
+  kind: "competition" | "series" | "series_global"
+  sourceCompetitionId?: string | null
+  sourceGroupId?: string | null
+}): Promise<{ championshipTeamId: string }> {
+  const championshipTeamId = await getCompetitionOrganizingTeamId(
+    params.championshipCompetitionId,
+  )
+  await requireTeamPermission(
+    championshipTeamId,
+    TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+  )
+
+  let sourceTeamId: string | null = null
+  if (params.kind === COMPETITION_INVITE_SOURCE_KIND.COMPETITION) {
+    if (!params.sourceCompetitionId) {
+      throw new Error('kind "competition" requires sourceCompetitionId')
+    }
+    sourceTeamId = await getCompetitionOrganizingTeamId(
+      params.sourceCompetitionId,
+    )
+  } else if (
+    params.kind === COMPETITION_INVITE_SOURCE_KIND.SERIES ||
+    params.kind === COMPETITION_INVITE_SOURCE_KIND.SERIES_GLOBAL
+  ) {
+    if (!params.sourceGroupId) {
+      throw new Error(`kind "${params.kind}" requires sourceGroupId`)
+    }
+    sourceTeamId = await getSeriesOrganizingTeamId(params.sourceGroupId)
+  }
+
+  if (sourceTeamId) {
+    await requireTeamPermission(
+      sourceTeamId,
+      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+    )
+    // ADR OQ6: same-org only for MVP.
+    if (sourceTeamId !== championshipTeamId) {
+      throw new Error(
+        "Cross-organization sources are not supported yet — the source must belong to the same organization as the championship.",
+      )
+    }
+  }
+
+  return { championshipTeamId }
+}
+
+// ============================================================================
+// Server Functions
+// ============================================================================
+
+export const listInviteSourcesFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => listInviteSourcesInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "listInviteSourcesFn",
+        attributes: {
+          championshipCompetitionId: data.championshipCompetitionId,
+        },
+      },
+      async () => {
+        const championshipTeamId = await getCompetitionOrganizingTeamId(
+          data.championshipCompetitionId,
+        )
+        await requireTeamPermission(
+          championshipTeamId,
+          TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+        )
+        const sources = await listSourcesForChampionship(
+          data.championshipCompetitionId,
+        )
+
+        const competitionIds = Array.from(
+          new Set(
+            sources
+              .map((s) => s.sourceCompetitionId)
+              .filter((v): v is string => !!v),
+          ),
+        )
+        const groupIds = Array.from(
+          new Set(
+            sources.map((s) => s.sourceGroupId).filter((v): v is string => !!v),
+          ),
+        )
+
+        const db = getDb()
+        const [compNameRows, groupRows, seriesCompCountRows] =
+          await Promise.all([
+            competitionIds.length > 0
+              ? db
+                  .select({
+                    id: competitionsTable.id,
+                    name: competitionsTable.name,
+                  })
+                  .from(competitionsTable)
+                  .where(inArray(competitionsTable.id, competitionIds))
+              : Promise.resolve<Array<{ id: string; name: string }>>([]),
+            groupIds.length > 0
+              ? db
+                  .select({
+                    id: competitionGroupsTable.id,
+                    name: competitionGroupsTable.name,
+                  })
+                  .from(competitionGroupsTable)
+                  .where(inArray(competitionGroupsTable.id, groupIds))
+              : Promise.resolve<Array<{ id: string; name: string }>>([]),
+            groupIds.length > 0
+              ? db
+                  .select({
+                    groupId: competitionsTable.groupId,
+                    count: sql<number>`count(*)`,
+                  })
+                  .from(competitionsTable)
+                  .where(inArray(competitionsTable.groupId, groupIds))
+                  .groupBy(competitionsTable.groupId)
+              : Promise.resolve<
+                  Array<{ groupId: string | null; count: number }>
+                >([]),
+          ])
+
+        const competitionNamesById: Record<string, string> = Object.fromEntries(
+          compNameRows.map((r) => [r.id, r.name]),
+        )
+        const seriesNamesById: Record<string, string> = Object.fromEntries(
+          groupRows.map((r) => [r.id, r.name]),
+        )
+        const seriesCompCountsById: Record<string, number> = Object.fromEntries(
+          seriesCompCountRows
+            .filter((r): r is { groupId: string; count: number } => !!r.groupId)
+            .map((r) => [r.groupId, Number(r.count)]),
+        )
+
+        return {
+          sources,
+          competitionNamesById,
+          seriesNamesById,
+          seriesCompCountsById,
+        }
+      },
+    )
+  })
+
+export const createInviteSourceFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => createInviteSourceInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "createInviteSourceFn",
+        attributes: {
+          championshipCompetitionId: data.championshipCompetitionId,
+        },
+      },
+      async () => {
+        await requireSourcePermissions({
+          championshipCompetitionId: data.championshipCompetitionId,
+          kind: data.kind,
+          sourceCompetitionId: data.sourceCompetitionId,
+          sourceGroupId: data.sourceGroupId,
+        })
+
+        const source = await createSource({
+          championshipCompetitionId: data.championshipCompetitionId,
+          kind: data.kind,
+          sourceCompetitionId: data.sourceCompetitionId,
+          sourceGroupId: data.sourceGroupId,
+          globalSpots: data.globalSpots,
+          divisionMappings: data.divisionMappings,
+          sortOrder: data.sortOrder,
+          notes: data.notes,
+        })
+
+        logEntityCreated({
+          entity: "competition_invite_source",
+          id: source.id,
+          parentEntity: "competition",
+          parentId: data.championshipCompetitionId,
+          attributes: {
+            kind: source.kind,
+            sourceCompetitionId: source.sourceCompetitionId,
+            sourceGroupId: source.sourceGroupId,
+          },
+        })
+
+        return { source }
+      },
+    )
+  })
+
+export const updateInviteSourceFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => updateInviteSourceInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "updateInviteSourceFn",
+        attributes: { sourceId: data.id },
+      },
+      async () => {
+        // Resolve the existing row to validate cross-permission against the
+        // *new* reference target if the caller is changing it.
+        const existing = await getSourceById(data.id)
+        if (!existing) throw new Error("Source not found")
+        if (
+          existing.championshipCompetitionId !== data.championshipCompetitionId
+        ) {
+          throw new Error("Source does not belong to this championship")
+        }
+
+        const nextKind = data.kind ?? existing.kind
+        const nextComp =
+          data.sourceCompetitionId !== undefined
+            ? data.sourceCompetitionId
+            : existing.sourceCompetitionId
+        const nextGroup =
+          data.sourceGroupId !== undefined
+            ? data.sourceGroupId
+            : existing.sourceGroupId
+
+        await requireSourcePermissions({
+          championshipCompetitionId: data.championshipCompetitionId,
+          kind: nextKind,
+          sourceCompetitionId: nextComp,
+          sourceGroupId: nextGroup,
+        })
+
+        const source = await updateSource({
+          id: data.id,
+          kind: data.kind,
+          sourceCompetitionId: data.sourceCompetitionId,
+          sourceGroupId: data.sourceGroupId,
+          globalSpots: data.globalSpots,
+          divisionMappings: data.divisionMappings,
+          sortOrder: data.sortOrder,
+          notes: data.notes,
+        })
+
+        logEntityUpdated({
+          entity: "competition_invite_source",
+          id: source.id,
+          attributes: {
+            kind: source.kind,
+            sourceCompetitionId: source.sourceCompetitionId,
+            sourceGroupId: source.sourceGroupId,
+          },
+        })
+
+        return { source }
+      },
+    )
+  })
+
+export const deleteInviteSourceFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => deleteInviteSourceInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "deleteInviteSourceFn",
+        attributes: { sourceId: data.id },
+      },
+      async () => {
+        const championshipTeamId = await getCompetitionOrganizingTeamId(
+          data.championshipCompetitionId,
+        )
+        await requireTeamPermission(
+          championshipTeamId,
+          TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+        )
+        const deleted = await deleteSource({
+          id: data.id,
+          championshipCompetitionId: data.championshipCompetitionId,
+        })
+
+        if (deleted) {
+          logEntityDeleted({
+            entity: "competition_invite_source",
+            id: data.id,
+            attributes: {
+              championshipCompetitionId: data.championshipCompetitionId,
+            },
+          })
+        }
+
+        return { ok: true as const }
+      },
+    )
+  })
+
+/**
+ * Single-source read by id. Used by the source details page loader to
+ * populate the meta form + permissions check before rendering. Throws if
+ * the source does not exist; the route loader catches and renders a
+ * not-found state.
+ *
+ * Permission: load the source, then `MANAGE_COMPETITIONS` on the source's
+ * championship organizing team. Same gate as `saveInviteSourceAllocationsFn`
+ * — a bad `sourceId` cannot bypass the championship permission check
+ * because the championshipTeamId is resolved *from* the source row.
+ */
+export const getInviteSourceByIdFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => getInviteSourceByIdInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "getInviteSourceByIdFn",
+        attributes: { sourceId: data.sourceId },
+      },
+      async () => {
+        const source = await getSourceById(data.sourceId)
+        if (!source) throw new Error("Source not found")
+
+        const championshipTeamId = await getCompetitionOrganizingTeamId(
+          source.championshipCompetitionId,
+        )
+        await requireTeamPermission(
+          championshipTeamId,
+          TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+        )
+
+        return { source }
+      },
+    )
+  })
+
+export const getChampionshipRosterFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    getChampionshipRosterInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "getChampionshipRosterFn",
+        attributes: {
+          championshipCompetitionId: data.championshipCompetitionId,
+        },
+      },
+      async () => {
+        const championshipTeamId = await getCompetitionOrganizingTeamId(
+          data.championshipCompetitionId,
+        )
+        await requireTeamPermission(
+          championshipTeamId,
+          TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+        )
+        const { rows } = await getChampionshipRoster({
+          championshipId: data.championshipCompetitionId,
+        })
+        return { rows }
+      },
+    )
+  })
+
+// ============================================================================
+// Athlete-facing: resolve an invite by its plaintext token
+// ============================================================================
+
+/**
+ * Public (unauthenticated) lookup of an invite by its URL-bound claim token.
+ *
+ * Called from the claim route loader — not a server fn a logged-in user
+ * invokes via UI. The handler intentionally does *no* session check: the
+ * invite's own email-lock + identity-match (run in the loader against
+ * `context.session`) is the authorization boundary for this feature.
+ *
+ * The response is a discriminated union so the loader can switch once and
+ * render the right page without a cascade of optional fields.
+ */
+export const getInviteByTokenFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => getInviteByTokenInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    return withRequestContext(
+      {
+        serverFn: "getInviteByTokenFn",
+        attributes: { slug: data.slug, tokenLast4: data.token.slice(-4) },
+      },
+      async () => {
+        const invite = await resolveInviteByToken(data.token)
+        if (!invite) {
+          logInfo({
+            message: "[Invites] Claim token did not resolve",
+            attributes: { slug: data.slug, tokenLast4: data.token.slice(-4) },
+          })
+          return {
+            kind: "not_claimable" as const,
+            reason: "not_found" as InviteClaimableError,
+          }
+        }
+
+        const db = getDb()
+
+        // Verify the token's invite belongs to the competition in the URL.
+        // Anti-typo guard: if a user mis-pastes a link they'd otherwise get
+        // a confusing "right competition, wrong invite" experience.
+        const [champ] = await db
+          .select({
+            id: competitionsTable.id,
+            slug: competitionsTable.slug,
+            name: competitionsTable.name,
+          })
+          .from(competitionsTable)
+          .where(eq(competitionsTable.id, invite.championshipCompetitionId))
+          .limit(1)
+
+        if (!champ || champ.slug !== data.slug) {
+          logWarning({
+            message: "[Invites] Token slug mismatch",
+            attributes: {
+              slug: data.slug,
+              tokenLast4: data.token.slice(-4),
+              inviteChampionshipId: invite.championshipCompetitionId,
+            },
+          })
+          return {
+            kind: "not_claimable" as const,
+            reason: "not_found" as InviteClaimableError,
+          }
+        }
+
+        try {
+          assertInviteClaimable(invite)
+        } catch (err) {
+          if (err instanceof InviteNotClaimableError) {
+            return {
+              kind: "not_claimable" as const,
+              reason: err.reason,
+              championshipName: champ.name,
+            }
+          }
+          throw err
+        }
+
+        const [division, account, session] = await Promise.all([
+          db
+            .select({
+              id: scalingLevelsTable.id,
+              label: scalingLevelsTable.label,
+            })
+            .from(scalingLevelsTable)
+            .where(eq(scalingLevelsTable.id, invite.championshipDivisionId))
+            .limit(1)
+            .then((rows) => rows[0] ?? null),
+          db
+            .select({ id: userTable.id })
+            .from(userTable)
+            .where(eq(userTable.email, normalizeInviteEmail(invite.email)))
+            .limit(1)
+            .then((rows) => rows[0] ?? null),
+          getSessionFromCookie(),
+        ])
+
+        // Cross-check: if the visitor is signed in as the invited identity and
+        // already has an active registration for this (competition, division),
+        // short-circuit to "already_paid" regardless of which lane (public,
+        // organizer-manual, prior invite claim) created that registration.
+        const sessionEmail = session?.user?.email
+        if (
+          sessionEmail &&
+          normalizeInviteEmail(sessionEmail) ===
+            normalizeInviteEmail(invite.email)
+        ) {
+          const [existingReg] = await db
+            .select({ id: competitionRegistrationsTable.id })
+            .from(competitionRegistrationsTable)
+            .where(
+              and(
+                eq(
+                  competitionRegistrationsTable.eventId,
+                  invite.championshipCompetitionId,
+                ),
+                eq(competitionRegistrationsTable.userId, session.userId),
+                eq(
+                  competitionRegistrationsTable.divisionId,
+                  invite.championshipDivisionId,
+                ),
+                ne(
+                  competitionRegistrationsTable.status,
+                  REGISTRATION_STATUS.REMOVED,
+                ),
+              ),
+            )
+            .limit(1)
+          if (existingReg) {
+            return {
+              kind: "not_claimable" as const,
+              reason: "already_paid" as InviteClaimableError,
+              championshipName: champ.name,
+            }
+          }
+        }
+
+        // ADR-0012 Phase 5: per-(source, division) allocation guardrail.
+        // Best-effort UX gate — the authoritative re-check lives in the
+        // Stripe workflow at payment confirmation. Bespoke invites
+        // (sourceId IS NULL) bypass. The occupied count includes both
+        // accepted_paid invites AND in-flight Stripe checkouts (held for
+        // PENDING_PURCHASE_MAX_AGE_MINUTES) so two athletes can't both pass
+        // the gate while one is mid-payment.
+        if (invite.sourceId) {
+          const [allocation, occupiedCount] = await Promise.all([
+            resolveAllocationForInvite({ invite }),
+            getOccupiedCountForBucket({
+              sourceId: invite.sourceId,
+              championshipCompetitionId: invite.championshipCompetitionId,
+              championshipDivisionId: invite.championshipDivisionId,
+              // The invitee's own mid-checkout hold belongs to *this* invite —
+              // counting it would falsely "fill" the bucket when they revisit
+              // claim while their own Stripe session is still alive.
+              excludeInviteId: invite.id,
+            }),
+          ])
+          const allocationCheck = assertInviteWithinAllocation({
+            invite: { sourceId: invite.sourceId },
+            allocation: allocation ?? 0,
+            acceptedCount: occupiedCount,
+          })
+          if (!allocationCheck.ok) {
+            logInfo({
+              message: "[Invites] Claim blocked by allocation guardrail",
+              attributes: {
+                inviteId: invite.id,
+                sourceId: invite.sourceId,
+                championshipDivisionId: invite.championshipDivisionId,
+                allocation: allocation ?? 0,
+                occupiedCount,
+              },
+            })
+            // Hydrate the source display name so the claim page can tell
+            // the athlete which division and which qualifier filled up,
+            // not just a generic "this division". `getSourceById` only
+            // runs on the unhappy path so it doesn't pay round-trips on
+            // every claim; the lookups for the source's underlying
+            // competition / group name are best-effort and fall back to
+            // null on missing rows.
+            const source = await getSourceById(invite.sourceId)
+            let sourceLabel: string | null = null
+            if (source) {
+              if (source.sourceCompetitionId) {
+                const [row] = await db
+                  .select({ name: competitionsTable.name })
+                  .from(competitionsTable)
+                  .where(eq(competitionsTable.id, source.sourceCompetitionId))
+                  .limit(1)
+                sourceLabel = row?.name ?? null
+              } else if (source.sourceGroupId) {
+                const [row] = await db
+                  .select({ name: competitionGroupsTable.name })
+                  .from(competitionGroupsTable)
+                  .where(eq(competitionGroupsTable.id, source.sourceGroupId))
+                  .limit(1)
+                sourceLabel = row?.name ?? null
+              }
+            }
+            return {
+              kind: "not_claimable" as const,
+              reason: "over_allocated" as InviteClaimableError,
+              championshipName: champ.name,
+              divisionLabel: division?.label ?? null,
+              sourceLabel,
+            }
+          }
+        }
+
+        return {
+          kind: "claimable" as const,
+          invite,
+          championshipName: champ.name,
+          championshipSlug: champ.slug,
+          divisionLabel: division?.label ?? "",
+          accountExistsForInviteEmail: !!account,
+        }
+      },
+    )
+  })
+
+// ============================================================================
+// Athlete-facing: decline an invite
+// ============================================================================
+
+/**
+ * Decline an invite via the `/compete/$slug/claim/$token/decline` route.
+ *
+ * Requires the visitor to be signed in as the invited email — this is the
+ * identity-match gate so a stolen link can't be used to silently decline
+ * someone else's invite. We re-run the resolve + match here rather than
+ * trusting the route loader, because a server fn may be called directly
+ * and the client is never the source of authority.
+ */
+export const declineInviteFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => declineInviteInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    const sessionEmail = session?.user?.email
+    if (!sessionEmail) {
+      throw new Error("You must be signed in to decline an invite.")
+    }
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "declineInviteFn",
+        attributes: { slug: data.slug, tokenLast4: data.token.slice(-4) },
+      },
+      async () => {
+        const invite = await resolveInviteByToken(data.token)
+        if (!invite) {
+          logInfo({
+            message: "[Invites] Decline: token did not resolve",
+            attributes: { tokenLast4: data.token.slice(-4) },
+          })
+          return {
+            ok: false as const,
+            reason: "not_found" as InviteClaimableError,
+          }
+        }
+
+        try {
+          assertInviteClaimable(invite)
+        } catch (err) {
+          if (err instanceof InviteNotClaimableError) {
+            return { ok: false as const, reason: err.reason }
+          }
+          throw err
+        }
+
+        const normalizedSessionEmail = normalizeInviteEmail(sessionEmail)
+        if (normalizedSessionEmail !== normalizeInviteEmail(invite.email)) {
+          logWarning({
+            message: "[Invites] Decline: identity mismatch",
+            attributes: {
+              inviteId: invite.id,
+              tokenLast4: data.token.slice(-4),
+            },
+          })
+          throw new Error(
+            "This invite is for a different account. Sign in with the invited email to decline it.",
+          )
+        }
+
+        // Also verify the invite belongs to the competition in the URL.
+        const [champ] = await getDb()
+          .select({ slug: competitionsTable.slug })
+          .from(competitionsTable)
+          .where(eq(competitionsTable.id, invite.championshipCompetitionId))
+          .limit(1)
+        if (!champ || champ.slug !== data.slug) {
+          return {
+            ok: false as const,
+            reason: "not_found" as InviteClaimableError,
+          }
+        }
+
+        await declineInvite({ inviteId: invite.id })
+        logEntityUpdated({
+          entity: "competition_invite",
+          id: invite.id,
+          attributes: { status: COMPETITION_INVITE_STATUS.DECLINED },
+        })
+
+        return { ok: true as const }
+      },
+    )
+  })
+
+// ============================================================================
+// Organizer-facing: issue invites
+// ============================================================================
+
+/**
+ * Render the competition invite email HTML for one invite row.
+ *
+ * The claim URL embeds the plaintext token. Mirrors the
+ * `team_invitations.token` pattern — the plaintext also lives in
+ * `competition_invites.claimToken` so the organizer UI can offer a
+ * copy-link affordance. Email-locked claim (`identityMatch`) remains the
+ * actual auth gate; the token is an unguessable identifier, not a bearer
+ * password. The decline URL is included as a secondary CTA in the email
+ * body.
+ */
+async function renderInviteEmailHtml(params: {
+  invite: CompetitionInvite
+  plaintextToken: string
+  championshipSlug: string
+  championshipName: string
+  divisionLabel: string
+  organizerTeamName: string
+  subject: string
+  bodyText?: string
+  rsvpDeadlineLabel?: string
+}): Promise<string> {
+  const baseUrl = getAppUrl()
+  const claimUrl = `${baseUrl}/compete/${params.championshipSlug}/claim/${params.plaintextToken}`
+  const declineUrl = `${claimUrl}/decline`
+  const athleteName = params.invite.inviteeFirstName || params.invite.email
+
+  return render(
+    CompetitionInviteEmail({
+      championshipName: params.championshipName,
+      divisionLabel: params.divisionLabel,
+      claimUrl,
+      declineUrl,
+      athleteName,
+      organizerTeamName: params.organizerTeamName,
+      subject: params.subject,
+      bodyText: params.bodyText,
+      rsvpDeadlineLabel: params.rsvpDeadlineLabel,
+      sourceLabel: params.invite.sourcePlacementLabel,
+    }),
+  )
+}
+
+/**
+ * Send invites to a set of recipients for a specific championship division.
+ *
+ * Composes the Phase 2 pipeline: insert or reissue rows, render per-recipient
+ * HTML, enqueue invite messages onto the shared email queue. "Already active
+ * draft" bespoke rows get activated via reissue; "already active with token"
+ * rows come back as skipped so the organizer can choose to re-send
+ * explicitly via a re-issue flow (sub-arc D).
+ *
+ * Permission: `MANAGE_COMPETITIONS` on the championship's organizing team.
+ * Free divisions are rejected inside the issue helpers.
+ */
+export const issueInvitesFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => issueInvitesInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "issueInvitesFn",
+        attributes: {
+          championshipCompetitionId: data.championshipCompetitionId,
+          divisionId: data.championshipDivisionId,
+          recipientCount: data.recipients.length,
+        },
+      },
+      async () => {
+        const championshipTeamId = await getCompetitionOrganizingTeamId(
+          data.championshipCompetitionId,
+        )
+        await requireTeamPermission(
+          championshipTeamId,
+          TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+        )
+
+        const db = getDb()
+        const [championship, division, organizingTeam] = await Promise.all([
+          db
+            .select({
+              id: competitionsTable.id,
+              slug: competitionsTable.slug,
+              name: competitionsTable.name,
+            })
+            .from(competitionsTable)
+            .where(eq(competitionsTable.id, data.championshipCompetitionId))
+            .limit(1)
+            .then((rows) => rows[0] ?? null),
+          db
+            .select({
+              id: scalingLevelsTable.id,
+              label: scalingLevelsTable.label,
+            })
+            .from(scalingLevelsTable)
+            .where(eq(scalingLevelsTable.id, data.championshipDivisionId))
+            .limit(1)
+            .then((rows) => rows[0] ?? null),
+          db
+            .select({ id: teamTable.id, name: teamTable.name })
+            .from(teamTable)
+            .where(eq(teamTable.id, championshipTeamId))
+            .limit(1)
+            .then((rows) => rows[0] ?? null),
+        ])
+
+        if (!championship) throw new Error("Championship not found")
+        if (!division) throw new Error("Division not found")
+
+        const recipients: IssueInviteRecipient[] = data.recipients.map((r) => ({
+          email: r.email,
+          origin: r.origin,
+          sourceId: r.sourceId ?? null,
+          sourceCompetitionId: r.sourceCompetitionId ?? null,
+          sourcePlacement: r.sourcePlacement ?? null,
+          sourcePlacementLabel: r.sourcePlacementLabel ?? null,
+          bespokeReason: r.bespokeReason ?? null,
+          inviteeFirstName: r.inviteeFirstName ?? null,
+          inviteeLastName: r.inviteeLastName ?? null,
+          userId: r.userId ?? null,
+        }))
+
+        // Build expiresAt as the UTC end-of-day of the picked calendar
+        // date. The label is formatted from the same y/m/d ints we just
+        // parsed, so the email body always shows the calendar day the
+        // organizer typed regardless of the worker's TZ.
+        const [yearStr, monthStr, dayStr] = data.rsvpDeadlineDate.split("-")
+        const yearN = Number(yearStr)
+        const monthN = Number(monthStr)
+        const dayN = Number(dayStr)
+        const rsvpDeadlineAt = new Date(
+          Date.UTC(yearN, monthN - 1, dayN, 23, 59, 59),
+        )
+        if (Number.isNaN(rsvpDeadlineAt.getTime())) {
+          throw new Error("Invalid RSVP deadline")
+        }
+        const monthNames = [
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
+        ]
+        const rsvpDeadlineLabel = `${monthNames[monthN - 1]} ${dayN}, ${yearN}`
+
+        let issueResult: IssueInvitesResult
+        try {
+          issueResult = await issueInvitesForRecipients({
+            championshipCompetitionId: data.championshipCompetitionId,
+            championshipDivisionId: data.championshipDivisionId,
+            rsvpDeadlineAt,
+            recipients,
+          })
+        } catch (err) {
+          if (err instanceof FreeCompetitionNotEligibleError) {
+            throw new Error(err.message)
+          }
+          throw err
+        }
+
+        // Per-recipient failure list. Both the activation and dispatch
+        // loops push into this so the organizer sees a unified summary
+        // ("3 failed") regardless of which stage the failure occurred
+        // in. The dialog UX renders these inline alongside `skipped`.
+        const failed: Array<{
+          inviteId: string
+          email: string
+          error: string
+        }> = []
+
+        // Refresh `alreadyActive` rows that came back with a non-skip
+        // resolution. Wrapped per-iteration in try/catch for the same
+        // reason as the dispatch loop below: a transient blip on one
+        // row's UPDATE must not abort the whole batch — the caller has
+        // already committed inserted rows in their own transaction, and
+        // earlier rows in this loop have already had their tokens
+        // rotated or expirations bumped. Aborting here would strand
+        // them with no recovery path because a re-issue would classify
+        // them as `alreadyActive` non-drafts (skipped). Failed refreshes
+        // land in `failed[]` like dispatch failures so the UI surfaces
+        // them the same way.
+        //
+        // Two refresh paths, picked by the helper based on the existing
+        // row's shape (see `resolveAlreadyActive` in `issue.ts`):
+        //   - "draft"  → `reissueInvite` rotates a fresh token (the
+        //     athlete never received the prior link).
+        //   - "resend" → `redeliverInvite` keeps the existing token
+        //     (the athlete may already have the prior email; rotating
+        //     would invalidate the link they have in hand).
+        const refreshed: Array<{
+          invite: CompetitionInvite
+          plaintextToken: string
+        }> = []
+        for (const prior of issueResult.alreadyActive) {
+          if (prior.resolution === "skip") continue
+          try {
+            const rotatedOrRefreshed =
+              prior.resolution === "draft"
+                ? await reissueInvite({
+                    inviteId: prior.existingInviteId,
+                    newExpiresAt: rsvpDeadlineAt,
+                  })
+                : await redeliverInvite({
+                    inviteId: prior.existingInviteId,
+                    newExpiresAt: rsvpDeadlineAt,
+                  })
+            refreshed.push({
+              invite: rotatedOrRefreshed.invite,
+              plaintextToken: rotatedOrRefreshed.plaintextToken,
+            })
+          } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : String(err)
+            failed.push({
+              inviteId: prior.existingInviteId,
+              email: prior.email,
+              error: errorMsg,
+            })
+            logWarning({
+              message: "[Invites] Refresh failed mid-batch",
+              error: err,
+              attributes: {
+                inviteId: prior.existingInviteId,
+                email: prior.email,
+                resolution: prior.resolution,
+              },
+            })
+          }
+        }
+
+        const allToDispatch = [...issueResult.inserted, ...refreshed]
+
+        // Render + enqueue per invite. Render is intentionally sequential
+        // to keep memory bounded when a round targets hundreds of recipients.
+        // Each iteration is wrapped in try/catch so a single throw in the
+        // middle of a large batch (render exception, queue.send blip,
+        // Workers CPU/memory cap) doesn't abort the whole loop and leave
+        // the un-dispatched rows in `queued` limbo with no recovery
+        // path. On failure we flip `emailDeliveryStatus` to `failed` on
+        // the row so a follow-up Send picks it up via the
+        // `alreadyActive` re-issue branch.
+        const queue = (env as unknown as Record<string, unknown>)
+          .BROADCAST_EMAIL_QUEUE as Queue<QueueEmailMessage> | undefined
+
+        // Snapshot before the dispatch loop so we can derive an accurate
+        // `sentCount` without double-counting refresh failures (which
+        // are already in `failed` but were never in `allToDispatch`).
+        const refreshFailureCount = failed.length
+
+        for (const { invite, plaintextToken } of allToDispatch) {
+          try {
+            const bodyHtml = await renderInviteEmailHtml({
+              invite,
+              plaintextToken,
+              championshipSlug: championship.slug,
+              championshipName: championship.name,
+              divisionLabel: division.label,
+              organizerTeamName: organizingTeam?.name ?? "Organizer",
+              subject: data.subject,
+              bodyText: data.bodyText,
+              rsvpDeadlineLabel,
+            })
+
+            const message: InviteEmailMessage = {
+              kind: "competition-invite",
+              inviteId: invite.id,
+              sendAttempt: invite.sendAttempt,
+              competitionId: invite.championshipCompetitionId,
+              email: invite.email,
+              subject: data.subject,
+              bodyHtml,
+            }
+
+            if (queue) {
+              await queue.send(message)
+            } else {
+              logInfo({
+                message: "[Invites] No queue binding — logging invite email",
+                attributes: { inviteId: invite.id, email: invite.email },
+              })
+            }
+
+            logEntityCreated({
+              entity: "competition_invite",
+              id: invite.id,
+              parentEntity: "competition",
+              parentId: invite.championshipCompetitionId,
+              attributes: {
+                origin: invite.origin,
+                sendAttempt: invite.sendAttempt,
+                activeMarker: invite.activeMarker,
+              },
+            })
+          } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : String(err)
+            failed.push({
+              inviteId: invite.id,
+              email: invite.email,
+              error: errorMsg,
+            })
+            logWarning({
+              message: "[Invites] Dispatch failed mid-batch",
+              error: err,
+              attributes: { inviteId: invite.id, email: invite.email },
+            })
+            // Flip the row so resend treats it as redeliverable. The
+            // `failed` status is a hint for the consumer/UX layer; the
+            // row's `claimToken` stays valid so a future re-send
+            // can redeliver the same token rather than rotating it.
+            try {
+              const db = getDb()
+              await db
+                .update(competitionInvitesTable)
+                .set({
+                  emailDeliveryStatus:
+                    COMPETITION_INVITE_EMAIL_DELIVERY_STATUS.FAILED,
+                  emailLastError: errorMsg.slice(0, 1000),
+                  updatedAt: new Date(),
+                })
+                .where(eq(competitionInvitesTable.id, invite.id))
+            } catch (markErr) {
+              logWarning({
+                message:
+                  "[Invites] Failed to mark invite as failed (non-fatal)",
+                error: markErr,
+                attributes: { inviteId: invite.id },
+              })
+            }
+          }
+        }
+
+        const skipped = issueResult.alreadyActive.filter(
+          (r) => r.resolution === "skip",
+        )
+        const dispatchFailureCount = failed.length - refreshFailureCount
+        const sentCount = allToDispatch.length - dispatchFailureCount
+
+        logInfo({
+          message: "[Invites] issueInvitesFn dispatched",
+          attributes: {
+            championshipCompetitionId: data.championshipCompetitionId,
+            divisionId: data.championshipDivisionId,
+            sent: sentCount,
+            failed: failed.length,
+            skipped: skipped.length,
+          },
+        })
+
+        return {
+          sentCount,
+          skipped,
+          failed,
+        }
+      },
+    )
+  })
+
+// ============================================================================
+// Organizer-facing: bespoke invite staging
+// ============================================================================
+
+export const createBespokeInviteFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => bespokeInviteInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "createBespokeInviteFn",
+        attributes: {
+          championshipCompetitionId: data.championshipCompetitionId,
+        },
+      },
+      async () => {
+        const championshipTeamId = await getCompetitionOrganizingTeamId(
+          data.championshipCompetitionId,
+        )
+        await requireTeamPermission(
+          championshipTeamId,
+          TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+        )
+
+        const invite = await createBespokeInviteHelper({
+          championshipCompetitionId: data.championshipCompetitionId,
+          championshipDivisionId: data.championshipDivisionId,
+          email: data.email,
+          inviteeFirstName: data.inviteeFirstName,
+          inviteeLastName: data.inviteeLastName,
+          bespokeReason: data.bespokeReason,
+        })
+
+        logEntityCreated({
+          entity: "competition_invite",
+          id: invite.id,
+          parentEntity: "competition",
+          parentId: data.championshipCompetitionId,
+          attributes: {
+            origin: COMPETITION_INVITE_ORIGIN.BESPOKE,
+            draft: true,
+          },
+        })
+
+        return { invite }
+      },
+    )
+  })
+
+export const createBespokeInvitesBulkFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => bespokeBulkInviteInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "createBespokeInvitesBulkFn",
+        attributes: {
+          championshipCompetitionId: data.championshipCompetitionId,
+        },
+      },
+      async () => {
+        const championshipTeamId = await getCompetitionOrganizingTeamId(
+          data.championshipCompetitionId,
+        )
+        await requireTeamPermission(
+          championshipTeamId,
+          TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+        )
+
+        const result = await createBespokeInvitesBulkHelper({
+          championshipCompetitionId: data.championshipCompetitionId,
+          championshipDivisionId: data.championshipDivisionId,
+          pasteText: data.pasteText,
+        })
+
+        logInfo({
+          message: "[Invites] Bulk bespoke upload processed",
+          attributes: {
+            championshipCompetitionId: data.championshipCompetitionId,
+            created: result.created.length,
+            duplicates: result.duplicates.length,
+            invalid: result.invalid.length,
+          },
+        })
+
+        return result
+      },
+    )
+  })
+
+/**
+ * Organizer-facing projection of an active invite. Carries `claimUrl`
+ * pre-built on the server so the client never has to know the app URL or
+ * how to interpolate the slug — the UI just renders / copies what we
+ * give it.
+ *
+ * `claimUrl` is `null` for staged-bespoke drafts (no token yet) and for
+ * already-terminal-but-still-active rows (e.g. `accepted_paid` rows
+ * which keep `activeMarker = "active"` but null `claimToken`). The UI
+ * uses this to distinguish drafts from sent invites without exposing
+ * raw token columns.
+ */
+export interface MyPendingCompetitionInviteSummary {
+  id: string
+  token: string
+  championshipDivisionId: string
+  divisionLabel: string
+  expiresAt: Date | null
+}
+
+export interface ActiveInviteSummary {
+  id: string
+  email: string
+  origin: CompetitionInvite["origin"]
+  status: CompetitionInvite["status"]
+  championshipDivisionId: string
+  activeMarker: CompetitionInvite["activeMarker"]
+  bespokeReason: string | null
+  inviteeFirstName: string | null
+  inviteeLastName: string | null
+  userId: string | null
+  /**
+   * Pre-built `${appUrl}/compete/${slug}/claim/${claimToken}` URL when
+   * the row has a live token, else `null`. Mirrors the
+   * `team_invitations`-style copy-link affordance.
+   */
+  claimUrl: string | null
+  /**
+   * Counter incremented on every refresh dispatch. The dispatch loop
+   * reads `invite.sendAttempt` to feed the Resend `Idempotency-Key`,
+   * so an organizer-facing "this athlete has been emailed N times"
+   * count is `sendAttempt + 1` for any row with a token (the +1 covers
+   * the first send that ran while sendAttempt was still 0). Drafts
+   * (no token, never dispatched) read 0 the same way fresh inserts do
+   * — the UI distinguishes by checking `claimUrl === null`.
+   */
+  sendAttempt: number
+}
+
+/**
+ * Audit-view projection of every invite (active OR terminal) for a
+ * championship. Extends `ActiveInviteSummary` with two columns the Sent
+ * tab needs:
+ *
+ * - `divisionLabel` — sourced via the same `scalingLevels` join so the
+ *   audit table doesn't have to do a per-row lookup against the
+ *   championshipDivisions map.
+ * - `lastUpdatedAt` — the row's `updatedAt` (bumped on issue / reissue
+ *   / dispatch / status flip). The `competition_invites` table has no
+ *   dedicated `lastSentAt` column today; `updatedAt` is the closest
+ *   approximation of "last activity" and the audit view is the right
+ *   place to surface it. Renamed on the DTO so the column header reads
+ *   correctly without implying a send-only semantic.
+ * - `sourcePlacementLabel` — denormalized "1st — Comp · Div" for
+ *   source-origin rows so the audit table can show attribution
+ *   alongside `bespokeReason` for bespoke rows.
+ */
+export interface AuditInviteSummary extends ActiveInviteSummary {
+  divisionLabel: string
+  lastUpdatedAt: Date | null
+  sourcePlacementLabel: string | null
+  /** `competition_invite_sources.id` for source-origin invites; `null` for
+   *  bespoke. Used by the Sent tab to group accepted invites under each
+   *  qualification source. */
+  sourceId: string | null
+  /** Hard expiry from `competition_invites.expiresAt`. Mirrors the round's
+   *  `rsvpDeadlineAt` at issue time but stored per-invite so per-invite
+   *  extensions can move it. `null` when the invite has no expiry set
+   *  (drafts, or rounds without a deadline). Sent tab renders this so the
+   *  organizer can see how soon the live claim link goes stale. */
+  expiresAt: Date | null
+}
+
+/**
+ * List claimable pending competition invites for the signed-in athlete on
+ * the public competition page. Mirrors the claim guard's expiry semantics so
+ * a still-pending row stops producing a sidebar CTA once its deadline passes.
+ */
+// @lat: [[competition-invites#Competition page invite card]]
+export const listMyPendingCompetitionInvitesFn = createServerFn({
+  method: "GET",
+})
+  .inputValidator((data: unknown) =>
+    listMyPendingCompetitionInvitesInputSchema.parse(data),
+  )
+  .handler(
+    async ({
+      data,
+    }): Promise<{ invites: MyPendingCompetitionInviteSummary[] }> => {
+      const session = await getSessionFromCookie()
+      if (!session?.userId) return { invites: [] }
+
+      const db = getDb()
+      const normalizedEmail = session.user.email
+        ? normalizeInviteEmail(session.user.email)
+        : null
+      const identityPredicate = normalizedEmail
+        ? or(
+            eq(competitionInvitesTable.userId, session.userId),
+            eq(competitionInvitesTable.email, normalizedEmail),
+          )
+        : eq(competitionInvitesTable.userId, session.userId)
+      const now = new Date()
+
+      const rows = await db
+        .select({
+          id: competitionInvitesTable.id,
+          token: competitionInvitesTable.claimToken,
+          championshipDivisionId:
+            competitionInvitesTable.championshipDivisionId,
+          divisionLabel: scalingLevelsTable.label,
+          expiresAt: competitionInvitesTable.expiresAt,
+        })
+        .from(competitionInvitesTable)
+        .leftJoin(
+          scalingLevelsTable,
+          eq(
+            scalingLevelsTable.id,
+            competitionInvitesTable.championshipDivisionId,
+          ),
+        )
+        .where(
+          and(
+            eq(
+              competitionInvitesTable.championshipCompetitionId,
+              data.championshipCompetitionId,
+            ),
+            identityPredicate,
+            eq(
+              competitionInvitesTable.status,
+              COMPETITION_INVITE_STATUS.PENDING,
+            ),
+            eq(
+              competitionInvitesTable.activeMarker,
+              COMPETITION_INVITE_ACTIVE_MARKER,
+            ),
+            isNotNull(competitionInvitesTable.claimToken),
+            or(
+              isNull(competitionInvitesTable.expiresAt),
+              gt(competitionInvitesTable.expiresAt, now),
+            ),
+          ),
+        )
+
+      return {
+        invites: rows.map((row) => ({
+          ...row,
+          token: row.token ?? "",
+          divisionLabel: row.divisionLabel ?? "Invited division",
+        })),
+      }
+    },
+  )
+
+export const listActiveInvitesFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => listBespokeInvitesInputSchema.parse(data))
+  .handler(async ({ data }): Promise<{ invites: ActiveInviteSummary[] }> => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "listActiveInvitesFn",
+        attributes: {
+          championshipCompetitionId: data.championshipCompetitionId,
+        },
+      },
+      async () => {
+        const championshipTeamId = await getCompetitionOrganizingTeamId(
+          data.championshipCompetitionId,
+        )
+        await requireTeamPermission(
+          championshipTeamId,
+          TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+        )
+
+        const db = getDb()
+        // Single query: join the championship row so we can build
+        // `claimUrl` per invite without a follow-up roundtrip per row.
+        // The championship is the same for every row in the result, but
+        // joining keeps the projection self-contained and lets us
+        // surface a useful error if the championship ever vanished
+        // mid-flight.
+        const rows = await db
+          .select({
+            id: competitionInvitesTable.id,
+            email: competitionInvitesTable.email,
+            origin: competitionInvitesTable.origin,
+            status: competitionInvitesTable.status,
+            championshipDivisionId:
+              competitionInvitesTable.championshipDivisionId,
+            activeMarker: competitionInvitesTable.activeMarker,
+            bespokeReason: competitionInvitesTable.bespokeReason,
+            inviteeFirstName: competitionInvitesTable.inviteeFirstName,
+            inviteeLastName: competitionInvitesTable.inviteeLastName,
+            userId: competitionInvitesTable.userId,
+            claimToken: competitionInvitesTable.claimToken,
+            sendAttempt: competitionInvitesTable.sendAttempt,
+            championshipSlug: competitionsTable.slug,
+          })
+          .from(competitionInvitesTable)
+          .innerJoin(
+            competitionsTable,
+            eq(
+              competitionsTable.id,
+              competitionInvitesTable.championshipCompetitionId,
+            ),
+          )
+          .where(
+            and(
+              eq(
+                competitionInvitesTable.championshipCompetitionId,
+                data.championshipCompetitionId,
+              ),
+              data.championshipDivisionId
+                ? eq(
+                    competitionInvitesTable.championshipDivisionId,
+                    data.championshipDivisionId,
+                  )
+                : undefined,
+              eq(
+                competitionInvitesTable.activeMarker,
+                COMPETITION_INVITE_ACTIVE_MARKER,
+              ),
+            ),
+          )
+
+        const appUrl = getAppUrl()
+        const invites: ActiveInviteSummary[] = rows.map(
+          ({ claimToken, championshipSlug, ...rest }) => ({
+            ...rest,
+            claimUrl: claimToken
+              ? `${appUrl}/compete/${championshipSlug}/claim/${claimToken}`
+              : null,
+          }),
+        )
+        return { invites }
+      },
+    )
+  })
+
+const listAllInvitesInputSchema = z.object({
+  championshipCompetitionId: z.string().min(1),
+})
+
+/**
+ * List every invite (active OR terminal) for a championship. Powers the
+ * organizer "Sent" audit tab and the Candidates tab's bespoke list +
+ * roster status pills (so declined athletes stay visible to the
+ * organizer). Distinct from `listActiveInvitesFn`, which still drives
+ * the recipient-dedup map on the Candidates tab — that gate explicitly
+ * needs to *exclude* declined rows so re-issues flow back through
+ * `issueInvitesFn` instead of being silently filtered as duplicates.
+ *
+ * Joins `scalingLevels` to surface `divisionLabel` per row so the
+ * client doesn't need a per-row map lookup, and selects `updatedAt`
+ * as `lastUpdatedAt` (the table has no dedicated `lastSentAt` column —
+ * `updatedAt` is bumped on every issue / reissue / dispatch and is the
+ * closest available signal of "last activity").
+ */
+export const listAllInvitesFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => listAllInvitesInputSchema.parse(data))
+  .handler(async ({ data }): Promise<{ invites: AuditInviteSummary[] }> => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "listAllInvitesFn",
+        attributes: {
+          championshipCompetitionId: data.championshipCompetitionId,
+        },
+      },
+      async () => {
+        const championshipTeamId = await getCompetitionOrganizingTeamId(
+          data.championshipCompetitionId,
+        )
+        await requireTeamPermission(
+          championshipTeamId,
+          TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+        )
+
+        const db = getDb()
+        const rows = await db
+          .select({
+            id: competitionInvitesTable.id,
+            email: competitionInvitesTable.email,
+            origin: competitionInvitesTable.origin,
+            status: competitionInvitesTable.status,
+            championshipDivisionId:
+              competitionInvitesTable.championshipDivisionId,
+            activeMarker: competitionInvitesTable.activeMarker,
+            bespokeReason: competitionInvitesTable.bespokeReason,
+            sourcePlacementLabel: competitionInvitesTable.sourcePlacementLabel,
+            sourceId: competitionInvitesTable.sourceId,
+            inviteeFirstName: competitionInvitesTable.inviteeFirstName,
+            inviteeLastName: competitionInvitesTable.inviteeLastName,
+            userId: competitionInvitesTable.userId,
+            claimToken: competitionInvitesTable.claimToken,
+            sendAttempt: competitionInvitesTable.sendAttempt,
+            lastUpdatedAt: competitionInvitesTable.updatedAt,
+            expiresAt: competitionInvitesTable.expiresAt,
+            championshipSlug: competitionsTable.slug,
+            divisionLabel: scalingLevelsTable.label,
+          })
+          .from(competitionInvitesTable)
+          .innerJoin(
+            competitionsTable,
+            eq(
+              competitionsTable.id,
+              competitionInvitesTable.championshipCompetitionId,
+            ),
+          )
+          .leftJoin(
+            scalingLevelsTable,
+            eq(
+              scalingLevelsTable.id,
+              competitionInvitesTable.championshipDivisionId,
+            ),
+          )
+          .where(
+            eq(
+              competitionInvitesTable.championshipCompetitionId,
+              data.championshipCompetitionId,
+            ),
+          )
+
+        const appUrl = getAppUrl()
+        const invites: AuditInviteSummary[] = rows.map(
+          ({ claimToken, championshipSlug, divisionLabel, ...rest }) => ({
+            ...rest,
+            divisionLabel: divisionLabel ?? "",
+            claimUrl: claimToken
+              ? `${appUrl}/compete/${championshipSlug}/claim/${claimToken}`
+              : null,
+          }),
+        )
+        return { invites }
+      },
+    )
+  })
+
+// ============================================================================
+// Per-(source, division) Allocations — ADR-0012 Phase 1
+// ============================================================================
+
+/**
+ * Parse `competitions.settings` JSON to extract the championship's
+ * `scalingGroupId` — the same pivot `getCompetitionDivisionsWithCountsFn`
+ * uses to derive championship divisions. Inlined here (rather than
+ * imported from `competition-divisions-fns`) to keep the server-fn module
+ * self-contained.
+ */
+function parseScalingGroupId(settings: string | null): string | null {
+  if (!settings) return null
+  try {
+    const parsed = JSON.parse(settings) as {
+      divisions?: { scalingGroupId?: string }
+    } | null
+    return parsed?.divisions?.scalingGroupId ?? null
+  } catch {
+    return null
+  }
+}
+
+const listInviteSourceAllocationsInputSchema = z.object({
+  championshipCompetitionId: z.string().min(1),
+})
+
+const saveInviteSourceAllocationsInputSchema = z.object({
+  sourceId: z.string().min(1),
+  allocations: z
+    .array(
+      z.object({
+        championshipDivisionId: z.string().min(1),
+        // `null` = revert to source default (delete the row).
+        // Number ≥ 0 = upsert override. `0` is a valid pinned value.
+        spots: z.number().int().min(0).nullable(),
+      }),
+    )
+    .max(200),
+})
+
+/**
+ * Resolve per-source / per-championship-division allocation maps for the
+ * organizer invites loader. The default-plus-override math lives in
+ * `resolveSourceAllocations`; this fn wires up the inputs (sources,
+ * championship divisions, allocation rows) and emits both the per-source
+ * map and the summed-by-division total the Sent tab needs.
+ *
+ * Permission: `MANAGE_COMPETITIONS` on the championship's organizing team
+ * — same gate as the rest of the organizer invite endpoints. The source
+ * rows are scoped to the championship by `championshipCompetitionId`.
+ */
+export const listInviteSourceAllocationsFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    listInviteSourceAllocationsInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "listInviteSourceAllocationsFn",
+        attributes: {
+          championshipCompetitionId: data.championshipCompetitionId,
+        },
+      },
+      async () => {
+        const championshipTeamId = await getCompetitionOrganizingTeamId(
+          data.championshipCompetitionId,
+        )
+        await requireTeamPermission(
+          championshipTeamId,
+          TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+        )
+
+        const db = getDb()
+
+        // Load sources, championship divisions, and allocation rows in
+        // parallel. The championship divisions are derived the same way
+        // `getCompetitionDivisionsWithCountsFn` derives them — via the
+        // competition's `settings.divisions.scalingGroupId` →
+        // `scaling_levels` rows.
+        const [sources, competitionRow, allocationRows] = await Promise.all([
+          listSourcesForChampionship(data.championshipCompetitionId),
+          db
+            .select({ settings: competitionsTable.settings })
+            .from(competitionsTable)
+            .where(eq(competitionsTable.id, data.championshipCompetitionId))
+            .limit(1)
+            .then((rows) => rows[0] ?? null),
+          listAllocationsForChampionship({
+            championshipCompetitionId: data.championshipCompetitionId,
+          }),
+        ])
+
+        if (!competitionRow) throw new Error("Competition not found")
+
+        const scalingGroupId = parseScalingGroupId(competitionRow.settings)
+
+        const championshipDivisions = scalingGroupId
+          ? await db
+              .select({
+                id: scalingLevelsTable.id,
+                label: scalingLevelsTable.label,
+              })
+              .from(scalingLevelsTable)
+              .where(eq(scalingLevelsTable.scalingGroupId, scalingGroupId))
+              .orderBy(scalingLevelsTable.position)
+          : []
+
+        const allocationsBySourceByDivision: Record<
+          string,
+          Record<string, number>
+        > = {}
+        const divisionAllocationTotals: Record<string, number> = {}
+        // Raw override rows grouped by source — lets the source details
+        // page distinguish "override present" from "default applied"
+        // when seeding the per-division toggle state.
+        const rawAllocationsBySource: Record<
+          string,
+          Array<{ championshipDivisionId: string; spots: number }>
+        > = {}
+        for (const division of championshipDivisions) {
+          divisionAllocationTotals[division.id] = 0
+        }
+
+        for (const source of sources) {
+          const sourceRows = allocationRows.filter(
+            (a) => a.sourceId === source.id,
+          )
+          const resolved = resolveSourceAllocations({
+            source,
+            championshipDivisions,
+            allocations: sourceRows,
+          })
+          allocationsBySourceByDivision[source.id] = resolved.byDivision
+          rawAllocationsBySource[source.id] = sourceRows.map((r) => ({
+            championshipDivisionId: r.championshipDivisionId,
+            spots: r.spots,
+          }))
+          for (const [divisionId, spots] of Object.entries(
+            resolved.byDivision,
+          )) {
+            divisionAllocationTotals[divisionId] =
+              (divisionAllocationTotals[divisionId] ?? 0) + spots
+          }
+        }
+
+        return {
+          allocationsBySourceByDivision,
+          divisionAllocationTotals,
+          rawAllocationsBySource,
+        }
+      },
+    )
+  })
+
+/**
+ * Persist per-(source, championship-division) allocation overrides for one
+ * source. `null` deletes the row (revert to default); a number ≥ 0
+ * upserts via the `(sourceId, championshipDivisionId)` unique index.
+ *
+ * Permission: load the source, verify the caller has `MANAGE_COMPETITIONS`
+ * on the source's championship organizing team — matches the existing
+ * edit/delete source fns exactly so a bad `sourceId` never bypasses the
+ * championship-side permission check.
+ */
+export const saveInviteSourceAllocationsFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    saveInviteSourceAllocationsInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const session = await getSessionFromCookie()
+    if (!session?.userId) throw new Error("Not authenticated")
+
+    return withRequestContext(
+      {
+        userId: session.userId,
+        serverFn: "saveInviteSourceAllocationsFn",
+        attributes: {
+          sourceId: data.sourceId,
+          allocationCount: data.allocations.length,
+        },
+      },
+      async () => {
+        const source = await getSourceById(data.sourceId)
+        if (!source) throw new Error("Source not found")
+
+        const championshipTeamId = await getCompetitionOrganizingTeamId(
+          source.championshipCompetitionId,
+        )
+        await requireTeamPermission(
+          championshipTeamId,
+          TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+        )
+
+        const db = getDb()
+        await db.transaction(async (tx) => {
+          for (const entry of data.allocations) {
+            if (entry.spots === null) {
+              await tx
+                .delete(competitionInviteSourceDivisionAllocationsTable)
+                .where(
+                  and(
+                    eq(
+                      competitionInviteSourceDivisionAllocationsTable.sourceId,
+                      data.sourceId,
+                    ),
+                    eq(
+                      competitionInviteSourceDivisionAllocationsTable.championshipDivisionId,
+                      entry.championshipDivisionId,
+                    ),
+                  ),
+                )
+            } else {
+              await tx
+                .insert(competitionInviteSourceDivisionAllocationsTable)
+                .values({
+                  sourceId: data.sourceId,
+                  championshipDivisionId: entry.championshipDivisionId,
+                  spots: entry.spots,
+                })
+                .onDuplicateKeyUpdate({
+                  set: {
+                    spots: entry.spots,
+                    updatedAt: new Date(),
+                  },
+                })
+            }
+          }
+        })
+
+        logEntityUpdated({
+          entity: "competition_invite_source_allocations",
+          id: data.sourceId,
+          attributes: {
+            championshipCompetitionId: source.championshipCompetitionId,
+            allocationCount: data.allocations.length,
+          },
+        })
+
+        return { ok: true as const }
+      },
+    )
+  })

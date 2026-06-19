@@ -662,6 +662,7 @@ describe('registration-fns', () => {
       id: testCompetitionId,
       name: 'Test Competition',
       slug: 'test-competition',
+      status: 'published',
       organizingTeamId: 'org-team-1',
       registrationOpensAt: '2025-01-01',
       registrationClosesAt: '2025-12-31',
@@ -742,6 +743,22 @@ describe('registration-fns', () => {
             },
           }),
         ).rejects.toThrow('Competition not found')
+      })
+
+      it('throws when competition is draft', async () => {
+        setupBasePaymentMocks()
+        mockDb.query.competitionsTable.findFirst = vi
+          .fn()
+          .mockResolvedValue({...mockCompetition, status: 'draft'})
+
+        await expect(
+          initiatePayment({
+            data: {
+              competitionId: testCompetitionId,
+              items: [{divisionId: 'div-1'}],
+            },
+          }),
+        ).rejects.toThrow('Registration is not open for this competition')
       })
 
       it('throws when registration not yet open', async () => {

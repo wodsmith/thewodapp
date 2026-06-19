@@ -1,0 +1,60 @@
+# Cloudflare Workers Development Variables
+# Copy this file to .dev.vars and fill in values
+# These are loaded by `wrangler dev` and override .env variables
+
+### Stripe Configuration (Required for Stripe features)
+# Get your API keys from https://dashboard.stripe.com/apikeys
+STRIPE_SECRET_KEY=replace_me_stripe_secret_key
+
+# Stripe Connect OAuth Client ID
+# IMPORTANT: Required for Stripe Connect OAuth flow (Standard accounts)
+# Get from Stripe Dashboard > Settings > Connect > Integration > OAuth Client ID
+STRIPE_CLIENT_ID=replace_me_stripe_connect_client_id
+
+# Webhook secret for Stripe webhook signature verification
+# Get from Stripe Dashboard > Developers > Webhooks > Add endpoint
+# For local dev, use Stripe CLI: `stripe listen --forward-to localhost:5173/api/stripe/webhook`
+STRIPE_WEBHOOK_SECRET=replace_me_stripe_webhook_secret
+
+### Client-side Stripe (VITE_ prefix exposes to client)
+VITE_STRIPE_PUBLISHABLE_KEY=replace_me_stripe_publishable_key
+
+### App Configuration
+VITE_APP_URL=http://localhost:5173
+
+### Cloudflare AI Gateway
+# Required by the AI judge-scheduling agent (and any future AI features)
+# to route traffic through the managed gateway in alchemy.run.ts.
+# Requests use the Cloudflare AI binding, so no runtime API token is needed.
+
+### Other Cloudflare-specific secrets can be added here
+# TURNSTILE_SECRET_KEY=
+# RESEND_API_KEY=
+# GOOGLE_CLIENT_ID=
+# GOOGLE_CLIENT_SECRET=
+
+### Alchemy IaC
+# Password for encrypting Alchemy state files
+ALCHEMY_PASSWORD=replace_me_alchemy_value
+
+### PostHog Configuration (Optional)
+# NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
+# POSTHOG_LOGS_ENDPOINT=https://us.i.posthog.com/i/v1/logs
+
+### Logging (Optional)
+# LOG_LEVEL=info
+
+
+CRON_SECRET=replace_me_cron_secret
+
+### Slack Integration (Optional)
+# Webhook URL for the #ding-ding channel (or your purchase notification channel)
+# Get from Slack: Apps > Incoming Webhooks > Add New Webhook to Workspace
+# SLACK_WEBHOOK_URL=your-slack-webhook-url
+
+# Enable/disable Slack purchase notifications (set to "true" to enable)
+# SLACK_PURCHASE_NOTIFICATIONS_ENABLED=true
+
+# Comma-separated list of purchase types to notify on (optional, defaults to all)
+# Valid types: COMPETITION_REGISTRATION, ADDON, CREDITS, SUBSCRIPTION
+# SLACK_PURCHASE_NOTIFICATION_TYPES=COMPETITION_REGISTRATION,ADDON

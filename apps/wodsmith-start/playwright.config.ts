@@ -38,5 +38,9 @@ export default defineConfig({
     url: baseURL,
     reuseExistingServer: !isCI,
     timeout: 120_000,
+    // Hide the TanStack Devtools trigger — it floats over the bottom-right
+    // corner and intercepts clicks on UI fixed there (e.g. the docs drawer
+    // button).
+    env: { VITE_E2E: "true" },
   },
 })

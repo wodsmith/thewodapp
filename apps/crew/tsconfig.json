@@ -1,0 +1,40 @@
+{
+  "include": [
+    "src/router.tsx",
+    "src/server.ts",
+    "src/routeTree.gen.ts",
+    "src/routes/**/*.ts",
+    "src/routes/**/*.tsx",
+    "src/types/env.d.ts"
+  ],
+  "exclude": ["alchemy.run.ts"],
+  "compilerOptions": {
+    "target": "ES2022",
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": [
+      "./worker-configuration.d.ts",
+      "node",
+      "vite/client",
+      "@cloudflare/workers-types"
+    ],
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": false,
+    "noEmit": true,
+
+    /* Linting */
+    "skipLibCheck": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}

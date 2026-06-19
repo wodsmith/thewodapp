@@ -1,0 +1,37 @@
+{
+  "name": "@repo/wodsmith-db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema.ts",
+    "./mysql": "./src/mysql.ts",
+    "./ids": "./src/ids.ts",
+    "./schemas/*": "./src/schemas/*.ts"
+  },
+  "main": "./src/index.ts",
+  "files": [
+    "src/**",
+    "drizzle.config.ts",
+    "mysql-migrations/**"
+  ],
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@paralleldrive/cuid2": "^2.2.2",
+    "drizzle-orm": "^0.39.3",
+    "mysql2": "^3.16.2",
+    "ulid": "^3.0.2"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "^22.19.3",
+    "drizzle-kit": "^0.30.6",
+    "typescript": "^5.7.2"
+  }
+}
