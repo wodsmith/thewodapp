@@ -16,9 +16,17 @@ export type ResultsNavLabel = "Results" | "Submissions"
 export interface CompetitionTypeDef {
   id: string
   label: string
+  createPickerDescription: string
   capabilities: ReadonlySet<CompetitionCapability>
   leaderboardVariant: LeaderboardVariant
   selectableOnCreate: boolean
+}
+
+export interface CompetitionTypePickerOption {
+  id: string
+  label: string
+  description: string
+  displayLabel: string
 }
 
 const EMPTY_CAPABILITIES: ReadonlySet<CompetitionCapability> = new Set()
@@ -29,6 +37,7 @@ export const COMPETITION_TYPE_REGISTRY: Readonly<
   "in-person": {
     id: "in-person",
     label: "In-Person",
+    createPickerDescription: "Traditional venue-based competition",
     leaderboardVariant: "standard",
     selectableOnCreate: true,
     capabilities: new Set([
@@ -42,6 +51,7 @@ export const COMPETITION_TYPE_REGISTRY: Readonly<
   online: {
     id: "online",
     label: "Online",
+    createPickerDescription: "Virtual competition with video submissions",
     leaderboardVariant: "online",
     selectableOnCreate: true,
     capabilities: new Set([
@@ -80,6 +90,15 @@ export function selectableCompetitionTypes(): CompetitionTypeDef[] {
   return Object.values(COMPETITION_TYPE_REGISTRY).filter((definition) =>
     isSelectableType(definition.id),
   )
+}
+
+export function selectableCompetitionTypeOptions(): CompetitionTypePickerOption[] {
+  return selectableCompetitionTypes().map((definition) => ({
+    id: definition.id,
+    label: definition.label,
+    description: definition.createPickerDescription,
+    displayLabel: `${definition.label} - ${definition.createPickerDescription}`,
+  }))
 }
 
 export function canOrganizerEnterResults(type: string): boolean {
