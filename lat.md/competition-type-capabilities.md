@@ -24,14 +24,82 @@ The truth-table test pins every capability and leaderboard variant for in-person
 
 Focused PR-2 server-function tests pin that in-person score saves pass the submission-window gate, online score saves still honor closed windows, and in-person video submissions still reject before writes. PR-3 adds [[apps/wodsmith-start/test/components/leaderboard-page-content.test.tsx]] coverage for standard versus online leaderboard table selection plus [[apps/wodsmith-start/test/server/competition-leaderboard-capability-gates.test.ts]] coverage for opt-in result publishing defaults and the leaderboard video-submission fetch gate. PR-4 adds [[apps/wodsmith-start/test/lib/competitions/scheduling-check-in-gates.test.ts]] coverage for the heat scheduling and day-of check-in gates used by the public schedule, judge rotations, check-in routes, and check-in server functions. PR-5 adds [[apps/wodsmith-start/test/lib/competitions/venue-volunteer-gates.test.ts]] and [[apps/wodsmith-start/test/components/competition-location-card.test.tsx]] coverage for physical venue display and volunteer schedule-tab gates.
 
+### Current Type Matrix
+
+This test verifies every current competition type keeps its existing capability, leaderboard variant, and create-selectability behavior.
+
+### Registry Metadata Alignment
+
+This test verifies registry keys, ids, labels, and capability sets stay aligned with the supported stored competition-type identities.
+
+### Unknown Type Fallback
+
+This test verifies unknown competition types fail closed for capabilities, use the standard leaderboard variant, and stay unselectable.
+
 ## Create Picker Selectability Test
 
 The create-picker test pins that selectable competition type options are derived from registry selectability while exposing only current types.
 
 [[apps/wodsmith-start/test/lib/competitions/capabilities.test.ts]] verifies [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#selectableCompetitionTypes]] returns only in-person and online type definitions, with each entry passing [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#isSelectableType]] and [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#isSelectableCompetitionTypeValue]]. [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#selectableCompetitionTypeOptions]] provides the registry-backed label and description text that the generic organizer create and edit form pickers render, while the form and server schemas use the same selectable-value guard.
 
+## Scheduling and Check-In Gates Test
+
+These tests pin capability helpers that route public schedules, heat scheduling, and day-of check-in without direct type checks.
+
+### Public Schedule Mode
+
+This test verifies in-person public schedules use heats while online schedules use submission-window data.
+
+### Heat Scheduling Gate
+
+This test verifies heat scheduling remains available only for in-person competitions.
+
+### Day-Of Check-In Gate
+
+This test verifies day-of check-in remains available only for in-person competitions.
+
+### Check-In Permission Gate
+
+This test verifies check-in surfacing also requires organizer or volunteer access.
+
+### Unknown Type Scheduling Fallback
+
+This test verifies unregistered competition types expose no schedule or check-in capabilities.
+
+## Venue and Volunteer Gates Test
+
+These tests pin the capability helpers that control physical venue display and volunteer scheduling tabs.
+
+### Physical Venue Display
+
+This test verifies physical venue display remains available only for in-person competitions.
+
+### Volunteer Scheduling Availability
+
+This test verifies volunteer scheduling remains available only for in-person competitions.
+
+### Volunteer Schedule Tab Fallback
+
+This test verifies unavailable schedule tabs fall back to roster while non-schedule volunteer tabs remain reachable.
+
+### Unknown Type Venue Volunteer Fallback
+
+This test verifies unregistered competition types expose no venue or volunteer scheduling capabilities.
+
 ## Results Entry and Sidebar Gates Test
 
 PR-6 tests pin that result-entry labels and sidebar tabs come from capabilities rather than direct competition-type checks.
 
 [[apps/wodsmith-start/test/lib/competitions/capabilities.test.ts]] covers the result-entry mode and Results/Submissions label helper. [[apps/wodsmith-start/test/components/competition-sidebar-capability-gates.test.ts]] covers organizer and cohost sidebar labels plus capability-gated schedule, check-in, venue, and submission-window tabs while preserving online Volunteers links for non-scheduling volunteer workflows. [[apps/wodsmith-start/test/routes/compete/results-route-capability-branching.test.ts]] covers the organizer and cohost results route branch selectors for organizer-entered versus athlete-submitted modes.
+
+### Registry Results Mode Labels
+
+This test verifies result-entry mode and Results/Submissions labels are derived from the organizer-entered-results capability.
+
+### Organizer Results Route Mode
+
+This test verifies organizer results routes select organizer-entered or athlete-submitted modes through capability helpers.
+
+### Cohost Results Route Mode
+
+This test verifies cohost results routes select organizer-entered or athlete-submitted modes through capability helpers.

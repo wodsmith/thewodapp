@@ -640,6 +640,10 @@ function InPersonResultsEntry({
   const athleteCount = isParentEvent
     ? (childScoreDataList[0]?.athletes.length ?? 0)
     : (scoreEntryData?.athletes.length ?? 0)
+  const hasCompleteChildScoreData =
+    isParentEvent &&
+    childScoreDataList.length > 0 &&
+    childScoreDataList.every((child) => child.event)
 
   return (
     <div className="flex flex-col gap-4">
@@ -736,9 +740,7 @@ function InPersonResultsEntry({
         )}
       </div>
 
-      {isParentEvent &&
-      childScoreDataList.length > 0 &&
-      childScoreDataList[0].event ? (
+      {hasCompleteChildScoreData ? (
         <ResultsEntryForm
           key={`${selectedEventId}-${selectedDivisionId}`}
           competitionId={competitionId}

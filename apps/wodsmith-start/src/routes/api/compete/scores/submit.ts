@@ -72,7 +72,10 @@ async function checkSubmissionWindow(
     !competition ||
     !competitionCan(competition.competitionType, "submissionWindows")
   ) {
-    return { isOpen: false, reason: "Not an online competition" }
+    return {
+      isOpen: false,
+      reason: "Submission windows are not available for this competition type",
+    }
   }
 
   const [event] = await db

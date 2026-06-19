@@ -51,7 +51,7 @@ const EXPECTED = {
 } as const
 
 describe("competition type capabilities", () => {
-	// @lat: [[competition-type-capabilities#Capability Truth Table Test]]
+	// @lat: [[competition-type-capabilities#Capability Truth Table Test#Current Type Matrix]]
 	it("pins every in-person and online capability to the existing behavior table", () => {
 		for (const [type, expected] of Object.entries(EXPECTED)) {
 			for (const capability of CAPABILITIES) {
@@ -65,6 +65,7 @@ describe("competition type capabilities", () => {
 		}
 	})
 
+	// @lat: [[competition-type-capabilities#Capability Truth Table Test#Registry Metadata Alignment]]
 	it("keeps registry metadata aligned with the supported type identities", () => {
 		expect(Object.keys(COMPETITION_TYPE_REGISTRY).sort()).toEqual([
 			"in-person",
@@ -78,6 +79,7 @@ describe("competition type capabilities", () => {
 		}
 	})
 
+	// @lat: [[competition-type-capabilities#Capability Truth Table Test#Unknown Type Fallback]]
 	it("falls back safely for unknown competition types", () => {
 		for (const capability of CAPABILITIES) {
 			expect(competitionCan("benchmark", capability)).toBe(false)
@@ -119,7 +121,7 @@ describe("competition type capabilities", () => {
 		])
 	})
 
-	// @lat: [[competition-type-capabilities#Results Entry and Sidebar Gates Test]]
+	// @lat: [[competition-type-capabilities#Results Entry and Sidebar Gates Test#Registry Results Mode Labels]]
 	it("derives results-entry mode and nav labels from organizer-entered-results capability", () => {
 		expect(resultsEntryMode("in-person")).toBe("organizer-entered")
 		expect(resultsNavLabel("in-person")).toBe("Results")
