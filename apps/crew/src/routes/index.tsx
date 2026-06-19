@@ -23,8 +23,14 @@ function HomePage() {
         </div>
         <div className="flex flex-wrap gap-3">
           <Link
-            to="/events"
+            to="/calculator"
             className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Estimate staffing
+          </Link>
+          <Link
+            to="/events"
+            className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
           >
             View events
           </Link>
@@ -42,6 +48,7 @@ function HomePage() {
           <h2 className="text-lg font-semibold">Crew shell routes</h2>
           <div className="grid gap-3 text-sm">
             {[
+              ["/calculator", "Staffing calculator"],
               ["/events", "Crew event list"],
               ["/events/new", "Event setup placeholder"],
               ["/events/$eventId", "Event operations overview"],
