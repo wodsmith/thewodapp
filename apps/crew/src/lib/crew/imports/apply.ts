@@ -68,6 +68,11 @@ export interface HeatApplyTrackWorkout {
   trackOrder: number
 }
 
+export interface TrackWorkoutLookupDetails {
+  workoutByLookup: Map<string, HeatApplyTrackWorkout>
+  ambiguousLookupKeys: Set<string>
+}
+
 export interface HeatApplyVenue {
   id: string
   name: string
@@ -114,6 +119,13 @@ export interface HeatApplyPlan {
 export interface HeatApplySupportTargets {
   trackWorkoutIds: Set<string>
   venueIds: Set<string>
+}
+
+export interface CrewImportProgrammingTrackCandidate {
+  id: string
+  name: string
+  type?: string | null
+  isPublic?: number | null
 }
 
 const roleLabelToType = new Map<string, VolunteerRoleType>(
@@ -293,7 +305,9 @@ export function buildHeatScheduleApplyPlan(
   rows: PreviewImportRow[],
   context: HeatApplyContext,
 ): HeatApplyPlan {
-  const trackWorkoutByLookup = buildTrackWorkoutLookup(context.trackWorkouts)
+  const trackWorkoutLookup = buildTrackWorkoutLookupDetails(
+    context.trackWorkouts,
+  )
   const divisionByLookup = new Map(
     context.divisions.map((division) => [
       normalizeLookupValue(division.label),
@@ -324,10 +338,22 @@ export function buildHeatScheduleApplyPlan(
       return createHeatPlan(row.rowNumber, "skip", warnings, errors)
     }
 
-    const trackWorkout = trackWorkoutByLookup.get(
-      normalizeLookupValue(heat.workout),
-    )
-    if (!trackWorkout) {
+    const workoutLookupKey =
+      typeof heat.workout === "string" ? normalizeLookupValue(heat.workout) : ""
+    const isAmbiguousWorkout =
+      trackWorkoutLookup.ambiguousLookupKeys.has(workoutLookupKey)
+    const trackWorkout =
+      trackWorkoutLookup.workoutByLookup.get(workoutLookupKey)
+    if (isAmbiguousWorkout) {
+      errors.push(
+        createApplyIssue(
+          row.rowNumber,
+          "workout",
+          "ambiguous_workout_lookup",
+          "Workout label matches multiple existing event lookup keys.",
+        ),
+      )
+    } else if (!trackWorkout) {
       errors.push(
         createApplyIssue(
           row.rowNumber,
@@ -354,7 +380,7 @@ export function buildHeatScheduleApplyPlan(
       context.competitionStartDate,
       context.timezone,
     )
-    if (heat.scheduledTime && !scheduledTime) {
+    if (hasImportedScheduledTimeValue(heat.scheduledTime) && !scheduledTime) {
       errors.push(
         createApplyIssue(
           row.rowNumber,
@@ -448,14 +474,30 @@ export function buildHeatScheduleApplyPlan(
 export function buildTrackWorkoutLookup(
   trackWorkouts: HeatApplyTrackWorkout[],
 ) {
-  return new Map(
-    trackWorkouts.flatMap((workout) => [
-      [normalizeLookupValue(workout.label), workout],
-      [normalizeLookupValue(String(workout.trackOrder)), workout],
-      [normalizeLookupValue(`event ${workout.trackOrder}`), workout],
-      [normalizeLookupValue(`workout ${workout.trackOrder}`), workout],
-    ]),
-  )
+  return buildTrackWorkoutLookupDetails(trackWorkouts).workoutByLookup
+}
+
+export function buildTrackWorkoutLookupDetails(
+  trackWorkouts: HeatApplyTrackWorkout[],
+): TrackWorkoutLookupDetails {
+  const workoutByLookup = new Map<string, HeatApplyTrackWorkout>()
+  const ambiguousLookupKeys = new Set<string>()
+
+  for (const workout of trackWorkouts) {
+    for (const key of getTrackWorkoutLookupKeys(workout)) {
+      const existing = workoutByLookup.get(key)
+      if (!existing) {
+        workoutByLookup.set(key, workout)
+        continue
+      }
+
+      if (existing.id !== workout.id) {
+        ambiguousLookupKeys.add(key)
+      }
+    }
+  }
+
+  return { workoutByLookup, ambiguousLookupKeys }
 }
 
 export function getAppliedHeatSupportTargets(
@@ -479,6 +521,21 @@ export function getAppliedHeatSupportTargets(
   }
 
   return { trackWorkoutIds, venueIds }
+}
+
+export function markHeatUpdateSkippedForPublicationConflict(
+  row: HeatApplyRowPlan,
+) {
+  row.action = "skip"
+  row.operation = "skip"
+  row.warnings.push({
+    code: "published_heat_update_conflict",
+    severity: "warning",
+    rowNumber: row.rowNumber,
+    field: "heat",
+    message:
+      "The heat was published while this import was being applied, so the row was skipped.",
+  })
 }
 
 export function mergeImportedJsonMetadata(
@@ -508,10 +565,12 @@ export function mergeImportedJsonMetadata(
 }
 
 export function parseImportedScheduledTime(
-  value: string,
+  value: unknown,
   competitionStartDate: string,
   timezone: string,
 ) {
+  if (typeof value !== "string") return null
+
   const trimmed = value.trim()
   if (!trimmed) return null
 
@@ -522,6 +581,34 @@ export function parseImportedScheduledTime(
   if (!time) return null
 
   return parseTimeInTimezone(time, dateAndTime.date, timezone)
+}
+
+export function getMutationAffectedRows(result: unknown) {
+  return (
+    (result as { rowsAffected?: number }).rowsAffected ??
+    (result as [{ affectedRows?: number }])[0]?.affectedRows ??
+    0
+  )
+}
+
+export function selectCrewImportProgrammingTrack(
+  tracks: CrewImportProgrammingTrackCandidate[],
+  preferredName: string,
+) {
+  const sortedTracks = [...tracks].sort((a, b) => {
+    const nameCompare = a.name.localeCompare(b.name)
+    if (nameCompare !== 0) return nameCompare
+    return a.id.localeCompare(b.id)
+  })
+
+  return (
+    sortedTracks.find((track) => track.name === preferredName) ??
+    sortedTracks.find(
+      (track) => track.type === "team_owned" && track.isPublic === 0,
+    ) ??
+    sortedTracks[0] ??
+    null
+  )
 }
 
 export function normalizeLookupValue(value: string) {
@@ -639,7 +726,7 @@ function normalizeImportedTime(value: string) {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`
 }
 
-function summarizeApplyRows(
+export function summarizeApplyRows(
   rows: Array<{
     action: CrewApplyAction
     warnings: ImportIssue[]
@@ -711,13 +798,28 @@ function createApplyIssue(
     severity:
       code.startsWith("invalid") ||
       code.startsWith("missing") ||
-      code.startsWith("unresolved")
+      code.startsWith("unresolved") ||
+      code.startsWith("ambiguous")
         ? "error"
         : "warning",
     rowNumber,
     field,
     message,
   }
+}
+
+function getTrackWorkoutLookupKeys(workout: HeatApplyTrackWorkout) {
+  return [
+    normalizeLookupValue(workout.label),
+    normalizeLookupValue(String(workout.trackOrder)),
+    normalizeLookupValue(`event ${workout.trackOrder}`),
+    normalizeLookupValue(`workout ${workout.trackOrder}`),
+  ]
+}
+
+function hasImportedScheduledTimeValue(value: unknown) {
+  if (typeof value === "string") return value.trim().length > 0
+  return value !== null && value !== undefined
 }
 
 function cloneIssues(issues: ImportIssue[]) {

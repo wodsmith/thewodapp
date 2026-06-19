@@ -4,8 +4,12 @@ import {
   buildHeatScheduleApplyPlan,
   buildVolunteerApplyPlan,
   getAppliedHeatSupportTargets,
+  getMutationAffectedRows,
+  markHeatUpdateSkippedForPublicationConflict,
   mergeImportedJsonMetadata,
   parseImportedScheduledTime,
+  selectCrewImportProgrammingTrack,
+  summarizeApplyRows,
 } from "./apply"
 import type { HeatScheduleImportRow } from "./types"
 import type { PreviewImportRow } from "./types"
@@ -76,12 +80,9 @@ function heatRow(
 }
 
 describe("buildVolunteerApplyPlan", () => {
-  it("skips duplicate preview rows and does not create either duplicate email", () => {
+  it("skips duplicate emails within the apply run", () => {
     const plan = buildVolunteerApplyPlan(
-      [
-        volunteerRow(2, "ian@example.com", "skip"),
-        volunteerRow(3, "IAN@example.com", "skip"),
-      ],
+      [volunteerRow(2, "ian@example.com"), volunteerRow(3, "IAN@example.com")],
       {
         importId: "cimp_test",
         existingInvitations: [],
@@ -89,13 +90,15 @@ describe("buildVolunteerApplyPlan", () => {
       },
     )
 
-    expect(plan.summary.createdCount).toBe(0)
-    expect(plan.summary.skippedCount).toBe(2)
-    expect(plan.rows).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ action: "skip", operation: "skip" }),
+    expect(plan.summary.createdCount).toBe(1)
+    expect(plan.summary.skippedCount).toBe(1)
+    expect(plan.rows[1]).toMatchObject({
+      action: "skip",
+      operation: "skip",
+      warnings: expect.arrayContaining([
+        expect.objectContaining({ code: "duplicate_email_apply" }),
       ]),
-    )
+    })
   })
 
   it("updates existing volunteer memberships before considering invitations", () => {
@@ -213,6 +216,71 @@ describe("buildHeatScheduleApplyPlan", () => {
     ).toBe("2026-06-21T16:30:00.000Z")
   })
 
+  it("errors instead of guessing when workout lookup keys are ambiguous", () => {
+    const plan = buildHeatScheduleApplyPlan(
+      [heatRow(2, 1, "9:00 AM", { workout: "Event 2" })],
+      {
+        ...context,
+        trackWorkouts: [
+          { id: "trwk_label", label: "Event 2", trackOrder: 1 },
+          { id: "trwk_order", label: "Clean", trackOrder: 2 },
+        ],
+        existingHeats: [],
+      },
+    )
+
+    expect(plan.summary.errorRowCount).toBe(1)
+    expect(plan.rows[0]).toMatchObject({
+      action: "error",
+      operation: "error",
+      errors: expect.arrayContaining([
+        expect.objectContaining({ code: "ambiguous_workout_lookup" }),
+      ]),
+    })
+  })
+
+  it("surfaces invalid persisted scheduled-time values as row errors", () => {
+    const plan = buildHeatScheduleApplyPlan(
+      [
+        heatRow(2, 1, "9:00 AM", {
+          scheduledTime: 0 as unknown as string,
+        }),
+      ],
+      context,
+    )
+
+    expect(plan.summary.errorRowCount).toBe(1)
+    expect(plan.rows[0]?.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "invalid_scheduled_time" }),
+      ]),
+    )
+  })
+
+  it("turns a no-op heat update into a skipped publication-conflict audit row", () => {
+    const plan = buildHeatScheduleApplyPlan([heatRow(2, 1, "9:00 AM")], context)
+
+    expect(plan.summary.updatedCount).toBe(1)
+
+    const row = plan.rows[0]
+    expect(row).toBeDefined()
+    if (!row) throw new Error("Expected heat update row")
+
+    markHeatUpdateSkippedForPublicationConflict(row)
+
+    const summary = summarizeApplyRows(plan.rows)
+
+    expect(row).toMatchObject({
+      action: "skip",
+      operation: "skip",
+      warnings: expect.arrayContaining([
+        expect.objectContaining({ code: "published_heat_update_conflict" }),
+      ]),
+    })
+    expect(summary.updatedCount).toBe(0)
+    expect(summary.skippedCount).toBe(1)
+  })
+
   it("excludes published-skip and invalid-time heat rows from support targets", () => {
     const plan = buildHeatScheduleApplyPlan(
       [
@@ -273,5 +341,54 @@ describe("buildHeatScheduleApplyPlan", () => {
 
     expect([...supportTargets.trackWorkoutIds]).toEqual(["trwk_1"])
     expect([...supportTargets.venueIds]).toEqual(["cvenue_1"])
+  })
+})
+
+describe("import apply helpers", () => {
+  it("reads mutation affected-row counts across supported driver result shapes", () => {
+    expect(getMutationAffectedRows({ rowsAffected: 1 })).toBe(1)
+    expect(getMutationAffectedRows([{ affectedRows: 0 }])).toBe(0)
+  })
+
+  it("selects the Crew import programming track deterministically", () => {
+    expect(
+      selectCrewImportProgrammingTrack(
+        [
+          {
+            id: "ptrk_public",
+            name: "Alpha",
+            type: "team_owned",
+            isPublic: 1,
+          },
+          {
+            id: "ptrk_import",
+            name: "Test Event - Events",
+            type: "team_owned",
+            isPublic: 0,
+          },
+        ],
+        "Test Event - Events",
+      )?.id,
+    ).toBe("ptrk_import")
+
+    expect(
+      selectCrewImportProgrammingTrack(
+        [
+          {
+            id: "ptrk_public",
+            name: "Alpha",
+            type: "team_owned",
+            isPublic: 1,
+          },
+          {
+            id: "ptrk_private",
+            name: "Zulu",
+            type: "team_owned",
+            isPublic: 0,
+          },
+        ],
+        "Missing - Events",
+      )?.id,
+    ).toBe("ptrk_private")
   })
 })

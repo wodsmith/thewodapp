@@ -1,6 +1,6 @@
 // @lat: [[crew#Import CSV Preview#Preview Records]]
 import { createId } from "@paralleldrive/cuid2"
-import { and, asc, desc, eq, inArray } from "drizzle-orm"
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm"
 import { z } from "zod"
 import {
   CREW_IMPORT_KIND,
@@ -46,8 +46,12 @@ import {
   buildTrackWorkoutLookup,
   buildVolunteerApplyPlan,
   getAppliedHeatSupportTargets,
+  getMutationAffectedRows,
+  markHeatUpdateSkippedForPublicationConflict,
   mergeImportedJsonMetadata,
   normalizeLookupValue,
+  selectCrewImportProgrammingTrack,
+  summarizeApplyRows,
   type CrewApplySummary,
   type ExistingVolunteerInvitation,
   type ExistingVolunteerMembership,
@@ -95,6 +99,7 @@ export type CrewImportErrorCode =
   | "EVENT_NOT_FOUND"
   | "IMPORT_NOT_FOUND"
   | "IMPORT_ALREADY_APPLIED"
+  | "IMPORT_APPLY_CONFLICT"
   | "INVALID_IMPORT_STATUS"
   | "CONFIRMATION_REQUIRED"
   | "UNSUPPORTED_IMPORT_KIND"
@@ -429,6 +434,7 @@ async function applyVolunteerImport({
 
   await db.transaction(async (tx) => {
     const client = tx as unknown as DbClient
+    await claimCrewImportForApply(client, importRecord, timestamp)
 
     for (const row of plan.rows) {
       if (row.operation === "create_invitation") {
@@ -501,6 +507,8 @@ async function applyHeatScheduleImport({
 
   await db.transaction(async (tx) => {
     const client = tx as unknown as DbClient
+    await claimCrewImportForApply(client, importRecord, timestamp)
+
     const trackWorkoutResult = await prepareImportedTrackWorkouts(
       client,
       event,
@@ -553,16 +561,20 @@ async function applyHeatScheduleImport({
           timestamp,
         )
       } else if (row.operation === "update_heat" && row.targetId) {
-        await updateImportedHeat(client, row, timestamp)
+        const updated = await updateImportedHeat(client, row, timestamp)
+        if (!updated) {
+          markHeatUpdateSkippedForPublicationConflict(row)
+        }
       }
 
       await updateImportRowAudit(client, importRecord.id, row, timestamp)
     }
 
-    resultSummary = plan.summary
+    const finalSummary = summarizeApplyRows(plan.rows)
+    resultSummary = finalSummary
     extraSummary = {
       kind: CREW_IMPORT_KIND.HEAT_SCHEDULE,
-      appliedRowCount: plan.summary.createdCount + plan.summary.updatedCount,
+      appliedRowCount: finalSummary.createdCount + finalSummary.updatedCount,
       createdTrackWorkoutCount,
       createdVenueCount: appliedVenueResult.createdVenueCount,
       updatedVenueCount: appliedVenueResult.updatedVenueCount,
@@ -573,7 +585,7 @@ async function applyHeatScheduleImport({
     await updateImportApplySummary(
       client,
       importRecord,
-      plan.summary,
+      finalSummary,
       timestamp,
       extraSummary,
     )
@@ -588,6 +600,57 @@ async function applyHeatScheduleImport({
   }
 
   return toApplyResult(importRecord, resultSummary, extraSummary)
+}
+
+async function claimCrewImportForApply(
+  db: DbClient,
+  importRecord: CrewImport,
+  timestamp: Date,
+) {
+  const updateResult = await db
+    .update(crewImportsTable)
+    .set({
+      status: CREW_IMPORT_STATUS.APPLIED,
+      updatedAt: timestamp,
+    })
+    .where(
+      and(
+        eq(crewImportsTable.id, importRecord.id),
+        eq(crewImportsTable.status, CREW_IMPORT_STATUS.PREVIEWED),
+      ),
+    )
+
+  if (getMutationAffectedRows(updateResult) > 0) return
+
+  const [freshImport] = await db
+    .select({
+      status: crewImportsTable.status,
+    })
+    .from(crewImportsTable)
+    .where(eq(crewImportsTable.id, importRecord.id))
+    .limit(1)
+
+  if (freshImport?.status === CREW_IMPORT_STATUS.APPLIED) {
+    throw new CrewImportError(
+      "IMPORT_ALREADY_APPLIED",
+      "This import has already been applied.",
+      409,
+    )
+  }
+
+  if (freshImport) {
+    throw new CrewImportError(
+      "INVALID_IMPORT_STATUS",
+      "Only previewed imports can be applied.",
+      409,
+    )
+  }
+
+  throw new CrewImportError(
+    "IMPORT_APPLY_CONFLICT",
+    "This import could not be claimed for apply. Refresh the import history and try again.",
+    409,
+  )
 }
 
 async function listVolunteerInvitations(
@@ -813,22 +876,30 @@ async function ensureCompetitionTrack(
   event: CrewEventRecord,
   timestamp: Date,
 ) {
+  const trackName = getCrewImportTrackName(event)
   const existingTracks = await db
     .select({
       id: programmingTracksTable.id,
       name: programmingTracksTable.name,
+      type: programmingTracksTable.type,
+      isPublic: programmingTracksTable.isPublic,
     })
     .from(programmingTracksTable)
     .where(eq(programmingTracksTable.competitionId, event.id))
-    .limit(1)
+    .orderBy(asc(programmingTracksTable.name), asc(programmingTracksTable.id))
 
-  const existingTrack = existingTracks[0]
-  if (existingTrack) return existingTrack
+  const existingTrack = selectCrewImportProgrammingTrack(
+    existingTracks,
+    trackName,
+  )
+  if (existingTrack) {
+    return { id: existingTrack.id, name: existingTrack.name }
+  }
 
   const trackId = createProgrammingTrackId()
   await db.insert(programmingTracksTable).values({
     id: trackId,
-    name: `${event.name} - Events`,
+    name: trackName,
     description: `Competition events for ${event.name}`,
     type: PROGRAMMING_TRACK_TYPE.TEAM_OWNED,
     ownerTeamId: event.organizingTeamId,
@@ -839,7 +910,11 @@ async function ensureCompetitionTrack(
     updatedAt: timestamp,
   })
 
-  return { id: trackId, name: `${event.name} - Events` }
+  return { id: trackId, name: trackName }
+}
+
+function getCrewImportTrackName(event: CrewEventRecord) {
+  return `${event.name} - Events`
 }
 
 async function prepareImportedVenues(
@@ -1055,7 +1130,7 @@ async function updateImportedHeat(
     throw new Error("Cannot update imported heat without an existing heat")
   }
 
-  await db
+  const updateResult = await db
     .update(competitionHeatsTable)
     .set({
       trackWorkoutId: row.trackWorkoutId,
@@ -1065,10 +1140,16 @@ async function updateImportedHeat(
       divisionId: row.divisionId,
       durationMinutes: row.durationMinutes,
       notes: row.notes,
-      schedulePublishedAt: null,
       updatedAt: timestamp,
     })
-    .where(eq(competitionHeatsTable.id, row.targetId))
+    .where(
+      and(
+        eq(competitionHeatsTable.id, row.targetId),
+        isNull(competitionHeatsTable.schedulePublishedAt),
+      ),
+    )
+
+  return getMutationAffectedRows(updateResult) > 0
 }
 
 async function updateImportRowAudit(
