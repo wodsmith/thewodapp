@@ -12,6 +12,10 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { JudgeAssignmentVersion } from "@/db/schema"
 import type { LaneShiftPattern } from "@/db/schemas/volunteers"
+import {
+  canUseVolunteerScheduling,
+  getVolunteerEffectiveTab,
+} from "@/lib/competitions/venue-volunteer-gates"
 import { getHeatsForCompetitionFn } from "@/server-fns/competition-heats-fns"
 import { getCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
 import {
@@ -271,22 +275,24 @@ function VolunteersPage() {
       ? eventFromUrl
       : events[0]?.id || ""
 
-  // Check if schedule tab should be available (in-person competitions only)
-  const isInPerson = competition.competitionType === "in-person"
-
-  // Derive effective tab - fall back to roster if schedule isn't allowed
-  const effectiveTab = !isInPerson && tab === "schedule" ? "roster" : tab
+  const canUseScheduleTab = canUseVolunteerScheduling(
+    competition.competitionType,
+  )
+  const effectiveTab = getVolunteerEffectiveTab(
+    competition.competitionType,
+    tab,
+  )
 
   // Sync URL/state when competition type changes and schedule tab is no longer valid
   useEffect(() => {
-    if (!isInPerson && tab === "schedule") {
+    if (!canUseScheduleTab && tab === "schedule") {
       navigate({
         to: ".",
         search: { tab: "roster" },
         replace: true,
       })
     }
-  }, [isInPerson, tab, navigate])
+  }, [canUseScheduleTab, tab, navigate])
 
   const handleQuestionsChange = () => {
     router.invalidate()
@@ -307,7 +313,7 @@ function VolunteersPage() {
           <SelectContent>
             <SelectItem value="roster">Roster</SelectItem>
             <SelectItem value="shifts">Shifts</SelectItem>
-            {isInPerson && (
+            {canUseScheduleTab && (
               <SelectItem value="schedule">Judge Schedule</SelectItem>
             )}
             <SelectItem value="registration-rules">Signup Questions</SelectItem>
@@ -319,7 +325,7 @@ function VolunteersPage() {
       <TabsList className="mb-6 hidden sm:inline-flex">
         <TabsTrigger value="roster">Roster</TabsTrigger>
         <TabsTrigger value="shifts">Shifts</TabsTrigger>
-        {isInPerson && (
+        {canUseScheduleTab && (
           <TabsTrigger value="schedule">Judge Schedule</TabsTrigger>
         )}
         <TabsTrigger value="registration-rules">Signup Questions</TabsTrigger>
@@ -378,8 +384,8 @@ function VolunteersPage() {
         />
       </TabsContent>
 
-      {/* Schedule Tab - Judge Scheduling & Rotations (in-person only) */}
-      {isInPerson && (
+      {/* Schedule Tab - Judge Scheduling & Rotations */}
+      {canUseScheduleTab && (
         <TabsContent value="schedule">
           <JudgeSchedulingContainer
             competitionId={competition.id}
