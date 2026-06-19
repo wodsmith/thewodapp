@@ -17,6 +17,7 @@ import { CompetitionHeader } from "@/components/competition-header"
 import { CompetitionSidebar } from "@/components/competition-sidebar"
 import { OrganizerBreadcrumb } from "@/components/organizer-breadcrumb"
 import { PendingOrganizerBanner } from "@/components/pending-organizer-banner"
+import { resultsNavLabel } from "@/lib/competitions/capabilities"
 import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 
 export const Route = createFileRoute("/compete/organizer/$competitionId")({
@@ -65,7 +66,6 @@ export const Route = createFileRoute("/compete/organizer/$competitionId")({
 })
 
 // Map route paths to breadcrumb labels
-// Note: "results" label is handled dynamically based on competition type
 const routeLabels: Record<string, string> = {
   "check-in": "Check-in",
   divisions: "Divisions",
@@ -79,7 +79,7 @@ const routeLabels: Record<string, string> = {
   volunteers: "Volunteers",
   waivers: "Waivers",
   scoring: "Scoring",
-  results: "Results", // Overridden to "Submissions" for online competitions
+  results: "Results",
   "leaderboard-preview": "Leaderboard preview",
   review: "Review",
   pricing: "Pricing",
@@ -109,9 +109,8 @@ function CompetitionLayout() {
   // Add current page to breadcrumb if not on overview
   if (lastSegment && lastSegment !== competition.id) {
     let label = routeLabels[lastSegment] || lastSegment
-    // Show "Submissions" instead of "Results" for online competitions
-    if (lastSegment === "results" && competition.competitionType === "online") {
-      label = "Submissions"
+    if (lastSegment === "results") {
+      label = resultsNavLabel(competition.competitionType)
     }
     breadcrumbSegments.push({ label })
   }

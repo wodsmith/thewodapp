@@ -52,7 +52,9 @@ function EventEditPage() {
     divisionDescriptions,
     resources,
     judgingSheets: initialSheets,
-    isOnline,
+    usesSubmissionWindows,
+    usesVideoSubmissions,
+    usesHeatScheduling,
     submissionOpensAt,
     submissionClosesAt,
     timezone,
@@ -113,51 +115,53 @@ function EventEditPage() {
         onSheetsChange={setJudgingSheets}
       />
 
-      {/* Submission Window (online) or Heat Schedule Publishing (in-person) */}
-      {isOnline ? (
+      {usesSubmissionWindows || usesVideoSubmissions ? (
         <>
-          <EventSubmissionWindowCard
-            competitionId={competition.id}
-            eventName={event.workout.name}
-            submissionOpensAt={submissionOpensAt}
-            submissionClosesAt={submissionClosesAt}
-            timezone={timezone}
-          />
+          {usesSubmissionWindows && (
+            <EventSubmissionWindowCard
+              competitionId={competition.id}
+              eventName={event.workout.name}
+              submissionOpensAt={submissionOpensAt}
+              submissionClosesAt={submissionClosesAt}
+              timezone={timezone}
+            />
+          )}
 
-          {/* Video Submissions Review Link */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Video className="h-5 w-5" />
-                Video Submissions
-              </CardTitle>
-              <CardDescription>
-                Review athlete video submissions for this event
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button asChild variant="outline">
-                <Link
-                  to="/compete/organizer/$competitionId/events/$eventId/submissions"
-                  params={{
-                    competitionId: competition.id,
-                    eventId: event.id,
-                  }}
-                >
-                  View submissions
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
+          {usesVideoSubmissions && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Video className="h-5 w-5" />
+                  Video Submissions
+                </CardTitle>
+                <CardDescription>
+                  Review athlete video submissions for this event
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button asChild variant="outline">
+                  <Link
+                    to="/compete/organizer/$competitionId/events/$eventId/submissions"
+                    params={{
+                      competitionId: competition.id,
+                      eventId: event.id,
+                    }}
+                  >
+                    View submissions
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </>
-      ) : (
+      ) : usesHeatScheduling ? (
         <HeatSchedulePublishingCard
           trackWorkoutId={event.id}
           eventName={event.workout.name}
           competitionId={competition.id}
           organizingTeamId={competition.organizingTeamId}
         />
-      )}
+      ) : null}
     </>
   )
 }
@@ -185,7 +189,9 @@ function ParentEventEditPage() {
   const [judgingSheets, setJudgingSheets] = useState(initialSheets)
 
   // Use search param tab if it matches a child event, otherwise default to first child
-  const defaultTab = (tab && childEvents.some((c) => c.id === tab) ? tab : childEvents[0]?.id) ?? ""
+  const defaultTab =
+    (tab && childEvents.some((c) => c.id === tab) ? tab : childEvents[0]?.id) ??
+    ""
   const [activeTab, setActiveTab] = useState(defaultTab)
 
   // Generate unique form IDs per child event

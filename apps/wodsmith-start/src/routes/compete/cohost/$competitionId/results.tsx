@@ -25,7 +25,6 @@ import { useCallback, useState } from "react"
 import { toast } from "sonner"
 import { z } from "zod"
 import { ResultsEntryForm } from "@/components/organizer/results/results-entry-form"
-import { formatTrackOrder } from "@/utils/format-track-order"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -44,19 +43,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { resultsEntryMode } from "@/lib/competitions/capabilities"
 import { cohostGetDivisionsWithCountsFn } from "@/server-fns/cohost/cohost-division-fns"
-import {
-  cohostGetEventScoreEntryDataFn,
-  cohostSaveCompetitionScoreFn,
-} from "@/server-fns/cohost/cohost-scoring-fns"
-import { cohostGetWorkoutsFn } from "@/server-fns/cohost/cohost-workout-fns"
 import {
   type AllEventsResultsStatusResponse,
   cohostGetDivisionResultsStatusFn,
   cohostPublishDivisionResultsFn,
 } from "@/server-fns/cohost/cohost-results-fns"
-import { cohostGetEventSubmissionsFn } from "@/server-fns/cohost/cohost-submission-fns"
 import { cohostGetHeatsForCompetitionFn } from "@/server-fns/cohost/cohost-schedule-fns"
+import {
+  cohostGetEventScoreEntryDataFn,
+  cohostSaveCompetitionScoreFn,
+} from "@/server-fns/cohost/cohost-scoring-fns"
+import { cohostGetEventSubmissionsFn } from "@/server-fns/cohost/cohost-submission-fns"
+import { cohostGetWorkoutsFn } from "@/server-fns/cohost/cohost-workout-fns"
+import { formatTrackOrder } from "@/utils/format-track-order"
 
 // Get parent route API to access competition data
 const parentRoute = getRouteApi("/compete/cohost/$competitionId")
@@ -67,9 +68,11 @@ const searchParamsSchema = z.object({
   division: z.string().optional(),
 })
 
-export const Route = createFileRoute(
-  "/compete/cohost/$competitionId/results",
-)({
+export function getCohostResultsRouteMode(competitionType: string) {
+  return resultsEntryMode(competitionType)
+}
+
+export const Route = createFileRoute("/compete/cohost/$competitionId/results")({
   staleTime: 10_000,
   validateSearch: searchParamsSchema,
   component: ResultsPage,
@@ -82,7 +85,7 @@ export const Route = createFileRoute(
     const { competition } = parentMatch.loaderData!
 
     const competitionTeamId = competition.competitionTeamId!
-    const isOnline = competition.competitionType === "online"
+    const entryMode = getCohostResultsRouteMode(competition.competitionType)
 
     // Fetch events and divisions in parallel
     const [eventsResult, divisionsResult] = await Promise.all([
@@ -104,7 +107,7 @@ export const Route = createFileRoute(
     const divisions = divisionsResult.divisions
 
     // For online competitions, fetch submission stats for each event
-    if (isOnline) {
+    if (entryMode === "athlete-submitted") {
       const eventSubmissionStats = await Promise.all(
         events.map(async (event) => {
           const submissionsResult = await cohostGetEventSubmissionsFn({
@@ -128,7 +131,7 @@ export const Route = createFileRoute(
       )
 
       return {
-        isOnline: true as const,
+        resultsEntryMode: "athlete-submitted" as const,
         events,
         eventSubmissionStats,
       }
@@ -140,7 +143,15 @@ export const Route = createFileRoute(
         competitionTeamId,
         competitionId: params.competitionId,
       },
-    }).catch(() => ({ divisions: [], events: [], totalPublishedCount: 0, totalCombinations: 0 } as AllEventsResultsStatusResponse))
+    }).catch(
+      () =>
+        ({
+          divisions: [],
+          events: [],
+          totalPublishedCount: 0,
+          totalCombinations: 0,
+        }) as AllEventsResultsStatusResponse,
+    )
 
     // Determine which event to show (from URL or first event)
     // Filter top-level events for the dropdown (exclude sub-events)
@@ -150,7 +161,9 @@ export const Route = createFileRoute(
       ? events.find((e) => e.id === deps.eventId)
       : undefined
     const selectedEventId =
-      requestedEvent?.parentEventId ?? requestedEvent?.id ?? topLevelEvents[0]?.id
+      requestedEvent?.parentEventId ??
+      requestedEvent?.id ??
+      topLevelEvents[0]?.id
 
     // Check if selected event is a parent (has children)
     const childEvents = events
@@ -174,10 +187,12 @@ export const Route = createFileRoute(
         unassignedRegistrationIds: string[]
       }
     > = []
-    let scoreEntryData: (Awaited<ReturnType<typeof cohostGetEventScoreEntryDataFn>> & {
-      heats: typeof processedHeats
-      unassignedRegistrationIds: string[]
-    }) | null = null
+    let scoreEntryData:
+      | (Awaited<ReturnType<typeof cohostGetEventScoreEntryDataFn>> & {
+          heats: typeof processedHeats
+          unassignedRegistrationIds: string[]
+        })
+      | null = null
 
     // Helper: build heats and unassigned IDs from score data and heat data
     function buildHeatsForEvent(
@@ -191,7 +206,9 @@ export const Route = createFileRoute(
       const assignedRegistrationIds = new Set<string>()
       const heats = eventHeats.map((heat: any) => {
         for (const assignment of heat.assignments ?? []) {
-          assignedRegistrationIds.add(assignment.registration?.id ?? assignment.registrationId)
+          assignedRegistrationIds.add(
+            assignment.registration?.id ?? assignment.registrationId,
+          )
         }
         return {
           heatId: heat.id,
@@ -265,7 +282,7 @@ export const Route = createFileRoute(
     }> = []
 
     return {
-      isOnline: false as const,
+      resultsEntryMode: "organizer-entered" as const,
       events: topLevelEvents,
       divisions,
       selectedEventId,
@@ -283,8 +300,7 @@ export const Route = createFileRoute(
 function ResultsPage() {
   const loaderData = Route.useLoaderData()
 
-  // Route to appropriate component based on competition type
-  if (loaderData.isOnline) {
+  if (loaderData.resultsEntryMode === "athlete-submitted") {
     return <OnlineSubmissionsOverview data={loaderData} />
   }
 
@@ -299,7 +315,7 @@ function OnlineSubmissionsOverview({
   data,
 }: {
   data: {
-    isOnline: true
+    resultsEntryMode: "athlete-submitted"
     events: Array<{
       id: string
       workout: { name: string }
@@ -457,7 +473,7 @@ function InPersonResultsEntry({
   data,
 }: {
   data: {
-    isOnline: false
+    resultsEntryMode: "organizer-entered"
     events: Array<{
       id: string
       workout: { name: string }
@@ -720,7 +736,9 @@ function InPersonResultsEntry({
         )}
       </div>
 
-      {isParentEvent && childScoreDataList.length > 0 && childScoreDataList[0].event ? (
+      {isParentEvent &&
+      childScoreDataList.length > 0 &&
+      childScoreDataList[0].event ? (
         <ResultsEntryForm
           key={`${selectedEventId}-${selectedDivisionId}`}
           competitionId={competitionId}
@@ -735,13 +753,16 @@ function InPersonResultsEntry({
             ...childScoreDataList[0].event,
             workout: {
               ...childScoreDataList[0].event.workout,
-              name: events.find((e) => e.id === selectedEventId)?.workout.name
-                ?? childScoreDataList[0].event.workout.name,
+              name:
+                events.find((e) => e.id === selectedEventId)?.workout.name ??
+                childScoreDataList[0].event.workout.name,
             },
           }}
           athletes={childScoreDataList[0].athletes}
           heats={childScoreDataList[0].heats}
-          unassignedRegistrationIds={childScoreDataList[0].unassignedRegistrationIds}
+          unassignedRegistrationIds={
+            childScoreDataList[0].unassignedRegistrationIds
+          }
           divisions={divisions.map((d) => ({
             id: d.id,
             label: d.label,

@@ -10,6 +10,8 @@ export type CompetitionCapability =
   | "organizerEntersResults"
 
 export type LeaderboardVariant = "standard" | "online"
+export type ResultsEntryMode = "organizer-entered" | "athlete-submitted"
+export type ResultsNavLabel = "Results" | "Submissions"
 
 export interface CompetitionTypeDef {
   id: string
@@ -72,4 +74,18 @@ export function isSelectableType(type: string): boolean {
     COMPETITION_TYPE_REGISTRY[type as keyof typeof COMPETITION_TYPE_REGISTRY]
       ?.selectableOnCreate ?? false
   )
+}
+
+export function canOrganizerEnterResults(type: string): boolean {
+  return competitionCan(type, "organizerEntersResults")
+}
+
+export function resultsEntryMode(type: string): ResultsEntryMode {
+  return canOrganizerEnterResults(type)
+    ? "organizer-entered"
+    : "athlete-submitted"
+}
+
+export function resultsNavLabel(type: string): ResultsNavLabel {
+  return canOrganizerEnterResults(type) ? "Results" : "Submissions"
 }

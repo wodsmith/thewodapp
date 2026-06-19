@@ -5,7 +5,9 @@
  * divisions, movements, sponsors, and judging sheets for child routes.
  */
 
-import { Outlet, createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, Outlet } from "@tanstack/react-router"
+import { competitionCan } from "@/lib/competitions/capabilities"
+import { canUseHeatScheduling } from "@/lib/competitions/scheduling-check-in-gates"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionEventsFn } from "@/server-fns/competition-event-fns"
 import {
@@ -28,7 +30,10 @@ export const Route = createFileRoute(
     const parentMatch = await parentMatchPromise
     const { competition } = parentMatch.loaderData!
 
-    const isOnline = competition.competitionType === "online"
+    const usesSubmissionWindows = competitionCan(
+      competition.competitionType,
+      "submissionWindows",
+    )
 
     // Parallel fetch event, divisions, movements, sponsors, resources, judging sheets, competition events, and mappings
     const [
@@ -66,8 +71,7 @@ export const Route = createFileRoute(
       getEventJudgingSheetsFn({
         data: { trackWorkoutId: params.eventId },
       }),
-      // Fetch competition events (submission windows) for online competitions
-      isOnline
+      usesSubmissionWindows
         ? getCompetitionEventsFn({
             data: { competitionId: params.competitionId },
           })
@@ -167,7 +171,12 @@ export const Route = createFileRoute(
       divisionDescriptions,
       resources: resourcesResult.resources,
       judgingSheets: judgingSheetsResult.sheets,
-      isOnline,
+      usesSubmissionWindows,
+      usesVideoSubmissions: competitionCan(
+        competition.competitionType,
+        "videoSubmissions",
+      ),
+      usesHeatScheduling: canUseHeatScheduling(competition.competitionType),
       submissionOpensAt: competitionEvent?.submissionOpensAt ?? null,
       submissionClosesAt: competitionEvent?.submissionClosesAt ?? null,
       timezone: competition.timezone || "America/Denver",
