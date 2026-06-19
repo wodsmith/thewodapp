@@ -1,34 +1,31 @@
-import { TanStackDevtools } from "@tanstack/react-devtools"
+import type { ErrorComponentProps } from "@tanstack/react-router"
+import type { ReactNode } from "react"
 import {
   createRootRoute,
-  type ErrorComponentProps,
   HeadContent,
   Link,
   Outlet,
   Scripts,
-  useRouterState,
 } from "@tanstack/react-router"
-import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { Toaster } from "sonner"
-
-import MainNav from "@/components/nav/main-nav"
-import { PostHogProvider } from "@/lib/posthog/provider"
-import { getRootBootstrapFn } from "@/server-fns/session-fns"
 
 import appCss from "../styles.css?url"
 
 export const Route = createRootRoute({
   head: () => ({
     meta: [
-      {
-        charSet: "utf-8",
-      },
+      { charSet: "utf-8" },
       {
         name: "viewport",
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "WODsmith | Functional Fitness Competition Platform",
+        title: "WODsmith Crew",
+      },
+      {
+        name: "description",
+        content:
+          "WODsmith Crew helps organizers coordinate event staffing, volunteers, and schedules.",
       },
     ],
     links: [
@@ -38,16 +35,6 @@ export const Route = createRootRoute({
       },
     ],
   }),
-
-  beforeLoad: async () => {
-    const { session, themeCookie, activeTeamId, hasWorkoutTracking } =
-      await getRootBootstrapFn()
-    // SSR theme: apply 'dark' class on server only for explicit 'dark' preference.
-    // For 'system' or no cookie, default to light (inline script corrects on client).
-    const ssrTheme = themeCookie === "dark" ? "dark" : "light"
-    return { session, ssrTheme, activeTeamId, hasWorkoutTracking }
-  },
-
   component: RootComponent,
   shellComponent: RootDocument,
   notFoundComponent: NotFoundComponent,
@@ -55,116 +42,52 @@ export const Route = createRootRoute({
 })
 
 function RootComponent() {
-  const { session, activeTeamId, hasWorkoutTracking } = Route.useRouteContext()
-
-  // Get both current and target locations to handle navigation transitions smoothly
-  // - location: where we're navigating TO (target)
-  // - resolvedLocation: where we currently ARE (current)
-  // During navigation, these differ; when idle, they're the same
-  const { targetPath, currentPath, isNavigating } = useRouterState({
-    select: (s) => ({
-      targetPath: s.location.pathname,
-      currentPath: s.resolvedLocation?.pathname ?? s.location.pathname,
-      isNavigating: s.isLoading,
-    }),
-  })
-
-  // Don't render MainNav on routes that have their own navigation
-  // Hide MainNav if EITHER current OR target route is compete/admin/auth
-  // This prevents layout flash during transitions in both directions
-  const isCompeteRoute =
-    currentPath === "/" ||
-    (isNavigating && targetPath === "/") ||
-    currentPath.startsWith("/compete") ||
-    (isNavigating && targetPath.startsWith("/compete"))
-  const isAdminRoute =
-    currentPath.startsWith("/admin") ||
-    (isNavigating && targetPath.startsWith("/admin"))
-  const isAuthRoute =
-    currentPath === "/sign-in" ||
-    currentPath === "/sign-up" ||
-    currentPath.startsWith("/reset-password") ||
-    currentPath.startsWith("/forgot-password") ||
-    currentPath.startsWith("/verify-email") ||
-    (isNavigating &&
-      (targetPath === "/sign-in" ||
-        targetPath === "/sign-up" ||
-        targetPath.startsWith("/reset-password") ||
-        targetPath.startsWith("/forgot-password") ||
-        targetPath.startsWith("/verify-email")))
-
   return (
-    <>
-      {!isCompeteRoute && !isAdminRoute && !isAuthRoute && (
-        <MainNav
-          session={session}
-          activeTeamId={activeTeamId}
-          hasWorkoutTracking={hasWorkoutTracking}
-        />
-      )}
+    <div className="min-h-screen bg-background text-foreground">
+      <header className="border-b bg-background/95">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
+          <Link to="/" className="flex items-center gap-3 font-semibold">
+            <span className="grid size-9 place-items-center rounded-md bg-primary text-primary-foreground">
+              C
+            </span>
+            <span>WODsmith Crew</span>
+          </Link>
+          <nav className="flex items-center gap-1 text-sm">
+            <Link
+              to="/events"
+              activeProps={{
+                className: "bg-muted text-foreground",
+              }}
+              className="rounded-md px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              Events
+            </Link>
+            <Link
+              to="/events/new"
+              activeProps={{
+                className: "bg-primary text-primary-foreground",
+              }}
+              className="rounded-md bg-primary px-3 py-2 text-primary-foreground hover:bg-primary/90"
+            >
+              New event
+            </Link>
+          </nav>
+        </div>
+      </header>
       <Outlet />
-    </>
+    </div>
   )
 }
 
-/**
- * Blocking script to prevent FOUC - runs before React hydrates.
- *
- * SSR applies 'dark' class based on cookie value (only for explicit 'dark' preference).
- * This script handles:
- * 1. 'system' preference - reads matchMedia to determine if dark mode
- * 2. First visit with no preference - respects OS setting
- * 3. Corrects any mismatch between SSR guess and actual preference
- */
-const themeScript = `
-try {
-  const stored = localStorage.getItem('theme');
-  const prefersDark = matchMedia('(prefers-color-scheme: dark)').matches;
-  const shouldBeDark = stored === 'dark' || (stored === 'system' && prefersDark) || (!stored && prefersDark);
-  const html = document.documentElement;
-  const isDark = html.classList.contains('dark');
-
-  // Correct the class if SSR guess was wrong
-  if (shouldBeDark && !isDark) {
-    html.classList.add('dark');
-  } else if (!shouldBeDark && isDark) {
-    html.classList.remove('dark');
-  }
-} catch {}
-`
-
-function RootDocument({ children }: { children: React.ReactNode }) {
-  const { ssrTheme } = Route.useRouteContext()
-
+function RootDocument({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={ssrTheme === "dark" ? "group dark" : "group"}>
+    <html lang="en">
       <head>
-        {/* Blocking script to prevent FOUC - runs before React hydrates.
-			    This corrects for 'system' preference which SSR can't detect.
-			    Safe: themeScript is a static string literal, not user input. */}
-        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: Static theme script, no XSS risk */}
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <HeadContent />
       </head>
       <body>
-        <PostHogProvider>{children}</PostHogProvider>
+        {children}
         <Toaster richColors position="top-right" />
-        {/* The devtools trigger overlays the bottom-right corner and
-            intercepts pointer events, so it's disabled during Playwright
-            runs (VITE_E2E is set by playwright.config.ts). */}
-        {!import.meta.env.VITE_E2E && (
-          <TanStackDevtools
-            config={{
-              position: "bottom-right",
-            }}
-            plugins={[
-              {
-                name: "Tanstack Router",
-                render: <TanStackRouterDevtoolsPanel />,
-              },
-            ]}
-          />
-        )}
         <Scripts />
       </body>
     </html>
@@ -173,33 +96,35 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 
 function RootErrorComponent({ reset }: ErrorComponentProps) {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-8">
-      <h1 className="text-4xl font-bold">Something went wrong</h1>
-      <p className="text-lg text-muted-foreground">
-        An unexpected error occurred. Please try again.
+    <main className="mx-auto flex min-h-[70vh] max-w-xl flex-col items-center justify-center gap-4 px-4 text-center">
+      <h1 className="text-3xl font-semibold">Something went wrong</h1>
+      <p className="text-muted-foreground">
+        The Crew shell hit an unexpected error. Try again when you are ready.
       </p>
       <button
         type="button"
         onClick={reset}
         className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
       >
-        Try Again
+        Try again
       </button>
-    </div>
+    </main>
   )
 }
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-8">
-      <h1 className="text-4xl font-bold">404</h1>
-      <p className="text-lg text-muted-foreground">Page not found</p>
+    <main className="mx-auto flex min-h-[70vh] max-w-xl flex-col items-center justify-center gap-4 px-4 text-center">
+      <h1 className="text-3xl font-semibold">Page not found</h1>
+      <p className="text-muted-foreground">
+        That Crew route is not part of this shell.
+      </p>
       <Link
         to="/"
         className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
       >
-        Go Home
+        Go home
       </Link>
-    </div>
+    </main>
   )
 }

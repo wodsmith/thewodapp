@@ -7,7 +7,7 @@
 	"account_id": "317fb84f366ea1ab038ca90000953697",
 	"name": "wodsmith-crew",
 	"main": "@tanstack/react-start/server-entry",
-	"compatibility_date": "2025-09-02",
+	"compatibility_date": "2026-06-19",
 	"compatibility_flags": [
 		"nodejs_compat",
 		"global_fetch_strictly_public"
@@ -40,8 +40,10 @@
 		"EMAIL_FROM": "team@mail.wodsmith.com",
 		"EMAIL_FROM_NAME": "WODsmith Crew",
 		"EMAIL_REPLY_TO": "support@mail.wodsmith.com",
-		"APP_URL": "https://wodsmith.com",
-		"R2_PUBLIC_URL": "https://pub-10ec4eb87e8d4c7383ead07a9dd77fa5.r2.dev",
+		"APP_URL": "https://crew.wodsmith.com",
+		"SITE_URL": "https://crew.wodsmith.com",
+		"DATABASE_URL": "mysql://crew-placeholder@localhost/wodsmith-db",
+		"R2_PUBLIC_URL": "",
 		"POSTHOG_KEY": "replace_me_posthog_project_key",
 		"TURNSTILE_SITE_KEY": "0x4AAAAAACF8K4v1TmFMOmtk",
 		"SENTRY_DSN": "https://a55d70f610d33fa3108b7faea06accb7@o4510933498462208.ingest.us.sentry.io/4510937818005504"
@@ -53,7 +55,7 @@
 	"kv_namespaces": [
 		{
 			"binding": "KV_SESSION",
-			"id": "e7a18a19d2cb4afbaf02be597cbecb35"
+			"id": "crew-session-placeholder"
 		}
 	],
 	/**
@@ -63,11 +65,17 @@
 	"r2_buckets": [
 		{
 			"binding": "R2_BUCKET",
-			"bucket_name": "wodsmith-wodsmith-uploads-prod"
+			"bucket_name": "wodsmith-crew-uploads-prod"
 		},
 		{
-			"bucket_name": "wodsmith-uploads-dev",
-			"binding": "wodsmith_uploads_dev"
+			"binding": "wodsmith_crew_uploads_dev",
+			"bucket_name": "wodsmith-crew-uploads-dev"
+		}
+	],
+	"hyperdrive": [
+		{
+			"binding": "HYPERDRIVE",
+			"id": "placeholder-set-after-deploy"
 		}
 	]
 }
