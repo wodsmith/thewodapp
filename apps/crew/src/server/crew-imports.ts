@@ -45,6 +45,8 @@ import {
   buildHeatScheduleApplyPlan,
   buildTrackWorkoutLookup,
   buildVolunteerApplyPlan,
+  getAppliedHeatSupportTargets,
+  mergeImportedJsonMetadata,
   normalizeLookupValue,
   type CrewApplySummary,
   type ExistingVolunteerInvitation,
@@ -78,6 +80,16 @@ export const MAX_CREW_IMPORT_BYTES = 1_000_000
 
 type DbClient = ReturnType<typeof getDb>
 type CrewEventRecord = Awaited<ReturnType<typeof requireCrewEvent>>
+
+interface PlannedImportedTrackWorkout extends HeatApplyTrackWorkout {
+  workoutId: string
+}
+
+interface PreparedImportedVenue extends HeatApplyVenue {
+  existing: boolean
+  laneCount: number | null
+  sortOrder: number
+}
 
 export type CrewImportErrorCode =
   | "EVENT_NOT_FOUND"
@@ -430,7 +442,7 @@ async function applyVolunteerImport({
         await updateVolunteerInvitation(
           client,
           row.targetId,
-          mergeJsonMetadata(
+          mergeImportedJsonMetadata(
             invitationMetadataById.get(row.targetId),
             row.metadata,
           ),
@@ -440,9 +452,10 @@ async function applyVolunteerImport({
         await updateVolunteerMembership(
           client,
           row.targetId,
-          mergeJsonMetadata(
+          mergeImportedJsonMetadata(
             membershipMetadataById.get(row.targetId),
             row.metadata,
+            { preserveExistingApprovedStatus: true },
           ),
           timestamp,
         )
@@ -488,18 +501,15 @@ async function applyHeatScheduleImport({
 
   await db.transaction(async (tx) => {
     const client = tx as unknown as DbClient
-    const trackWorkoutResult = await ensureImportedTrackWorkouts(
+    const trackWorkoutResult = await prepareImportedTrackWorkouts(
       client,
       event,
       previewRows,
-      timestamp,
-      importRecord.id,
     )
-    const venueResult = await ensureImportedVenues(
+    const venueResult = await prepareImportedVenues(
       client,
       event.id,
       previewRows,
-      timestamp,
     )
     const divisions = await listDivisionsForCrewEvent(client, event)
     const existingHeats = await listExistingHeats(
@@ -515,6 +525,24 @@ async function applyHeatScheduleImport({
       venues: venueResult.venues,
       existingHeats,
     })
+    const supportTargets = getAppliedHeatSupportTargets(plan.rows)
+    const createdTrackWorkoutCount = await createPlannedTrackWorkouts(
+      client,
+      event,
+      trackWorkoutResult.plannedTrackWorkoutsById,
+      supportTargets.trackWorkoutIds,
+      timestamp,
+      importRecord.id,
+    )
+    const appliedVenueResult = await ensureAppliedImportedVenues(
+      client,
+      event.id,
+      venueResult.venuesById,
+      supportTargets.venueIds,
+      previewRows,
+      plan.rows,
+      timestamp,
+    )
 
     for (const row of plan.rows) {
       if (row.operation === "create_heat") {
@@ -535,9 +563,9 @@ async function applyHeatScheduleImport({
     extraSummary = {
       kind: CREW_IMPORT_KIND.HEAT_SCHEDULE,
       appliedRowCount: plan.summary.createdCount + plan.summary.updatedCount,
-      createdTrackWorkoutCount: trackWorkoutResult.createdTrackWorkoutCount,
-      createdVenueCount: venueResult.createdVenueCount,
-      updatedVenueCount: venueResult.updatedVenueCount,
+      createdTrackWorkoutCount,
+      createdVenueCount: appliedVenueResult.createdVenueCount,
+      updatedVenueCount: appliedVenueResult.updatedVenueCount,
       timezone: event.timezone ?? DEFAULT_TIMEZONE,
       schedulePublishedAt: null,
     }
@@ -685,24 +713,25 @@ async function updateVolunteerMembership(
     .where(eq(teamMembershipTable.id, membershipId))
 }
 
-async function ensureImportedTrackWorkouts(
+async function prepareImportedTrackWorkouts(
   db: DbClient,
   event: CrewEventRecord,
   rows: PreviewImportRow[],
-  timestamp: Date,
-  importId: string,
 ) {
   const trackWorkouts = await listWorkoutsForCompetitionWithDb(db, event.id)
   const lookup = buildTrackWorkoutLookup(trackWorkouts)
   const labels = getRequiredHeatWorkoutLabels(rows).filter(
     (label) => !lookup.has(normalizeLookupValue(label)),
   )
+  const plannedTrackWorkoutsById = new Map<
+    string,
+    PlannedImportedTrackWorkout
+  >()
 
   if (labels.length === 0) {
-    return { trackWorkouts, createdTrackWorkoutCount: 0 }
+    return { trackWorkouts, plannedTrackWorkoutsById }
   }
 
-  const track = await ensureCompetitionTrack(db, event, timestamp)
   let nextOrder =
     trackWorkouts.reduce(
       (maxOrder, workout) => Math.max(maxOrder, workout.trackOrder),
@@ -711,9 +740,47 @@ async function ensureImportedTrackWorkouts(
 
   for (const label of labels) {
     const workoutId = `workout_${createId()}`
+    const trackWorkoutId = createTrackWorkoutId()
+    const trackOrder = nextOrder
+    nextOrder += 1
+
+    const plannedTrackWorkout = {
+      id: trackWorkoutId,
+      workoutId,
+      label,
+      trackOrder,
+    }
+
+    trackWorkouts.push(plannedTrackWorkout)
+    plannedTrackWorkoutsById.set(trackWorkoutId, plannedTrackWorkout)
+    lookup.set(normalizeLookupValue(label), plannedTrackWorkout)
+  }
+
+  return { trackWorkouts, plannedTrackWorkoutsById }
+}
+
+async function createPlannedTrackWorkouts(
+  db: DbClient,
+  event: CrewEventRecord,
+  plannedTrackWorkoutsById: Map<string, PlannedImportedTrackWorkout>,
+  appliedTrackWorkoutIds: Set<string>,
+  timestamp: Date,
+  importId: string,
+) {
+  const plannedTrackWorkouts = [...plannedTrackWorkoutsById.values()].filter(
+    (trackWorkout) => appliedTrackWorkoutIds.has(trackWorkout.id),
+  )
+
+  if (plannedTrackWorkouts.length === 0) {
+    return 0
+  }
+
+  const track = await ensureCompetitionTrack(db, event, timestamp)
+
+  for (const trackWorkout of plannedTrackWorkouts) {
     await db.insert(workouts).values({
-      id: workoutId,
-      name: label,
+      id: trackWorkout.workoutId,
+      name: trackWorkout.label,
       description: `Imported from Crew heat schedule import ${importId}. Update workout details before publishing scores.`,
       scope: "private",
       scheme: "time",
@@ -725,33 +792,20 @@ async function ensureImportedTrackWorkouts(
       updatedAt: timestamp,
     })
 
-    const trackWorkoutId = createTrackWorkoutId()
-    const trackOrder = nextOrder
-    nextOrder += 1
     await db.insert(trackWorkoutsTable).values({
-      id: trackWorkoutId,
+      id: trackWorkout.id,
       trackId: track.id,
-      workoutId,
-      trackOrder,
+      workoutId: trackWorkout.workoutId,
+      trackOrder: trackWorkout.trackOrder,
       pointsMultiplier: 100,
       heatStatus: "draft",
       eventStatus: "draft",
       createdAt: timestamp,
       updatedAt: timestamp,
     })
-
-    trackWorkouts.push({ id: trackWorkoutId, label, trackOrder })
-    lookup.set(normalizeLookupValue(label), {
-      id: trackWorkoutId,
-      label,
-      trackOrder,
-    })
   }
 
-  return {
-    trackWorkouts,
-    createdTrackWorkoutCount: labels.length,
-  }
+  return plannedTrackWorkouts.length
 }
 
 async function ensureCompetitionTrack(
@@ -788,11 +842,10 @@ async function ensureCompetitionTrack(
   return { id: trackId, name: `${event.name} - Events` }
 }
 
-async function ensureImportedVenues(
+async function prepareImportedVenues(
   db: DbClient,
   eventId: string,
   rows: PreviewImportRow[],
-  timestamp: Date,
 ) {
   const existingVenues = await db
     .select({
@@ -809,12 +862,22 @@ async function ensureImportedVenues(
     id: venue.id,
     name: venue.name,
   }))
-  const venueByName = new Map(
+  const venuesById = new Map<string, PreparedImportedVenue>(
+    existingVenues.map((venue) => [
+      venue.id,
+      {
+        id: venue.id,
+        name: venue.name,
+        existing: true,
+        laneCount: venue.laneCount,
+        sortOrder: venue.sortOrder,
+      },
+    ]),
+  )
+  const venueByName = new Map<string, { id: string; name: string }>(
     existingVenues.map((venue) => [normalizeLookupValue(venue.name), venue]),
   )
   const requiredVenues = getRequiredHeatVenues(rows)
-  let createdVenueCount = 0
-  let updatedVenueCount = 0
   let nextSortOrder =
     existingVenues.reduce(
       (maxOrder, venue) => Math.max(maxOrder, venue.sortOrder),
@@ -824,38 +887,109 @@ async function ensureImportedVenues(
   for (const venue of requiredVenues.values()) {
     const existing = venueByName.get(normalizeLookupValue(venue.name))
     if (existing) {
-      if (venue.laneCount !== null && venue.laneCount !== existing.laneCount) {
+      continue
+    }
+
+    const venueId = createCompetitionVenueId()
+    const plannedVenue: PreparedImportedVenue = {
+      id: venueId,
+      name: venue.name,
+      existing: false,
+      laneCount: venue.laneCount ?? 3,
+      sortOrder: nextSortOrder,
+    }
+    nextSortOrder += 1
+    venues.push({ id: venueId, name: venue.name })
+    venuesById.set(venueId, plannedVenue)
+    venueByName.set(normalizeLookupValue(venue.name), plannedVenue)
+  }
+
+  return { venues, venuesById }
+}
+
+async function ensureAppliedImportedVenues(
+  db: DbClient,
+  eventId: string,
+  venuesById: Map<string, PreparedImportedVenue>,
+  appliedVenueIds: Set<string>,
+  previewRows: PreviewImportRow[],
+  applyRows: HeatApplyRowPlan[],
+  timestamp: Date,
+) {
+  const laneCountByVenueId = getAppliedVenueLaneCounts(
+    previewRows,
+    applyRows,
+    appliedVenueIds,
+  )
+  let createdVenueCount = 0
+  let updatedVenueCount = 0
+
+  for (const venueId of appliedVenueIds) {
+    const venue = venuesById.get(venueId)
+    if (!venue) continue
+
+    const laneCount = laneCountByVenueId.get(venueId) ?? venue.laneCount
+
+    if (venue.existing) {
+      if (laneCount !== null && laneCount !== venue.laneCount) {
         await db
           .update(competitionVenuesTable)
-          .set({ laneCount: venue.laneCount, updatedAt: timestamp })
-          .where(eq(competitionVenuesTable.id, existing.id))
+          .set({ laneCount, updatedAt: timestamp })
+          .where(eq(competitionVenuesTable.id, venue.id))
         updatedVenueCount += 1
       }
       continue
     }
 
-    const venueId = createCompetitionVenueId()
     await db.insert(competitionVenuesTable).values({
-      id: venueId,
+      id: venue.id,
       competitionId: eventId,
       name: venue.name,
-      laneCount: venue.laneCount ?? 3,
-      sortOrder: nextSortOrder,
+      laneCount: laneCount ?? 3,
+      sortOrder: venue.sortOrder,
       createdAt: timestamp,
       updatedAt: timestamp,
     })
-    nextSortOrder += 1
     createdVenueCount += 1
-    venues.push({ id: venueId, name: venue.name })
-    venueByName.set(normalizeLookupValue(venue.name), {
-      id: venueId,
-      name: venue.name,
-      laneCount: venue.laneCount ?? 3,
-      sortOrder: nextSortOrder,
-    })
   }
 
-  return { venues, createdVenueCount, updatedVenueCount }
+  return { createdVenueCount, updatedVenueCount }
+}
+
+function getAppliedVenueLaneCounts(
+  previewRows: PreviewImportRow[],
+  applyRows: HeatApplyRowPlan[],
+  appliedVenueIds: Set<string>,
+) {
+  const previewRowsByNumber = new Map(
+    previewRows.map((row) => [row.rowNumber, row]),
+  )
+  const laneCountByVenueId = new Map<string, number>()
+
+  for (const applyRow of applyRows) {
+    if (
+      applyRow.operation !== "create_heat" &&
+      applyRow.operation !== "update_heat"
+    ) {
+      continue
+    }
+
+    if (!applyRow.venueId || !appliedVenueIds.has(applyRow.venueId)) {
+      continue
+    }
+
+    const previewRow = previewRowsByNumber.get(applyRow.rowNumber)
+    const heat = previewRow?.normalizedRow as HeatScheduleImportRow | undefined
+    if (
+      heat?.laneCount !== null &&
+      heat?.laneCount !== undefined &&
+      !laneCountByVenueId.has(applyRow.venueId)
+    ) {
+      laneCountByVenueId.set(applyRow.venueId, heat.laneCount)
+    }
+  }
+
+  return laneCountByVenueId
 }
 
 async function listExistingHeats(
@@ -1206,22 +1340,6 @@ function toApplyResult(
       ...extraSummary,
       errorRowCount: summary.errorRowCount,
     },
-  }
-}
-
-function mergeJsonMetadata(
-  existingMetadata: string | null | undefined,
-  importedMetadata: string | null,
-) {
-  if (!existingMetadata) return importedMetadata
-  if (!importedMetadata) return existingMetadata
-
-  try {
-    const existing = JSON.parse(existingMetadata) as Record<string, unknown>
-    const imported = JSON.parse(importedMetadata) as Record<string, unknown>
-    return JSON.stringify({ ...existing, ...imported })
-  } catch {
-    return importedMetadata
   }
 }
 

@@ -111,6 +111,11 @@ export interface HeatApplyPlan {
   summary: CrewApplySummary
 }
 
+export interface HeatApplySupportTargets {
+  trackWorkoutIds: Set<string>
+  venueIds: Set<string>
+}
+
 const roleLabelToType = new Map<string, VolunteerRoleType>(
   Object.entries(VOLUNTEER_ROLE_LABELS).flatMap(([value, label]) => [
     [normalizeLookupValue(label), value as VolunteerRoleType],
@@ -451,6 +456,55 @@ export function buildTrackWorkoutLookup(
       [normalizeLookupValue(`workout ${workout.trackOrder}`), workout],
     ]),
   )
+}
+
+export function getAppliedHeatSupportTargets(
+  rows: HeatApplyRowPlan[],
+): HeatApplySupportTargets {
+  const trackWorkoutIds = new Set<string>()
+  const venueIds = new Set<string>()
+
+  for (const row of rows) {
+    if (row.operation !== "create_heat" && row.operation !== "update_heat") {
+      continue
+    }
+
+    if (row.trackWorkoutId) {
+      trackWorkoutIds.add(row.trackWorkoutId)
+    }
+
+    if (row.venueId) {
+      venueIds.add(row.venueId)
+    }
+  }
+
+  return { trackWorkoutIds, venueIds }
+}
+
+export function mergeImportedJsonMetadata(
+  existingMetadata: string | null | undefined,
+  importedMetadata: string | null,
+  options: { preserveExistingApprovedStatus?: boolean } = {},
+) {
+  if (!existingMetadata) return importedMetadata
+  if (!importedMetadata) return existingMetadata
+
+  try {
+    const existing = JSON.parse(existingMetadata) as Record<string, unknown>
+    const imported = JSON.parse(importedMetadata) as Record<string, unknown>
+    const merged = { ...existing, ...imported }
+
+    if (
+      options.preserveExistingApprovedStatus &&
+      existing.status === "approved"
+    ) {
+      merged.status = "approved"
+    }
+
+    return JSON.stringify(merged)
+  } catch {
+    return importedMetadata
+  }
 }
 
 export function parseImportedScheduledTime(

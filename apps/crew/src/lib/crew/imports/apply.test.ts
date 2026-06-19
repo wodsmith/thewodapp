@@ -3,8 +3,11 @@ import { describe, expect, it } from "vitest"
 import {
   buildHeatScheduleApplyPlan,
   buildVolunteerApplyPlan,
+  getAppliedHeatSupportTargets,
+  mergeImportedJsonMetadata,
   parseImportedScheduledTime,
 } from "./apply"
+import type { HeatScheduleImportRow } from "./types"
 import type { PreviewImportRow } from "./types"
 
 function volunteerRow(
@@ -48,6 +51,7 @@ function heatRow(
   rowNumber: number,
   heatNumber: number,
   scheduledTime: string,
+  overrides: Partial<HeatScheduleImportRow> = {},
 ): PreviewImportRow {
   return {
     rowNumber,
@@ -64,6 +68,7 @@ function heatRow(
       venue: "Main floor",
       laneCount: 8,
       notes: "Imported",
+      ...overrides,
     },
     warnings: [],
     errors: [],
@@ -117,6 +122,31 @@ describe("buildVolunteerApplyPlan", () => {
       operation: "update_membership",
     })
     expect(plan.rows[0]?.metadata).toContain('"volunteerRoleTypes":["judge"]')
+  })
+
+  it("preserves approved status when merging imported metadata for existing memberships", () => {
+    const plan = buildVolunteerApplyPlan([volunteerRow(2, "ian@example.com")], {
+      importId: "cimp_test",
+      existingInvitations: [],
+      existingMemberships: [
+        { id: "tmem_1", email: "ian@example.com", isActive: true },
+      ],
+    })
+
+    const merged = mergeImportedJsonMetadata(
+      JSON.stringify({
+        status: "approved",
+        volunteerRoleTypes: ["general"],
+      }),
+      plan.rows[0]?.metadata ?? null,
+      { preserveExistingApprovedStatus: true },
+    )
+
+    expect(JSON.parse(merged ?? "{}")).toMatchObject({
+      status: "approved",
+      volunteerRoleTypes: ["judge"],
+      crewImportId: "cimp_test",
+    })
   })
 
   it("updates an existing pending invitation instead of creating a duplicate", () => {
@@ -181,5 +211,67 @@ describe("buildHeatScheduleApplyPlan", () => {
         "America/Denver",
       )?.toISOString(),
     ).toBe("2026-06-21T16:30:00.000Z")
+  })
+
+  it("excludes published-skip and invalid-time heat rows from support targets", () => {
+    const plan = buildHeatScheduleApplyPlan(
+      [
+        heatRow(2, 1, "9:00 AM", { venue: "Side Floor" }),
+        heatRow(3, 2, "not a time", {
+          workout: "Event 2",
+          venue: "Side Floor",
+        }),
+        heatRow(4, 2, "10:00 AM"),
+      ],
+      {
+        competitionStartDate: "2026-06-20",
+        timezone: "America/Denver",
+        trackWorkouts: [
+          { id: "trwk_1", label: "Event 1", trackOrder: 1 },
+          { id: "trwk_2", label: "Event 2", trackOrder: 2 },
+        ],
+        divisions: [{ id: "div_rx", label: "RX" }],
+        venues: [
+          { id: "cvenue_1", name: "Main Floor" },
+          { id: "cvenue_2", name: "Side Floor" },
+        ],
+        existingHeats: [
+          {
+            id: "cheat_published",
+            trackWorkoutId: "trwk_1",
+            heatNumber: 1,
+            schedulePublishedAt: new Date("2026-06-20T15:00:00.000Z"),
+          },
+        ],
+      },
+    )
+
+    expect(plan.rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rowNumber: 2,
+          operation: "skip",
+          warnings: expect.arrayContaining([
+            expect.objectContaining({ code: "published_heat_not_updated" }),
+          ]),
+        }),
+        expect.objectContaining({
+          rowNumber: 3,
+          operation: "error",
+          errors: expect.arrayContaining([
+            expect.objectContaining({ code: "invalid_scheduled_time" }),
+          ]),
+        }),
+        expect.objectContaining({
+          rowNumber: 4,
+          operation: "create_heat",
+        }),
+      ]),
+    )
+
+    const supportTargets = getAppliedHeatSupportTargets(plan.rows)
+
+    expect([...supportTargets.trackWorkoutIds]).toEqual(["trwk_1"])
+    expect([...supportTargets.venueIds]).toEqual(["cvenue_1"])
   })
 })
