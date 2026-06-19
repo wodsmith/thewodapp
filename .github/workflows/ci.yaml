@@ -27,6 +27,8 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Check WODsmith schema ownership
+        run: pnpm check:schema-ownership
       - name: Generate Alchemy wrangler config for CI
         run: |
           mkdir -p apps/wodsmith-start/.alchemy/local
