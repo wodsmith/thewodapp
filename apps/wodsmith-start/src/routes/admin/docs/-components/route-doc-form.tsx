@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { ROUTE_DOC_TYPES } from "@/db/schemas/route-docs"
+import { DOCS_VIDEO_MAX_SIZE_MB } from "@/lib/upload-limits"
 import { ORGANIZER_ROUTE_PREFIX } from "@/utils/route-docs"
 
 function isValidUrl(value: string): boolean {
@@ -502,8 +503,8 @@ function VideoField({
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">
-        Paste a YouTube/Vimeo URL, or upload an MP4/WebM/MOV (max 100MB, stored
-        on R2).
+        Paste a YouTube/Vimeo URL, or upload an MP4/WebM/MOV (max{" "}
+        {DOCS_VIDEO_MAX_SIZE_MB}MB, stored on R2).
       </p>
     </div>
   )
@@ -529,7 +530,11 @@ function RoutePicker({
     return ids
       .filter(
         (routeId) =>
-          !(routeId.length > 1 && routeId.endsWith("/") && idSet.has(routeId.slice(0, -1))),
+          !(
+            routeId.length > 1 &&
+            routeId.endsWith("/") &&
+            idSet.has(routeId.slice(0, -1))
+          ),
       )
       .sort()
   }, [router])

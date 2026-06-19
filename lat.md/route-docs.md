@@ -72,9 +72,27 @@ Dev environments get starter content from the `22-route-docs` seeder: a markdown
 
 ## Video storage
 
-Documentation videos upload to R2 through the existing `/api/upload` route using the `docs-video` purpose (MP4/WebM/MOV, 100MB max, stored under `docs/videos/`).
+Documentation videos upload to R2 through the existing `/api/upload` route using the `docs-video` purpose (MP4/WebM/MOV, 32MB max, stored under `docs/videos/`).
 
 Authorization in [[apps/wodsmith-start/src/server/upload-authorization.ts#checkUploadAuthorization]] restricts the purpose to site admins. Files are served from `R2_PUBLIC_URL` like other uploads; admins can alternatively paste YouTube/Vimeo URLs instead of uploading.
+
+### PR-1 upload mitigation
+
+Docs-video upload is capped at 32MB and sends `file.stream()` to R2 so the Worker avoids the extra `file.arrayBuffer()` copy that exhausted memory on larger videos.
+
+The route still parses the multipart body with `request.formData()`, so this is not the final large-video architecture. Larger training videos should use YouTube/Vimeo until PR-2 adds a signed direct-to-R2 upload protocol.
+
+### Streams docs-video without second buffer
+
+Verifies the `/api/upload` handler passes a docs-video file stream to R2 without calling `file.arrayBuffer()`, avoiding the extra memory copy that failed large demo uploads.
+
+### Preserves non-video buffered uploads
+
+Verifies generic upload purposes still pass `file.arrayBuffer()` results to R2, keeping image and PDF upload behavior unchanged while docs-video receives the targeted mitigation.
+
+### Rejects docs-video above demo-safe cap
+
+Verifies docs-video uploads above 32MB return the configured size error before R2 writes, keeping admin UI copy, route validation, and docs aligned around the proven-safe cap.
 
 ## Versioning
 
