@@ -28,14 +28,17 @@ import {
   logWarning,
   updateRequestContext,
 } from "@/lib/logging"
-import { DOCS_VIDEO_MAX_SIZE_MB } from "@/lib/upload-limits"
+import {
+  DOCS_VIDEO_ALLOWED_TYPE_LABEL,
+  DOCS_VIDEO_ALLOWED_TYPES,
+  DOCS_VIDEO_MAX_SIZE_MB,
+  DOCS_VIDEO_PATH_PREFIX,
+} from "@/lib/upload-limits"
 import { checkUploadAuthorization } from "@/server/upload-authorization"
 import { getSessionFromCookie } from "@/utils/auth"
 
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
 const DOCUMENT_TYPES = ["application/pdf"]
-const VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"]
-
 const PURPOSE_CONFIG: Record<
   string,
   { maxSizeMb: number; pathPrefix: string; allowedTypes: string[] }
@@ -78,8 +81,8 @@ const PURPOSE_CONFIG: Record<
   // Documentation drawer videos (site admin only, see upload-authorization)
   "docs-video": {
     maxSizeMb: DOCS_VIDEO_MAX_SIZE_MB,
-    pathPrefix: "docs/videos",
-    allowedTypes: VIDEO_TYPES,
+    pathPrefix: DOCS_VIDEO_PATH_PREFIX,
+    allowedTypes: [...DOCS_VIDEO_ALLOWED_TYPES],
   },
 }
 
@@ -190,7 +193,7 @@ export const Route = createFileRoute("/api/upload")({
             purpose === "judging-sheet"
               ? "PDF"
               : purpose === "docs-video"
-                ? "MP4, WebM, MOV"
+                ? DOCS_VIDEO_ALLOWED_TYPE_LABEL
                 : "JPEG, PNG, WebP, GIF"
           return json(
             { error: `Invalid file type. Allowed: ${allowedTypeNames}` },

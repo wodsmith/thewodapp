@@ -48,7 +48,11 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { ROUTE_DOC_TYPES } from "@/db/schemas/route-docs"
-import { DOCS_VIDEO_MAX_SIZE_MB } from "@/lib/upload-limits"
+import { uploadDocsVideoFile } from "@/lib/docs-video-upload"
+import {
+  DOCS_VIDEO_MAX_SIZE_MB,
+  DOCS_VIDEO_MULTIPART_MAX_SIZE_MB,
+} from "@/lib/upload-limits"
 import { ORGANIZER_ROUTE_PREFIX } from "@/utils/route-docs"
 
 function isValidUrl(value: string): boolean {
@@ -443,24 +447,8 @@ function VideoField({
 
     setIsUploading(true)
     try {
-      const formData = new FormData()
-      formData.append("file", file)
-      formData.append("purpose", "docs-video")
-
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      })
-      const data = (await res.json().catch(() => null)) as {
-        url?: string
-        error?: string
-      } | null
-
-      if (!res.ok || !data?.url) {
-        throw new Error(data?.error || "Upload failed")
-      }
-
-      onChange(data.url)
+      const result = await uploadDocsVideoFile(file)
+      onChange(result.url)
       toast.success("Video uploaded")
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Upload failed")
@@ -504,7 +492,8 @@ function VideoField({
       </div>
       <p className="text-xs text-muted-foreground">
         Paste a YouTube/Vimeo URL, or upload an MP4/WebM/MOV (max{" "}
-        {DOCS_VIDEO_MAX_SIZE_MB}MB, stored on R2).
+        {DOCS_VIDEO_MULTIPART_MAX_SIZE_MB}MB; files up to{" "}
+        {DOCS_VIDEO_MAX_SIZE_MB}MB use the compatibility uploader).
       </p>
     </div>
   )
