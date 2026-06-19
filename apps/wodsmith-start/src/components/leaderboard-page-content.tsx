@@ -29,6 +29,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { WorkoutPreview } from "@/components/workout-preview"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { leaderboardVariant } from "@/lib/competitions/capabilities"
 import { cn } from "@/lib/utils"
 import {
   type DivisionDescription,
@@ -90,10 +91,7 @@ function ReviewStatusLegend() {
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs">
       <span className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.08em] font-semibold text-muted-foreground">
         Review
-        <span
-          aria-hidden
-          className="h-px w-6 bg-border"
-        />
+        <span aria-hidden className="h-px w-6 bg-border" />
       </span>
       <div className="flex flex-wrap items-center gap-1.5">
         {reviewStatusOrder.map((status) => {
@@ -158,6 +156,8 @@ export function LeaderboardPageContent({
   )
   const [isLoading, setIsLoading] = useState(!initialMatchesSelected)
   const [error, setError] = useState<string | null>(null)
+  const isOnlineLeaderboard =
+    leaderboardVariant(competition.competitionType) === "online"
 
   // Sync state when the loader hands us a new initialData payload
   // (e.g. division changed via URL navigation, loader re-ran)
@@ -626,9 +626,7 @@ export function LeaderboardPageContent({
         </div>
 
         {/* Review-status legend (organizer preview, online only) */}
-        {preview && competition.competitionType === "online" && (
-          <ReviewStatusLegend />
-        )}
+        {preview && isOnlineLeaderboard && <ReviewStatusLegend />}
       </div>
 
       {/* Desktop: Collapsible workout preview */}
@@ -661,7 +659,7 @@ export function LeaderboardPageContent({
       )}
 
       <div className="rounded-md border">
-        {competition.competitionType === "online" ? (
+        {isOnlineLeaderboard ? (
           <OnlineCompetitionLeaderboardTable
             leaderboard={filteredLeaderboard}
             events={events}

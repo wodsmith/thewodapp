@@ -12,7 +12,6 @@
 
 import { and, eq, inArray, isNull, ne, or } from "drizzle-orm"
 import { getDb } from "@/db"
-import { logInfo, logWarning } from "@/lib/logging"
 import {
   competitionHeatAssignmentsTable,
   competitionHeatsTable,
@@ -34,6 +33,8 @@ import {
   videoSubmissionsTable,
 } from "@/db/schemas/video-submissions"
 import { workouts } from "@/db/schemas/workouts"
+import { competitionCan } from "@/lib/competitions/capabilities"
+import { logInfo, logWarning } from "@/lib/logging"
 import {
   calculateEventPoints,
   calculatePointsForPlace,
@@ -52,6 +53,7 @@ import {
   type TiebreakerInput,
 } from "@/lib/scoring/tiebreakers"
 import {
+  type CompetitionSettings,
   getEffectiveScoringConfig,
   parseCompetitionSettings,
 } from "@/types/competitions"
@@ -195,6 +197,31 @@ export interface CompetitionLeaderboardResult {
     parentEventName: string | null
     isParentEvent: boolean
   }>
+}
+
+export function resolveLeaderboardDivisionResults(params: {
+  bypassPublicationFilter?: boolean
+  competitionType: string
+  settings: CompetitionSettings | null | undefined
+}): CompetitionSettings["divisionResults"] | undefined {
+  if (params.bypassPublicationFilter) return undefined
+
+  return (
+    params.settings?.divisionResults ??
+    (competitionCan(params.competitionType, "optInResultPublishing")
+      ? {}
+      : undefined)
+  )
+}
+
+export function shouldFetchLeaderboardVideoSubmissions(params: {
+  competitionType: string
+  registrationCount: number
+}): boolean {
+  return (
+    competitionCan(params.competitionType, "videoSubmissions") &&
+    params.registrationCount > 0
+  )
 }
 
 // ============================================================================
@@ -437,10 +464,11 @@ export async function getCompetitionLeaderboard(params: {
   // For in-person competitions, absent divisionResults means show all (backwards compat).
   // When `bypassPublicationFilter` is set, we treat divisionResults as undefined so
   // every score is included (used by the organizer preview).
-  const divisionResults = params.bypassPublicationFilter
-    ? undefined
-    : (settings?.divisionResults ??
-      (competition.competitionType === "online" ? {} : undefined))
+  const divisionResults = resolveLeaderboardDivisionResults({
+    bypassPublicationFilter: params.bypassPublicationFilter,
+    competitionType: competition.competitionType,
+    settings,
+  })
 
   logInfo({
     message: "[Leaderboard] Publication gates",
@@ -619,10 +647,7 @@ export async function getCompetitionLeaderboard(params: {
               )
               .where(
                 and(
-                  inArray(
-                    competitionHeatAssignmentsTable.heatId,
-                    mixedHeatIds,
-                  ),
+                  inArray(competitionHeatAssignmentsTable.heatId, mixedHeatIds),
                   ne(
                     competitionRegistrationsTable.status,
                     REGISTRATION_STATUS.REMOVED,
@@ -810,14 +835,11 @@ export async function getCompetitionLeaderboard(params: {
   // status tells us whether points get computed (only "scored"/"cap" earn
   // points in online scoring — "dns"/"dnf"/etc. are treated as inactive).
   // verificationStatus tells us review state (null = unreviewed).
-  const statusBreakdown = allScores.reduce<Record<string, number>>(
-    (acc, s) => {
-      const key = s.status ?? "null"
-      acc[key] = (acc[key] ?? 0) + 1
-      return acc
-    },
-    {},
-  )
+  const statusBreakdown = allScores.reduce<Record<string, number>>((acc, s) => {
+    const key = s.status ?? "null"
+    acc[key] = (acc[key] ?? 0) + 1
+    return acc
+  }, {})
   const verificationBreakdown = allScores.reduce<Record<string, number>>(
     (acc, s) => {
       const key = s.verificationStatus ?? "null"
@@ -843,20 +865,22 @@ export async function getCompetitionLeaderboard(params: {
 
   // Fetch video submissions for online competitions
   const registrationIds = filteredRegistrations.map((r) => r.registration.id)
-  const videoSubmissions =
-    competition.competitionType === "online" && registrationIds.length > 0
-      ? await db
-          .select({
-            id: videoSubmissionsTable.id,
-            registrationId: videoSubmissionsTable.registrationId,
-            trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
-            videoUrl: videoSubmissionsTable.videoUrl,
-            videoIndex: videoSubmissionsTable.videoIndex,
-            reviewStatus: videoSubmissionsTable.reviewStatus,
-          })
-          .from(videoSubmissionsTable)
-          .where(inArray(videoSubmissionsTable.registrationId, registrationIds))
-      : []
+  const videoSubmissions = shouldFetchLeaderboardVideoSubmissions({
+    competitionType: competition.competitionType,
+    registrationCount: registrationIds.length,
+  })
+    ? await db
+        .select({
+          id: videoSubmissionsTable.id,
+          registrationId: videoSubmissionsTable.registrationId,
+          trackWorkoutId: videoSubmissionsTable.trackWorkoutId,
+          videoUrl: videoSubmissionsTable.videoUrl,
+          videoIndex: videoSubmissionsTable.videoIndex,
+          reviewStatus: videoSubmissionsTable.reviewStatus,
+        })
+        .from(videoSubmissionsTable)
+        .where(inArray(videoSubmissionsTable.registrationId, registrationIds))
+    : []
 
   // Index video submissions by registrationId+trackWorkoutId for fast lookup.
   // Two indexes are kept side by side:
@@ -922,12 +946,14 @@ export async function getCompetitionLeaderboard(params: {
 
     for (const sub of submissions) {
       statusSet.add(sub.reviewStatus)
-      if (sub.reviewStatus !== "pending" && sub.reviewStatus !== "under_review") {
+      if (
+        sub.reviewStatus !== "pending" &&
+        sub.reviewStatus !== "under_review"
+      ) {
         reviewedCount++
       }
       if (
-        REVIEW_STATUS_PRIORITY[sub.reviewStatus] >
-        REVIEW_STATUS_PRIORITY[worst]
+        REVIEW_STATUS_PRIORITY[sub.reviewStatus] > REVIEW_STATUS_PRIORITY[worst]
       ) {
         worst = sub.reviewStatus
       }
