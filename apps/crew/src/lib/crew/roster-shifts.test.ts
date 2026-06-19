@@ -1,3 +1,4 @@
+// @lat: [[crew#Roster Shifts Assignments]]
 import { describe, expect, it } from "vitest"
 import {
   buildCrewRoster,
@@ -5,6 +6,7 @@ import {
   normalizeCrewShiftTimes,
   summarizeCrewRoster,
   validateShiftAssignment,
+  validateShiftCapacityUpdate,
 } from "./roster-shifts"
 
 describe("Crew roster helpers", () => {
@@ -130,6 +132,45 @@ describe("Crew roster helpers", () => {
       }),
     ).toEqual({ ok: true })
   })
+
+  it("falls back to invitation email when metadata signup email is blank", () => {
+    const roster = buildCrewRoster(
+      [
+        {
+          id: "tinv_blank_email",
+          email: "invite@example.com",
+          status: "pending",
+          metadata: JSON.stringify({
+            signupEmail: "   ",
+            signupName: "Invite Person",
+          }),
+        },
+      ],
+      [],
+    )
+
+    expect(roster[0]?.email).toBe("invite@example.com")
+  })
+
+  it("falls back to membership user email when metadata signup email is blank", () => {
+    const roster = buildCrewRoster(
+      [],
+      [
+        {
+          id: "tmem_blank_email",
+          isActive: true,
+          user: {
+            firstName: "Member",
+            lastName: "Person",
+            email: "member@example.com",
+          },
+          metadata: JSON.stringify({ signupEmail: " " }),
+        },
+      ],
+    )
+
+    expect(roster[0]?.email).toBe("member@example.com")
+  })
 })
 
 describe("Crew shift helpers", () => {
@@ -221,5 +262,14 @@ describe("Crew shift helpers", () => {
         timezone: "America/Denver",
       }),
     ).toThrow("Shift end time must be after the start time.")
+  })
+
+  it("rejects capacity updates below current assignment count", () => {
+    expect(validateShiftCapacityUpdate(2, 3)).toMatchObject({
+      ok: false,
+      reason: "below_assigned_count",
+    })
+    expect(validateShiftCapacityUpdate(3, 3)).toEqual({ ok: true })
+    expect(validateShiftCapacityUpdate(4, 3)).toEqual({ ok: true })
   })
 })

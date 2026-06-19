@@ -1,3 +1,4 @@
+// @lat: [[crew#Roster Shifts Assignments]]
 import {
   INVITATION_STATUS,
   type InvitationStatus,
@@ -109,6 +110,10 @@ export type ShiftAssignmentValidationResult =
         | "role_mismatch"
       message: string
     }
+
+export type ShiftCapacityValidationResult =
+  | { ok: true }
+  | { ok: false; reason: "below_assigned_count"; message: string }
 
 export interface NormalizedShiftTimeInput {
   date: string
@@ -286,6 +291,21 @@ export function validateShiftAssignment(
   return { ok: true }
 }
 
+export function validateShiftCapacityUpdate(
+  capacity: number,
+  assignedCount: number,
+): ShiftCapacityValidationResult {
+  if (capacity < assignedCount) {
+    return {
+      ok: false,
+      reason: "below_assigned_count",
+      message: `Shift capacity cannot be lower than the ${assignedCount} assigned volunteer${assignedCount === 1 ? "" : "s"}.`,
+    }
+  }
+
+  return { ok: true }
+}
+
 export function isVolunteerCompatibleWithShift(
   shiftRoleType: VolunteerRoleType,
   volunteerRoleTypes: VolunteerRoleType[],
@@ -343,7 +363,7 @@ function toInvitationRosterRow(
     sourceId: invitation.id,
     membershipId: null,
     invitationId: invitation.id,
-    email: metadata.signupEmail ?? invitation.email,
+    email: nonBlankText(metadata.signupEmail) ?? invitation.email,
     name: getMetadataName(metadata) || invitation.email,
     phone: metadata.signupPhone ?? null,
     status: getCrewRosterStatus(
@@ -370,7 +390,10 @@ function toMembershipRosterRow(
   const userName = [membership.user?.firstName, membership.user?.lastName]
     .filter(Boolean)
     .join(" ")
-  const email = metadata.signupEmail ?? membership.user?.email ?? ""
+  const email =
+    nonBlankText(metadata.signupEmail) ??
+    nonBlankText(membership.user?.email) ??
+    ""
 
   return {
     id: `membership:${membership.id}`,
@@ -398,6 +421,11 @@ function toMembershipRosterRow(
 
 function getMetadataName(metadata: CrewRosterMetadata) {
   return metadata.signupName?.trim() || metadata.inviteName?.trim() || ""
+}
+
+function nonBlankText(value: string | null | undefined) {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : null
 }
 
 function compareCrewRosterRows(

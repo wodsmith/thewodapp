@@ -25,6 +25,7 @@ import {
   parseCrewRosterMetadata,
   summarizeCrewRoster,
   validateShiftAssignment,
+  validateShiftCapacityUpdate,
   type CrewRosterSummary,
   type CrewRosterVolunteer,
 } from "../lib/crew/roster-shifts"
@@ -33,8 +34,6 @@ import {
   DEFAULT_TIMEZONE,
   formatDateTimeInTimezone,
 } from "../utils/timezone-utils"
-
-type DbClient = ReturnType<typeof getDb>
 
 type CrewRosterCompetition = Pick<
   Competition,
@@ -254,45 +253,81 @@ export const updateCrewShiftFn = createServerFn({ method: "POST" })
     requireLocalCrewOperatorAccess("Crew shifts")
 
     const event = await requireCrewRosterEvent(data.eventId)
-    const existingShift = await requireCrewShift(event.id, data.shiftId)
-    const updateValues: Partial<typeof volunteerShiftsTable.$inferInsert> = {}
-    const timezone = event.timezone ?? DEFAULT_TIMEZONE
-    const date =
-      data.date ??
-      formatDateTimeInTimezone(existingShift.startTime, timezone, "yyyy-MM-dd")
-    const startInput =
-      data.startTime ??
-      formatDateTimeInTimezone(existingShift.startTime, timezone, "HH:mm")
-    const endInput =
-      data.endTime ??
-      formatDateTimeInTimezone(existingShift.endTime, timezone, "HH:mm")
-
-    if (data.date || data.startTime || data.endTime) {
-      const { startTime, endTime } = normalizeCrewShiftTimes({
-        date,
-        startTime: startInput,
-        endTime: endInput,
-        timezone,
-      })
-      updateValues.startTime = startTime
-      updateValues.endTime = endTime
-    }
-
-    if (data.name !== undefined) updateValues.name = data.name
-    if (data.roleType !== undefined) updateValues.roleType = data.roleType
-    if (data.location !== undefined)
-      updateValues.location = emptyToNull(data.location)
-    if (data.capacity !== undefined) updateValues.capacity = data.capacity
-    if (data.notes !== undefined) updateValues.notes = emptyToNull(data.notes)
-
-    if (Object.keys(updateValues).length === 0) return { success: true }
-
-    updateValues.updatedAt = new Date()
     const db = getDb()
-    await db
-      .update(volunteerShiftsTable)
-      .set(updateValues)
-      .where(eq(volunteerShiftsTable.id, data.shiftId))
+    await db.transaction(async (tx) => {
+      const [existingShift] = await tx
+        .select()
+        .from(volunteerShiftsTable)
+        .where(
+          and(
+            eq(volunteerShiftsTable.id, data.shiftId),
+            eq(volunteerShiftsTable.competitionId, event.id),
+          ),
+        )
+        .for("update")
+        .limit(1)
+
+      if (!existingShift) {
+        throw new Error("Volunteer shift not found")
+      }
+
+      const updateValues: Partial<typeof volunteerShiftsTable.$inferInsert> = {}
+      const timezone = event.timezone ?? DEFAULT_TIMEZONE
+      const date =
+        data.date ??
+        formatDateTimeInTimezone(
+          existingShift.startTime,
+          timezone,
+          "yyyy-MM-dd",
+        )
+      const startInput =
+        data.startTime ??
+        formatDateTimeInTimezone(existingShift.startTime, timezone, "HH:mm")
+      const endInput =
+        data.endTime ??
+        formatDateTimeInTimezone(existingShift.endTime, timezone, "HH:mm")
+
+      if (data.date || data.startTime || data.endTime) {
+        const { startTime, endTime } = normalizeCrewShiftTimes({
+          date,
+          startTime: startInput,
+          endTime: endInput,
+          timezone,
+        })
+        updateValues.startTime = startTime
+        updateValues.endTime = endTime
+      }
+
+      if (data.name !== undefined) updateValues.name = data.name
+      if (data.roleType !== undefined) updateValues.roleType = data.roleType
+      if (data.location !== undefined)
+        updateValues.location = emptyToNull(data.location)
+      if (data.capacity !== undefined) {
+        const currentAssignments = await tx
+          .select({ id: volunteerShiftAssignmentsTable.id })
+          .from(volunteerShiftAssignmentsTable)
+          .where(eq(volunteerShiftAssignmentsTable.shiftId, existingShift.id))
+
+        const capacityValidation = validateShiftCapacityUpdate(
+          data.capacity,
+          currentAssignments.length,
+        )
+        if (!capacityValidation.ok) {
+          throw new Error(capacityValidation.message)
+        }
+
+        updateValues.capacity = data.capacity
+      }
+      if (data.notes !== undefined) updateValues.notes = emptyToNull(data.notes)
+
+      if (Object.keys(updateValues).length === 0) return
+
+      updateValues.updatedAt = new Date()
+      await tx
+        .update(volunteerShiftsTable)
+        .set(updateValues)
+        .where(eq(volunteerShiftsTable.id, data.shiftId))
+    })
 
     return { success: true }
   })
@@ -323,60 +358,98 @@ export const assignCrewVolunteerToShiftFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     requireLocalCrewOperatorAccess("Crew shifts")
 
-    const event = await requireCrewRosterEvent(data.eventId)
-    const shift = await requireCrewShift(event.id, data.shiftId)
     const db = getDb()
-    const [assignments, membership] = await Promise.all([
-      db.query.volunteerShiftAssignmentsTable.findMany({
-        where: eq(volunteerShiftAssignmentsTable.shiftId, shift.id),
-      }),
-      getAssignableVolunteer(db, event.competitionTeamId, data.membershipId),
-    ])
+    const event = await requireCrewRosterEvent(data.eventId)
 
-    const existingAssignment = assignments.find(
-      (assignment) => assignment.membershipId === data.membershipId,
-    )
-    if (existingAssignment) {
-      return {
-        success: true,
-        action: "skipped_duplicate" as const,
-        assignmentId: existingAssignment.id,
+    return await db.transaction(async (tx) => {
+      const [shift] = await tx
+        .select()
+        .from(volunteerShiftsTable)
+        .where(
+          and(
+            eq(volunteerShiftsTable.id, data.shiftId),
+            eq(volunteerShiftsTable.competitionId, event.id),
+          ),
+        )
+        .for("update")
+        .limit(1)
+
+      if (!shift) {
+        throw new Error("Volunteer shift not found")
       }
-    }
 
-    const validation = validateShiftAssignment({
-      shiftRoleType: shift.roleType,
-      capacity: shift.capacity,
-      currentAssignmentMembershipIds: assignments.map(
-        (assignment) => assignment.membershipId,
-      ),
-      volunteer: membership
-        ? {
-            membershipId: membership.id,
-            isActive: membership.isActive,
-            roleTypes: getCrewRosterRoleTypes(
-              parseCrewRosterMetadata(membership.metadata).volunteerRoleTypes,
+      const [assignments, membershipRows] = await Promise.all([
+        tx
+          .select({
+            id: volunteerShiftAssignmentsTable.id,
+            membershipId: volunteerShiftAssignmentsTable.membershipId,
+          })
+          .from(volunteerShiftAssignmentsTable)
+          .where(eq(volunteerShiftAssignmentsTable.shiftId, shift.id)),
+        tx
+          .select({
+            id: teamMembershipTable.id,
+            isActive: teamMembershipTable.isActive,
+            metadata: teamMembershipTable.metadata,
+          })
+          .from(teamMembershipTable)
+          .where(
+            and(
+              eq(teamMembershipTable.id, data.membershipId),
+              eq(teamMembershipTable.teamId, event.competitionTeamId),
+              eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+              eq(teamMembershipTable.isSystemRole, true),
             ),
-          }
-        : null,
+          )
+          .limit(1),
+      ])
+      const membership = membershipRows[0] ?? null
+
+      const existingAssignment = assignments.find(
+        (assignment) => assignment.membershipId === data.membershipId,
+      )
+      if (existingAssignment) {
+        return {
+          success: true,
+          action: "skipped_duplicate" as const,
+          assignmentId: existingAssignment.id,
+        }
+      }
+
+      const validation = validateShiftAssignment({
+        shiftRoleType: shift.roleType,
+        capacity: shift.capacity,
+        currentAssignmentMembershipIds: assignments.map(
+          (assignment) => assignment.membershipId,
+        ),
+        volunteer: membership
+          ? {
+              membershipId: membership.id,
+              isActive: membership.isActive,
+              roleTypes: getCrewRosterRoleTypes(
+                parseCrewRosterMetadata(membership.metadata).volunteerRoleTypes,
+              ),
+            }
+          : null,
+      })
+
+      if (!validation.ok) {
+        throw new Error(validation.message)
+      }
+      if (!membership) {
+        throw new Error("Volunteer record was not found for this event.")
+      }
+
+      const assignmentId = createVolunteerShiftAssignmentId()
+      await tx.insert(volunteerShiftAssignmentsTable).values({
+        id: assignmentId,
+        shiftId: shift.id,
+        membershipId: membership.id,
+        notes: emptyToNull(data.notes),
+      })
+
+      return { success: true, action: "assigned" as const, assignmentId }
     })
-
-    if (!validation.ok) {
-      throw new Error(validation.message)
-    }
-    if (!membership) {
-      throw new Error("Volunteer record was not found for this event.")
-    }
-
-    const assignmentId = createVolunteerShiftAssignmentId()
-    await db.insert(volunteerShiftAssignmentsTable).values({
-      id: assignmentId,
-      shiftId: shift.id,
-      membershipId: membership.id,
-      notes: emptyToNull(data.notes),
-    })
-
-    return { success: true, action: "assigned" as const, assignmentId }
   })
 
 export const removeCrewVolunteerShiftAssignmentFn = createServerFn({
@@ -551,21 +624,6 @@ async function requireCrewShift(competitionId: string, shiftId: string) {
   }
 
   return shift
-}
-
-async function getAssignableVolunteer(
-  db: DbClient,
-  competitionTeamId: string,
-  membershipId: string,
-) {
-  return await db.query.teamMembershipTable.findFirst({
-    where: and(
-      eq(teamMembershipTable.id, membershipId),
-      eq(teamMembershipTable.teamId, competitionTeamId),
-      eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
-      eq(teamMembershipTable.isSystemRole, true),
-    ),
-  })
 }
 
 function emptyToNull(value: string | null | undefined) {
