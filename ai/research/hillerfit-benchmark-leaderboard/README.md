@@ -18,4 +18,6 @@ Source narrative: [`../hillerfit-benchmark-leaderboard-guide.md`](../hillerfit-b
 
 ## Build Rule
 
-Do not fork product behavior without an owner decision. In particular, do not switch v1 back to all-time history, Men/Women divisions, `competitionType: "online"`, publish-gated benchmark results, or baked-constant Weighted C2B unless the decision sheet is updated first.
+The supplied training PDF is a benchmark seed-data source only. Do not build HillerFit-branded pages, routes, product navigation, marketing copy, logos, theme treatments, or any other branded surface; the shipped UI remains WODsmith's generic benchmark board/stat-line experience.
+
+Do not fork product behavior without an owner decision. In particular, do not switch v1 back to all-time history, Men/Women divisions, `competitionType: "online"`, publish-gated benchmark results, branded UI, or baked-constant Weighted C2B unless the decision sheet is updated first.
