@@ -20,8 +20,13 @@ import {
   programmingTracksTable,
   trackWorkoutsTable,
 } from "@/db/schema"
+import { createJudgeAssignmentVersionId } from "@/db/schemas/common"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { requireTeamPermission } from "@/utils/team-auth"
+import {
+  getNextJudgeAssignmentVersionNumber,
+  withJudgeAssignmentVersionLock,
+} from "./judge-assignment-versioning"
 
 // ============================================================================
 // Types
@@ -355,71 +360,79 @@ export const publishRotationsFn = createServerFn({ method: "POST" })
       3,
     )
 
-    // Get next version number
-    const versions = await db.query.judgeAssignmentVersionsTable.findMany({
-      where: eq(
-        judgeAssignmentVersionsTable.trackWorkoutId,
-        data.trackWorkoutId,
-      ),
-      orderBy: desc(judgeAssignmentVersionsTable.version),
-    })
-    const nextVersion =
-      versions.length > 0 ? (versions[0]?.version ?? 0) + 1 : 1
-
     // Materialize all rotations (read-only, before transaction)
     const materializedAssignments = await materializeRotations(
       data.trackWorkoutId,
       maxLanes,
     )
 
-    const { createJudgeAssignmentVersionId } = await import("@/db/schema")
-    const newVersionId = createJudgeAssignmentVersionId()
-
     // Use transaction for atomic version switch + assignment creation
-    const newVersion = await db.transaction(async (tx) => {
-      // Deactivate previous versions
-      await tx
-        .update(judgeAssignmentVersionsTable)
-        .set({ isActive: false, updatedAt: new Date() })
-        .where(
-          eq(judgeAssignmentVersionsTable.trackWorkoutId, data.trackWorkoutId),
-        )
+    const newVersion = await withJudgeAssignmentVersionLock(
+      db,
+      data.trackWorkoutId,
+      async () =>
+        db.transaction(async (tx) => {
+          const versions = await tx.query.judgeAssignmentVersionsTable.findMany(
+            {
+              where: eq(
+                judgeAssignmentVersionsTable.trackWorkoutId,
+                data.trackWorkoutId,
+              ),
+              orderBy: desc(judgeAssignmentVersionsTable.version),
+            },
+          )
+          const nextVersion = getNextJudgeAssignmentVersionNumber(versions)
+          const newVersionId = createJudgeAssignmentVersionId()
 
-      // Create new version
-      await tx.insert(judgeAssignmentVersionsTable).values({
-        id: newVersionId,
-        trackWorkoutId: data.trackWorkoutId,
-        version: nextVersion,
-        publishedBy: data.publishedBy,
-        notes: data.notes ?? null,
-        isActive: true,
-      })
+          // Deactivate previous versions
+          await tx
+            .update(judgeAssignmentVersionsTable)
+            .set({ isActive: false, updatedAt: new Date() })
+            .where(
+              eq(
+                judgeAssignmentVersionsTable.trackWorkoutId,
+                data.trackWorkoutId,
+              ),
+            )
 
-      const version = await tx.query.judgeAssignmentVersionsTable.findFirst({
-        where: eq(judgeAssignmentVersionsTable.id, newVersionId),
-      })
+          // Create new version
+          await tx.insert(judgeAssignmentVersionsTable).values({
+            id: newVersionId,
+            trackWorkoutId: data.trackWorkoutId,
+            version: nextVersion,
+            publishedBy: data.publishedBy,
+            notes: data.notes ?? null,
+            isActive: true,
+          })
 
-      if (!version) {
-        throw new Error("Failed to create version")
-      }
+          const version = await tx.query.judgeAssignmentVersionsTable.findFirst(
+            {
+              where: eq(judgeAssignmentVersionsTable.id, newVersionId),
+            },
+          )
 
-      // Bulk insert all assignments in a single query (MySQL has no param limit)
-      if (materializedAssignments.length > 0) {
-        await tx.insert(judgeHeatAssignmentsTable).values(
-          materializedAssignments.map((a) => ({
-            heatId: a.heatId,
-            membershipId: a.membershipId,
-            rotationId: a.rotationId,
-            laneNumber: a.laneNumber,
-            position: a.position,
-            versionId: version.id,
-            isManualOverride: false,
-          })),
-        )
-      }
+          if (!version) {
+            throw new Error("Failed to create version")
+          }
 
-      return version
-    })
+          // Bulk insert all assignments in a single query (MySQL has no param limit)
+          if (materializedAssignments.length > 0) {
+            await tx.insert(judgeHeatAssignmentsTable).values(
+              materializedAssignments.map((a) => ({
+                heatId: a.heatId,
+                membershipId: a.membershipId,
+                rotationId: a.rotationId,
+                laneNumber: a.laneNumber,
+                position: a.position,
+                versionId: version.id,
+                isManualOverride: false,
+              })),
+            )
+          }
+
+          return version
+        }),
+    )
 
     return newVersion
   })

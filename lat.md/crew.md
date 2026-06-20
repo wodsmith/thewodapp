@@ -48,6 +48,12 @@ Crew shift board pilot ops adapts the existing shift surface into an operator ha
 
 [[apps/crew/src/lib/crew/shift-board-pilot-ops.ts]] derives per-shift open-slot, confirmation, availability, role, double-booking, import-source, and ready/blocked status signals for the route.
 
+## Judge Assignment Version Publishing
+
+Published judge assignment edits use the existing `judge_assignment_versions` and `judge_heat_assignments` model. Editing an active published judge schedule creates a new active version, clones the previous active assignments into that version, applies the edit to the cloned rows, and leaves the prior active version's rows immutable for audit and rollback.
+
+Per-event publishing uses an advisory lock before allocating the next version number so frequent day-of edits do not race the `(trackWorkoutId, version)` uniqueness boundary. Edits against assignment IDs that are not present in the active version fail instead of silently mutating an inactive version or producing an empty revision.
+
 ## Manual Volunteer Intake
 
 Manual volunteer intake lets Crew operators build the roster from [[apps/crew/src/routes/events/$eventId/volunteers.tsx|the event volunteer page]] without leaving the existing volunteer primitives.
