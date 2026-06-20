@@ -3,7 +3,17 @@ import { render } from "@react-email/render"
 // @lat: [[crew#Assignment Confirmations]]
 // @lat: [[crew#Confirmation Emails And Reminders]]
 import { env } from "cloudflare:workers"
-import { and, desc, eq, inArray, ne, sql } from "drizzle-orm"
+import {
+  and,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  ne,
+  sql,
+} from "drizzle-orm"
 import { getDb } from "../db"
 import { competitionsTable, type Competition } from "../db/schemas/competitions"
 import { createCrewAssignmentConfirmationId } from "../db/schemas/common"
@@ -617,28 +627,23 @@ export async function queueCrewAssignmentConfirmationEmails(
     }
 
     try {
-      await db
-        .update(crewAssignmentConfirmationsTable)
-        .set({
-          tokenHash,
-          expiresAt,
-          updatedAt: now,
-        })
-        .where(
-          and(
-            eq(crewAssignmentConfirmationsTable.id, operation.confirmationId),
-            eq(
-              crewAssignmentConfirmationsTable.status,
-              CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
-            ),
-          ),
-        )
-      await queue.send(message)
-      await markCrewAssignmentEmailQueued({
+      const claimed = await claimCrewAssignmentEmailOperation({
         db,
         operation,
-        queuedAt: now,
+        tokenHash,
+        expiresAt,
+        claimedAt: now,
       })
+      if (!claimed) {
+        if (operation.kind === "confirmation") {
+          plan.skipped.alreadySent += 1
+        } else {
+          plan.skipped.notDue += 1
+        }
+        continue
+      }
+
+      await queue.send(message)
       queued += 1
     } catch (error) {
       console.error("[CrewEmail] Failed to queue assignment email", {
@@ -889,37 +894,67 @@ async function loadCrewAssignmentEmailCandidates(
   })
 }
 
-async function markCrewAssignmentEmailQueued(params: {
+async function claimCrewAssignmentEmailOperation(params: {
   db: DbClient
   operation: CrewAssignmentConfirmationEmailOperation
-  queuedAt: Date
+  tokenHash: string
+  expiresAt: Date
+  claimedAt: Date
 }) {
+  const commonWhere = [
+    eq(crewAssignmentConfirmationsTable.id, params.operation.confirmationId),
+    eq(
+      crewAssignmentConfirmationsTable.status,
+      CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
+    ),
+  ] as const
+
   if (params.operation.kind === "confirmation") {
-    await params.db
+    const result = await params.db
       .update(crewAssignmentConfirmationsTable)
       .set({
-        sentAt: params.queuedAt,
-        updatedAt: params.queuedAt,
+        tokenHash: params.tokenHash,
+        expiresAt: params.expiresAt,
+        sentAt: params.claimedAt,
+        updatedAt: params.claimedAt,
       })
       .where(
-        eq(
-          crewAssignmentConfirmationsTable.id,
-          params.operation.confirmationId,
-        ),
+        and(...commonWhere, isNull(crewAssignmentConfirmationsTable.sentAt)),
       )
-    return
+    return getAffectedRows(result) > 0
   }
 
-  await params.db
+  const result = await params.db
     .update(crewAssignmentConfirmationsTable)
     .set({
-      lastReminderAt: params.queuedAt,
+      tokenHash: params.tokenHash,
+      expiresAt: params.expiresAt,
+      lastReminderAt: params.claimedAt,
       reminderCount: params.operation.reminderCount,
-      updatedAt: params.queuedAt,
+      updatedAt: params.claimedAt,
     })
     .where(
-      eq(crewAssignmentConfirmationsTable.id, params.operation.confirmationId),
+      and(
+        ...commonWhere,
+        isNotNull(crewAssignmentConfirmationsTable.sentAt),
+        lt(
+          crewAssignmentConfirmationsTable.reminderCount,
+          params.operation.reminderCount,
+        ),
+      ),
     )
+  return getAffectedRows(result) > 0
+}
+
+function getAffectedRows(result: unknown) {
+  return Number(
+    (result as { rowsAffected?: number }).rowsAffected ??
+      (result as { affectedRows?: number }).affectedRows ??
+      (Array.isArray(result)
+        ? (result[0] as { affectedRows?: number } | undefined)?.affectedRows
+        : undefined) ??
+      0,
+  )
 }
 
 async function getCrewAssignmentConfirmationByToken({
