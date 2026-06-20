@@ -115,12 +115,12 @@ export function parseManualVolunteerEmailPaste(
       return
     }
 
-    seenEmails.add(email)
     if (result.valid.length >= limit) {
       result.invalid.push({ rowNumber, value, reason: "batch_limit" })
       return
     }
 
+    seenEmails.add(email)
     result.valid.push({ rowNumber, email })
   })
 

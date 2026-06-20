@@ -47,14 +47,11 @@ describe("parseManualVolunteerEmailPaste", () => {
 
   it("reports invalid rows and batch limit rows", () => {
     const result = parseManualVolunteerEmailPaste(
-      "ada@example.com,not-an-email,bob@example.com,cara@example.com",
-      2,
+      "ada@example.com,not-an-email,bob@example.com,bob@example.com",
+      1,
     )
 
-    expect(result.valid.map((row) => row.email)).toEqual([
-      "ada@example.com",
-      "bob@example.com",
-    ])
+    expect(result.valid.map((row) => row.email)).toEqual(["ada@example.com"])
     expect(result.invalid).toEqual([
       {
         rowNumber: 2,
@@ -62,11 +59,17 @@ describe("parseManualVolunteerEmailPaste", () => {
         reason: "invalid_email",
       },
       {
+        rowNumber: 3,
+        value: "bob@example.com",
+        reason: "batch_limit",
+      },
+      {
         rowNumber: 4,
-        value: "cara@example.com",
+        value: "bob@example.com",
         reason: "batch_limit",
       },
     ])
+    expect(result.skipped).toEqual([])
   })
 })
 
