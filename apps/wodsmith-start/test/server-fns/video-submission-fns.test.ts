@@ -4,6 +4,7 @@ import {
 	getVideoSubmissionFn,
 	submitVideoFn,
 	getBatchSubmissionStatusFn,
+	getBatchEventVideoSubmissionsFn,
 	getOrganizerSubmissionsFn,
 	getOrganizerSubmissionDetailFn,
 	markSubmissionReviewedFn,
@@ -78,7 +79,7 @@ const setMockSession = (session: unknown) => {
 function createTestCompetition(
 	overrides?: Partial<{
 		id: string
-		competitionType: "in-person" | "online"
+		competitionType: "in-person" | "online" | "benchmark"
 	}>,
 ) {
 	return {
@@ -307,6 +308,32 @@ describe("Video Submission Server Functions (TanStack)", () => {
 				.mockResolvedValueOnce([registration]) // Registration found
 				.mockResolvedValueOnce([competition]) // Competition type check
 				.mockResolvedValueOnce([event]) // Event with submission window
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
+				.mockResolvedValueOnce([]) // No workout details
+				.mockResolvedValueOnce([]) // No existing score
+			orderByMock.mockResolvedValueOnce([]) // No existing submission
+
+			const result = await getVideoSubmissionFn({
+				data: {
+					trackWorkoutId: "tw-1",
+					competitionId: "comp-1",
+				},
+			})
+
+			expect(result.canSubmit).toBe(true)
+			expect(result.isRegistered).toBe(true)
+		})
+
+		it("returns canSubmit true for benchmark competitions without submission windows", async () => {
+			const registration = createTestRegistration()
+			const competition = createTestCompetition({ competitionType: "benchmark" })
+
+			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+			const orderByMock = mockDb.getChainMock().orderBy as ReturnType<typeof vi.fn>
+			limitMock
+				.mockResolvedValueOnce([registration]) // Registration found
+				.mockResolvedValueOnce([competition]) // Competition type check
+				.mockResolvedValueOnce([]) // No event row required for perpetual benchmark
 				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
 				.mockResolvedValueOnce([]) // No workout details
 				.mockResolvedValueOnce([]) // No existing score
@@ -1493,6 +1520,32 @@ describe("Video Submission Server Functions (TanStack)", () => {
 					},
 				}),
 			).rejects.toThrow()
+		})
+	})
+
+	describe("getBatchEventVideoSubmissionsFn", () => {
+		it("returns canSubmit true for benchmark competitions without submission windows", async () => {
+			const registration = createTestRegistration()
+			const competition = createTestCompetition({ competitionType: "benchmark" })
+
+			mockDb.setMockReturnValue([])
+			const limitMock = mockDb.getChainMock().limit as ReturnType<typeof vi.fn>
+			const orderByMock = mockDb.getChainMock().orderBy as ReturnType<typeof vi.fn>
+			limitMock
+				.mockResolvedValueOnce([registration]) // getAthleteRegistration
+				.mockResolvedValueOnce([{ teamSize: 1 }]) // getTeamSize
+				.mockResolvedValueOnce([competition]) // Competition type
+			orderByMock.mockResolvedValueOnce([]) // No existing submissions
+
+			const result = await getBatchEventVideoSubmissionsFn({
+				data: {
+					competitionId: "comp-1",
+					trackWorkoutIds: ["tw-1"],
+				},
+			})
+
+			expect(result.results["tw-1"]?.canSubmit).toBe(true)
+			expect(result.results["tw-1"]?.reason).toBeUndefined()
 		})
 	})
 

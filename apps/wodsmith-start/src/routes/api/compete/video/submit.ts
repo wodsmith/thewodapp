@@ -85,6 +85,10 @@ async function checkVideoSubmissionWindow(
     }
   }
 
+  if (competitionCan(competition.competitionType, "perpetual")) {
+    return { allowed: true }
+  }
+
   const [event] = await db
     .select({
       submissionOpensAt: competitionEventsTable.submissionOpensAt,

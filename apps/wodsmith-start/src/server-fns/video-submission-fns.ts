@@ -167,6 +167,10 @@ async function checkSubmissionWindow(
     }
   }
 
+  if (competitionCan(competition.competitionType, "perpetual")) {
+    return { allowed: true }
+  }
+
   // If no event record exists, allow submission (backward compatibility)
   if (!event) {
     return { allowed: true }
@@ -932,9 +936,13 @@ export const getBatchEventVideoSubmissionsFn = createServerFn({
         if (!competition) {
           allowed = false
           windowReason = "Competition not found"
-        } else if (competition.competitionType !== "online") {
+        } else if (
+          !competitionCan(competition.competitionType, "videoSubmissions")
+        ) {
           allowed = false
           windowReason = "Video submissions are only for online competitions"
+        } else if (competitionCan(competition.competitionType, "perpetual")) {
+          allowed = true
         } else {
           const event = eventMap.get(twId)
           // No event record / no configured window → submission allowed

@@ -68,10 +68,18 @@ async function checkSubmissionWindow(
     .where(eq(competitionsTable.id, competitionId))
     .limit(1)
 
-  if (
-    !competition ||
-    !competitionCan(competition.competitionType, "submissionWindows")
-  ) {
+  if (!competition) {
+    return {
+      isOpen: false,
+      reason: "Submission windows are not available for this competition type",
+    }
+  }
+
+  if (competitionCan(competition.competitionType, "perpetual")) {
+    return { isOpen: true, reason: undefined }
+  }
+
+  if (!competitionCan(competition.competitionType, "submissionWindows")) {
     return {
       isOpen: false,
       reason: "Submission windows are not available for this competition type",
