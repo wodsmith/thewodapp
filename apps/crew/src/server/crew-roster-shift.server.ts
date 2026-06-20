@@ -1,5 +1,6 @@
 // @lat: [[crew#Roster Shifts Assignments]]
 // @lat: [[crew#Manual Volunteer Intake]]
+// @lat: [[crew#Shift Board Pilot Ops]]
 import { createId } from "@paralleldrive/cuid2"
 import { and, asc, eq, inArray, sql } from "drizzle-orm"
 import { getDb } from "../db"
@@ -9,6 +10,7 @@ import {
 } from "../db/schemas/common"
 import type { Competition } from "../db/schemas/competitions"
 import { competitionsTable } from "../db/schemas/competitions"
+import { CREW_ASSIGNMENT_CONFIRMATION_TYPE } from "../db/schemas/crew-imports"
 import { crewEventSettingsTable } from "../db/schemas/crew-event-settings"
 import {
   INVITATION_STATUS,
@@ -50,6 +52,14 @@ import {
   validateShiftAssignment,
   validateShiftCapacityUpdate,
 } from "../lib/crew/roster-shifts"
+import {
+  buildCrewShiftBoardPilotOps,
+  type CrewShiftBoardPilotOpsData,
+} from "../lib/crew/shift-board-pilot-ops"
+import {
+  buildCrewStaffingMatrix,
+  type CrewStaffingMatrixInput,
+} from "../lib/crew/staffing"
 import { requireLocalCrewOperatorAccess } from "../server/crew-local-access"
 import {
   cancelCrewShiftAssignmentConfirmations,
@@ -82,6 +92,10 @@ export interface CrewShiftAssignmentVolunteer {
   name: string
   email: string
   roleTypes: VolunteerRoleType[]
+  availability: VolunteerAvailability | null
+  credentials: string | null
+  imported: boolean
+  signupSource: string | null
 }
 
 export interface CrewShiftAssignmentItem {
@@ -121,6 +135,7 @@ export interface CrewShiftBoardData {
   rosterSummary: CrewRosterSummary
   shifts: CrewShiftBoardItem[]
   shiftSummary: CrewShiftSummary
+  pilotOps: CrewShiftBoardPilotOpsData
 }
 
 export interface CrewShiftSummary {
@@ -247,6 +262,8 @@ export async function getCrewShiftBoard(
     loadCrewRoster(event.competitionTeamId),
     loadCrewShifts(event.id),
   ])
+  const matrixInput = buildShiftBoardStaffingMatrixInput(event, roster, shifts)
+  const matrix = buildCrewStaffingMatrix(matrixInput)
 
   return {
     event,
@@ -254,6 +271,11 @@ export async function getCrewShiftBoard(
     rosterSummary: summarizeCrewRoster(roster),
     shifts,
     shiftSummary: summarizeCrewShifts(shifts),
+    pilotOps: buildCrewShiftBoardPilotOps({
+      shifts,
+      roster,
+      matrix,
+    }),
   }
 }
 
@@ -910,6 +932,11 @@ export async function loadCrewShifts(
           email:
             metadata.signupEmail ?? assignment.membership.user?.email ?? "",
           roleTypes,
+          availability: metadata.availability ?? null,
+          credentials: metadata.credentials ?? null,
+          imported: Boolean(metadata.crewImportId),
+          signupSource:
+            metadata.crewSignupSource ?? metadata.inviteSource ?? null,
         },
       }
     })
@@ -930,6 +957,55 @@ export async function loadCrewShifts(
       openSlots: Math.max(shift.capacity - assignments.length, 0),
     }
   })
+}
+
+function buildShiftBoardStaffingMatrixInput(
+  event: CrewRosterCompetition,
+  roster: CrewRosterVolunteer[],
+  shifts: CrewShiftBoardItem[],
+): CrewStaffingMatrixInput {
+  return {
+    event: {
+      id: event.id,
+      name: event.name,
+      timezone: event.timezone,
+      startDate: event.startDate,
+      endDate: event.endDate,
+    },
+    roster: roster.flatMap((volunteer) => {
+      if (!volunteer.membershipId) return []
+      return {
+        membershipId: volunteer.membershipId,
+        name: volunteer.name,
+        email: volunteer.email,
+        roleTypes: volunteer.roleTypes,
+        availability: volunteer.availability,
+        credentials: volunteer.credentials,
+        isActive: volunteer.status === "active",
+      }
+    }),
+    shifts: shifts.map((shift) => ({
+      id: shift.id,
+      name: shift.name,
+      roleType: shift.roleType,
+      startTime: shift.startTime,
+      endTime: shift.endTime,
+      capacity: shift.capacity,
+      location: shift.location,
+      assignments: shift.assignments.map((assignment) => ({
+        id: assignment.id,
+        membershipId: assignment.membershipId,
+        confirmation: assignment.confirmation
+          ? {
+              type: CREW_ASSIGNMENT_CONFIRMATION_TYPE.VOLUNTEER_SHIFT,
+              status: assignment.confirmation.status,
+              respondedAt: assignment.confirmation.respondedAt,
+              responseNote: assignment.confirmation.responseNote,
+            }
+          : null,
+      })),
+    })),
+  }
 }
 
 export function summarizeCrewShifts(
