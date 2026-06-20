@@ -1,4 +1,5 @@
 // @lat: [[crew#Shift Board Pilot Ops]]
+// @lat: [[crew#Assignment Confirmations]]
 import type { FormEvent } from "react"
 import {
   createFileRoute,
@@ -21,7 +22,15 @@ import {
 } from "lucide-react"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
-import { getCrewAssignmentConfirmationStatusBadgeClassName } from "@/lib/crew/assignment-confirmation-display"
+import {
+  getCrewAssignmentConfirmationStatusBadgeClassName,
+  getCrewAssignmentConfirmationStatusLabel,
+} from "@/lib/crew/assignment-confirmation-display"
+import {
+  CREW_ASSIGNMENT_CONFIRMATION_ORGANIZER_STATES,
+  getCrewAssignmentConfirmationOperationalState,
+  type CrewAssignmentConfirmationOrganizerState,
+} from "@/lib/crew/assignment-confirmations"
 import { formatCrewValue } from "@/lib/crew-event-display"
 import {
   filterCrewShiftBoardPilotShifts,
@@ -43,6 +52,7 @@ import {
   updateCrewShiftFn,
   type CrewShiftBoardItem,
 } from "@/server-fns/crew-roster-shift-fns"
+import { updateCrewShiftAssignmentConfirmationStateFn } from "@/server-fns/crew-confirmation-fns"
 import { formatDateTimeInTimezone } from "@/utils/timezone-utils"
 import {
   VOLUNTEER_ROLE_OPTIONS,
@@ -151,7 +161,7 @@ function EventShiftsPage() {
         />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-6">
         <StatusPanel label="Active volunteers" value={rosterSummary.active} />
         <StatusPanel label="Assignable" value={rosterSummary.assignable} />
         <StatusPanel
@@ -161,6 +171,16 @@ function EventShiftsPage() {
         <StatusPanel
           label="Confirmed"
           value={shiftSummary.confirmationSummary.confirmed}
+        />
+        <StatusPanel
+          label="Sent"
+          value={shiftSummary.confirmationOperationalSummary.sent}
+        />
+        <StatusPanel
+          label="Action needed"
+          value={
+            shiftSummary.confirmationOperationalSummary.organizerActionNeeded
+          }
         />
       </div>
 
@@ -460,9 +480,15 @@ function ShiftCard({
   const removeAssignment = useServerFn(removeCrewVolunteerShiftAssignmentFn)
   const deleteShift = useServerFn(deleteCrewShiftFn)
   const updateShift = useServerFn(updateCrewShiftFn)
+  const updateConfirmationState = useServerFn(
+    updateCrewShiftAssignmentConfirmationStateFn,
+  )
   const [isAssigning, setIsAssigning] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [updatingConfirmationId, setUpdatingConfirmationId] = useState<
+    string | null
+  >(null)
   const assignedMembershipIds = new Set(
     shift.assignments.map((assignment) => assignment.membershipId),
   )
@@ -516,6 +542,41 @@ function ShiftCard({
       toast.error(
         error instanceof Error ? error.message : "Failed to remove volunteer",
       )
+    }
+  }
+
+  async function handleConfirmationStateUpdate(
+    event: FormEvent<HTMLFormElement>,
+    assignment: CrewShiftBoardItem["assignments"][number],
+  ) {
+    event.preventDefault()
+    const formData = new FormData(event.currentTarget)
+    const state = getFormString(formData, "state")
+    if (!isOrganizerConfirmationState(state)) {
+      toast.error("Choose a confirmation state")
+      return
+    }
+
+    setUpdatingConfirmationId(assignment.id)
+    try {
+      await updateConfirmationState({
+        data: {
+          eventId,
+          assignmentId: assignment.id,
+          state,
+          responseNote: getFormString(formData, "responseNote"),
+        },
+      })
+      toast.success("Confirmation updated")
+      await router.invalidate()
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to update confirmation",
+      )
+    } finally {
+      setUpdatingConfirmationId(null)
     }
   }
 
@@ -645,7 +706,9 @@ function ShiftCard({
                         {assignment.volunteer.name}
                       </span>
                       <ConfirmationBadge
-                        status={assignment.confirmation?.status ?? "pending"}
+                        status={getCrewAssignmentConfirmationOperationalState(
+                          assignment.confirmation,
+                        )}
                       />
                     </div>
                     <div className="text-sm text-muted-foreground">
@@ -661,6 +724,13 @@ function ShiftCard({
                         {assignment.confirmation.responseNote}
                       </div>
                     ) : null}
+                    <AssignmentConfirmationControls
+                      assignment={assignment}
+                      isUpdating={updatingConfirmationId === assignment.id}
+                      onSubmit={(event) =>
+                        handleConfirmationStateUpdate(event, assignment)
+                      }
+                    />
                   </div>
                   <button
                     type="button"
@@ -846,19 +916,37 @@ function AssignmentResponseDetail({
     return <p className="mt-2 text-xs text-amber-700">Confirmation missing</p>
   }
 
+  const state = getCrewAssignmentConfirmationOperationalState(confirmation)
+  if (state === "pending") {
+    return <p className="mt-2 text-xs text-muted-foreground">Not sent</p>
+  }
+  if (state === "sent" && confirmation.sentAt) {
+    return (
+      <p className="mt-2 text-xs text-muted-foreground">
+        Sent{" "}
+        {formatDateTimeInTimezone(
+          confirmation.sentAt,
+          timezone,
+          "MMM d h:mm a",
+        )}
+      </p>
+    )
+  }
+  if (state === "replaced") {
+    return <p className="mt-2 text-xs text-muted-foreground">Replaced</p>
+  }
+
   if (!confirmation.respondedAt) {
     return (
       <p className="mt-2 text-xs text-muted-foreground">
-        {confirmation.status === "pending"
-          ? "Awaiting response"
-          : formatCrewValue(confirmation.status)}
+        {getCrewAssignmentConfirmationStatusLabel(state)}
       </p>
     )
   }
 
   return (
     <p className="mt-2 text-xs text-muted-foreground">
-      {formatCrewValue(confirmation.status)}{" "}
+      {getCrewAssignmentConfirmationStatusLabel(state)}{" "}
       {formatDateTimeInTimezone(
         confirmation.respondedAt,
         timezone,
@@ -875,8 +963,77 @@ function ConfirmationBadge({ status }: { status: string }) {
     <span
       className={`inline-flex rounded-md border px-2 py-1 text-xs font-medium ${className}`}
     >
-      {formatCrewValue(status)}
+      {getCrewAssignmentConfirmationStatusLabel(status)}
     </span>
+  )
+}
+
+function AssignmentConfirmationControls({
+  assignment,
+  isUpdating,
+  onSubmit,
+}: {
+  assignment: CrewShiftBoardItem["assignments"][number]
+  isUpdating: boolean
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void
+}) {
+  const state = getCrewAssignmentConfirmationOperationalState(
+    assignment.confirmation,
+  )
+  const stateInputId = `confirmation-state-${assignment.id}`
+  const noteInputId = `confirmation-note-${assignment.id}`
+
+  return (
+    <form
+      onSubmit={onSubmit}
+      className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center"
+    >
+      <label className="sr-only" htmlFor={stateInputId}>
+        Confirmation state for {assignment.volunteer.name}
+      </label>
+      <select
+        id={stateInputId}
+        name="state"
+        defaultValue={state === "missing" ? "pending" : state}
+        className="h-9 min-w-0 rounded-md border bg-card px-2 text-sm"
+      >
+        {CREW_ASSIGNMENT_CONFIRMATION_ORGANIZER_STATES.map((option) => (
+          <option key={option} value={option}>
+            {getCrewAssignmentConfirmationStatusLabel(option)}
+          </option>
+        ))}
+      </select>
+      <label className="sr-only" htmlFor={noteInputId}>
+        Confirmation note for {assignment.volunteer.name}
+      </label>
+      <input
+        id={noteInputId}
+        name="responseNote"
+        className="h-9 min-w-0 rounded-md border bg-card px-2 text-sm"
+        placeholder="Note"
+        defaultValue={assignment.confirmation?.responseNote ?? ""}
+      />
+      <button
+        type="submit"
+        disabled={isUpdating}
+        className="inline-flex h-9 w-fit items-center gap-2 rounded-md border px-3 text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {isUpdating ? (
+          <Loader2 className="size-4 animate-spin" />
+        ) : (
+          <CheckCircle2 className="size-4" />
+        )}
+        Save
+      </button>
+    </form>
+  )
+}
+
+function isOrganizerConfirmationState(
+  state: string,
+): state is CrewAssignmentConfirmationOrganizerState {
+  return CREW_ASSIGNMENT_CONFIRMATION_ORGANIZER_STATES.includes(
+    state as CrewAssignmentConfirmationOrganizerState,
   )
 }
 

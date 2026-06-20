@@ -5,8 +5,10 @@ import { useServerFn } from "@tanstack/react-start"
 import { Loader2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
-import { getCrewAssignmentConfirmationStatusBadgeClassName } from "@/lib/crew/assignment-confirmation-display"
-import { formatCrewValue } from "@/lib/crew-event-display"
+import {
+  getCrewAssignmentConfirmationStatusBadgeClassName,
+  getCrewAssignmentConfirmationStatusLabel,
+} from "@/lib/crew/assignment-confirmation-display"
 import {
   getCrewAssignmentConfirmationTokenFn,
   respondCrewAssignmentConfirmationTokenFn,
@@ -221,7 +223,8 @@ function CrewAssignmentConfirmationPage() {
         <section className="rounded-md border bg-card p-6 shadow-sm">
           <h2 className="text-xl font-semibold">Response recorded</h2>
           <p className="mt-2 text-muted-foreground">
-            Your current response is {formatCrewValue(confirmationStatus)}.
+            Your current response is{" "}
+            {getCrewAssignmentConfirmationStatusLabel(confirmationStatus)}.
           </p>
           {data.confirmation?.responseNote ? (
             <p className="mt-4 whitespace-pre-wrap rounded-md border bg-background p-3 text-sm">
@@ -250,7 +253,7 @@ function StatusBadge({ status }: { status: string }) {
     <span
       className={`inline-flex w-fit rounded-md border px-2 py-1 text-xs font-medium ${className}`}
     >
-      {formatCrewValue(status)}
+      {getCrewAssignmentConfirmationStatusLabel(status)}
     </span>
   )
 }

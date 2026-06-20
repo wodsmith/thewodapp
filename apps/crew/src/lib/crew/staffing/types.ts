@@ -85,6 +85,7 @@ export interface CrewStaffingJudgeAssignmentInput {
 export interface CrewStaffingConfirmationInput {
   type: CrewAssignmentConfirmationType
   status: CrewAssignmentConfirmationStatus
+  sentAt?: Date | string | null
   respondedAt?: Date | string | null
   responseNote?: string | null
 }
@@ -169,6 +170,7 @@ export interface CrewStaffingConfirmationGap {
     | "declined"
     | "change_requested"
     | "no_show"
+    | "replaced"
 }
 
 export interface CrewStaffingMatrixSummary {
@@ -187,6 +189,7 @@ export interface CrewStaffingMatrixSummary {
   confirmationDeclines: number
   confirmationChangeRequests: number
   confirmationNoShows: number
+  confirmationReplaced: number
 }
 
 export interface CrewStaffingMatrix {

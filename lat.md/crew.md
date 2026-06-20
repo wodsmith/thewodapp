@@ -187,3 +187,13 @@ Raw confirmation tokens are generated later for links and must not be persisted.
 Crew assignment confirmation links are token-only volunteer surfaces. Raw tokens are generated only while creating links, stored only as hashes, and used by [[apps/crew/src/routes/e/$slug/confirm/$token.tsx]] and [[apps/crew/src/routes/e/$slug/schedule/$token.tsx]] to show safe confirm, decline, and change-request flows without requiring a session.
 
 [[apps/crew/src/server-fns/crew-confirmation-fns.ts]] owns token lookup, transient email payload construction, and deterministic response transitions. [[apps/crew/src/lib/crew/assignment-confirmations.ts]] keeps the pure token and status helpers testable outside the server function layer.
+
+## Assignment Confirmations
+
+Organizer-facing assignment confirmations reuse `crew_assignment_confirmations` and keep assignments authoritative.
+
+[[apps/crew/src/lib/crew/assignment-confirmations.ts]] normalizes operational states from persisted status plus timestamps: pending, sent, confirmed, declined, change requested, no-show, and replaced. Sent is represented by pending rows with `sentAt`, and replaced is represented by cancelled confirmation rows; checked-in is intentionally not persisted until day-of operations adds a first-class primitive.
+
+[[apps/crew/src/server/crew-confirmation.server.ts]] owns guarded organizer status updates for volunteer shift assignments, creating a confirmation row only when an assignment is missing one and never mutating assignment rows as part of status changes. [[apps/crew/src/server-fns/crew-confirmation-fns.ts]] keeps the createServerFn wrapper thin so DB/runtime imports stay out of route module graphs.
+
+[[apps/crew/src/routes/events/$eventId/shifts.tsx]] shows compact assignment-level status controls and summary counts for sent and action-needed confirmations. [[apps/crew/src/lib/crew/staffing/index.ts]], [[apps/crew/src/routes/events/$eventId/staffing.tsx]], and [[apps/crew/src/lib/crew/readiness.ts]] consume the same normalized state so staffing gaps and readiness summaries treat no-shows, change requests, declines, and replacements consistently.

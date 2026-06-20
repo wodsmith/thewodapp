@@ -514,6 +514,16 @@ function getConfirmationGap(params: {
       reason: "no_show",
     }
   }
+  if (
+    params.confirmation.status === CREW_ASSIGNMENT_CONFIRMATION_STATUS.CANCELLED
+  ) {
+    return {
+      ...base,
+      type: params.confirmation.type,
+      status: params.confirmation.status,
+      reason: "replaced",
+    }
+  }
 
   return null
 }
@@ -554,6 +564,9 @@ function summarizeMatrix(input: {
     ).length,
     confirmationNoShows: input.confirmationGaps.filter(
       (gap) => gap.reason === "no_show",
+    ).length,
+    confirmationReplaced: input.confirmationGaps.filter(
+      (gap) => gap.reason === "replaced",
     ).length,
   }
 }

@@ -1,7 +1,10 @@
 // @lat: [[crew#Assignment Confirmation Responses]]
+// @lat: [[crew#Assignment Confirmations]]
 // @lat: [[crew#Server Function Runtime Boundary]]
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
+import { CREW_ASSIGNMENT_CONFIRMATION_ORGANIZER_STATES } from "../lib/crew/assignment-confirmations"
+import type { UpdateCrewShiftAssignmentConfirmationStateInput } from "../server/crew-confirmation.server"
 
 export type {
   CrewAssignmentConfirmationEmailMessage,
@@ -9,6 +12,7 @@ export type {
   CrewAssignmentConfirmationTokenData,
   CrewShiftAssignmentConfirmationStatus,
   EnsureCrewShiftAssignmentConfirmationResult,
+  UpdateCrewShiftAssignmentConfirmationStateInput,
 } from "../server/crew-confirmation.server"
 
 const publicTokenInputSchema = z.object({
@@ -20,6 +24,13 @@ const publicTokenResponseInputSchema = publicTokenInputSchema.extend({
   action: z.enum(["confirm", "decline", "request_change"]),
   responseNote: z.string().trim().max(1000).optional(),
 })
+
+const updateShiftAssignmentConfirmationStateInputSchema = z.object({
+  eventId: z.string().min(1, "Event ID is required"),
+  assignmentId: z.string().startsWith("vsha_", "Invalid assignment ID"),
+  state: z.enum(CREW_ASSIGNMENT_CONFIRMATION_ORGANIZER_STATES),
+  responseNote: z.string().trim().max(1000).optional(),
+}) satisfies z.ZodType<UpdateCrewShiftAssignmentConfirmationStateInput>
 
 export const getCrewAssignmentConfirmationTokenFn = createServerFn({
   method: "GET",
@@ -41,4 +52,17 @@ export const respondCrewAssignmentConfirmationTokenFn = createServerFn({
       "../server/crew-confirmation.server"
     )
     return respondCrewAssignmentConfirmationToken(data)
+  })
+
+export const updateCrewShiftAssignmentConfirmationStateFn = createServerFn({
+  method: "POST",
+})
+  .inputValidator((data: unknown) =>
+    updateShiftAssignmentConfirmationStateInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { updateCrewShiftAssignmentConfirmationState } = await import(
+      "../server/crew-confirmation.server"
+    )
+    return updateCrewShiftAssignmentConfirmationState(data)
   })

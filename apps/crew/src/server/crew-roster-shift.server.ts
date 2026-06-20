@@ -52,6 +52,7 @@ import {
   validateShiftAssignment,
   validateShiftCapacityUpdate,
 } from "../lib/crew/roster-shifts"
+import { summarizeCrewAssignmentConfirmationOperationalStates } from "../lib/crew/assignment-confirmations"
 import {
   buildCrewShiftBoardPilotOps,
   type CrewShiftBoardPilotOpsData,
@@ -145,6 +146,9 @@ export interface CrewShiftSummary {
   openSlots: number
   confirmationSummary: ReturnType<
     typeof summarizeCrewShiftAssignmentConfirmations
+  >
+  confirmationOperationalSummary: ReturnType<
+    typeof summarizeCrewAssignmentConfirmationOperationalStates
   >
 }
 
@@ -999,6 +1003,7 @@ function buildShiftBoardStaffingMatrixInput(
           ? {
               type: CREW_ASSIGNMENT_CONFIRMATION_TYPE.VOLUNTEER_SHIFT,
               status: assignment.confirmation.status,
+              sentAt: assignment.confirmation.sentAt,
               respondedAt: assignment.confirmation.respondedAt,
               responseNote: assignment.confirmation.responseNote,
             }
@@ -1039,6 +1044,10 @@ export function summarizeCrewShifts(
     confirmationSummary: summarizeCrewShiftAssignmentConfirmations(
       summary.confirmations,
     ),
+    confirmationOperationalSummary:
+      summarizeCrewAssignmentConfirmationOperationalStates(
+        summary.confirmations,
+      ),
   }
 }
 

@@ -24,6 +24,7 @@ export type CrewStaffingReportIssueKey =
   | "confirmation_declines"
   | "confirmation_change_requests"
   | "confirmation_no_shows"
+  | "confirmation_replaced"
 
 export interface CrewStaffingRoleSummary {
   roleType: VolunteerRoleType
@@ -203,6 +204,12 @@ function buildIssueSummary(
       key: "confirmation_no_shows",
       label: "No-shows",
       count: matrix.summary.confirmationNoShows,
+      severity: "critical",
+    },
+    {
+      key: "confirmation_replaced",
+      label: "Replaced",
+      count: matrix.summary.confirmationReplaced,
       severity: "critical",
     },
     {

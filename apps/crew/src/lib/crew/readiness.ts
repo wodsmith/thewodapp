@@ -1,5 +1,8 @@
 // @lat: [[crew#Pilot Readiness Checklist]]
-import type { CrewAssignmentConfirmationStatusSummary } from "./assignment-confirmations"
+import type {
+  CrewAssignmentConfirmationOperationalSummary,
+  CrewAssignmentConfirmationStatusSummary,
+} from "./assignment-confirmations"
 import type { CrewRosterSummary } from "./roster-shifts"
 
 export type CrewReadinessStatus = "ready" | "needs_attention" | "blocked"
@@ -80,6 +83,7 @@ export interface CrewReadinessShiftInput {
   capacity: number
   openSlots: number
   confirmationSummary: CrewAssignmentConfirmationStatusSummary
+  confirmationOperationalSummary: CrewAssignmentConfirmationOperationalSummary
 }
 
 export interface CrewReadinessJudgeInput {
@@ -314,10 +318,15 @@ function buildAssignmentConfirmationsItem(
   input: CrewReadinessInput,
 ): CrewReadinessChecklistItem {
   const confirmations = input.shifts.confirmationSummary
+  const operational = input.shifts.confirmationOperationalSummary
+  const notSent = operational.missing + operational.pending
   const responseIssues =
-    confirmations.pending +
+    notSent +
+    operational.sent +
     confirmations.declined +
-    confirmations.changeRequested
+    confirmations.changeRequested +
+    confirmations.noShow +
+    operational.replaced
   const status =
     input.shifts.assignedSlots === 0
       ? "needs_attention"
@@ -331,9 +340,12 @@ function buildAssignmentConfirmationsItem(
     status,
     summary: `${confirmations.confirmed}/${input.shifts.assignedSlots} assignments confirmed`,
     details: [
-      `${confirmations.pending} no response.`,
+      `${notSent} not sent.`,
+      `${operational.sent} sent.`,
       `${confirmations.declined} declined.`,
       `${confirmations.changeRequested} change requested.`,
+      `${confirmations.noShow} no-show.`,
+      `${operational.replaced} replaced.`,
     ],
     action: { label: "Review shifts", to: "/events/$eventId/shifts" },
   }
