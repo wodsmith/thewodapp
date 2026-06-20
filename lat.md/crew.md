@@ -224,6 +224,16 @@ Crew role and shift templates provide typed built-in staffing patterns plus team
 
 [[apps/crew/src/lib/crew/templates]] owns deterministic built-ins, preset serialization, preview, duplicate detection, and append-only apply planning. [[apps/crew/src/server-fns/crew-template-fns.ts]] keeps route-facing wrappers thin while [[apps/crew/src/server/crew-template.server.ts]] loads saved team presets, fills empty setup assumptions only when requested, and appends only missing `volunteer_shifts`. [[apps/crew/src/components/crew-templates/crew-template-panel.tsx]] integrates preview/apply/save into the event setup page without adding a public marketplace or copy-prior-event flow.
 
+## Copy Prior Event Setup
+
+Crew copy-prior-event setup lets a local operator preview structural setup from an earlier Crew event owned by the same organizing team, then apply only empty-target draft structure into the current event.
+
+[[apps/crew/src/lib/crew/copy-prior-event.ts]] owns deterministic eligibility filtering, date-shift planning, denylist summaries, non-overwrite apply planning, and settings JSON preservation. It copies structural venues/floors, workout/event shells, heat schedule shells, shift templates, and empty setup assumptions only when the target category has no existing rows.
+
+[[apps/crew/src/server-fns/crew-copy-event-fns.ts]] exposes route-safe read/apply wrappers, while [[apps/crew/src/server/crew-copy-event.server.ts]] keeps DB/runtime imports server-only and rechecks target structure inside the apply transaction. Apply creates new target IDs, leaves source rows untouched, records `copyPriorEvent` metadata in `crew_event_settings.settings`, and does not copy volunteers, team invitations, roster memberships, confirmations, assignment responses, import history, registrations, payments, waivers, broadcasts, reminders, queues, check-in/no-show state, analytics, or published judge assignment rows.
+
+[[apps/crew/src/components/crew-copy-event/crew-copy-prior-event-panel.tsx]] renders the setup-page preview and conservative apply action on [[apps/crew/src/routes/events/$eventId/setup.tsx]].
+
 ## Assignment Confirmation Responses
 
 Crew assignment confirmation links are token-only volunteer surfaces. Raw tokens are generated only while creating links, stored only as hashes, and used by [[apps/crew/src/routes/e/$slug/confirm/$token.tsx]] and [[apps/crew/src/routes/e/$slug/schedule/$token.tsx]] to show safe confirm, decline, and change-request flows without requiring a session.

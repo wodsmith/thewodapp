@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 import { createFileRoute, getRouteApi, useRouter } from "@tanstack/react-router"
 import { Save } from "lucide-react"
 import { toast } from "sonner"
+import { CrewCopyPriorEventPanel } from "@/components/crew-copy-event/crew-copy-prior-event-panel"
 import { GuidedSetupShell } from "@/components/crew-guided-setup/guided-setup-shell"
 import { CrewTemplatePanel } from "@/components/crew-templates/crew-template-panel"
 import type {
@@ -26,17 +27,24 @@ import {
   getCrewTemplatePageFn,
   saveCrewTemplatePresetFn,
 } from "@/server-fns/crew-template-fns"
+import {
+  applyCrewCopyPriorEventFn,
+  getCrewCopyPriorEventPageFn,
+} from "@/server-fns/crew-copy-event-fns"
 
 export const Route = createFileRoute("/events/$eventId/setup")({
   loader: async ({ params }) => {
-    const [guidedSetupPage, templatePage] = await Promise.all([
-      getCrewGuidedSetupPageFn({ data: { eventId: params.eventId } }),
-      getCrewTemplatePageFn({ data: { eventId: params.eventId } }),
-    ])
+    const [guidedSetupPage, templatePage, copyPriorEventPage] =
+      await Promise.all([
+        getCrewGuidedSetupPageFn({ data: { eventId: params.eventId } }),
+        getCrewTemplatePageFn({ data: { eventId: params.eventId } }),
+        getCrewCopyPriorEventPageFn({ data: { eventId: params.eventId } }),
+      ])
 
     return {
       ...guidedSetupPage,
       templatePage,
+      copyPriorEventPage,
     }
   },
   component: EventSetupPage,
@@ -46,10 +54,12 @@ const parentRoute = getRouteApi("/events/$eventId")
 
 // @lat: [[crew#Event Setup Dashboard]]
 // @lat: [[crew#Guided Setup State]]
+// @lat: [[crew#Copy Prior Event Setup]]
 function EventSetupPage() {
   const router = useRouter()
   const { event } = parentRoute.useLoaderData()
-  const { guidedSetup, templatePage } = Route.useLoaderData()
+  const { guidedSetup, templatePage, copyPriorEventPage } =
+    Route.useLoaderData()
   const parsedSettings = parseCrewSettings(event.settings.settings)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [crewOnly, setCrewOnly] = useState(event.settings.crewOnly)
@@ -193,6 +203,28 @@ function EventSetupPage() {
     }
   }
 
+  async function handleCopyPriorEvent(data: { sourceEventId: string }) {
+    try {
+      const result = await applyCrewCopyPriorEventFn({
+        data: {
+          eventId: event.competition.id,
+          sourceEventId: data.sourceEventId,
+          mode: "empty_target_only",
+        },
+      })
+      toast.success(
+        `Prior event setup copied: ${result.created.venues} venues, ${result.created.trackWorkouts} events, ${result.created.heats} heats, ${result.created.shifts} shifts`,
+      )
+      await router.invalidate()
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to copy prior event setup",
+      )
+    }
+  }
+
   return (
     <section className="space-y-6">
       <GuidedSetupShell
@@ -210,6 +242,12 @@ function EventSetupPage() {
         templatePage={templatePage}
         onApply={handleApplyTemplate}
         onSavePreset={handleSaveTemplatePreset}
+      />
+
+      <CrewCopyPriorEventPanel
+        eventId={event.competition.id}
+        pageData={copyPriorEventPage}
+        onApply={handleCopyPriorEvent}
       />
 
       <form
