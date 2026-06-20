@@ -4,10 +4,12 @@ import { createFileRoute, getRouteApi, useRouter } from "@tanstack/react-router"
 import { Save } from "lucide-react"
 import { toast } from "sonner"
 import { GuidedSetupShell } from "@/components/crew-guided-setup/guided-setup-shell"
+import { CrewTemplatePanel } from "@/components/crew-templates/crew-template-panel"
 import type {
   CrewGuidedSetupOperatorStatus,
   CrewGuidedSetupStepKey,
 } from "@/lib/crew/guided-setup"
+import type { CrewRoleShiftTemplateRef } from "@/lib/crew/templates"
 import {
   crewSetupChecklistItems,
   parseCrewSettings,
@@ -19,10 +21,24 @@ import {
   getCrewGuidedSetupPageFn,
   updateCrewGuidedSetupStepFn,
 } from "@/server-fns/crew-guided-setup-fns"
+import {
+  applyCrewTemplateFn,
+  getCrewTemplatePageFn,
+  saveCrewTemplatePresetFn,
+} from "@/server-fns/crew-template-fns"
 
 export const Route = createFileRoute("/events/$eventId/setup")({
-  loader: async ({ params }) =>
-    await getCrewGuidedSetupPageFn({ data: { eventId: params.eventId } }),
+  loader: async ({ params }) => {
+    const [guidedSetupPage, templatePage] = await Promise.all([
+      getCrewGuidedSetupPageFn({ data: { eventId: params.eventId } }),
+      getCrewTemplatePageFn({ data: { eventId: params.eventId } }),
+    ])
+
+    return {
+      ...guidedSetupPage,
+      templatePage,
+    }
+  },
   component: EventSetupPage,
 })
 
@@ -33,7 +49,7 @@ const parentRoute = getRouteApi("/events/$eventId")
 function EventSetupPage() {
   const router = useRouter()
   const { event } = parentRoute.useLoaderData()
-  const { guidedSetup } = Route.useLoaderData()
+  const { guidedSetup, templatePage } = Route.useLoaderData()
   const parsedSettings = parseCrewSettings(event.settings.settings)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [crewOnly, setCrewOnly] = useState(event.settings.crewOnly)
@@ -132,6 +148,51 @@ function EventSetupPage() {
     }
   }
 
+  async function handleApplyTemplate(data: {
+    templateRef: CrewRoleShiftTemplateRef
+    fillEmptyAssumptions: boolean
+  }) {
+    try {
+      const result = await applyCrewTemplateFn({
+        data: {
+          eventId: event.competition.id,
+          templateRef: data.templateRef,
+          mode: "append_missing",
+          fillEmptyAssumptions: data.fillEmptyAssumptions,
+        },
+      })
+      toast.success(
+        `Template applied: ${result.createdShiftCount} shifts added${result.assumptionsUpdated ? ", assumptions filled" : ""}`,
+      )
+      await router.invalidate()
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to apply template",
+      )
+    }
+  }
+
+  async function handleSaveTemplatePreset(data: {
+    templateRef: CrewRoleShiftTemplateRef
+    name: string
+  }) {
+    try {
+      await saveCrewTemplatePresetFn({
+        data: {
+          eventId: event.competition.id,
+          templateRef: data.templateRef,
+          name: data.name,
+        },
+      })
+      toast.success("Template preset saved")
+      await router.invalidate()
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save preset",
+      )
+    }
+  }
+
   return (
     <section className="space-y-6">
       <GuidedSetupShell
@@ -143,6 +204,12 @@ function EventSetupPage() {
             ...data,
           })
         }
+      />
+
+      <CrewTemplatePanel
+        templatePage={templatePage}
+        onApply={handleApplyTemplate}
+        onSavePreset={handleSaveTemplatePreset}
       />
 
       <form

@@ -200,7 +200,13 @@ Guided setup turns Crew readiness facts and operator overrides into a per-event 
 
 [[apps/crew/src/server-fns/crew-guided-setup-fns.ts]] exposes thin route-safe read/update wrappers, while [[apps/crew/src/server/crew-guided-setup.server.ts]] keeps DB and readiness hydration server-only. Updates write only the `guidedSetup` JSON subtree and preserve existing concierge setup notes.
 
-[[apps/crew/src/components/crew-guided-setup/guided-setup-shell.tsx]] renders the compact wizard shell on [[apps/crew/src/routes/events/$eventId/setup.tsx]]. It records an operator status and note per step without adding template apply, import-mapping memory, department-lead enforcement, volunteer self-service, export-packet, queue, or schema work.
+[[apps/crew/src/components/crew-guided-setup/guided-setup-shell.tsx]] renders the compact wizard shell on [[apps/crew/src/routes/events/$eventId/setup.tsx]]. It records an operator status and note per step without taking over import-mapping memory, department-lead enforcement, volunteer self-service, export-packet, queue, or schema work.
+
+## Role And Shift Templates
+
+Crew role and shift templates provide typed built-in staffing patterns plus team-saved presets backed by `crew_template_presets`.
+
+[[apps/crew/src/lib/crew/templates]] owns deterministic built-ins, preset serialization, preview, duplicate detection, and append-only apply planning. [[apps/crew/src/server-fns/crew-template-fns.ts]] keeps route-facing wrappers thin while [[apps/crew/src/server/crew-template.server.ts]] loads saved team presets, fills empty setup assumptions only when requested, and appends only missing `volunteer_shifts`. [[apps/crew/src/components/crew-templates/crew-template-panel.tsx]] integrates preview/apply/save into the event setup page without adding a public marketplace or copy-prior-event flow.
 
 ## Assignment Confirmation Responses
 
