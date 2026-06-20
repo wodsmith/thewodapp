@@ -319,9 +319,9 @@ function buildAssignmentConfirmationsItem(
 ): CrewReadinessChecklistItem {
   const confirmations = input.shifts.confirmationSummary
   const operational = input.shifts.confirmationOperationalSummary
+  const notSent = operational.missing + operational.pending
   const responseIssues =
-    operational.missing +
-    operational.pending +
+    notSent +
     operational.sent +
     confirmations.declined +
     confirmations.changeRequested +
@@ -340,7 +340,7 @@ function buildAssignmentConfirmationsItem(
     status,
     summary: `${confirmations.confirmed}/${input.shifts.assignedSlots} assignments confirmed`,
     details: [
-      `${operational.pending} not sent.`,
+      `${notSent} not sent.`,
       `${operational.sent} sent.`,
       `${confirmations.declined} declined.`,
       `${confirmations.changeRequested} change requested.`,

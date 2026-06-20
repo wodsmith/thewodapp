@@ -88,8 +88,8 @@ describe("Crew readiness checklist", () => {
           cancelled: 0,
         },
         confirmationOperationalSummary: {
-          missing: 0,
-          pending: 2,
+          missing: 1,
+          pending: 1,
           sent: 0,
           confirmed: 3,
           declined: 1,

@@ -980,13 +980,19 @@ function AssignmentConfirmationControls({
   const state = getCrewAssignmentConfirmationOperationalState(
     assignment.confirmation,
   )
+  const stateInputId = `confirmation-state-${assignment.id}`
+  const noteInputId = `confirmation-note-${assignment.id}`
 
   return (
     <form
       onSubmit={onSubmit}
       className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center"
     >
+      <label className="sr-only" htmlFor={stateInputId}>
+        Confirmation state for {assignment.volunteer.name}
+      </label>
       <select
+        id={stateInputId}
         name="state"
         defaultValue={state === "missing" ? "pending" : state}
         className="h-9 min-w-0 rounded-md border bg-card px-2 text-sm"
@@ -997,7 +1003,11 @@ function AssignmentConfirmationControls({
           </option>
         ))}
       </select>
+      <label className="sr-only" htmlFor={noteInputId}>
+        Confirmation note for {assignment.volunteer.name}
+      </label>
       <input
+        id={noteInputId}
         name="responseNote"
         className="h-9 min-w-0 rounded-md border bg-card px-2 text-sm"
         placeholder="Note"

@@ -190,7 +190,9 @@ Crew assignment confirmation links are token-only volunteer surfaces. Raw tokens
 
 ## Assignment Confirmations
 
-Organizer-facing assignment confirmations reuse the existing `crew_assignment_confirmations` rows and keep assignments authoritative. [[apps/crew/src/lib/crew/assignment-confirmations.ts]] normalizes operational states from persisted status plus timestamps: pending, sent, confirmed, declined, change requested, no-show, and replaced. Sent is represented by pending rows with `sentAt`, and replaced is represented by cancelled confirmation rows; checked-in is intentionally not persisted until day-of operations adds a first-class primitive.
+Organizer-facing assignment confirmations reuse `crew_assignment_confirmations` and keep assignments authoritative.
+
+[[apps/crew/src/lib/crew/assignment-confirmations.ts]] normalizes operational states from persisted status plus timestamps: pending, sent, confirmed, declined, change requested, no-show, and replaced. Sent is represented by pending rows with `sentAt`, and replaced is represented by cancelled confirmation rows; checked-in is intentionally not persisted until day-of operations adds a first-class primitive.
 
 [[apps/crew/src/server/crew-confirmation.server.ts]] owns guarded organizer status updates for volunteer shift assignments, creating a confirmation row only when an assignment is missing one and never mutating assignment rows as part of status changes. [[apps/crew/src/server-fns/crew-confirmation-fns.ts]] keeps the createServerFn wrapper thin so DB/runtime imports stay out of route module graphs.
 
