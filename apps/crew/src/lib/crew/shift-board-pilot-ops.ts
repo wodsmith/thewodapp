@@ -264,8 +264,9 @@ export function filterCrewShiftBoardPilotShifts<
 
     if (
       input.filters.source === "direct_assignments" &&
-      shift.assignments.some((assignment) =>
-        isImportedAssignment(assignment.membershipId, rosterByMembershipId),
+      !shift.assignments.some(
+        (assignment) =>
+          !isImportedAssignment(assignment.membershipId, rosterByMembershipId),
       )
     ) {
       return false

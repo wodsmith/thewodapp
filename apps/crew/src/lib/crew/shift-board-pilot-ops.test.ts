@@ -209,6 +209,80 @@ describe("Crew shift board pilot ops helpers", () => {
       }).map((filteredShift) => filteredShift.id),
     ).toEqual(["vshf_medical"])
   })
+
+  it("keeps mixed-source shifts in the direct assignment filter", () => {
+    const roster = [
+      rosterVolunteer({
+        membershipId: "tmem_imported_judge",
+        name: "Imported Judge",
+        roleTypes: ["judge"],
+        imported: true,
+      }),
+      rosterVolunteer({
+        membershipId: "tmem_direct_judge",
+        name: "Direct Judge",
+        roleTypes: ["judge"],
+      }),
+    ]
+    const shifts = [
+      shift({
+        id: "vshf_imported_only",
+        roleType: "judge",
+        capacity: 1,
+        assignments: [
+          {
+            id: "vsha_imported",
+            membershipId: "tmem_imported_judge",
+            confirmation: { status: "confirmed" },
+          },
+        ],
+      }),
+      shift({
+        id: "vshf_mixed",
+        roleType: "judge",
+        capacity: 2,
+        assignments: [
+          {
+            id: "vsha_mixed_imported",
+            membershipId: "tmem_imported_judge",
+            confirmation: { status: "confirmed" },
+          },
+          {
+            id: "vsha_mixed_direct",
+            membershipId: "tmem_direct_judge",
+            confirmation: { status: "confirmed" },
+          },
+        ],
+      }),
+    ]
+    const matrix = buildCrewStaffingMatrix({
+      event: {
+        id: "comp_pilot",
+        timezone: "America/Denver",
+      },
+      roster: toStaffingRoster(roster),
+      shifts: toStaffingShifts(shifts),
+    })
+    const pilotOps = buildCrewShiftBoardPilotOps({
+      shifts,
+      roster,
+      matrix,
+    })
+
+    expect(
+      filterCrewShiftBoardPilotShifts({
+        shifts,
+        roster,
+        pilotOps,
+        filters: {
+          roleType: "all",
+          status: "all",
+          source: "direct_assignments",
+          credentialQuery: "",
+        },
+      }).map((filteredShift) => filteredShift.id),
+    ).toEqual(["vshf_mixed"])
+  })
 })
 
 function rosterVolunteer(
