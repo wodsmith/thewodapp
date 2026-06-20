@@ -687,72 +687,68 @@ async function createManualCrewVolunteerRows(
   const expiresAt = new Date(timestamp)
   expiresAt.setFullYear(expiresAt.getFullYear() + 1)
 
-  await db.transaction(async (tx) => {
-    const client = tx as unknown as DbClient
+  for (const row of rows) {
+    const email = normalizeManualVolunteerEmail(row.email)
+    // team_invitations has no team/email uniqueness constraint, so the lock
+    // wraps the duplicate reread and autocommitted insert before release.
+    await withManualVolunteerIntakeLock(
+      db,
+      event.competitionTeamId,
+      email,
+      async () => {
+        const [existingInvitations, existingMemberships] = await Promise.all([
+          listManualVolunteerInvitations(db, event.competitionTeamId),
+          listManualVolunteerMemberships(db, event.competitionTeamId),
+        ])
+        const plan = planManualVolunteerIntake(email, {
+          existingInvitations,
+          existingMemberships,
+        })
 
-    for (const row of rows) {
-      const email = normalizeManualVolunteerEmail(row.email)
-      // team_invitations has no team/email uniqueness constraint, so serialize
-      // each manual intake write before rereading duplicate state.
-      await withManualVolunteerIntakeLock(
-        client,
-        event.competitionTeamId,
-        email,
-        async () => {
-          const [existingInvitations, existingMemberships] = await Promise.all([
-            listManualVolunteerInvitations(client, event.competitionTeamId),
-            listManualVolunteerMemberships(client, event.competitionTeamId),
-          ])
-          const plan = planManualVolunteerIntake(email, {
-            existingInvitations,
-            existingMemberships,
-          })
-
-          if (plan.action === "skip") {
-            skipped.push({
-              rowNumber: row.rowNumber,
-              email,
-              reason: plan.reason,
-              message: plan.message,
-              targetId: plan.targetId,
-            })
-            return
-          }
-
-          const invitationId = createTeamInvitationId()
-          const metadata = buildManualVolunteerMetadata(
-            {
-              ...row,
-              email,
-            },
-            timestamp,
-          )
-          const metadataJson = JSON.stringify(metadata)
-
-          await client.insert(teamInvitationTable).values({
-            id: invitationId,
-            teamId: event.competitionTeamId,
-            email,
-            roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
-            isSystemRole: true,
-            token: createId(),
-            invitedBy: null,
-            expiresAt,
-            status: INVITATION_STATUS.PENDING,
-            metadata: metadataJson,
-            createdAt: timestamp,
-            updatedAt: timestamp,
-          })
-
-          created.push({
+        if (plan.action === "skip") {
+          skipped.push({
             rowNumber: row.rowNumber,
             email,
-            invitationId,
+            reason: plan.reason,
+            message: plan.message,
+            targetId: plan.targetId,
           })
-        },
-      )
-    }
-  })
+          return
+        }
+
+        const invitationId = createTeamInvitationId()
+        const metadata = buildManualVolunteerMetadata(
+          {
+            ...row,
+            email,
+          },
+          timestamp,
+        )
+        const metadataJson = JSON.stringify(metadata)
+
+        await db.insert(teamInvitationTable).values({
+          id: invitationId,
+          teamId: event.competitionTeamId,
+          email,
+          roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
+          isSystemRole: true,
+          token: createId(),
+          invitedBy: null,
+          expiresAt,
+          status: INVITATION_STATUS.PENDING,
+          metadata: metadataJson,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        })
+
+        created.push({
+          rowNumber: row.rowNumber,
+          email,
+          invitationId,
+        })
+      },
+    )
+  }
 
   return buildManualCrewVolunteerMutationResult({
     created,
