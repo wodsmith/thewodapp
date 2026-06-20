@@ -26,6 +26,7 @@ import {
   VOLUNTEER_ROLE_TYPES,
 } from "../db/schemas/volunteers"
 import {
+  assertCrewJudgeRotationReplacementAllowed,
   expandCrewJudgeRotationDrafts,
   getCrewJudgeRotationLane,
   hasCrewJudgeRotationErrors,
@@ -278,12 +279,17 @@ export async function saveCrewJudgeRotationsForVolunteer(
 
     const existingRotationIds = existingRotations.map((rotation) => rotation.id)
     if (existingRotationIds.length > 0) {
-      await tx
-        .update(judgeHeatAssignmentsTable)
-        .set({ rotationId: null, updatedAt: new Date() })
+      const assignmentReferences = await tx
+        .select({ id: judgeHeatAssignmentsTable.id })
+        .from(judgeHeatAssignmentsTable)
         .where(
           inArray(judgeHeatAssignmentsTable.rotationId, existingRotationIds),
         )
+        .limit(1)
+
+      assertCrewJudgeRotationReplacementAllowed({
+        assignmentReferenceCount: assignmentReferences.length,
+      })
 
       await tx
         .delete(competitionJudgeRotationsTable)

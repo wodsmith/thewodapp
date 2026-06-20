@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest"
 import { LANE_SHIFT_PATTERN } from "@/db/schemas/volunteers"
 import {
+  assertCrewJudgeRotationReplacementAllowed,
   expandCrewJudgeRotationDrafts,
   hasCrewJudgeRotationErrors,
   summarizeCrewJudgeCoverage,
@@ -115,6 +116,22 @@ describe("Crew judge rotation helpers", () => {
         }),
       ]),
     )
+  })
+
+  it("blocks draft rotation replacement when assignments already reference the rotations", () => {
+    expect(() =>
+      assertCrewJudgeRotationReplacementAllowed({
+        assignmentReferenceCount: 1,
+      }),
+    ).toThrow(
+      "These rotations are already attached to judge assignments. Publish a new judge schedule revision instead of replacing draft rotations.",
+    )
+
+    expect(() =>
+      assertCrewJudgeRotationReplacementAllowed({
+        assignmentReferenceCount: 0,
+      }),
+    ).not.toThrow()
   })
 
   it("summarizes coverage gaps and overlaps deterministically", () => {

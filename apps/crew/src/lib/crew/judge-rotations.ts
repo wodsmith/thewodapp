@@ -228,6 +228,18 @@ export function hasCrewJudgeRotationErrors(
   return issues.some((issue) => issue.severity === "error")
 }
 
+export function assertCrewJudgeRotationReplacementAllowed({
+  assignmentReferenceCount,
+}: {
+  assignmentReferenceCount: number
+}) {
+  if (assignmentReferenceCount > 0) {
+    throw new Error(
+      "These rotations are already attached to judge assignments. Publish a new judge schedule revision instead of replacing draft rotations.",
+    )
+  }
+}
+
 export function summarizeCrewJudgeCoverage({
   rotations,
   heats,
