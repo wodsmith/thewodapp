@@ -249,11 +249,9 @@ function buildDaysFloorsStep(
 ): CrewGuidedSetupStep {
   const { venues } = input.facts
   const status =
-    venues.venueCount === 0
+    venues.venueCount === 0 || venues.totalLaneCount === 0
       ? "blocked"
-      : venues.totalLaneCount > 0
-        ? "complete"
-        : "in_progress"
+      : "complete"
 
   return createBaseStep({
     key: "days_floors",

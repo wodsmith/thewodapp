@@ -96,6 +96,43 @@ describe("Crew guided setup state", () => {
     expect(guidedSetup.summary.highestStatus).toBe("blocked")
   })
 
+  it("keeps days and floors blocked when venue rows have no lane capacity", () => {
+    const guidedSetup = buildCrewGuidedSetupState({
+      event: readyEvent,
+      setup: readySetup,
+      facts: {
+        ...readyFacts,
+        venues: { venueCount: 1, totalLaneCount: 0 },
+      },
+      readiness: readyReadiness,
+      persisted: {
+        activeStep: "days_floors",
+        steps: {
+          days_floors: {
+            status: "complete",
+            note: "Floor walkthrough is done.",
+            updatedAt: "2026-06-20T18:00:00.000Z",
+          },
+        },
+      },
+    })
+
+    expect(
+      guidedSetup.steps.find((step) => step.key === "days_floors"),
+    ).toMatchObject({
+      status: "blocked",
+      systemStatus: "blocked",
+      operatorStatus: "complete",
+      summary: "1 venue, 0 lanes",
+      note: "Floor walkthrough is done.",
+    })
+    expect(guidedSetup.summary).toMatchObject({
+      complete: 7,
+      blocked: 1,
+      highestStatus: "blocked",
+    })
+  })
+
   it("updates and serializes guided step progress without replacing setup settings", () => {
     const persisted = updateCrewGuidedSetupStepState(emptyPersisted, {
       stepKey: "imports",
