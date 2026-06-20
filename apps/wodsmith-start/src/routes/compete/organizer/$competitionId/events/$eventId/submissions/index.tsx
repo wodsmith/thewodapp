@@ -56,6 +56,7 @@ import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import { getCompetitionEventFn } from "@/server-fns/competition-workouts-fns"
 import { getOrganizerSubmissionsFn } from "@/server-fns/video-submission-fns"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import { cn } from "@/utils/cn"
 import { isSafeUrl } from "@/utils/url"
 
@@ -100,10 +101,9 @@ export const Route = createFileRoute(
       throw new Error("Competition not found")
     }
 
-    // Only allow for online competitions
-    if (competition.competitionType !== "online") {
+    if (!competitionCan(competition.competitionType, "videoSubmissions")) {
       throw new Error(
-        "Video submissions are only available for online competitions",
+        "Video submissions are not available for this competition type",
       )
     }
 

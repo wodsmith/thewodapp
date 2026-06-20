@@ -12,7 +12,7 @@ The registry maps each competition type to named capabilities, its leaderboard v
 
 [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#COMPETITION_TYPE_REGISTRY]] keeps `competitionType` as the stored discriminator and exposes [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#competitionCan]], [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#leaderboardVariant]], and [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#isSelectableType]] for later call-site refactors. In-person competitions retain heat scheduling, day-of check-in, physical venue, volunteer scheduling, and organizer-entered results. Online competitions retain video submissions, submission windows, opt-in result publishing, and the online leaderboard variant. Benchmark competitions retain video submissions and the online leaderboard visual variant, add the `perpetual` capability, and intentionally skip submission windows and opt-in result publishing.
 
-Server submission gates now consume the registry for the API, server-function, and leaderboard paths: score-window checks use `submissionWindows`, while benchmark status checks use `perpetual` to stay open without seeded window rows. Video submission checks use `videoSubmissions`. The dedicated leaderboard refactor also routes the online table decision through `leaderboardVariant` and the hidden-until-published default through `optInResultPublishing`; [[apps/wodsmith-start/src/server/competition-leaderboard.ts#getCompetitionLeaderboard]] stayed minimal because GitNexus reports HIGH blast radius.
+Server submission gates now consume the registry for API, server-function, route, and leaderboard paths: score-window checks use `submissionWindows`, while benchmark status checks use `perpetual` to stay open without seeded window rows. Video submission checks use `videoSubmissions`. The dedicated leaderboard refactor also routes the online table decision through `leaderboardVariant` and the hidden-until-published default through `optInResultPublishing`; [[apps/wodsmith-start/src/server/competition-leaderboard.ts#getCompetitionLeaderboard]] stayed minimal because GitNexus reports HIGH blast radius.
 
 The `scoringAlgorithm === "online"` axis remains separate from `competitionType === "online"`. Capability checks must not replace scoring-algorithm branches.
 
@@ -47,6 +47,18 @@ The create-picker test pins that selectable competition type options are derived
 The window-status test pins benchmark as open without submission-window rows while online competitions still require configured rows.
 
 [[apps/wodsmith-start/test/routes/api/compete/scores/window-status.test.ts]] verifies the score window-status API returns open/null-window metadata for benchmark because it has `perpetual`, while online stays closed when no submission-window row exists.
+
+## Perpetual Submission Gate Test
+
+The submission-gate tests pin benchmark write entries as open without seeded submission-window rows while preserving existing validation after the gate.
+
+[[apps/wodsmith-start/test/routes/api/compete/submission-gates.test.ts]] verifies the score and video API submit routes accept benchmark competitions through the window gate. [[apps/wodsmith-start/test/server-fns/athlete-score-fns.test.ts]] verifies the athlete score server function does the same.
+
+## Video Submission Route Gates Test
+
+The route-gate test pins public athlete and review submission routes to the `videoSubmissions` capability instead of literal online checks.
+
+[[apps/wodsmith-start/test/routes/compete/video-submission-route-gates.test.ts]] verifies the public overview, workout detail, organizer, cohost, and volunteer review submission routes do not reintroduce literal `competitionType === "online"` gates.
 
 ## Scheduling and Check-In Gates Test
 
