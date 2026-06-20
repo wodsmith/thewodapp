@@ -687,68 +687,71 @@ async function createManualCrewVolunteerRows(
   const expiresAt = new Date(timestamp)
   expiresAt.setFullYear(expiresAt.getFullYear() + 1)
 
-  for (const row of rows) {
-    const email = normalizeManualVolunteerEmail(row.email)
-    // team_invitations has no team/email uniqueness constraint, so the lock
-    // wraps the duplicate reread and autocommitted insert before release.
-    await withManualVolunteerIntakeLock(
-      db,
-      event.competitionTeamId,
-      email,
-      async () => {
-        const [existingInvitations, existingMemberships] = await Promise.all([
-          listManualVolunteerInvitations(db, event.competitionTeamId),
-          listManualVolunteerMemberships(db, event.competitionTeamId),
-        ])
-        const plan = planManualVolunteerIntake(email, {
-          existingInvitations,
-          existingMemberships,
-        })
+  // team_invitations has no team/email uniqueness constraint, so serialize
+  // manual intake for this roster until the batch transaction commits.
+  await withManualVolunteerIntakeBatchLock(
+    db,
+    event.competitionTeamId,
+    async () => {
+      await db.transaction(async (tx) => {
+        const client = tx as unknown as DbClient
 
-        if (plan.action === "skip") {
-          skipped.push({
+        for (const row of rows) {
+          const email = normalizeManualVolunteerEmail(row.email)
+          const [existingInvitations, existingMemberships] = await Promise.all([
+            listManualVolunteerInvitations(client, event.competitionTeamId),
+            listManualVolunteerMemberships(client, event.competitionTeamId),
+          ])
+          const plan = planManualVolunteerIntake(email, {
+            existingInvitations,
+            existingMemberships,
+          })
+
+          if (plan.action === "skip") {
+            skipped.push({
+              rowNumber: row.rowNumber,
+              email,
+              reason: plan.reason,
+              message: plan.message,
+              targetId: plan.targetId,
+            })
+            continue
+          }
+
+          const invitationId = createTeamInvitationId()
+          const metadata = buildManualVolunteerMetadata(
+            {
+              ...row,
+              email,
+            },
+            timestamp,
+          )
+          const metadataJson = JSON.stringify(metadata)
+
+          await client.insert(teamInvitationTable).values({
+            id: invitationId,
+            teamId: event.competitionTeamId,
+            email,
+            roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
+            isSystemRole: true,
+            token: createId(),
+            invitedBy: null,
+            expiresAt,
+            status: INVITATION_STATUS.PENDING,
+            metadata: metadataJson,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          })
+
+          created.push({
             rowNumber: row.rowNumber,
             email,
-            reason: plan.reason,
-            message: plan.message,
-            targetId: plan.targetId,
+            invitationId,
           })
-          return
         }
-
-        const invitationId = createTeamInvitationId()
-        const metadata = buildManualVolunteerMetadata(
-          {
-            ...row,
-            email,
-          },
-          timestamp,
-        )
-        const metadataJson = JSON.stringify(metadata)
-
-        await db.insert(teamInvitationTable).values({
-          id: invitationId,
-          teamId: event.competitionTeamId,
-          email,
-          roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
-          isSystemRole: true,
-          token: createId(),
-          invitedBy: null,
-          expiresAt,
-          status: INVITATION_STATUS.PENDING,
-          metadata: metadataJson,
-          createdAt: timestamp,
-          updatedAt: timestamp,
-        })
-
-        created.push({
-          rowNumber: row.rowNumber,
-          email,
-          invitationId,
-        })
-      },
-    )
-  }
+      })
+    },
+  )
 
   return buildManualCrewVolunteerMutationResult({
     created,
@@ -757,17 +760,14 @@ async function createManualCrewVolunteerRows(
   })
 }
 
-async function withManualVolunteerIntakeLock<T>(
+async function withManualVolunteerIntakeBatchLock<T>(
   db: DbClient,
   competitionTeamId: string,
-  email: string,
   callback: () => Promise<T>,
 ) {
   let acquired = false
-  const lockName = await createManualVolunteerIntakeLockName(
-    competitionTeamId,
-    email,
-  )
+  const lockName =
+    await createManualVolunteerIntakeBatchLockName(competitionTeamId)
 
   try {
     const result = await db.execute(
@@ -786,12 +786,11 @@ async function withManualVolunteerIntakeLock<T>(
   }
 }
 
-async function createManualVolunteerIntakeLockName(
+async function createManualVolunteerIntakeBatchLockName(
   competitionTeamId: string,
-  email: string,
 ) {
   const encoded = new TextEncoder().encode(
-    `crew-manual-volunteer:${competitionTeamId}:${email}`,
+    `crew-manual-volunteer:${competitionTeamId}`,
   )
   const digest = await crypto.subtle.digest("SHA-256", encoded)
   return Array.from(new Uint8Array(digest), (byte) =>
