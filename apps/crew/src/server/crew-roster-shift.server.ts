@@ -692,6 +692,8 @@ async function createManualCrewVolunteerRows(
 
     for (const row of rows) {
       const email = normalizeManualVolunteerEmail(row.email)
+      // team_invitations has no team/email uniqueness constraint, so serialize
+      // each manual intake write before rereading duplicate state.
       await withManualVolunteerIntakeLock(
         client,
         event.competitionTeamId,
