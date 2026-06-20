@@ -28,6 +28,7 @@ import {
 import {
   assertCrewJudgeRotationReplacementAllowed,
   expandCrewJudgeRotationDrafts,
+  getCrewJudgeHeatLaneCount,
   getCrewJudgeRotationLane,
   hasCrewJudgeRotationErrors,
   type CrewJudgeRotationDraft,
@@ -47,6 +48,19 @@ type RotationQueryDb = Pick<DbClient, "select" | "query">
 type CompetitionJudgeRotation =
   typeof competitionJudgeRotationsTable.$inferSelect
 type JudgeAssignmentVersion = typeof judgeAssignmentVersionsTable.$inferSelect
+type CrewJudgeHeatRow = {
+  id: string
+  trackWorkoutId: string
+  heatNumber: number
+  scheduledTime: Date | null
+  durationMinutes: number | null
+  venueName: string | null
+  venueLaneCount: number | null
+}
+type CrewJudgeHeatLaneAssignmentRow = {
+  heatId: string
+  laneNumber: number | null
+}
 
 export interface CrewJudgeEvent {
   id: string
@@ -500,47 +514,12 @@ async function loadCrewJudgeHeats(eventId: string): Promise<CrewJudgeHeat[]> {
       asc(competitionHeatsTable.heatNumber),
     )
 
-  const heatIds = heatRows.map((heat) => heat.id)
-  const heatAssignmentRows =
-    heatIds.length > 0
-      ? await db
-          .select({
-            heatId: competitionHeatAssignmentsTable.heatId,
-            laneNumber: competitionHeatAssignmentsTable.laneNumber,
-          })
-          .from(competitionHeatAssignmentsTable)
-          .where(inArray(competitionHeatAssignmentsTable.heatId, heatIds))
-      : []
-  const occupiedLanesByHeat = new Map<string, Set<number>>()
+  const heatAssignmentRows = await loadCrewJudgeHeatLaneAssignments(
+    db,
+    heatRows.map((heat) => heat.id),
+  )
 
-  for (const assignment of heatAssignmentRows) {
-    if (!assignment.laneNumber) continue
-    const lanes = occupiedLanesByHeat.get(assignment.heatId) ?? new Set()
-    lanes.add(assignment.laneNumber)
-    occupiedLanesByHeat.set(assignment.heatId, lanes)
-  }
-
-  return heatRows.map((heat) => {
-    const occupiedLanes = Array.from(
-      occupiedLanesByHeat.get(heat.id) ?? [],
-    ).sort((a, b) => a - b)
-    const laneCount = Math.max(
-      heat.venueLaneCount ?? 10,
-      occupiedLanes.length > 0 ? Math.max(...occupiedLanes) : 0,
-      1,
-    )
-
-    return {
-      id: heat.id,
-      trackWorkoutId: heat.trackWorkoutId,
-      heatNumber: heat.heatNumber,
-      scheduledTime: heat.scheduledTime,
-      durationMinutes: heat.durationMinutes,
-      venueName: heat.venueName,
-      laneCount,
-      occupiedLanes,
-    }
-  })
+  return toCrewJudgeHeats(heatRows, heatAssignmentRows)
 }
 
 async function loadCrewJudgeVolunteers(
@@ -800,16 +779,61 @@ async function loadCrewJudgeHeatsForTrackWorkout(
     .where(eq(competitionHeatsTable.trackWorkoutId, trackWorkoutId))
     .orderBy(asc(competitionHeatsTable.heatNumber))
 
-  return heatRows.map((heat) => ({
-    id: heat.id,
-    trackWorkoutId: heat.trackWorkoutId,
-    heatNumber: heat.heatNumber,
-    scheduledTime: heat.scheduledTime,
-    durationMinutes: heat.durationMinutes,
-    venueName: heat.venueName,
-    laneCount: Math.max(heat.venueLaneCount ?? 10, 1),
-    occupiedLanes: [],
-  }))
+  const heatAssignmentRows = await loadCrewJudgeHeatLaneAssignments(
+    db,
+    heatRows.map((heat) => heat.id),
+  )
+
+  return toCrewJudgeHeats(heatRows, heatAssignmentRows)
+}
+
+async function loadCrewJudgeHeatLaneAssignments(
+  db: Pick<DbClient, "select">,
+  heatIds: string[],
+): Promise<CrewJudgeHeatLaneAssignmentRow[]> {
+  if (heatIds.length === 0) return []
+
+  return db
+    .select({
+      heatId: competitionHeatAssignmentsTable.heatId,
+      laneNumber: competitionHeatAssignmentsTable.laneNumber,
+    })
+    .from(competitionHeatAssignmentsTable)
+    .where(inArray(competitionHeatAssignmentsTable.heatId, heatIds))
+}
+
+function toCrewJudgeHeats(
+  heatRows: CrewJudgeHeatRow[],
+  heatAssignmentRows: CrewJudgeHeatLaneAssignmentRow[],
+): CrewJudgeHeat[] {
+  const occupiedLanesByHeat = new Map<string, Set<number>>()
+
+  for (const assignment of heatAssignmentRows) {
+    if (!assignment.laneNumber) continue
+    const lanes = occupiedLanesByHeat.get(assignment.heatId) ?? new Set()
+    lanes.add(assignment.laneNumber)
+    occupiedLanesByHeat.set(assignment.heatId, lanes)
+  }
+
+  return heatRows.map((heat) => {
+    const occupiedLanes = Array.from(
+      occupiedLanesByHeat.get(heat.id) ?? [],
+    ).sort((a, b) => a - b)
+
+    return {
+      id: heat.id,
+      trackWorkoutId: heat.trackWorkoutId,
+      heatNumber: heat.heatNumber,
+      scheduledTime: heat.scheduledTime,
+      durationMinutes: heat.durationMinutes,
+      venueName: heat.venueName,
+      laneCount: getCrewJudgeHeatLaneCount({
+        venueLaneCount: heat.venueLaneCount,
+        occupiedLanes,
+      }),
+      occupiedLanes,
+    }
+  })
 }
 
 function toCrewJudgeRotationDraft(

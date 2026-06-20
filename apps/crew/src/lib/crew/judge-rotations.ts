@@ -240,6 +240,20 @@ export function assertCrewJudgeRotationReplacementAllowed({
   }
 }
 
+export function getCrewJudgeHeatLaneCount({
+  venueLaneCount,
+  occupiedLanes = [],
+}: {
+  venueLaneCount?: number | null
+  occupiedLanes?: number[]
+}) {
+  return Math.max(
+    venueLaneCount ?? 10,
+    occupiedLanes.length > 0 ? Math.max(...occupiedLanes) : 0,
+    1,
+  )
+}
+
 export function summarizeCrewJudgeCoverage({
   rotations,
   heats,

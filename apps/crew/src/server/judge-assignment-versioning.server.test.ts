@@ -1,10 +1,12 @@
 // @lat: [[crew#Judge Rotations]]
 // @lat: [[crew#Judge Assignment Version Publishing]]
+import { FakeDrizzleDb } from "@repo/test-utils"
 import { describe, expect, it } from "vitest"
 import {
   cloneJudgeAssignmentsForRevision,
   findClonedJudgeAssignmentOrThrow,
   getNextJudgeAssignmentVersionNumber,
+  publishMaterializedJudgeAssignmentsVersion,
   toJudgeHeatAssignmentInserts,
 } from "./judge-assignment-versioning.server"
 
@@ -75,5 +77,33 @@ describe("Crew judge assignment versioning", () => {
         "hvol_stale",
       ),
     ).toThrow("Judge assignment not found in the active version")
+  })
+
+  it("uses a transaction-scoped row lock when publishing a new version", async () => {
+    const db = new FakeDrizzleDb()
+    const timestamp = new Date("2026-06-20T00:00:00.000Z")
+    db.registerTable("judgeAssignmentVersionsTable")
+    db.setMockReturnValue([{ id: "tw_event1", version: 0 }])
+    db.setMockSingleValue({
+      id: "jver_new",
+      trackWorkoutId: "tw_event1",
+      version: 1,
+      publishedAt: timestamp,
+      publishedBy: null,
+      notes: null,
+      isActive: true,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      updateCounter: null,
+    })
+
+    await publishMaterializedJudgeAssignmentsVersion(
+      db as Parameters<typeof publishMaterializedJudgeAssignmentsVersion>[0],
+      { trackWorkoutId: "tw_event1" },
+      async () => [],
+    )
+
+    expect(db.transaction).toHaveBeenCalledTimes(1)
+    expect(db.getChainMock().for).toHaveBeenCalledWith("update")
   })
 })

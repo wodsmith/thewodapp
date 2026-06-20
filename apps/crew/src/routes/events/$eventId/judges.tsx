@@ -389,6 +389,8 @@ function RotationEditor({
   const [laneShiftPattern, setLaneShiftPattern] = useState<LaneShiftPattern>(
     selectedRotations[0]?.laneShiftPattern ?? defaultLaneShiftPattern,
   )
+  const resetLaneShiftPattern =
+    selectedRotations[0]?.laneShiftPattern ?? defaultLaneShiftPattern
   const [rows, setRows] = useState<RotationFormRow[]>(() =>
     toFormRows(selectedRotations),
   )
@@ -417,11 +419,9 @@ function RotationEditor({
   const warningCount = issues.length - errorCount
 
   useEffect(() => {
-    setLaneShiftPattern(
-      selectedRotations[0]?.laneShiftPattern ?? defaultLaneShiftPattern,
-    )
+    setLaneShiftPattern(resetLaneShiftPattern)
     setRows(toFormRows(selectedRotations))
-  }, [defaultLaneShiftPattern, selectedRotations])
+  }, [resetLaneShiftPattern, selectedRotations])
 
   function updateRow(
     clientId: string,
@@ -500,7 +500,10 @@ function RotationEditor({
           <Button
             type="button"
             variant="outline"
-            onClick={() => setRows(toFormRows(selectedRotations))}
+            onClick={() => {
+              setLaneShiftPattern(resetLaneShiftPattern)
+              setRows(toFormRows(selectedRotations))
+            }}
           >
             <RotateCcw />
             Reset

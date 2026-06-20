@@ -4,6 +4,7 @@ import { LANE_SHIFT_PATTERN } from "@/db/schemas/volunteers"
 import {
   assertCrewJudgeRotationReplacementAllowed,
   expandCrewJudgeRotationDrafts,
+  getCrewJudgeHeatLaneCount,
   hasCrewJudgeRotationErrors,
   summarizeCrewJudgeCoverage,
   validateCrewJudgeRotationDrafts,
@@ -132,6 +133,15 @@ describe("Crew judge rotation helpers", () => {
         assignmentReferenceCount: 0,
       }),
     ).not.toThrow()
+  })
+
+  it("derives heat lane capacity from occupied lanes when they exceed the venue lane count", () => {
+    expect(
+      getCrewJudgeHeatLaneCount({
+        venueLaneCount: 3,
+        occupiedLanes: [1, 5],
+      }),
+    ).toBe(5)
   })
 
   it("summarizes coverage gaps and overlaps deterministically", () => {
