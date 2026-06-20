@@ -1,5 +1,6 @@
 // @lat: [[crew#Assignment Confirmation Responses]]
 // @lat: [[crew#Assignment Confirmations]]
+// @lat: [[crew#Confirmation Emails And Reminders]]
 import {
   CREW_ASSIGNMENT_CONFIRMATION_STATUS,
   type CrewAssignmentConfirmationStatus,
@@ -53,6 +54,61 @@ export interface CrewAssignmentConfirmationOperationalRecord {
   sentAt?: Date | string | null
 }
 
+export type CrewAssignmentConfirmationEmailOperationMode =
+  | "confirmations"
+  | "reminders"
+
+export type CrewAssignmentConfirmationEmailOperationKind =
+  | "confirmation"
+  | "reminder-48-hour"
+  | "reminder-24-hour"
+
+export interface CrewAssignmentConfirmationEmailCandidate {
+  confirmationId: string
+  assignmentId: string
+  status: CrewAssignmentConfirmationStatus
+  email?: string | null
+  sentAt?: Date | string | null
+  respondedAt?: Date | string | null
+  lastReminderAt?: Date | string | null
+  reminderCount?: number | null
+  shiftStartTime: Date | string
+}
+
+export interface CrewAssignmentConfirmationEmailOperation {
+  kind: CrewAssignmentConfirmationEmailOperationKind
+  confirmationId: string
+  assignmentId: string
+  email: string
+  reminderCount: number
+  idempotencyKey: string
+}
+
+export interface CrewAssignmentConfirmationEmailPlan {
+  operations: CrewAssignmentConfirmationEmailOperation[]
+  skipped: {
+    responded: number
+    missingEmail: number
+    alreadySent: number
+    notDue: number
+    pastShift: number
+  }
+}
+
+export interface CrewAssignmentEmailQueueMessage {
+  kind: "crew-assignment-confirmation" | "crew-assignment-reminder"
+  confirmationId: string
+  assignmentId: string
+  competitionId: string
+  email: string
+  subject: string
+  bodyHtml: string
+  idempotencyKey: string
+  reminderCount: number
+  queuedAtIso: string
+  replyTo?: string
+}
+
 export interface CrewAssignmentConfirmationOperationalSummary {
   missing: number
   pending: number
@@ -76,6 +132,8 @@ export interface CrewAssignmentConfirmationOrganizerStateUpdate {
 
 export const CREW_ASSIGNMENT_CONFIRMATION_TOKEN_BYTES = 32
 export const CREW_ASSIGNMENT_CONFIRMATION_TOKEN_HASH_PREFIX = "sha256:"
+export const CREW_ASSIGNMENT_CONFIRMATION_REMINDER_48_HOURS = 48
+export const CREW_ASSIGNMENT_CONFIRMATION_REMINDER_24_HOURS = 24
 export const CREW_ASSIGNMENT_CONFIRMATION_ORGANIZER_STATES = [
   "pending",
   "sent",
@@ -277,9 +335,7 @@ export function getCrewAssignmentConfirmationOperationalState(
   if (record.status === CREW_ASSIGNMENT_CONFIRMATION_STATUS.DECLINED) {
     return "declined"
   }
-  if (
-    record.status === CREW_ASSIGNMENT_CONFIRMATION_STATUS.CHANGE_REQUESTED
-  ) {
+  if (record.status === CREW_ASSIGNMENT_CONFIRMATION_STATUS.CHANGE_REQUESTED) {
     return "change_requested"
   }
   if (record.status === CREW_ASSIGNMENT_CONFIRMATION_STATUS.NO_SHOW) {
@@ -309,8 +365,7 @@ export function summarizeCrewAssignmentConfirmationOperationalStates(
       else summary.replaced += 1
 
       summary.total += 1
-      summary.responseNeeded =
-        summary.missing + summary.pending + summary.sent
+      summary.responseNeeded = summary.missing + summary.pending + summary.sent
       summary.organizerActionNeeded =
         summary.missing +
         summary.pending +
@@ -335,6 +390,142 @@ export function summarizeCrewAssignmentConfirmationOperationalStates(
       organizerActionNeeded: 0,
     },
   )
+}
+
+export function buildCrewAssignmentConfirmationEmailPlan(params: {
+  candidates: CrewAssignmentConfirmationEmailCandidate[]
+  mode: CrewAssignmentConfirmationEmailOperationMode
+  now?: Date
+}): CrewAssignmentConfirmationEmailPlan {
+  const now = params.now ?? new Date()
+  const plan: CrewAssignmentConfirmationEmailPlan = {
+    operations: [],
+    skipped: {
+      responded: 0,
+      missingEmail: 0,
+      alreadySent: 0,
+      notDue: 0,
+      pastShift: 0,
+    },
+  }
+
+  for (const candidate of params.candidates) {
+    const email = normalizeConfirmationEmailForSend(candidate.email)
+    if (candidate.status !== CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING) {
+      plan.skipped.responded += 1
+      continue
+    }
+    if (!email) {
+      plan.skipped.missingEmail += 1
+      continue
+    }
+
+    const sentAt = toValidDate(candidate.sentAt)
+    const shiftStartTime = toValidDate(candidate.shiftStartTime)
+
+    if (!shiftStartTime || shiftStartTime.getTime() <= now.getTime()) {
+      plan.skipped.pastShift += 1
+      continue
+    }
+
+    if (params.mode === "confirmations") {
+      if (sentAt) {
+        plan.skipped.alreadySent += 1
+        continue
+      }
+      plan.operations.push({
+        kind: "confirmation",
+        confirmationId: candidate.confirmationId,
+        assignmentId: candidate.assignmentId,
+        email,
+        reminderCount: 0,
+        idempotencyKey: buildCrewAssignmentEmailIdempotencyKey(
+          candidate.confirmationId,
+          0,
+        ),
+      })
+      continue
+    }
+
+    if (!sentAt) {
+      plan.skipped.notDue += 1
+      continue
+    }
+
+    const reminder = getCrewAssignmentReminderOperationKind({
+      shiftStartTime,
+      reminderCount: candidate.reminderCount ?? 0,
+      now,
+    })
+
+    if (!reminder) {
+      plan.skipped.notDue += 1
+      continue
+    }
+
+    plan.operations.push({
+      kind: reminder.kind,
+      confirmationId: candidate.confirmationId,
+      assignmentId: candidate.assignmentId,
+      email,
+      reminderCount: reminder.reminderCount,
+      idempotencyKey: buildCrewAssignmentEmailIdempotencyKey(
+        candidate.confirmationId,
+        reminder.reminderCount,
+      ),
+    })
+  }
+
+  return plan
+}
+
+export function buildCrewAssignmentEmailIdempotencyKey(
+  confirmationId: string,
+  reminderCount: number,
+) {
+  return `crew-confirmation-${confirmationId}-${reminderCount}`
+}
+
+export function normalizeConfirmationEmailForSend(
+  value: string | null | undefined,
+) {
+  const trimmed = value?.trim().toLowerCase()
+  if (!trimmed || !trimmed.includes("@")) return null
+  return trimmed
+}
+
+function getCrewAssignmentReminderOperationKind(params: {
+  shiftStartTime: Date
+  reminderCount: number
+  now: Date
+}): {
+  kind: "reminder-48-hour" | "reminder-24-hour"
+  reminderCount: number
+} | null {
+  const hoursUntilShift =
+    (params.shiftStartTime.getTime() - params.now.getTime()) / (60 * 60 * 1000)
+
+  if (
+    hoursUntilShift <= CREW_ASSIGNMENT_CONFIRMATION_REMINDER_24_HOURS &&
+    params.reminderCount < 2
+  ) {
+    return { kind: "reminder-24-hour", reminderCount: 2 }
+  }
+
+  if (
+    hoursUntilShift <= CREW_ASSIGNMENT_CONFIRMATION_REMINDER_48_HOURS &&
+    params.reminderCount < 1
+  ) {
+    return { kind: "reminder-48-hour", reminderCount: 1 }
+  }
+
+  return null
+}
+
+function toValidDate(value: Date | string | null | undefined) {
+  if (!value) return null
+  const date = value instanceof Date ? value : new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
 }
 
 export function resolveCrewAssignmentConfirmationOrganizerStateUpdate(
