@@ -79,6 +79,43 @@ describe("Crew role and shift template preview", () => {
       "Some template shifts fall outside the event date range.",
     )
   })
+
+  it("excludes shifts that resolve before the event start date from apply plans", () => {
+    const preview = buildCrewTemplatePreview(
+      {
+        ...template,
+        shifts: [
+          {
+            key: "pre-event-judges",
+            name: "Pre-event judges",
+            roleType: VOLUNTEER_ROLE_TYPES.JUDGE,
+            dayOffset: -1,
+            startTime: "08:00",
+            endTime: "12:00",
+            capacity: 8,
+            location: "Competition floor",
+          },
+        ],
+      },
+      {
+        eventId: "comp_test",
+        startDate: "2026-08-14",
+        endDate: "2026-08-15",
+        timezone: "America/Denver",
+        existingAssumptions: "",
+        existingShifts: [],
+      },
+    )
+    const plan = buildCrewTemplateApplyPlan(preview, {
+      fillEmptyAssumptions: false,
+    })
+
+    expect(preview.shifts[0]).toMatchObject({
+      date: "2026-08-13",
+      status: "outside_event_dates",
+    })
+    expect(plan.shiftsToCreate).toHaveLength(0)
+  })
 })
 
 const template: CrewRoleShiftTemplate = {

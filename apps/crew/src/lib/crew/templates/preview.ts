@@ -77,7 +77,9 @@ function buildShiftPreview(
       )
     : null
   const outsideEventDates =
-    date !== null && context.endDate !== null && date > context.endDate
+    date !== null &&
+    ((context.startDate !== null && date < context.startDate) ||
+      (context.endDate !== null && date > context.endDate))
 
   return {
     key: `${templateId}:${shift.key}`,
