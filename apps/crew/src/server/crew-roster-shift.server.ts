@@ -1,20 +1,45 @@
 // @lat: [[crew#Roster Shifts Assignments]]
-import { and, asc, eq, inArray } from "drizzle-orm"
+// @lat: [[crew#Manual Volunteer Intake]]
+import { createId } from "@paralleldrive/cuid2"
+import { and, asc, eq, inArray, sql } from "drizzle-orm"
 import { getDb } from "../db"
-import { createVolunteerShiftAssignmentId } from "../db/schemas/common"
-import { competitionsTable, type Competition } from "../db/schemas/competitions"
+import {
+  createTeamInvitationId,
+  createVolunteerShiftAssignmentId,
+} from "../db/schemas/common"
+import type { Competition } from "../db/schemas/competitions"
+import { competitionsTable } from "../db/schemas/competitions"
 import { crewEventSettingsTable } from "../db/schemas/crew-event-settings"
 import {
+  INVITATION_STATUS,
   SYSTEM_ROLES_ENUM,
   teamInvitationTable,
   teamMembershipTable,
 } from "../db/schemas/teams"
 import { userTable } from "../db/schemas/users"
+import type {
+  VolunteerAvailability,
+  VolunteerRoleType,
+} from "../db/schemas/volunteers"
 import {
   volunteerShiftAssignmentsTable,
   volunteerShiftsTable,
-  type VolunteerRoleType,
 } from "../db/schemas/volunteers"
+import type {
+  ExistingManualVolunteerInvitation,
+  ExistingManualVolunteerMembership,
+  ManualVolunteerPasteInvalidRow,
+} from "../lib/crew/manual-volunteer-intake"
+import {
+  buildManualVolunteerMetadata,
+  normalizeManualVolunteerEmail,
+  parseManualVolunteerEmailPaste,
+  planManualVolunteerIntake,
+} from "../lib/crew/manual-volunteer-intake"
+import type {
+  CrewRosterSummary,
+  CrewRosterVolunteer,
+} from "../lib/crew/roster-shifts"
 import {
   buildCrewRoster,
   formatVolunteerRole,
@@ -24,8 +49,6 @@ import {
   summarizeCrewRoster,
   validateShiftAssignment,
   validateShiftCapacityUpdate,
-  type CrewRosterSummary,
-  type CrewRosterVolunteer,
 } from "../lib/crew/roster-shifts"
 import { requireLocalCrewOperatorAccess } from "../server/crew-local-access"
 import {
@@ -33,12 +56,13 @@ import {
   ensureCrewShiftAssignmentConfirmation,
   loadCrewShiftAssignmentConfirmationMap,
   summarizeCrewShiftAssignmentConfirmations,
-  type CrewShiftAssignmentConfirmationStatus,
 } from "./crew-confirmation.server"
+import type { CrewShiftAssignmentConfirmationStatus } from "./crew-confirmation.server"
 import {
   DEFAULT_TIMEZONE,
   formatDateTimeInTimezone,
 } from "../utils/timezone-utils"
+import { getFirstExecuteValue } from "../server-fns/db-execute"
 
 type DbClient = ReturnType<typeof getDb>
 
@@ -145,6 +169,55 @@ interface CrewShiftAssignmentInput extends DeleteCrewShiftInput {
   notes?: string
 }
 
+interface ManualCrewVolunteerInput extends CrewEventInput {
+  email: string
+  name?: string
+  phone?: string
+  roleTypes?: VolunteerRoleType[]
+  availability?: VolunteerAvailability
+  availabilityNotes?: string
+  notes?: string
+}
+
+interface ManualCrewVolunteerPasteInput extends CrewEventInput {
+  pasteText: string
+}
+
+interface ManualCrewVolunteerCreateRow
+  extends Omit<ManualCrewVolunteerInput, "eventId"> {
+  rowNumber: number
+}
+
+export interface ManualCrewVolunteerCreatedRow {
+  rowNumber: number
+  email: string
+  invitationId: string
+}
+
+export interface ManualCrewVolunteerSkippedRow {
+  rowNumber: number
+  email: string
+  reason:
+    | "duplicate_in_paste"
+    | "pending_invitation"
+    | "accepted_invitation"
+    | "active_membership"
+    | "inactive_membership"
+  message: string
+  targetId: string | null
+}
+
+export interface ManualCrewVolunteerMutationResult {
+  created: ManualCrewVolunteerCreatedRow[]
+  skipped: ManualCrewVolunteerSkippedRow[]
+  invalid: ManualVolunteerPasteInvalidRow[]
+  summary: {
+    created: number
+    skipped: number
+    invalid: number
+  }
+}
+
 export async function getCrewRosterPage(
   data: CrewEventInput,
 ): Promise<CrewRosterPageData> {
@@ -197,6 +270,57 @@ export async function getCrewEventRosterShiftSummary(data: CrewEventInput) {
     rosterSummary: summarizeCrewRoster(roster),
     shiftSummary: summarizeCrewShifts(shifts),
   }
+}
+
+export async function createManualCrewVolunteer(
+  data: ManualCrewVolunteerInput,
+): Promise<ManualCrewVolunteerMutationResult> {
+  requireLocalCrewOperatorAccess("Crew roster")
+
+  const event = await requireCrewRosterEvent(data.eventId)
+  return createManualCrewVolunteerRows(event, [
+    {
+      rowNumber: 1,
+      email: normalizeManualVolunteerEmail(data.email),
+      name: data.name,
+      phone: data.phone,
+      roleTypes: data.roleTypes,
+      availability: data.availability,
+      availabilityNotes: data.availabilityNotes,
+      notes: data.notes,
+    },
+  ])
+}
+
+export async function pasteManualCrewVolunteerEmails(
+  data: ManualCrewVolunteerPasteInput,
+): Promise<ManualCrewVolunteerMutationResult> {
+  requireLocalCrewOperatorAccess("Crew roster")
+
+  const event = await requireCrewRosterEvent(data.eventId)
+  const parsed = parseManualVolunteerEmailPaste(data.pasteText)
+  const result = await createManualCrewVolunteerRows(
+    event,
+    parsed.valid.map((row) => ({
+      rowNumber: row.rowNumber,
+      email: row.email,
+    })),
+  )
+
+  return buildManualCrewVolunteerMutationResult({
+    created: result.created,
+    skipped: [
+      ...parsed.skipped.map((row) => ({
+        rowNumber: row.rowNumber,
+        email: row.email,
+        reason: row.reason,
+        message: "Email was already included in this paste.",
+        targetId: null,
+      })),
+      ...result.skipped,
+    ],
+    invalid: parsed.invalid,
+  })
 }
 
 export async function createCrewShift(data: CrewShiftInput) {
@@ -550,6 +674,187 @@ export async function loadCrewRoster(competitionTeamId: string) {
   ])
 
   return buildCrewRoster(invitations, memberships)
+}
+
+async function createManualCrewVolunteerRows(
+  event: CrewRosterCompetition,
+  rows: ManualCrewVolunteerCreateRow[],
+): Promise<ManualCrewVolunteerMutationResult> {
+  const db = getDb()
+  const created: ManualCrewVolunteerCreatedRow[] = []
+  const skipped: ManualCrewVolunteerSkippedRow[] = []
+  const timestamp = new Date()
+  const expiresAt = new Date(timestamp)
+  expiresAt.setFullYear(expiresAt.getFullYear() + 1)
+
+  // team_invitations has no team/email uniqueness constraint, so serialize
+  // manual intake for this roster until the batch transaction commits.
+  await withManualVolunteerIntakeBatchLock(
+    db,
+    event.competitionTeamId,
+    async () => {
+      await db.transaction(async (tx) => {
+        const client = tx as unknown as DbClient
+
+        for (const row of rows) {
+          const email = normalizeManualVolunteerEmail(row.email)
+          const [existingInvitations, existingMemberships] = await Promise.all([
+            listManualVolunteerInvitations(client, event.competitionTeamId),
+            listManualVolunteerMemberships(client, event.competitionTeamId),
+          ])
+          const plan = planManualVolunteerIntake(email, {
+            existingInvitations,
+            existingMemberships,
+          })
+
+          if (plan.action === "skip") {
+            skipped.push({
+              rowNumber: row.rowNumber,
+              email,
+              reason: plan.reason,
+              message: plan.message,
+              targetId: plan.targetId,
+            })
+            continue
+          }
+
+          const invitationId = createTeamInvitationId()
+          const metadata = buildManualVolunteerMetadata(
+            {
+              ...row,
+              email,
+            },
+            timestamp,
+          )
+          const metadataJson = JSON.stringify(metadata)
+
+          await client.insert(teamInvitationTable).values({
+            id: invitationId,
+            teamId: event.competitionTeamId,
+            email,
+            roleId: SYSTEM_ROLES_ENUM.VOLUNTEER,
+            isSystemRole: true,
+            token: createId(),
+            invitedBy: null,
+            expiresAt,
+            status: INVITATION_STATUS.PENDING,
+            metadata: metadataJson,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          })
+
+          created.push({
+            rowNumber: row.rowNumber,
+            email,
+            invitationId,
+          })
+        }
+      })
+    },
+  )
+
+  return buildManualCrewVolunteerMutationResult({
+    created,
+    skipped,
+    invalid: [],
+  })
+}
+
+async function withManualVolunteerIntakeBatchLock<T>(
+  db: DbClient,
+  competitionTeamId: string,
+  callback: () => Promise<T>,
+) {
+  let acquired = false
+  const lockName =
+    await createManualVolunteerIntakeBatchLockName(competitionTeamId)
+
+  try {
+    const result = await db.execute(
+      sql`SELECT GET_LOCK(${lockName}, 5) FROM dual`,
+    )
+    acquired = Number(getFirstExecuteValue(result) ?? 0) === 1
+    if (!acquired) {
+      throw new Error("Manual volunteer could not be saved")
+    }
+
+    return await callback()
+  } finally {
+    if (acquired) {
+      await db.execute(sql`SELECT RELEASE_LOCK(${lockName}) FROM dual`)
+    }
+  }
+}
+
+async function createManualVolunteerIntakeBatchLockName(
+  competitionTeamId: string,
+) {
+  const encoded = new TextEncoder().encode(
+    `crew-manual-volunteer:${competitionTeamId}`,
+  )
+  const digest = await crypto.subtle.digest("SHA-256", encoded)
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("")
+}
+
+async function listManualVolunteerInvitations(
+  db: DbClient,
+  competitionTeamId: string,
+): Promise<ExistingManualVolunteerInvitation[]> {
+  return db
+    .select({
+      id: teamInvitationTable.id,
+      email: teamInvitationTable.email,
+      acceptedAt: teamInvitationTable.acceptedAt,
+      status: teamInvitationTable.status,
+      metadata: teamInvitationTable.metadata,
+    })
+    .from(teamInvitationTable)
+    .where(
+      and(
+        eq(teamInvitationTable.teamId, competitionTeamId),
+        eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+        eq(teamInvitationTable.isSystemRole, true),
+      ),
+    )
+}
+
+async function listManualVolunteerMemberships(
+  db: DbClient,
+  competitionTeamId: string,
+): Promise<ExistingManualVolunteerMembership[]> {
+  return db
+    .select({
+      id: teamMembershipTable.id,
+      email: userTable.email,
+      isActive: teamMembershipTable.isActive,
+      metadata: teamMembershipTable.metadata,
+    })
+    .from(teamMembershipTable)
+    .leftJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
+    .where(
+      and(
+        eq(teamMembershipTable.teamId, competitionTeamId),
+        eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+        eq(teamMembershipTable.isSystemRole, true),
+      ),
+    )
+}
+
+function buildManualCrewVolunteerMutationResult(input: {
+  created: ManualCrewVolunteerCreatedRow[]
+  skipped: ManualCrewVolunteerSkippedRow[]
+  invalid: ManualVolunteerPasteInvalidRow[]
+}): ManualCrewVolunteerMutationResult {
+  return {
+    ...input,
+    summary: {
+      created: input.created.length,
+      skipped: input.skipped.length,
+      invalid: input.invalid.length,
+    },
+  }
 }
 
 export async function loadCrewShifts(

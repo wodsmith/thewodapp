@@ -1,7 +1,11 @@
 // @lat: [[crew#Roster Shifts Assignments]]
 // @lat: [[crew#Server Function Runtime Boundary]]
+// @lat: [[crew#Manual Volunteer Intake]]
 import { createServerFn } from "@tanstack/react-start"
-import { VOLUNTEER_ROLE_TYPE_VALUES } from "@repo/wodsmith-db/schemas/volunteers"
+import {
+  VOLUNTEER_AVAILABILITY,
+  VOLUNTEER_ROLE_TYPE_VALUES,
+} from "@repo/wodsmith-db/schemas/volunteers"
 import { z } from "zod"
 
 export type {
@@ -9,6 +13,7 @@ export type {
   CrewShiftBoardData,
   CrewShiftBoardItem,
   CrewShiftSummary,
+  ManualCrewVolunteerMutationResult,
 } from "../server/crew-roster-shift.server"
 
 const eventIdSchema = z.string().min(1, "Event ID is required")
@@ -18,6 +23,13 @@ const membershipIdSchema = z
   .string()
   .startsWith("tmem_", "Invalid membership ID")
 const roleTypeSchema = z.enum(VOLUNTEER_ROLE_TYPE_VALUES)
+const availabilitySchema = z
+  .enum([
+    VOLUNTEER_AVAILABILITY.MORNING,
+    VOLUNTEER_AVAILABILITY.AFTERNOON,
+    VOLUNTEER_AVAILABILITY.ALL_DAY,
+  ])
+  .optional()
 const shiftTextSchema = z.string().trim().max(1000).optional()
 const shiftDateSchema = z
   .string()
@@ -69,6 +81,30 @@ const deleteShiftInputSchema = z.object({
   shiftId: shiftIdSchema,
 })
 
+const manualVolunteerMetadataInputSchema = z.object({
+  eventId: eventIdSchema,
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email("Enter a valid email address")
+    .max(255),
+  name: z.string().trim().max(200).optional(),
+  phone: z.string().trim().max(50).optional(),
+  roleTypes: z
+    .array(roleTypeSchema)
+    .max(VOLUNTEER_ROLE_TYPE_VALUES.length)
+    .optional(),
+  availability: availabilitySchema,
+  availabilityNotes: z.string().trim().max(5000).optional(),
+  notes: z.string().trim().max(5000).optional(),
+})
+
+const manualVolunteerPasteInputSchema = z.object({
+  eventId: eventIdSchema,
+  pasteText: z.string().trim().min(1, "Paste at least one email").max(50000),
+})
+
 export const getCrewRosterPageFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => eventInputSchema.parse(data))
   .handler(async ({ data }) => {
@@ -105,6 +141,30 @@ export const createCrewShiftFn = createServerFn({ method: "POST" })
       "../server/crew-roster-shift.server"
     )
     return createCrewShift(data)
+  })
+
+export const createManualCrewVolunteerFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    manualVolunteerMetadataInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { createManualCrewVolunteer } = await import(
+      "../server/crew-roster-shift.server"
+    )
+    return createManualCrewVolunteer(data)
+  })
+
+export const pasteManualCrewVolunteerEmailsFn = createServerFn({
+  method: "POST",
+})
+  .inputValidator((data: unknown) =>
+    manualVolunteerPasteInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { pasteManualCrewVolunteerEmails } = await import(
+      "../server/crew-roster-shift.server"
+    )
+    return pasteManualCrewVolunteerEmails(data)
   })
 
 export const updateCrewShiftFn = createServerFn({ method: "POST" })
