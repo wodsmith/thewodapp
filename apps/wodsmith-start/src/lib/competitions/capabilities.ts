@@ -3,18 +3,21 @@ export type CompetitionCapability =
   | "videoSubmissions"
   | "submissionWindows"
   | "optInResultPublishing"
+  | "perpetual"
   | "heatScheduling"
   | "dayOfCheckIn"
   | "physicalVenue"
   | "volunteerScheduling"
   | "organizerEntersResults"
 
+export type RegisteredCompetitionTypeId = "in-person" | "online" | "benchmark"
+export type CompetitionTypeId = Exclude<RegisteredCompetitionTypeId, "benchmark">
 export type LeaderboardVariant = "standard" | "online"
 export type ResultsEntryMode = "organizer-entered" | "athlete-submitted"
 export type ResultsNavLabel = "Results" | "Submissions"
 
 export interface CompetitionTypeDef {
-  id: string
+  id: RegisteredCompetitionTypeId
   label: string
   createPickerDescription: string
   capabilities: ReadonlySet<CompetitionCapability>
@@ -32,7 +35,7 @@ export interface CompetitionTypePickerOption {
 const EMPTY_CAPABILITIES: ReadonlySet<CompetitionCapability> = new Set()
 
 export const COMPETITION_TYPE_REGISTRY: Readonly<
-  Record<"in-person" | "online", CompetitionTypeDef>
+  Record<RegisteredCompetitionTypeId, CompetitionTypeDef>
 > = {
   "in-person": {
     id: "in-person",
@@ -60,9 +63,15 @@ export const COMPETITION_TYPE_REGISTRY: Readonly<
       "optInResultPublishing",
     ]),
   },
+  benchmark: {
+    id: "benchmark",
+    label: "Benchmark",
+    createPickerDescription: "Perpetual benchmark board with video submissions",
+    leaderboardVariant: "online",
+    selectableOnCreate: false,
+    capabilities: new Set(["videoSubmissions", "perpetual"]),
+  },
 }
-
-export type CompetitionTypeId = keyof typeof COMPETITION_TYPE_REGISTRY
 
 export function competitionCan(
   type: string,

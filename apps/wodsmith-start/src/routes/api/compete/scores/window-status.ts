@@ -38,6 +38,14 @@ async function getSubmissionWindowStatus(
     }
   }
 
+  if (competitionCan(competition.competitionType, "perpetual")) {
+    return {
+      isOpen: true,
+      opensAt: null,
+      closesAt: null,
+    }
+  }
+
   if (!competitionCan(competition.competitionType, "submissionWindows")) {
     return {
       isOpen: false,

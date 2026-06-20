@@ -56,6 +56,7 @@ import { cohostGetOrganizerSubmissionsFn } from "@/server-fns/cohost/cohost-subm
 import { cn } from "@/utils/cn"
 import { isSafeUrl } from "@/utils/url"
 import { getCompetitionByIdFn } from "@/server-fns/competition-detail-fns"
+import { competitionCan } from "@/lib/competitions/capabilities"
 
 const FLAGGED_THRESHOLD = 3
 
@@ -97,10 +98,9 @@ export const Route = createFileRoute(
 
     const competitionTeamId = competition.competitionTeamId!
 
-    // Only allow for online competitions
-    if (competition.competitionType !== "online") {
+    if (!competitionCan(competition.competitionType, "videoSubmissions")) {
       throw new Error(
-        "Video submissions are only available for online competitions",
+        "Video submissions are not available for this competition type",
       )
     }
 

@@ -56,6 +56,7 @@ import {
   getCompetitionDivisionsForScoreEntryFn,
 } from "@/server-fns/competition-score-fns"
 import { getOrganizerSubmissionsFn } from "@/server-fns/video-submission-fns"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import { cn } from "@/utils/cn"
 import { isSafeUrl } from "@/utils/url"
 
@@ -97,10 +98,9 @@ export const Route = createFileRoute("/compete/$slug/review/$eventId/")({
       throw new Error("Competition not found")
     }
 
-    // Only allow for online competitions
-    if (competition.competitionType !== "online") {
+    if (!competitionCan(competition.competitionType, "videoSubmissions")) {
       throw new Error(
-        "Video submissions are only available for online competitions",
+        "Video submissions are not available for this competition type",
       )
     }
 

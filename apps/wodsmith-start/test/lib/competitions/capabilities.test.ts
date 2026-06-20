@@ -16,6 +16,7 @@ const CAPABILITIES: CompetitionCapability[] = [
 	"videoSubmissions",
 	"submissionWindows",
 	"optInResultPublishing",
+	"perpetual",
 	"heatScheduling",
 	"dayOfCheckIn",
 	"physicalVenue",
@@ -28,6 +29,7 @@ const EXPECTED = {
 		videoSubmissions: false,
 		submissionWindows: false,
 		optInResultPublishing: false,
+		perpetual: false,
 		heatScheduling: true,
 		dayOfCheckIn: true,
 		physicalVenue: true,
@@ -40,6 +42,7 @@ const EXPECTED = {
 		videoSubmissions: true,
 		submissionWindows: true,
 		optInResultPublishing: true,
+		perpetual: false,
 		heatScheduling: false,
 		dayOfCheckIn: false,
 		physicalVenue: false,
@@ -48,11 +51,24 @@ const EXPECTED = {
 		leaderboardVariant: "online",
 		selectableOnCreate: true,
 	},
+	benchmark: {
+		videoSubmissions: true,
+		submissionWindows: false,
+		optInResultPublishing: false,
+		perpetual: true,
+		heatScheduling: false,
+		dayOfCheckIn: false,
+		physicalVenue: false,
+		volunteerScheduling: false,
+		organizerEntersResults: false,
+		leaderboardVariant: "online",
+		selectableOnCreate: false,
+	},
 } as const
 
 describe("competition type capabilities", () => {
 	// @lat: [[competition-type-capabilities#Capability Truth Table Test#Current Type Matrix]]
-	it("pins every in-person and online capability to the existing behavior table", () => {
+	it("pins every registered capability to the expected behavior table", () => {
 		for (const [type, expected] of Object.entries(EXPECTED)) {
 			for (const capability of CAPABILITIES) {
 				expect(competitionCan(type, capability), `${type}:${capability}`).toBe(
@@ -68,6 +84,7 @@ describe("competition type capabilities", () => {
 	// @lat: [[competition-type-capabilities#Capability Truth Table Test#Registry Metadata Alignment]]
 	it("keeps registry metadata aligned with the supported type identities", () => {
 		expect(Object.keys(COMPETITION_TYPE_REGISTRY).sort()).toEqual([
+			"benchmark",
 			"in-person",
 			"online",
 		])
@@ -82,11 +99,11 @@ describe("competition type capabilities", () => {
 	// @lat: [[competition-type-capabilities#Capability Truth Table Test#Unknown Type Fallback]]
 	it("falls back safely for unknown competition types", () => {
 		for (const capability of CAPABILITIES) {
-			expect(competitionCan("benchmark", capability)).toBe(false)
+			expect(competitionCan("unregistered", capability)).toBe(false)
 		}
 
-		expect(leaderboardVariant("benchmark")).toBe("standard")
-		expect(isSelectableType("benchmark")).toBe(false)
+		expect(leaderboardVariant("unregistered")).toBe("standard")
+		expect(isSelectableType("unregistered")).toBe(false)
 	})
 
 	// @lat: [[competition-type-capabilities#Create Picker Selectability Test]]
@@ -102,6 +119,7 @@ describe("competition type capabilities", () => {
 			expect(isSelectableType(type.id)).toBe(true)
 			expect(isSelectableCompetitionTypeValue(type.id)).toBe(true)
 		}
+		expect(isSelectableType("benchmark")).toBe(false)
 		expect(isSelectableCompetitionTypeValue("benchmark")).toBe(false)
 		expect(isSelectableCompetitionTypeValue(null)).toBe(false)
 
@@ -128,5 +146,8 @@ describe("competition type capabilities", () => {
 
 		expect(resultsEntryMode("online")).toBe("athlete-submitted")
 		expect(resultsNavLabel("online")).toBe("Submissions")
+
+		expect(resultsEntryMode("benchmark")).toBe("athlete-submitted")
+		expect(resultsNavLabel("benchmark")).toBe("Submissions")
 	})
 })
