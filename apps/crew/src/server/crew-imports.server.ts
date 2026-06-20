@@ -1,4 +1,5 @@
 // @lat: [[crew#Import CSV Preview#Preview Records]]
+// @lat: [[crew#Remember Import Mappings]]
 import { createId } from "@paralleldrive/cuid2"
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm"
 import { z } from "zod"
@@ -15,6 +16,7 @@ import {
 import {
   createCompetitionHeatId,
   createCompetitionVenueId,
+  createCrewImportMappingPresetId,
   createCrewImportId,
   createProgrammingTrackId,
   createTeamInvitationId,
@@ -26,6 +28,10 @@ import {
   competitionsTable,
 } from "../db/schemas/competitions"
 import { crewEventSettingsTable } from "../db/schemas/crew-event-settings"
+import {
+  crewImportMappingPresetsTable,
+  type CrewImportMappingPreset,
+} from "../db/schemas/crew-self-serve-presets"
 import {
   PROGRAMMING_TRACK_TYPE,
   programmingTracksTable,
@@ -67,6 +73,14 @@ import {
   buildCrewImportPreview,
   defaultCrewImportRoleLabels,
 } from "../lib/crew/imports/preview"
+import {
+  buildCrewImportMappingPresetWrite,
+  computeImportHeaderFingerprint,
+  normalizeImportMappingSourcePlatform,
+  selectCrewImportMappingSuggestion,
+  type CrewImportMappingPresetCandidate,
+  type CrewImportMappingSuggestion,
+} from "../lib/crew/imports/mapping-memory"
 import {
   CREW_IMPORT_PARSER_VERSION,
   type ColumnMapping,
@@ -137,6 +151,23 @@ const applyCrewImportInputSchema = z.object({
   confirmed: z.literal(true),
 })
 
+const mappingMemoryKindSchema = z.enum([
+  CREW_IMPORT_KIND.VOLUNTEERS,
+  CREW_IMPORT_KIND.HEAT_SCHEDULE,
+])
+
+const crewImportMappingSuggestionInputSchema = z.object({
+  eventId: z.string().min(1, "Event ID is required"),
+  kind: mappingMemoryKindSchema,
+  sourcePlatform: z.string().trim().max(100).nullable().optional(),
+  headers: z.array(z.string().trim()).min(1).max(200),
+})
+
+const saveCrewImportMappingPresetInputSchema =
+  crewImportMappingSuggestionInputSchema.extend({
+    columnMapping: z.record(z.string(), z.string()),
+  })
+
 export interface CrewImportHistoryItem {
   id: string
   kind: CrewImport["kind"]
@@ -194,6 +225,16 @@ export interface CrewImportsPageData {
   reference: CrewImportReferenceData
 }
 
+export interface CrewImportMappingSuggestionResult {
+  suggestion: CrewImportMappingSuggestion | null
+}
+
+export interface CrewImportMappingPresetSaveResult {
+  success: true
+  presetId: string
+  suggestion: CrewImportMappingSuggestion
+}
+
 export async function loadCrewImportsPageData(
   eventId: string,
 ): Promise<CrewImportsPageData> {
@@ -205,6 +246,109 @@ export async function loadCrewImportsPageData(
   ])
 
   return { reference, history }
+}
+
+export async function getCrewImportMappingSuggestion(input: {
+  eventId: string
+  kind: CrewImportKind
+  sourcePlatform?: string | null
+  headers: string[]
+}): Promise<CrewImportMappingSuggestionResult> {
+  requireLocalCrewOperatorAccess("Crew import mappings")
+
+  const data = crewImportMappingSuggestionInputSchema.parse(input)
+  const event = await requireCrewEvent(data.eventId)
+  const suggestion = await loadCrewImportMappingSuggestion({
+    teamId: event.organizingTeamId,
+    kind: data.kind,
+    sourcePlatform: data.sourcePlatform,
+    headers: data.headers,
+  })
+
+  return { suggestion }
+}
+
+export async function saveCrewImportMappingPreset(input: {
+  eventId: string
+  kind: CrewImportKind
+  sourcePlatform?: string | null
+  headers: string[]
+  columnMapping: ColumnMapping
+}): Promise<CrewImportMappingPresetSaveResult> {
+  requireLocalCrewOperatorAccess("Crew import mappings")
+
+  const data = saveCrewImportMappingPresetInputSchema.parse(input)
+  const event = await requireCrewEvent(data.eventId)
+  const presetWrite = buildCrewImportMappingPresetWrite({
+    teamId: event.organizingTeamId,
+    competitionId: event.id,
+    kind: data.kind,
+    sourcePlatform: data.sourcePlatform,
+    headers: data.headers,
+    columnMapping: data.columnMapping,
+  })
+
+  if (!presetWrite) {
+    throw new CrewImportError(
+      "INVALID_COLUMN_MAPPING",
+      "Map at least one Crew import field before saving this mapping.",
+      400,
+    )
+  }
+
+  const db = getDb()
+  const timestamp = new Date()
+  await db
+    .insert(crewImportMappingPresetsTable)
+    .values({
+      id: createCrewImportMappingPresetId(),
+      teamId: presetWrite.teamId,
+      competitionId: presetWrite.competitionId,
+      kind: presetWrite.kind,
+      sourcePlatform: presetWrite.sourcePlatform,
+      name: presetWrite.name,
+      headerFingerprint: presetWrite.headerFingerprint,
+      headers: presetWrite.headers,
+      columnMapping: presetWrite.columnMapping,
+      parserVersion: presetWrite.parserVersion,
+      lastUsedAt: timestamp,
+      metadata: presetWrite.metadata,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    })
+    .onDuplicateKeyUpdate({
+      set: {
+        competitionId: presetWrite.competitionId,
+        name: presetWrite.name,
+        headers: presetWrite.headers,
+        columnMapping: presetWrite.columnMapping,
+        parserVersion: presetWrite.parserVersion,
+        lastUsedAt: timestamp,
+        metadata: presetWrite.metadata,
+        updatedAt: timestamp,
+      },
+    })
+
+  const suggestion = await loadCrewImportMappingSuggestion({
+    teamId: event.organizingTeamId,
+    kind: data.kind,
+    sourcePlatform: data.sourcePlatform,
+    headers: data.headers,
+  })
+
+  if (!suggestion) {
+    throw new CrewImportError(
+      "INVALID_COLUMN_MAPPING",
+      "Saved mapping could not be loaded.",
+      500,
+    )
+  }
+
+  return {
+    success: true,
+    presetId: suggestion.presetId,
+    suggestion,
+  }
 }
 
 export async function createCrewImportPreviewRecord(input: {
@@ -1483,6 +1627,96 @@ async function listCrewImportHistory(
     .limit(25)
 }
 
+async function loadCrewImportMappingSuggestion({
+  teamId,
+  sourcePlatform,
+  kind,
+  headers,
+}: {
+  teamId: string
+  sourcePlatform?: string | null
+  kind: CrewImportKind
+  headers: string[]
+}) {
+  const db = getDb()
+  const normalizedSourcePlatform =
+    normalizeImportMappingSourcePlatform(sourcePlatform)
+  const headerFingerprint = computeImportHeaderFingerprint(headers)
+  const candidates = await db
+    .select({
+      id: crewImportMappingPresetsTable.id,
+      teamId: crewImportMappingPresetsTable.teamId,
+      kind: crewImportMappingPresetsTable.kind,
+      sourcePlatform: crewImportMappingPresetsTable.sourcePlatform,
+      name: crewImportMappingPresetsTable.name,
+      headerFingerprint: crewImportMappingPresetsTable.headerFingerprint,
+      headers: crewImportMappingPresetsTable.headers,
+      columnMapping: crewImportMappingPresetsTable.columnMapping,
+      parserVersion: crewImportMappingPresetsTable.parserVersion,
+      lastUsedAt: crewImportMappingPresetsTable.lastUsedAt,
+      createdAt: crewImportMappingPresetsTable.createdAt,
+      updatedAt: crewImportMappingPresetsTable.updatedAt,
+    })
+    .from(crewImportMappingPresetsTable)
+    .where(
+      and(
+        eq(crewImportMappingPresetsTable.teamId, teamId),
+        eq(
+          crewImportMappingPresetsTable.sourcePlatform,
+          normalizedSourcePlatform,
+        ),
+        eq(crewImportMappingPresetsTable.kind, kind),
+        eq(crewImportMappingPresetsTable.headerFingerprint, headerFingerprint),
+      ),
+    )
+    .orderBy(
+      desc(crewImportMappingPresetsTable.lastUsedAt),
+      desc(crewImportMappingPresetsTable.updatedAt),
+    )
+    .limit(5)
+
+  return selectCrewImportMappingSuggestion({
+    teamId,
+    sourcePlatform: normalizedSourcePlatform,
+    kind,
+    headers,
+    candidates: candidates.map(toCrewImportMappingPresetCandidate),
+  })
+}
+
+function toCrewImportMappingPresetCandidate(
+  preset: Pick<
+    CrewImportMappingPreset,
+    | "id"
+    | "teamId"
+    | "kind"
+    | "sourcePlatform"
+    | "name"
+    | "headerFingerprint"
+    | "headers"
+    | "columnMapping"
+    | "parserVersion"
+    | "lastUsedAt"
+    | "createdAt"
+    | "updatedAt"
+  >,
+): CrewImportMappingPresetCandidate {
+  return {
+    id: preset.id,
+    teamId: preset.teamId,
+    kind: preset.kind as CrewImportKind,
+    sourcePlatform: preset.sourcePlatform,
+    name: preset.name,
+    headerFingerprint: preset.headerFingerprint,
+    headers: toStringArray(preset.headers),
+    columnMapping: toColumnMapping(preset.columnMapping),
+    parserVersion: preset.parserVersion,
+    lastUsedAt: preset.lastUsedAt,
+    createdAt: preset.createdAt,
+    updatedAt: preset.updatedAt,
+  }
+}
+
 async function loadCrewImportReferenceData(
   eventId: string,
 ): Promise<CrewImportReferenceData> {
@@ -1607,6 +1841,24 @@ function toRecord(value: CrewImportRow["rawRow"]) {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, string>)
     : {}
+}
+
+function toStringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.flatMap((item) => (typeof item === "string" ? [item] : []))
+    : []
+}
+
+function toColumnMapping(value: unknown): ColumnMapping {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {}
+
+  const mapping: ColumnMapping = {}
+  for (const [field, header] of Object.entries(value)) {
+    if (typeof header === "string") {
+      mapping[field] = header
+    }
+  }
+  return mapping
 }
 
 function toPayload(row: PreviewImportRow["normalizedRow"]) {

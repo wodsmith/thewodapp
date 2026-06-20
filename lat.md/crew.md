@@ -200,6 +200,14 @@ Self-serve Crew setup keeps reusable setup memory in shared DB tables owned by `
 
 `crew_department_leads` stores event-scoped delegation records for role, floor, and time-slice access without expanding the broad team permission model. IDs use the `cdlead_` prefix.
 
+## Remember Import Mappings
+
+Crew import mapping memory stores confirmed CSV header mappings in `crew_import_mapping_presets` by team, source platform, import kind, and deterministic header fingerprint.
+
+[[apps/crew/src/lib/crew/imports/mapping-memory.ts]] owns pure header fingerprinting, source normalization, scoped suggestion selection, and save-payload sanitization. [[apps/crew/src/server-fns/crew-import-fns.ts]] keeps the route-facing functions thin while [[apps/crew/src/server/crew-imports.server.ts]] loads and upserts presets through the shared table.
+
+[[apps/crew/src/routes/events/$eventId/imports.tsx]] surfaces saved mappings as explicit suggestions. Operators must click to use or remember a mapping; previews and applies continue to use the currently visible mapping and never rewrite historical `crew_import_rows`.
+
 ## Guided Setup State
 
 Guided setup turns Crew readiness facts and operator overrides into a per-event self-serve checklist stored in `crew_event_settings.settings`.
