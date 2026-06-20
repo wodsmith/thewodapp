@@ -1,5 +1,6 @@
 // @lat: [[crew#Pilot Readiness Checklist]]
 // @lat: [[crew#Staffing Page Gap Report]]
+// @lat: [[crew#Day Of Operations Board]]
 import { createFileRoute, Link, notFound, Outlet } from "@tanstack/react-router"
 import { getCrewEventFn } from "@/server-fns/crew-event-settings-fns"
 
@@ -93,6 +94,14 @@ function EventShell() {
             className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             Judges
+          </Link>
+          <Link
+            to="/events/$eventId/day-of"
+            params={{ eventId }}
+            activeProps={{ className: "bg-muted text-foreground" }}
+            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            Day-of
           </Link>
           <Link
             to="/events/$eventId/schedule"
