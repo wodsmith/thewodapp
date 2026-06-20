@@ -8,6 +8,7 @@ import {
   requireCrewStaffingEvent,
   type CrewStaffingReportEvent,
 } from "../server-fns/crew-staffing-fns.server"
+import { requireLocalCrewOperatorAccess } from "../server/crew-local-access"
 import type {
   CrewStaffingJudgeAssignmentInput,
   CrewStaffingMatrixInput,
@@ -31,6 +32,8 @@ export interface CrewPilotExportsPageData {
 export async function getCrewPilotExportsPage(data: {
   eventId: string
 }): Promise<CrewPilotExportsPageData> {
+  requireLocalCrewOperatorAccess("Crew pilot exports")
+
   const event = await requireCrewStaffingEvent(data.eventId)
   const { input, activeJudgeVersions } =
     await loadCrewStaffingMatrixInput(event)
