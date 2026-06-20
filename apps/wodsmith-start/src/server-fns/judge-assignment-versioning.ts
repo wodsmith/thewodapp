@@ -13,6 +13,8 @@ import {
 import { getFirstExecuteValue } from "./db-execute"
 
 type DbClient = ReturnType<typeof getDb>
+type TransactionCallback = Parameters<DbClient["transaction"]>[0]
+type TransactionClient = Parameters<TransactionCallback>[0]
 type JudgeAssignmentVersionRow =
   typeof judgeAssignmentVersionsTable.$inferSelect
 type JudgeHeatAssignmentRow = typeof judgeHeatAssignmentsTable.$inferSelect
@@ -32,10 +34,25 @@ export interface PublishedJudgeAssignmentRevision {
   resultAssignmentIds: string[]
 }
 
+export type MaterializedJudgeAssignmentForVersion = Pick<
+  JudgeHeatAssignmentInsert,
+  "heatId" | "membershipId" | "rotationId" | "laneNumber" | "position"
+>
+
+export interface PublishMaterializedJudgeAssignmentsVersionParams {
+  trackWorkoutId: string
+  publishedBy: string
+  notes?: string | null
+}
+
 export function getNextJudgeAssignmentVersionNumber(
   versions: Pick<JudgeAssignmentVersionRow, "version">[],
 ) {
-  return versions.length > 0 ? (versions[0]?.version ?? 0) + 1 : 1
+  const currentMax = versions.reduce(
+    (max, version) => Math.max(max, version.version),
+    0,
+  )
+  return currentMax + 1
 }
 
 export function cloneJudgeAssignmentsForRevision(
@@ -84,6 +101,7 @@ export async function withJudgeAssignmentVersionLock<T>(
   callback: () => Promise<T>,
 ) {
   let acquired = false
+  let callbackFailed = false
   const lockName = await createJudgeAssignmentVersionLockName(trackWorkoutId)
 
   try {
@@ -95,12 +113,97 @@ export async function withJudgeAssignmentVersionLock<T>(
       throw new Error("Judge assignment version could not be published")
     }
 
-    return await callback()
+    try {
+      return await callback()
+    } catch (error) {
+      callbackFailed = true
+      throw error
+    }
   } finally {
     if (acquired) {
-      await db.execute(sql`SELECT RELEASE_LOCK(${lockName}) FROM dual`)
+      try {
+        await db.execute(sql`SELECT RELEASE_LOCK(${lockName}) FROM dual`)
+      } catch (releaseError) {
+        if (callbackFailed) {
+          console.warn(
+            "Failed to release judge assignment version lock after callback error",
+            releaseError,
+          )
+        } else {
+          console.warn(
+            "Failed to release judge assignment version lock",
+            releaseError,
+          )
+        }
+      }
     }
   }
+}
+
+export async function publishMaterializedJudgeAssignmentsVersion(
+  db: DbClient,
+  params: PublishMaterializedJudgeAssignmentsVersionParams,
+  materializeAssignments: (
+    tx: TransactionClient,
+  ) => Promise<MaterializedJudgeAssignmentForVersion[]>,
+) {
+  return withJudgeAssignmentVersionLock(db, params.trackWorkoutId, async () =>
+    db.transaction(async (tx) => {
+      const versions = await tx.query.judgeAssignmentVersionsTable.findMany({
+        where: eq(
+          judgeAssignmentVersionsTable.trackWorkoutId,
+          params.trackWorkoutId,
+        ),
+        orderBy: desc(judgeAssignmentVersionsTable.version),
+      })
+      const nextVersion = getNextJudgeAssignmentVersionNumber(versions)
+      const newVersionId = createJudgeAssignmentVersionId()
+      const materializedAssignments = await materializeAssignments(tx)
+
+      await tx
+        .update(judgeAssignmentVersionsTable)
+        .set({ isActive: false, updatedAt: new Date() })
+        .where(
+          eq(
+            judgeAssignmentVersionsTable.trackWorkoutId,
+            params.trackWorkoutId,
+          ),
+        )
+
+      await tx.insert(judgeAssignmentVersionsTable).values({
+        id: newVersionId,
+        trackWorkoutId: params.trackWorkoutId,
+        version: nextVersion,
+        publishedBy: params.publishedBy,
+        notes: params.notes ?? null,
+        isActive: true,
+      })
+
+      const version = await tx.query.judgeAssignmentVersionsTable.findFirst({
+        where: eq(judgeAssignmentVersionsTable.id, newVersionId),
+      })
+
+      if (!version) {
+        throw new Error("Failed to create version")
+      }
+
+      if (materializedAssignments.length > 0) {
+        await tx.insert(judgeHeatAssignmentsTable).values(
+          materializedAssignments.map((assignment) => ({
+            heatId: assignment.heatId,
+            membershipId: assignment.membershipId,
+            rotationId: assignment.rotationId,
+            laneNumber: assignment.laneNumber,
+            position: assignment.position,
+            versionId: version.id,
+            isManualOverride: false,
+          })),
+        )
+      }
+
+      return version
+    }),
+  )
 }
 
 export async function createPublishedJudgeAssignmentRevision(

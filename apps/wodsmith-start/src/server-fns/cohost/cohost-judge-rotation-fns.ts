@@ -5,7 +5,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, asc, desc, eq, inArray } from "drizzle-orm"
+import { and, asc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import type {
@@ -24,15 +24,14 @@ import {
   programmingTracksTable,
   trackWorkoutsTable,
 } from "@/db/schema"
-import { createJudgeAssignmentVersionId } from "@/db/schemas/common"
 import { expandRotationToAssignments } from "@/lib/judge-rotation-utils"
 import {
   requireCohostCompetitionOwnership,
   requireCohostPermission,
 } from "@/utils/cohost-auth"
 import {
-  getNextJudgeAssignmentVersionNumber,
-  withJudgeAssignmentVersionLock,
+  type MaterializedJudgeAssignmentForVersion,
+  publishMaterializedJudgeAssignmentsVersion,
 } from "../judge-assignment-versioning"
 
 // ============================================================================
@@ -486,18 +485,12 @@ function calculateLane(
 /**
  * Expand rotations into individual heat+lane assignments
  */
-async function materializeRotations(trackWorkoutId: string, maxLanes: number) {
-  const db = getDb()
-
-  type MaterializedAssignment = Record<string, unknown> & {
-    heatId: string
-    membershipId: string
-    rotationId: string
-    laneNumber: number
-    position: "judge"
-  }
-
-  const assignments: MaterializedAssignment[] = []
+async function materializeRotations(
+  db: Pick<ReturnType<typeof getDb>, "query" | "select">,
+  trackWorkoutId: string,
+  maxLanes: number,
+) {
+  const assignments: MaterializedJudgeAssignmentForVersion[] = []
 
   const rotations = await db.query.competitionJudgeRotationsTable.findMany({
     where: eq(competitionJudgeRotationsTable.trackWorkoutId, trackWorkoutId),
@@ -1066,77 +1059,14 @@ export const cohostPublishRotationsFn = createServerFn({ method: "POST" })
       3,
     )
 
-    // Materialize all rotations
-    const materializedAssignments = await materializeRotations(
-      data.trackWorkoutId,
-      maxLanes,
-    )
-
-    const newVersion = await withJudgeAssignmentVersionLock(
+    const newVersion = await publishMaterializedJudgeAssignmentsVersion(
       db,
-      data.trackWorkoutId,
-      async () =>
-        db.transaction(async (tx) => {
-          const versions = await tx.query.judgeAssignmentVersionsTable.findMany(
-            {
-              where: eq(
-                judgeAssignmentVersionsTable.trackWorkoutId,
-                data.trackWorkoutId,
-              ),
-              orderBy: desc(judgeAssignmentVersionsTable.version),
-            },
-          )
-          const nextVersion = getNextJudgeAssignmentVersionNumber(versions)
-          const newVersionId = createJudgeAssignmentVersionId()
-
-          // Deactivate previous versions
-          await tx
-            .update(judgeAssignmentVersionsTable)
-            .set({ isActive: false, updatedAt: new Date() })
-            .where(
-              eq(
-                judgeAssignmentVersionsTable.trackWorkoutId,
-                data.trackWorkoutId,
-              ),
-            )
-
-          // Create new version
-          await tx.insert(judgeAssignmentVersionsTable).values({
-            id: newVersionId,
-            trackWorkoutId: data.trackWorkoutId,
-            version: nextVersion,
-            publishedBy: data.publishedBy,
-            notes: data.notes ?? null,
-            isActive: true,
-          })
-
-          const version = await tx.query.judgeAssignmentVersionsTable.findFirst(
-            {
-              where: eq(judgeAssignmentVersionsTable.id, newVersionId),
-            },
-          )
-
-          if (!version) {
-            throw new Error("Failed to create version")
-          }
-
-          // Bulk insert all assignments
-          if (materializedAssignments.length > 0) {
-            await tx.insert(judgeHeatAssignmentsTable).values(
-              materializedAssignments.map((a) => ({
-                heatId: a.heatId,
-                membershipId: a.membershipId,
-                rotationId: a.rotationId,
-                laneNumber: a.laneNumber,
-                position: a.position,
-                versionId: version.id,
-                isManualOverride: false,
-              })),
-            )
-          }
-
-          return version
-        }),
+      {
+        trackWorkoutId: data.trackWorkoutId,
+        publishedBy: data.publishedBy,
+        notes: data.notes,
+      },
+      (tx) => materializeRotations(tx, data.trackWorkoutId, maxLanes),
     )
 
     return newVersion

@@ -338,7 +338,8 @@ export function JudgeHeatCard({
     revisionPublished?: boolean
   }) {
     if (!result.revisionPublished) return false
-    await onScheduleRevisionPublished?.()
+    if (!onScheduleRevisionPublished) return false
+    await onScheduleRevisionPublished()
     return true
   }
 
@@ -479,6 +480,7 @@ export function JudgeHeatCard({
 
         if (result?.data) {
           if (await refreshAfterRevisionIfNeeded(result)) {
+            onClearSelection?.()
             return
           }
 
@@ -513,6 +515,7 @@ export function JudgeHeatCard({
 
         if (result?.data) {
           if (await refreshAfterRevisionIfNeeded(result)) {
+            onClearSelection?.()
             return
           }
 

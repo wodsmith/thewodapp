@@ -20,12 +20,11 @@ import {
   programmingTracksTable,
   trackWorkoutsTable,
 } from "@/db/schema"
-import { createJudgeAssignmentVersionId } from "@/db/schemas/common"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { requireTeamPermission } from "@/utils/team-auth"
 import {
-  getNextJudgeAssignmentVersionNumber,
-  withJudgeAssignmentVersionLock,
+  type MaterializedJudgeAssignmentForVersion,
+  publishMaterializedJudgeAssignmentsVersion,
 } from "./judge-assignment-versioning"
 
 // ============================================================================
@@ -42,14 +41,6 @@ export interface PublishRotationsParams {
 export interface RollbackToVersionParams {
   versionId: string
   teamId: string // For permission check
-}
-
-type MaterializedAssignment = Record<string, unknown> & {
-  heatId: string
-  membershipId: string
-  rotationId: string
-  laneNumber: number
-  position: "judge" // Judge rotations always create judge assignments
 }
 
 // ============================================================================
@@ -114,11 +105,11 @@ function calculateLane(
  * Expand rotations into individual heat+lane assignments
  */
 async function materializeRotations(
+  db: Pick<ReturnType<typeof getDb>, "query" | "select">,
   trackWorkoutId: string,
   maxLanes: number,
-): Promise<MaterializedAssignment[]> {
-  const db = getDb()
-  const assignments: MaterializedAssignment[] = []
+): Promise<MaterializedJudgeAssignmentForVersion[]> {
+  const assignments: MaterializedJudgeAssignmentForVersion[] = []
 
   // Get all rotations for this event
   const rotations = await db.query.competitionJudgeRotationsTable.findMany({
@@ -360,78 +351,15 @@ export const publishRotationsFn = createServerFn({ method: "POST" })
       3,
     )
 
-    // Materialize all rotations (read-only, before transaction)
-    const materializedAssignments = await materializeRotations(
-      data.trackWorkoutId,
-      maxLanes,
-    )
-
-    // Use transaction for atomic version switch + assignment creation
-    const newVersion = await withJudgeAssignmentVersionLock(
+    // Materialize rotations inside the publish lock + transaction.
+    const newVersion = await publishMaterializedJudgeAssignmentsVersion(
       db,
-      data.trackWorkoutId,
-      async () =>
-        db.transaction(async (tx) => {
-          const versions = await tx.query.judgeAssignmentVersionsTable.findMany(
-            {
-              where: eq(
-                judgeAssignmentVersionsTable.trackWorkoutId,
-                data.trackWorkoutId,
-              ),
-              orderBy: desc(judgeAssignmentVersionsTable.version),
-            },
-          )
-          const nextVersion = getNextJudgeAssignmentVersionNumber(versions)
-          const newVersionId = createJudgeAssignmentVersionId()
-
-          // Deactivate previous versions
-          await tx
-            .update(judgeAssignmentVersionsTable)
-            .set({ isActive: false, updatedAt: new Date() })
-            .where(
-              eq(
-                judgeAssignmentVersionsTable.trackWorkoutId,
-                data.trackWorkoutId,
-              ),
-            )
-
-          // Create new version
-          await tx.insert(judgeAssignmentVersionsTable).values({
-            id: newVersionId,
-            trackWorkoutId: data.trackWorkoutId,
-            version: nextVersion,
-            publishedBy: data.publishedBy,
-            notes: data.notes ?? null,
-            isActive: true,
-          })
-
-          const version = await tx.query.judgeAssignmentVersionsTable.findFirst(
-            {
-              where: eq(judgeAssignmentVersionsTable.id, newVersionId),
-            },
-          )
-
-          if (!version) {
-            throw new Error("Failed to create version")
-          }
-
-          // Bulk insert all assignments in a single query (MySQL has no param limit)
-          if (materializedAssignments.length > 0) {
-            await tx.insert(judgeHeatAssignmentsTable).values(
-              materializedAssignments.map((a) => ({
-                heatId: a.heatId,
-                membershipId: a.membershipId,
-                rotationId: a.rotationId,
-                laneNumber: a.laneNumber,
-                position: a.position,
-                versionId: version.id,
-                isManualOverride: false,
-              })),
-            )
-          }
-
-          return version
-        }),
+      {
+        trackWorkoutId: data.trackWorkoutId,
+        publishedBy: data.publishedBy,
+        notes: data.notes,
+      },
+      (tx) => materializeRotations(tx, data.trackWorkoutId, maxLanes),
     )
 
     return newVersion

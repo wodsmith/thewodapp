@@ -88,7 +88,7 @@ const heatIdSchema = z.string().startsWith("cheat_", "Invalid heat ID")
 
 const assignmentIdSchema = z
   .string()
-  .startsWith("chvol_", "Invalid assignment ID")
+  .startsWith("hvol_", "Invalid assignment ID")
 
 const volunteerRoleTypeSchema = z.enum([
   VOLUNTEER_ROLE_TYPES.JUDGE,
@@ -377,9 +377,7 @@ export const getJudgeSchedulingDataForEventsFn = createServerFn({
   method: "GET",
 })
   .inputValidator((data: unknown) =>
-    z
-      .object({ trackWorkoutIds: z.array(z.string().min(1)) })
-      .parse(data),
+    z.object({ trackWorkoutIds: z.array(z.string().min(1)) }).parse(data),
   )
   .handler(async ({ data }) => {
     const { trackWorkoutIds } = data
@@ -480,9 +478,7 @@ export const getJudgeSchedulingDataForEventsFn = createServerFn({
     // Assignments only exist under a published (active) version; a version
     // belongs to exactly one event, so filtering by active version ids is
     // sufficient to scope assignments to their events.
-    const activeVersionIds = versions
-      .filter((v) => v.isActive)
-      .map((v) => v.id)
+    const activeVersionIds = versions.filter((v) => v.isActive).map((v) => v.id)
 
     if (activeVersionIds.length > 0) {
       const assignments = await db

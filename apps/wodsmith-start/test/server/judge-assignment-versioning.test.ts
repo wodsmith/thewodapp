@@ -1,5 +1,3 @@
-// @lat: [[crew#Judge Assignment Version Publishing]]
-
 import { describe, expect, it, vi } from "vitest"
 import {
   cloneJudgeAssignmentsForRevision,
@@ -9,9 +7,17 @@ import {
   withJudgeAssignmentVersionLock,
 } from "@/server-fns/judge-assignment-versioning"
 
+// @lat: [[crew#Judge Assignment Version Publishing]]
 describe("judge assignment version publishing helpers", () => {
-  it("allocates the next version from the current highest version", () => {
+  it("allocates the next version from the current max version defensively", () => {
     expect(getNextJudgeAssignmentVersionNumber([])).toBe(1)
+    expect(
+      getNextJudgeAssignmentVersionNumber([
+        { version: 4 },
+        { version: 9 },
+        { version: 5 },
+      ]),
+    ).toBe(10)
     expect(
       getNextJudgeAssignmentVersionNumber([{ version: 5 }, { version: 4 }]),
     ).toBe(6)
@@ -115,6 +121,48 @@ describe("judge assignment version publishing helpers", () => {
     ).resolves.toBe("published")
 
     expect(db.execute).toHaveBeenCalledTimes(2)
+  })
+
+  it("does not mask a successful publish when lock release fails", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+    const db = {
+      execute: vi
+        .fn()
+        .mockResolvedValueOnce([[{ lockAcquired: 1 }]])
+        .mockRejectedValueOnce(new Error("release failed")),
+    }
+
+    await expect(
+      withJudgeAssignmentVersionLock(db, "tw_event1", async () => "published"),
+    ).resolves.toBe("published")
+
+    expect(warn).toHaveBeenCalledWith(
+      "Failed to release judge assignment version lock",
+      expect.any(Error),
+    )
+    warn.mockRestore()
+  })
+
+  it("preserves callback errors when lock release also fails", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+    const db = {
+      execute: vi
+        .fn()
+        .mockResolvedValueOnce([[{ lockAcquired: 1 }]])
+        .mockRejectedValueOnce(new Error("release failed")),
+    }
+
+    await expect(
+      withJudgeAssignmentVersionLock(db, "tw_event1", async () => {
+        throw new Error("publish failed")
+      }),
+    ).rejects.toThrow("publish failed")
+
+    expect(warn).toHaveBeenCalledWith(
+      "Failed to release judge assignment version lock after callback error",
+      expect.any(Error),
+    )
+    warn.mockRestore()
   })
 
   it("does not run the callback when the advisory lock cannot be acquired", async () => {
