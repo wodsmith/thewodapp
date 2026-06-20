@@ -1,3 +1,4 @@
+// @lat: [[crew#Confirmation Emails And Reminders]]
 import { describe, expect, it } from "vitest"
 import { CREW_ASSIGNMENT_CONFIRMATION_STATUS } from "../../db/schemas/crew-imports"
 import {

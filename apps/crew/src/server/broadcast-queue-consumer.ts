@@ -155,7 +155,7 @@ async function handleCrewAssignmentEmailMessage(params: {
     console.log(
       `[Email Preview] To: ${body.email} | Subject: ${body.subject} | Crew confirmation: ${body.confirmationId}`,
     )
-    message.ack()
+    message.retry()
     return
   }
 
@@ -197,11 +197,13 @@ async function handleCrewAssignmentEmailMessage(params: {
           error: errorBody,
         },
       })
-    } else {
-      sendSucceeded = true
-      await markCrewAssignmentEmailDelivered({ db, body })
+      await delay(SEND_DELAY_MS)
+      message.retry()
+      return
     }
 
+    sendSucceeded = true
+    await markCrewAssignmentEmailDelivered({ db, body })
     await delay(SEND_DELAY_MS)
     message.ack()
   } catch (err) {
@@ -213,7 +215,7 @@ async function handleCrewAssignmentEmailMessage(params: {
         sendSucceeded,
       },
     })
-    message.ack()
+    message.retry()
   }
 }
 

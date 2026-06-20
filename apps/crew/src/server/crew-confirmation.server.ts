@@ -184,6 +184,7 @@ interface PublicTokenResponseInput extends PublicTokenInput {
 
 interface CrewAssignmentEmailCandidate
   extends CrewAssignmentConfirmationEmailCandidate {
+  tokenHash: string
   event: CrewConfirmationCompetition
   volunteer: { name: string; email: string }
   assignment: {
@@ -606,34 +607,56 @@ export async function queueCrewAssignmentConfirmationEmails(
       continue
     }
 
-    const token = generateCrewAssignmentConfirmationToken()
-    const tokenHash = await hashCrewAssignmentConfirmationToken(token)
-    const expiresAt = getAssignmentConfirmationExpiry(now)
-    const message = await buildCrewAssignmentEmailQueueMessage({
-      operation,
-      event: candidate.event,
-      volunteer: candidate.volunteer,
-      assignment: candidate.assignment,
-      token,
-      queuedAt: now,
-    })
-
-    if (!queue) {
-      console.log(
-        `[CrewEmail Preview] To: ${message.email} | Subject: ${message.subject} | Confirmation: ${message.confirmationId}`,
-      )
-      previewed += 1
-      continue
-    }
-
     try {
-      const claimed = await claimCrewAssignmentEmailOperation({
-        db,
+      const token = generateCrewAssignmentConfirmationToken()
+      const tokenHash = await hashCrewAssignmentConfirmationToken(token)
+      const expiresAt = getAssignmentConfirmationExpiry(now)
+      const message = await buildCrewAssignmentEmailQueueMessage({
         operation,
-        tokenHash,
-        expiresAt,
-        claimedAt: now,
+        event: candidate.event,
+        volunteer: candidate.volunteer,
+        assignment: candidate.assignment,
+        token,
+        queuedAt: now,
       })
+
+      if (!queue) {
+        console.log(
+          `[CrewEmail Preview] To: ${message.email} | Subject: ${message.subject} | Confirmation: ${message.confirmationId}`,
+        )
+        previewed += 1
+        continue
+      }
+
+      const claimed = await withCrewAssignmentConfirmationLock(
+        db,
+        operation.assignmentId,
+        async () => {
+          const tokenClaimed = await claimCrewAssignmentEmailToken({
+            db,
+            operation,
+            previousTokenHash: candidate.tokenHash,
+            tokenHash,
+            expiresAt,
+            claimedAt: now,
+          })
+          if (!tokenClaimed) return false
+
+          await queue.send(message)
+
+          const finalized = await finalizeCrewAssignmentEmailQueued({
+            db,
+            operation,
+            tokenHash,
+            queuedAt: now,
+          })
+          if (!finalized) {
+            throw new Error("Queued assignment email could not be finalized")
+          }
+
+          return true
+        },
+      )
       if (!claimed) {
         if (operation.kind === "confirmation") {
           plan.skipped.alreadySent += 1
@@ -643,7 +666,6 @@ export async function queueCrewAssignmentConfirmationEmails(
         continue
       }
 
-      await queue.send(message)
       queued += 1
     } catch (error) {
       console.error("[CrewEmail] Failed to queue assignment email", {
@@ -794,6 +816,7 @@ async function loadCrewAssignmentEmailCandidates(
       confirmation: {
         id: crewAssignmentConfirmationsTable.id,
         assignmentId: crewAssignmentConfirmationsTable.assignmentId,
+        tokenHash: crewAssignmentConfirmationsTable.tokenHash,
         status: crewAssignmentConfirmationsTable.status,
         email: crewAssignmentConfirmationsTable.email,
         sentAt: crewAssignmentConfirmationsTable.sentAt,
@@ -870,6 +893,7 @@ async function loadCrewAssignmentEmailCandidates(
     return {
       confirmationId: row.confirmation.id,
       assignmentId: row.confirmation.assignmentId,
+      tokenHash: row.confirmation.tokenHash,
       status: row.confirmation.status,
       email,
       sentAt: row.confirmation.sentAt,
@@ -894,9 +918,10 @@ async function loadCrewAssignmentEmailCandidates(
   })
 }
 
-async function claimCrewAssignmentEmailOperation(params: {
+async function claimCrewAssignmentEmailToken(params: {
   db: DbClient
   operation: CrewAssignmentConfirmationEmailOperation
+  previousTokenHash: string
   tokenHash: string
   expiresAt: Date
   claimedAt: Date
@@ -907,6 +932,7 @@ async function claimCrewAssignmentEmailOperation(params: {
       crewAssignmentConfirmationsTable.status,
       CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
     ),
+    eq(crewAssignmentConfirmationsTable.tokenHash, params.previousTokenHash),
   ] as const
 
   if (params.operation.kind === "confirmation") {
@@ -915,7 +941,6 @@ async function claimCrewAssignmentEmailOperation(params: {
       .set({
         tokenHash: params.tokenHash,
         expiresAt: params.expiresAt,
-        sentAt: params.claimedAt,
         updatedAt: params.claimedAt,
       })
       .where(
@@ -929,9 +954,55 @@ async function claimCrewAssignmentEmailOperation(params: {
     .set({
       tokenHash: params.tokenHash,
       expiresAt: params.expiresAt,
-      lastReminderAt: params.claimedAt,
-      reminderCount: params.operation.reminderCount,
       updatedAt: params.claimedAt,
+    })
+    .where(
+      and(
+        ...commonWhere,
+        isNotNull(crewAssignmentConfirmationsTable.sentAt),
+        lt(
+          crewAssignmentConfirmationsTable.reminderCount,
+          params.operation.reminderCount,
+        ),
+      ),
+    )
+  return getAffectedRows(result) > 0
+}
+
+async function finalizeCrewAssignmentEmailQueued(params: {
+  db: DbClient
+  operation: CrewAssignmentConfirmationEmailOperation
+  tokenHash: string
+  queuedAt: Date
+}) {
+  const commonWhere = [
+    eq(crewAssignmentConfirmationsTable.id, params.operation.confirmationId),
+    eq(
+      crewAssignmentConfirmationsTable.status,
+      CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
+    ),
+    eq(crewAssignmentConfirmationsTable.tokenHash, params.tokenHash),
+  ] as const
+
+  if (params.operation.kind === "confirmation") {
+    const result = await params.db
+      .update(crewAssignmentConfirmationsTable)
+      .set({
+        sentAt: params.queuedAt,
+        updatedAt: params.queuedAt,
+      })
+      .where(
+        and(...commonWhere, isNull(crewAssignmentConfirmationsTable.sentAt)),
+      )
+    return getAffectedRows(result) > 0
+  }
+
+  const result = await params.db
+    .update(crewAssignmentConfirmationsTable)
+    .set({
+      lastReminderAt: params.queuedAt,
+      reminderCount: params.operation.reminderCount,
+      updatedAt: params.queuedAt,
     })
     .where(
       and(
