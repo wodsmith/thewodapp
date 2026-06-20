@@ -1,9 +1,14 @@
 // @lat: [[crew#Roster Shifts Assignments]]
+// @lat: [[crew#Roster Volunteer Editing]]
 import { describe, expect, it } from "vitest"
 import {
   buildCrewRoster,
+  buildCrewRosterVolunteerMetadataUpdate,
+  findCrewRosterVolunteerEmailCollision,
   getCrewRosterRoleTypes,
   normalizeCrewShiftTimes,
+  parseCrewRosterMetadata,
+  shouldUpdateCrewRosterInvitationEmail,
   summarizeCrewRoster,
   validateShiftAssignment,
   validateShiftCapacityUpdate,
@@ -170,6 +175,224 @@ describe("Crew roster helpers", () => {
     )
 
     expect(roster[0]?.email).toBe("member@example.com")
+  })
+
+  it("merges imported roster metadata without losing import audit details", () => {
+    const metadata = buildCrewRosterVolunteerMetadataUpdate(
+      JSON.stringify({
+        crewImportId: "cimp_1",
+        crewSignupSource: "competition_corner",
+        inviteSource: "direct",
+        status: "approved",
+        signupEmail: "old@example.com",
+        signupName: "Old Name",
+      }),
+      {
+        email: " ADA@Example.com ",
+        name: "Ada Lovelace",
+        phone: " 555-0100 ",
+        roleTypes: ["judge", "judge", "medical"],
+        availability: "morning",
+        availabilityNotes: "Before lunch",
+        credentials: "L1",
+        notes: "Can lead a lane",
+      },
+    )
+
+    expect(metadata).toMatchObject({
+      crewImportId: "cimp_1",
+      crewSignupSource: "competition_corner",
+      inviteSource: "direct",
+      status: "approved",
+      signupEmail: "ada@example.com",
+      signupName: "Ada Lovelace",
+      signupPhone: "555-0100",
+      volunteerRoleTypes: ["judge", "medical"],
+      availability: "morning",
+      availabilityNotes: "Before lunch",
+      credentials: "L1",
+      internalNotes: "Can lead a lane",
+    })
+  })
+
+  it("clears editable fields while preserving manual source metadata", () => {
+    const metadata = buildCrewRosterVolunteerMetadataUpdate(
+      JSON.stringify({
+        crewSignupSource: "manual_operator",
+        manualCreatedAt: "2026-06-19T12:00:00.000Z",
+        signupEmail: "old@example.com",
+        signupPhone: "555-0000",
+        credentials: "Old credential",
+        internalNotes: "Old note",
+      }),
+      {
+        email: "updated@example.com",
+        name: "",
+        phone: "",
+        roleTypes: [],
+        availability: "",
+        availabilityNotes: "",
+        credentials: "",
+        notes: "",
+      },
+    )
+
+    expect(metadata).toMatchObject({
+      crewSignupSource: "manual_operator",
+      manualCreatedAt: "2026-06-19T12:00:00.000Z",
+      signupEmail: "updated@example.com",
+      volunteerRoleTypes: ["general"],
+    })
+    expect(metadata).not.toHaveProperty("signupPhone")
+    expect(metadata).not.toHaveProperty("credentials")
+    expect(metadata).not.toHaveProperty("internalNotes")
+  })
+
+  it("detects duplicate edit emails across memberships and invitations", () => {
+    expect(
+      findCrewRosterVolunteerEmailCollision({
+        source: "team_membership",
+        sourceId: "tmem_current",
+        email: "ada@example.com",
+        invitations: [
+          {
+            id: "tinv_pending",
+            email: "pending@example.com",
+            metadata: JSON.stringify({ signupEmail: "Ada@Example.com" }),
+          },
+        ],
+        memberships: [
+          {
+            id: "tmem_current",
+            email: "ada@example.com",
+            isActive: true,
+            metadata: null,
+          },
+        ],
+      }),
+    ).toMatchObject({
+      source: "team_invitation",
+      sourceId: "tinv_pending",
+      email: "ada@example.com",
+    })
+  })
+
+  it("does not treat accepted invitations hidden by a membership as edit collisions", () => {
+    expect(
+      findCrewRosterVolunteerEmailCollision({
+        source: "team_membership",
+        sourceId: "tmem_current",
+        email: "ada@example.com",
+        invitations: [
+          {
+            id: "tinv_accepted",
+            email: "ada@example.com",
+            status: "accepted",
+            acceptedAt: "2026-06-19T12:00:00.000Z",
+            metadata: null,
+          },
+        ],
+        memberships: [
+          {
+            id: "tmem_current",
+            email: "ada@example.com",
+            isActive: true,
+            metadata: null,
+          },
+        ],
+      }),
+    ).toBeNull()
+  })
+
+  it("lets membership edits change roster email metadata without changing account email", () => {
+    const metadata = buildCrewRosterVolunteerMetadataUpdate(null, {
+      email: "ops@example.com",
+      name: "Ops Volunteer",
+      roleTypes: ["staff"],
+    })
+    const roster = buildCrewRoster(
+      [],
+      [
+        {
+          id: "tmem_member",
+          isActive: true,
+          user: {
+            firstName: "Account",
+            lastName: "Owner",
+            email: "account@example.com",
+          },
+          metadata: JSON.stringify(metadata),
+        },
+      ],
+    )
+
+    expect(roster[0]?.email).toBe("ops@example.com")
+    expect(roster[0]?.name).toBe("Ops Volunteer")
+  })
+
+  it("only updates the backing invitation email while a roster invitation is pending", () => {
+    const now = new Date("2026-06-19T12:00:00.000Z")
+
+    expect(
+      shouldUpdateCrewRosterInvitationEmail(
+        {
+          id: "tinv_pending",
+          email: "pending@example.com",
+          status: "pending",
+          expiresAt: "2026-06-20T12:00:00.000Z",
+        },
+        now,
+      ),
+    ).toBe(true)
+    expect(
+      shouldUpdateCrewRosterInvitationEmail(
+        {
+          id: "tinv_accepted",
+          email: "accepted@example.com",
+          status: "accepted",
+          acceptedAt: "2026-06-19T12:00:00.000Z",
+        },
+        now,
+      ),
+    ).toBe(false)
+    expect(
+      shouldUpdateCrewRosterInvitationEmail(
+        {
+          id: "tinv_expired",
+          email: "expired@example.com",
+          status: "pending",
+          expiresAt: "2026-06-18T12:00:00.000Z",
+        },
+        now,
+      ),
+    ).toBe(false)
+  })
+
+  it("normalizes edited pending invitation metadata for roster display", () => {
+    const metadata = buildCrewRosterVolunteerMetadataUpdate(null, {
+      email: "pending+new@example.com",
+      name: "Pending Volunteer",
+      roleTypes: ["check_in"],
+    })
+    const parsed = parseCrewRosterMetadata(JSON.stringify(metadata))
+    const roster = buildCrewRoster(
+      [
+        {
+          id: "tinv_pending",
+          email: parsed.signupEmail ?? "",
+          status: "pending",
+          metadata: JSON.stringify(metadata),
+        },
+      ],
+      [],
+    )
+
+    expect(roster[0]).toMatchObject({
+      source: "team_invitation",
+      email: "pending+new@example.com",
+      name: "Pending Volunteer",
+      roleTypes: ["check_in"],
+    })
   })
 })
 

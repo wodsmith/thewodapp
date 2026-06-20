@@ -1,3 +1,4 @@
+// @lat: [[crew#Roster Volunteer Editing]]
 import type { FormEvent, ReactNode } from "react"
 import {
   createFileRoute,
@@ -6,7 +7,7 @@ import {
   useRouter,
 } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { ClipboardPaste, Loader2, UserPlus } from "lucide-react"
+import { ClipboardPaste, Loader2, Pencil, UserPlus } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -20,6 +21,12 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import type {
   VolunteerAvailability,
   VolunteerRoleType,
@@ -42,6 +49,7 @@ import {
   createManualCrewVolunteerFn,
   getCrewRosterPageFn,
   pasteManualCrewVolunteerEmailsFn,
+  updateCrewRosterVolunteerFn,
 } from "@/server-fns/crew-roster-shift-fns"
 
 export const Route = createFileRoute("/events/$eventId/volunteers")({
@@ -58,6 +66,8 @@ function VolunteersPage() {
   const router = useRouter()
   const [addOpen, setAddOpen] = useState(false)
   const [pasteOpen, setPasteOpen] = useState(false)
+  const [editingVolunteer, setEditingVolunteer] =
+    useState<CrewRosterVolunteer | null>(null)
   const reloadRoster = async () => {
     await router.invalidate()
   }
@@ -113,11 +123,16 @@ function VolunteersPage() {
                   <th className="px-4 py-3 font-medium">Roles</th>
                   <th className="px-4 py-3 font-medium">Availability</th>
                   <th className="px-4 py-3 font-medium">Source</th>
+                  <th className="px-4 py-3 text-right font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {roster.map((volunteer) => (
-                  <VolunteerRow key={volunteer.id} volunteer={volunteer} />
+                  <VolunteerRow
+                    key={volunteer.id}
+                    volunteer={volunteer}
+                    onEdit={() => setEditingVolunteer(volunteer)}
+                  />
                 ))}
               </tbody>
             </table>
@@ -144,6 +159,14 @@ function VolunteersPage() {
         eventId={eventId}
         onOpenChange={setPasteOpen}
         onCreated={reloadRoster}
+      />
+      <EditRosterVolunteerDialog
+        volunteer={editingVolunteer}
+        eventId={eventId}
+        onOpenChange={(open) => {
+          if (!open) setEditingVolunteer(null)
+        }}
+        onSaved={reloadRoster}
       />
     </section>
   )
@@ -411,7 +434,196 @@ function PasteVolunteerEmailsDialog({
   )
 }
 
-function RoleTypeCheckboxes({ disabled }: { disabled: boolean }) {
+function EditRosterVolunteerDialog({
+  volunteer,
+  eventId,
+  onOpenChange,
+  onSaved,
+}: {
+  volunteer: CrewRosterVolunteer | null
+  eventId: string
+  onOpenChange: (open: boolean) => void
+  onSaved: () => Promise<void>
+}) {
+  const updateVolunteer = useServerFn(updateCrewRosterVolunteerFn)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const open = volunteer !== null
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!volunteer) return
+
+    const form = event.currentTarget
+    const formData = new FormData(form)
+    const availability = getFormString(formData, "availability")
+
+    setIsSubmitting(true)
+    setError(null)
+    try {
+      await updateVolunteer({
+        data: {
+          eventId,
+          source: volunteer.source,
+          sourceId: volunteer.sourceId,
+          email: getFormString(formData, "email"),
+          name: getFormString(formData, "name"),
+          phone: getFormString(formData, "phone"),
+          roleTypes: getFormStringList(formData, "roleTypes"),
+          availability: availability
+            ? (availability as VolunteerAvailability)
+            : undefined,
+          availabilityNotes: getFormString(formData, "availabilityNotes"),
+          credentials: getFormString(formData, "credentials"),
+          notes: getFormString(formData, "notes"),
+        },
+      })
+      toast.success("Volunteer updated")
+      onOpenChange(false)
+      await onSaved()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Volunteer update failed")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) setError(null)
+        onOpenChange(nextOpen)
+      }}
+    >
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Edit volunteer</DialogTitle>
+        </DialogHeader>
+        {volunteer ? (
+          <form
+            key={volunteer.id}
+            onSubmit={handleSubmit}
+            className="space-y-4"
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Email" htmlFor="edit-volunteer-email">
+                <Input
+                  id="edit-volunteer-email"
+                  name="email"
+                  type="email"
+                  required
+                  disabled={isSubmitting}
+                  defaultValue={volunteer.email}
+                />
+              </Field>
+              <Field label="Name" htmlFor="edit-volunteer-name">
+                <Input
+                  id="edit-volunteer-name"
+                  name="name"
+                  disabled={isSubmitting}
+                  defaultValue={volunteer.name}
+                />
+              </Field>
+              <Field label="Phone" htmlFor="edit-volunteer-phone">
+                <Input
+                  id="edit-volunteer-phone"
+                  name="phone"
+                  disabled={isSubmitting}
+                  defaultValue={volunteer.phone ?? ""}
+                />
+              </Field>
+              <Field label="Availability" htmlFor="edit-volunteer-availability">
+                <select
+                  id="edit-volunteer-availability"
+                  name="availability"
+                  className="h-10 rounded-md border bg-background px-3 text-sm"
+                  disabled={isSubmitting}
+                  defaultValue={volunteer.availability ?? ""}
+                >
+                  <option value="">Not set</option>
+                  <option value={VOLUNTEER_AVAILABILITY.MORNING}>
+                    Morning
+                  </option>
+                  <option value={VOLUNTEER_AVAILABILITY.AFTERNOON}>
+                    Afternoon
+                  </option>
+                  <option value={VOLUNTEER_AVAILABILITY.ALL_DAY}>
+                    All day
+                  </option>
+                </select>
+              </Field>
+            </div>
+
+            <RoleTypeCheckboxes
+              disabled={isSubmitting}
+              defaultValues={volunteer.roleTypes}
+            />
+
+            <Field label="Credentials" htmlFor="edit-volunteer-credentials">
+              <Input
+                id="edit-volunteer-credentials"
+                name="credentials"
+                disabled={isSubmitting}
+                defaultValue={volunteer.credentials ?? ""}
+              />
+            </Field>
+
+            <Field
+              label="Availability notes"
+              htmlFor="edit-volunteer-availability-notes"
+            >
+              <Textarea
+                id="edit-volunteer-availability-notes"
+                name="availabilityNotes"
+                disabled={isSubmitting}
+                defaultValue={volunteer.availabilityNotes ?? ""}
+              />
+            </Field>
+
+            <Field label="Notes" htmlFor="edit-volunteer-notes">
+              <Textarea
+                id="edit-volunteer-notes"
+                name="notes"
+                disabled={isSubmitting}
+                defaultValue={volunteer.notes ?? ""}
+              />
+            </Field>
+
+            {error ? (
+              <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {error}
+              </p>
+            ) : null}
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="animate-spin" /> : null}
+                Save changes
+              </Button>
+            </DialogFooter>
+          </form>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function RoleTypeCheckboxes({
+  disabled,
+  defaultValues = [],
+}: {
+  disabled: boolean
+  defaultValues?: VolunteerRoleType[]
+}) {
   return (
     <fieldset className="space-y-2">
       <legend className="text-sm font-medium">Roles</legend>
@@ -426,6 +638,7 @@ function RoleTypeCheckboxes({ disabled }: { disabled: boolean }) {
               name="roleTypes"
               value={option.value}
               disabled={disabled}
+              defaultChecked={defaultValues.includes(option.value)}
               className="size-4"
             />
             {option.label}
@@ -547,7 +760,13 @@ function getFormStringList(
     .map((value) => value as VolunteerRoleType)
 }
 
-function VolunteerRow({ volunteer }: { volunteer: CrewRosterVolunteer }) {
+function VolunteerRow({
+  volunteer,
+  onEdit,
+}: {
+  volunteer: CrewRosterVolunteer
+  onEdit: () => void
+}) {
   return (
     <tr className="border-b last:border-0">
       <td className="px-4 py-3 align-top">
@@ -571,6 +790,11 @@ function VolunteerRow({ volunteer }: { volunteer: CrewRosterVolunteer }) {
             </span>
           ))}
         </div>
+        {volunteer.credentials ? (
+          <div className="mt-2 max-w-xs text-muted-foreground">
+            {volunteer.credentials}
+          </div>
+        ) : null}
       </td>
       <td className="px-4 py-3 align-top">
         <div>{formatVolunteerAvailability(volunteer.availability)}</div>
@@ -587,6 +811,25 @@ function VolunteerRow({ volunteer }: { volunteer: CrewRosterVolunteer }) {
         {volunteer.signupSource ? (
           <div className="mt-1">{formatCrewValue(volunteer.signupSource)}</div>
         ) : null}
+      </td>
+      <td className="px-4 py-3 text-right align-top">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                onClick={onEdit}
+                aria-label={`Edit ${volunteer.name}`}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Edit volunteer</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </td>
     </tr>
   )

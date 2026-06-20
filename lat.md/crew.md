@@ -38,6 +38,14 @@ Roster shifts assignments normalize volunteer invitations, memberships, shifts, 
 
 The pure helpers preserve source identity for invitations and memberships, derive roster status, and keep role, availability, credential, import, and assignment details together so Crew pages can render staffing state without mutating event data.
 
+## Roster Volunteer Editing
+
+Roster volunteer editing lets local Crew operators correct existing volunteer contact and staffing metadata on [[apps/crew/src/routes/events/$eventId/volunteers.tsx|the volunteer roster page]].
+
+[[apps/crew/src/server-fns/crew-roster-shift-fns.ts]] exposes the route-safe edit wrapper while [[apps/crew/src/server/crew-roster-shift.server.ts]] mutates only the backing `team_invitations` or `team_memberships` metadata for the selected roster row. Pending invitations also keep `team_invitations.email` aligned with edited signup email; membership rows never mutate the linked user account email.
+
+[[apps/crew/src/lib/crew/roster-shifts.ts]] owns deterministic metadata normalization and duplicate email detection so import audit/source metadata, assignments, confirmations, and shift relationships survive roster corrections.
+
 ## Shift Board Pilot Ops
 
 Crew shift board pilot ops adapts the existing shift surface into an operator handoff board for real pilot events.

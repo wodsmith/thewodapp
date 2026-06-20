@@ -55,6 +55,7 @@ export interface ExistingManualVolunteerInvitation {
   id: string
   email: string
   acceptedAt?: Date | string | null
+  expiresAt?: Date | string | null
   status?: string | null
   metadata?: string | null
 }

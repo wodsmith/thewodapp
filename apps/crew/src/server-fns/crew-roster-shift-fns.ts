@@ -1,6 +1,7 @@
 // @lat: [[crew#Roster Shifts Assignments]]
 // @lat: [[crew#Server Function Runtime Boundary]]
 // @lat: [[crew#Manual Volunteer Intake]]
+// @lat: [[crew#Roster Volunteer Editing]]
 import { createServerFn } from "@tanstack/react-start"
 import {
   VOLUNTEER_AVAILABILITY,
@@ -22,6 +23,8 @@ const shiftIdSchema = z.string().startsWith("vshf_", "Invalid shift ID")
 const membershipIdSchema = z
   .string()
   .startsWith("tmem_", "Invalid membership ID")
+const rosterSourceSchema = z.enum(["team_invitation", "team_membership"])
+const rosterSourceIdSchema = z.string().min(1, "Roster volunteer ID is required")
 const roleTypeSchema = z.enum(VOLUNTEER_ROLE_TYPE_VALUES)
 const availabilitySchema = z
   .enum([
@@ -105,6 +108,36 @@ const manualVolunteerPasteInputSchema = z.object({
   pasteText: z.string().trim().min(1, "Paste at least one email").max(50000),
 })
 
+const updateRosterVolunteerInputSchema =
+  manualVolunteerMetadataInputSchema
+    .extend({
+      source: rosterSourceSchema,
+      sourceId: rosterSourceIdSchema,
+      credentials: z.string().trim().max(1000).optional(),
+    })
+    .superRefine((data, ctx) => {
+      if (
+        data.source === "team_invitation" &&
+        !data.sourceId.startsWith("tinv_")
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["sourceId"],
+          message: "Invalid invitation roster ID",
+        })
+      }
+      if (
+        data.source === "team_membership" &&
+        !data.sourceId.startsWith("tmem_")
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["sourceId"],
+          message: "Invalid membership roster ID",
+        })
+      }
+    })
+
 export const getCrewRosterPageFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => eventInputSchema.parse(data))
   .handler(async ({ data }) => {
@@ -165,6 +198,17 @@ export const pasteManualCrewVolunteerEmailsFn = createServerFn({
       "../server/crew-roster-shift.server"
     )
     return pasteManualCrewVolunteerEmails(data)
+  })
+
+export const updateCrewRosterVolunteerFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    updateRosterVolunteerInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { updateCrewRosterVolunteer } = await import(
+      "../server/crew-roster-shift.server"
+    )
+    return updateCrewRosterVolunteer(data)
   })
 
 export const updateCrewShiftFn = createServerFn({ method: "POST" })
