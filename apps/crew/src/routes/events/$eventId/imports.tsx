@@ -47,6 +47,38 @@ function EventImportsPage() {
   const router = useRouter()
   const { eventId } = parentRoute.useParams()
   const { history, reference } = Route.useLoaderData()
+  const handleHistoryRefresh = async () => {
+    await router.invalidate()
+  }
+
+  const handleApplyComplete = async () => {
+    await router.invalidate()
+  }
+
+  return (
+    <EventImportTabs
+      eventId={eventId}
+      history={history}
+      reference={reference}
+      onApplyComplete={handleApplyComplete}
+      onHistoryRefresh={handleHistoryRefresh}
+    />
+  )
+}
+
+export function EventImportTabs({
+  eventId,
+  history,
+  reference,
+  onApplyComplete,
+  onHistoryRefresh,
+}: {
+  eventId: string
+  history: CrewImportHistoryItem[]
+  reference: CrewImportReferenceData
+  onApplyComplete: (result: CrewImportApplyResult) => Promise<void>
+  onHistoryRefresh: () => Promise<void>
+}) {
   const [activeTab, setActiveTab] = useState<ImportsTab>("volunteers")
   const [latestPreview, setLatestPreview] =
     useState<PersistedCrewImportPreview | null>(null)
@@ -62,7 +94,7 @@ function EventImportsPage() {
         ? { ...current, status: result.status }
         : current,
     )
-    await router.invalidate()
+    await onApplyComplete(result)
   }
 
   return (
@@ -98,30 +130,64 @@ function EventImportsPage() {
         </div>
       </div>
 
-      {activeTab === "volunteers" || activeTab === "heat_schedule" ? (
+      <ImportTabContent
+        key={activeTab}
+        activeTab={activeTab}
+        eventId={eventId}
+        history={history}
+        latestPreview={latestPreview}
+        reference={reference}
+        onApplyComplete={handleApplyComplete}
+        onHistoryRefresh={onHistoryRefresh}
+        onPreviewComplete={handlePreviewComplete}
+      />
+    </section>
+  )
+}
+
+function ImportTabContent({
+  activeTab,
+  eventId,
+  history,
+  latestPreview,
+  reference,
+  onApplyComplete,
+  onHistoryRefresh,
+  onPreviewComplete,
+}: {
+  activeTab: ImportsTab
+  eventId: string
+  history: CrewImportHistoryItem[]
+  latestPreview: PersistedCrewImportPreview | null
+  reference: CrewImportReferenceData
+  onApplyComplete: (result: CrewImportApplyResult) => Promise<void>
+  onHistoryRefresh: () => Promise<void>
+  onPreviewComplete: (preview: PersistedCrewImportPreview) => void
+}) {
+  switch (activeTab) {
+    case "volunteers":
+    case "heat_schedule":
+      return (
         <div className="grid gap-6 xl:grid-cols-[minmax(0,24rem)_1fr]">
           <ImportUploadPanel
-            key={activeTab}
             eventId={eventId}
             kind={activeTab}
-            onPreviewComplete={handlePreviewComplete}
-            onHistoryRefresh={() => router.invalidate()}
+            onPreviewComplete={onPreviewComplete}
+            onHistoryRefresh={onHistoryRefresh}
           />
           <PreviewPanel
-            key={latestPreview?.importId ?? activeTab}
             eventId={eventId}
             preview={latestPreview}
             expectedKind={activeTab}
-            onApplyComplete={handleApplyComplete}
+            onApplyComplete={onApplyComplete}
           />
         </div>
-      ) : null}
-
-      {activeTab === "roles" ? <ReferencePanel reference={reference} /> : null}
-
-      {activeTab === "history" ? <HistoryPanel history={history} /> : null}
-    </section>
-  )
+      )
+    case "roles":
+      return <ReferencePanel reference={reference} />
+    case "history":
+      return <HistoryPanel history={history} />
+  }
 }
 
 function ImportUploadPanel({
@@ -660,6 +726,7 @@ function ImportTabButton({
   return (
     <button
       type="button"
+      aria-pressed={active}
       onClick={onClick}
       className={
         active
