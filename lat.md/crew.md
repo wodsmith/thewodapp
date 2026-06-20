@@ -192,6 +192,16 @@ Self-serve Crew setup keeps reusable setup memory in shared DB tables owned by `
 
 `crew_department_leads` stores event-scoped delegation records for role, floor, and time-slice access without expanding the broad team permission model. IDs use the `cdlead_` prefix.
 
+## Guided Setup State
+
+Guided setup turns Crew readiness facts and operator overrides into a per-event self-serve checklist stored in `crew_event_settings.settings`.
+
+[[apps/crew/src/lib/crew/guided-setup.ts]] derives event basics, days/floors, imports, roles, staffing assumptions, schedule publish, reminders, and exports steps from existing setup settings plus readiness facts. Source-data blockers remain blocked even when an operator records a manual override.
+
+[[apps/crew/src/server-fns/crew-guided-setup-fns.ts]] exposes thin route-safe read/update wrappers, while [[apps/crew/src/server/crew-guided-setup.server.ts]] keeps DB and readiness hydration server-only. Updates write only the `guidedSetup` JSON subtree and preserve existing concierge setup notes.
+
+[[apps/crew/src/components/crew-guided-setup/guided-setup-shell.tsx]] renders the compact wizard shell on [[apps/crew/src/routes/events/$eventId/setup.tsx]]. It records an operator status and note per step without adding template apply, import-mapping memory, department-lead enforcement, volunteer self-service, export-packet, queue, or schema work.
+
 ## Assignment Confirmation Responses
 
 Crew assignment confirmation links are token-only volunteer surfaces. Raw tokens are generated only while creating links, stored only as hashes, and used by [[apps/crew/src/routes/e/$slug/confirm/$token.tsx]] and [[apps/crew/src/routes/e/$slug/schedule/$token.tsx]] to show safe confirm, decline, and change-request flows without requiring a session.
