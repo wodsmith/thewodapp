@@ -38,6 +38,16 @@ Roster shifts assignments normalize volunteer invitations, memberships, shifts, 
 
 The pure helpers preserve source identity for invitations and memberships, derive roster status, and keep role, availability, credential, import, and assignment details together so Crew pages can render staffing state without mutating event data.
 
+## Shift Board Pilot Ops
+
+Crew shift board pilot ops adapts the existing shift surface into an operator handoff board for real pilot events.
+
+[[apps/crew/src/routes/events/$eventId/shifts.tsx]] keeps Crew-owned shift create, edit, assign, and remove actions while adding role, credential, source, and status filters.
+
+[[apps/crew/src/server/crew-roster-shift.server.ts]] hydrates the board from existing roster, shift, assignment, confirmation, and staffing-matrix inputs without creating schema or mutating judge rows.
+
+[[apps/crew/src/lib/crew/shift-board-pilot-ops.ts]] derives per-shift open-slot, confirmation, availability, role, double-booking, import-source, and ready/blocked status signals for the route.
+
 ## Manual Volunteer Intake
 
 Manual volunteer intake lets Crew operators build the roster from [[apps/crew/src/routes/events/$eventId/volunteers.tsx|the event volunteer page]] without leaving the existing volunteer primitives.
