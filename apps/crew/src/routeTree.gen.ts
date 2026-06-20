@@ -21,6 +21,7 @@ import { Route as EventsEventIdShiftsRouteImport } from './routes/events/$eventI
 import { Route as EventsEventIdSetupRouteImport } from './routes/events/$eventId/setup'
 import { Route as EventsEventIdScheduleRouteImport } from './routes/events/$eventId/schedule'
 import { Route as EventsEventIdReadinessRouteImport } from './routes/events/$eventId/readiness'
+import { Route as EventsEventIdJudgesRouteImport } from './routes/events/$eventId/judges'
 import { Route as EventsEventIdImportsRouteImport } from './routes/events/$eventId/imports'
 import { Route as ESlugVolunteerRouteImport } from './routes/e/$slug/volunteer'
 import { Route as ApiCrewImportRouteImport } from './routes/api/crew/import'
@@ -87,6 +88,11 @@ const EventsEventIdReadinessRoute = EventsEventIdReadinessRouteImport.update({
   path: '/readiness',
   getParentRoute: () => EventsEventIdRoute,
 } as any)
+const EventsEventIdJudgesRoute = EventsEventIdJudgesRouteImport.update({
+  id: '/judges',
+  path: '/judges',
+  getParentRoute: () => EventsEventIdRoute,
+} as any)
 const EventsEventIdImportsRoute = EventsEventIdImportsRouteImport.update({
   id: '/imports',
   path: '/imports',
@@ -122,6 +128,7 @@ export interface FileRoutesByFullPath {
   '/api/crew/import': typeof ApiCrewImportRoute
   '/e/$slug/volunteer': typeof ESlugVolunteerRoute
   '/events/$eventId/imports': typeof EventsEventIdImportsRoute
+  '/events/$eventId/judges': typeof EventsEventIdJudgesRoute
   '/events/$eventId/readiness': typeof EventsEventIdReadinessRoute
   '/events/$eventId/schedule': typeof EventsEventIdScheduleRoute
   '/events/$eventId/setup': typeof EventsEventIdSetupRoute
@@ -140,6 +147,7 @@ export interface FileRoutesByTo {
   '/api/crew/import': typeof ApiCrewImportRoute
   '/e/$slug/volunteer': typeof ESlugVolunteerRoute
   '/events/$eventId/imports': typeof EventsEventIdImportsRoute
+  '/events/$eventId/judges': typeof EventsEventIdJudgesRoute
   '/events/$eventId/readiness': typeof EventsEventIdReadinessRoute
   '/events/$eventId/schedule': typeof EventsEventIdScheduleRoute
   '/events/$eventId/setup': typeof EventsEventIdSetupRoute
@@ -160,6 +168,7 @@ export interface FileRoutesById {
   '/api/crew/import': typeof ApiCrewImportRoute
   '/e/$slug/volunteer': typeof ESlugVolunteerRoute
   '/events/$eventId/imports': typeof EventsEventIdImportsRoute
+  '/events/$eventId/judges': typeof EventsEventIdJudgesRoute
   '/events/$eventId/readiness': typeof EventsEventIdReadinessRoute
   '/events/$eventId/schedule': typeof EventsEventIdScheduleRoute
   '/events/$eventId/setup': typeof EventsEventIdSetupRoute
@@ -181,6 +190,7 @@ export interface FileRouteTypes {
     | '/api/crew/import'
     | '/e/$slug/volunteer'
     | '/events/$eventId/imports'
+    | '/events/$eventId/judges'
     | '/events/$eventId/readiness'
     | '/events/$eventId/schedule'
     | '/events/$eventId/setup'
@@ -199,6 +209,7 @@ export interface FileRouteTypes {
     | '/api/crew/import'
     | '/e/$slug/volunteer'
     | '/events/$eventId/imports'
+    | '/events/$eventId/judges'
     | '/events/$eventId/readiness'
     | '/events/$eventId/schedule'
     | '/events/$eventId/setup'
@@ -218,6 +229,7 @@ export interface FileRouteTypes {
     | '/api/crew/import'
     | '/e/$slug/volunteer'
     | '/events/$eventId/imports'
+    | '/events/$eventId/judges'
     | '/events/$eventId/readiness'
     | '/events/$eventId/schedule'
     | '/events/$eventId/setup'
@@ -325,6 +337,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EventsEventIdReadinessRouteImport
       parentRoute: typeof EventsEventIdRoute
     }
+    '/events/$eventId/judges': {
+      id: '/events/$eventId/judges'
+      path: '/judges'
+      fullPath: '/events/$eventId/judges'
+      preLoaderRoute: typeof EventsEventIdJudgesRouteImport
+      parentRoute: typeof EventsEventIdRoute
+    }
     '/events/$eventId/imports': {
       id: '/events/$eventId/imports'
       path: '/imports'
@@ -365,6 +384,7 @@ declare module '@tanstack/react-router' {
 
 interface EventsEventIdRouteChildren {
   EventsEventIdImportsRoute: typeof EventsEventIdImportsRoute
+  EventsEventIdJudgesRoute: typeof EventsEventIdJudgesRoute
   EventsEventIdReadinessRoute: typeof EventsEventIdReadinessRoute
   EventsEventIdScheduleRoute: typeof EventsEventIdScheduleRoute
   EventsEventIdSetupRoute: typeof EventsEventIdSetupRoute
@@ -376,6 +396,7 @@ interface EventsEventIdRouteChildren {
 
 const EventsEventIdRouteChildren: EventsEventIdRouteChildren = {
   EventsEventIdImportsRoute: EventsEventIdImportsRoute,
+  EventsEventIdJudgesRoute: EventsEventIdJudgesRoute,
   EventsEventIdReadinessRoute: EventsEventIdReadinessRoute,
   EventsEventIdScheduleRoute: EventsEventIdScheduleRoute,
   EventsEventIdSetupRoute: EventsEventIdSetupRoute,

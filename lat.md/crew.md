@@ -56,6 +56,18 @@ Editing an active published judge schedule creates a new active version, clones 
 
 Per-event publishing uses an advisory lock before allocating the next version number so frequent day-of edits do not race the `(trackWorkoutId, version)` uniqueness boundary. Edits against assignment IDs that are not present in the active version fail instead of silently mutating an inactive version or producing an empty revision.
 
+## Judge Rotations
+
+Crew judge rotations adapt the existing judge scheduling model into a local-operator event surface.
+
+[[apps/crew/src/routes/events/$eventId/judges.tsx]] renders workout selection, judge selection, per-judge rotation replacement, coverage preview, active published assignments, and version history.
+
+[[apps/crew/src/server-fns/crew-judge-rotations-fns.ts]] keeps route imports lightweight while [[apps/crew/src/server/crew-judge-rotations.server.ts]] owns Crew event hydration, scoped rotation writes, and publishing through the versioned assignment helper.
+
+[[apps/crew/src/lib/crew/judge-rotations.ts]] keeps rotation expansion, validation, lane conflicts, and coverage summaries deterministic for the route and server.
+
+Publishing rotations creates a new active `judge_assignment_versions` row and materializes `judge_heat_assignments` under the advisory-lock flow from [[crew#Judge Assignment Version Publishing]].
+
 ## Manual Volunteer Intake
 
 Manual volunteer intake lets Crew operators build the roster from [[apps/crew/src/routes/events/$eventId/volunteers.tsx|the event volunteer page]] without leaving the existing volunteer primitives.
