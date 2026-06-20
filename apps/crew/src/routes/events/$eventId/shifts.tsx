@@ -4,7 +4,9 @@ import {
   createFileRoute,
   getRouteApi,
   Link,
+  useNavigate,
   useRouter,
+  useSearch,
 } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import {
@@ -55,17 +57,42 @@ export const Route = createFileRoute("/events/$eventId/shifts")({
 
 const parentRoute = getRouteApi("/events/$eventId")
 
+const DEFAULT_SHIFT_BOARD_FILTERS: CrewShiftBoardPilotFilters = {
+  roleType: "all",
+  status: "all",
+  source: "all",
+  credentialQuery: "",
+}
+
+const SHIFT_BOARD_STATUS_FILTERS = new Set<
+  CrewShiftBoardPilotFilters["status"]
+>(["all", "ready", "open_slots", "responses_needed", "blocked"])
+
+const SHIFT_BOARD_SOURCE_FILTERS = new Set<
+  CrewShiftBoardPilotFilters["source"]
+>(["all", "imported_assignments", "direct_assignments"])
+
 function EventShiftsPage() {
   const { eventId } = parentRoute.useParams()
   const { event, roster, rosterSummary, shifts, shiftSummary, pilotOps } =
     Route.useLoaderData()
   const timezone = event.timezone ?? "America/Denver"
-  const [filters, setFilters] = useState<CrewShiftBoardPilotFilters>({
-    roleType: "all",
-    status: "all",
-    source: "all",
-    credentialQuery: "",
-  })
+  const navigate = useNavigate()
+  const searchParams = useSearch({ strict: false }) as Record<string, unknown>
+  const filters = useMemo(
+    () => getShiftBoardFiltersFromSearch(searchParams),
+    [searchParams],
+  )
+  function setFilters(nextFilters: CrewShiftBoardPilotFilters) {
+    void navigate({
+      to: ".",
+      search: (previous: Record<string, unknown>) => ({
+        ...previous,
+        ...toShiftBoardFilterSearch(nextFilters),
+      }),
+      replace: true,
+    })
+  }
   const roleFilterOptions = useMemo(
     () => getRoleFilterOptions(shifts),
     [shifts],
@@ -184,6 +211,54 @@ function EventShiftsPage() {
       </div>
     </section>
   )
+}
+
+function getShiftBoardFiltersFromSearch(
+  searchParams: Record<string, unknown>,
+): CrewShiftBoardPilotFilters {
+  const roleType = getSearchString(searchParams.roleType)
+  const status = getSearchString(searchParams.status)
+  const source = getSearchString(searchParams.source)
+  const credentialQuery = getSearchString(searchParams.credentialQuery).trim()
+
+  return {
+    roleType: VOLUNTEER_ROLE_OPTIONS.some((option) => option.value === roleType)
+      ? (roleType as VolunteerRoleType)
+      : DEFAULT_SHIFT_BOARD_FILTERS.roleType,
+    status: SHIFT_BOARD_STATUS_FILTERS.has(
+      status as CrewShiftBoardPilotFilters["status"],
+    )
+      ? (status as CrewShiftBoardPilotFilters["status"])
+      : DEFAULT_SHIFT_BOARD_FILTERS.status,
+    source: SHIFT_BOARD_SOURCE_FILTERS.has(
+      source as CrewShiftBoardPilotFilters["source"],
+    )
+      ? (source as CrewShiftBoardPilotFilters["source"])
+      : DEFAULT_SHIFT_BOARD_FILTERS.source,
+    credentialQuery,
+  }
+}
+
+function toShiftBoardFilterSearch(filters: CrewShiftBoardPilotFilters) {
+  return {
+    roleType:
+      filters.roleType === DEFAULT_SHIFT_BOARD_FILTERS.roleType
+        ? undefined
+        : filters.roleType,
+    status:
+      filters.status === DEFAULT_SHIFT_BOARD_FILTERS.status
+        ? undefined
+        : filters.status,
+    source:
+      filters.source === DEFAULT_SHIFT_BOARD_FILTERS.source
+        ? undefined
+        : filters.source,
+    credentialQuery: filters.credentialQuery.trim() || undefined,
+  }
+}
+
+function getSearchString(value: unknown) {
+  return typeof value === "string" ? value : ""
 }
 
 function PilotOpsFilters({
