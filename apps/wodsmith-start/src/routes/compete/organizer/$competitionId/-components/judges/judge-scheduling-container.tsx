@@ -754,6 +754,7 @@ export function JudgeSchedulingContainer({
                       handleAssignmentChange(heat.id, newAssignments)
                     }
                     onMoveAssignment={handleMoveAssignment}
+                    onScheduleRevisionPublished={refreshVersionData}
                     selectedJudgeIds={selectedJudgeIds}
                     onClearSelection={clearSelection}
                     filterEmptyLanes={filterEmptyLanes}

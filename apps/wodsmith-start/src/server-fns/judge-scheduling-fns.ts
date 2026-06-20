@@ -32,6 +32,11 @@ import type {
   VolunteerMembershipMetadata,
 } from "@/db/schemas/volunteers"
 import { requireTeamPermission } from "@/utils/team-auth"
+import {
+  type ClonedJudgeAssignmentForRevision,
+  createPublishedJudgeAssignmentRevision,
+  findClonedJudgeAssignmentOrThrow,
+} from "./judge-assignment-versioning"
 
 // ============================================================================
 // Types
@@ -88,7 +93,7 @@ const heatIdSchema = z.string().startsWith("cheat_", "Invalid heat ID")
 
 const assignmentIdSchema = z
   .string()
-  .startsWith("chvol_", "Invalid assignment ID")
+  .startsWith("hvol_", "Invalid assignment ID")
 
 const volunteerRoleTypeSchema = z.enum([
   VOLUNTEER_ROLE_TYPES.JUDGE,
@@ -132,6 +137,77 @@ function isJudge(metadata: string | null): boolean {
     meta.volunteerRoleTypes.includes(VOLUNTEER_ROLE_TYPES.JUDGE) ||
     meta.volunteerRoleTypes.includes(VOLUNTEER_ROLE_TYPES.HEAD_JUDGE)
   )
+}
+
+type DbClient = ReturnType<typeof getDb>
+
+async function getTrackWorkoutIdForHeatOrThrow(
+  db: DbClient,
+  heatId: string,
+): Promise<string> {
+  const [heat] = await db
+    .select({ trackWorkoutId: competitionHeatsTable.trackWorkoutId })
+    .from(competitionHeatsTable)
+    .where(eq(competitionHeatsTable.id, heatId))
+
+  if (!heat) {
+    throw new Error("Heat not found")
+  }
+
+  return heat.trackWorkoutId
+}
+
+async function getAssignmentContextOrThrow(
+  db: DbClient,
+  assignmentId: string,
+): Promise<{
+  trackWorkoutId: string
+  versionId: string | null
+}> {
+  const [assignment] = await db
+    .select({
+      trackWorkoutId: competitionHeatsTable.trackWorkoutId,
+      versionId: judgeHeatAssignmentsTable.versionId,
+    })
+    .from(judgeHeatAssignmentsTable)
+    .innerJoin(
+      competitionHeatsTable,
+      eq(judgeHeatAssignmentsTable.heatId, competitionHeatsTable.id),
+    )
+    .where(eq(judgeHeatAssignmentsTable.id, assignmentId))
+
+  if (!assignment) {
+    throw new Error("Judge assignment not found")
+  }
+
+  return assignment
+}
+
+function appendManualJudgeAssignment(
+  assignments: ClonedJudgeAssignmentForRevision[],
+  data: {
+    heatId: string
+    membershipId: string
+    laneNumber: number | null
+    position?: ClonedJudgeAssignmentForRevision["position"]
+    instructions?: string | null
+    versionId: string
+  },
+) {
+  const id = createHeatVolunteerId()
+  assignments.push({
+    id,
+    sourceAssignmentId: null,
+    heatId: data.heatId,
+    membershipId: data.membershipId,
+    laneNumber: data.laneNumber,
+    position: data.position ?? null,
+    instructions: data.instructions ?? null,
+    rotationId: null,
+    versionId: data.versionId,
+    isManualOverride: true,
+  })
+  return id
 }
 
 // ============================================================================
@@ -377,9 +453,7 @@ export const getJudgeSchedulingDataForEventsFn = createServerFn({
   method: "GET",
 })
   .inputValidator((data: unknown) =>
-    z
-      .object({ trackWorkoutIds: z.array(z.string().min(1)) })
-      .parse(data),
+    z.object({ trackWorkoutIds: z.array(z.string().min(1)) }).parse(data),
   )
   .handler(async ({ data }) => {
     const { trackWorkoutIds } = data
@@ -480,9 +554,7 @@ export const getJudgeSchedulingDataForEventsFn = createServerFn({
     // Assignments only exist under a published (active) version; a version
     // belongs to exactly one event, so filtering by active version ids is
     // sufficient to scope assignments to their events.
-    const activeVersionIds = versions
-      .filter((v) => v.isActive)
-      .map((v) => v.id)
+    const activeVersionIds = versions.filter((v) => v.isActive).map((v) => v.id)
 
     if (activeVersionIds.length > 0) {
       const assignments = await db
@@ -702,6 +774,49 @@ export const assignJudgeToHeatFn = createServerFn({ method: "POST" })
     )
 
     const db = getDb()
+    const trackWorkoutId = await getTrackWorkoutIdForHeatOrThrow(
+      db,
+      data.heatId,
+    )
+    const publishedRevision = await createPublishedJudgeAssignmentRevision(
+      db,
+      trackWorkoutId,
+      (assignments, versionId) => {
+        const assignmentId = appendManualJudgeAssignment(assignments, {
+          heatId: data.heatId,
+          membershipId: data.membershipId,
+          laneNumber: data.laneNumber,
+          position: data.position,
+          instructions: data.instructions,
+          versionId,
+        })
+        return { assignments, resultAssignmentIds: [assignmentId] }
+      },
+    )
+
+    if (publishedRevision) {
+      const [assignment] = await db
+        .select()
+        .from(judgeHeatAssignmentsTable)
+        .where(
+          eq(
+            judgeHeatAssignmentsTable.id,
+            publishedRevision.resultAssignmentIds[0] ?? "",
+          ),
+        )
+
+      if (!assignment) {
+        throw new Error("Failed to assign judge to heat")
+      }
+
+      return {
+        success: true,
+        data: assignment,
+        revisionPublished: true,
+        versionId: publishedRevision.version.id,
+      }
+    }
+
     const assignmentId = createHeatVolunteerId()
     await db.insert(judgeHeatAssignmentsTable).values({
       id: assignmentId,
@@ -722,7 +837,7 @@ export const assignJudgeToHeatFn = createServerFn({ method: "POST" })
       throw new Error("Failed to assign judge to heat")
     }
 
-    return { success: true, data: assignment }
+    return { success: true, data: assignment, revisionPublished: false }
   })
 
 /**
@@ -757,6 +872,54 @@ export const bulkAssignJudgesToHeatFn = createServerFn({ method: "POST" })
     }
 
     const db = getDb()
+    const trackWorkoutId = await getTrackWorkoutIdForHeatOrThrow(
+      db,
+      data.heatId,
+    )
+
+    const publishedRevision = await createPublishedJudgeAssignmentRevision(
+      db,
+      trackWorkoutId,
+      (clonedAssignments, versionId) => {
+        const insertedIds: string[] = []
+        for (const assignment of data.assignments) {
+          insertedIds.push(
+            appendManualJudgeAssignment(clonedAssignments, {
+              heatId: data.heatId,
+              membershipId: assignment.membershipId,
+              laneNumber: assignment.laneNumber,
+              position: assignment.position,
+              instructions: assignment.instructions,
+              versionId,
+            }),
+          )
+        }
+
+        return {
+          assignments: clonedAssignments,
+          resultAssignmentIds: insertedIds,
+        }
+      },
+    )
+
+    if (publishedRevision) {
+      const results = await db
+        .select()
+        .from(judgeHeatAssignmentsTable)
+        .where(
+          inArray(
+            judgeHeatAssignmentsTable.id,
+            publishedRevision.resultAssignmentIds,
+          ),
+        )
+
+      return {
+        success: true,
+        data: results,
+        revisionPublished: true,
+        versionId: publishedRevision.version.id,
+      }
+    }
 
     // Insert all assignments in a single query (MySQL has no param limit)
     const insertedIds: string[] = []
@@ -781,7 +944,7 @@ export const bulkAssignJudgesToHeatFn = createServerFn({ method: "POST" })
       .from(judgeHeatAssignmentsTable)
       .where(inArray(judgeHeatAssignmentsTable.id, insertedIds))
 
-    return { success: true, data: results }
+    return { success: true, data: results, revisionPublished: false }
   })
 
 /**
@@ -804,11 +967,40 @@ export const removeJudgeFromHeatFn = createServerFn({ method: "POST" })
     )
 
     const db = getDb()
+    const assignmentContext = await getAssignmentContextOrThrow(
+      db,
+      data.assignmentId,
+    )
+    const publishedRevision = await createPublishedJudgeAssignmentRevision(
+      db,
+      assignmentContext.trackWorkoutId,
+      (assignments) => {
+        findClonedJudgeAssignmentOrThrow(assignments, data.assignmentId)
+        return {
+          assignments: assignments.filter(
+            (assignment) => assignment.sourceAssignmentId !== data.assignmentId,
+          ),
+        }
+      },
+    )
+
+    if (publishedRevision) {
+      return {
+        success: true,
+        revisionPublished: true,
+        versionId: publishedRevision.version.id,
+      }
+    }
+
+    if (assignmentContext.versionId) {
+      throw new Error("Judge assignment not found in the active version")
+    }
+
     await db
       .delete(judgeHeatAssignmentsTable)
       .where(eq(judgeHeatAssignmentsTable.id, data.assignmentId))
 
-    return { success: true }
+    return { success: true, revisionPublished: false }
   })
 
 /**
@@ -833,6 +1025,43 @@ export const moveJudgeAssignmentFn = createServerFn({ method: "POST" })
     )
 
     const db = getDb()
+    const [assignmentContext, targetTrackWorkoutId] = await Promise.all([
+      getAssignmentContextOrThrow(db, data.assignmentId),
+      getTrackWorkoutIdForHeatOrThrow(db, data.targetHeatId),
+    ])
+
+    if (assignmentContext.trackWorkoutId !== targetTrackWorkoutId) {
+      throw new Error("Target heat is in a different event")
+    }
+
+    const publishedRevision = await createPublishedJudgeAssignmentRevision(
+      db,
+      assignmentContext.trackWorkoutId,
+      (assignments) => {
+        const assignment = findClonedJudgeAssignmentOrThrow(
+          assignments,
+          data.assignmentId,
+        )
+        assignment.heatId = data.targetHeatId
+        assignment.laneNumber = data.targetLaneNumber
+        assignment.isManualOverride = true
+
+        return { assignments }
+      },
+    )
+
+    if (publishedRevision) {
+      return {
+        success: true,
+        revisionPublished: true,
+        versionId: publishedRevision.version.id,
+      }
+    }
+
+    if (assignmentContext.versionId) {
+      throw new Error("Judge assignment not found in the active version")
+    }
+
     await db
       .update(judgeHeatAssignmentsTable)
       .set({
@@ -842,7 +1071,7 @@ export const moveJudgeAssignmentFn = createServerFn({ method: "POST" })
       })
       .where(eq(judgeHeatAssignmentsTable.id, data.assignmentId))
 
-    return { success: true }
+    return { success: true, revisionPublished: false }
   })
 
 /**

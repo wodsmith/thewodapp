@@ -296,6 +296,7 @@ interface JudgeHeatCardProps {
     targetLane: number,
     assignment: JudgeHeatAssignment,
   ) => void
+  onScheduleRevisionPublished?: () => Promise<void> | void
   selectedJudgeIds?: Set<string>
   onClearSelection?: () => void
   filterEmptyLanes?: boolean
@@ -317,6 +318,7 @@ export function JudgeHeatCard({
   onDelete,
   onAssignmentChange,
   onMoveAssignment,
+  onScheduleRevisionPublished,
   selectedJudgeIds,
   onClearSelection,
   filterEmptyLanes,
@@ -331,6 +333,15 @@ export function JudgeHeatCard({
 
   // Get this heat's judge assignments
   const heatAssignments = judgeAssignments.filter((ja) => ja.heatId === heat.id)
+
+  async function refreshAfterRevisionIfNeeded(result: {
+    revisionPublished?: boolean
+  }) {
+    if (!result.revisionPublished) return false
+    if (!onScheduleRevisionPublished) return false
+    await onScheduleRevisionPublished()
+    return true
+  }
 
   // Get occupied lanes
   const occupiedLanes = new Set(heatAssignments.map((a) => a.laneNumber))
@@ -369,6 +380,12 @@ export function JudgeHeatCard({
       })
 
       if (result?.data) {
+        if (await refreshAfterRevisionIfNeeded(result)) {
+          setIsAssignOpen(false)
+          setSelectedMembershipId("")
+          return
+        }
+
         // Find the volunteer data
         const volunteer = unassignedVolunteers.find(
           (v) => v.membershipId === selectedMembershipId,
@@ -397,13 +414,17 @@ export function JudgeHeatCard({
   async function handleRemove(assignmentId: string) {
     setIsRemoving(true)
     try {
-      await removeJudgeFromHeatFn({
+      const result = await removeJudgeFromHeatFn({
         data: {
           assignmentId,
           competitionId,
           organizingTeamId,
         },
       })
+
+      if (await refreshAfterRevisionIfNeeded(result)) {
+        return
+      }
 
       onAssignmentChange(heatAssignments.filter((a) => a.id !== assignmentId))
     } catch (err) {
@@ -458,6 +479,11 @@ export function JudgeHeatCard({
         })
 
         if (result?.data) {
+          if (await refreshAfterRevisionIfNeeded(result)) {
+            onClearSelection?.()
+            return
+          }
+
           const volunteer = unassignedVolunteers.find(
             (v) => v.membershipId === assignment.membershipId,
           )
@@ -488,6 +514,11 @@ export function JudgeHeatCard({
         })
 
         if (result?.data) {
+          if (await refreshAfterRevisionIfNeeded(result)) {
+            onClearSelection?.()
+            return
+          }
+
           // Build new assignments from result
           const newAssignments = result.data
             .map((assignment) => {
@@ -532,7 +563,7 @@ export function JudgeHeatCard({
     try {
       // If moving within same heat, just update lane
       if (sourceHeatId === heat.id) {
-        await moveJudgeAssignmentFn({
+        const result = await moveJudgeAssignmentFn({
           data: {
             assignmentId,
             competitionId,
@@ -542,6 +573,10 @@ export function JudgeHeatCard({
           },
         })
 
+        if (await refreshAfterRevisionIfNeeded(result)) {
+          return
+        }
+
         // Update local state
         onAssignmentChange(
           heatAssignments.map((a) =>
@@ -550,7 +585,7 @@ export function JudgeHeatCard({
         )
       } else {
         // Cross-heat move
-        await moveJudgeAssignmentFn({
+        const result = await moveJudgeAssignmentFn({
           data: {
             assignmentId,
             competitionId,
@@ -559,6 +594,10 @@ export function JudgeHeatCard({
             targetLaneNumber: targetLane,
           },
         })
+
+        if (await refreshAfterRevisionIfNeeded(result)) {
+          return
+        }
 
         if (onMoveAssignment) {
           // Let parent handle state updates for both heats

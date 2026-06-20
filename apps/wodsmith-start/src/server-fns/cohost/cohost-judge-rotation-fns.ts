@@ -5,10 +5,13 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, asc, desc, eq, inArray } from "drizzle-orm"
+import { and, asc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
-import type { CompetitionJudgeRotation, JudgeAssignmentVersion } from "@/db/schema"
+import type {
+  CompetitionJudgeRotation,
+  JudgeAssignmentVersion,
+} from "@/db/schema"
 import {
   competitionHeatsTable,
   competitionJudgeRotationsTable,
@@ -22,7 +25,14 @@ import {
   trackWorkoutsTable,
 } from "@/db/schema"
 import { expandRotationToAssignments } from "@/lib/judge-rotation-utils"
-import { requireCohostCompetitionOwnership, requireCohostPermission } from "@/utils/cohost-auth"
+import {
+  requireCohostCompetitionOwnership,
+  requireCohostPermission,
+} from "@/utils/cohost-auth"
+import {
+  type MaterializedJudgeAssignmentForVersion,
+  publishMaterializedJudgeAssignmentsVersion,
+} from "../judge-assignment-versioning"
 
 // ============================================================================
 // Input Schemas
@@ -476,20 +486,11 @@ function calculateLane(
  * Expand rotations into individual heat+lane assignments
  */
 async function materializeRotations(
+  db: Pick<ReturnType<typeof getDb>, "query" | "select">,
   trackWorkoutId: string,
   maxLanes: number,
 ) {
-  const db = getDb()
-
-  type MaterializedAssignment = Record<string, unknown> & {
-    heatId: string
-    membershipId: string
-    rotationId: string
-    laneNumber: number
-    position: "judge"
-  }
-
-  const assignments: MaterializedAssignment[] = []
+  const assignments: MaterializedJudgeAssignmentForVersion[] = []
 
   const rotations = await db.query.competitionJudgeRotationsTable.findMany({
     where: eq(competitionJudgeRotationsTable.trackWorkoutId, trackWorkoutId),
@@ -550,7 +551,10 @@ export const cohostCreateJudgeRotationFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => createRotationSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "volunteers")
-    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      data.competitionId,
+    )
 
     const validation = await validateRotationConflictsInternal({
       trackWorkoutId: data.trackWorkoutId,
@@ -660,7 +664,10 @@ export const cohostUpdateEventDefaultsFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => updateEventDefaultsSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "volunteers")
-    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      data.competitionId,
+    )
 
     const db = getDb()
 
@@ -698,7 +705,10 @@ export const cohostBatchCreateRotationsFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => batchCreateRotationsSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "volunteers")
-    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      data.competitionId,
+    )
 
     const db = getDb()
 
@@ -796,7 +806,10 @@ export const cohostBatchUpdateVolunteerRotationsFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "volunteers")
-    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      data.competitionId,
+    )
 
     const db = getDb()
 
@@ -920,9 +933,7 @@ export const cohostBatchUpdateVolunteerRotationsFn = createServerFn({
 export const cohostDeleteVolunteerRotationsFn = createServerFn({
   method: "POST",
 })
-  .inputValidator((data: unknown) =>
-    deleteVolunteerRotationsSchema.parse(data),
-  )
+  .inputValidator((data: unknown) => deleteVolunteerRotationsSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "volunteers")
 
@@ -969,7 +980,10 @@ export const cohostBatchDeleteRotationsFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => batchDeleteRotationsSchema.parse(data))
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "volunteers")
-    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      data.competitionId,
+    )
 
     const db = getDb()
 
@@ -1045,70 +1059,15 @@ export const cohostPublishRotationsFn = createServerFn({ method: "POST" })
       3,
     )
 
-    // Get next version number
-    const versions = await db.query.judgeAssignmentVersionsTable.findMany({
-      where: eq(
-        judgeAssignmentVersionsTable.trackWorkoutId,
-        data.trackWorkoutId,
-      ),
-      orderBy: desc(judgeAssignmentVersionsTable.version),
-    })
-    const nextVersion =
-      versions.length > 0 ? (versions[0]?.version ?? 0) + 1 : 1
-
-    // Materialize all rotations
-    const materializedAssignments = await materializeRotations(
-      data.trackWorkoutId,
-      maxLanes,
-    )
-
-    const { createJudgeAssignmentVersionId } = await import("@/db/schema")
-    const newVersionId = createJudgeAssignmentVersionId()
-
-    const newVersion = await db.transaction(async (tx) => {
-      // Deactivate previous versions
-      await tx
-        .update(judgeAssignmentVersionsTable)
-        .set({ isActive: false, updatedAt: new Date() })
-        .where(
-          eq(judgeAssignmentVersionsTable.trackWorkoutId, data.trackWorkoutId),
-        )
-
-      // Create new version
-      await tx.insert(judgeAssignmentVersionsTable).values({
-        id: newVersionId,
+    const newVersion = await publishMaterializedJudgeAssignmentsVersion(
+      db,
+      {
         trackWorkoutId: data.trackWorkoutId,
-        version: nextVersion,
         publishedBy: data.publishedBy,
-        notes: data.notes ?? null,
-        isActive: true,
-      })
-
-      const version = await tx.query.judgeAssignmentVersionsTable.findFirst({
-        where: eq(judgeAssignmentVersionsTable.id, newVersionId),
-      })
-
-      if (!version) {
-        throw new Error("Failed to create version")
-      }
-
-      // Bulk insert all assignments
-      if (materializedAssignments.length > 0) {
-        await tx.insert(judgeHeatAssignmentsTable).values(
-          materializedAssignments.map((a) => ({
-            heatId: a.heatId,
-            membershipId: a.membershipId,
-            rotationId: a.rotationId,
-            laneNumber: a.laneNumber,
-            position: a.position,
-            versionId: version.id,
-            isManualOverride: false,
-          })),
-        )
-      }
-
-      return version
-    })
+        notes: data.notes,
+      },
+      (tx) => materializeRotations(tx, data.trackWorkoutId, maxLanes),
+    )
 
     return newVersion
   })
@@ -1177,7 +1136,10 @@ export const cohostAdjustRotationsForOccupiedLanesFn = createServerFn({
   )
   .handler(async ({ data }) => {
     await requireCohostPermission(data.competitionTeamId, "volunteers")
-    await requireCohostCompetitionOwnership(data.competitionTeamId, data.competitionId)
+    await requireCohostCompetitionOwnership(
+      data.competitionTeamId,
+      data.competitionId,
+    )
 
     const db = getDb()
 
