@@ -19,6 +19,7 @@ const reference = {
 }
 
 describe("EventImportTabs", () => {
+  // @lat: [[crew#Import Tabs Duplicate Panel Regression]]
   it("keeps a single tab panel mounted while navigating import tabs", () => {
     render(
       <EventImportTabs
