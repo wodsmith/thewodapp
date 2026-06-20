@@ -298,42 +298,46 @@ export async function saveCrewImportMappingPreset(input: {
 
   const db = getDb()
   const timestamp = new Date()
-  await db
-    .insert(crewImportMappingPresetsTable)
-    .values({
-      id: createCrewImportMappingPresetId(),
-      teamId: presetWrite.teamId,
-      competitionId: presetWrite.competitionId,
-      kind: presetWrite.kind,
-      sourcePlatform: presetWrite.sourcePlatform,
-      name: presetWrite.name,
-      headerFingerprint: presetWrite.headerFingerprint,
-      headers: presetWrite.headers,
-      columnMapping: presetWrite.columnMapping,
-      parserVersion: presetWrite.parserVersion,
-      lastUsedAt: timestamp,
-      metadata: presetWrite.metadata,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    })
-    .onDuplicateKeyUpdate({
-      set: {
+  const suggestion = await db.transaction(async (tx) => {
+    const client = tx as unknown as DbClient
+    await client
+      .insert(crewImportMappingPresetsTable)
+      .values({
+        id: createCrewImportMappingPresetId(),
+        teamId: presetWrite.teamId,
         competitionId: presetWrite.competitionId,
+        kind: presetWrite.kind,
+        sourcePlatform: presetWrite.sourcePlatform,
         name: presetWrite.name,
+        headerFingerprint: presetWrite.headerFingerprint,
         headers: presetWrite.headers,
         columnMapping: presetWrite.columnMapping,
         parserVersion: presetWrite.parserVersion,
         lastUsedAt: timestamp,
         metadata: presetWrite.metadata,
+        createdAt: timestamp,
         updatedAt: timestamp,
-      },
-    })
+      })
+      .onDuplicateKeyUpdate({
+        set: {
+          competitionId: presetWrite.competitionId,
+          name: presetWrite.name,
+          headers: presetWrite.headers,
+          columnMapping: presetWrite.columnMapping,
+          parserVersion: presetWrite.parserVersion,
+          lastUsedAt: timestamp,
+          metadata: presetWrite.metadata,
+          updatedAt: timestamp,
+        },
+      })
 
-  const suggestion = await loadCrewImportMappingSuggestion({
-    teamId: event.organizingTeamId,
-    kind: data.kind,
-    sourcePlatform: data.sourcePlatform,
-    headers: data.headers,
+    return await loadCrewImportMappingSuggestion({
+      db: client,
+      teamId: event.organizingTeamId,
+      kind: data.kind,
+      sourcePlatform: data.sourcePlatform,
+      headers: data.headers,
+    })
   })
 
   if (!suggestion) {
@@ -1628,17 +1632,18 @@ async function listCrewImportHistory(
 }
 
 async function loadCrewImportMappingSuggestion({
+  db = getDb(),
   teamId,
   sourcePlatform,
   kind,
   headers,
 }: {
+  db?: DbClient
   teamId: string
   sourcePlatform?: string | null
   kind: CrewImportKind
   headers: string[]
 }) {
-  const db = getDb()
   const normalizedSourcePlatform =
     normalizeImportMappingSourcePlatform(sourcePlatform)
   const headerFingerprint = computeImportHeaderFingerprint(headers)

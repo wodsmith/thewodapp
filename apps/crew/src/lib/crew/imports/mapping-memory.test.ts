@@ -103,6 +103,31 @@ describe("Crew import mapping memory", () => {
     })
   })
 
+  it("selects the most recently used preset when multiple candidates match", () => {
+    const headers = ["Email", "Full Name", "Crew Role"]
+    const fingerprint = computeImportHeaderFingerprint(headers)
+    const suggestion = selectCrewImportMappingSuggestion({
+      teamId: "team_1",
+      sourcePlatform: "csv",
+      kind: "volunteers",
+      headers,
+      candidates: [
+        candidate({
+          id: "cimap_old",
+          headerFingerprint: fingerprint,
+          lastUsedAt: "2026-06-19T12:00:00.000Z",
+        }),
+        candidate({
+          id: "cimap_new",
+          headerFingerprint: fingerprint,
+          lastUsedAt: "2026-06-20T12:00:00.000Z",
+        }),
+      ],
+    })
+
+    expect(suggestion?.presetId).toBe("cimap_new")
+  })
+
   it("builds a sanitized upsert payload for explicit operator saves", () => {
     const write = buildCrewImportMappingPresetWrite({
       teamId: "team_1",

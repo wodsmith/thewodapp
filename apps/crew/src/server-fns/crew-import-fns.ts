@@ -60,7 +60,7 @@ export const applyCrewImportFn = createServerFn({ method: "POST" })
   })
 
 export const getCrewImportMappingSuggestionFn = createServerFn({
-  method: "GET",
+  method: "POST",
 })
   .inputValidator((data: unknown) =>
     getCrewImportMappingSuggestionInputSchema.parse(data),

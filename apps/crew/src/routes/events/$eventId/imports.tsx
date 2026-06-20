@@ -230,6 +230,7 @@ function ImportUploadPanel({
       return
     }
 
+    setMappingSuggestion(null)
     setIsLoadingMappingSuggestion(true)
     void getMappingSuggestion({
       data: {

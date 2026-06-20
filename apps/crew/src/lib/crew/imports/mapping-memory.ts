@@ -199,8 +199,18 @@ function toDateTime(value: Date | string | null) {
 }
 
 function formatImportKind(kind: CrewImportKind) {
-  if (kind === "heat_schedule") return "Heat schedule"
-  return "Volunteer"
+  switch (kind) {
+    case "heat_schedule":
+      return "Heat schedule"
+    case "volunteers":
+      return "Volunteer"
+    default:
+      return assertNever(kind)
+  }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unsupported Crew import kind: ${value}`)
 }
 
 function fnv1aHex(value: string) {
