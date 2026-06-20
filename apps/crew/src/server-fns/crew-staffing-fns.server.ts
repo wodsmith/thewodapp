@@ -34,7 +34,7 @@ import {
   loadCrewRoster,
   loadCrewShifts,
   type CrewShiftBoardItem,
-} from "./crew-roster-shift-fns"
+} from "../server/crew-roster-shift.server"
 
 type DbClient = ReturnType<typeof getDb>
 
