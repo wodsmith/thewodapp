@@ -1,3 +1,5 @@
+"use client"
+
 // @lat: [[crew#Guided Setup State]]
 import { Link } from "@tanstack/react-router"
 import {
@@ -132,8 +134,17 @@ export function GuidedSetupShell({
           </div>
 
           <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
-            {activeStep.details.map((detail) => (
-              <li key={detail}>{detail}</li>
+            {activeStep.details.map((detail, detailIndex) => (
+              <li
+                key={getDetailKey(
+                  activeStep.key,
+                  activeStep.details,
+                  detail,
+                  detailIndex,
+                )}
+              >
+                {detail}
+              </li>
             ))}
           </ul>
 
@@ -269,6 +280,19 @@ function ProgressBar({ value }: { value: number }) {
       />
     </div>
   )
+}
+
+function getDetailKey(
+  stepKey: CrewGuidedSetupStepKey,
+  details: string[],
+  detail: string,
+  detailIndex: number,
+) {
+  const duplicateOrdinal = details
+    .slice(0, detailIndex)
+    .filter((candidate) => candidate === detail).length
+
+  return `${stepKey}:${detail}:${duplicateOrdinal}`
 }
 
 function statusBadgeClass(status: CrewGuidedSetupStatus) {
