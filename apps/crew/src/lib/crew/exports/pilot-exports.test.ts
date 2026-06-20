@@ -9,6 +9,15 @@ import { buildCrewPilotExports } from "./pilot-exports"
 import type { CrewPilotExportInput } from "./pilot-exports"
 
 describe("Crew pilot exports", () => {
+  it("requires explicit generatedAt input for deterministic output", () => {
+    expect(() =>
+      buildCrewPilotExports({
+        ...baseInput(),
+        generatedAt: "",
+      }),
+    ).toThrow("generatedAt is required")
+  })
+
   it("builds deterministic master schedule CSV rows sorted by start time", () => {
     const exports = buildCrewPilotExports(baseInput())
 
@@ -21,6 +30,39 @@ describe("Crew pilot exports", () => {
       "shift,2026-07-01T14:00:00.000Z,2026-07-01T16:00:00.000Z,Check-in,Front desk,Check-In,2,2,0",
     )
     expect(exports.summary.masterScheduleRows).toBe(3)
+  })
+
+  it("neutralizes spreadsheet formula-leading CSV cells", () => {
+    const input = baseInput()
+    input.shifts = [
+      {
+        id: "shift_formula",
+        name: "=SUM(1,1)",
+        roleType: VOLUNTEER_ROLE_TYPES.EQUIPMENT,
+        startTime: "2026-07-01T13:00:00.000Z",
+        endTime: "2026-07-01T14:00:00.000Z",
+        capacity: 1,
+        location: " @floor",
+        assignments: [
+          {
+            id: "vsa_formula",
+            membershipId: "tm_formula",
+            volunteerName: "+Mallory",
+            email: "-mallory@example.com",
+          },
+        ],
+      },
+    ]
+    input.heats = []
+    input.heatLaneAssignments = []
+    input.judgeAssignments = []
+
+    const exports = buildCrewPilotExports(input)
+
+    expect(exports.masterScheduleCsv).toContain("shift,")
+    expect(exports.masterScheduleCsv).toContain(`,"'=SUM(1,1)",`)
+    expect(exports.masterScheduleCsv).toContain(",' @floor,")
+    expect(exports.masterScheduleCsv).toContain("'+Mallory")
   })
 
   it("groups role sheets with open shift slots and judge assignments", () => {

@@ -81,7 +81,7 @@ export interface CrewPilotExportJudgeAssignmentInput
 
 export interface CrewPilotExportInput {
   event: CrewPilotExportEventInput
-  generatedAt?: Date | string | null
+  generatedAt: Date | string
   shifts?: CrewPilotExportShiftInput[]
   venues?: CrewPilotExportVenueInput[]
   workouts?: CrewPilotExportWorkoutInput[]
@@ -113,6 +113,7 @@ export interface CrewPilotMasterScheduleRow {
 }
 
 export interface CrewPilotRoleSheetAssignmentRow {
+  rowKey: string
   assignmentType: CrewPilotExportBlockType
   assignmentId: string | null
   blockId: string
@@ -207,7 +208,11 @@ interface NormalizedHeat {
 export function buildCrewPilotExports(
   input: CrewPilotExportInput,
 ): CrewPilotExports {
-  const generatedAt = toIsoString(input.generatedAt) ?? new Date().toISOString()
+  const generatedAt = toIsoString(input.generatedAt)
+  if (!generatedAt) {
+    throw new Error("Crew pilot exports generatedAt is required")
+  }
+
   const venues = [...(input.venues ?? [])].sort(compareVenue)
   const workouts = [...(input.workouts ?? [])].sort(compareWorkout)
   const shifts = [...(input.shifts ?? [])].sort(compareShift)
@@ -396,6 +401,7 @@ function buildRoleSheets(input: {
     const roleRows = rowsByRoleType.get(shift.roleType) ?? []
     for (const assignment of shift.assignments) {
       roleRows.push({
+        rowKey: assignment.id,
         assignmentType: "shift",
         assignmentId: assignment.id,
         blockId: shift.id,
@@ -415,6 +421,7 @@ function buildRoleSheets(input: {
       index++
     ) {
       roleRows.push({
+        rowKey: `open:${shift.id}:${index}`,
         assignmentType: "shift",
         assignmentId: null,
         blockId: shift.id,
@@ -436,6 +443,7 @@ function buildRoleSheets(input: {
     const heat = input.heatById.get(assignment.heatId)
     const roleRows = rowsByRoleType.get(roleType) ?? []
     roleRows.push({
+      rowKey: assignment.id,
       assignmentType: "heat",
       assignmentId: assignment.id,
       blockId: assignment.heatId,
@@ -692,16 +700,25 @@ function buildCsv(headers: string[], rows: Array<Array<unknown>>) {
 
 function csvCell(value: unknown): string {
   if (value === null || value === undefined) return ""
-  const text = String(value)
+  const text = neutralizeCsvFormula(String(value))
   if (!/[",\n\r]/.test(text)) return text
   return `"${text.replaceAll('"', '""')}"`
+}
+
+function neutralizeCsvFormula(text: string) {
+  return /^\s*[=+\-@]/.test(text) ? `'${text}` : text
 }
 
 function groupBy<T, K>(items: T[], getKey: (item: T) => K) {
   const grouped = new Map<K, T[]>()
   for (const item of items) {
     const key = getKey(item)
-    grouped.set(key, [...(grouped.get(key) ?? []), item])
+    const group = grouped.get(key)
+    if (group) {
+      group.push(item)
+    } else {
+      grouped.set(key, [item])
+    }
   }
   return grouped
 }

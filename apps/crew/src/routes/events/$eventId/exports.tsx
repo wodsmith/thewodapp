@@ -269,28 +269,34 @@ function PrintSheets({
       <PrintSection title="Master schedule">
         <PrintTable
           headers={["Time", "Block", "Location", "Role", "Coverage", "People"]}
-          rows={exports.masterScheduleRows.map((row) => [
-            formatRange(row.startsAt, row.endsAt, timezone),
-            row.label,
-            row.location,
-            row.role,
-            `${row.assigned}/${row.needed}${row.open > 0 ? ` (${row.open} open)` : ""}`,
-            row.people || "Unassigned",
-          ])}
+          rows={exports.masterScheduleRows.map((row) => ({
+            key: `${row.blockType}:${row.blockId}`,
+            cells: [
+              formatRange(row.startsAt, row.endsAt, timezone),
+              row.label,
+              row.location,
+              row.role,
+              `${row.assigned}/${row.needed}${row.open > 0 ? ` (${row.open} open)` : ""}`,
+              row.people || "Unassigned",
+            ],
+          }))}
         />
       </PrintSection>
 
       <PrintSection title="No-response and decline list">
         <PrintTable
           headers={["Time", "Volunteer", "Block", "Role", "Status", "Note"]}
-          rows={exports.responseRows.map((row) => [
-            formatRange(row.startsAt, row.endsAt, timezone),
-            `${row.volunteerName}${row.email ? ` <${row.email}>` : ""}`,
-            row.blockLabel,
-            row.role,
-            formatCrewValue(row.reason),
-            row.responseNote,
-          ])}
+          rows={exports.responseRows.map((row) => ({
+            key: `${row.assignmentType}:${row.assignmentId}`,
+            cells: [
+              formatRange(row.startsAt, row.endsAt, timezone),
+              `${row.volunteerName}${row.email ? ` <${row.email}>` : ""}`,
+              row.blockLabel,
+              row.role,
+              formatCrewValue(row.reason),
+              row.responseNote,
+            ],
+          }))}
           empty="No missing, pending, declined, or change-requested responses."
         />
       </PrintSection>
@@ -306,14 +312,17 @@ function PrintSheets({
               "Location",
               "Status",
             ]}
-            rows={sheet.rows.map((row) => [
-              formatRange(row.startsAt, row.endsAt, timezone),
-              row.volunteerName,
-              row.email,
-              row.blockLabel,
-              row.location,
-              formatCrewValue(row.confirmationStatus),
-            ])}
+            rows={sheet.rows.map((row) => ({
+              key: row.rowKey,
+              cells: [
+                formatRange(row.startsAt, row.endsAt, timezone),
+                row.volunteerName,
+                row.email,
+                row.blockLabel,
+                row.location,
+                formatCrewValue(row.confirmationStatus),
+              ],
+            }))}
           />
         </PrintSection>
       ))}
@@ -325,13 +334,16 @@ function PrintSheets({
           </p>
           <PrintTable
             headers={["Lane", "Judge", "Email", "Position", "Status"]}
-            rows={sheet.rows.map((row) => [
-              row.laneNumber,
-              row.judgeName,
-              row.email,
-              row.position,
-              formatCrewValue(row.confirmationStatus),
-            ])}
+            rows={sheet.rows.map((row) => ({
+              key: `${row.heatId}:lane:${row.laneNumber}`,
+              cells: [
+                row.laneNumber,
+                row.judgeName,
+                row.email,
+                row.position,
+                formatCrewValue(row.confirmationStatus),
+              ],
+            }))}
           />
         </PrintSection>
       ))}
@@ -343,24 +355,30 @@ function PrintSheets({
         >
           <PrintTable
             headers={["Time", "Block", "Role", "Coverage", "People"]}
-            rows={sheet.rows.map((row) => [
-              formatRange(row.startsAt, row.endsAt, timezone),
-              row.label,
-              row.role,
-              `${row.assigned}/${row.needed}${row.open > 0 ? ` (${row.open} open)` : ""}`,
-              row.people || "Unassigned",
-            ])}
+            rows={sheet.rows.map((row) => ({
+              key: `${row.blockType}:${row.blockId}`,
+              cells: [
+                formatRange(row.startsAt, row.endsAt, timezone),
+                row.label,
+                row.role,
+                `${row.assigned}/${row.needed}${row.open > 0 ? ` (${row.open} open)` : ""}`,
+                row.people || "Unassigned",
+              ],
+            }))}
           />
           <div className="mt-4">
             <PrintTable
               headers={["Time", "Heat", "Lane", "Judge", "Status"]}
-              rows={sheet.judgeRows.map((row) => [
-                formatRange(row.startsAt, row.endsAt, timezone),
-                `${row.workoutName} heat ${row.heatNumber}`,
-                row.laneNumber,
-                row.judgeName,
-                formatCrewValue(row.confirmationStatus),
-              ])}
+              rows={sheet.judgeRows.map((row) => ({
+                key: `${row.heatId}:lane:${row.laneNumber}`,
+                cells: [
+                  formatRange(row.startsAt, row.endsAt, timezone),
+                  `${row.workoutName} heat ${row.heatNumber}`,
+                  row.laneNumber,
+                  row.judgeName,
+                  formatCrewValue(row.confirmationStatus),
+                ],
+              }))}
               empty="No judge lanes for this floor."
             />
           </div>
@@ -391,7 +409,7 @@ function PrintTable({
   empty = "No rows.",
 }: {
   headers: string[]
-  rows: Array<Array<ReactNode>>
+  rows: Array<{ key: string; cells: Array<ReactNode> }>
   empty?: string
 }) {
   if (rows.length === 0) {
@@ -411,10 +429,10 @@ function PrintTable({
       </thead>
       <tbody>
         {rows.map((row) => (
-          <tr key={row.map(toPrintKeyPart).join("|")}>
+          <tr key={row.key}>
             {headers.map((header, cellIndex) => (
               <td key={header} className="border px-2 py-1 align-top">
-                {row[cellIndex]}
+                {row.cells[cellIndex]}
               </td>
             ))}
           </tr>
@@ -422,13 +440,6 @@ function PrintTable({
       </tbody>
     </table>
   )
-}
-
-function toPrintKeyPart(value: ReactNode) {
-  if (typeof value === "string" || typeof value === "number") {
-    return String(value)
-  }
-  return ""
 }
 
 function JudgeHeatSheetPreview({
@@ -481,11 +492,8 @@ function RoleSheetPreview({
         <StatusPill>{sheet.rows.length} rows</StatusPill>
       </div>
       <div className="mt-3 grid gap-2 text-sm">
-        {sheet.rows.slice(0, 8).map((row, index) => (
-          <div
-            key={`${row.blockId}:${row.assignmentId ?? index}`}
-            className="grid gap-1 rounded-md border p-3"
-          >
+        {sheet.rows.slice(0, 8).map((row) => (
+          <div key={row.rowKey} className="grid gap-1 rounded-md border p-3">
             <div className="flex items-start justify-between gap-3">
               <p className="font-medium">{row.volunteerName}</p>
               <span className="text-muted-foreground">
