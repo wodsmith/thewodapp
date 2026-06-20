@@ -182,6 +182,16 @@ One row per volunteer or judge assignment confirmation. It tracks the assignment
 
 Raw confirmation tokens are generated later for links and must not be persisted. IDs use the `caconf_` prefix.
 
+## Self Serve Preset Schema
+
+Self-serve Crew setup keeps reusable setup memory in shared DB tables owned by `@repo/wodsmith-db`, while per-event setup progress remains in `crew_event_settings.settings`.
+
+`crew_template_presets` stores per-team and optional per-event role, shift, and staffing template payloads for later preview/apply flows. Built-in templates stay in typed application code until saved team presets are needed. IDs use the `ctpres_` prefix.
+
+`crew_import_mapping_presets` stores team-scoped CSV/source header fingerprints, original headers, and column mappings by import kind so later import flows can suggest a mapping. Suggestions must remain explicit operator choices, not automatic import application. IDs use the `cimap_` prefix.
+
+`crew_department_leads` stores event-scoped delegation records for role, floor, and time-slice access without expanding the broad team permission model. IDs use the `cdlead_` prefix.
+
 ## Assignment Confirmation Responses
 
 Crew assignment confirmation links are token-only volunteer surfaces. Raw tokens are generated only while creating links, stored only as hashes, and used by [[apps/crew/src/routes/e/$slug/confirm/$token.tsx]] and [[apps/crew/src/routes/e/$slug/schedule/$token.tsx]] to show safe confirm, decline, and change-request flows without requiring a session.

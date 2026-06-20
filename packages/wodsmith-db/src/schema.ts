@@ -12,6 +12,8 @@ export * from "./schemas/competitions"
 export * from "./schemas/crew-event-settings"
 // `@lat`: [[crew#Add Thin Crew Tables]]
 export * from "./schemas/crew-imports"
+// @lat: [[crew#Self Serve Preset Schema]]
+export * from "./schemas/crew-self-serve-presets"
 export * from "./schemas/entitlements"
 export * from "./schemas/event-division-mappings"
 export * from "./schemas/event-resources"

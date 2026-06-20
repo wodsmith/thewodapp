@@ -158,3 +158,9 @@ export const createCrewImportId = () => `cimp_${ulid()}`
 export const createCrewImportRowId = () => `cimpr_${ulid()}`
 // `@lat`: [[crew#crew_assignment_confirmations]]
 export const createCrewAssignmentConfirmationId = () => `caconf_${ulid()}`
+
+// Crew self-serve preset ID generators
+// `@lat`: [[crew#Self Serve Preset Schema]]
+export const createCrewTemplatePresetId = () => `ctpres_${ulid()}`
+export const createCrewImportMappingPresetId = () => `cimap_${ulid()}`
+export const createCrewDepartmentLeadId = () => `cdlead_${ulid()}`
