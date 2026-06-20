@@ -1,5 +1,6 @@
 // @lat: [[crew#Pilot Readiness Checklist]]
 // @lat: [[crew#Staffing Page Gap Report]]
+// @lat: [[crew#Day Of Operations Board]]
 import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router"
 import { formatCrewValue, getSafeHttpUrl } from "@/lib/crew-event-display"
 import {
@@ -90,6 +91,25 @@ function EventOverviewPage() {
             className="w-fit rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
             Open staffing
+          </Link>
+        </div>
+      </section>
+
+      <section className="rounded-md border bg-card p-5 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold">Day-of operations</h2>
+            <p className="text-sm text-muted-foreground">
+              Scan current blocks, response queues, no-shows, replacements, and
+              judge lane coverage.
+            </p>
+          </div>
+          <Link
+            to="/events/$eventId/day-of"
+            params={{ eventId }}
+            className="w-fit rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Open day-of
           </Link>
         </div>
       </section>
