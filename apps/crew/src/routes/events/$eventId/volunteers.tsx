@@ -514,6 +514,7 @@ function EditRosterVolunteerDialog({
                   type="email"
                   required
                   disabled={isSubmitting}
+                  maxLength={255}
                   defaultValue={volunteer.email}
                 />
               </Field>
@@ -522,6 +523,7 @@ function EditRosterVolunteerDialog({
                   id="edit-volunteer-name"
                   name="name"
                   disabled={isSubmitting}
+                  maxLength={200}
                   defaultValue={volunteer.name}
                 />
               </Field>
@@ -530,6 +532,7 @@ function EditRosterVolunteerDialog({
                   id="edit-volunteer-phone"
                   name="phone"
                   disabled={isSubmitting}
+                  maxLength={50}
                   defaultValue={volunteer.phone ?? ""}
                 />
               </Field>
@@ -565,6 +568,7 @@ function EditRosterVolunteerDialog({
                 id="edit-volunteer-credentials"
                 name="credentials"
                 disabled={isSubmitting}
+                maxLength={1000}
                 defaultValue={volunteer.credentials ?? ""}
               />
             </Field>
@@ -577,6 +581,7 @@ function EditRosterVolunteerDialog({
                 id="edit-volunteer-availability-notes"
                 name="availabilityNotes"
                 disabled={isSubmitting}
+                maxLength={5000}
                 defaultValue={volunteer.availabilityNotes ?? ""}
               />
             </Field>
@@ -586,6 +591,7 @@ function EditRosterVolunteerDialog({
                 id="edit-volunteer-notes"
                 name="notes"
                 disabled={isSubmitting}
+                maxLength={5000}
                 defaultValue={volunteer.notes ?? ""}
               />
             </Field>
@@ -767,6 +773,9 @@ function VolunteerRow({
   volunteer: CrewRosterVolunteer
   onEdit: () => void
 }) {
+  const editLabelTarget =
+    volunteer.name.trim() || volunteer.email.trim() || "volunteer"
+
   return (
     <tr className="border-b last:border-0">
       <td className="px-4 py-3 align-top">
@@ -822,7 +831,7 @@ function VolunteerRow({
                 size="icon"
                 className="size-8"
                 onClick={onEdit}
-                aria-label={`Edit ${volunteer.name}`}
+                aria-label={`Edit ${editLabelTarget}`}
               >
                 <Pencil className="h-4 w-4" />
               </Button>

@@ -277,6 +277,32 @@ describe("Crew roster helpers", () => {
     })
   })
 
+  it("ignores non-string metadata emails when checking edit collisions", () => {
+    const collision = findCrewRosterVolunteerEmailCollision({
+      source: "team_membership",
+      sourceId: "tmem_current",
+      email: "ada@example.com",
+      invitations: [
+        {
+          id: "tinv_corrupt",
+          email: "pending@example.com",
+          status: "pending",
+          metadata: JSON.stringify({ signupEmail: 42 }),
+        },
+      ],
+      memberships: [
+        {
+          id: "tmem_current",
+          email: "ada@example.com",
+          isActive: true,
+          metadata: JSON.stringify({ signupEmail: { value: "ada" } }),
+        },
+      ],
+    })
+
+    expect(collision).toBeNull()
+  })
+
   it("does not treat accepted invitations hidden by a membership as edit collisions", () => {
     expect(
       findCrewRosterVolunteerEmailCollision({

@@ -552,11 +552,13 @@ function toMembershipRosterRow(
 }
 
 function getMetadataName(metadata: CrewRosterMetadata) {
-  return metadata.signupName?.trim() || metadata.inviteName?.trim() || ""
+  return (
+    nonBlankText(metadata.signupName) ?? nonBlankText(metadata.inviteName) ?? ""
+  )
 }
 
-function nonBlankText(value: string | null | undefined) {
-  const trimmed = value?.trim()
+function nonBlankText(value: unknown) {
+  const trimmed = typeof value === "string" ? value.trim() : ""
   return trimmed ? trimmed : null
 }
 
@@ -567,7 +569,9 @@ function getCrewRosterRecordEmails(
   const parsed = parseCrewRosterMetadata(metadata)
   return [
     normalizeCrewRosterVolunteerEmail(email ?? ""),
-    normalizeCrewRosterVolunteerEmail(parsed.signupEmail ?? ""),
+    normalizeCrewRosterVolunteerEmail(
+      typeof parsed.signupEmail === "string" ? parsed.signupEmail : "",
+    ),
   ].filter(Boolean)
 }
 
