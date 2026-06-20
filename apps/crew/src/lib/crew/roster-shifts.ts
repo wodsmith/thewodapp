@@ -1,4 +1,5 @@
 // @lat: [[crew#Roster Shifts Assignments]]
+// @lat: [[crew#Roster Volunteer Editing]]
 import {
   INVITATION_STATUS,
   type InvitationStatus,
@@ -29,6 +30,23 @@ export interface CrewRosterMetadata
   inviteName?: string
   crewImportId?: string
   crewSignupSource?: string
+}
+
+export interface CrewRosterVolunteerMetadataInput {
+  email: string
+  name?: string
+  phone?: string
+  roleTypes?: VolunteerRoleType[]
+  availability?: VolunteerAvailability | ""
+  availabilityNotes?: string
+  credentials?: string
+  notes?: string
+}
+
+export interface CrewRosterEmailCollision {
+  source: CrewRosterVolunteer["source"]
+  sourceId: string
+  email: string
 }
 
 export interface CrewVolunteerInvitationRecord {
@@ -69,6 +87,7 @@ export interface CrewRosterVolunteer {
   availability: VolunteerAvailability | null
   availabilityNotes: string | null
   credentials: string | null
+  notes: string | null
   imported: boolean
   signupSource: string | null
   createdAt: Date | null
@@ -146,6 +165,117 @@ export function parseCrewRosterMetadata(
   } catch {
     return {}
   }
+}
+
+export function normalizeCrewRosterVolunteerEmail(value: string) {
+  return value.trim().toLowerCase()
+}
+
+export function buildCrewRosterVolunteerMetadataUpdate(
+  existingMetadata: string | null | undefined,
+  input: CrewRosterVolunteerMetadataInput,
+): CrewRosterMetadata {
+  const existing = parseCrewRosterMetadata(existingMetadata)
+  const next: CrewRosterMetadata = {
+    ...existing,
+    volunteerRoleTypes: getCrewRosterRoleTypes(input.roleTypes),
+    signupEmail: normalizeCrewRosterVolunteerEmail(input.email),
+    signupName: emptyToUndefined(input.name),
+    inviteName: undefined,
+    signupPhone: emptyToUndefined(input.phone),
+    availability: input.availability || undefined,
+    availabilityNotes: emptyToUndefined(input.availabilityNotes),
+    credentials: emptyToUndefined(input.credentials),
+    internalNotes: emptyToUndefined(input.notes),
+  }
+
+  return removeUndefined(next)
+}
+
+export function findCrewRosterVolunteerEmailCollision({
+  source,
+  sourceId,
+  email,
+  invitations,
+  memberships,
+  now = new Date(),
+}: {
+  source: CrewRosterVolunteer["source"]
+  sourceId: string
+  email: string
+  invitations: CrewVolunteerInvitationRecord[]
+  memberships: Array<CrewVolunteerMembershipRecord & { email?: string | null }>
+  now?: Date
+}): CrewRosterEmailCollision | null {
+  const normalizedEmail = normalizeCrewRosterVolunteerEmail(email)
+  if (!normalizedEmail) return null
+  const membershipEmails = new Set(
+    memberships.flatMap((membership) =>
+      getCrewRosterRecordEmails(
+        membership.email ?? membership.user?.email,
+        membership.metadata,
+      ),
+    ),
+  )
+
+  for (const membership of memberships) {
+    if (source === "team_membership" && membership.id === sourceId) {
+      continue
+    }
+
+    const emails = getCrewRosterRecordEmails(
+      membership.email ?? membership.user?.email,
+      membership.metadata,
+    )
+    if (emails.includes(normalizedEmail)) {
+      return {
+        source: "team_membership",
+        sourceId: membership.id,
+        email: normalizedEmail,
+      }
+    }
+  }
+
+  for (const invitation of invitations) {
+    if (source === "team_invitation" && invitation.id === sourceId) {
+      continue
+    }
+
+    const emails = getCrewRosterRecordEmails(
+      invitation.email,
+      invitation.metadata,
+    )
+    const status = getCrewRosterStatus(
+      { source: "team_invitation", ...invitation },
+      now,
+    )
+    if (
+      status !== "pending" &&
+      emails.some((recordEmail) => membershipEmails.has(recordEmail))
+    ) {
+      continue
+    }
+
+    if (emails.includes(normalizedEmail)) {
+      return {
+        source: "team_invitation",
+        sourceId: invitation.id,
+        email: normalizedEmail,
+      }
+    }
+  }
+
+  return null
+}
+
+export function shouldUpdateCrewRosterInvitationEmail(
+  invitation: CrewVolunteerInvitationRecord,
+  now = new Date(),
+) {
+  return (
+    getCrewRosterStatus({ source: "team_invitation", ...invitation }, now) ===
+    "pending"
+  )
 }
 
 export function normalizeCrewRosterRoleTypes(
@@ -374,6 +504,7 @@ function toInvitationRosterRow(
     availability: metadata.availability ?? null,
     availabilityNotes: metadata.availabilityNotes ?? null,
     credentials: metadata.credentials ?? null,
+    notes: metadata.internalNotes ?? null,
     imported: Boolean(metadata.crewImportId),
     signupSource: metadata.crewSignupSource ?? metadata.inviteSource ?? null,
     createdAt: toNullableDate(invitation.createdAt),
@@ -412,6 +543,7 @@ function toMembershipRosterRow(
     availability: metadata.availability ?? null,
     availabilityNotes: metadata.availabilityNotes ?? null,
     credentials: metadata.credentials ?? null,
+    notes: metadata.internalNotes ?? null,
     imported: Boolean(metadata.crewImportId),
     signupSource: metadata.crewSignupSource ?? metadata.inviteSource ?? null,
     createdAt: toNullableDate(membership.createdAt),
@@ -420,12 +552,38 @@ function toMembershipRosterRow(
 }
 
 function getMetadataName(metadata: CrewRosterMetadata) {
-  return metadata.signupName?.trim() || metadata.inviteName?.trim() || ""
+  return (
+    nonBlankText(metadata.signupName) ?? nonBlankText(metadata.inviteName) ?? ""
+  )
 }
 
-function nonBlankText(value: string | null | undefined) {
-  const trimmed = value?.trim()
+function nonBlankText(value: unknown) {
+  const trimmed = typeof value === "string" ? value.trim() : ""
   return trimmed ? trimmed : null
+}
+
+function getCrewRosterRecordEmails(
+  email: string | null | undefined,
+  metadata: string | null | undefined,
+) {
+  const parsed = parseCrewRosterMetadata(metadata)
+  return [
+    normalizeCrewRosterVolunteerEmail(email ?? ""),
+    normalizeCrewRosterVolunteerEmail(
+      typeof parsed.signupEmail === "string" ? parsed.signupEmail : "",
+    ),
+  ].filter(Boolean)
+}
+
+function emptyToUndefined(value: string | undefined) {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : undefined
+}
+
+function removeUndefined(value: CrewRosterMetadata): CrewRosterMetadata {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entryValue]) => entryValue !== undefined),
+  ) as CrewRosterMetadata
 }
 
 function compareCrewRosterRows(

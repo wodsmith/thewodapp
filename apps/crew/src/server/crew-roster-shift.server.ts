@@ -1,6 +1,7 @@
 // @lat: [[crew#Roster Shifts Assignments]]
 // @lat: [[crew#Manual Volunteer Intake]]
 // @lat: [[crew#Shift Board Pilot Ops]]
+// @lat: [[crew#Roster Volunteer Editing]]
 import { createId } from "@paralleldrive/cuid2"
 import { and, asc, eq, inArray, sql } from "drizzle-orm"
 import { getDb } from "../db"
@@ -43,11 +44,15 @@ import type {
   CrewRosterVolunteer,
 } from "../lib/crew/roster-shifts"
 import {
+  buildCrewRosterVolunteerMetadataUpdate,
   buildCrewRoster,
+  findCrewRosterVolunteerEmailCollision,
   formatVolunteerRole,
   getCrewRosterRoleTypes,
+  normalizeCrewRosterVolunteerEmail,
   normalizeCrewShiftTimes,
   parseCrewRosterMetadata,
+  shouldUpdateCrewRosterInvitationEmail,
   summarizeCrewRoster,
   validateShiftAssignment,
   validateShiftCapacityUpdate,
@@ -202,6 +207,19 @@ interface ManualCrewVolunteerPasteInput extends CrewEventInput {
   pasteText: string
 }
 
+interface UpdateCrewRosterVolunteerInput extends CrewEventInput {
+  source: CrewRosterVolunteer["source"]
+  sourceId: string
+  email: string
+  name?: string
+  phone?: string
+  roleTypes?: VolunteerRoleType[]
+  availability?: VolunteerAvailability
+  availabilityNotes?: string
+  credentials?: string
+  notes?: string
+}
+
 interface ManualCrewVolunteerCreateRow
   extends Omit<ManualCrewVolunteerInput, "eventId"> {
   rowNumber: number
@@ -235,6 +253,13 @@ export interface ManualCrewVolunteerMutationResult {
     skipped: number
     invalid: number
   }
+}
+
+export interface UpdateCrewRosterVolunteerResult {
+  success: true
+  source: CrewRosterVolunteer["source"]
+  sourceId: string
+  email: string
 }
 
 export async function getCrewRosterPage(
@@ -347,6 +372,125 @@ export async function pasteManualCrewVolunteerEmails(
     ],
     invalid: parsed.invalid,
   })
+}
+
+export async function updateCrewRosterVolunteer(
+  data: UpdateCrewRosterVolunteerInput,
+): Promise<UpdateCrewRosterVolunteerResult> {
+  requireLocalCrewOperatorAccess("Crew roster")
+
+  const event = await requireCrewRosterEvent(data.eventId)
+  const db = getDb()
+  const normalizedEmail = normalizeCrewRosterVolunteerEmail(data.email)
+
+  await withCrewRosterVolunteerWriteLock(
+    db,
+    event.competitionTeamId,
+    async () => {
+      await db.transaction(async (tx) => {
+        const client = tx as unknown as DbClient
+        const [existingInvitations, existingMemberships] = await Promise.all([
+          listManualVolunteerInvitations(client, event.competitionTeamId),
+          listManualVolunteerMemberships(client, event.competitionTeamId),
+        ])
+        const currentInvitation =
+          data.source === "team_invitation"
+            ? existingInvitations.find(
+                (invitation) => invitation.id === data.sourceId,
+              )
+            : null
+        const currentMembership =
+          data.source === "team_membership"
+            ? existingMemberships.find(
+                (membership) => membership.id === data.sourceId,
+              )
+            : null
+        const current = currentInvitation ?? currentMembership
+
+        if (!current) {
+          throw new Error("Roster volunteer not found")
+        }
+
+        const collision = findCrewRosterVolunteerEmailCollision({
+          source: data.source,
+          sourceId: data.sourceId,
+          email: normalizedEmail,
+          invitations: existingInvitations,
+          memberships: existingMemberships,
+        })
+
+        if (collision) {
+          throw new Error("A matching volunteer email already exists.")
+        }
+
+        const timestamp = new Date()
+        const metadata = buildCrewRosterVolunteerMetadataUpdate(
+          current.metadata,
+          {
+            email: normalizedEmail,
+            name: data.name,
+            phone: data.phone,
+            roleTypes: data.roleTypes,
+            availability: data.availability,
+            availabilityNotes: data.availabilityNotes,
+            credentials: data.credentials,
+            notes: data.notes,
+          },
+        )
+        const metadataJson = JSON.stringify(metadata)
+
+        if (currentInvitation) {
+          const updateValues: Partial<
+            typeof teamInvitationTable.$inferInsert
+          > = {
+            metadata: metadataJson,
+            updatedAt: timestamp,
+          }
+
+          if (
+            shouldUpdateCrewRosterInvitationEmail(currentInvitation, timestamp)
+          ) {
+            updateValues.email = normalizedEmail
+          }
+
+          await tx
+            .update(teamInvitationTable)
+            .set(updateValues)
+            .where(
+              and(
+                eq(teamInvitationTable.id, currentInvitation.id),
+                eq(teamInvitationTable.teamId, event.competitionTeamId),
+                eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+                eq(teamInvitationTable.isSystemRole, true),
+              ),
+            )
+          return
+        }
+
+        await tx
+          .update(teamMembershipTable)
+          .set({
+            metadata: metadataJson,
+            updatedAt: timestamp,
+          })
+          .where(
+            and(
+              eq(teamMembershipTable.id, data.sourceId),
+              eq(teamMembershipTable.teamId, event.competitionTeamId),
+              eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+              eq(teamMembershipTable.isSystemRole, true),
+            ),
+          )
+      })
+    },
+  )
+
+  return {
+    success: true,
+    source: data.source,
+    sourceId: data.sourceId,
+    email: normalizedEmail,
+  }
 }
 
 export async function createCrewShift(data: CrewShiftInput) {
@@ -715,7 +859,7 @@ async function createManualCrewVolunteerRows(
 
   // team_invitations has no team/email uniqueness constraint, so serialize
   // manual intake for this roster until the batch transaction commits.
-  await withManualVolunteerIntakeBatchLock(
+  await withCrewRosterVolunteerWriteLock(
     db,
     event.competitionTeamId,
     async () => {
@@ -786,14 +930,15 @@ async function createManualCrewVolunteerRows(
   })
 }
 
-async function withManualVolunteerIntakeBatchLock<T>(
+async function withCrewRosterVolunteerWriteLock<T>(
   db: DbClient,
   competitionTeamId: string,
   callback: () => Promise<T>,
 ) {
   let acquired = false
-  const lockName =
-    await createManualVolunteerIntakeBatchLockName(competitionTeamId)
+  const lockName = await createCrewRosterVolunteerWriteLockName(
+    competitionTeamId,
+  )
 
   try {
     const result = await db.execute(
@@ -801,7 +946,7 @@ async function withManualVolunteerIntakeBatchLock<T>(
     )
     acquired = Number(getFirstExecuteValue(result) ?? 0) === 1
     if (!acquired) {
-      throw new Error("Manual volunteer could not be saved")
+      throw new Error("Roster volunteer could not be saved")
     }
 
     return await callback()
@@ -812,11 +957,11 @@ async function withManualVolunteerIntakeBatchLock<T>(
   }
 }
 
-async function createManualVolunteerIntakeBatchLockName(
+async function createCrewRosterVolunteerWriteLockName(
   competitionTeamId: string,
 ) {
   const encoded = new TextEncoder().encode(
-    `crew-manual-volunteer:${competitionTeamId}`,
+    `crew-roster-volunteer:${competitionTeamId}`,
   )
   const digest = await crypto.subtle.digest("SHA-256", encoded)
   return Array.from(new Uint8Array(digest), (byte) =>
@@ -833,6 +978,7 @@ async function listManualVolunteerInvitations(
       id: teamInvitationTable.id,
       email: teamInvitationTable.email,
       acceptedAt: teamInvitationTable.acceptedAt,
+      expiresAt: teamInvitationTable.expiresAt,
       status: teamInvitationTable.status,
       metadata: teamInvitationTable.metadata,
     })

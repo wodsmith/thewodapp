@@ -305,6 +305,7 @@ function rosterVolunteer(
     availability: overrides.availability ?? "all_day",
     availabilityNotes: null,
     credentials: overrides.credentials ?? null,
+    notes: null,
     imported: overrides.imported ?? false,
     signupSource: null,
     createdAt: null,
