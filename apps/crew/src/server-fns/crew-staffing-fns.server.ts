@@ -79,7 +79,7 @@ export async function getCrewStaffingReportPage(
   }
 }
 
-async function requireCrewStaffingEvent(
+export async function requireCrewStaffingEvent(
   eventId: string,
 ): Promise<CrewStaffingReportEvent> {
   const db = getDb()
@@ -108,7 +108,9 @@ async function requireCrewStaffingEvent(
   return event
 }
 
-async function loadCrewStaffingMatrixInput(event: CrewStaffingReportEvent) {
+export async function loadCrewStaffingMatrixInput(
+  event: CrewStaffingReportEvent,
+) {
   const [roster, shifts, venues, workouts, heats] = await Promise.all([
     loadCrewRoster(event.competitionTeamId),
     loadCrewShifts(event.id),

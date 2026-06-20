@@ -217,3 +217,11 @@ Crew day-of operations is a compact read-only board for current blocks, response
 [[apps/crew/src/lib/crew/day-of-operations.ts]] derives current and next blocks, critical unfilled roles, due-soon no-responses, decision queues, no-show/replaced queues, time-block status, and judge coverage.
 
 The board does not add schema, exports, queue bindings, live email sends, public token changes, assignment automation, or published judge-row mutation. Checked-in remains unavailable until a dedicated primitive exists.
+
+## Pilot Exports
+
+Crew pilot exports turn the active event staffing and judge assignment data into operator-ready packets without creating report-builder schema or mutating published assignments.
+
+[[apps/crew/src/routes/events/$eventId/exports.tsx]] renders the per-event export surface. [[apps/crew/src/server-fns/crew-pilot-export-fns.ts]] keeps the route import light while [[apps/crew/src/server/crew-pilot-exports.server.ts]] reuses server-only staffing hydration and active judge assignment data.
+
+[[apps/crew/src/lib/crew/exports/pilot-exports.ts]] owns deterministic export derivation for master schedule CSV rows, role sheets, judge heat/lane sheets, no-response and decline lists, and printable floor lead sheets. Exports are read-only and must not send reminders, create queues, alter confirmation tokens, or mutate versioned judge assignment rows.
