@@ -3,9 +3,12 @@ import { CREW_ASSIGNMENT_CONFIRMATION_STATUS } from "../../db/schemas/crew-impor
 import {
   buildCrewAssignmentConfirmationUrls,
   generateCrewAssignmentConfirmationToken,
+  getCrewAssignmentConfirmationOperationalState,
   getCrewAssignmentConfirmationTokenState,
   hashCrewAssignmentConfirmationToken,
   resolveCrewAssignmentConfirmationResponse,
+  resolveCrewAssignmentConfirmationOrganizerStateUpdate,
+  summarizeCrewAssignmentConfirmationOperationalStates,
   summarizeCrewAssignmentConfirmations,
 } from "./assignment-confirmations"
 
@@ -198,6 +201,114 @@ describe("Crew assignment confirmation summaries", () => {
         "https://crew.wodsmith.com/e/friday-night-lights/confirm/abc_123",
       scheduleUrl:
         "https://crew.wodsmith.com/e/friday-night-lights/schedule/abc_123",
+    })
+  })
+})
+
+describe("Crew assignment confirmation operational states", () => {
+  it("normalizes missing, pending, sent, response, no-show, and replaced states", () => {
+    expect(getCrewAssignmentConfirmationOperationalState(null)).toBe("missing")
+    expect(
+      getCrewAssignmentConfirmationOperationalState({
+        status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
+        sentAt: null,
+      }),
+    ).toBe("pending")
+    expect(
+      getCrewAssignmentConfirmationOperationalState({
+        status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
+        sentAt: "2026-06-19T12:00:00.000Z",
+      }),
+    ).toBe("sent")
+    expect(
+      getCrewAssignmentConfirmationOperationalState({
+        status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CONFIRMED,
+      }),
+    ).toBe("confirmed")
+    expect(
+      getCrewAssignmentConfirmationOperationalState({
+        status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.NO_SHOW,
+      }),
+    ).toBe("no_show")
+    expect(
+      getCrewAssignmentConfirmationOperationalState({
+        status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CANCELLED,
+      }),
+    ).toBe("replaced")
+  })
+
+  it("summarizes operational states separately from persisted statuses", () => {
+    expect(
+      summarizeCrewAssignmentConfirmationOperationalStates([
+        null,
+        {
+          status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
+          sentAt: null,
+        },
+        {
+          status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
+          sentAt: "2026-06-19T12:00:00.000Z",
+        },
+        { status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CONFIRMED },
+        { status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.DECLINED },
+        { status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CHANGE_REQUESTED },
+        { status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.NO_SHOW },
+        { status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CANCELLED },
+      ]),
+    ).toEqual({
+      missing: 1,
+      pending: 1,
+      sent: 1,
+      confirmed: 1,
+      declined: 1,
+      changeRequested: 1,
+      noShow: 1,
+      replaced: 1,
+      total: 8,
+      responseNeeded: 3,
+      organizerActionNeeded: 7,
+    })
+  })
+
+  it("builds organizer mutation payloads without inventing persisted states", () => {
+    const now = new Date("2026-06-19T12:00:00.000Z")
+
+    expect(
+      resolveCrewAssignmentConfirmationOrganizerStateUpdate(
+        "sent",
+        null,
+        now,
+      ),
+    ).toEqual({
+      status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
+      sentAt: now,
+      respondedAt: null,
+      responseNote: null,
+    })
+    expect(
+      resolveCrewAssignmentConfirmationOrganizerStateUpdate(
+        "change_requested",
+        " Need a later slot. ",
+        now,
+        { sentAt: "2026-06-19T10:00:00.000Z" },
+      ),
+    ).toEqual({
+      status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CHANGE_REQUESTED,
+      sentAt: new Date("2026-06-19T10:00:00.000Z"),
+      respondedAt: now,
+      responseNote: "Need a later slot.",
+    })
+    expect(
+      resolveCrewAssignmentConfirmationOrganizerStateUpdate(
+        "replaced",
+        "Covered by Sam.",
+        now,
+      ),
+    ).toMatchObject({
+      status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CANCELLED,
+      sentAt: null,
+      respondedAt: null,
+      responseNote: "Covered by Sam.",
     })
   })
 })

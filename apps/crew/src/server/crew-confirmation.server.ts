@@ -1,5 +1,6 @@
 import { render } from "@react-email/render"
 // @lat: [[crew#Assignment Confirmation Responses]]
+// @lat: [[crew#Assignment Confirmations]]
 import { and, desc, eq, inArray, ne, sql } from "drizzle-orm"
 import { getDb } from "../db"
 import { competitionsTable, type Competition } from "../db/schemas/competitions"
@@ -27,8 +28,10 @@ import {
   getCrewAssignmentConfirmationTokenState,
   hashCrewAssignmentConfirmationToken,
   resolveCrewAssignmentConfirmationResponse,
+  resolveCrewAssignmentConfirmationOrganizerStateUpdate,
   statusForCrewAssignmentResponseAction,
   summarizeCrewAssignmentConfirmations,
+  type CrewAssignmentConfirmationOrganizerState,
   type CrewAssignmentConfirmationStatusSummary,
   type CrewAssignmentResponseAction,
   type CrewAssignmentTokenState,
@@ -45,6 +48,7 @@ import {
   formatDateTimeInTimezone,
 } from "../utils/timezone-utils"
 import { getFirstExecuteValue } from "../server-fns/db-execute"
+import { requireLocalCrewOperatorAccess } from "./crew-local-access"
 
 type DbClient = ReturnType<typeof getDb>
 
@@ -101,8 +105,16 @@ export interface CrewAssignmentConfirmationResponseResult
 export interface CrewShiftAssignmentConfirmationStatus {
   id: string
   status: CrewAssignmentConfirmationStatus
+  sentAt: Date | null
   respondedAt: Date | null
   responseNote: string | null
+}
+
+export interface UpdateCrewShiftAssignmentConfirmationStateInput {
+  eventId: string
+  assignmentId: string
+  state: CrewAssignmentConfirmationOrganizerState
+  responseNote?: string
 }
 
 export interface CrewAssignmentConfirmationEmailMessage {
@@ -353,6 +365,7 @@ export async function loadCrewShiftAssignmentConfirmationMap(
       assignmentId: crewAssignmentConfirmationsTable.assignmentId,
       id: crewAssignmentConfirmationsTable.id,
       status: crewAssignmentConfirmationsTable.status,
+      sentAt: crewAssignmentConfirmationsTable.sentAt,
       respondedAt: crewAssignmentConfirmationsTable.respondedAt,
       responseNote: crewAssignmentConfirmationsTable.responseNote,
       updatedAt: crewAssignmentConfirmationsTable.updatedAt,
@@ -375,11 +388,140 @@ export async function loadCrewShiftAssignmentConfirmationMap(
     byAssignment.set(row.assignmentId, {
       id: row.id,
       status: row.status,
+      sentAt: row.sentAt,
       respondedAt: row.respondedAt,
       responseNote: row.responseNote,
     })
   }
   return byAssignment
+}
+
+export async function updateCrewShiftAssignmentConfirmationState(
+  data: UpdateCrewShiftAssignmentConfirmationStateInput,
+) {
+  requireLocalCrewOperatorAccess("Crew assignment confirmations")
+
+  const db = getDb()
+  const now = new Date()
+
+  return await db.transaction(async (tx) => {
+    const [assignment] = await tx
+      .select({
+        assignmentId: volunteerShiftAssignmentsTable.id,
+        shiftId: volunteerShiftAssignmentsTable.shiftId,
+        membershipId: volunteerShiftAssignmentsTable.membershipId,
+        competitionId: volunteerShiftsTable.competitionId,
+        membershipMetadata: teamMembershipTable.metadata,
+        userEmail: userTable.email,
+      })
+      .from(volunteerShiftAssignmentsTable)
+      .innerJoin(
+        volunteerShiftsTable,
+        eq(volunteerShiftAssignmentsTable.shiftId, volunteerShiftsTable.id),
+      )
+      .leftJoin(
+        teamMembershipTable,
+        eq(volunteerShiftAssignmentsTable.membershipId, teamMembershipTable.id),
+      )
+      .leftJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
+      .where(
+        and(
+          eq(volunteerShiftAssignmentsTable.id, data.assignmentId),
+          eq(volunteerShiftsTable.competitionId, data.eventId),
+        ),
+      )
+      .for("update")
+      .limit(1)
+
+    if (!assignment) {
+      throw new Error("Shift assignment not found")
+    }
+
+    const [latestConfirmation] = await tx
+      .select({
+        id: crewAssignmentConfirmationsTable.id,
+        status: crewAssignmentConfirmationsTable.status,
+        sentAt: crewAssignmentConfirmationsTable.sentAt,
+      })
+      .from(crewAssignmentConfirmationsTable)
+      .where(
+        and(
+          eq(
+            crewAssignmentConfirmationsTable.assignmentType,
+            CREW_ASSIGNMENT_CONFIRMATION_TYPE.VOLUNTEER_SHIFT,
+          ),
+          eq(
+            crewAssignmentConfirmationsTable.assignmentId,
+            assignment.assignmentId,
+          ),
+        ),
+      )
+      .orderBy(desc(crewAssignmentConfirmationsTable.updatedAt))
+      .limit(1)
+
+    let confirmation = latestConfirmation ?? null
+    if (
+      !confirmation ||
+      (confirmation.status === CREW_ASSIGNMENT_CONFIRMATION_STATUS.CANCELLED &&
+        data.state !== "replaced")
+    ) {
+      const metadata = parseCrewRosterMetadata(assignment.membershipMetadata)
+      const token = generateCrewAssignmentConfirmationToken()
+      const tokenHash = await hashCrewAssignmentConfirmationToken(token)
+      const confirmationId = createCrewAssignmentConfirmationId()
+
+      await tx.insert(crewAssignmentConfirmationsTable).values({
+        id: confirmationId,
+        competitionId: assignment.competitionId,
+        assignmentType: CREW_ASSIGNMENT_CONFIRMATION_TYPE.VOLUNTEER_SHIFT,
+        assignmentId: assignment.assignmentId,
+        membershipId: assignment.membershipId,
+        email:
+          normalizeConfirmationEmail(metadata.signupEmail) ??
+          normalizeConfirmationEmail(assignment.userEmail),
+        tokenHash,
+        status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
+        expiresAt: getAssignmentConfirmationExpiry(now),
+        createdAt: now,
+        updatedAt: now,
+      })
+
+      confirmation = {
+        id: confirmationId,
+        status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
+        sentAt: null,
+      }
+    }
+
+    const update = resolveCrewAssignmentConfirmationOrganizerStateUpdate(
+      data.state,
+      data.responseNote,
+      now,
+      confirmation,
+    )
+
+    await tx
+      .update(crewAssignmentConfirmationsTable)
+      .set({
+        status: update.status,
+        sentAt: update.sentAt,
+        respondedAt: update.respondedAt,
+        responseNote: update.responseNote,
+        updatedAt: now,
+      })
+      .where(eq(crewAssignmentConfirmationsTable.id, confirmation.id))
+
+    return {
+      success: true,
+      confirmation: {
+        id: confirmation.id,
+        status: update.status,
+        sentAt: update.sentAt,
+        respondedAt: update.respondedAt,
+        responseNote: update.responseNote,
+      },
+    }
+  })
 }
 
 export function summarizeCrewShiftAssignmentConfirmations(
@@ -625,6 +767,17 @@ function toConfirmationDisplay(confirmation: {
     expiresAt: confirmation.expiresAt,
     responseNote: confirmation.responseNote,
   }
+}
+
+function getAssignmentConfirmationExpiry(now: Date) {
+  const expiresAt = new Date(now)
+  expiresAt.setDate(expiresAt.getDate() + 14)
+  return expiresAt
+}
+
+function normalizeConfirmationEmail(value: string | null | undefined) {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : null
 }
 
 function getResponseSuccessMessage(action: CrewAssignmentResponseAction) {

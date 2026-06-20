@@ -6,7 +6,7 @@ import {
   type VolunteerAvailability,
   type VolunteerRoleType,
 } from "@/db/schemas/volunteers"
-import { formatCrewValue } from "@/lib/crew-event-display"
+import { getCrewAssignmentConfirmationStatusLabel } from "@/lib/crew/assignment-confirmation-display"
 import {
   getCrewAssignmentConfirmationTokenFn,
   type CrewAssignmentConfirmationTokenData,
@@ -169,7 +169,9 @@ function CrewAssignmentSchedule({
             </p>
           </div>
           <span className="inline-flex w-fit rounded-md border bg-background px-2 py-1 text-xs font-medium">
-            {formatCrewValue(data.confirmation?.status ?? "pending")}
+            {getCrewAssignmentConfirmationStatusLabel(
+              data.confirmation?.status ?? "pending",
+            )}
           </span>
         </div>
 

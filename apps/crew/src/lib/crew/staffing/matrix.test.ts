@@ -382,6 +382,52 @@ describe("Crew staffing matrix core", () => {
       confirmationChangeRequests: 1,
     })
   })
+
+  it("treats cancelled confirmation rows as replaced assignment gaps", () => {
+    const matrix = buildCrewStaffingMatrix({
+      event: { id: "comp_1" },
+      roster: [
+        {
+          membershipId: "tmem_staff",
+          name: "Staff One",
+          roleTypes: ["staff"],
+          isActive: true,
+        },
+      ],
+      shifts: [
+        {
+          id: "shift_staff",
+          name: "Staff block",
+          roleType: "staff",
+          startTime: "2026-07-04T15:00:00.000Z",
+          endTime: "2026-07-04T16:00:00.000Z",
+          capacity: 1,
+          assignments: [
+            {
+              id: "vsha_replaced",
+              membershipId: "tmem_staff",
+              confirmation: {
+                type: CREW_ASSIGNMENT_CONFIRMATION_TYPE.VOLUNTEER_SHIFT,
+                status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CANCELLED,
+              },
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(matrix.confirmationGaps).toMatchObject([
+      {
+        assignmentId: "vsha_replaced",
+        type: "volunteer_shift",
+        status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CANCELLED,
+        reason: "replaced",
+      },
+    ])
+    expect(matrix.summary).toMatchObject({
+      confirmationReplaced: 1,
+    })
+  })
 })
 
 function baseInput(): CrewStaffingMatrixInput {

@@ -87,6 +87,19 @@ describe("Crew readiness checklist", () => {
           noShow: 0,
           cancelled: 0,
         },
+        confirmationOperationalSummary: {
+          missing: 0,
+          pending: 2,
+          sent: 0,
+          confirmed: 3,
+          declined: 1,
+          changeRequested: 1,
+          noShow: 0,
+          replaced: 0,
+          total: 7,
+          responseNeeded: 2,
+          organizerActionNeeded: 4,
+        },
       },
     })
 
@@ -97,7 +110,14 @@ describe("Crew readiness checklist", () => {
     ).toMatchObject({
       status: "needs_attention",
       summary: "3/7 assignments confirmed",
-      details: ["2 no response.", "1 declined.", "1 change requested."],
+      details: [
+        "2 not sent.",
+        "0 sent.",
+        "1 declined.",
+        "1 change requested.",
+        "0 no-show.",
+        "0 replaced.",
+      ],
     })
   })
 
@@ -167,6 +187,19 @@ const readyInput: CrewReadinessInput = {
       changeRequested: 0,
       noShow: 0,
       cancelled: 0,
+    },
+    confirmationOperationalSummary: {
+      missing: 0,
+      pending: 0,
+      sent: 0,
+      confirmed: 7,
+      declined: 0,
+      changeRequested: 0,
+      noShow: 0,
+      replaced: 0,
+      total: 7,
+      responseNeeded: 0,
+      organizerActionNeeded: 0,
     },
   },
   judge: {

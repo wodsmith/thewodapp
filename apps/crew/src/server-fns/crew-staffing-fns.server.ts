@@ -316,6 +316,7 @@ async function loadJudgeAssignmentConfirmationMap(
       assignmentId: crewAssignmentConfirmationsTable.assignmentId,
       type: crewAssignmentConfirmationsTable.assignmentType,
       status: crewAssignmentConfirmationsTable.status,
+      sentAt: crewAssignmentConfirmationsTable.sentAt,
       respondedAt: crewAssignmentConfirmationsTable.respondedAt,
       responseNote: crewAssignmentConfirmationsTable.responseNote,
       updatedAt: crewAssignmentConfirmationsTable.updatedAt,
@@ -338,6 +339,7 @@ async function loadJudgeAssignmentConfirmationMap(
     byAssignment.set(row.assignmentId, {
       type: row.type,
       status: row.status,
+      sentAt: row.sentAt,
       respondedAt: row.respondedAt,
       responseNote: row.responseNote,
     })
@@ -361,6 +363,7 @@ function toStaffingShifts(shifts: CrewShiftBoardItem[]) {
         ? {
             type: CREW_ASSIGNMENT_CONFIRMATION_TYPE.VOLUNTEER_SHIFT,
             status: assignment.confirmation.status,
+            sentAt: assignment.confirmation.sentAt,
             respondedAt: assignment.confirmation.respondedAt,
             responseNote: assignment.confirmation.responseNote,
           }

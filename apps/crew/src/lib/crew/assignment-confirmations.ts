@@ -1,4 +1,5 @@
 // @lat: [[crew#Assignment Confirmation Responses]]
+// @lat: [[crew#Assignment Confirmations]]
 import {
   CREW_ASSIGNMENT_CONFIRMATION_STATUS,
   type CrewAssignmentConfirmationStatus,
@@ -32,8 +33,58 @@ export interface CrewAssignmentConfirmationStatusSummary {
   cancelled: number
 }
 
+export type CrewAssignmentConfirmationOperationalState =
+  | "missing"
+  | "pending"
+  | "sent"
+  | "confirmed"
+  | "declined"
+  | "change_requested"
+  | "no_show"
+  | "replaced"
+
+export type CrewAssignmentConfirmationOrganizerState = Exclude<
+  CrewAssignmentConfirmationOperationalState,
+  "missing"
+>
+
+export interface CrewAssignmentConfirmationOperationalRecord {
+  status?: CrewAssignmentConfirmationStatus | string | null
+  sentAt?: Date | string | null
+}
+
+export interface CrewAssignmentConfirmationOperationalSummary {
+  missing: number
+  pending: number
+  sent: number
+  confirmed: number
+  declined: number
+  changeRequested: number
+  noShow: number
+  replaced: number
+  total: number
+  responseNeeded: number
+  organizerActionNeeded: number
+}
+
+export interface CrewAssignmentConfirmationOrganizerStateUpdate {
+  status: CrewAssignmentConfirmationStatus
+  sentAt: Date | null
+  respondedAt: Date | null
+  responseNote: string | null
+}
+
 export const CREW_ASSIGNMENT_CONFIRMATION_TOKEN_BYTES = 32
 export const CREW_ASSIGNMENT_CONFIRMATION_TOKEN_HASH_PREFIX = "sha256:"
+export const CREW_ASSIGNMENT_CONFIRMATION_ORGANIZER_STATES = [
+  "pending",
+  "sent",
+  "confirmed",
+  "declined",
+  "change_requested",
+  "no_show",
+  "replaced",
+] as const satisfies CrewAssignmentConfirmationOrganizerState[]
 
 export function generateCrewAssignmentConfirmationToken(
   byteLength = CREW_ASSIGNMENT_CONFIRMATION_TOKEN_BYTES,
@@ -216,6 +267,129 @@ export function summarizeCrewAssignmentConfirmations(
   )
 }
 
+export function getCrewAssignmentConfirmationOperationalState(
+  record: CrewAssignmentConfirmationOperationalRecord | null | undefined,
+): CrewAssignmentConfirmationOperationalState {
+  if (!record?.status) return "missing"
+  if (record.status === CREW_ASSIGNMENT_CONFIRMATION_STATUS.CONFIRMED) {
+    return "confirmed"
+  }
+  if (record.status === CREW_ASSIGNMENT_CONFIRMATION_STATUS.DECLINED) {
+    return "declined"
+  }
+  if (
+    record.status === CREW_ASSIGNMENT_CONFIRMATION_STATUS.CHANGE_REQUESTED
+  ) {
+    return "change_requested"
+  }
+  if (record.status === CREW_ASSIGNMENT_CONFIRMATION_STATUS.NO_SHOW) {
+    return "no_show"
+  }
+  if (record.status === CREW_ASSIGNMENT_CONFIRMATION_STATUS.CANCELLED) {
+    return "replaced"
+  }
+  return record.sentAt ? "sent" : "pending"
+}
+
+export function summarizeCrewAssignmentConfirmationOperationalStates(
+  confirmations: Array<
+    CrewAssignmentConfirmationOperationalRecord | null | undefined
+  >,
+): CrewAssignmentConfirmationOperationalSummary {
+  return confirmations.reduce<CrewAssignmentConfirmationOperationalSummary>(
+    (summary, confirmation) => {
+      const state = getCrewAssignmentConfirmationOperationalState(confirmation)
+      if (state === "missing") summary.missing += 1
+      else if (state === "pending") summary.pending += 1
+      else if (state === "sent") summary.sent += 1
+      else if (state === "confirmed") summary.confirmed += 1
+      else if (state === "declined") summary.declined += 1
+      else if (state === "change_requested") summary.changeRequested += 1
+      else if (state === "no_show") summary.noShow += 1
+      else summary.replaced += 1
+
+      summary.total += 1
+      summary.responseNeeded =
+        summary.missing + summary.pending + summary.sent
+      summary.organizerActionNeeded =
+        summary.missing +
+        summary.pending +
+        summary.sent +
+        summary.declined +
+        summary.changeRequested +
+        summary.noShow +
+        summary.replaced
+      return summary
+    },
+    {
+      missing: 0,
+      pending: 0,
+      sent: 0,
+      confirmed: 0,
+      declined: 0,
+      changeRequested: 0,
+      noShow: 0,
+      replaced: 0,
+      total: 0,
+      responseNeeded: 0,
+      organizerActionNeeded: 0,
+    },
+  )
+}
+
+export function resolveCrewAssignmentConfirmationOrganizerStateUpdate(
+  state: CrewAssignmentConfirmationOrganizerState,
+  note: string | null | undefined,
+  now = new Date(),
+  current?: CrewAssignmentConfirmationOperationalRecord | null,
+): CrewAssignmentConfirmationOrganizerStateUpdate {
+  if (state === "pending") {
+    return {
+      status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
+      sentAt: null,
+      respondedAt: null,
+      responseNote: null,
+    }
+  }
+
+  if (state === "sent") {
+    return {
+      status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
+      sentAt: now,
+      respondedAt: null,
+      responseNote: null,
+    }
+  }
+
+  if (state === "replaced") {
+    return {
+      status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CANCELLED,
+      sentAt: normalizeDateOrNull(current?.sentAt),
+      respondedAt: null,
+      responseNote: normalizeResponseNote(note),
+    }
+  }
+
+  const status =
+    state === "confirmed"
+      ? CREW_ASSIGNMENT_CONFIRMATION_STATUS.CONFIRMED
+      : state === "declined"
+        ? CREW_ASSIGNMENT_CONFIRMATION_STATUS.DECLINED
+        : state === "no_show"
+          ? CREW_ASSIGNMENT_CONFIRMATION_STATUS.NO_SHOW
+          : CREW_ASSIGNMENT_CONFIRMATION_STATUS.CHANGE_REQUESTED
+
+  return {
+    status,
+    sentAt: normalizeDateOrNull(current?.sentAt),
+    respondedAt: now,
+    responseNote:
+      status === CREW_ASSIGNMENT_CONFIRMATION_STATUS.CHANGE_REQUESTED
+        ? normalizeResponseNote(note)
+        : null,
+  }
+}
+
 export function buildCrewAssignmentConfirmationUrls(params: {
   appUrl: string
   slug: string
@@ -230,9 +404,16 @@ export function buildCrewAssignmentConfirmationUrls(params: {
   }
 }
 
-function normalizeResponseNote(value: string | null | undefined) {
+export function normalizeResponseNote(value: string | null | undefined) {
   const trimmed = value?.trim()
   return trimmed ? trimmed.slice(0, 1000) : null
+}
+
+function normalizeDateOrNull(value: Date | string | null | undefined) {
+  if (!value) return null
+  if (value instanceof Date) return value
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
 }
 
 function bytesToBase64Url(bytes: Uint8Array) {

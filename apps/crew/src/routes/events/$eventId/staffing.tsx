@@ -2,7 +2,10 @@
 import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router"
 import { AlertCircle, CheckCircle2, CircleAlert } from "lucide-react"
 import type { ReactNode } from "react"
-import { getCrewAssignmentConfirmationStatusBadgeClassName } from "@/lib/crew/assignment-confirmation-display"
+import {
+  getCrewAssignmentConfirmationStatusBadgeClassName,
+  getCrewAssignmentConfirmationStatusLabel,
+} from "@/lib/crew/assignment-confirmation-display"
 import type {
   CrewStaffingCoverageRow,
   CrewStaffingReportIssueSummary,
@@ -39,7 +42,8 @@ function EventStaffingPage() {
     matrix.summary.confirmationNoResponses +
     matrix.summary.confirmationDeclines +
     matrix.summary.confirmationChangeRequests +
-    matrix.summary.confirmationNoShows
+    matrix.summary.confirmationNoShows +
+    matrix.summary.confirmationReplaced
 
   return (
     <section className="space-y-6">
@@ -422,7 +426,7 @@ function ConfirmationBadge({ status }: { status: string }) {
     <span
       className={`rounded-md border px-2 py-1 text-xs font-medium ${getCrewAssignmentConfirmationStatusBadgeClassName(status)}`}
     >
-      {formatCrewValue(status)}
+      {getCrewAssignmentConfirmationStatusLabel(status)}
     </span>
   )
 }

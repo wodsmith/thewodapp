@@ -1,6 +1,10 @@
 // @lat: [[crew#Shift Board Pilot Ops]]
 import type { CrewAssignmentConfirmationStatus } from "../../db/schemas/crew-imports"
 import {
+  getCrewAssignmentConfirmationOperationalState,
+  type CrewAssignmentConfirmationOperationalState,
+} from "./assignment-confirmations"
+import {
   VOLUNTEER_ROLE_LABELS,
   type VolunteerAvailability,
   type VolunteerRoleType,
@@ -55,6 +59,7 @@ export interface CrewShiftPilotOpsAssignment {
   membershipId: string
   confirmation?: {
     status: CrewAssignmentConfirmationStatus
+    sentAt?: Date | string | null
   } | null
 }
 
@@ -86,7 +91,7 @@ export interface CrewShiftPilotShiftState {
   importedAssignmentCount: number
   directAssignmentCount: number
   confirmationCounts: Record<
-    CrewAssignmentConfirmationStatus | "missing",
+    CrewAssignmentConfirmationOperationalState,
     number
   >
   warnings: CrewShiftPilotWarning[]
@@ -398,18 +403,21 @@ function countAssignmentConfirmations(
 ): CrewShiftPilotShiftState["confirmationCounts"] {
   return assignments.reduce<CrewShiftPilotShiftState["confirmationCounts"]>(
     (counts, assignment) => {
-      const status = assignment.confirmation?.status ?? "missing"
-      counts[status] += 1
+      const state = getCrewAssignmentConfirmationOperationalState(
+        assignment.confirmation ?? null,
+      )
+      counts[state] += 1
       return counts
     },
     {
       missing: 0,
       pending: 0,
+      sent: 0,
       confirmed: 0,
       declined: 0,
       change_requested: 0,
       no_show: 0,
-      cancelled: 0,
+      replaced: 0,
     },
   )
 }
