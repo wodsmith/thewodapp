@@ -1,7 +1,19 @@
 import { render } from "@react-email/render"
 // @lat: [[crew#Assignment Confirmation Responses]]
 // @lat: [[crew#Assignment Confirmations]]
-import { and, desc, eq, inArray, ne, sql } from "drizzle-orm"
+// @lat: [[crew#Confirmation Emails And Reminders]]
+import { env } from "cloudflare:workers"
+import {
+  and,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  ne,
+  sql,
+} from "drizzle-orm"
 import { getDb } from "../db"
 import { competitionsTable, type Competition } from "../db/schemas/competitions"
 import { createCrewAssignmentConfirmationId } from "../db/schemas/common"
@@ -24,15 +36,22 @@ import {
 } from "../db/schemas/volunteers"
 import {
   buildCrewAssignmentConfirmationUrls,
+  buildCrewAssignmentConfirmationEmailPlan,
+  buildCrewAssignmentEmailIdempotencyKey,
   generateCrewAssignmentConfirmationToken,
   getCrewAssignmentConfirmationTokenState,
   hashCrewAssignmentConfirmationToken,
+  normalizeConfirmationEmailForSend,
   resolveCrewAssignmentConfirmationResponse,
   resolveCrewAssignmentConfirmationOrganizerStateUpdate,
   statusForCrewAssignmentResponseAction,
   summarizeCrewAssignmentConfirmations,
+  type CrewAssignmentConfirmationEmailOperation,
+  type CrewAssignmentConfirmationEmailCandidate,
+  type CrewAssignmentConfirmationEmailOperationMode,
   type CrewAssignmentConfirmationOrganizerState,
   type CrewAssignmentConfirmationStatusSummary,
+  type CrewAssignmentEmailQueueMessage,
   type CrewAssignmentResponseAction,
   type CrewAssignmentTokenState,
 } from "../lib/crew/assignment-confirmations"
@@ -42,7 +61,9 @@ import {
   parseCrewRosterMetadata,
 } from "../lib/crew/roster-shifts"
 import { getAppUrl } from "../lib/env"
-import { CrewAssignmentConfirmationEmail } from "../react-email/crew-assignment-confirmation"
+import { CrewAssignmentConfirmationEmail } from "../react-email/crew/assignment-confirmation"
+import { CrewAssignmentReminder24HourEmail } from "../react-email/crew/reminder-24-hour"
+import { CrewAssignmentReminder48HourEmail } from "../react-email/crew/reminder-48-hour"
 import {
   DEFAULT_TIMEZONE,
   formatDateTimeInTimezone,
@@ -51,6 +72,8 @@ import { getFirstExecuteValue } from "../server-fns/db-execute"
 import { requireLocalCrewOperatorAccess } from "./crew-local-access"
 
 type DbClient = ReturnType<typeof getDb>
+
+export type { CrewAssignmentEmailQueueMessage }
 
 type CrewConfirmationCompetition = Pick<
   Competition,
@@ -107,7 +130,10 @@ export interface CrewShiftAssignmentConfirmationStatus {
   status: CrewAssignmentConfirmationStatus
   sentAt: Date | null
   respondedAt: Date | null
+  expiresAt: Date | null
   responseNote: string | null
+  lastReminderAt: Date | null
+  reminderCount: number
 }
 
 export interface UpdateCrewShiftAssignmentConfirmationStateInput {
@@ -117,15 +143,21 @@ export interface UpdateCrewShiftAssignmentConfirmationStateInput {
   responseNote?: string
 }
 
-export interface CrewAssignmentConfirmationEmailMessage {
-  kind: "crew-assignment-confirmation"
-  confirmationId: string
-  assignmentId: string
-  competitionId: string
-  email: string
-  subject: string
-  bodyHtml: string
-  replyTo?: string
+export interface QueueCrewAssignmentConfirmationEmailsInput {
+  eventId: string
+  mode: CrewAssignmentConfirmationEmailOperationMode
+}
+
+export interface QueueCrewAssignmentConfirmationEmailsResult {
+  mode: CrewAssignmentConfirmationEmailOperationMode
+  queueAvailable: boolean
+  eligible: number
+  queued: number
+  previewed: number
+  failed: number
+  skipped: ReturnType<
+    typeof buildCrewAssignmentConfirmationEmailPlan
+  >["skipped"]
 }
 
 export type EnsureCrewShiftAssignmentConfirmationResult =
@@ -148,6 +180,21 @@ interface PublicTokenInput {
 interface PublicTokenResponseInput extends PublicTokenInput {
   action: CrewAssignmentResponseAction
   responseNote?: string
+}
+
+interface CrewAssignmentEmailCandidate
+  extends CrewAssignmentConfirmationEmailCandidate {
+  tokenHash: string
+  event: CrewConfirmationCompetition
+  volunteer: { name: string; email: string }
+  assignment: {
+    id: string
+    shiftName: string
+    roleLabel: string
+    startTime: Date
+    endTime: Date
+    location: string | null
+  }
 }
 
 export async function getCrewAssignmentConfirmationToken(
@@ -367,7 +414,10 @@ export async function loadCrewShiftAssignmentConfirmationMap(
       status: crewAssignmentConfirmationsTable.status,
       sentAt: crewAssignmentConfirmationsTable.sentAt,
       respondedAt: crewAssignmentConfirmationsTable.respondedAt,
+      expiresAt: crewAssignmentConfirmationsTable.expiresAt,
       responseNote: crewAssignmentConfirmationsTable.responseNote,
+      lastReminderAt: crewAssignmentConfirmationsTable.lastReminderAt,
+      reminderCount: crewAssignmentConfirmationsTable.reminderCount,
       updatedAt: crewAssignmentConfirmationsTable.updatedAt,
     })
     .from(crewAssignmentConfirmationsTable)
@@ -390,7 +440,10 @@ export async function loadCrewShiftAssignmentConfirmationMap(
       status: row.status,
       sentAt: row.sentAt,
       respondedAt: row.respondedAt,
+      expiresAt: row.expiresAt,
       responseNote: row.responseNote,
+      lastReminderAt: row.lastReminderAt,
+      reminderCount: row.reminderCount,
     })
   }
   return byAssignment
@@ -524,6 +577,117 @@ export async function updateCrewShiftAssignmentConfirmationState(
   })
 }
 
+export async function queueCrewAssignmentConfirmationEmails(
+  data: QueueCrewAssignmentConfirmationEmailsInput,
+): Promise<QueueCrewAssignmentConfirmationEmailsResult> {
+  requireLocalCrewOperatorAccess("Crew confirmation emails")
+
+  const db = getDb()
+  const now = new Date()
+  const candidates = await loadCrewAssignmentEmailCandidates(data.eventId)
+  const plan = buildCrewAssignmentConfirmationEmailPlan({
+    mode: data.mode,
+    candidates,
+    now,
+  })
+  const candidatesByConfirmationId = new Map(
+    candidates.map((candidate) => [candidate.confirmationId, candidate]),
+  )
+  const queue = (env as unknown as Record<string, unknown>)
+    .BROADCAST_EMAIL_QUEUE as Queue<CrewAssignmentEmailQueueMessage> | undefined
+
+  let queued = 0
+  let previewed = 0
+  let failed = 0
+
+  for (const operation of plan.operations) {
+    const candidate = candidatesByConfirmationId.get(operation.confirmationId)
+    if (!candidate) {
+      failed += 1
+      continue
+    }
+
+    try {
+      const token = generateCrewAssignmentConfirmationToken()
+      const tokenHash = await hashCrewAssignmentConfirmationToken(token)
+      const expiresAt = getAssignmentConfirmationExpiry(now)
+      const message = await buildCrewAssignmentEmailQueueMessage({
+        operation,
+        event: candidate.event,
+        volunteer: candidate.volunteer,
+        assignment: candidate.assignment,
+        token,
+        queuedAt: now,
+      })
+
+      if (!queue) {
+        console.log(
+          `[CrewEmail Preview] To: ${message.email} | Subject: ${message.subject} | Confirmation: ${message.confirmationId}`,
+        )
+        previewed += 1
+        continue
+      }
+
+      const claimed = await withCrewAssignmentConfirmationLock(
+        db,
+        operation.assignmentId,
+        async () => {
+          const tokenClaimed = await claimCrewAssignmentEmailToken({
+            db,
+            operation,
+            previousTokenHash: candidate.tokenHash,
+            tokenHash,
+            expiresAt,
+            claimedAt: now,
+          })
+          if (!tokenClaimed) return false
+
+          await queue.send(message)
+
+          const finalized = await finalizeCrewAssignmentEmailQueued({
+            db,
+            operation,
+            tokenHash,
+            queuedAt: now,
+          })
+          if (!finalized) {
+            throw new Error("Queued assignment email could not be finalized")
+          }
+
+          return true
+        },
+      )
+      if (!claimed) {
+        if (operation.kind === "confirmation") {
+          plan.skipped.alreadySent += 1
+        } else {
+          plan.skipped.notDue += 1
+        }
+        continue
+      }
+
+      queued += 1
+    } catch (error) {
+      console.error("[CrewEmail] Failed to queue assignment email", {
+        error,
+        confirmationId: operation.confirmationId,
+        assignmentId: operation.assignmentId,
+      })
+      failed += 1
+    }
+  }
+
+  return {
+    mode: data.mode,
+    queueAvailable: Boolean(queue),
+    eligible: plan.operations.length,
+    queued,
+    previewed,
+    failed,
+    skipped: plan.skipped,
+  }
+}
+
 export function summarizeCrewShiftAssignmentConfirmations(
   confirmations: Array<CrewShiftAssignmentConfirmationStatus | null>,
 ): CrewAssignmentConfirmationStatusSummary {
@@ -546,44 +710,322 @@ export async function buildCrewAssignmentConfirmationEmailMessage(params: {
   }
   token: string
 }) {
+  return buildCrewAssignmentEmailQueueMessage({
+    operation: {
+      kind: "confirmation",
+      confirmationId: params.confirmationId,
+      assignmentId: params.assignment.id,
+      email: params.volunteer.email,
+      reminderCount: 0,
+      idempotencyKey: buildCrewAssignmentEmailIdempotencyKey(
+        params.confirmationId,
+        0,
+      ),
+    },
+    event: params.event,
+    volunteer: params.volunteer,
+    assignment: params.assignment,
+    token: params.token,
+    queuedAt: new Date(),
+  })
+}
+
+async function buildCrewAssignmentEmailQueueMessage(params: {
+  operation: CrewAssignmentConfirmationEmailOperation
+  event: CrewConfirmationCompetition
+  volunteer: { name: string; email: string }
+  assignment: {
+    id: string
+    shiftName: string
+    roleLabel: string
+    startTime: Date
+    endTime: Date
+    location: string | null
+  }
+  token: string
+  queuedAt: Date
+}) {
   const urls = buildCrewAssignmentConfirmationUrls({
     appUrl: getAppUrl(),
     slug: params.event.slug,
     token: params.token,
   })
   const timezone = params.event.timezone ?? DEFAULT_TIMEZONE
-  const subject = `${params.event.name}: confirm ${params.assignment.shiftName}`
-  const bodyHtml = await render(
-    CrewAssignmentConfirmationEmail({
-      eventName: params.event.name,
-      volunteerName: params.volunteer.name,
-      shiftName: params.assignment.shiftName,
-      roleLabel: params.assignment.roleLabel,
-      startsAtLabel: formatDateTimeInTimezone(
-        params.assignment.startTime,
-        timezone,
-        "EEE, MMM d h:mm a",
-      ),
-      endsAtLabel: formatDateTimeInTimezone(
-        params.assignment.endTime,
-        timezone,
-        "h:mm a",
-      ),
-      location: params.assignment.location,
-      confirmUrl: urls.confirmUrl,
-      scheduleUrl: urls.scheduleUrl,
-    }),
-  )
+  const templateProps = {
+    eventName: params.event.name,
+    volunteerName: params.volunteer.name,
+    shiftName: params.assignment.shiftName,
+    roleLabel: params.assignment.roleLabel,
+    startsAtLabel: formatDateTimeInTimezone(
+      params.assignment.startTime,
+      timezone,
+      "EEE, MMM d h:mm a",
+    ),
+    endsAtLabel: formatDateTimeInTimezone(
+      params.assignment.endTime,
+      timezone,
+      "h:mm a",
+    ),
+    location: params.assignment.location,
+    confirmUrl: urls.confirmUrl,
+    scheduleUrl: urls.scheduleUrl,
+  }
+  const subject =
+    params.operation.kind === "confirmation"
+      ? `${params.event.name}: confirm ${params.assignment.shiftName}`
+      : `${params.event.name}: reminder for ${params.assignment.shiftName}`
+  const template =
+    params.operation.kind === "reminder-24-hour"
+      ? CrewAssignmentReminder24HourEmail(templateProps)
+      : params.operation.kind === "reminder-48-hour"
+        ? CrewAssignmentReminder48HourEmail(templateProps)
+        : CrewAssignmentConfirmationEmail(templateProps)
+  const bodyHtml = await render(template)
 
   return {
-    kind: "crew-assignment-confirmation",
-    confirmationId: params.confirmationId,
-    assignmentId: params.assignment.id,
+    kind:
+      params.operation.kind === "confirmation"
+        ? "crew-assignment-confirmation"
+        : "crew-assignment-reminder",
+    confirmationId: params.operation.confirmationId,
+    assignmentId: params.operation.assignmentId,
     competitionId: params.event.id,
     email: params.volunteer.email,
     subject,
     bodyHtml,
-  } satisfies CrewAssignmentConfirmationEmailMessage
+    idempotencyKey: params.operation.idempotencyKey,
+    reminderCount: params.operation.reminderCount,
+    queuedAtIso: params.queuedAt.toISOString(),
+  } satisfies CrewAssignmentEmailQueueMessage
+}
+
+async function loadCrewAssignmentEmailCandidates(
+  eventId: string,
+): Promise<CrewAssignmentEmailCandidate[]> {
+  const db = getDb()
+  const rows = await db
+    .select({
+      event: {
+        id: competitionsTable.id,
+        slug: competitionsTable.slug,
+        name: competitionsTable.name,
+        timezone: competitionsTable.timezone,
+        startDate: competitionsTable.startDate,
+        endDate: competitionsTable.endDate,
+      },
+      confirmation: {
+        id: crewAssignmentConfirmationsTable.id,
+        assignmentId: crewAssignmentConfirmationsTable.assignmentId,
+        tokenHash: crewAssignmentConfirmationsTable.tokenHash,
+        status: crewAssignmentConfirmationsTable.status,
+        email: crewAssignmentConfirmationsTable.email,
+        sentAt: crewAssignmentConfirmationsTable.sentAt,
+        respondedAt: crewAssignmentConfirmationsTable.respondedAt,
+        lastReminderAt: crewAssignmentConfirmationsTable.lastReminderAt,
+        reminderCount: crewAssignmentConfirmationsTable.reminderCount,
+      },
+      shift: {
+        id: volunteerShiftsTable.id,
+        name: volunteerShiftsTable.name,
+        roleType: volunteerShiftsTable.roleType,
+        startTime: volunteerShiftsTable.startTime,
+        endTime: volunteerShiftsTable.endTime,
+        location: volunteerShiftsTable.location,
+      },
+      membership: {
+        metadata: teamMembershipTable.metadata,
+      },
+      user: {
+        firstName: userTable.firstName,
+        lastName: userTable.lastName,
+        email: userTable.email,
+      },
+    })
+    .from(crewAssignmentConfirmationsTable)
+    .innerJoin(
+      competitionsTable,
+      eq(crewAssignmentConfirmationsTable.competitionId, competitionsTable.id),
+    )
+    .innerJoin(
+      crewEventSettingsTable,
+      eq(crewEventSettingsTable.competitionId, competitionsTable.id),
+    )
+    .innerJoin(
+      volunteerShiftAssignmentsTable,
+      eq(
+        crewAssignmentConfirmationsTable.assignmentId,
+        volunteerShiftAssignmentsTable.id,
+      ),
+    )
+    .innerJoin(
+      volunteerShiftsTable,
+      eq(volunteerShiftAssignmentsTable.shiftId, volunteerShiftsTable.id),
+    )
+    .leftJoin(
+      teamMembershipTable,
+      eq(volunteerShiftAssignmentsTable.membershipId, teamMembershipTable.id),
+    )
+    .leftJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
+    .where(
+      and(
+        eq(crewAssignmentConfirmationsTable.competitionId, eventId),
+        eq(
+          crewAssignmentConfirmationsTable.assignmentType,
+          CREW_ASSIGNMENT_CONFIRMATION_TYPE.VOLUNTEER_SHIFT,
+        ),
+        eq(crewEventSettingsTable.crewOnly, true),
+        ne(crewEventSettingsTable.lifecycle, CREW_EVENT_LIFECYCLE.ARCHIVED),
+      ),
+    )
+
+  return rows.map((row) => {
+    const metadata = parseCrewRosterMetadata(row.membership?.metadata)
+    const email =
+      normalizeConfirmationEmailForSend(row.confirmation.email) ??
+      normalizeConfirmationEmailForSend(metadata.signupEmail) ??
+      normalizeConfirmationEmailForSend(row.user?.email)
+    const volunteerName =
+      metadata.signupName ||
+      [row.user?.firstName, row.user?.lastName].filter(Boolean).join(" ") ||
+      email ||
+      "Volunteer"
+
+    return {
+      confirmationId: row.confirmation.id,
+      assignmentId: row.confirmation.assignmentId,
+      tokenHash: row.confirmation.tokenHash,
+      status: row.confirmation.status,
+      email,
+      sentAt: row.confirmation.sentAt,
+      respondedAt: row.confirmation.respondedAt,
+      lastReminderAt: row.confirmation.lastReminderAt,
+      reminderCount: row.confirmation.reminderCount,
+      shiftStartTime: row.shift.startTime,
+      event: row.event,
+      volunteer: {
+        name: volunteerName,
+        email: email ?? "",
+      },
+      assignment: {
+        id: row.confirmation.assignmentId,
+        shiftName: row.shift.name,
+        roleLabel: formatVolunteerRole(row.shift.roleType),
+        startTime: row.shift.startTime,
+        endTime: row.shift.endTime,
+        location: row.shift.location,
+      },
+    }
+  })
+}
+
+async function claimCrewAssignmentEmailToken(params: {
+  db: DbClient
+  operation: CrewAssignmentConfirmationEmailOperation
+  previousTokenHash: string
+  tokenHash: string
+  expiresAt: Date
+  claimedAt: Date
+}) {
+  const commonWhere = [
+    eq(crewAssignmentConfirmationsTable.id, params.operation.confirmationId),
+    eq(
+      crewAssignmentConfirmationsTable.status,
+      CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
+    ),
+    eq(crewAssignmentConfirmationsTable.tokenHash, params.previousTokenHash),
+  ] as const
+
+  if (params.operation.kind === "confirmation") {
+    const result = await params.db
+      .update(crewAssignmentConfirmationsTable)
+      .set({
+        tokenHash: params.tokenHash,
+        expiresAt: params.expiresAt,
+        updatedAt: params.claimedAt,
+      })
+      .where(
+        and(...commonWhere, isNull(crewAssignmentConfirmationsTable.sentAt)),
+      )
+    return getAffectedRows(result) > 0
+  }
+
+  const result = await params.db
+    .update(crewAssignmentConfirmationsTable)
+    .set({
+      tokenHash: params.tokenHash,
+      expiresAt: params.expiresAt,
+      updatedAt: params.claimedAt,
+    })
+    .where(
+      and(
+        ...commonWhere,
+        isNotNull(crewAssignmentConfirmationsTable.sentAt),
+        lt(
+          crewAssignmentConfirmationsTable.reminderCount,
+          params.operation.reminderCount,
+        ),
+      ),
+    )
+  return getAffectedRows(result) > 0
+}
+
+async function finalizeCrewAssignmentEmailQueued(params: {
+  db: DbClient
+  operation: CrewAssignmentConfirmationEmailOperation
+  tokenHash: string
+  queuedAt: Date
+}) {
+  const commonWhere = [
+    eq(crewAssignmentConfirmationsTable.id, params.operation.confirmationId),
+    eq(
+      crewAssignmentConfirmationsTable.status,
+      CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
+    ),
+    eq(crewAssignmentConfirmationsTable.tokenHash, params.tokenHash),
+  ] as const
+
+  if (params.operation.kind === "confirmation") {
+    const result = await params.db
+      .update(crewAssignmentConfirmationsTable)
+      .set({
+        sentAt: params.queuedAt,
+        updatedAt: params.queuedAt,
+      })
+      .where(
+        and(...commonWhere, isNull(crewAssignmentConfirmationsTable.sentAt)),
+      )
+    return getAffectedRows(result) > 0
+  }
+
+  const result = await params.db
+    .update(crewAssignmentConfirmationsTable)
+    .set({
+      lastReminderAt: params.queuedAt,
+      reminderCount: params.operation.reminderCount,
+      updatedAt: params.queuedAt,
+    })
+    .where(
+      and(
+        ...commonWhere,
+        isNotNull(crewAssignmentConfirmationsTable.sentAt),
+        lt(
+          crewAssignmentConfirmationsTable.reminderCount,
+          params.operation.reminderCount,
+        ),
+      ),
+    )
+  return getAffectedRows(result) > 0
+}
+
+function getAffectedRows(result: unknown) {
+  return Number(
+    (result as { rowsAffected?: number }).rowsAffected ??
+      (result as { affectedRows?: number }).affectedRows ??
+      (Array.isArray(result)
+        ? (result[0] as { affectedRows?: number } | undefined)?.affectedRows
+        : undefined) ??
+      0,
+  )
 }
 
 async function getCrewAssignmentConfirmationByToken({

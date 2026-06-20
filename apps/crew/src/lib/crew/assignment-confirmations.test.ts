@@ -1,6 +1,9 @@
+// @lat: [[crew#Confirmation Emails And Reminders]]
 import { describe, expect, it } from "vitest"
 import { CREW_ASSIGNMENT_CONFIRMATION_STATUS } from "../../db/schemas/crew-imports"
 import {
+  buildCrewAssignmentConfirmationEmailPlan,
+  buildCrewAssignmentEmailIdempotencyKey,
   buildCrewAssignmentConfirmationUrls,
   generateCrewAssignmentConfirmationToken,
   getCrewAssignmentConfirmationOperationalState,
@@ -274,11 +277,7 @@ describe("Crew assignment confirmation operational states", () => {
     const now = new Date("2026-06-19T12:00:00.000Z")
 
     expect(
-      resolveCrewAssignmentConfirmationOrganizerStateUpdate(
-        "sent",
-        null,
-        now,
-      ),
+      resolveCrewAssignmentConfirmationOrganizerStateUpdate("sent", null, now),
     ).toEqual({
       status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
       sentAt: now,
@@ -310,5 +309,137 @@ describe("Crew assignment confirmation operational states", () => {
       respondedAt: null,
       responseNote: "Covered by Sam.",
     })
+  })
+})
+
+describe("Crew assignment confirmation email planning", () => {
+  const now = new Date("2026-06-20T12:00:00.000Z")
+
+  it("selects unsent pending confirmations with deterministic idempotency keys", () => {
+    const plan = buildCrewAssignmentConfirmationEmailPlan({
+      mode: "confirmations",
+      now,
+      candidates: [
+        {
+          confirmationId: "caconf_ready",
+          assignmentId: "vsha_ready",
+          status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
+          email: " ADA@example.com ",
+          sentAt: null,
+          shiftStartTime: "2026-06-22T12:00:00.000Z",
+        },
+        {
+          confirmationId: "caconf_sent",
+          assignmentId: "vsha_sent",
+          status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
+          email: "grace@example.com",
+          sentAt: "2026-06-20T10:00:00.000Z",
+          shiftStartTime: "2026-06-22T12:00:00.000Z",
+        },
+        {
+          confirmationId: "caconf_missing_email",
+          assignmentId: "vsha_missing_email",
+          status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
+          email: " ",
+          sentAt: null,
+          shiftStartTime: "2026-06-22T12:00:00.000Z",
+        },
+        {
+          confirmationId: "caconf_confirmed",
+          assignmentId: "vsha_confirmed",
+          status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CONFIRMED,
+          email: "lin@example.com",
+          sentAt: null,
+          shiftStartTime: "2026-06-22T12:00:00.000Z",
+        },
+      ],
+    })
+
+    expect(plan.operations).toEqual([
+      {
+        kind: "confirmation",
+        confirmationId: "caconf_ready",
+        assignmentId: "vsha_ready",
+        email: "ada@example.com",
+        reminderCount: 0,
+        idempotencyKey: "crew-confirmation-caconf_ready-0",
+      },
+    ])
+    expect(plan.skipped).toMatchObject({
+      alreadySent: 1,
+      missingEmail: 1,
+      responded: 1,
+    })
+  })
+
+  it("selects 48-hour and 24-hour reminders without double sending retries", () => {
+    const plan = buildCrewAssignmentConfirmationEmailPlan({
+      mode: "reminders",
+      now,
+      candidates: [
+        {
+          confirmationId: "caconf_48h",
+          assignmentId: "vsha_48h",
+          status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
+          email: "forty-eight@example.com",
+          sentAt: "2026-06-20T08:00:00.000Z",
+          reminderCount: 0,
+          shiftStartTime: "2026-06-22T11:00:00.000Z",
+        },
+        {
+          confirmationId: "caconf_24h",
+          assignmentId: "vsha_24h",
+          status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
+          email: "twenty-four@example.com",
+          sentAt: "2026-06-20T08:00:00.000Z",
+          reminderCount: 1,
+          shiftStartTime: "2026-06-21T10:00:00.000Z",
+        },
+        {
+          confirmationId: "caconf_already_24h",
+          assignmentId: "vsha_already_24h",
+          status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
+          email: "already@example.com",
+          sentAt: "2026-06-20T08:00:00.000Z",
+          reminderCount: 2,
+          shiftStartTime: "2026-06-21T10:00:00.000Z",
+        },
+        {
+          confirmationId: "caconf_unsent",
+          assignmentId: "vsha_unsent",
+          status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
+          email: "unsent@example.com",
+          sentAt: null,
+          reminderCount: 0,
+          shiftStartTime: "2026-06-21T10:00:00.000Z",
+        },
+      ],
+    })
+
+    expect(plan.operations).toEqual([
+      {
+        kind: "reminder-48-hour",
+        confirmationId: "caconf_48h",
+        assignmentId: "vsha_48h",
+        email: "forty-eight@example.com",
+        reminderCount: 1,
+        idempotencyKey: "crew-confirmation-caconf_48h-1",
+      },
+      {
+        kind: "reminder-24-hour",
+        confirmationId: "caconf_24h",
+        assignmentId: "vsha_24h",
+        email: "twenty-four@example.com",
+        reminderCount: 2,
+        idempotencyKey: "crew-confirmation-caconf_24h-2",
+      },
+    ])
+    expect(plan.skipped.notDue).toBe(2)
+  })
+
+  it("builds repo-consistent crew confirmation idempotency keys", () => {
+    expect(buildCrewAssignmentEmailIdempotencyKey("caconf_123", 2)).toBe(
+      "crew-confirmation-caconf_123-2",
+    )
   })
 })

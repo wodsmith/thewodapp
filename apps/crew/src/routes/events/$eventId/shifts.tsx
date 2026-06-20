@@ -1,5 +1,6 @@
 // @lat: [[crew#Shift Board Pilot Ops]]
 // @lat: [[crew#Assignment Confirmations]]
+// @lat: [[crew#Confirmation Emails And Reminders]]
 import type { FormEvent } from "react"
 import {
   createFileRoute,
@@ -12,9 +13,11 @@ import {
 import { useServerFn } from "@tanstack/react-start"
 import {
   AlertTriangle,
+  BellRing,
   CheckCircle2,
   Clock3,
   Loader2,
+  Mail,
   Plus,
   Search,
   Trash2,
@@ -52,7 +55,10 @@ import {
   updateCrewShiftFn,
   type CrewShiftBoardItem,
 } from "@/server-fns/crew-roster-shift-fns"
-import { updateCrewShiftAssignmentConfirmationStateFn } from "@/server-fns/crew-confirmation-fns"
+import {
+  queueCrewAssignmentConfirmationEmailsFn,
+  updateCrewShiftAssignmentConfirmationStateFn,
+} from "@/server-fns/crew-confirmation-fns"
 import { formatDateTimeInTimezone } from "@/utils/timezone-utils"
 import {
   VOLUNTEER_ROLE_OPTIONS,
@@ -87,7 +93,14 @@ function EventShiftsPage() {
   const { event, roster, rosterSummary, shifts, shiftSummary, pilotOps } =
     Route.useLoaderData()
   const timezone = event.timezone ?? "America/Denver"
+  const router = useRouter()
   const navigate = useNavigate()
+  const queueConfirmationEmails = useServerFn(
+    queueCrewAssignmentConfirmationEmailsFn,
+  )
+  const [queueingMode, setQueueingMode] = useState<
+    "confirmations" | "reminders" | null
+  >(null)
   const searchParams = useSearch({ strict: false }) as Record<string, unknown>
   const filters = useMemo(
     () => getShiftBoardFiltersFromSearch(searchParams),
@@ -121,6 +134,27 @@ function EventShiftsPage() {
     (volunteer) => volunteer.membershipId && volunteer.status === "active",
   )
 
+  async function handleQueueAssignmentEmails(
+    mode: "confirmations" | "reminders",
+  ) {
+    setQueueingMode(mode)
+    try {
+      const result = await queueConfirmationEmails({
+        data: { eventId, mode },
+      })
+      toast.success(formatQueueAssignmentEmailResult(result))
+      await router.invalidate()
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to queue assignment emails",
+      )
+    } finally {
+      setQueueingMode(null)
+    }
+  }
+
   return (
     <section className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -132,13 +166,41 @@ function EventShiftsPage() {
             {pilotOps.summary.blockedShiftCount} blocked
           </p>
         </div>
-        <Link
-          to="/events/$eventId/staffing"
-          params={{ eventId }}
-          className="inline-flex h-10 w-fit items-center rounded-md border px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          Staffing report
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => void handleQueueAssignmentEmails("confirmations")}
+            disabled={queueingMode !== null}
+            className="inline-flex h-10 w-fit items-center gap-2 rounded-md border px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {queueingMode === "confirmations" ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Mail className="size-4" />
+            )}
+            Send confirmations
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleQueueAssignmentEmails("reminders")}
+            disabled={queueingMode !== null}
+            className="inline-flex h-10 w-fit items-center gap-2 rounded-md border px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {queueingMode === "reminders" ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <BellRing className="size-4" />
+            )}
+            Send reminders
+          </button>
+          <Link
+            to="/events/$eventId/staffing"
+            params={{ eventId }}
+            className="inline-flex h-10 w-fit items-center rounded-md border px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            Staffing report
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-5">
@@ -922,14 +984,26 @@ function AssignmentResponseDetail({
   }
   if (state === "sent" && confirmation.sentAt) {
     return (
-      <p className="mt-2 text-xs text-muted-foreground">
-        Sent{" "}
-        {formatDateTimeInTimezone(
-          confirmation.sentAt,
-          timezone,
-          "MMM d h:mm a",
-        )}
-      </p>
+      <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+        <p>
+          Sent{" "}
+          {formatDateTimeInTimezone(
+            confirmation.sentAt,
+            timezone,
+            "MMM d h:mm a",
+          )}
+        </p>
+        {confirmation.lastReminderAt ? (
+          <p>
+            Reminder {confirmation.reminderCount}{" "}
+            {formatDateTimeInTimezone(
+              confirmation.lastReminderAt,
+              timezone,
+              "MMM d h:mm a",
+            )}
+          </p>
+        ) : null}
+      </div>
     )
   }
   if (state === "replaced") {
@@ -1175,6 +1249,22 @@ function StatusPanel({
       <p className="mt-2 text-lg font-semibold">{value}</p>
     </section>
   )
+}
+
+function formatQueueAssignmentEmailResult(result: {
+  mode: "confirmations" | "reminders"
+  queueAvailable: boolean
+  eligible: number
+  queued: number
+  previewed: number
+  failed: number
+}) {
+  const label =
+    result.mode === "confirmations" ? "confirmation emails" : "reminders"
+  if (result.queueAvailable) {
+    return `${result.queued}/${result.eligible} ${label} queued${result.failed ? `, ${result.failed} failed` : ""}`
+  }
+  return `${result.previewed}/${result.eligible} ${label} previewed; queue binding is not configured`
 }
 
 function getFormString(formData: FormData, name: string) {

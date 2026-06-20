@@ -1,17 +1,24 @@
 // @lat: [[crew#Assignment Confirmation Responses]]
 // @lat: [[crew#Assignment Confirmations]]
 // @lat: [[crew#Server Function Runtime Boundary]]
+// @lat: [[crew#Confirmation Emails And Reminders]]
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
 import { CREW_ASSIGNMENT_CONFIRMATION_ORGANIZER_STATES } from "../lib/crew/assignment-confirmations"
-import type { UpdateCrewShiftAssignmentConfirmationStateInput } from "../server/crew-confirmation.server"
+import type {
+  QueueCrewAssignmentConfirmationEmailsInput,
+  QueueCrewAssignmentConfirmationEmailsResult,
+  UpdateCrewShiftAssignmentConfirmationStateInput,
+} from "../server/crew-confirmation.server"
 
 export type {
-  CrewAssignmentConfirmationEmailMessage,
+  CrewAssignmentEmailQueueMessage,
   CrewAssignmentConfirmationResponseResult,
   CrewAssignmentConfirmationTokenData,
   CrewShiftAssignmentConfirmationStatus,
   EnsureCrewShiftAssignmentConfirmationResult,
+  QueueCrewAssignmentConfirmationEmailsInput,
+  QueueCrewAssignmentConfirmationEmailsResult,
   UpdateCrewShiftAssignmentConfirmationStateInput,
 } from "../server/crew-confirmation.server"
 
@@ -31,6 +38,11 @@ const updateShiftAssignmentConfirmationStateInputSchema = z.object({
   state: z.enum(CREW_ASSIGNMENT_CONFIRMATION_ORGANIZER_STATES),
   responseNote: z.string().trim().max(1000).optional(),
 }) satisfies z.ZodType<UpdateCrewShiftAssignmentConfirmationStateInput>
+
+const queueCrewAssignmentConfirmationEmailsInputSchema = z.object({
+  eventId: z.string().min(1, "Event ID is required"),
+  mode: z.enum(["confirmations", "reminders"]),
+}) satisfies z.ZodType<QueueCrewAssignmentConfirmationEmailsInput>
 
 export const getCrewAssignmentConfirmationTokenFn = createServerFn({
   method: "GET",
@@ -66,3 +78,18 @@ export const updateCrewShiftAssignmentConfirmationStateFn = createServerFn({
     )
     return updateCrewShiftAssignmentConfirmationState(data)
   })
+
+export const queueCrewAssignmentConfirmationEmailsFn = createServerFn({
+  method: "POST",
+})
+  .inputValidator((data: unknown) =>
+    queueCrewAssignmentConfirmationEmailsInputSchema.parse(data),
+  )
+  .handler(
+    async ({ data }): Promise<QueueCrewAssignmentConfirmationEmailsResult> => {
+      const { queueCrewAssignmentConfirmationEmails } = await import(
+        "../server/crew-confirmation.server"
+      )
+      return queueCrewAssignmentConfirmationEmails(data)
+    },
+  )

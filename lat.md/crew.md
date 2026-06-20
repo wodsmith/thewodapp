@@ -197,3 +197,13 @@ Organizer-facing assignment confirmations reuse `crew_assignment_confirmations` 
 [[apps/crew/src/server/crew-confirmation.server.ts]] owns guarded organizer status updates for volunteer shift assignments, creating a confirmation row only when an assignment is missing one and never mutating assignment rows as part of status changes. [[apps/crew/src/server-fns/crew-confirmation-fns.ts]] keeps the createServerFn wrapper thin so DB/runtime imports stay out of route module graphs.
 
 [[apps/crew/src/routes/events/$eventId/shifts.tsx]] shows compact assignment-level status controls and summary counts for sent and action-needed confirmations. [[apps/crew/src/lib/crew/staffing/index.ts]], [[apps/crew/src/routes/events/$eventId/staffing.tsx]], and [[apps/crew/src/lib/crew/readiness.ts]] consume the same normalized state so staffing gaps and readiness summaries treat no-shows, change requests, declines, and replacements consistently.
+
+## Confirmation Emails And Reminders
+
+Crew confirmation email operations use `crew_assignment_confirmations` as the source of truth for assignment response status, dispatch timestamps, and reminder counts.
+
+[[apps/crew/src/lib/crew/assignment-confirmations.ts]] plans initial confirmation sends and 48-hour or 24-hour reminders from pending confirmation rows, normalized recipient emails, shift start times, `sentAt`, and `reminderCount`. Idempotency keys use `crew-confirmation-${confirmationId}-${reminderCount}` so queue retries do not double-send a reminder attempt.
+
+[[apps/crew/src/server/crew-confirmation.server.ts]] loads eligible volunteer shift confirmations, mints fresh raw tokens only for the queued payload, stores only the new token hash, and builds rendered Crew email messages from [[apps/crew/src/react-email/crew/assignment-confirmation.tsx]], [[apps/crew/src/react-email/crew/reminder-48-hour.tsx]], and [[apps/crew/src/react-email/crew/reminder-24-hour.tsx]]. If the shared email queue binding is unavailable, the operation only logs preview payloads and returns preview counts.
+
+[[apps/crew/src/server-fns/crew-confirmation-fns.ts]] exposes the route-safe operation wrapper. [[apps/crew/src/routes/events/$eventId/shifts.tsx]] provides quiet operator actions for event-wide confirmation sends and reminder sends, then reports queued, previewed, and failed counts without sending live email during local validation.
