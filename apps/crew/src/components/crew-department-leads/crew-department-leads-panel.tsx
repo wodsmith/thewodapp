@@ -187,6 +187,7 @@ export function CrewDepartmentLeadsPanel({
         </div>
 
         <form
+          key={editingLead?.id ?? "new"}
           onSubmit={handleSubmit}
           className="space-y-4 rounded-md border p-4"
         >

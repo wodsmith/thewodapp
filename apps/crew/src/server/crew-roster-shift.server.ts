@@ -586,6 +586,7 @@ export async function updateCrewShift(data: UpdateCrewShiftInput) {
     if (!existingShift) {
       throw new Error("Volunteer shift not found")
     }
+    assertCrewDepartmentLeadCanManageShift(access, existingShift)
 
     const updateValues: Partial<typeof volunteerShiftsTable.$inferInsert> = {}
     const timezone = event.timezone ?? DEFAULT_TIMEZONE
@@ -633,7 +634,6 @@ export async function updateCrewShift(data: UpdateCrewShiftInput) {
     if (data.notes !== undefined) updateValues.notes = emptyToNull(data.notes)
 
     if (Object.keys(updateValues).length === 0) return
-    assertCrewDepartmentLeadCanManageShift(access, existingShift)
     assertCrewDepartmentLeadCanManageShift(access, {
       roleType: data.roleType ?? existingShift.roleType,
       startTime: updateValues.startTime ?? existingShift.startTime,
@@ -750,6 +750,17 @@ export async function assignCrewVolunteerToShift(
     ])
     const membership = membershipRows[0] ?? null
 
+    if (!membership) {
+      throw new Error("Volunteer record was not found for this event.")
+    }
+    const membershipRoleTypes = getCrewRosterRoleTypes(
+      parseCrewRosterMetadata(membership.metadata).volunteerRoleTypes,
+    )
+    assertCrewDepartmentLeadCanManageRosterTarget(access, {
+      membershipId: membership.id,
+      roleTypes: membershipRoleTypes,
+    })
+
     const existingAssignment = assignments.find(
       (assignment) => assignment.membershipId === data.membershipId,
     )
@@ -767,29 +778,16 @@ export async function assignCrewVolunteerToShift(
       currentAssignmentMembershipIds: assignments.map(
         (assignment) => assignment.membershipId,
       ),
-      volunteer: membership
-        ? {
-            membershipId: membership.id,
-            isActive: membership.isActive,
-            roleTypes: getCrewRosterRoleTypes(
-              parseCrewRosterMetadata(membership.metadata).volunteerRoleTypes,
-            ),
-          }
-        : null,
+      volunteer: {
+        membershipId: membership.id,
+        isActive: membership.isActive,
+        roleTypes: membershipRoleTypes,
+      },
     })
 
     if (!validation.ok) {
       throw new Error(validation.message)
     }
-    if (!membership) {
-      throw new Error("Volunteer record was not found for this event.")
-    }
-    assertCrewDepartmentLeadCanManageRosterTarget(access, {
-      membershipId: membership.id,
-      roleTypes: getCrewRosterRoleTypes(
-        parseCrewRosterMetadata(membership.metadata).volunteerRoleTypes,
-      ),
-    })
 
     const assignmentId = createVolunteerShiftAssignmentId()
     const now = new Date()

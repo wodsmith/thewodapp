@@ -117,7 +117,7 @@ export async function requireCrewStaffingEvent(
 
 export async function loadCrewStaffingMatrixInput(
   event: CrewStaffingReportEvent,
-  access: CrewDepartmentLeadAccess = { kind: "full", scopes: [] },
+  access: CrewDepartmentLeadAccess,
 ) {
   const [roster, shifts, venues, workouts, heats] = await Promise.all([
     loadCrewRoster(event.competitionTeamId),

@@ -3,10 +3,13 @@ import { describe, expect, it } from "vitest"
 import {
   assertCrewDepartmentLeadCanManageRosterTarget,
   assertCrewDepartmentLeadCanManageShift,
+  buildCrewDepartmentLeadScopePayload,
   crewDepartmentLeadCanManageShift,
   filterCrewDepartmentLeadRoster,
   filterCrewDepartmentLeadShifts,
+  getCrewDepartmentLeadFloorFromScope,
   normalizeCrewDepartmentLeadScope,
+  parseCrewDepartmentLeadDateTimeLocal,
   type CrewDepartmentLeadAccess,
 } from "./department-leads"
 
@@ -123,5 +126,35 @@ describe("Crew department lead scope helpers", () => {
         roleTypes: ["medical"],
       }),
     ).toThrow("Department lead scope")
+  })
+
+  it("writes canonical floor scope and reads legacy floor shapes", () => {
+    expect(buildCrewDepartmentLeadScopePayload(" North Floor ")).toEqual({
+      floorNames: ["North Floor"],
+    })
+    expect(getCrewDepartmentLeadFloorFromScope({ floorNames: ["North"] })).toBe(
+      "North",
+    )
+    expect(getCrewDepartmentLeadFloorFromScope({ floors: ["Legacy"] })).toBe(
+      "Legacy",
+    )
+    expect(getCrewDepartmentLeadFloorFromScope({ locations: ["Lane 1"] })).toBe(
+      "Lane 1",
+    )
+  })
+
+  it("parses department lead datetime-local values in the event timezone", () => {
+    expect(
+      parseCrewDepartmentLeadDateTimeLocal(
+        "2026-07-01T09:30",
+        "America/Denver",
+      )?.toISOString(),
+    ).toBe("2026-07-01T15:30:00.000Z")
+    expect(
+      parseCrewDepartmentLeadDateTimeLocal(
+        "2026-07-01T09:30:00.000Z",
+        "America/Denver",
+      )?.toISOString(),
+    ).toBe("2026-07-01T09:30:00.000Z")
   })
 })

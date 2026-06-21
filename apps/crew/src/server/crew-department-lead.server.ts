@@ -17,8 +17,11 @@ import {
 import { ROLES_ENUM, userTable } from "@/db/schemas/users"
 import type { VolunteerRoleType } from "@/db/schemas/volunteers"
 import {
+  buildCrewDepartmentLeadScopePayload,
   type CrewDepartmentLeadAccess,
+  getCrewDepartmentLeadFloorFromScope,
   normalizeCrewDepartmentLeadScope,
+  parseCrewDepartmentLeadDateTimeLocal,
 } from "@/lib/crew/department-leads"
 import { getSessionFromCookie } from "@/utils/auth"
 import { hasLocalCrewOperatorAccess } from "./crew-local-access"
@@ -27,6 +30,7 @@ export interface CrewDepartmentLeadEvent {
   id: string
   organizingTeamId: string
   competitionTeamId: string
+  timezone: string | null
 }
 
 export interface CrewDepartmentLeadListItem {
@@ -102,9 +106,12 @@ export async function createCrewDepartmentLead(data: CrewDepartmentLeadInput) {
     email: normalizeEmail(data.email),
     name: emptyToNull(data.name),
     roleType: data.roleType,
-    startsAt: parseOptionalDate(data.startsAt),
-    endsAt: parseOptionalDate(data.endsAt),
-    scope: buildLeadScope(data.floor),
+    startsAt: parseCrewDepartmentLeadDateTimeLocal(
+      data.startsAt,
+      event.timezone,
+    ),
+    endsAt: parseCrewDepartmentLeadDateTimeLocal(data.endsAt, event.timezone),
+    scope: buildCrewDepartmentLeadScopePayload(data.floor),
     status: data.status ?? CREW_DEPARTMENT_LEAD_STATUS.INVITED,
     notes: emptyToNull(data.notes),
     createdAt: now,
@@ -121,22 +128,30 @@ export async function updateCrewDepartmentLead(
   await requireCrewDepartmentLeadFullAccess(event)
 
   const db = getDb()
+  const updateValues: Partial<typeof crewDepartmentLeadsTable.$inferInsert> = {
+    membershipId: emptyToNull(data.membershipId),
+    email: normalizeEmail(data.email),
+    name: emptyToNull(data.name),
+    roleType: data.roleType,
+    startsAt: parseCrewDepartmentLeadDateTimeLocal(
+      data.startsAt,
+      event.timezone,
+    ),
+    endsAt: parseCrewDepartmentLeadDateTimeLocal(data.endsAt, event.timezone),
+    scope: buildCrewDepartmentLeadScopePayload(data.floor),
+    notes: emptyToNull(data.notes),
+    updatedAt: new Date(),
+  }
+
+  if (data.status !== undefined) {
+    updateValues.status = data.status
+    updateValues.revokedAt =
+      data.status === CREW_DEPARTMENT_LEAD_STATUS.REVOKED ? new Date() : null
+  }
+
   const result = await db
     .update(crewDepartmentLeadsTable)
-    .set({
-      membershipId: emptyToNull(data.membershipId),
-      email: normalizeEmail(data.email),
-      name: emptyToNull(data.name),
-      roleType: data.roleType,
-      startsAt: parseOptionalDate(data.startsAt),
-      endsAt: parseOptionalDate(data.endsAt),
-      scope: buildLeadScope(data.floor),
-      status: data.status ?? CREW_DEPARTMENT_LEAD_STATUS.INVITED,
-      revokedAt:
-        data.status === CREW_DEPARTMENT_LEAD_STATUS.REVOKED ? new Date() : null,
-      notes: emptyToNull(data.notes),
-      updatedAt: new Date(),
-    })
+    .set(updateValues)
     .where(
       and(
         eq(crewDepartmentLeadsTable.id, data.leadId),
@@ -189,6 +204,7 @@ export async function requireCrewDepartmentLeadEvent(
       id: competitionsTable.id,
       organizingTeamId: competitionsTable.organizingTeamId,
       competitionTeamId: competitionsTable.competitionTeamId,
+      timezone: competitionsTable.timezone,
     })
     .from(crewEventSettingsTable)
     .innerJoin(
@@ -206,6 +222,7 @@ export async function requireCrewDepartmentLeadEvent(
     id: event.id,
     organizingTeamId: event.organizingTeamId,
     competitionTeamId: event.competitionTeamId,
+    timezone: event.timezone,
   }
 }
 
@@ -322,7 +339,7 @@ async function loadCrewDepartmentLeads(
     name: row.name,
     membershipId: row.membershipId,
     roleType: row.roleType ?? "general",
-    floor: getFloorFromScope(row.scope),
+    floor: getCrewDepartmentLeadFloorFromScope(row.scope),
     startsAt: row.startsAt,
     endsAt: row.endsAt,
     status: row.status,
@@ -359,31 +376,6 @@ async function loadCrewDepartmentLeadVolunteerOptions(teamId: string) {
       "Volunteer",
     email: row.email ?? "",
   }))
-}
-
-function buildLeadScope(floor: string | null | undefined) {
-  const trimmedFloor = emptyToNull(floor)
-  return trimmedFloor ? { floors: [trimmedFloor] } : null
-}
-
-function getFloorFromScope(scope: unknown) {
-  if (!scope || typeof scope !== "object" || Array.isArray(scope)) return null
-  const floors = (scope as { floors?: unknown }).floors
-  if (!Array.isArray(floors)) return null
-  const floor = floors.find(
-    (value) => typeof value === "string" && value.trim(),
-  )
-  return typeof floor === "string" ? floor : null
-}
-
-function parseOptionalDate(value: string | null | undefined) {
-  const trimmed = emptyToNull(value)
-  if (!trimmed) return null
-  const date = new Date(trimmed)
-  if (Number.isNaN(date.getTime())) {
-    throw new Error("Department lead time window is invalid")
-  }
-  return date
 }
 
 function normalizeEmail(value: string | null | undefined) {

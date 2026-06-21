@@ -1,5 +1,9 @@
 // @lat: [[crew#Department Leads]]
 import type { VolunteerRoleType } from "@/db/schemas/volunteers"
+import {
+  DEFAULT_TIMEZONE,
+  parseTimeInTimezone,
+} from "../../utils/timezone-utils"
 
 export interface CrewDepartmentLeadScopeRecord {
   id: string
@@ -187,6 +191,53 @@ export function normalizeDepartmentLeadText(value: unknown) {
     : ""
 }
 
+export function buildCrewDepartmentLeadScopePayload(
+  floor: string | null | undefined,
+) {
+  const trimmedFloor = emptyToNull(floor)
+  return trimmedFloor ? { floorNames: [trimmedFloor] } : null
+}
+
+export function getCrewDepartmentLeadFloorFromScope(scope: unknown) {
+  if (!isRecord(scope)) return null
+
+  for (const key of ["floorNames", "floors", "locations"] as const) {
+    const value = scope[key]
+    if (!Array.isArray(value)) continue
+
+    const floor = value.find((item) => typeof item === "string" && item.trim())
+    if (typeof floor === "string") return floor
+  }
+
+  return null
+}
+
+export function parseCrewDepartmentLeadDateTimeLocal(
+  value: string | null | undefined,
+  timezone: string | null | undefined,
+) {
+  const trimmed = emptyToNull(value)
+  if (!trimmed) return null
+
+  if (hasExplicitTimezone(trimmed)) {
+    const date = new Date(trimmed)
+    if (Number.isNaN(date.getTime())) {
+      throw new Error("Department lead time window is invalid")
+    }
+    return date
+  }
+
+  const match = trimmed.match(/^(\d{4}-\d{2}-\d{2})T(\d{1,2}:\d{2})$/)
+  const parsed = match
+    ? parseTimeInTimezone(match[2], match[1], timezone ?? DEFAULT_TIMEZONE)
+    : null
+
+  if (!parsed) {
+    throw new Error("Department lead time window is invalid")
+  }
+  return parsed
+}
+
 function parseStringList(value: unknown) {
   if (typeof value === "string") return value.trim() ? [value.trim()] : []
   if (!Array.isArray(value)) return []
@@ -207,4 +258,13 @@ function toValidDate(value: Date | string | null | undefined) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value)
+}
+
+function hasExplicitTimezone(value: string) {
+  return /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value)
+}
+
+function emptyToNull(value: string | null | undefined) {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : null
 }

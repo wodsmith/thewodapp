@@ -12,10 +12,7 @@ import { type Competition, competitionsTable } from "../db/schemas/competitions"
 import { teamTable } from "../db/schemas/teams"
 import { requireLocalCrewOperatorAccess } from "./crew-local-access"
 import { generateSlug } from "../utils/slugify"
-import {
-  requireCrewDepartmentLeadFullAccess,
-  resolveCrewDepartmentLeadAccess,
-} from "./crew-department-lead.server"
+import { requireCrewDepartmentLeadFullAccess } from "./crew-department-lead.server"
 
 type CrewEventCompetition = Pick<
   Competition,
@@ -174,10 +171,11 @@ export async function getCrewEvent(
 ): Promise<{ event: CrewEventDetails | null }> {
   const event = await getCrewEventByCompetitionId(data.eventId)
   if (event) {
-    await resolveCrewDepartmentLeadAccess({
+    await requireCrewDepartmentLeadFullAccess({
       id: event.competition.id,
       organizingTeamId: event.competition.organizingTeamId,
       competitionTeamId: event.competition.competitionTeamId,
+      timezone: event.competition.timezone,
     })
   }
 
@@ -360,6 +358,7 @@ async function requireCrewDepartmentLeadEventForSettings(
       id: competitionsTable.id,
       organizingTeamId: competitionsTable.organizingTeamId,
       competitionTeamId: competitionsTable.competitionTeamId,
+      timezone: competitionsTable.timezone,
     })
     .from(competitionsTable)
     .where(eq(competitionsTable.id, competitionId))
@@ -373,5 +372,6 @@ async function requireCrewDepartmentLeadEventForSettings(
     id: event.id,
     organizingTeamId: event.organizingTeamId,
     competitionTeamId: event.competitionTeamId,
+    timezone: event.timezone,
   }
 }
