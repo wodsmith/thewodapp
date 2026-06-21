@@ -54,7 +54,7 @@ const departmentLeadInputSchema = z
     }
   })
 
-const updateDepartmentLeadInputSchema = departmentLeadInputSchema.extend({
+const updateDepartmentLeadInputSchema = departmentLeadInputSchema.safeExtend({
   leadId: leadIdSchema,
 })
 
