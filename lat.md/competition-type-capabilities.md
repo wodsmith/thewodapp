@@ -50,9 +50,9 @@ The window-status test pins benchmark as open without submission-window rows whi
 
 ## Perpetual Submission Gate Test
 
-The submission-gate tests pin benchmark write entries as open without seeded submission-window rows while preserving existing validation after the gate.
+The submission-gate tests pin benchmark submissions as perpetual while preventing unsafe direct API bypasses.
 
-[[apps/wodsmith-start/test/routes/api/compete/submission-gates.test.ts]] verifies the score and video API submit routes accept benchmark competitions through the window gate. [[apps/wodsmith-start/test/server-fns/athlete-score-fns.test.ts]] verifies the athlete score server function does the same.
+[[apps/wodsmith-start/test/server-fns/benchmark-submission-m3.test.ts]] verifies the benchmark `submitVideoFn` path accepts writes without seeded submission-window rows while applying profile-variant, Open-division, evidence-policy, and best-retention rules. [[apps/wodsmith-start/test/routes/api/compete/submission-gates.test.ts]] verifies the legacy direct score and video API submit routes reject benchmark-backed competitions so they cannot bypass the shared benchmark write helper. [[apps/wodsmith-start/test/components/video-submission-form.test.tsx]] verifies the generic event-detail submission form can send a score-only benchmark open-join attempt when video is optional.
 
 ## Video Submission Route Gates Test
 
