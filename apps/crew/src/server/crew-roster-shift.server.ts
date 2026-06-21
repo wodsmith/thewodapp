@@ -3,7 +3,7 @@
 // @lat: [[crew#Shift Board Pilot Ops]]
 // @lat: [[crew#Roster Volunteer Editing]]
 import { createId } from "@paralleldrive/cuid2"
-import { and, asc, eq, inArray, sql } from "drizzle-orm"
+import { and, asc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm"
 import { getDb } from "../db"
 import {
   createTeamInvitationId,
@@ -13,6 +13,13 @@ import type { Competition } from "../db/schemas/competitions"
 import { competitionsTable } from "../db/schemas/competitions"
 import { CREW_ASSIGNMENT_CONFIRMATION_TYPE } from "../db/schemas/crew-imports"
 import { crewEventSettingsTable } from "../db/schemas/crew-event-settings"
+import {
+  CREW_VOLUNTEER_CREDENTIAL_STATUS,
+  CREW_VOLUNTEER_HISTORY_VISIBILITY_SCOPE,
+  crewVolunteerCredentialsTable,
+  crewVolunteerHistoryEventsTable,
+  crewVolunteerIdentitiesTable,
+} from "../db/schemas/crew-volunteer-intelligence"
 import {
   INVITATION_STATUS,
   SYSTEM_ROLES_ENUM,
@@ -39,6 +46,11 @@ import {
   parseManualVolunteerEmailPaste,
   planManualVolunteerIntake,
 } from "../lib/crew/manual-volunteer-intake"
+import {
+  buildReturningVolunteerSuggestions,
+  type CrewReturningVolunteerSuggestion,
+  type ReturningVolunteerIdentityRecord,
+} from "../lib/crew/returning-volunteers"
 import type {
   CrewRosterSummary,
   CrewRosterVolunteer,
@@ -86,6 +98,7 @@ import {
   formatDateTimeInTimezone,
 } from "../utils/timezone-utils"
 import { getFirstExecuteValue } from "../server-fns/db-execute"
+import { hashCrewVolunteerContactAnchor } from "./crew-volunteer-history.server"
 
 type DbClient = ReturnType<typeof getDb>
 
@@ -141,6 +154,7 @@ export interface CrewRosterPageData {
   roster: CrewRosterVolunteer[]
   summary: CrewRosterSummary
   shiftSummary: CrewShiftSummary
+  returningVolunteerSuggestions: CrewReturningVolunteerSuggestion[]
 }
 
 export interface CrewShiftBoardData {
@@ -285,12 +299,15 @@ export async function getCrewRosterPage(
     access,
     scopedShifts,
   )
+  const returningVolunteerSuggestions =
+    await loadReturningVolunteerSuggestions(event, scopedRoster)
 
   return {
     event,
     roster: scopedRoster,
     summary: summarizeCrewRoster(scopedRoster),
     shiftSummary: summarizeCrewShifts(scopedShifts),
+    returningVolunteerSuggestions,
   }
 }
 
@@ -917,6 +934,198 @@ export async function loadCrewRoster(competitionTeamId: string) {
   return buildCrewRoster(invitations, memberships)
 }
 
+async function loadReturningVolunteerSuggestions(
+  event: CrewRosterCompetition,
+  roster: CrewRosterVolunteer[],
+) {
+  if (roster.length === 0) return []
+
+  const db = getDb()
+  const emailHashesByRosterId = new Map<string, string>()
+  const membershipIds = uniqueText(
+    roster.map((volunteer) => volunteer.membershipId),
+  )
+  const invitationIds = uniqueText(
+    roster.map((volunteer) => volunteer.invitationId),
+  )
+
+  for (const volunteer of roster) {
+    const emailHash = await hashCrewVolunteerContactAnchor(
+      "email",
+      volunteer.email,
+    )
+    if (emailHash) {
+      emailHashesByRosterId.set(volunteer.id, emailHash)
+    }
+  }
+
+  const emailHashes = uniqueText([...emailHashesByRosterId.values()])
+  const identityConditions = [
+    emailHashes.length > 0
+      ? inArray(crewVolunteerIdentitiesTable.emailHash, emailHashes)
+      : null,
+    membershipIds.length > 0
+      ? inArray(crewVolunteerIdentitiesTable.sourceMembershipId, membershipIds)
+      : null,
+    invitationIds.length > 0
+      ? inArray(crewVolunteerIdentitiesTable.sourceInvitationId, invitationIds)
+      : null,
+  ].filter((condition): condition is NonNullable<typeof condition> =>
+    Boolean(condition),
+  )
+
+  if (identityConditions.length === 0) return []
+
+  const identityRows = await db
+    .select({
+      id: crewVolunteerIdentitiesTable.id,
+      teamId: crewVolunteerIdentitiesTable.teamId,
+      emailHash: crewVolunteerIdentitiesTable.emailHash,
+      sourceMembershipId: crewVolunteerIdentitiesTable.sourceMembershipId,
+      sourceInvitationId: crewVolunteerIdentitiesTable.sourceInvitationId,
+    })
+    .from(crewVolunteerIdentitiesTable)
+    .where(
+      and(
+        eq(crewVolunteerIdentitiesTable.teamId, event.organizingTeamId),
+        identityConditions.length === 1
+          ? identityConditions[0]
+          : or(...identityConditions),
+      ),
+    )
+
+  const identities = buildReturningVolunteerIdentityMatches({
+    roster,
+    identityRows,
+    emailHashesByRosterId,
+  })
+  const identityIds = uniqueText(identities.map((identity) => identity.id))
+  if (identityIds.length === 0) return []
+
+  const [historyEvents, credentials] = await Promise.all([
+    db
+      .select({
+        identityId: crewVolunteerHistoryEventsTable.identityId,
+        teamId: crewVolunteerHistoryEventsTable.teamId,
+        competitionId: crewVolunteerHistoryEventsTable.competitionId,
+        competitionName: competitionsTable.name,
+        eventType: crewVolunteerHistoryEventsTable.eventType,
+        visibilityScope: crewVolunteerHistoryEventsTable.visibilityScope,
+        roleType: crewVolunteerHistoryEventsTable.roleType,
+        occurredAt: crewVolunteerHistoryEventsTable.occurredAt,
+      })
+      .from(crewVolunteerHistoryEventsTable)
+      .leftJoin(
+        competitionsTable,
+        eq(crewVolunteerHistoryEventsTable.competitionId, competitionsTable.id),
+      )
+      .where(
+        and(
+          eq(crewVolunteerHistoryEventsTable.teamId, event.organizingTeamId),
+          inArray(crewVolunteerHistoryEventsTable.identityId, identityIds),
+          eq(
+            crewVolunteerHistoryEventsTable.visibilityScope,
+            CREW_VOLUNTEER_HISTORY_VISIBILITY_SCOPE.SAME_ORGANIZER,
+          ),
+        ),
+      ),
+    db
+      .select({
+        identityId: crewVolunteerCredentialsTable.identityId,
+        teamId: crewVolunteerCredentialsTable.teamId,
+        credentialType: crewVolunteerCredentialsTable.credentialType,
+        credentialLabel: crewVolunteerCredentialsTable.credentialLabel,
+        status: crewVolunteerCredentialsTable.status,
+        visibilityScope: crewVolunteerCredentialsTable.visibilityScope,
+        expiresAt: crewVolunteerCredentialsTable.expiresAt,
+        revokedAt: crewVolunteerCredentialsTable.revokedAt,
+      })
+      .from(crewVolunteerCredentialsTable)
+      .where(
+        and(
+          eq(crewVolunteerCredentialsTable.teamId, event.organizingTeamId),
+          inArray(crewVolunteerCredentialsTable.identityId, identityIds),
+          eq(
+            crewVolunteerCredentialsTable.visibilityScope,
+            CREW_VOLUNTEER_HISTORY_VISIBILITY_SCOPE.SAME_ORGANIZER,
+          ),
+          inArray(crewVolunteerCredentialsTable.status, [
+            CREW_VOLUNTEER_CREDENTIAL_STATUS.SELF_REPORTED,
+            CREW_VOLUNTEER_CREDENTIAL_STATUS.VERIFIED,
+          ]),
+          isNull(crewVolunteerCredentialsTable.revokedAt),
+          or(
+            isNull(crewVolunteerCredentialsTable.expiresAt),
+            gt(crewVolunteerCredentialsTable.expiresAt, new Date()),
+          ),
+        ),
+      ),
+  ])
+
+  return buildReturningVolunteerSuggestions({
+    organizerTeamId: event.organizingTeamId,
+    currentCompetitionId: event.id,
+    roster: roster.map((volunteer) => ({
+      id: volunteer.id,
+      name: volunteer.name,
+      status: volunteer.status,
+      availability: volunteer.availability,
+      roleTypes: volunteer.roleTypes,
+    })),
+    identities,
+    historyEvents,
+    credentials,
+  })
+}
+
+function buildReturningVolunteerIdentityMatches({
+  roster,
+  identityRows,
+  emailHashesByRosterId,
+}: {
+  roster: CrewRosterVolunteer[]
+  identityRows: Array<{
+    id: string
+    teamId: string
+    emailHash: string | null
+    sourceMembershipId: string | null
+    sourceInvitationId: string | null
+  }>
+  emailHashesByRosterId: Map<string, string>
+}): ReturningVolunteerIdentityRecord[] {
+  const matches: ReturningVolunteerIdentityRecord[] = []
+  const seen = new Set<string>()
+
+  for (const volunteer of roster) {
+    const emailHash = emailHashesByRosterId.get(volunteer.id)
+    for (const identity of identityRows) {
+      const matchedByEmail =
+        emailHash !== undefined && identity.emailHash === emailHash
+      const matchedByMembership =
+        volunteer.membershipId !== null &&
+        identity.sourceMembershipId === volunteer.membershipId
+      const matchedByInvitation =
+        volunteer.invitationId !== null &&
+        identity.sourceInvitationId === volunteer.invitationId
+
+      if (!matchedByEmail && !matchedByMembership && !matchedByInvitation) {
+        continue
+      }
+
+      const key = `${volunteer.id}:${identity.id}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      matches.push({
+        id: identity.id,
+        teamId: identity.teamId,
+        rosterVolunteerId: volunteer.id,
+      })
+    }
+  }
+
+  return matches
+}
+
 async function createManualCrewVolunteerRows(
   event: CrewRosterCompetition,
   rows: ManualCrewVolunteerCreateRow[],
@@ -1286,6 +1495,10 @@ async function requireCrewShift(competitionId: string, shiftId: string) {
 function emptyToNull(value: string | null | undefined) {
   const trimmed = value?.trim()
   return trimmed ? trimmed : null
+}
+
+function uniqueText(values: Array<string | null | undefined>) {
+  return [...new Set(values.filter((value): value is string => Boolean(value)))]
 }
 
 function getAssignmentConfirmationExpiry(now: Date) {
