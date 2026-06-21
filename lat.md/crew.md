@@ -58,7 +58,17 @@ Crew Checkout Session creation is feature-flagged with `CREW_STRIPE_CHECKOUT_ENA
 
 [[apps/crew/src/lib/crew/checkout-sessions.ts]] builds Stripe Checkout Session params for public paid Crew event plans only, with metadata `product=crew`, team/event scope, Crew plan, `crewEventSettingsId`, `billingEventId`, and a stable checkout idempotency key. Private founder/concierge pricing and audit metadata are excluded from session metadata and organizer page view models.
 
-[[apps/crew/src/server/crew-billing.server.ts]] creates sessions through the shared Stripe client, appends a pending `checkout_session_created` Crew billing audit event, and patches only event-level `crew_event_settings` Checkout reference/status fields. `checkout_completed` remains reserved for the later webhook slice, and Crew one-event purchases must not update `teams.currentPlanId`.
+[[apps/crew/src/server/crew-billing.server.ts]] creates sessions through the shared Stripe client, appends a pending `checkout_session_created` Crew billing audit event, and patches only event-level `crew_event_settings` Checkout reference/status fields. The webhook completion path owns the later `checkout_completed` transition, and Crew one-event purchases must not update `teams.currentPlanId`.
+
+## Crew Stripe Webhooks
+
+Crew Stripe webhooks complete the event-level Checkout flow after Stripe verifies payment.
+
+[[apps/crew/src/routes/api/webhooks/stripe.ts]] routes completed Checkout Sessions by `session.metadata.product`. Sessions with `product=crew` are handled by Crew billing completion, while non-Crew registration sessions continue through the existing athlete registration checkout workflow.
+
+[[apps/crew/src/lib/crew/checkout-webhooks.ts]] validates the Crew metadata contract, including team/event scope, public Crew plan, event settings row ID, billing event ID, checkout idempotency key, amount, currency, Checkout Session ID, and Stripe event ID. Duplicate delivery is treated as idempotent by both Stripe event ID and Checkout Session ID.
+
+[[apps/crew/src/server/crew-billing.server.ts]] completes only a matching pending Stripe Checkout event settings row, appends one `checkout_completed` billing audit row, and patches only `crew_event_settings` billing fields. Crew Checkout completion must not mutate WODsmith team subscription state or assign Crew one-event plan IDs to `teams.currentPlanId`.
 
 ## Server Function Runtime Boundary
 
