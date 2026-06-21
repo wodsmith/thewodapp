@@ -44,6 +44,7 @@ import {
   sortKeyToString,
   type WorkoutScheme,
 } from "@/lib/scoring"
+import { isBenchmarkCompetition } from "@/server/benchmark-submissions"
 import { corsHeaders, getSessionFromBearerOrCookie } from "@/utils/bearer-auth"
 
 const submitScoreSchema = z.object({
@@ -68,10 +69,18 @@ async function checkSubmissionWindow(
     .where(eq(competitionsTable.id, competitionId))
     .limit(1)
 
-  if (
-    !competition ||
-    !competitionCan(competition.competitionType, "submissionWindows")
-  ) {
+  if (!competition) {
+    return {
+      isOpen: false,
+      reason: "Submission windows are not available for this competition type",
+    }
+  }
+
+  if (competitionCan(competition.competitionType, "perpetual")) {
+    return { isOpen: true, reason: undefined }
+  }
+
+  if (!competitionCan(competition.competitionType, "submissionWindows")) {
     return {
       isOpen: false,
       reason: "Submission windows are not available for this competition type",
@@ -146,6 +155,16 @@ export const Route = createFileRoute("/api/compete/scores/submit")({
         }
 
         const data = parsed.data
+        if (await isBenchmarkCompetition(data.competitionId)) {
+          return json(
+            {
+              error:
+                "Benchmark scores must be submitted through the benchmark submission flow",
+            },
+            { status: 422, headers },
+          )
+        }
+
         const db = getDb()
         const userId = session.userId
 

@@ -31,6 +31,7 @@ import {
   getPublicWorkoutsPageDataFn,
   type PublicWorkoutVenueInfo,
 } from "@/server-fns/competition-workouts-page-fns"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import { useDeferredSchedule } from "@/utils/use-deferred-schedule"
 
 const parentRoute = getRouteApi("/compete/$slug")
@@ -78,18 +79,22 @@ export const Route = createFileRoute("/compete/$slug/workouts/")({
       parentMatch.loaderData?.userRegistration?.divisionId ?? null
 
     const divisionIds = divisions?.map((d) => d.id) ?? []
-    const isOnline = competition.competitionType === "online"
+    const supportsVideoSubmissions = competitionCan(
+      competition.competitionType,
+      "videoSubmissions",
+    )
 
     // Single consolidated call for workouts + division descriptions +
     // event-division mappings + venues + the viewer's submission statuses
     // (fetched server-side in the same wave as descriptions/venues, only
-    // for registered athletes on online competitions).
+    // for registered athletes on video-submission competitions).
     const pageData = await getPublicWorkoutsPageDataFn({
       data: {
         competitionId,
         divisionIds,
         includeVenues: true,
-        includeSubmissionStatuses: isOnline && !!athleteRegisteredDivisionId,
+        includeSubmissionStatuses:
+          supportsVideoSubmissions && !!athleteRegisteredDivisionId,
       },
     })
 
@@ -139,7 +144,10 @@ function CompetitionWorkoutsPage() {
     return (
       <div className="space-y-4">
         <div className="sticky top-4 z-10">
-          <CompetitionTabs slug={competition.slug} />
+          <CompetitionTabs
+            slug={competition.slug}
+            settings={competition.settings}
+          />
         </div>
         <div className="rounded-2xl border border-black/10 bg-black/5 p-4 sm:p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
           <div className="space-y-8">
@@ -161,7 +169,10 @@ function CompetitionWorkoutsPage() {
   return (
     <div className="space-y-4">
       <div className="sticky top-4 z-10">
-        <CompetitionTabs slug={competition.slug} />
+        <CompetitionTabs
+          slug={competition.slug}
+          settings={competition.settings}
+        />
       </div>
       <div className="rounded-2xl border border-black/10 bg-black/5 p-4 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
         <div className="space-y-8">

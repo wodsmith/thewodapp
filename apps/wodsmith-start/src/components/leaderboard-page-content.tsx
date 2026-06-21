@@ -49,7 +49,7 @@ interface LeaderboardDivision {
 
 interface LeaderboardCompetitionInfo {
   slug: string
-  competitionType: "in-person" | "online"
+  competitionType: string
 }
 
 /**

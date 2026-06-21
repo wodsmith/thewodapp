@@ -10,6 +10,7 @@ import {
 } from "@/components/competition-workout-card"
 import { EventDetailsContent } from "@/components/event-details-content"
 import { RegistrationSidebar } from "@/components/registration-sidebar"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import {
   getPublicScheduleDataFn,
   type PublicScheduleEvent,
@@ -53,13 +54,14 @@ export const Route = createFileRoute("/compete/$slug/")({
     // Single consolidated call for workouts + division descriptions +
     // event-division mappings + the viewer's submission statuses (fetched
     // server-side in the same wave as the descriptions, only for registered
-    // athletes on online competitions).
+    // athletes on competitions that support video submissions).
     const pageData = await getPublicWorkoutsPageDataFn({
       data: {
         competitionId,
         divisionIds,
         includeSubmissionStatuses:
-          competition.competitionType === "online" && !!userRegistration,
+          competitionCan(competition.competitionType, "videoSubmissions") &&
+          !!userRegistration,
       },
     })
 
@@ -132,7 +134,7 @@ function CompetitionOverviewPage() {
   }
 
   const showScorePanel =
-    competition.competitionType === "online" &&
+    competitionCan(competition.competitionType, "videoSubmissions") &&
     isRegistered &&
     !!session &&
     userDivisions.length > 0 &&
@@ -179,7 +181,10 @@ function CompetitionOverviewPage() {
       <div className="space-y-4">
         {/* Sticky Tabs */}
         <div className="sticky top-4 z-10">
-          <CompetitionTabs slug={competition.slug} />
+          <CompetitionTabs
+            slug={competition.slug}
+            settings={competition.settings}
+          />
         </div>
 
         {/* Score panel — desktop only (in main column) */}

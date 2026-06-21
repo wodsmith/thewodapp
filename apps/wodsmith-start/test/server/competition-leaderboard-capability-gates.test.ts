@@ -44,6 +44,22 @@ describe("competition leaderboard capability gates", () => {
 			).toBe(divisionResults)
 		})
 
+		it("ignores stale divisionResults for perpetual benchmark boards", () => {
+			expect(
+				resolveLeaderboardDivisionResults({
+					bypassPublicationFilter: false,
+					competitionType: "benchmark",
+					settings: {
+						divisionResults: {
+							"event-1": {
+								"division-1": { publishedAt: null },
+							},
+						},
+					},
+				}),
+			).toBeUndefined()
+		})
+
 		it("bypasses result publishing when organizer preview requests it", () => {
 			expect(
 				resolveLeaderboardDivisionResults({
@@ -62,10 +78,16 @@ describe("competition leaderboard capability gates", () => {
 	})
 
 	describe("shouldFetchLeaderboardVideoSubmissions", () => {
-		it("fetches submissions only for online competitions with registrations", () => {
+		it("fetches submissions for competition types that support video submissions", () => {
 			expect(
 				shouldFetchLeaderboardVideoSubmissions({
 					competitionType: "online",
+					registrationCount: 1,
+				}),
+			).toBe(true)
+			expect(
+				shouldFetchLeaderboardVideoSubmissions({
+					competitionType: "benchmark",
 					registrationCount: 1,
 				}),
 			).toBe(true)

@@ -152,7 +152,10 @@ function RegisteredPage() {
     return (
       <div className="space-y-4">
         <div className="sticky top-4 z-10">
-          <CompetitionTabs slug={competition.slug} />
+          <CompetitionTabs
+            slug={competition.slug}
+            settings={competition.settings}
+          />
         </div>
         <div className="flex flex-col items-center justify-center gap-3 py-20">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -170,7 +173,10 @@ function RegisteredPage() {
     <div className="space-y-4">
       {/* Sticky Tabs */}
       <div className="sticky top-4 z-10">
-        <CompetitionTabs slug={competition.slug} />
+        <CompetitionTabs
+          slug={competition.slug}
+          settings={competition.settings}
+        />
       </div>
 
       {/* Mobile: share card */}

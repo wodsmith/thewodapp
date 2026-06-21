@@ -22,6 +22,8 @@ export interface TiebreakerInput {
     totalPoints: number
     /** Map of eventId → placement (1-indexed) */
     eventPlacements: Map<string, number>
+    /** Benchmark event tiers for absolute-tier histogram tiebreaking. */
+    benchmarkTiers?: ReadonlyMap<string, number> | readonly number[]
   }>
   config: TiebreakerConfig
   /** Scoring algorithm - determines sort direction */
@@ -45,6 +47,7 @@ interface AthleteWithIndex {
   userId: string
   totalPoints: number
   eventPlacements: Map<string, number>
+  benchmarkTiers?: ReadonlyMap<string, number> | readonly number[]
   originalIndex: number
 }
 
@@ -112,7 +115,7 @@ export function applyTiebreakers(input: TiebreakerInput): RankedAthlete[] {
       currentRank++
     } else {
       // Multiple athletes tied - apply tiebreakers
-      const resolved = resolveTies(group, config)
+      const resolved = resolveTies(group, config, scoringAlgorithm)
       for (const athlete of resolved) {
         ranked.push({
           userId: athlete.userId,
@@ -161,9 +164,20 @@ function groupByPoints(athletes: AthleteWithIndex[]): AthleteWithIndex[][] {
 function resolveTies(
   group: AthleteWithIndex[],
   config: TiebreakerConfig,
+  scoringAlgorithm?: ScoringAlgorithm,
 ): Array<AthleteWithIndex & { tieRank: number }> {
   // Start with all athletes at rank 0 (tied)
   let athletes = group.map((a) => ({ ...a, tieRank: 0 }))
+
+  if (scoringAlgorithm === "absolute_tier") {
+    athletes = applyBenchmarkTierHistogram(athletes)
+
+    if (config.secondary && hasTies(athletes)) {
+      athletes = applyTiebreakerMethod(athletes, config.secondary, config)
+    }
+
+    return athletes
+  }
 
   // Apply primary tiebreaker
   athletes = applyTiebreakerMethod(athletes, config.primary, config)
@@ -174,6 +188,80 @@ function resolveTies(
   }
 
   return athletes
+}
+
+export function compareBenchmarkTierHistograms(
+  aTiers: readonly number[],
+  bTiers: readonly number[],
+): number {
+  const tierValues = Array.from(new Set([...aTiers, ...bTiers])).sort(
+    (a, b) => b - a,
+  )
+
+  for (const tier of tierValues) {
+    const aCount = aTiers.filter((value) => value === tier).length
+    const bCount = bTiers.filter((value) => value === tier).length
+    if (aCount !== bCount) {
+      return bCount - aCount
+    }
+  }
+
+  return 0
+}
+
+function applyBenchmarkTierHistogram(
+  athletes: Array<AthleteWithIndex & { tieRank: number }>,
+): Array<AthleteWithIndex & { tieRank: number }> {
+  const histograms = athletes.map((athlete) => ({
+    athlete,
+    tiers: getBenchmarkTierValues(athlete.benchmarkTiers),
+  }))
+
+  if (histograms.every((histogram) => histogram.tiers.length === 0)) {
+    return athletes
+  }
+
+  histograms.sort((a, b) => {
+    const histogramCompare = compareBenchmarkTierHistograms(a.tiers, b.tiers)
+    if (histogramCompare !== 0) {
+      return histogramCompare
+    }
+    return a.athlete.originalIndex - b.athlete.originalIndex
+  })
+
+  const result: Array<AthleteWithIndex & { tieRank: number }> = []
+  let currentRank = 0
+  let previousTiers: readonly number[] | null = null
+
+  for (let i = 0; i < histograms.length; i++) {
+    const { athlete, tiers } = histograms[i]
+    const sameAsPrevious =
+      previousTiers !== null &&
+      compareBenchmarkTierHistograms(tiers, previousTiers) === 0
+
+    if (!sameAsPrevious) {
+      currentRank = i
+    }
+
+    result.push({ ...athlete, tieRank: currentRank })
+    previousTiers = tiers
+  }
+
+  return result
+}
+
+function getBenchmarkTierValues(
+  tiers: AthleteWithIndex["benchmarkTiers"],
+): number[] {
+  if (!tiers) {
+    return []
+  }
+
+  if (Array.isArray(tiers)) {
+    return [...tiers]
+  }
+
+  return Array.from(tiers.values())
 }
 
 /**

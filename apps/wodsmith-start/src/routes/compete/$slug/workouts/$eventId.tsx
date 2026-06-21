@@ -43,6 +43,7 @@ import {
   getBatchEventVideoSubmissionsFn,
   type VideoSubmissionResult,
 } from "@/server-fns/video-submission-fns"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import { getGoogleMapsUrl, hasAddressData } from "@/utils/address"
 import { formatTrackOrder } from "@/utils/format-track-order"
 
@@ -70,7 +71,10 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
 
     const divisions = parentDivisions ?? []
     const divisionIds = divisions.map((d) => d.id)
-    const isOnline = competition.competitionType === "online"
+    const supportsVideoSubmissions = competitionCan(
+      competition.competitionType,
+      "videoSubmissions",
+    )
 
     // Athlete's registered division ids — derived from the parent route's
     // registrations (the same getUserCompetitionRegistrationsFn data the old
@@ -136,14 +140,14 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
       }
     }
 
-    // For online competitions, fetch video submissions in ONE batched call
+    // For video-submission competitions, fetch submissions in ONE batched call
     // (instead of one getVideoSubmissionFn call per child event). The target
     // events (children vs the event itself) and the mapped division only
     // emerge from the page data, so this chains off the same promise — a
     // single dependent round-trip.
     const videoDataPromise: Promise<Record<string, VideoSubmissionResult>> =
       (async () => {
-        if (!isOnline) return {}
+        if (!supportsVideoSubmissions) return {}
         const pageData = await pageDataPromise
         if (!pageData.event) return {}
 
@@ -166,6 +170,8 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
             canSubmit: false,
             reason: "Not authenticated",
             isRegistered: false,
+            isBenchmarkOpenJoin: false,
+            videoRequired: true,
             workout: null,
             existingScore: null,
           }
@@ -231,9 +237,11 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
     }
 
     const videoSubmission =
-      isOnline && !hasChildEvents ? (videoResults[eventId] ?? null) : null
+      supportsVideoSubmissions && !hasChildEvents
+        ? (videoResults[eventId] ?? null)
+        : null
     const childVideoSubmissions: Record<string, VideoSubmissionResult> = {}
-    if (isOnline && hasChildEvents) {
+    if (supportsVideoSubmissions && hasChildEvents) {
       for (const child of childEvents) {
         const result = videoResults[child.id]
         if (result) {
@@ -479,7 +487,7 @@ function EventDetailsPage() {
       <div className="space-y-4">
         {/* Competition Tabs */}
         <div className="sticky top-4 z-10">
-          <CompetitionTabs slug={slug} />
+          <CompetitionTabs slug={slug} settings={competition.settings} />
         </div>
 
         {/* Back to Workouts */}
@@ -648,8 +656,11 @@ function EventDetailsPage() {
                         )}
                       </div>
 
-                      {/* Per-sub-event submission form for online competitions */}
-                      {competition.competitionType === "online" &&
+                      {/* Per-sub-event submission form */}
+                      {competitionCan(
+                        competition.competitionType,
+                        "videoSubmissions",
+                      ) &&
                         childSubmission && (
                           <VideoSubmissionForm
                             trackWorkoutId={child.id}
@@ -676,7 +687,7 @@ function EventDetailsPage() {
 
             {/* Video & Score Submission Form - For events without sub-events */}
             {/* Only show when event is mapped to athlete's division (or no mappings configured) */}
-            {competition.competitionType === "online" &&
+            {competitionCan(competition.competitionType, "videoSubmissions") &&
               videoSubmission &&
               childEvents.length === 0 &&
               isEventMappedToAthleteDivision && (
@@ -695,8 +706,8 @@ function EventDetailsPage() {
 
       {/* Sidebar */}
       <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
-        {/* Submission Info Card - For online competitions */}
-        {competition.competitionType === "online" &&
+        {/* Submission Info Card - For competitions with submission windows */}
+        {competitionCan(competition.competitionType, "submissionWindows") &&
           sidebarSubmission?.submissionWindow && (
             <Card>
               <CardHeader className="pb-3">

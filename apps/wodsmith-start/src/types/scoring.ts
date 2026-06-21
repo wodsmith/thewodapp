@@ -11,6 +11,7 @@
 // Re-export all types from the Zod schema file
 // This provides a single import point for types without needing to import Zod
 export type {
+  AbsoluteTierConfig,
   CustomTableConfig,
   PScoreConfig,
   ScoringAlgorithm,
@@ -23,6 +24,7 @@ export type {
 
 // Re-export schemas for validation use
 export {
+  absoluteTierConfigSchema,
   customTableConfigSchema,
   pScoreConfigSchema,
   scoringAlgorithmSchema,

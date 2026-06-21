@@ -42,6 +42,7 @@ import {
   isSelectableCompetitionTypeValue,
   selectableCompetitionTypeOptions,
 } from "@/lib/competitions/capabilities"
+import { canDisplayPhysicalVenue } from "@/lib/competitions/venue-volunteer-gates"
 import { updateCompetitionFn } from "@/server-fns/competition-fns"
 import { COMMON_US_TIMEZONES, DEFAULT_TIMEZONE } from "@/utils/timezone-utils"
 
@@ -194,13 +195,20 @@ export function OrganizerCompetitionEditForm({
   const existingIsMultiDay =
     formatDateForInput(competition.startDate) !==
     formatDateForInput(competition.endDate)
+  const initialCompetitionType: CompetitionTypeId =
+    isSelectableCompetitionTypeValue(competition.competitionType)
+      ? competition.competitionType
+      : "in-person"
+  const showCompetitionTypeField = isSelectableCompetitionTypeValue(
+    competition.competitionType,
+  )
 
   const form = useForm<FormValues>({
     resolver: standardSchemaResolver(formSchema),
     defaultValues: {
       name: competition.name,
       slug: competition.slug,
-      competitionType: competition.competitionType ?? "in-person",
+      competitionType: initialCompetitionType,
       isMultiDay: existingIsMultiDay,
       startDate: formatDateForInput(competition.startDate),
       endDate: formatDateForInput(competition.endDate),
@@ -228,6 +236,10 @@ export function OrganizerCompetitionEditForm({
 
   const isMultiDay = form.watch("isMultiDay")
   const competitionType = form.watch("competitionType")
+  const effectiveCompetitionType = showCompetitionTypeField
+    ? competitionType
+    : competition.competitionType
+  const showLocationSection = canDisplayPhysicalVenue(effectiveCompetitionType)
 
   // Auto-generate slug from name
   const handleNameChange = (name: string) => {
@@ -261,11 +273,13 @@ export function OrganizerCompetitionEditForm({
           groupId: data.groupId,
           visibility: data.visibility,
           status: data.status,
-          competitionType: data.competitionType,
+          ...(showCompetitionTypeField
+            ? { competitionType: data.competitionType }
+            : {}),
           profileImageUrl,
           bannerImageUrl,
           timezone: data.timezone,
-          address: data.address,
+          address: showLocationSection ? data.address : undefined,
         },
       })
       toast.success("Competition updated successfully")
@@ -337,39 +351,40 @@ export function OrganizerCompetitionEditForm({
           )}
         />
 
-        {/* Competition Type */}
-        <FormField
-          control={form.control}
-          name="competitionType"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Competition Type</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select competition type" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {selectableCompetitionTypeOptions().map((option) => (
-                    <SelectItem key={option.id} value={option.id}>
-                      {option.displayLabel}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormDescription>
-                {field.value === "online"
-                  ? "Athletes submit video recordings of their workouts"
-                  : "Athletes compete at a physical venue"}
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {showCompetitionTypeField && (
+          <FormField
+            control={form.control}
+            name="competitionType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Competition Type</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select competition type" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {selectableCompetitionTypeOptions().map((option) => (
+                      <SelectItem key={option.id} value={option.id}>
+                        {option.displayLabel}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  {field.value === "online"
+                    ? "Athletes submit video recordings of their workouts"
+                    : "Athletes compete at a physical venue"}
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
 
-        {/* Location Section - Only shown for in-person competitions */}
-        {competitionType === "in-person" && (
+        {/* Location Section - Only shown for competition types with physical venues */}
+        {showLocationSection && (
           <Collapsible open={isLocationOpen} onOpenChange={setIsLocationOpen}>
             <div className="rounded-lg border p-4">
               <CollapsibleTrigger className="flex w-full items-center justify-between">

@@ -7,7 +7,9 @@ import {
 	DEFAULT_PSCORE_CONFIG,
 	getScoringAlgorithmName,
 	canHaveNegativeScores,
+	BenchmarkConfigError,
 	type EventScoreInput,
+	type AbsoluteTierScoringContext,
 } from "@/lib/scoring/algorithms"
 import type { ScoringConfig } from "@/types/scoring"
 
@@ -246,6 +248,58 @@ describe("Scoring Factory", () => {
 				expect(results.get("c")?.rank).toBe(3)
 			})
 		})
+
+		describe("Absolute-tier algorithm", () => {
+			const config: ScoringConfig = {
+				algorithm: "absolute_tier",
+				absoluteTier: { batteryId: "bbat_01JZ0000000000000000000000" },
+				tiebreaker: { primary: "none" },
+				statusHandling: { dnf: "zero", dns: "zero", withdrawn: "zero" },
+			}
+			const context: AbsoluteTierScoringContext = {
+				tableByEventId: new Map([
+					[
+						"e1",
+						{
+							scoreType: "max",
+							thresholdsByVariant: new Map([
+								[
+									"male",
+									[
+										{ tier: 1, value: 100 },
+										{ tier: 2, value: 200 },
+									],
+								],
+							]),
+						},
+					],
+				]),
+			}
+
+			it("dispatches through preloaded absolute-tier context", () => {
+				const results = calculateEventPoints(
+					"e1",
+					[
+						{ userId: "a", value: 50, status: "scored", variant: "male" },
+						{ userId: "b", value: 100, status: "scored", variant: "male" },
+						{ userId: "c", value: 250, status: "scored", variant: "male" },
+					],
+					"reps",
+					config,
+					{ absoluteTier: context },
+				)
+
+				expect(results.get("a")).toEqual({ userId: "a", points: 0.5, rank: 3 })
+				expect(results.get("b")).toEqual({ userId: "b", points: 1, rank: 2 })
+				expect(results.get("c")).toEqual({ userId: "c", points: 2, rank: 1 })
+			})
+
+			it("fails closed when context is missing", () => {
+				expect(() => calculateEventPoints("e1", baseScores, "time", config)).toThrow(
+					BenchmarkConfigError,
+				)
+			})
+		})
 	})
 
 	describe("Utility functions", () => {
@@ -256,6 +310,7 @@ describe("Scoring Factory", () => {
 				expect(getScoringAlgorithmName("winner_takes_more")).toBe("Winner Takes More")
 				expect(getScoringAlgorithmName("online")).toBe("Online")
 				expect(getScoringAlgorithmName("custom")).toBe("Custom")
+				expect(getScoringAlgorithmName("absolute_tier")).toBe("Absolute Tier")
 			})
 		})
 
@@ -376,6 +431,17 @@ describe("Scoring Factory", () => {
 				statusHandling: { dnf: "last_place", dns: "zero", withdrawn: "exclude" },
 			}
 			expect(calculatePointsForPlace({ place: 6, config })).toBe(0)
+		})
+
+		it("returns 0 for absolute_tier missing-place points", () => {
+			const config: ScoringConfig = {
+				algorithm: "absolute_tier",
+				absoluteTier: { batteryId: "bbat_01JZ0000000000000000000000" },
+				tiebreaker: { primary: "none" },
+				statusHandling: { dnf: "zero", dns: "zero", withdrawn: "zero" },
+			}
+
+			expect(calculatePointsForPlace({ place: 1, config })).toBe(0)
 		})
 	})
 })

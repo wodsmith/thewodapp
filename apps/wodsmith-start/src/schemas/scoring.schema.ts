@@ -16,6 +16,7 @@ import { z } from "zod"
  * - winner_takes_more: Top positions get disproportionately more points (like Functional Fitness Games)
  * - online: Place-based scoring (1st=1pt, 2nd=2pts...) - lowest total wins
  * - custom: User-defined points table with overrides
+ * - absolute_tier: Fixed benchmark thresholds scored as absolute tiers
  */
 export const scoringAlgorithmSchema = z.enum([
   "traditional",
@@ -23,6 +24,7 @@ export const scoringAlgorithmSchema = z.enum([
   "winner_takes_more",
   "online",
   "custom",
+  "absolute_tier",
 ])
 export type ScoringAlgorithm = z.infer<typeof scoringAlgorithmSchema>
 
@@ -75,6 +77,12 @@ export const customTableConfigSchema = z.object({
 })
 export type CustomTableConfig = z.infer<typeof customTableConfigSchema>
 
+export const absoluteTierConfigSchema = z.object({
+  /** Benchmark battery whose category/test/threshold rows define the scoring table */
+  batteryId: z.string().min(1),
+})
+export type AbsoluteTierConfig = z.infer<typeof absoluteTierConfigSchema>
+
 /**
  * Tiebreaker configuration (base schema without default)
  */
@@ -121,23 +129,47 @@ export type StatusHandlingConfig = z.infer<typeof statusHandlingConfigSchema>
 /**
  * Complete scoring configuration
  */
-export const scoringConfigSchema = z.object({
-  /** Scoring algorithm to use */
-  algorithm: scoringAlgorithmSchema,
+export const scoringConfigSchema = z
+  .object({
+    /** Scoring algorithm to use */
+    algorithm: scoringAlgorithmSchema,
 
-  /** Traditional algorithm settings (optional) */
-  traditional: traditionalConfigSchema.optional(),
+    /** Traditional algorithm settings (optional) */
+    traditional: traditionalConfigSchema.optional(),
 
-  /** P-Score algorithm settings (optional) */
-  pScore: pScoreConfigSchema.optional(),
+    /** P-Score algorithm settings (optional) */
+    pScore: pScoreConfigSchema.optional(),
 
-  /** Custom points table settings (optional) */
-  customTable: customTableConfigSchema.optional(),
+    /** Custom points table settings (optional) */
+    customTable: customTableConfigSchema.optional(),
 
-  /** Tiebreaker configuration */
-  tiebreaker: tiebreakerConfigSchema,
+    /** Absolute-tier benchmark settings (required for absolute_tier) */
+    absoluteTier: absoluteTierConfigSchema.optional(),
 
-  /** DNF/DNS/Withdrawn handling */
-  statusHandling: statusHandlingConfigSchema,
-})
+    /** Tiebreaker configuration */
+    tiebreaker: tiebreakerConfigSchema,
+
+    /** DNF/DNS/Withdrawn handling */
+    statusHandling: statusHandlingConfigSchema,
+  })
+  .superRefine((config, ctx) => {
+    if (
+      config.algorithm === "absolute_tier" &&
+      !config.absoluteTier?.batteryId
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "absoluteTier.batteryId is required for absolute_tier scoring",
+        path: ["absoluteTier", "batteryId"],
+      })
+    }
+
+    if (config.algorithm !== "absolute_tier" && config.absoluteTier) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "absoluteTier is only allowed for absolute_tier scoring",
+        path: ["absoluteTier"],
+      })
+    }
+  })
 export type ScoringConfig = z.infer<typeof scoringConfigSchema>

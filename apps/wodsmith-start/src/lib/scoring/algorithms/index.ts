@@ -19,11 +19,23 @@ import type {
   ScoringConfig,
   TraditionalConfig,
 } from "@/types/scoring"
+import {
+  type AbsoluteTierScoringContext,
+  calculateAbsoluteTierEventPoints,
+} from "./absolute-tier"
 import { calculateCustomPoints } from "./custom"
 import { calculateOnlinePoints } from "./online"
 import { calculatePScore, type PScoreInput } from "./p-score"
 import { calculateTraditionalPoints } from "./traditional"
 
+export {
+  type AbsoluteTierEventTable,
+  type AbsoluteTierScoringContext,
+  type AbsoluteTierThreshold,
+  BenchmarkConfigError,
+  calculateAbsoluteTier,
+  calculateAbsoluteTierEventPoints,
+} from "./absolute-tier"
 export {
   calculateCustomPoints,
   generatePointsTable,
@@ -49,6 +61,8 @@ export interface EventScoreInput {
    * If not provided, sorting falls back to value-only comparison.
    */
   sortKey?: string | null
+  /** Benchmark threshold variant, such as a profile-gender snapshot. */
+  variant?: string | null
 }
 
 /**
@@ -157,10 +171,13 @@ function sortScoresByPerformance(
  * ```
  */
 export function calculateEventPoints(
-  _eventId: string,
+  eventId: string,
   scores: EventScoreInput[],
   scheme: WorkoutScheme,
   config: ScoringConfig,
+  context?: {
+    absoluteTier?: AbsoluteTierScoringContext
+  },
 ): Map<string, EventPointsResult> {
   if (scores.length === 0) {
     return new Map()
@@ -177,6 +194,13 @@ export function calculateEventPoints(
       return calculateOnlineEventPoints(scores, scheme, config)
     case "custom":
       return calculateCustomEventPoints(scores, scheme, config)
+    case "absolute_tier":
+      return calculateAbsoluteTierEventPoints(
+        eventId,
+        scores,
+        scheme,
+        context?.absoluteTier,
+      )
     default: {
       // TypeScript exhaustiveness check
       const _exhaustive: never = config.algorithm
@@ -656,6 +680,8 @@ export function calculatePointsForPlace({
       )
     case "p_score":
       return 0
+    case "absolute_tier":
+      return 0
     default: {
       const _exhaustive: never = config.algorithm
       throw new Error(`Unknown scoring algorithm: ${_exhaustive}`)
@@ -680,6 +706,8 @@ export function getScoringAlgorithmName(
       return "Online"
     case "custom":
       return "Custom"
+    case "absolute_tier":
+      return "Absolute Tier"
   }
 }
 

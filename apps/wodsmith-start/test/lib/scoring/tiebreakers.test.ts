@@ -286,6 +286,42 @@ describe("applyTiebreakers", () => {
 		})
 	})
 
+	describe("absolute-tier benchmark tiebreaker", () => {
+		it("uses tier histogram instead of field-relative countback", () => {
+			const input: TiebreakerInput = {
+				athletes: [
+					{
+						userId: "high-peak",
+						totalPoints: 70,
+						eventPlacements: new Map([
+							["event-1", 2],
+							["event-2", 2],
+						]),
+						benchmarkTiers: [9, 5],
+					},
+					{
+						userId: "flat-countback",
+						totalPoints: 70,
+						eventPlacements: new Map([
+							["event-1", 1],
+							["event-2", 1],
+						]),
+						benchmarkTiers: [7, 7],
+					},
+				],
+				config: { primary: "countback" },
+				scoringAlgorithm: "absolute_tier",
+			}
+
+			const result = applyTiebreakers(input)
+
+			expect(result).toEqual([
+				{ userId: "high-peak", totalPoints: 70, rank: 1 },
+				{ userId: "flat-countback", totalPoints: 70, rank: 2 },
+			])
+		})
+	})
+
 	describe("tiebreaker: head_to_head", () => {
 		it("breaks tie using placement in designated event", () => {
 			const input: TiebreakerInput = {

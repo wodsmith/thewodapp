@@ -48,6 +48,8 @@ type RotationQueryDb = Pick<DbClient, "select" | "query">
 type CompetitionJudgeRotation =
   typeof competitionJudgeRotationsTable.$inferSelect
 type JudgeAssignmentVersion = typeof judgeAssignmentVersionsTable.$inferSelect
+type StoredCompetitionType =
+  (typeof competitionsTable.$inferSelect)["competitionType"]
 type CrewJudgeHeatRow = {
   id: string
   trackWorkoutId: string
@@ -71,7 +73,7 @@ export interface CrewJudgeEvent {
   startDate: string
   endDate: string
   timezone: string | null
-  competitionType: "in-person" | "online"
+  competitionType: StoredCompetitionType
 }
 
 export interface CrewJudgeWorkout {

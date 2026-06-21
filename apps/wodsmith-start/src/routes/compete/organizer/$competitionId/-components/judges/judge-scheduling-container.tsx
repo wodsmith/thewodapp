@@ -121,7 +121,7 @@ interface JudgeSchedulingContainerProps {
   competitionId: string
   competitionSlug: string
   organizingTeamId: string
-  competitionType: "in-person" | "online"
+  competitionType: string
   events: CompetitionWorkout[]
   heats: HeatWithAssignments[]
   judges: JudgeVolunteerInfo[]

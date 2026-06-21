@@ -16,7 +16,7 @@ import {
   ne,
 } from "drizzle-orm"
 import { z } from "zod"
-import { getDb } from "@/db"
+import { type Database, getDb } from "@/db"
 import {
   competitionEventsTable,
   competitionRegistrationsTable,
@@ -39,6 +39,17 @@ import { videoVotesTable } from "@/db/schemas/video-votes"
 import type { TiebreakScheme } from "@/db/schemas/workouts"
 import { workouts } from "@/db/schemas/workouts"
 import { competitionCan } from "@/lib/competitions/capabilities"
+import type { BenchmarkVariant } from "@/schemas/benchmark.schema"
+import {
+  ensureBenchmarkOpenJoinRegistration,
+  getBenchmarkProfileVariant,
+  getBenchmarkSubmissionContext,
+  isBenchmarkVideoEvidenceRequired,
+  resetBenchmarkVideoReviewState,
+  saveBenchmarkScoreInTransaction,
+  type BenchmarkRegistration,
+  type BenchmarkSubmissionContext,
+} from "@/server/benchmark-submissions"
 import {
   computeSortKey,
   decodeScore,
@@ -77,7 +88,7 @@ const submitVideoInputSchema = z.object({
   trackWorkoutId: z.string().min(1, "Track workout ID is required"),
   competitionId: z.string().min(1, "Competition ID is required"),
   divisionId: z.string().optional(),
-  videoUrl: z.string().url("Please enter a valid URL").max(2000),
+  videoUrl: z.string().url("Please enter a valid URL").max(2000).optional(),
   notes: z.string().max(1000).optional(),
   // 0-indexed position for team video submissions (0 for individuals)
   videoIndex: z.number().int().min(0).optional().default(0),
@@ -89,6 +100,8 @@ const submitVideoInputSchema = z.object({
   // Per-round scores for multi-round workouts
   roundScores: z.array(z.object({ score: z.string() })).optional(),
 })
+
+type SubmitVideoInput = z.infer<typeof submitVideoInputSchema>
 
 // ============================================================================
 // Helper Functions
@@ -120,6 +133,7 @@ async function checkSubmissionWindow(
   reason?: string
   opensAt?: Date
   closesAt?: Date
+  competitionType?: "in-person" | "online" | "benchmark"
 }> {
   // Competition type and event window are independent lookups — fetch them
   // in parallel. Each branch needs its own getDb() connection: getDb()
@@ -164,17 +178,22 @@ async function checkSubmissionWindow(
     return {
       allowed: false,
       reason: "Video submissions are only for online competitions",
+      competitionType: competition.competitionType,
     }
+  }
+
+  if (competitionCan(competition.competitionType, "perpetual")) {
+    return { allowed: true, competitionType: competition.competitionType }
   }
 
   // If no event record exists, allow submission (backward compatibility)
   if (!event) {
-    return { allowed: true }
+    return { allowed: true, competitionType: competition.competitionType }
   }
 
   // If no submission window is configured, allow submission
   if (!event.submissionOpensAt || !event.submissionClosesAt) {
-    return { allowed: true }
+    return { allowed: true, competitionType: competition.competitionType }
   }
 
   // Parse dates
@@ -188,6 +207,7 @@ async function checkSubmissionWindow(
       reason: "Submission window has not opened yet",
       opensAt,
       closesAt,
+      competitionType: competition.competitionType,
     }
   }
 
@@ -197,10 +217,16 @@ async function checkSubmissionWindow(
       reason: "Submission window has closed",
       opensAt,
       closesAt,
+      competitionType: competition.competitionType,
     }
   }
 
-  return { allowed: true, opensAt, closesAt }
+  return {
+    allowed: true,
+    opensAt,
+    closesAt,
+    competitionType: competition.competitionType,
+  }
 }
 
 /**
@@ -337,6 +363,360 @@ async function getWorkoutDetails(trackWorkoutId: string) {
   return result ?? null
 }
 
+interface SubmissionWorkoutSource {
+  workoutId: string
+  name: string
+  scheme: WorkoutScheme
+  scoreType: ScoreType | null
+  timeCap: number | null
+  tiebreakScheme: string | null
+  repsPerRound: number | null
+  roundsToScore: number | null
+}
+
+function toSubmissionWorkout(workout: SubmissionWorkoutSource | null) {
+  return workout
+    ? {
+        workoutId: workout.workoutId,
+        name: workout.name,
+        scheme: workout.scheme as WorkoutScheme,
+        scoreType: workout.scoreType as ScoreType | null,
+        timeCap: workout.timeCap,
+        tiebreakScheme: workout.tiebreakScheme,
+        repsPerRound: workout.repsPerRound,
+        roundsToScore: workout.roundsToScore,
+      }
+    : null
+}
+
+async function getBenchmarkOpenJoinSubmissionState({
+  competitionId,
+  trackWorkoutId,
+  userId,
+}: {
+  competitionId: string
+  trackWorkoutId: string
+  userId: string
+}) {
+  const context = await getBenchmarkSubmissionContext(
+    competitionId,
+    trackWorkoutId,
+  )
+
+  if (!context?.isOpenJoin) return null
+
+  const workout = await getWorkoutDetails(trackWorkoutId)
+  let canSubmit = true
+  let reason: string | undefined
+
+  if (
+    context.batteryStatus !== "published" ||
+    context.competitionStatus !== "published" ||
+    context.competitionVisibility !== "public"
+  ) {
+    canSubmit = false
+    reason = "This benchmark board is not open for submissions"
+  } else if (context.openDivisionTeamSize !== 1) {
+    canSubmit = false
+    reason = "Benchmark submissions are individual-only"
+  } else {
+    try {
+      await getBenchmarkProfileVariant(userId)
+    } catch (error) {
+      canSubmit = false
+      reason =
+        error instanceof Error
+          ? error.message
+          : "Complete your athlete profile gender before submitting"
+    }
+  }
+
+  return {
+    submissions: [],
+    teamSize: 1,
+    isCaptain: true,
+    canSubmit,
+    reason,
+    isRegistered: false,
+    isBenchmarkOpenJoin: true,
+    videoRequired: context.videoPolicy === "always",
+    submissionWindow: null,
+    workout: toSubmissionWorkout(workout),
+    existingScore: null,
+  }
+}
+
+async function submitBenchmarkVideoScore({
+  db,
+  data,
+  registration,
+  context,
+  variant,
+  existingSubmission,
+  userId,
+  now,
+}: {
+  db: Database
+  data: SubmitVideoInput
+  registration: BenchmarkRegistration
+  context: BenchmarkSubmissionContext
+  variant: BenchmarkVariant
+  existingSubmission: { id: string } | undefined
+  userId: string
+  now: Date
+}) {
+  if (data.videoIndex !== 0) {
+    throw new Error("Benchmark submissions are individual-only")
+  }
+
+  if (context.openDivisionTeamSize !== 1 || registration.athleteTeamId) {
+    throw new Error("Benchmark submissions are individual-only")
+  }
+
+  const hasRoundScores = data.roundScores && data.roundScores.length > 0
+  const hasScore = data.score || hasRoundScores
+
+  if (!hasScore) {
+    throw new Error("A score is required when submitting")
+  }
+
+  const workout = await getWorkoutDetails(data.trackWorkoutId)
+
+  if (!workout) {
+    throw new Error("Workout not found")
+  }
+
+  const scheme = workout.scheme as WorkoutScheme
+  const scoreType =
+    (workout.scoreType as ScoreType) || getDefaultScoreType(scheme)
+
+  let encodedValue: number | null = null
+  let encodedRounds: number[] = []
+
+  if (hasRoundScores && data.roundScores) {
+    for (const rs of data.roundScores) {
+      const roundResult = parseScore(rs.score, scheme)
+      if (!roundResult.isValid) {
+        throw new Error(
+          `Invalid round score: ${roundResult.error || "Please check your entry"}`,
+        )
+      }
+    }
+    const roundInputs = data.roundScores.map((rs) => ({ raw: rs.score }))
+    const roundsResult = encodeRounds(roundInputs, scheme, scoreType)
+    encodedValue = roundsResult.aggregated
+    encodedRounds = roundsResult.rounds
+  } else if (data.score) {
+    const parseResult = parseScore(data.score, scheme)
+    if (!parseResult.isValid) {
+      throw new Error(
+        `Invalid score format: ${parseResult.error || "Please check your entry"}`,
+      )
+    }
+    encodedValue = encodeScore(data.score, scheme)
+  }
+
+  let status: "scored" | "cap" = "scored"
+  let secondaryValue: number | null = null
+  const roundStatuses: Array<"scored" | "cap"> = []
+  let cappedRoundCount = 0
+
+  if (scheme === "time-with-cap" && workout.timeCap && encodedValue !== null) {
+    const capMs = workout.timeCap * 1000
+
+    if (hasRoundScores && encodedRounds.length > 0) {
+      for (const roundValue of encodedRounds) {
+        const isRoundCapped = roundValue >= capMs
+        roundStatuses.push(isRoundCapped ? "cap" : "scored")
+        if (isRoundCapped) cappedRoundCount++
+      }
+      if (cappedRoundCount > 0) {
+        status = "cap"
+      }
+    } else if (encodedValue >= capMs) {
+      status = "cap"
+      encodedValue = capMs
+
+      if (data.secondaryScore) {
+        const trimmed = data.secondaryScore.trim()
+        if (trimmed) {
+          const parsed = Number.parseInt(trimmed, 10)
+          if (!Number.isNaN(parsed) && parsed >= 0) {
+            secondaryValue = parsed
+          }
+        }
+      }
+    }
+  }
+
+  let tiebreakValue: number | null = null
+  if (data.tiebreakScore && workout.tiebreakScheme) {
+    tiebreakValue = encodeScore(
+      data.tiebreakScore,
+      workout.tiebreakScheme as WorkoutScheme,
+    )
+    if (tiebreakValue === null) {
+      throw new Error(
+        `Invalid tiebreak score format: "${data.tiebreakScore}". Please check your entry.`,
+      )
+    }
+  }
+
+  const timeCapMs = workout.timeCap ? workout.timeCap * 1000 : null
+  const sortKey =
+    encodedValue !== null
+      ? computeSortKey({
+          value: encodedValue,
+          status,
+          scheme,
+          scoreType,
+          cappedRoundCount,
+          timeCap:
+            status === "cap" && secondaryValue !== null
+              ? { ms: timeCapMs ?? 0, secondaryValue }
+              : undefined,
+          tiebreak:
+            tiebreakValue !== null && workout.tiebreakScheme
+              ? {
+                  scheme: workout.tiebreakScheme as "time" | "reps",
+                  value: tiebreakValue,
+                }
+              : undefined,
+        })
+      : null
+
+  const [track] = await db
+    .select({
+      ownerTeamId: programmingTracksTable.ownerTeamId,
+    })
+    .from(programmingTracksTable)
+    .where(eq(programmingTracksTable.id, workout.trackId))
+    .limit(1)
+
+  if (!track?.ownerTeamId) {
+    throw new Error("Could not determine team ownership")
+  }
+
+  const scoreWriteInput = {
+    userId,
+    teamId: track.ownerTeamId,
+    workoutId: workout.workoutId,
+    competitionEventId: data.trackWorkoutId,
+    scheme,
+    scoreType,
+    scoreValue: encodedValue,
+    status,
+    statusOrder: getStatusOrder(status),
+    sortKey: sortKey ? sortKeyToString(sortKey) : null,
+    tiebreakScheme: (workout.tiebreakScheme as TiebreakScheme) ?? null,
+    tiebreakValue,
+    timeCapMs,
+    secondaryValue,
+    recordedAt: now,
+  }
+
+  if (
+    !data.videoUrl &&
+    (await isBenchmarkVideoEvidenceRequired({
+      context,
+      variant,
+      score: scoreWriteInput,
+    }))
+  ) {
+    throw new Error("A video URL is required for this benchmark submission")
+  }
+
+  const { writeResult, submissionId, isUpdate } = await db.transaction(
+    async (tx) => {
+      const writeResult = await saveBenchmarkScoreInTransaction({
+        db: tx,
+        context,
+        variant,
+        now,
+        score: scoreWriteInput,
+      })
+
+      let submissionId: string | null = existingSubmission?.id ?? null
+      let isUpdate = !!existingSubmission
+
+      if (writeResult.written) {
+        if (data.videoUrl) {
+          if (existingSubmission) {
+            await tx
+              .update(videoSubmissionsTable)
+              .set({
+                videoUrl: data.videoUrl,
+                notes: data.notes ?? null,
+                submittedAt: now,
+                updatedAt: now,
+              })
+              .where(eq(videoSubmissionsTable.id, existingSubmission.id))
+          } else {
+            const id = createVideoSubmissionId()
+            await tx.insert(videoSubmissionsTable).values({
+              id,
+              registrationId: registration.id,
+              trackWorkoutId: data.trackWorkoutId,
+              videoIndex: data.videoIndex,
+              userId,
+              videoUrl: data.videoUrl,
+              notes: data.notes ?? null,
+              submittedAt: now,
+            })
+            submissionId = id
+            isUpdate = false
+          }
+        }
+
+        if (submissionId) {
+          await resetBenchmarkVideoReviewState(submissionId, now, tx)
+        }
+
+        if (encodedRounds.length > 0) {
+          const scoreId =
+            writeResult.scoreId ??
+            (
+              await tx
+                .select({ id: scoresTable.id })
+                .from(scoresTable)
+                .where(
+                  and(
+                    eq(scoresTable.competitionEventId, data.trackWorkoutId),
+                    eq(scoresTable.userId, userId),
+                    eq(scoresTable.scalingLevelId, context.openDivisionId),
+                  ),
+                )
+                .limit(1)
+            )[0]?.id
+
+          if (scoreId) {
+            await tx
+              .delete(scoreRoundsTable)
+              .where(eq(scoreRoundsTable.scoreId, scoreId))
+            await tx.insert(scoreRoundsTable).values(
+              encodedRounds.map((value, index) => ({
+                scoreId,
+                roundNumber: index + 1,
+                value,
+                status: roundStatuses[index] ?? null,
+              })),
+            )
+          }
+        }
+      }
+
+      return { writeResult, submissionId, isUpdate }
+    },
+  )
+
+  return {
+    success: true,
+    submissionId: submissionId ?? undefined,
+    isUpdate,
+    retainedCurrentBest: writeResult.retainedCurrentBest,
+  }
+}
+
 // ============================================================================
 // Server Functions
 // ============================================================================
@@ -358,6 +738,8 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
         canSubmit: false,
         reason: "Not authenticated",
         isRegistered: false,
+        isBenchmarkOpenJoin: false,
+        videoRequired: true,
         workout: null,
         existingScore: null,
       }
@@ -371,6 +753,13 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
     )
 
     if (!registration) {
+      const benchmarkOpenJoin = await getBenchmarkOpenJoinSubmissionState({
+        competitionId: data.competitionId,
+        trackWorkoutId: data.trackWorkoutId,
+        userId: session.userId,
+      })
+      if (benchmarkOpenJoin) return benchmarkOpenJoin
+
       return {
         submissions: [],
         teamSize: 1,
@@ -378,6 +767,8 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
         canSubmit: false,
         reason: "You must be registered for this competition to submit a video",
         isRegistered: false,
+        isBenchmarkOpenJoin: false,
+        videoRequired: true,
         workout: null,
         existingScore: null,
       }
@@ -456,6 +847,13 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
     const reason = !registration.isCaptain
       ? "Only the team captain can submit videos and scores"
       : windowCheck.reason
+    const benchmarkContext =
+      windowCheck.competitionType === "benchmark"
+        ? await getBenchmarkSubmissionContext(
+            data.competitionId,
+            data.trackWorkoutId,
+          )
+        : null
 
     let existingScore: {
       scoreValue: number | null
@@ -539,6 +937,10 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
       canSubmit,
       reason,
       isRegistered: true,
+      isBenchmarkOpenJoin: false,
+      videoRequired: benchmarkContext
+        ? benchmarkContext.videoPolicy === "always"
+        : true,
       submissionWindow:
         windowCheck.opensAt && windowCheck.closesAt
           ? {
@@ -546,18 +948,7 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
               closesAt: windowCheck.closesAt.toISOString(),
             }
           : null,
-      workout: workout
-        ? {
-            workoutId: workout.workoutId,
-            name: workout.name,
-            scheme: workout.scheme as WorkoutScheme,
-            scoreType: workout.scoreType as ScoreType | null,
-            timeCap: workout.timeCap,
-            tiebreakScheme: workout.tiebreakScheme,
-            repsPerRound: workout.repsPerRound,
-            roundsToScore: workout.roundsToScore,
-          }
-        : null,
+      workout: toSubmissionWorkout(workout),
       existingScore,
     }
   })
@@ -718,6 +1109,8 @@ export const getBatchEventVideoSubmissionsFn = createServerFn({
             canSubmit: false,
             reason: "Not authenticated",
             isRegistered: false,
+            isBenchmarkOpenJoin: false,
+            videoRequired: true,
             workout: null,
             existingScore: null,
           }
@@ -737,7 +1130,12 @@ export const getBatchEventVideoSubmissionsFn = createServerFn({
       if (!registration) {
         const results: Record<string, VideoSubmissionResult> = {}
         for (const twId of data.trackWorkoutIds) {
-          results[twId] = {
+          const benchmarkOpenJoin = await getBenchmarkOpenJoinSubmissionState({
+            competitionId: data.competitionId,
+            trackWorkoutId: twId,
+            userId: session.userId,
+          })
+          results[twId] = benchmarkOpenJoin ?? {
             submissions: [],
             teamSize: 1,
             isCaptain: true,
@@ -745,6 +1143,8 @@ export const getBatchEventVideoSubmissionsFn = createServerFn({
             reason:
               "You must be registered for this competition to submit a video",
             isRegistered: false,
+            isBenchmarkOpenJoin: false,
+            videoRequired: true,
             workout: null,
             existingScore: null,
           }
@@ -932,9 +1332,13 @@ export const getBatchEventVideoSubmissionsFn = createServerFn({
         if (!competition) {
           allowed = false
           windowReason = "Competition not found"
-        } else if (competition.competitionType !== "online") {
+        } else if (
+          !competitionCan(competition.competitionType, "videoSubmissions")
+        ) {
           allowed = false
           windowReason = "Video submissions are only for online competitions"
+        } else if (competitionCan(competition.competitionType, "perpetual")) {
+          allowed = true
         } else {
           const event = eventMap.get(twId)
           // No event record / no configured window → submission allowed
@@ -960,6 +1364,10 @@ export const getBatchEventVideoSubmissionsFn = createServerFn({
 
         const workout = workoutMap.get(twId) ?? null
         const score = scoreMap.get(twId)
+        const benchmarkContext =
+          competition?.competitionType === "benchmark"
+            ? await getBenchmarkSubmissionContext(data.competitionId, twId)
+            : null
 
         let existingScore: {
           scoreValue: number | null
@@ -1029,6 +1437,10 @@ export const getBatchEventVideoSubmissionsFn = createServerFn({
           canSubmit,
           reason,
           isRegistered: true,
+          isBenchmarkOpenJoin: false,
+          videoRequired: benchmarkContext
+            ? benchmarkContext.videoPolicy === "always"
+            : true,
           submissionWindow:
             opensAt && closesAt
               ? {
@@ -1036,18 +1448,7 @@ export const getBatchEventVideoSubmissionsFn = createServerFn({
                   closesAt: closesAt.toISOString(),
                 }
               : null,
-          workout: workout
-            ? {
-                workoutId: workout.workoutId,
-                name: workout.name,
-                scheme: workout.scheme as WorkoutScheme,
-                scoreType: workout.scoreType as ScoreType | null,
-                timeCap: workout.timeCap,
-                tiebreakScheme: workout.tiebreakScheme,
-                repsPerRound: workout.repsPerRound,
-                roundsToScore: workout.roundsToScore,
-              }
-            : null,
+          workout: toSubmissionWorkout(workout),
           existingScore,
         }
       }
@@ -1283,12 +1684,29 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 
     const db = getDb()
 
-    // Check if user is registered for this competition (scoped to division when provided)
-    const registration = await getAthleteRegistration(
+    let registration = await getAthleteRegistration(
       data.competitionId,
       session.userId,
       data.divisionId,
     )
+
+    let benchmarkContext: BenchmarkSubmissionContext | null = null
+    let benchmarkVariant: BenchmarkVariant | null = null
+
+    if (!registration) {
+      benchmarkContext = await getBenchmarkSubmissionContext(
+        data.competitionId,
+        data.trackWorkoutId,
+      )
+
+      if (benchmarkContext) {
+        benchmarkVariant = await getBenchmarkProfileVariant(session.userId)
+        registration = await ensureBenchmarkOpenJoinRegistration({
+          context: benchmarkContext,
+          userId: session.userId,
+        })
+      }
+    }
 
     if (!registration) {
       throw new Error(
@@ -1296,27 +1714,47 @@ export const submitVideoFn = createServerFn({ method: "POST" })
       )
     }
 
-    // Only team captains can submit for team divisions
     if (!registration.isCaptain) {
       throw new Error("Only the team captain can submit videos and scores")
     }
 
-    // Submission window and team size are independent context lookups — run
-    // them in parallel (each helper opens its own DB connection internally).
-    const [windowCheck, teamSize] = await Promise.all([
-      checkSubmissionWindow(data.competitionId, data.trackWorkoutId),
-      getTeamSize(registration.divisionId),
-    ])
+    const windowCheck =
+      benchmarkContext === null
+        ? await checkSubmissionWindow(data.competitionId, data.trackWorkoutId)
+        : { allowed: true, competitionType: "benchmark" as const }
 
     if (!windowCheck.allowed) {
       throw new Error(windowCheck.reason ?? "Cannot submit video at this time")
     }
+
+    if (windowCheck.competitionType === "benchmark" && !benchmarkContext) {
+      benchmarkContext = await getBenchmarkSubmissionContext(
+        data.competitionId,
+        data.trackWorkoutId,
+      )
+      if (!benchmarkContext) {
+        throw new Error(
+          "Benchmark competition is missing benchmark configuration",
+        )
+      }
+      benchmarkVariant = await getBenchmarkProfileVariant(session.userId)
+    }
+
+    const teamSize = await getTeamSize(registration.divisionId)
 
     // Validate videoIndex against team size
     if (data.videoIndex >= teamSize) {
       throw new Error(
         `Video index ${data.videoIndex} exceeds team size of ${teamSize}`,
       )
+    }
+
+    if (benchmarkContext && teamSize !== 1) {
+      throw new Error("Benchmark submissions are individual-only")
+    }
+
+    if (!benchmarkContext && !data.videoUrl) {
+      throw new Error("A video URL is required when submitting")
     }
 
     // Check for existing video submission at this index
@@ -1333,6 +1771,24 @@ export const submitVideoFn = createServerFn({ method: "POST" })
       .limit(1)
 
     const now = new Date()
+
+    if (benchmarkContext && benchmarkVariant) {
+      return submitBenchmarkVideoScore({
+        db,
+        data,
+        registration,
+        context: benchmarkContext,
+        variant: benchmarkVariant,
+        existingSubmission,
+        userId: session.userId,
+        now,
+      })
+    }
+
+    const submissionVideoUrl = data.videoUrl
+    if (!submissionVideoUrl) {
+      throw new Error("A video URL is required when submitting")
+    }
 
     // Validate score is present before saving anything.
     // For team divisions the captain submits all videos in one form action;
@@ -1371,7 +1827,7 @@ export const submitVideoFn = createServerFn({ method: "POST" })
         trackWorkoutId: data.trackWorkoutId,
         videoIndex: data.videoIndex,
         userId: session.userId,
-        videoUrl: data.videoUrl,
+        videoUrl: submissionVideoUrl,
         notes: data.notes ?? null,
         submittedAt: now,
       })
