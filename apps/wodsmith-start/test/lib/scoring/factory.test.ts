@@ -246,6 +246,21 @@ describe("Scoring Factory", () => {
 				expect(results.get("c")?.rank).toBe(3)
 			})
 		})
+
+		describe("Absolute-tier algorithm", () => {
+			const config: ScoringConfig = {
+				algorithm: "absolute_tier",
+				absoluteTier: { batteryId: "bbat_01JZ0000000000000000000000" },
+				tiebreaker: { primary: "none" },
+				statusHandling: { dnf: "zero", dns: "zero", withdrawn: "zero" },
+			}
+
+			it("fails closed until the benchmark scoring engine is implemented", () => {
+				expect(() =>
+					calculateEventPoints("e1", baseScores, "time", config),
+				).toThrow("absolute_tier scoring is configured but not implemented")
+			})
+		})
 	})
 
 	describe("Utility functions", () => {
@@ -256,6 +271,7 @@ describe("Scoring Factory", () => {
 				expect(getScoringAlgorithmName("winner_takes_more")).toBe("Winner Takes More")
 				expect(getScoringAlgorithmName("online")).toBe("Online")
 				expect(getScoringAlgorithmName("custom")).toBe("Custom")
+				expect(getScoringAlgorithmName("absolute_tier")).toBe("Absolute Tier")
 			})
 		})
 
@@ -376,6 +392,19 @@ describe("Scoring Factory", () => {
 				statusHandling: { dnf: "last_place", dns: "zero", withdrawn: "exclude" },
 			}
 			expect(calculatePointsForPlace({ place: 6, config })).toBe(0)
+		})
+
+		it("fails closed for absolute_tier until static place points are implemented", () => {
+			const config: ScoringConfig = {
+				algorithm: "absolute_tier",
+				absoluteTier: { batteryId: "bbat_01JZ0000000000000000000000" },
+				tiebreaker: { primary: "none" },
+				statusHandling: { dnf: "zero", dns: "zero", withdrawn: "zero" },
+			}
+
+			expect(() => calculatePointsForPlace({ place: 1, config })).toThrow(
+				"absolute_tier place points are not available",
+			)
 		})
 	})
 })

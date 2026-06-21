@@ -148,6 +148,11 @@ export const createRouteDocId = () => `rdoc_${ulid()}`
 export const createRouteDocRouteId = () => `rdocrt_${ulid()}`
 export const createRouteDocVersionId = () => `rdocver_${ulid()}`
 
+// Benchmark battery ID generators
+export const createBenchmarkBatteryId = () => `bbat_${ulid()}`
+export const createBenchmarkTestId = () => `btst_${ulid()}`
+export const createBenchmarkTierThresholdId = () => `bthr_${ulid()}`
+
 // Crew event settings ID generators
 export const createCrewEventSettingsId = () => `crewset_${ulid()}`
 

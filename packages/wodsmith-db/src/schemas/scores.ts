@@ -80,6 +80,8 @@ export const scoresTable = mysqlTable(
     // Scaling
     scalingLevelId: varchar({ length: 255 }),
     asRx: boolean().notNull().default(false),
+    // Benchmark score variant snapshot, usually the athlete profile gender at submission.
+    benchmarkVariant: varchar({ length: 64 }),
 
     // Metadata
     notes: text(),
@@ -127,6 +129,10 @@ export const scoresTable = mysqlTable(
       table.competitionEventId,
       table.userId,
       table.scalingLevelId,
+    ),
+    index("idx_scores_benchmark_variant").on(
+      table.competitionEventId,
+      table.benchmarkVariant,
     ),
   ],
 )

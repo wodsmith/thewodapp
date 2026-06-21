@@ -53,4 +53,4 @@ v1 is done when a seeded benchmark board can be created, a qualified athlete can
 
 ## Current Repository Baseline
 
-As of this packet, `apps/wodsmith-start/src/lib/competitions/capabilities.ts` already defines `competitionCan`, `leaderboardVariant`, selectability helpers, result-entry helpers, and a registry for `in-person` and `online`. The existing test suite intentionally expects `benchmark` to be unknown and fail closed. The first benchmark task updates that baseline deliberately.
+As of M0a, `apps/wodsmith-start/src/lib/competitions/capabilities.ts` defines `competitionCan`, `leaderboardVariant`, selectability helpers, result-entry helpers, and registered entries for `in-person`, `online`, and `benchmark`. Benchmark declares `videoSubmissions` and `perpetual`, remains hidden from the generic create picker, and still requires M1 schema/seed work before real benchmark rows can exist.

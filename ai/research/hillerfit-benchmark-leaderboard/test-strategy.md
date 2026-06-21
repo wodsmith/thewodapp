@@ -30,7 +30,7 @@ This strategy makes the implementation testable without requiring the full histo
 - Leaderboard chooses online visual variant for benchmark through `leaderboardVariant` while avoiding publish gating.
 - Stats tab appears only for `absolute_tier` competitions.
 - Stats page distinguishes untested, attempted tier 0, unavailable config, pending, verified, adjusted, and invalid/excluded states.
-- Route/component assertions confirm benchmark pages use generic WODsmith benchmark language and do not introduce HillerFit-branded pages/routes.
+- Route/component/navigation assertions confirm benchmark pages use generic WODsmith benchmark language and do not introduce HillerFit-branded pages, routes, tabs, product navigation entries, or calls to action.
 - Benchmark event detail submission UI blocks missing gender and surfaces the profile-completion path.
 - Open-join flow rejects unpublished/private boards and duplicate races collapse to one registration.
 
@@ -51,7 +51,7 @@ This strategy makes the implementation testable without requiring the full histo
 6. Mark a score invalid and confirm public leaderboard/stat page excludes it.
 7. Confirm the leaderboard shows Overall/100, category scores, rating band, verification state, and no publish-required empty board.
 8. Confirm standard online and in-person competition smoke paths still behave as before for the refactored chokepoints.
-9. Confirm no HillerFit-branded page, route, logo, marketing section, or theme treatment was added.
+9. Confirm no HillerFit-branded page, route, tab, product navigation entry, logo, marketing section, call to action, or theme treatment was added.
 
 ## Required Checks
 
