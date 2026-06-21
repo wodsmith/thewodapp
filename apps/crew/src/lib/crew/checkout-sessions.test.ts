@@ -6,6 +6,7 @@ import {
 } from "../../db/schemas/crew-event-settings"
 import {
   assertCrewCheckoutCanStart,
+  buildCrewCheckoutBillingEventId,
   buildCrewCheckoutIdempotencyKey,
   buildCrewCheckoutMetadata,
   buildCrewCheckoutSessionCreateParams,
@@ -22,12 +23,13 @@ describe("Crew Checkout Session helpers", () => {
       crewPlan: "crew_basic",
       amountCents: 20_000,
     })
+    const billingEventId = buildCrewCheckoutBillingEventId(idempotencyKey)
     const metadata = buildCrewCheckoutMetadata({
       teamId: "team_owner",
       competitionId: "comp_checkout",
       crewPlan: "crew_basic",
       crewEventSettingsId: "crewset_123",
-      billingEventId: "cbill_123",
+      billingEventId,
       checkoutIdempotencyKey: idempotencyKey,
     })
 
@@ -38,20 +40,27 @@ describe("Crew Checkout Session helpers", () => {
       eventId: "comp_checkout",
       crewPlan: "crew_basic",
       crewEventSettingsId: "crewset_123",
-      billingEventId: "cbill_123",
+      billingEventId,
       checkoutIdempotencyKey: idempotencyKey,
     })
+    expect(billingEventId).toMatch(/^cbill_checkout_[a-z0-9]+$/)
+    expect(buildCrewCheckoutBillingEventId(idempotencyKey)).toBe(billingEventId)
     expect(JSON.stringify(metadata)).not.toContain("founder")
     expect(JSON.stringify(metadata)).not.toContain("invoice")
     expect(JSON.stringify(metadata)).not.toContain("privateMetadata")
   })
 
   it("builds one-time Checkout Session params from the public Crew catalog plan", () => {
+    const idempotencyKey = buildCrewCheckoutIdempotencyKey({
+      competitionId: "comp_checkout",
+      teamId: "team_owner",
+      crewPlan: "crew_pro",
+      amountCents: 80_000,
+    })
+    const billingEventId = buildCrewCheckoutBillingEventId(idempotencyKey)
     const params = buildCrewCheckoutSessionCreateParams({
       eventName: "Boise Throwdown",
       appUrl: "https://crew.wodsmith.com",
-      customerEmail: "organizer@example.com",
-      nowSeconds: 1_800_000_000,
       plan: {
         id: "crew_pro",
         name: "Crew Pro",
@@ -63,13 +72,13 @@ describe("Crew Checkout Session helpers", () => {
       competitionId: "comp_checkout",
       crewPlan: "crew_pro",
       crewEventSettingsId: "crewset_123",
-      billingEventId: "cbill_123",
-      checkoutIdempotencyKey: "crew-checkout:comp_checkout",
+      billingEventId,
+      checkoutIdempotencyKey: idempotencyKey,
     })
 
     expect(params.mode).toBe("payment")
-    expect(params.customer_email).toBe("organizer@example.com")
-    expect(params.expires_at).toBe(1_800_001_800)
+    expect(params.customer_email).toBeUndefined()
+    expect(params.expires_at).toBeUndefined()
     expect(params.success_url).toBe(
       "https://crew.wodsmith.com/events/comp_checkout/billing?crew_checkout=success&session_id={CHECKOUT_SESSION_ID}",
     )
@@ -79,7 +88,7 @@ describe("Crew Checkout Session helpers", () => {
     expect(params.metadata).toMatchObject({
       product: "crew",
       crewPlan: "crew_pro",
-      billingEventId: "cbill_123",
+      billingEventId,
     })
     expect(params.payment_intent_data?.metadata).toMatchObject(params.metadata)
     expect(params.line_items?.[0]).toMatchObject({
@@ -93,6 +102,46 @@ describe("Crew Checkout Session helpers", () => {
       },
       quantity: 1,
     })
+  })
+
+  it("keeps retry metadata and session params stable for the same checkout key", () => {
+    const checkoutIdempotencyKey = buildCrewCheckoutIdempotencyKey({
+      competitionId: "comp_retry",
+      teamId: "team_owner",
+      crewPlan: "crew_basic",
+      amountCents: 20_000,
+    })
+    const billingEventId = buildCrewCheckoutBillingEventId(
+      checkoutIdempotencyKey,
+    )
+    const input = {
+      eventName: "Retry Throwdown",
+      appUrl: "https://crew.wodsmith.com",
+      plan: {
+        id: "crew_basic",
+        name: "Crew Basic",
+        description: "One-time Crew event plan",
+        price: 20_000,
+        currency: "usd",
+      },
+      teamId: "team_owner",
+      competitionId: "comp_retry",
+      crewPlan: "crew_basic",
+      crewEventSettingsId: "crewset_retry",
+      billingEventId,
+      checkoutIdempotencyKey,
+    } as const
+
+    const firstAttempt = buildCrewCheckoutSessionCreateParams(input)
+    const retryAttempt = buildCrewCheckoutSessionCreateParams(input)
+
+    expect(retryAttempt).toEqual(firstAttempt)
+    expect(retryAttempt.metadata).toMatchObject({
+      billingEventId,
+      checkoutIdempotencyKey,
+    })
+    expect(retryAttempt.expires_at).toBeUndefined()
+    expect(retryAttempt.customer_email).toBeUndefined()
   })
 
   it("parses the feature flag and rejects unsafe plan/session states", () => {

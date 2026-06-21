@@ -7,7 +7,6 @@ import { env } from "cloudflare:workers"
 import { and, desc, eq } from "drizzle-orm"
 import { getDb } from "../db"
 import { ROLES_ENUM } from "../db/schema"
-import { createCrewBillingEventId } from "../db/schemas/common"
 import { competitionsTable } from "../db/schemas/competitions"
 import {
   CREW_BILLING_EVENT_TYPE,
@@ -43,6 +42,7 @@ import {
 } from "../lib/crew/billing-state"
 import {
   assertCrewCheckoutCanStart,
+  buildCrewCheckoutBillingEventId,
   buildCrewCheckoutIdempotencyKey,
   buildCrewCheckoutSessionCreateParams,
   type CrewCheckoutPlanId,
@@ -315,13 +315,13 @@ export async function createCrewCheckoutSession(
     currentPlanId: current.planId,
   })
   const plan = await requireCrewCheckoutPlan(planId)
-  const billingEventId = createCrewBillingEventId()
   const checkoutIdempotencyKey = buildCrewCheckoutIdempotencyKey({
     competitionId: scope.id,
     teamId: scope.organizingTeamId,
     crewPlan: plan.id,
     amountCents: plan.price,
   })
+  const billingEventId = buildCrewCheckoutBillingEventId(checkoutIdempotencyKey)
 
   const existingEvents = await listCrewBillingEventsForEvent(scope.id)
   if (
@@ -337,7 +337,6 @@ export async function createCrewCheckoutSession(
       eventName: scope.name,
       plan,
       appUrl: getAppUrl(),
-      customerEmail: session?.user.email,
       teamId: scope.organizingTeamId,
       competitionId: scope.id,
       crewPlan: plan.id,

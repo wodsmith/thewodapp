@@ -31,8 +31,6 @@ export interface BuildCrewCheckoutSessionParamsInput
   eventName: string
   plan: CrewCheckoutCatalogPlan
   appUrl: string
-  customerEmail?: string | null
-  nowSeconds?: number
 }
 
 export function isCrewStripeCheckoutEnabledValue(value: unknown) {
@@ -134,6 +132,17 @@ export function buildCrewCheckoutIdempotencyKey({
     .join(":")
 }
 
+export function buildCrewCheckoutBillingEventId(
+  checkoutIdempotencyKey: string,
+) {
+  const normalized = checkoutIdempotencyKey.trim()
+  if (!normalized) {
+    throw new Error("Crew Checkout idempotency key is required.")
+  }
+
+  return `cbill_checkout_${buildStableCheckoutHash(normalized)}`
+}
+
 export function buildCrewCheckoutMetadata({
   teamId,
   competitionId,
@@ -158,8 +167,6 @@ export function buildCrewCheckoutSessionCreateParams({
   eventName,
   plan,
   appUrl,
-  customerEmail,
-  nowSeconds = Math.floor(Date.now() / 1000),
   ...metadataInput
 }: BuildCrewCheckoutSessionParamsInput): Stripe.Checkout.SessionCreateParams {
   const metadata = buildCrewCheckoutMetadata(metadataInput)
@@ -189,8 +196,6 @@ export function buildCrewCheckoutSessionCreateParams({
     },
     success_url: `${billingUrl}?crew_checkout=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${billingUrl}?crew_checkout=canceled`,
-    expires_at: nowSeconds + 30 * 60,
-    customer_email: customerEmail?.trim() || undefined,
   }
 }
 
@@ -200,4 +205,19 @@ function buildCrewBillingUrl(appUrl: string, competitionId: string) {
     `/events/${encodeURIComponent(competitionId)}/billing`,
     baseUrl,
   ).toString()
+}
+
+function buildStableCheckoutHash(value: string) {
+  let first = 0x811c9dc5
+  let second = 0x811c9dc5 ^ 0x9e3779b9
+
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index)
+    first = Math.imul(first ^ code, 0x01000193)
+    second = Math.imul(second ^ code, 0x85ebca6b)
+  }
+
+  return [first, second]
+    .map((part) => (part >>> 0).toString(36).padStart(7, "0"))
+    .join("")
 }
