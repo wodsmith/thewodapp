@@ -1,7 +1,7 @@
 // @lat: [[crew#Department Leads]]
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-type ServerFnCall = {
+interface ServerFnCall {
   method?: string
   inputValidator?: (data: unknown) => unknown
   handler?: (options: unknown) => unknown
@@ -50,9 +50,14 @@ async function importDepartmentLeadServerFns() {
 }
 
 function findUpdateInputValidator() {
-  const updateInputWithoutLeadId = {
+  const invalidLeadIdProbe = {
     ...validUpdateInput,
-    leadId: undefined,
+    leadId: "lead_123",
+  }
+  const updateProbe = {
+    ...validUpdateInput,
+    email: null,
+    membershipId: null,
   }
 
   for (const call of serverFnCalls) {
@@ -61,9 +66,20 @@ function findUpdateInputValidator() {
     }
 
     try {
-      call.inputValidator(updateInputWithoutLeadId)
+      call.inputValidator(invalidLeadIdProbe)
+      continue
+    } catch {
+      // The update validator is the only department-lead input validator that
+      // both requires a valid leadId and preserves the base contact refinement.
+    }
+
+    try {
+      call.inputValidator(updateProbe)
     } catch (error) {
-      if (error instanceof Error && error.message.includes("leadId")) {
+      if (
+        error instanceof Error &&
+        error.message.includes("Add an email or choose a volunteer.")
+      ) {
         return call.inputValidator
       }
     }
