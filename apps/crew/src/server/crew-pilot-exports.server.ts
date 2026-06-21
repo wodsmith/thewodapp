@@ -35,8 +35,10 @@ export async function getCrewPilotExportsPage(data: {
   requireLocalCrewOperatorAccess("Crew pilot exports")
 
   const event = await requireCrewStaffingEvent(data.eventId)
-  const { input, activeJudgeVersions } =
-    await loadCrewStaffingMatrixInput(event)
+  const { input, activeJudgeVersions } = await loadCrewStaffingMatrixInput(
+    event,
+    { kind: "full", scopes: [] },
+  )
   const pilotExports = buildCrewPilotExports({
     event,
     generatedAt: new Date(),

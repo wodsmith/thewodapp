@@ -12,6 +12,7 @@ import { type Competition, competitionsTable } from "../db/schemas/competitions"
 import { teamTable } from "../db/schemas/teams"
 import { requireLocalCrewOperatorAccess } from "./crew-local-access"
 import { generateSlug } from "../utils/slugify"
+import { requireCrewDepartmentLeadFullAccess } from "./crew-department-lead.server"
 
 type CrewEventCompetition = Pick<
   Competition,
@@ -168,9 +169,17 @@ export async function listCrewEvents(): Promise<{
 export async function getCrewEvent(
   data: GetCrewEventInput,
 ): Promise<{ event: CrewEventDetails | null }> {
-  requireLocalCrewSettingsAccess()
+  const event = await getCrewEventByCompetitionId(data.eventId)
+  if (event) {
+    await requireCrewDepartmentLeadFullAccess({
+      id: event.competition.id,
+      organizingTeamId: event.competition.organizingTeamId,
+      competitionTeamId: event.competition.competitionTeamId,
+      timezone: event.competition.timezone,
+    })
+  }
 
-  return { event: await getCrewEventByCompetitionId(data.eventId) }
+  return { event }
 }
 
 export async function createCrewSettingsForCompetition(
@@ -293,8 +302,11 @@ export async function createCrewEvent(
 export async function updateCrewEventSettings(
   data: UpdateCrewEventSettingsInput,
 ): Promise<{ event: CrewEventDetails }> {
-  requireLocalCrewSettingsAccess()
   await requireCrewEventCompetition(data.competitionId)
+  const eventAccess = await requireCrewDepartmentLeadEventForSettings(
+    data.competitionId,
+  )
+  await requireCrewDepartmentLeadFullAccess(eventAccess)
 
   const updateData: Partial<typeof crewEventSettingsTable.$inferInsert> = {
     updatedAt: new Date(),
@@ -335,4 +347,31 @@ export async function updateCrewEventSettings(
   }
 
   return { event }
+}
+
+async function requireCrewDepartmentLeadEventForSettings(
+  competitionId: string,
+) {
+  const db = getDb()
+  const [event] = await db
+    .select({
+      id: competitionsTable.id,
+      organizingTeamId: competitionsTable.organizingTeamId,
+      competitionTeamId: competitionsTable.competitionTeamId,
+      timezone: competitionsTable.timezone,
+    })
+    .from(competitionsTable)
+    .where(eq(competitionsTable.id, competitionId))
+    .limit(1)
+
+  if (!event?.competitionTeamId) {
+    throw new Error("Crew event not found")
+  }
+
+  return {
+    id: event.id,
+    organizingTeamId: event.organizingTeamId,
+    competitionTeamId: event.competitionTeamId,
+    timezone: event.timezone,
+  }
 }

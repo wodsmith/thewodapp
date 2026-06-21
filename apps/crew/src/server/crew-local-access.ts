@@ -2,7 +2,9 @@ import { env } from "cloudflare:workers"
 
 export class CrewLocalAccessError extends Error {
   constructor(featureName: string) {
-    super(`${featureName} access is local-operator only until Crew auth is wired.`)
+    super(
+      `${featureName} access is local-operator only until Crew auth is wired.`,
+    )
     this.name = "CrewLocalAccessError"
   }
 }
@@ -18,7 +20,14 @@ const localCrewStages = new Set(["dev", "local", "test"])
 
 // @lat: [[crew#Event Setup Dashboard]]
 // @lat: [[crew#Import CSV Preview#Private Upload Route]]
+// @lat: [[crew#Department Leads]]
 export function requireLocalCrewOperatorAccess(featureName = "Crew operator") {
+  if (hasLocalCrewOperatorAccess()) return
+  throw new CrewLocalAccessError(featureName)
+}
+
+// @lat: [[crew#Department Leads]]
+export function hasLocalCrewOperatorAccess() {
   const runtimeEnv = env as CrewRuntimeEnv
   const nodeEnv = runtimeEnv.NODE_ENV?.toLowerCase()
   const stage = runtimeEnv.STAGE?.toLowerCase()
@@ -35,9 +44,7 @@ export function requireLocalCrewOperatorAccess(featureName = "Crew operator") {
     stage === "staging" ||
     appUrl.includes("wodsmith.com")
 
-  if (isProductionLike || (!isLocalStage && !isLocalUrl)) {
-    throw new CrewLocalAccessError(featureName)
-  }
+  return !isProductionLike && (isLocalStage || isLocalUrl)
 }
 
 function getAppHost(appUrl: string) {
