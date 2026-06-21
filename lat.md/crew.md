@@ -10,6 +10,18 @@ Crew billing catalog rows live in the existing billing seed and entitlement conf
 
 Public launch catalog entries are `crew_starter`, `crew_basic`, and `crew_pro`. Manual/private entries are `crew_concierge` and `crew_founding_2026` so concierge and founder pricing can be granted and audited later without exposing founder pricing publicly.
 
+## Crew Billing State And Audit
+
+Crew event billing is stored on the event settings row and remains separate from WODsmith team subscription state.
+
+[[packages/wodsmith-db/src/schemas/crew-event-settings.ts]] stores event-level billing state, source, Crew catalog plan ID, amount, currency, Stripe references, founder override, credit, and refund totals. Crew one-event plan IDs must not be copied into `teams.currentPlanId`.
+
+[[packages/wodsmith-db/src/schemas/crew-billing-events.ts]] stores append-only audit rows for manual sales, Payment Link reconciliation, checkout completion, founder overrides, credit set/applied, refunds, and comped events.
+
+[[apps/crew/src/lib/crew/billing-state.ts]] owns deterministic billing state normalization, audit event construction, settings patching, private founder/credit metadata handling, and idempotency-key deduping for reconciliation events.
+
+[[apps/crew/src/server/crew-billing.server.ts]] keeps Crew billing read/write operations server-only and local-operator guarded. It scopes audit rows by competition and organizing team, appends audit rows before updating event settings, and does not mutate team subscription billing.
+
 ## Server Function Runtime Boundary
 
 Route and client code import lightweight `createServerFn` wrappers from [[apps/crew/src/server-fns]].
