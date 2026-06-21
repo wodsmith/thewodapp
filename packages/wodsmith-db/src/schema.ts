@@ -16,6 +16,8 @@ export * from "./schemas/crew-event-settings"
 export * from "./schemas/crew-imports"
 // @lat: [[crew#Self Serve Preset Schema]]
 export * from "./schemas/crew-self-serve-presets"
+// @lat: [[crew#Strategic Moat Privacy Model]]
+export * from "./schemas/crew-volunteer-intelligence"
 export * from "./schemas/entitlements"
 export * from "./schemas/event-division-mappings"
 export * from "./schemas/event-resources"
