@@ -39,7 +39,7 @@ describe("EventPilotExportsView", () => {
           slug: "packet-classic",
           organizingTeamId: "team_org",
           competitionTeamId: "team_comp",
-          timezone: "America/Denver",
+          timezone: "Pacific/Kiritimati",
           startDate: "2026-07-01",
           endDate: "2026-07-02",
         }}
@@ -69,6 +69,12 @@ describe("EventPilotExportsView", () => {
     expect(
       screen.getByText("Competition floor lane 1 card"),
     ).toBeInTheDocument()
+    expect(
+      screen.getByText("Master schedule / Jul 1, 2026"),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText("Master schedule / Jul 2, 2026"),
+    ).not.toBeInTheDocument()
     expect(screen.getByText("Master schedule / all days")).toBeInTheDocument()
   })
 })

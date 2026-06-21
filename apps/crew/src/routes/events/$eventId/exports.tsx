@@ -47,12 +47,7 @@ export function EventPilotExportsView({
   event,
   exports,
   sources,
-}: {
-  eventId: string
-  event: CrewPilotExportsPageData["event"]
-  exports: CrewPilotExports
-  sources: CrewPilotExportsPageData["sources"]
-}) {
+}: EventPilotExportsViewProps) {
   const timezone = event.timezone ?? "America/Denver"
 
   return (
@@ -326,6 +321,13 @@ export function EventPilotExportsView({
   )
 }
 
+interface EventPilotExportsViewProps {
+  eventId: string
+  event: CrewPilotExportsPageData["event"]
+  exports: CrewPilotExports
+  sources: CrewPilotExportsPageData["sources"]
+}
+
 function PrintSheets({
   eventName,
   exports,
@@ -358,7 +360,7 @@ function PrintSheets({
       {exports.masterScheduleDaySections.map((section) => (
         <PrintSection
           key={section.dayKey}
-          title={`Master schedule / ${formatPacketDay(section.dayKey, timezone)}`}
+          title={`Master schedule / ${formatPacketDay(section.dayKey)}`}
         >
           <PrintTable
             headers={[
@@ -832,13 +834,25 @@ function formatExportDate(value: string | null, timezone: string) {
     : formatDateTimeInTimezone(date, timezone)
 }
 
-function formatPacketDay(dayKey: string, timezone: string) {
+function formatPacketDay(dayKey: string) {
   if (dayKey === "Unscheduled") return dayKey
-  const date = new Date(`${dayKey}T12:00:00.000Z`)
-  if (Number.isNaN(date.getTime())) return dayKey
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dayKey)
+  if (!match) return dayKey
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const date = new Date(Date.UTC(year, month - 1, day))
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return dayKey
+  }
+
   try {
     return new Intl.DateTimeFormat("en-US", {
-      timeZone: timezone,
+      timeZone: "UTC",
       month: "short",
       day: "numeric",
       year: "numeric",

@@ -296,6 +296,6 @@ Crew pilot exports turn the active event staffing and judge assignment data into
 
 ## Event Day Export Packet
 
-The event-day packet extends [[crew#Pilot Exports]] with print-first packet assembly for multi-day, multi-floor events. The packet index, day-split master schedule, station cards, lane cards, role sheets, judge heat cards, response list, and floor lead sheets are derived from the same guarded export data in [[apps/crew/src/lib/crew/exports/pilot-exports.ts]] and rendered by [[apps/crew/src/routes/events/$eventId/exports.tsx]].
+The event-day packet extends [[crew#Pilot Exports]] with a print-first index, day schedule, station cards, lane cards, role sheets, and judge cards from [[apps/crew/src/lib/crew/exports/pilot-exports.ts]], rendered at [[apps/crew/src/routes/events/$eventId/exports.tsx]].
 
 The packet is still full local-operator-only through [[apps/crew/src/server/crew-pilot-exports.server.ts]] and [[apps/crew/src/server-fns/crew-pilot-export-fns.ts]]. It does not add PDF runtime infrastructure, schema, queue/email work, public tokens, department-lead subset export access, or assignment/judge-version mutations.
