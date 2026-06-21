@@ -129,34 +129,47 @@ export type StatusHandlingConfig = z.infer<typeof statusHandlingConfigSchema>
 /**
  * Complete scoring configuration
  */
-export const scoringConfigSchema = z.object({
-  /** Scoring algorithm to use */
-  algorithm: scoringAlgorithmSchema,
+export const scoringConfigSchema = z
+  .object({
+    /** Scoring algorithm to use */
+    algorithm: scoringAlgorithmSchema,
 
-  /** Traditional algorithm settings (optional) */
-  traditional: traditionalConfigSchema.optional(),
+    /** Traditional algorithm settings (optional) */
+    traditional: traditionalConfigSchema.optional(),
 
-  /** P-Score algorithm settings (optional) */
-  pScore: pScoreConfigSchema.optional(),
+    /** P-Score algorithm settings (optional) */
+    pScore: pScoreConfigSchema.optional(),
 
-  /** Custom points table settings (optional) */
-  customTable: customTableConfigSchema.optional(),
+    /** Custom points table settings (optional) */
+    customTable: customTableConfigSchema.optional(),
 
-  /** Absolute-tier benchmark settings (required for absolute_tier) */
-  absoluteTier: absoluteTierConfigSchema.optional(),
+    /** Absolute-tier benchmark settings (required for absolute_tier) */
+    absoluteTier: absoluteTierConfigSchema.optional(),
 
-  /** Tiebreaker configuration */
-  tiebreaker: tiebreakerConfigSchema,
+    /** Tiebreaker configuration */
+    tiebreaker: tiebreakerConfigSchema,
 
-  /** DNF/DNS/Withdrawn handling */
-  statusHandling: statusHandlingConfigSchema,
-}).superRefine((config, ctx) => {
-  if (config.algorithm === "absolute_tier" && !config.absoluteTier?.batteryId) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "absoluteTier.batteryId is required for absolute_tier scoring",
-      path: ["absoluteTier", "batteryId"],
-    })
-  }
-})
+    /** DNF/DNS/Withdrawn handling */
+    statusHandling: statusHandlingConfigSchema,
+  })
+  .superRefine((config, ctx) => {
+    if (
+      config.algorithm === "absolute_tier" &&
+      !config.absoluteTier?.batteryId
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "absoluteTier.batteryId is required for absolute_tier scoring",
+        path: ["absoluteTier", "batteryId"],
+      })
+    }
+
+    if (config.algorithm !== "absolute_tier" && config.absoluteTier) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "absoluteTier is only allowed for absolute_tier scoring",
+        path: ["absoluteTier"],
+      })
+    }
+  })
 export type ScoringConfig = z.infer<typeof scoringConfigSchema>

@@ -30,7 +30,8 @@ This strategy makes the implementation testable without requiring the full histo
 - Leaderboard chooses online visual variant for benchmark through `leaderboardVariant` while avoiding publish gating.
 - Stats tab appears only for `absolute_tier` competitions.
 - Stats page distinguishes untested, attempted tier 0, unavailable config, pending, verified, adjusted, and invalid/excluded states.
-- Route/component/navigation assertions confirm benchmark pages use generic WODsmith benchmark language and do not introduce HillerFit-branded pages, routes, tabs, product navigation entries, or calls to action.
+- Route/component/navigation assertions confirm benchmark pages use generic WODsmith benchmark language and do not introduce HillerFit-branded pages, routes, tabs, stats pages, product navigation entries, calls to action, logos, marketing sections, or theme treatments.
+- Static/source review allows HillerFit references only in research docs, seed/provenance metadata, extraction receipts, and source-data tests; app routes/components/navigation must not use HillerFit as customer-facing copy.
 - Benchmark event detail submission UI blocks missing gender and surfaces the profile-completion path.
 - Open-join flow rejects unpublished/private boards and duplicate races collapse to one registration.
 
@@ -51,7 +52,7 @@ This strategy makes the implementation testable without requiring the full histo
 6. Mark a score invalid and confirm public leaderboard/stat page excludes it.
 7. Confirm the leaderboard shows Overall/100, category scores, rating band, verification state, and no publish-required empty board.
 8. Confirm standard online and in-person competition smoke paths still behave as before for the refactored chokepoints.
-9. Confirm no HillerFit-branded page, route, tab, product navigation entry, logo, marketing section, call to action, or theme treatment was added.
+9. Confirm no HillerFit-branded page, route, tab, stats page, product navigation entry, logo, marketing section, call to action, theme treatment, or customer-facing product area was added.
 
 ## Required Checks
 

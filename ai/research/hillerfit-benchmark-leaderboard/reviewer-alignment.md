@@ -36,7 +36,7 @@ Dependencies:
 - M2 algorithm before M3 keep-best-on-write.
 - M3 submission before M4 public demo verification.
 - First seed derived from `/Users/zacjones/Downloads/HillerFit_Training_Guide.pdf`.
-- No HillerFit-branded pages or routes.
+- No HillerFit-branded customer-facing pages, routes, stats pages, navigation, marketing copy, logos, calls to action, or theme treatments.
 
 Definition of done:
 
@@ -44,4 +44,4 @@ Definition of done:
 
 ## Convergence Result
 
-The reviewers materially agree on components, data model, dependencies, and definition of done. The one substantive divergence risk was M0a current-state drift, now resolved by making the packet current-state-aware. The owner clarified that the build uses the training PDF as benchmark source data and does not include HillerFit-branded pages.
+The reviewers materially agree on components, data model, dependencies, and definition of done. The one substantive divergence risk was M0a current-state drift, now resolved by making the packet current-state-aware. The owner clarified that the build uses the training PDF as benchmark source data only and does not include HillerFit-branded customer-facing surfaces.

@@ -12,13 +12,13 @@ This design defines the components and contracts engineers should build for v1.
 - Submission wrapper: benchmark-specific write logic around `submitVideoFn` snapshots variant, writes Open division, applies keep-best-on-write, and resets stale verification.
 - Leaderboard integration: `server/competition-leaderboard.ts` loads benchmark context once, supplies `EventScoreInput.variant`, skips publish gating, preserves half tiers, ranks by Overall/100, and exposes benchmark fields.
 - Stats route: `/compete/$slug/stats` reuses leaderboard data to render a per-athlete stat line.
-- Seed module: a training-PDF-derived benchmark seed creates the benchmark battery, tests, thresholds, Open division, workouts, and benchmark competition. The source artifact is `/Users/zacjones/Downloads/HillerFit_Training_Guide.pdf`.
+- Seed module: a training-PDF-derived benchmark seed creates the benchmark battery, tests, thresholds, Open division, workouts, and benchmark competition. The source artifact is `/Users/zacjones/Downloads/HillerFit_Training_Guide.pdf`; it feeds data, not branded pages or routes.
 
 ## Data Model
 
 ### New Tables
 
-- `benchmark_batteries`: named product, owner, slug, categories JSON payload, rating bands JSON payload, `maxTier`, `scoreMax`, `videoPolicy`, `isOpenJoin`, `variantScalingGroupId`, `competitionId`, status, and non-null `ownerKey` for global slug uniqueness. The current MySQL schema stores these JSON payloads in text columns; every write/read/publish path must parse and validate them fail-closed.
+- `benchmark_batteries`: battery metadata, owner, slug, categories JSON payload, rating bands JSON payload, `maxTier`, `scoreMax`, `videoPolicy`, `isOpenJoin`, `variantScalingGroupId`, `competitionId`, status, and non-null `ownerKey` for global slug uniqueness. The current MySQL schema stores these JSON payloads in text columns; every write/read/publish path must parse and validate them fail-closed.
 - `benchmark_tests`: one test per battery test, with category key, name, position, workout scheme, score type, input unit, `includedInScoring`, optional time cap, and nullable v2 hybrid metadata.
 - `benchmark_tier_thresholds`: one pre-encoded threshold per `(test, variant, tier)`, with raw display value preserved.
 
@@ -71,8 +71,8 @@ This design defines the components and contracts engineers should build for v1.
 - Configuration-unavailable cells are rendered separately from athlete tier 0 attempts.
 - DB `dq` maps to engine `dnf` and scores tier 0.
 - Benchmark publish gating is disabled by capability omission; invalid scores remain excluded by existing verification filtering.
-- Missing or ambiguous PDF source data blocks the seed value for that row/test until the owner decides; it does not justify adding branded pages or changing the generic product scope.
+- Missing or ambiguous PDF source data blocks the seed value for that row/test until the owner decides; it does not justify adding branded pages, product navigation, marketing copy, visual theme, or changing the generic product scope.
 
 ## Branding Boundary
 
-Benchmark routes, tabs, product navigation, headings, empty states, and stats components use WODsmith's generic benchmark language. The PDF may influence seed data names, test labels, thresholds, categories, and rating bands, but it must not introduce HillerFit-branded pages, routes, navigation entries, logos, marketing sections, or visual theme.
+Benchmark routes, tabs, product navigation, headings, empty states, and stats components use WODsmith's generic benchmark language. The PDF may influence seed data names, test labels, thresholds, categories, rating bands, and extraction receipts, but it must not introduce any HillerFit-branded page, route, tab, stats page, navigation entry, logo, marketing section, call to action, or visual theme.

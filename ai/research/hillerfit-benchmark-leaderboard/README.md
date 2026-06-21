@@ -1,4 +1,4 @@
-# HillerFit Benchmark Leaderboard Implementation Packet
+# Generic Benchmark Leaderboard Implementation Packet
 
 This packet turns the benchmark leaderboard guide into implementation-ready contracts.
 
@@ -18,6 +18,6 @@ Source narrative: [`../hillerfit-benchmark-leaderboard-guide.md`](../hillerfit-b
 
 ## Build Rule
 
-The supplied training PDF is a benchmark seed-data source only. Do not build HillerFit-branded pages, routes, product navigation, marketing copy, logos, theme treatments, or any other branded surface; the shipped UI remains WODsmith's generic benchmark board/stat-line experience.
+The supplied training PDF is a benchmark seed-data source only. "HillerFit" is allowed as provenance in research notes, seed receipts, and extraction metadata, but it is not a customer-facing product surface. Do not build any HillerFit-branded page, route, tab, product navigation item, marketing copy, logo, call to action, theme treatment, or other branded UI; the shipped UI remains WODsmith's generic benchmark board/stat-line experience.
 
 Do not fork product behavior without an owner decision. In particular, do not switch v1 back to all-time history, Men/Women divisions, `competitionType: "online"`, publish-gated benchmark results, branded UI, or baked-constant Weighted C2B unless the decision sheet is updated first.
