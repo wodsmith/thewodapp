@@ -31,6 +31,7 @@ export const FEATURES = {
   HOST_COMPETITIONS: "host_competitions",
   PRODUCT_COUPONS: "product_coupons",
 
+  // `@lat`: [[crew#Crew Billing Catalog]]
   // Crew event operations features
   CREW_EVENTS: "crew_events",
   CREW_IMPORTS: "crew_imports",

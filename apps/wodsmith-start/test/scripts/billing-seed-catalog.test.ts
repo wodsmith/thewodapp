@@ -72,6 +72,7 @@ function featuresForPlan(
 }
 
 describe("billing seed catalog", () => {
+	// `@lat`: [[crew#Crew Billing Catalog]]
 	it("keeps existing WODsmith plans and seeds Crew catalog entries", async () => {
 		const rowsByTable = await collectBillingSeedRows()
 
@@ -145,6 +146,7 @@ describe("billing seed catalog", () => {
 		)
 	})
 
+	// `@lat`: [[crew#Crew Billing Catalog]]
 	it("keeps Crew event catalog plans separate from existing team subscription plans", async () => {
 		const rowsByTable = await collectBillingSeedRows()
 		const planById = new Map(rowsByTable.plans.map((plan) => [plan.id, plan]))
@@ -199,6 +201,7 @@ describe("billing seed catalog", () => {
 		}
 	})
 
+	// `@lat`: [[crew#Crew Billing Catalog]]
 	it("maps Crew features and limits to the expected launch tiers", async () => {
 		const rowsByTable = await collectBillingSeedRows()
 

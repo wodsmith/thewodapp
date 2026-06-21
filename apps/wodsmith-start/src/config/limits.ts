@@ -24,6 +24,7 @@ export const LIMITS = {
   // Competition organizing limits
   MAX_PUBLISHED_COMPETITIONS: "max_published_competitions", // 0: pending approval, -1: unlimited
 
+  // `@lat`: [[crew#Crew Billing Catalog]]
   // Crew event operations limits
   MAX_CREW_EVENTS: "max_crew_events",
   MAX_CREW_VOLUNTEERS_PER_EVENT: "max_crew_volunteers_per_event",
