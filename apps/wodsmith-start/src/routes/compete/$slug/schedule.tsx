@@ -96,7 +96,10 @@ function CompetitionSchedulePage() {
   return (
     <div className="space-y-4">
       <div className="sticky top-4 z-10">
-        <CompetitionTabs slug={competition.slug} />
+        <CompetitionTabs
+          slug={competition.slug}
+          settings={competition.settings}
+        />
       </div>
       <div className="rounded-2xl border border-black/10 bg-black/5 p-4 sm:p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
         {isOnline ? (

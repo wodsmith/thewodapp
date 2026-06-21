@@ -1,47 +1,54 @@
 # Reviewer Alignment
 
-This file records independent reviewer summaries and the final convergence check. It starts with the orchestrator's current contract and should be updated after independent review.
+This file records independent reviewer summaries and the final convergence check for the current implementation packet.
 
 ## Reviewer A Summary
 
-Reviewer A found that the largest remaining gap was current-state drift: the guide framed M0a as a new registry deliverable, but this checkout already has `apps/wodsmith-start/src/lib/competitions/capabilities.ts` and tests for `in-person`/`online`, with `benchmark` intentionally failing closed. The implementation contract now says to extend the existing registry, add `benchmark` and `perpetual`, preserve current tests, and add benchmark characterization tests.
+Reviewer A reviewed the server and data-model slice. They identified and then re-checked one blocking ambiguity: benchmark category denominators assume the seeded test/event mirror is complete, so the read path must fail closed when a benchmark test is missing a scorable event or when a test is mapped by duplicate events. The implementation now validates that one-to-one mapping in `server/benchmark-leaderboard.ts`, covers missing and duplicate mappings in `test/server/benchmark-leaderboard.test.ts`, and records the invariant in `technical-design.md`, `test-strategy.md`, `tasks.md`, and `lat.md/domain.md`.
+
+Reviewer A now describes the server contract as coherent: generic benchmark battery data, one Open division, `scores.benchmarkVariant` snapshots, preloaded absolute-tier context, fail-closed mapping/category/threshold/variant validation, Overall/100 aggregation, benchmark tier-histogram ties, generic stats output, and no HillerFit-branded customer-facing surface.
 
 ## Reviewer B Summary
 
-Reviewer B independently described the same intended system: capability registry, benchmark schema/seed, `absolute_tier` scoring, category aggregation, keep-best-on-write submission, public Overall/100 leaderboard, and stats page. Their largest gap was that the guide referenced an implementation packet that did not exist in their fork; the packet now exists and is the implementation contract.
+Reviewer B reviewed the UI, route, test, and branding slice. They identified and then re-checked three blocking gaps: the guide header still described the pre-M0a state, the stats route collapsed load/configuration errors into the empty no-score state, and tests did not yet pin Stats tab visibility or direct `/stats` fallback behavior. The implementation now says M0a has landed and `benchmark` is registered with `videoSubmissions`/`perpetual`, renders an explicit stats load-error state, and covers tab gating plus direct stats-route unavailable/load-error states.
+
+Reviewer B now describes the UI contract as coherent: `CompetitionTabs` exposes a generic Stats tab only for `absolute_tier`, `/compete/$slug/stats` renders generic benchmark stats or explicit fallback states, the leaderboard table shows Overall/100, rating, category, and tier fields, and the branding boundary keeps HillerFit references out of customer-facing routes/components.
 
 ## Orchestrator Contract
 
 Components:
 
-- Competition-type capability registry.
-- Benchmark schema and seed.
-- Absolute-tier scoring and category aggregation.
-- Benchmark submission wrapper on the existing video submission path.
-- Existing leaderboard pipeline extended for benchmark context.
-- Public stats route and benchmark-flavored leaderboard display.
+- Competition-type capability registry with M0a already landed.
+- Benchmark schema and training-PDF-derived seed.
+- Absolute-tier scoring, category aggregation, and benchmark tier-histogram tiebreaks.
+- Benchmark submission wrapper on the existing video-submission path.
+- Existing leaderboard pipeline extended with a preloaded benchmark context.
+- Generic benchmark leaderboard display, Stats tab, and per-athlete stat-line route.
 
 Data model:
 
-- Three v1 benchmark definition tables.
-- Shared `trackWorkouts` benchmark binding columns.
-- Shared `scores.benchmarkVariant` snapshot column.
+- `benchmark_batteries`, `benchmark_tests`, and `benchmark_tier_thresholds`.
+- `trackWorkouts.benchmarkTestId` and `trackWorkouts.benchmarkCategory`, with exactly one scorable event per benchmark test.
+- `scores.benchmarkVariant` as the score-time sex/variant snapshot.
 - One Open division per benchmark competition.
 - `score_attempts` deferred to v2.
 
 Dependencies:
 
-- M0a before benchmark write/read chokepoints.
-- M1 seed/schema before algorithm integration tests.
-- M2 algorithm before M3 keep-best-on-write.
-- M3 submission before M4 public demo verification.
-- First seed derived from `/Users/zacjones/Downloads/HillerFit_Training_Guide.pdf`.
+- M0a capability registry is present and benchmark is registered with `videoSubmissions` and `perpetual`.
+- M1 schema/seed must provide complete category caches, test rows, one-to-one event mappings, and threshold rows.
+- M2 absolute-tier scoring supplies the `0 / 0.5 / 1..10` tier semantics.
+- M3 submission supplies profile-variant snapshots and best-to-date writes.
+- The first seed derives source data from `/Users/zacjones/Downloads/HillerFit_Training_Guide.pdf`.
 - No HillerFit-branded customer-facing pages, routes, stats pages, navigation, marketing copy, logos, calls to action, or theme treatments.
 
 Definition of done:
 
-- Seeded approved board, absolute-tier scoring, best-to-date submission semantics, public Overall/100 leaderboard, public stat line, focused tests, LAT updates, and manual smoke all pass.
+- Seeded generic benchmark board, valid score submission, keep-best retest behavior, public Overall/100 leaderboard, generic stat line, invalid-score exclusion, branding boundary, focused automated tests, LAT updates, and manual smoke are satisfied.
+- Current focused M4 tests pass.
+- `lat check` has no benchmark errors; current failures are existing Crew references outside this slice.
+- Package-wide type-check still fails on broad existing route implicit-`any` issues, so full-package type-check remains a repo baseline caveat rather than an M4-specific blocker.
 
 ## Convergence Result
 
-The reviewers materially agree on components, data model, dependencies, and definition of done. The one substantive divergence risk was M0a current-state drift, now resolved by making the packet current-state-aware. The owner clarified that the build uses the training PDF as benchmark source data only and does not include HillerFit-branded customer-facing surfaces.
+The two independent reviewers materially agree on components, data model, dependencies, branding boundary, and definition of done for M4. The remaining caveats are not product forks: package-wide type-check is blocked by existing route typing debt, and `lat check` is blocked by existing Crew references outside the benchmark artifacts.

@@ -45,7 +45,10 @@ function AthleteBroadcastsPage() {
 	return (
 		<div className="space-y-6">
 			<div className="sticky top-4 z-10">
-				<CompetitionTabs slug={competition.slug} />
+				<CompetitionTabs
+					slug={competition.slug}
+					settings={competition.settings}
+				/>
 			</div>
 
 			<div>

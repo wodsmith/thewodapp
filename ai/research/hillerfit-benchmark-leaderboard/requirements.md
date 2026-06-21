@@ -24,6 +24,12 @@ The local PDF is the source of truth for the first seed. Before completing M1:
 
 Do not create a HillerFit-branded landing page, route, navigation entry, stats page, marketing surface, or theme as a substitute for missing seed data. Source-data ambiguity must be resolved as data work or owner input.
 
+## Branding Boundary
+
+"HillerFit" is provenance for the local training PDF only. Engineers must not create customer-facing HillerFit pages, routes, tabs, navigation entries, stats pages, marketing surfaces, logos, calls to action, or theme treatments.
+
+The implementation target is WODsmith's generic benchmark board. Any missing or ambiguous PDF value must be handled as source-data extraction work, a generic benchmark label, or an owner decision, not as a product fork.
+
 ## V1 User Requirements
 
 - Athletes can join or submit to a published benchmark board when allowed by registration or guarded open-join rules.

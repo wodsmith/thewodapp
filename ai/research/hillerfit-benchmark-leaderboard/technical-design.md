@@ -46,12 +46,13 @@ This design defines the components and contracts engineers should build for v1.
 
 1. `getCompetitionLeaderboard` loads competition settings and detects `algorithm === "absolute_tier"`.
 2. It loads battery, categories, included-test counts, and all threshold tables once for the requested track workouts.
-3. It fetches registrations and scores as today, including `scores.benchmarkVariant`.
-4. For each event group, it creates `EventScoreInput` with `variant` from `scores.benchmarkVariant`.
-5. `calculateEventPoints` dispatches to `absolute_tier` with preloaded `ctx`.
-6. Event results carry `tier` and `benchmarkCategory`.
-7. Category aggregation computes category scores and Overall/100 before final ranking.
-8. Ranking feeds Overall/100 into tiebreakers and uses a benchmark tier-histogram tiebreaker.
+3. It fails closed unless every benchmark test is mapped by exactly one scorable `trackWorkout`, so category denominators and rendered tests cannot drift.
+4. It fetches registrations and scores as today, including `scores.benchmarkVariant`.
+5. For each event group, it creates `EventScoreInput` with `variant` from `scores.benchmarkVariant`.
+6. `calculateEventPoints` dispatches to `absolute_tier` with preloaded `ctx`.
+7. Event results carry `tier` and `benchmarkCategory`.
+8. Category aggregation computes category scores and Overall/100 before final ranking.
+9. Ranking feeds Overall/100 into tiebreakers and uses a benchmark tier-histogram tiebreaker.
 
 ## Write Flow
 
@@ -67,8 +68,9 @@ This design defines the components and contracts engineers should build for v1.
 
 - Missing or invalid profile gender blocks submission before scoring.
 - Missing `absoluteTier.batteryId` fails schema validation.
-- Missing categories JSON, stale test counts, missing thresholds, or missing variant tables fail closed with a typed configuration error.
+- Missing categories JSON, stale test counts, duplicate/missing test-to-event mappings, missing thresholds, or missing variant tables fail closed with a typed configuration error.
 - Configuration-unavailable cells are rendered separately from athlete tier 0 attempts.
+- The public stats route distinguishes configuration/load failures from an empty no-scores board.
 - DB `dq` maps to engine `dnf` and scores tier 0.
 - Benchmark publish gating is disabled by capability omission; invalid scores remain excluded by existing verification filtering.
 - Missing or ambiguous PDF source data blocks the seed value for that row/test until the owner decides; it does not justify adding branded pages, product navigation, marketing copy, visual theme, or changing the generic product scope.
