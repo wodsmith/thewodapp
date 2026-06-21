@@ -2,39 +2,54 @@
 // @lat: [[crew#Manual Paid And Founder Grants]]
 // @lat: [[crew#Billing Page And Upgrade CTA]]
 // @lat: [[crew#Stripe Payment Link Sales]]
+// @lat: [[crew#Crew Checkout Sessions]]
 import { env } from "cloudflare:workers"
-import { desc, eq } from "drizzle-orm"
+import { and, desc, eq } from "drizzle-orm"
 import { getDb } from "../db"
+import { ROLES_ENUM } from "../db/schema"
+import { createCrewBillingEventId } from "../db/schemas/common"
+import { competitionsTable } from "../db/schemas/competitions"
 import {
+  CREW_BILLING_EVENT_TYPE,
   type CrewBillingEvent,
   type CrewBillingEventType,
-  type NewCrewBillingEvent,
   crewBillingEventsTable,
+  type NewCrewBillingEvent,
 } from "../db/schemas/crew-billing-events"
 import {
+  CREW_BILLING_SOURCE,
+  CREW_BILLING_STATE,
   type CrewBillingSource,
   type CrewBillingState,
   crewEventSettingsTable,
 } from "../db/schemas/crew-event-settings"
-import { competitionsTable } from "../db/schemas/competitions"
+import { planTable } from "../db/schemas/entitlements"
 import { TEAM_PERMISSIONS } from "../db/schemas/teams"
-import { ROLES_ENUM } from "../db/schema"
 import {
   buildCrewBillingPageViewModel,
-  canViewCrewBillingPage,
   type CrewBillingPageViewModel,
+  canViewCrewBillingPage,
 } from "../lib/crew/billing-page"
 import {
-  type CrewBillingAuditEvent,
   type CrewBillingAppendPlan,
-  isCrewBillingDuplicateEntryError,
-  normalizeCrewBillingState,
-  planCrewBillingAuditAppend,
-  planManualCrewBillingAction,
-  type PlanManualCrewBillingActionInput,
+  type CrewBillingAuditEvent,
   type CrewBillingPlanId,
   type CrewBillingStateSnapshot,
+  isCrewBillingDuplicateEntryError,
+  normalizeCrewBillingState,
+  type PlanManualCrewBillingActionInput,
+  planCrewBillingAuditAppend,
+  planManualCrewBillingAction,
 } from "../lib/crew/billing-state"
+import {
+  assertCrewCheckoutCanStart,
+  buildCrewCheckoutIdempotencyKey,
+  buildCrewCheckoutSessionCreateParams,
+  type CrewCheckoutPlanId,
+  isCrewStripeCheckoutEnabledValue,
+  normalizeCrewCheckoutCatalogPlan,
+  resolveCrewCheckoutPlanId,
+} from "../lib/crew/checkout-sessions"
 import {
   buildCrewPaymentLinkSaleActionInput,
   getCrewPaymentLinkUrlFromSettings,
@@ -42,6 +57,8 @@ import {
   normalizeCrewPaymentLinkReference,
   serializeCrewPaymentLinkSettings,
 } from "../lib/crew/payment-link-sales"
+import { getAppUrl } from "../lib/env"
+import { getStripe } from "../lib/stripe"
 import { getSessionFromCookie } from "../utils/auth"
 import {
   hasLocalCrewOperatorAccess,
@@ -85,6 +102,14 @@ export interface ReconcileCrewPaymentLinkSaleInput
   actorLabel?: string | null
   publicNote?: string | null
   privateMetadata?: Record<string, unknown> | null
+}
+
+export interface CreateCrewCheckoutSessionInput extends GetCrewBillingInput {
+  planId?: CrewCheckoutPlanId | null
+}
+
+export interface CreateCrewCheckoutSessionResult {
+  checkoutUrl: string
 }
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown
@@ -133,6 +158,7 @@ export interface CrewBillingOrganizerPageData {
 }
 
 type CrewBillingScope = CrewBillingPageData["event"] & {
+  settingsId: string
   state: CrewBillingState
   source: CrewBillingSource | null
   planId: CrewBillingPlanId | null
@@ -272,6 +298,80 @@ export async function reconcileCrewPaymentLinkSale(
   })
 }
 
+export async function createCrewCheckoutSession(
+  data: CreateCrewCheckoutSessionInput,
+): Promise<CreateCrewCheckoutSessionResult> {
+  if (!isCrewStripeCheckoutEnabled()) {
+    throw new Error("Crew Checkout is not enabled.")
+  }
+
+  const scope = await requireCrewBillingScope(data.eventId)
+  const session = await requireCrewBillingOrganizerAccess(scope)
+  const current = toCrewBillingSnapshot(scope)
+  assertCrewCheckoutCanStart(current)
+
+  const planId = resolveCrewCheckoutPlanId({
+    requestedPlanId: data.planId,
+    currentPlanId: current.planId,
+  })
+  const plan = await requireCrewCheckoutPlan(planId)
+  const billingEventId = createCrewBillingEventId()
+  const checkoutIdempotencyKey = buildCrewCheckoutIdempotencyKey({
+    competitionId: scope.id,
+    teamId: scope.organizingTeamId,
+    crewPlan: plan.id,
+    amountCents: plan.price,
+  })
+
+  const existingEvents = await listCrewBillingEventsForEvent(scope.id)
+  if (
+    current.state === CREW_BILLING_STATE.PENDING &&
+    current.source === CREW_BILLING_SOURCE.STRIPE_CHECKOUT &&
+    current.stripe.checkoutSessionId
+  ) {
+    throw new Error("Crew Checkout is already pending for this event.")
+  }
+
+  const checkoutSession = await getStripe().checkout.sessions.create(
+    buildCrewCheckoutSessionCreateParams({
+      eventName: scope.name,
+      plan,
+      appUrl: getAppUrl(),
+      customerEmail: session?.user.email,
+      teamId: scope.organizingTeamId,
+      competitionId: scope.id,
+      crewPlan: plan.id,
+      crewEventSettingsId: scope.settingsId,
+      billingEventId,
+      checkoutIdempotencyKey,
+    }),
+    { idempotencyKey: checkoutIdempotencyKey },
+  )
+
+  if (!checkoutSession.url) {
+    throw new Error("Stripe did not return a Checkout URL.")
+  }
+
+  const appendPlan = planCrewBillingAuditAppend(existingEvents, {
+    id: billingEventId,
+    competitionId: scope.id,
+    teamId: scope.organizingTeamId,
+    eventType: CREW_BILLING_EVENT_TYPE.CHECKOUT_SESSION_CREATED,
+    current,
+    planId: plan.id,
+    amountCents: plan.price,
+    currency: plan.currency,
+    stripeCheckoutSessionId: checkoutSession.id,
+    idempotencyKey: checkoutIdempotencyKey,
+    actorUserId: session?.user.id,
+    actorLabel: session?.user.email,
+  })
+
+  await persistCrewCheckoutSessionCreated(data, appendPlan)
+
+  return { checkoutUrl: checkoutSession.url }
+}
+
 async function persistCrewBillingAppend(
   data: GetCrewBillingInput,
   appendPlan: CrewBillingAppendPlan,
@@ -327,6 +427,34 @@ async function persistCrewBillingAppend(
   return getCrewBillingPage(data)
 }
 
+async function persistCrewCheckoutSessionCreated(
+  data: GetCrewBillingInput,
+  appendPlan: CrewBillingAppendPlan,
+) {
+  if (appendPlan.action === "skip_duplicate") return
+
+  const db = getDb()
+  const { event, settingsPatch } = appendPlan
+
+  try {
+    await db.transaction(async (tx) => {
+      await tx
+        .insert(crewBillingEventsTable)
+        .values(toNewCrewBillingEvent(event))
+      await tx
+        .update(crewEventSettingsTable)
+        .set({
+          ...settingsPatch,
+          updatedAt: new Date(),
+        })
+        .where(eq(crewEventSettingsTable.competitionId, data.eventId))
+    })
+  } catch (error) {
+    if (isCrewBillingDuplicateEntryError(error)) return
+    throw error
+  }
+}
+
 async function updateCrewPaymentLinkSettings({
   eventId,
   settingsText,
@@ -361,6 +489,7 @@ async function requireCrewBillingScope(
       name: competitionsTable.name,
       organizingTeamId: competitionsTable.organizingTeamId,
       competitionTeamId: competitionsTable.competitionTeamId,
+      settingsId: crewEventSettingsTable.id,
       state: crewEventSettingsTable.crewBillingState,
       source: crewEventSettingsTable.crewBillingSource,
       planId: crewEventSettingsTable.crewBillingPlanId,
@@ -414,6 +543,27 @@ async function requireCrewBillingOrganizerAccess(scope: CrewBillingScope) {
   if (!canView) {
     throw new Error("FORBIDDEN: You don't have access to Crew billing")
   }
+
+  return session
+}
+
+async function requireCrewCheckoutPlan(planId: CrewCheckoutPlanId) {
+  const db = getDb()
+  const [plan] = await db
+    .select({
+      id: planTable.id,
+      name: planTable.name,
+      description: planTable.description,
+      price: planTable.price,
+      interval: planTable.interval,
+      isActive: planTable.isActive,
+      isPublic: planTable.isPublic,
+    })
+    .from(planTable)
+    .where(and(eq(planTable.id, planId), eq(planTable.isActive, 1)))
+    .limit(1)
+
+  return normalizeCrewCheckoutCatalogPlan(plan ?? null)
 }
 
 async function listCrewBillingEventsForEvent(eventId: string) {
@@ -457,6 +607,7 @@ function toNewCrewBillingEvent(
   event: CrewBillingAuditEvent,
 ): NewCrewBillingEvent {
   return {
+    id: event.id ?? undefined,
     competitionId: event.competitionId,
     teamId: event.teamId,
     eventType: event.eventType,
@@ -534,9 +685,7 @@ function isCrewStripeCheckoutEnabled() {
   const runtimeEnv = env as typeof env & {
     CREW_STRIPE_CHECKOUT_ENABLED?: string | boolean
   }
-  const value = runtimeEnv.CREW_STRIPE_CHECKOUT_ENABLED
-  return (
-    value === true ||
-    ["1", "true", "yes", "enabled"].includes(String(value ?? "").toLowerCase())
+  return isCrewStripeCheckoutEnabledValue(
+    runtimeEnv.CREW_STRIPE_CHECKOUT_ENABLED,
   )
 }

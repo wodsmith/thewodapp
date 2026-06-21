@@ -2,14 +2,16 @@
 // @lat: [[crew#Manual Paid And Founder Grants]]
 // @lat: [[crew#Billing Page And Upgrade CTA]]
 // @lat: [[crew#Stripe Payment Link Sales]]
+// @lat: [[crew#Crew Checkout Sessions]]
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
 import { CREW_BILLING_EVENT_TYPE } from "../db/schemas/crew-billing-events"
 import {
-  MANUAL_CREW_BILLING_ACTION,
   crewBillingPlanIds,
+  MANUAL_CREW_BILLING_ACTION,
   type ManualCrewBillingActionType,
 } from "../lib/crew/billing-state"
+import { crewCheckoutPlanIds } from "../lib/crew/checkout-sessions"
 
 export type {
   CrewBillingOrganizerPageData,
@@ -23,6 +25,7 @@ const getCrewBillingInputSchema = z.object({
 const crewBillingEventTypeSchema = z.enum([
   CREW_BILLING_EVENT_TYPE.MANUAL_SALE_RECORDED,
   CREW_BILLING_EVENT_TYPE.PAYMENT_LINK_RECONCILED,
+  CREW_BILLING_EVENT_TYPE.CHECKOUT_SESSION_CREATED,
   CREW_BILLING_EVENT_TYPE.CHECKOUT_COMPLETED,
   CREW_BILLING_EVENT_TYPE.FOUNDER_OVERRIDE_APPLIED,
   CREW_BILLING_EVENT_TYPE.CREDIT_SET,
@@ -32,6 +35,7 @@ const crewBillingEventTypeSchema = z.enum([
 ])
 
 const crewBillingPlanIdSchema = z.enum(crewBillingPlanIds)
+const crewCheckoutPlanIdSchema = z.enum(crewCheckoutPlanIds)
 const nullableTextSchema = z
   .string()
   .trim()
@@ -107,9 +111,7 @@ const recordManualCrewBillingActionInputSchema = z.discriminatedUnion(
         .positive("Manual paid Crew billing requires a positive amount."),
     }),
     recordManualCrewBillingActionBaseInputSchema.extend({
-      action: z.literal(
-        MANUAL_CREW_BILLING_ACTION.RECONCILE_PAYMENT_LINK_SALE,
-      ),
+      action: z.literal(MANUAL_CREW_BILLING_ACTION.RECONCILE_PAYMENT_LINK_SALE),
       planId: crewBillingPlanIdSchema,
       amountCents: z
         .number()
@@ -154,6 +156,10 @@ const reconcileCrewPaymentLinkSaleInputSchema =
     publicNote: nullableTextSchema,
     privateMetadata: privateMetadataSchema.optional(),
   })
+
+const createCrewCheckoutSessionInputSchema = getCrewBillingInputSchema.extend({
+  planId: crewCheckoutPlanIdSchema.nullable().optional(),
+})
 
 export const getCrewBillingPageFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => getCrewBillingInputSchema.parse(data))
@@ -219,4 +225,15 @@ export const reconcileCrewPaymentLinkSaleFn = createServerFn({
       "../server/crew-billing.server"
     )
     return reconcileCrewPaymentLinkSale(data)
+  })
+
+export const createCrewCheckoutSessionFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    createCrewCheckoutSessionInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { createCrewCheckoutSession } = await import(
+      "../server/crew-billing.server"
+    )
+    return createCrewCheckoutSession(data)
   })

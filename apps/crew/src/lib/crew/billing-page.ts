@@ -1,4 +1,5 @@
 // @lat: [[crew#Billing Page And Upgrade CTA]]
+// @lat: [[crew#Crew Checkout Sessions]]
 import {
   CREW_BILLING_SOURCE,
   CREW_BILLING_STATE,
@@ -6,10 +7,11 @@ import {
   type CrewBillingState,
 } from "../../db/schemas/crew-event-settings"
 import {
-  resolveCrewBillingEntitlements,
   type CrewBillingPlanId,
   type CrewBillingStateSnapshot,
+  resolveCrewBillingEntitlements,
 } from "./billing-state"
+import { isCrewCheckoutPlanId } from "./checkout-sessions"
 
 export interface CrewBillingPageEventAccess {
   organizingTeamId: string
@@ -157,7 +159,7 @@ export function buildCrewBillingPageViewModel({
     },
     upgradeCta: buildUpgradeCta(billing),
     paymentLink: buildPaymentLinkAction(paymentLink),
-    checkout: buildCheckoutAction(checkoutEnabled),
+    checkout: buildCheckoutAction(checkoutEnabled, billing),
   }
 }
 
@@ -210,6 +212,7 @@ function buildPaymentLinkAction(
 
 function buildCheckoutAction(
   checkoutEnabled: boolean,
+  billing: CrewBillingStateSnapshot,
 ): CrewBillingActionViewModel {
   if (!checkoutEnabled) {
     return {
@@ -220,12 +223,42 @@ function buildCheckoutAction(
     }
   }
 
+  if (billing.state === CREW_BILLING_STATE.PENDING) {
+    return {
+      label: "Checkout pending",
+      status: "disabled",
+      href: null,
+      helperText: "A Checkout Session is already pending for this event.",
+    }
+  }
+
+  if (
+    billing.state === CREW_BILLING_STATE.PAID ||
+    billing.state === CREW_BILLING_STATE.COMPED ||
+    billing.state === CREW_BILLING_STATE.CREDITED
+  ) {
+    return {
+      label: "Checkout unavailable",
+      status: "hidden",
+      href: null,
+      helperText: "Crew billing is already active for this event.",
+    }
+  }
+
+  if (billing.planId && !isCrewCheckoutPlanId(billing.planId)) {
+    return {
+      label: "Checkout unavailable",
+      status: "disabled",
+      href: null,
+      helperText: "Checkout is available for public paid Crew plans.",
+    }
+  }
+
   return {
-    label: "Checkout coming soon",
-    status: "disabled",
+    label: "Start Checkout",
+    status: "available",
     href: null,
-    helperText:
-      "Checkout is enabled, but session creation is intentionally deferred from this slice.",
+    helperText: "Create a Checkout Session for this Crew event.",
   }
 }
 
