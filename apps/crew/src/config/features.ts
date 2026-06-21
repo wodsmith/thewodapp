@@ -31,6 +31,14 @@ export const FEATURES = {
   HOST_COMPETITIONS: "host_competitions",
   PRODUCT_COUPONS: "product_coupons",
 
+  // Crew event operations features
+  CREW_EVENTS: "crew_events",
+  CREW_IMPORTS: "crew_imports",
+  CREW_CONFIRMATION_REMINDERS: "crew_confirmation_reminders",
+  CREW_DEPARTMENT_LEADS: "crew_department_leads",
+  CREW_EXPORTS: "crew_exports",
+  CREW_CONCIERGE: "crew_concierge",
+
   // Personal workout tracking
   WORKOUT_TRACKING: "workout_tracking",
 } as const

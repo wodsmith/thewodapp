@@ -2,6 +2,14 @@
 
 Crew is a concierge-first event operations surface that reuses normal WODsmith competitions while adding thin Crew-specific setup, import, and assignment confirmation records.
 
+## Crew Billing Catalog
+
+Crew billing catalog rows live in the existing billing seed and entitlement config surfaces while paid event access remains separate from WODsmith team subscription state.
+
+[[apps/wodsmith-start/scripts/seed/seeders/02-billing.ts]] and [[apps/crew/scripts/seed/seeders/02-billing.ts]] seed Crew plan, feature, and limit catalog rows for launch pricing. The Crew plan IDs are event-level catalog entries and must not be assigned to `teams.currentPlanId` for one-event purchases.
+
+Public launch catalog entries are `crew_starter`, `crew_basic`, and `crew_pro`. Manual/private entries are `crew_concierge` and `crew_founding_2026` so concierge and founder pricing can be granted and audited later without exposing founder pricing publicly.
+
 ## Server Function Runtime Boundary
 
 Route and client code import lightweight `createServerFn` wrappers from [[apps/crew/src/server-fns]].

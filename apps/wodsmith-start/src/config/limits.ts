@@ -23,6 +23,12 @@ export const LIMITS = {
 
   // Competition organizing limits
   MAX_PUBLISHED_COMPETITIONS: "max_published_competitions", // 0: pending approval, -1: unlimited
+
+  // Crew event operations limits
+  MAX_CREW_EVENTS: "max_crew_events",
+  MAX_CREW_VOLUNTEERS_PER_EVENT: "max_crew_volunteers_per_event",
+  MAX_CREW_EMAIL_SENDS_PER_EVENT: "max_crew_email_sends_per_event",
+  MAX_CREW_IMPORTS_PER_EVENT: "max_crew_imports_per_event",
 } as const
 
 export type LimitKey = (typeof LIMITS)[keyof typeof LIMITS]
