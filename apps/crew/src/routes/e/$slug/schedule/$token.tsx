@@ -1,5 +1,6 @@
 // @lat: [[crew#Assignment Confirmation Responses]]
 // @lat: [[crew#Volunteer Self Service]]
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { createFileRoute, notFound, useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import {
@@ -10,9 +11,10 @@ import {
   Phone,
   Printer,
 } from "lucide-react"
-import type { FormEvent } from "react"
-import { useMemo, useState } from "react"
+import { useMemo } from "react"
+import { useForm } from "react-hook-form"
 import { toast } from "sonner"
+import { z } from "zod"
 import {
   VOLUNTEER_AVAILABILITY,
   VOLUNTEER_ROLE_LABELS,
@@ -35,6 +37,25 @@ import {
 } from "@/lib/crew/volunteer-self-service"
 import { getCrewVolunteerScheduleTokenFn } from "@/server-fns/crew-volunteer-fns"
 import { formatDateTimeInTimezone } from "@/utils/timezone-utils"
+
+const optionalContactString = (maxLength: number) =>
+  z.string().trim().max(maxLength).optional()
+
+const contactFormSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email("Enter a valid email address")
+    .max(255),
+  name: optionalContactString(200),
+  phone: optionalContactString(50),
+  availability: z.union([z.enum(VOLUNTEER_AVAILABILITY), z.literal("")]),
+  availabilityNotes: optionalContactString(5000),
+  credentials: optionalContactString(1000),
+})
+
+type ContactFormValues = z.infer<typeof contactFormSchema>
 
 export const Route = createFileRoute("/e/$slug/schedule/$token")({
   loader: async ({ params }) => {
@@ -152,7 +173,10 @@ function CrewAssignmentSchedule({
   const updateContact = useServerFn(
     updateCrewAssignmentConfirmationContactTokenFn,
   )
-  const [contactPending, setContactPending] = useState(false)
+  const contactForm = useForm<ContactFormValues>({
+    resolver: standardSchemaResolver(contactFormSchema),
+    defaultValues: getContactDefaultValues(data.volunteer),
+  })
   const schedule = useMemo(() => {
     if (data.status !== "valid" || !data.assignment) return []
     if (data.schedule.length > 0) return data.schedule
@@ -188,31 +212,23 @@ function CrewAssignmentSchedule({
     token,
   )}`
 
-  async function handleContactSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const formData = new FormData(event.currentTarget)
-    setContactPending(true)
-
+  async function handleContactSubmit(values: ContactFormValues) {
     try {
       const result = await updateContact({
         data: {
           slug,
           token,
-          email: getFormString(formData, "email"),
-          name: getOptionalFormString(formData, "name"),
-          phone: getOptionalFormString(formData, "phone"),
-          availability: getOptionalFormString(formData, "availability") as
-            | VolunteerAvailability
-            | undefined,
-          availabilityNotes: getOptionalFormString(
-            formData,
-            "availabilityNotes",
-          ),
-          credentials: getOptionalFormString(formData, "credentials"),
+          email: values.email,
+          name: emptyToUndefined(values.name),
+          phone: emptyToUndefined(values.phone),
+          availability: values.availability || undefined,
+          availabilityNotes: emptyToUndefined(values.availabilityNotes),
+          credentials: emptyToUndefined(values.credentials),
         },
       })
       if (result.success) {
         toast.success(result.message)
+        contactForm.reset(getContactDefaultValues(result.volunteer))
       } else {
         toast.error(result.message)
       }
@@ -221,8 +237,6 @@ function CrewAssignmentSchedule({
       toast.error(
         error instanceof Error ? error.message : "Contact update failed",
       )
-    } finally {
-      setContactPending(false)
     }
   }
 
@@ -382,29 +396,40 @@ function CrewAssignmentSchedule({
 
       <section className="rounded-md border bg-card p-6 shadow-sm print:hidden">
         <h2 className="text-xl font-semibold">Contact</h2>
-        <form onSubmit={handleContactSubmit} className="mt-5 grid gap-4">
+        <form
+          onSubmit={contactForm.handleSubmit(handleContactSubmit)}
+          className="mt-5 grid gap-4"
+        >
           <label className="grid gap-2 text-sm">
             <span className="inline-flex items-center gap-2 font-medium">
               <Mail className="size-4" />
               Email
             </span>
             <input
-              name="email"
               type="email"
               required
-              defaultValue={data.volunteer?.email ?? ""}
+              {...contactForm.register("email")}
               className="h-10 rounded-md border bg-background px-3"
             />
+            {contactForm.formState.errors.email?.message ? (
+              <span className="text-xs text-destructive">
+                {contactForm.formState.errors.email.message}
+              </span>
+            ) : null}
           </label>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="grid gap-2 text-sm">
               <span className="font-medium">Name</span>
               <input
-                name="name"
-                defaultValue={data.volunteer?.name ?? ""}
+                {...contactForm.register("name")}
                 className="h-10 rounded-md border bg-background px-3"
               />
+              {contactForm.formState.errors.name?.message ? (
+                <span className="text-xs text-destructive">
+                  {contactForm.formState.errors.name.message}
+                </span>
+              ) : null}
             </label>
             <label className="grid gap-2 text-sm">
               <span className="inline-flex items-center gap-2 font-medium">
@@ -412,18 +437,21 @@ function CrewAssignmentSchedule({
                 Phone
               </span>
               <input
-                name="phone"
-                defaultValue={data.volunteer?.phone ?? ""}
+                {...contactForm.register("phone")}
                 className="h-10 rounded-md border bg-background px-3"
               />
+              {contactForm.formState.errors.phone?.message ? (
+                <span className="text-xs text-destructive">
+                  {contactForm.formState.errors.phone.message}
+                </span>
+              ) : null}
             </label>
           </div>
 
           <label className="grid gap-2 text-sm">
             <span className="font-medium">Availability</span>
             <select
-              name="availability"
-              defaultValue={data.volunteer?.availability ?? ""}
+              {...contactForm.register("availability")}
               className="h-10 rounded-md border bg-background px-3"
             >
               <option value="">Not provided</option>
@@ -433,34 +461,47 @@ function CrewAssignmentSchedule({
               </option>
               <option value={VOLUNTEER_AVAILABILITY.ALL_DAY}>All day</option>
             </select>
+            {contactForm.formState.errors.availability?.message ? (
+              <span className="text-xs text-destructive">
+                {contactForm.formState.errors.availability.message}
+              </span>
+            ) : null}
           </label>
 
           <label className="grid gap-2 text-sm">
             <span className="font-medium">Availability notes</span>
             <textarea
-              name="availabilityNotes"
               rows={3}
-              defaultValue={data.volunteer?.availabilityNotes ?? ""}
+              {...contactForm.register("availabilityNotes")}
               className="rounded-md border bg-background px-3 py-2"
             />
+            {contactForm.formState.errors.availabilityNotes?.message ? (
+              <span className="text-xs text-destructive">
+                {contactForm.formState.errors.availabilityNotes.message}
+              </span>
+            ) : null}
           </label>
 
           <label className="grid gap-2 text-sm">
             <span className="font-medium">Credentials</span>
             <textarea
-              name="credentials"
               rows={3}
-              defaultValue={data.volunteer?.credentials ?? ""}
+              {...contactForm.register("credentials")}
               className="rounded-md border bg-background px-3 py-2"
             />
+            {contactForm.formState.errors.credentials?.message ? (
+              <span className="text-xs text-destructive">
+                {contactForm.formState.errors.credentials.message}
+              </span>
+            ) : null}
           </label>
 
           <button
             type="submit"
-            disabled={contactPending}
+            disabled={contactForm.formState.isSubmitting}
             className="inline-flex h-10 w-fit items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {contactPending ? (
+            {contactForm.formState.isSubmitting ? (
               <Loader2 className="size-4 animate-spin" />
             ) : null}
             Save contact
@@ -517,12 +558,20 @@ function formatAvailability(availability: VolunteerAvailability | null) {
   return "Not provided"
 }
 
-function getFormString(formData: FormData, name: string) {
-  const value = formData.get(name)
-  return typeof value === "string" ? value.trim() : ""
+function getContactDefaultValues(
+  volunteer: CrewAssignmentConfirmationTokenData["volunteer"],
+): ContactFormValues {
+  return {
+    email: volunteer?.email ?? "",
+    name: volunteer?.name ?? "",
+    phone: volunteer?.phone ?? "",
+    availability: volunteer?.availability ?? "",
+    availabilityNotes: volunteer?.availabilityNotes ?? "",
+    credentials: volunteer?.credentials ?? "",
+  }
 }
 
-function getOptionalFormString(formData: FormData, name: string) {
-  const value = getFormString(formData, name)
-  return value || undefined
+function emptyToUndefined(value: string | undefined) {
+  const trimmed = value?.trim()
+  return trimmed || undefined
 }

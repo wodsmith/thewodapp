@@ -46,13 +46,7 @@ const publicTokenContactInputSchema = publicTokenInputSchema.extend({
     .max(255),
   name: z.string().trim().max(200).optional(),
   phone: z.string().trim().max(50).optional(),
-  availability: z
-    .enum([
-      VOLUNTEER_AVAILABILITY.MORNING,
-      VOLUNTEER_AVAILABILITY.AFTERNOON,
-      VOLUNTEER_AVAILABILITY.ALL_DAY,
-    ])
-    .optional(),
+  availability: z.enum(VOLUNTEER_AVAILABILITY).optional(),
   availabilityNotes: z.string().trim().max(5000).optional(),
   credentials: z.string().trim().max(1000).optional(),
 }) satisfies z.ZodType<UpdateCrewAssignmentConfirmationContactTokenInput>
