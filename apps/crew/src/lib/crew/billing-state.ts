@@ -1,5 +1,6 @@
 // @lat: [[crew#Crew Billing State And Audit]]
 // @lat: [[crew#Manual Paid And Founder Grants]]
+// @lat: [[crew#Stripe Payment Link Sales]]
 import {
   CREW_BILLING_EVENT_TYPE,
   type CrewBillingEventType,
@@ -43,6 +44,7 @@ export type CrewBillingLimitKey = (typeof crewBillingLimitKeys)[number]
 
 export const MANUAL_CREW_BILLING_ACTION = {
   RECORD_MANUAL_PAID: "record_manual_paid",
+  RECONCILE_PAYMENT_LINK_SALE: "reconcile_payment_link_sale",
   APPLY_FOUNDER_GRANT: "apply_founder_grant",
   SET_FULL_PLATFORM_CREDIT: "set_full_platform_credit",
   APPLY_FULL_PLATFORM_CREDIT: "apply_full_platform_credit",
@@ -106,9 +108,15 @@ export type PlanManualCrewBillingActionInput =
       amountCents: number
     })
   | (BasePlanManualCrewBillingActionInput & {
+      action: typeof MANUAL_CREW_BILLING_ACTION.RECONCILE_PAYMENT_LINK_SALE
+      planId: CrewBillingPlanId
+      amountCents: number
+    })
+  | (BasePlanManualCrewBillingActionInput & {
       action: Exclude<
         ManualCrewBillingActionType,
-        typeof MANUAL_CREW_BILLING_ACTION.RECORD_MANUAL_PAID
+        | typeof MANUAL_CREW_BILLING_ACTION.RECORD_MANUAL_PAID
+        | typeof MANUAL_CREW_BILLING_ACTION.RECONCILE_PAYMENT_LINK_SALE
       >
     })
 
@@ -604,12 +612,11 @@ function validateCrewBillingAuditAppend(
   const normalized = normalizeCrewBillingState(current)
 
   if (event.eventType === CREW_BILLING_EVENT_TYPE.MANUAL_SALE_RECORDED) {
-    if (!event.planId) {
-      throw new Error("Manual paid Crew billing requires a valid Crew plan.")
-    }
-    if (event.amountCents <= 0) {
-      throw new Error("Manual paid Crew billing requires a positive amount.")
-    }
+    validatePaidCrewBillingEvent(event, "Manual paid Crew billing")
+  }
+
+  if (event.eventType === CREW_BILLING_EVENT_TYPE.PAYMENT_LINK_RECONCILED) {
+    validatePaidCrewBillingEvent(event, "Payment Link Crew billing")
   }
 
   if (event.eventType === CREW_BILLING_EVENT_TYPE.CREDIT_SET) {
@@ -650,6 +657,18 @@ function validateCrewBillingAuditAppend(
   }
 }
 
+function validatePaidCrewBillingEvent(
+  event: CrewBillingAuditEvent,
+  label: string,
+) {
+  if (!event.planId) {
+    throw new Error(`${label} requires a valid Crew plan.`)
+  }
+  if (event.amountCents <= 0) {
+    throw new Error(`${label} requires a positive amount.`)
+  }
+}
+
 function isCrewCreditEvent(event: CrewBillingExistingAuditEvent) {
   return (
     event.eventType === CREW_BILLING_EVENT_TYPE.CREDIT_SET ||
@@ -684,6 +703,16 @@ function buildManualCrewBillingActionInput(
         planId: requireManualPaidPlanId(input.planId),
         amountCents: requireManualPaidAmountCents(input.amountCents),
         idempotencyKey: input.idempotencyKey,
+      }
+    case MANUAL_CREW_BILLING_ACTION.RECONCILE_PAYMENT_LINK_SALE:
+      return {
+        ...common,
+        eventType: CREW_BILLING_EVENT_TYPE.PAYMENT_LINK_RECONCILED,
+        planId: requireManualPaidPlanId(input.planId),
+        amountCents: requireManualPaidAmountCents(input.amountCents),
+        idempotencyKey: input.idempotencyKey,
+        stripePaymentLinkId: input.stripePaymentLinkId,
+        stripePaymentIntentId: input.stripePaymentIntentId,
       }
     case MANUAL_CREW_BILLING_ACTION.APPLY_FOUNDER_GRANT:
       return {
