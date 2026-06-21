@@ -166,3 +166,13 @@ export const createCrewAssignmentConfirmationId = () => `caconf_${ulid()}`
 export const createCrewTemplatePresetId = () => `ctpres_${ulid()}`
 export const createCrewImportMappingPresetId = () => `cimap_${ulid()}`
 export const createCrewDepartmentLeadId = () => `cdlead_${ulid()}`
+
+// Crew volunteer intelligence ID generators
+// @lat: [[crew#Strategic Moat Privacy Model]]
+export const createCrewVolunteerIdentityId = () => `cvid_${ulid()}`
+export const createCrewVolunteerConsentId = () => `cvcon_${ulid()}`
+export const createCrewVolunteerHistoryEventId = () => `cvhist_${ulid()}`
+export const createCrewVolunteerCredentialId = () => `cvcred_${ulid()}`
+export const createCrewCompetitionGroupSettingsId = () => `ccgset_${ulid()}`
+export const createCrewEventConversionId = () => `cconv_${ulid()}`
+export const createCrewVolunteerIntroRequestId = () => `cvintro_${ulid()}`
