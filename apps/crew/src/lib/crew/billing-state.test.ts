@@ -302,6 +302,166 @@ describe("Crew billing state and audit helpers", () => {
     })
   })
 
+  it("plans Payment Link reconciliation as an event-scoped paid Crew purchase", () => {
+    const plan = planManualCrewBillingAction([], {
+      action: MANUAL_CREW_BILLING_ACTION.RECONCILE_PAYMENT_LINK_SALE,
+      competitionId: "comp_payment_link",
+      teamId: "team_owner",
+      planId: "crew_basic",
+      amountCents: 20_000,
+      currency: "USD",
+      stripePaymentLinkId: "plink_123",
+      stripePaymentIntentId: "pi_123",
+      idempotencyKey: "payment-link:plink_123:pi_123",
+      privateMetadata: {
+        adminNote: "Matched from Stripe dashboard without webhook metadata.",
+      },
+    })
+
+    expect(plan).toMatchObject({
+      action: "append",
+      event: {
+        competitionId: "comp_payment_link",
+        teamId: "team_owner",
+        eventType: CREW_BILLING_EVENT_TYPE.PAYMENT_LINK_RECONCILED,
+        billingState: CREW_BILLING_STATE.PAID,
+        billingSource: CREW_BILLING_SOURCE.PAYMENT_LINK,
+        planId: "crew_basic",
+        amountCents: 20_000,
+        currency: "usd",
+        stripePaymentLinkId: "plink_123",
+        stripePaymentIntentId: "pi_123",
+        idempotencyKey: "payment-link:plink_123:pi_123",
+      },
+      settingsPatch: {
+        crewBillingState: CREW_BILLING_STATE.PAID,
+        crewBillingSource: CREW_BILLING_SOURCE.PAYMENT_LINK,
+        crewBillingPlanId: "crew_basic",
+        crewBillingAmountCents: 20_000,
+        crewBillingCurrency: "usd",
+        crewStripePaymentLinkId: "plink_123",
+        crewStripePaymentIntentId: "pi_123",
+      },
+    })
+    expect(plan.settingsPatch).not.toHaveProperty("currentPlanId")
+    expect(JSON.stringify(resolveCrewBillingEntitlements(plan.settingsPatch)))
+      .not.toContain("plink_123")
+  })
+
+  it("allows Payment Link reconciliation when Stripe metadata is missing", () => {
+    const plan = planManualCrewBillingAction([], {
+      action: MANUAL_CREW_BILLING_ACTION.RECONCILE_PAYMENT_LINK_SALE,
+      competitionId: "comp_missing_metadata",
+      teamId: "team_owner",
+      planId: "crew_pro",
+      amountCents: 49_900,
+      currency: "usd",
+      idempotencyKey:
+        "payment-link:manual:comp_missing_metadata:team_owner:crew_pro:49900:usd",
+      actorLabel: "Ops",
+    })
+
+    expect(plan).toMatchObject({
+      action: "append",
+      event: {
+        eventType: CREW_BILLING_EVENT_TYPE.PAYMENT_LINK_RECONCILED,
+        billingSource: CREW_BILLING_SOURCE.PAYMENT_LINK,
+        planId: "crew_pro",
+        amountCents: 49_900,
+        stripePaymentLinkId: null,
+        stripePaymentIntentId: null,
+      },
+    })
+  })
+
+  it("preserves an existing Payment Link reference during missing metadata reconciliation", () => {
+    const plan = planManualCrewBillingAction([], {
+      action: MANUAL_CREW_BILLING_ACTION.RECONCILE_PAYMENT_LINK_SALE,
+      competitionId: "comp_existing_reference",
+      teamId: "team_owner",
+      planId: "crew_basic",
+      amountCents: 20_000,
+      current: {
+        stripe: {
+          paymentLinkId: "plink_existing",
+          checkoutSessionId: null,
+          paymentIntentId: null,
+        },
+      },
+      idempotencyKey: "payment-link:plink_existing:missing-payment-intent",
+    })
+
+    expect(plan).toMatchObject({
+      action: "append",
+      event: {
+        eventType: CREW_BILLING_EVENT_TYPE.PAYMENT_LINK_RECONCILED,
+        stripePaymentLinkId: "plink_existing",
+        stripePaymentIntentId: null,
+      },
+      settingsPatch: {
+        crewStripePaymentLinkId: "plink_existing",
+        crewStripePaymentIntentId: null,
+      },
+    })
+  })
+
+  it("dedupes Payment Link reconciliation by idempotency key", () => {
+    const first = planManualCrewBillingAction([], {
+      action: MANUAL_CREW_BILLING_ACTION.RECONCILE_PAYMENT_LINK_SALE,
+      competitionId: "comp_payment_link",
+      teamId: "team_owner",
+      planId: "crew_basic",
+      amountCents: 20_000,
+      idempotencyKey: "payment-link:plink_123:pi_123",
+      stripePaymentLinkId: "plink_123",
+      stripePaymentIntentId: "pi_123",
+    })
+    const duplicate = planManualCrewBillingAction([first.event], {
+      action: MANUAL_CREW_BILLING_ACTION.RECONCILE_PAYMENT_LINK_SALE,
+      competitionId: "comp_payment_link",
+      teamId: "team_owner",
+      planId: "crew_basic",
+      amountCents: 20_000,
+      idempotencyKey: "payment-link:plink_123:pi_123",
+      stripePaymentLinkId: "plink_123",
+      stripePaymentIntentId: "pi_123",
+    })
+
+    expect(first.action).toBe("append")
+    expect(duplicate).toMatchObject({
+      action: "skip_duplicate",
+      settingsPatch: null,
+    })
+  })
+
+  it("rejects Payment Link reconciliation without a valid event plan and amount", () => {
+    const validPaymentLinkInput = {
+      action: MANUAL_CREW_BILLING_ACTION.RECONCILE_PAYMENT_LINK_SALE,
+      competitionId: "comp_payment_link",
+      teamId: "team_owner",
+      planId: "crew_basic",
+      amountCents: 20_000,
+    } as const
+    const unsafePaymentLinkInput = (overrides: Record<string, unknown>) =>
+      ({
+        ...validPaymentLinkInput,
+        ...overrides,
+      }) as unknown as Parameters<typeof planManualCrewBillingAction>[1]
+
+    expect(() =>
+      planManualCrewBillingAction(
+        [],
+        unsafePaymentLinkInput({ planId: "team_pro" }),
+      ),
+    ).toThrow(/valid Crew plan/)
+    expect(() =>
+      planManualCrewBillingAction(
+        [],
+        unsafePaymentLinkInput({ amountCents: 0 }),
+      ),
+    ).toThrow(/positive amount/)
+  })
+
   it("stores founder and credit details in private audit metadata", () => {
     const founder = buildCrewBillingAuditEvent({
       competitionId: "comp_crew",
@@ -532,6 +692,8 @@ describe("Crew billing state and audit helpers", () => {
       competitionId: "comp_crew",
       teamId: "team_owner",
       eventType: CREW_BILLING_EVENT_TYPE.PAYMENT_LINK_RECONCILED,
+      planId: "crew_basic",
+      amountCents: 20_000,
       idempotencyKey: "plink_123:pi_123",
       stripePaymentLinkId: "plink_123",
       stripePaymentIntentId: "pi_123",
@@ -543,6 +705,8 @@ describe("Crew billing state and audit helpers", () => {
       competitionId: "comp_crew",
       teamId: "team_owner",
       eventType: CREW_BILLING_EVENT_TYPE.PAYMENT_LINK_RECONCILED,
+      planId: "crew_basic",
+      amountCents: 20_000,
       idempotencyKey: "plink_123:pi_123",
       stripePaymentLinkId: "plink_123",
       stripePaymentIntentId: "pi_123",

@@ -42,6 +42,16 @@ The private Crew billing page shows organizer-safe event billing state without e
 
 [[apps/crew/src/server/crew-billing.server.ts]] and [[apps/crew/src/server-fns/crew-billing-fns.ts]] keep the organizer billing loader server-only, scoped to the event organizing team's billing permission with local operator fallback. Payment Link buttons only use an already configured safe URL from event settings, and Checkout remains a disabled flag-gated slot until a later slice creates sessions.
 
+## Stripe Payment Link Sales
+
+Stripe Payment Link sales are recorded manually by private Crew operators without calling Stripe APIs, creating Checkout Sessions, or wiring webhooks.
+
+[[apps/crew/src/lib/crew/payment-link-sales.ts]] normalizes operator-provided Payment Link references and organizer-safe URLs, stores safe URLs under `crew_event_settings.settings`, derives stable reconciliation idempotency keys, and builds server-scoped manual reconciliation inputs from the event ID plus organizing team ID resolved on the server.
+
+[[apps/crew/src/lib/crew/billing-state.ts]] maps Payment Link reconciliation to an event-level paid Crew purchase with source `PAYMENT_LINK`, requiring a Crew event plan and positive amount while keeping the plan separate from `teams.currentPlanId`.
+
+[[apps/crew/src/server/crew-billing.server.ts]] and [[apps/crew/src/server-fns/crew-billing-fns.ts]] expose local-operator-only Payment Link reference recording and sale reconciliation. Reconciliation appends `crew_billing_events` audit rows, patches only the selected event's `crew_event_settings` billing fields, and still works when Stripe metadata is missing because the operator supplies the event, team scope, plan, amount, and currency.
+
 ## Server Function Runtime Boundary
 
 Route and client code import lightweight `createServerFn` wrappers from [[apps/crew/src/server-fns]].

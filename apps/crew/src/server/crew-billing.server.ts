@@ -1,6 +1,7 @@
 // @lat: [[crew#Crew Billing State And Audit]]
 // @lat: [[crew#Manual Paid And Founder Grants]]
 // @lat: [[crew#Billing Page And Upgrade CTA]]
+// @lat: [[crew#Stripe Payment Link Sales]]
 import { env } from "cloudflare:workers"
 import { desc, eq } from "drizzle-orm"
 import { getDb } from "../db"
@@ -23,7 +24,6 @@ import {
   canViewCrewBillingPage,
   type CrewBillingPageViewModel,
 } from "../lib/crew/billing-page"
-import { safeHttpUrl } from "../lib/safe-url"
 import {
   type CrewBillingAuditEvent,
   type CrewBillingAppendPlan,
@@ -35,6 +35,13 @@ import {
   type CrewBillingPlanId,
   type CrewBillingStateSnapshot,
 } from "../lib/crew/billing-state"
+import {
+  buildCrewPaymentLinkSaleActionInput,
+  getCrewPaymentLinkUrlFromSettings,
+  hasCrewPaymentLinkReference,
+  normalizeCrewPaymentLinkReference,
+  serializeCrewPaymentLinkSettings,
+} from "../lib/crew/payment-link-sales"
 import { getSessionFromCookie } from "../utils/auth"
 import {
   hasLocalCrewOperatorAccess,
@@ -54,6 +61,24 @@ export interface RecordCrewBillingEventInput extends GetCrewBillingInput {
   refundedCents?: number | null
   stripePaymentLinkId?: string | null
   stripeCheckoutSessionId?: string | null
+  stripePaymentIntentId?: string | null
+  idempotencyKey?: string | null
+  actorUserId?: string | null
+  actorLabel?: string | null
+  publicNote?: string | null
+  privateMetadata?: Record<string, unknown> | null
+}
+
+export interface RecordCrewPaymentLinkInput extends GetCrewBillingInput {
+  paymentLinkReference?: string | null
+  paymentLinkUrl?: string | null
+}
+
+export interface ReconcileCrewPaymentLinkSaleInput
+  extends RecordCrewPaymentLinkInput {
+  planId: CrewBillingPlanId
+  amountCents: number
+  currency?: string | null
   stripePaymentIntentId?: string | null
   idempotencyKey?: string | null
   actorUserId?: string | null
@@ -199,11 +224,77 @@ export async function recordManualCrewBillingAction(
   return persistCrewBillingAppend(data, appendPlan)
 }
 
+export async function recordCrewPaymentLinkReference(
+  data: RecordCrewPaymentLinkInput,
+): Promise<CrewBillingPageData> {
+  requireLocalCrewOperatorAccess("Crew billing")
+
+  const scope = await requireCrewBillingScope(data.eventId)
+  const paymentLink = normalizeCrewPaymentLinkReference(data)
+  if (!hasCrewPaymentLinkReference(paymentLink)) {
+    throw new Error("Crew Payment Link recording requires a reference or URL.")
+  }
+
+  await updateCrewPaymentLinkSettings({
+    eventId: data.eventId,
+    settingsText: serializeCrewPaymentLinkSettings(scope.settingsText, data),
+    paymentLinkReference: paymentLink.reference ?? undefined,
+  })
+
+  return getCrewBillingPage(data)
+}
+
+export async function reconcileCrewPaymentLinkSale(
+  data: ReconcileCrewPaymentLinkSaleInput,
+): Promise<CrewBillingPageData> {
+  requireLocalCrewOperatorAccess("Crew billing")
+
+  const scope = await requireCrewBillingScope(data.eventId)
+  const current = toCrewBillingSnapshot(scope)
+  const existingEvents = await listCrewBillingEventsForEvent(data.eventId)
+  const paymentLink = normalizeCrewPaymentLinkReference(data)
+  const appendPlan = planManualCrewBillingAction(
+    existingEvents,
+    buildCrewPaymentLinkSaleActionInput({
+      ...data,
+      eventId: scope.id,
+      organizingTeamId: scope.organizingTeamId,
+      current,
+    }),
+  )
+
+  return persistCrewBillingAppend(data, appendPlan, {
+    settingsText: hasCrewPaymentLinkReference(paymentLink)
+      ? serializeCrewPaymentLinkSettings(scope.settingsText, data)
+      : undefined,
+    paymentLinkReference: paymentLink.reference ?? undefined,
+    current,
+  })
+}
+
 async function persistCrewBillingAppend(
   data: GetCrewBillingInput,
   appendPlan: CrewBillingAppendPlan,
+  options: {
+    settingsText?: string | null
+    paymentLinkReference?: string | null
+    current?: CrewBillingStateSnapshot
+  } = {},
 ) {
   if (appendPlan.action === "skip_duplicate") {
+    if (
+      options.settingsText !== undefined ||
+      options.paymentLinkReference !== undefined
+    ) {
+      await updateCrewPaymentLinkSettings({
+        eventId: data.eventId,
+        settingsText: options.settingsText,
+        paymentLinkReference:
+          options.paymentLinkReference ??
+          options.current?.stripe.paymentLinkId ??
+          null,
+      })
+    }
     return getCrewBillingPage(data)
   }
 
@@ -219,6 +310,9 @@ async function persistCrewBillingAppend(
         .update(crewEventSettingsTable)
         .set({
           ...settingsPatch,
+          ...(options.settingsText !== undefined
+            ? { settings: options.settingsText }
+            : {}),
           updatedAt: new Date(),
         })
         .where(eq(crewEventSettingsTable.competitionId, data.eventId))
@@ -231,6 +325,30 @@ async function persistCrewBillingAppend(
   }
 
   return getCrewBillingPage(data)
+}
+
+async function updateCrewPaymentLinkSettings({
+  eventId,
+  settingsText,
+  paymentLinkReference,
+}: {
+  eventId: string
+  settingsText?: string | null
+  paymentLinkReference?: string | null
+}) {
+  if (settingsText === undefined && paymentLinkReference === undefined) return
+
+  const db = getDb()
+  await db
+    .update(crewEventSettingsTable)
+    .set({
+      ...(settingsText !== undefined ? { settings: settingsText } : {}),
+      ...(paymentLinkReference !== undefined
+        ? { crewStripePaymentLinkId: paymentLinkReference }
+        : {}),
+      updatedAt: new Date(),
+    })
+    .where(eq(crewEventSettingsTable.competitionId, eventId))
 }
 
 async function requireCrewBillingScope(
@@ -410,55 +528,6 @@ function toCrewBillingJsonValue(
   }
 
   return undefined
-}
-
-function getCrewPaymentLinkUrlFromSettings(settingsText: string | null) {
-  const settings = parseSettingsObject(settingsText)
-  if (!settings) return null
-
-  const candidates = [
-    getNestedString(settings, ["billing", "paymentLinkUrl"]),
-    getNestedString(settings, ["billing", "crewPaymentLinkUrl"]),
-    getNestedString(settings, ["crewBilling", "paymentLinkUrl"]),
-    getNestedString(settings, ["crewBilling", "crewPaymentLinkUrl"]),
-    getNestedString(settings, ["paymentLinkUrl"]),
-    getNestedString(settings, ["crewPaymentLinkUrl"]),
-  ]
-
-  for (const candidate of candidates) {
-    const safeUrl = safeHttpUrl(candidate)
-    if (safeUrl) return safeUrl
-  }
-
-  return null
-}
-
-function parseSettingsObject(settingsText: string | null) {
-  if (!settingsText) return null
-
-  try {
-    const parsed: unknown = JSON.parse(settingsText)
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : null
-  } catch {
-    return null
-  }
-}
-
-function getNestedString(
-  object: Record<string, unknown>,
-  path: string[],
-): string | null {
-  let current: unknown = object
-  for (const key of path) {
-    if (!current || typeof current !== "object" || Array.isArray(current)) {
-      return null
-    }
-    current = (current as Record<string, unknown>)[key]
-  }
-
-  return typeof current === "string" ? current : null
 }
 
 function isCrewStripeCheckoutEnabled() {

@@ -1,6 +1,7 @@
 // @lat: [[crew#Server Function Runtime Boundary]]
 // @lat: [[crew#Manual Paid And Founder Grants]]
 // @lat: [[crew#Billing Page And Upgrade CTA]]
+// @lat: [[crew#Stripe Payment Link Sales]]
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
 import { CREW_BILLING_EVENT_TYPE } from "../db/schemas/crew-billing-events"
@@ -38,6 +39,10 @@ const nullableTextSchema = z
   .nullable()
   .optional()
 const privateMetadataSchema = z.record(z.string(), z.unknown()).nullable()
+const paymentLinkReferenceInputSchema = z.object({
+  paymentLinkReference: nullableTextSchema,
+  paymentLinkUrl: nullableTextSchema,
+})
 
 const recordCrewBillingEventInputSchema = getCrewBillingInputSchema.extend({
   eventType: crewBillingEventTypeSchema,
@@ -80,7 +85,8 @@ const recordManualCrewBillingActionBaseInputSchema =
 const optionalManualCrewBillingActionInputSchema = (
   action: Exclude<
     ManualCrewBillingActionType,
-    typeof MANUAL_CREW_BILLING_ACTION.RECORD_MANUAL_PAID
+    | typeof MANUAL_CREW_BILLING_ACTION.RECORD_MANUAL_PAID
+    | typeof MANUAL_CREW_BILLING_ACTION.RECONCILE_PAYMENT_LINK_SALE
   >,
 ) =>
   recordManualCrewBillingActionBaseInputSchema.extend({
@@ -100,6 +106,17 @@ const recordManualCrewBillingActionInputSchema = z.discriminatedUnion(
         .int()
         .positive("Manual paid Crew billing requires a positive amount."),
     }),
+    recordManualCrewBillingActionBaseInputSchema.extend({
+      action: z.literal(
+        MANUAL_CREW_BILLING_ACTION.RECONCILE_PAYMENT_LINK_SALE,
+      ),
+      planId: crewBillingPlanIdSchema,
+      amountCents: z
+        .number()
+        .int()
+        .positive("Payment Link Crew billing requires a positive amount."),
+      stripePaymentLinkId: nullableTextSchema,
+    }),
     optionalManualCrewBillingActionInputSchema(
       MANUAL_CREW_BILLING_ACTION.APPLY_FOUNDER_GRANT,
     ),
@@ -117,6 +134,26 @@ const recordManualCrewBillingActionInputSchema = z.discriminatedUnion(
     ),
   ],
 )
+
+const recordCrewPaymentLinkInputSchema = getCrewBillingInputSchema.merge(
+  paymentLinkReferenceInputSchema,
+)
+
+const reconcileCrewPaymentLinkSaleInputSchema =
+  recordCrewPaymentLinkInputSchema.extend({
+    planId: crewBillingPlanIdSchema,
+    amountCents: z
+      .number()
+      .int()
+      .positive("Payment Link Crew billing requires a positive amount."),
+    currency: nullableTextSchema,
+    stripePaymentIntentId: nullableTextSchema,
+    idempotencyKey: nullableTextSchema,
+    actorUserId: nullableTextSchema,
+    actorLabel: nullableTextSchema,
+    publicNote: nullableTextSchema,
+    privateMetadata: privateMetadataSchema.optional(),
+  })
 
 export const getCrewBillingPageFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => getCrewBillingInputSchema.parse(data))
@@ -156,4 +193,30 @@ export const recordManualCrewBillingActionFn = createServerFn({
       "../server/crew-billing.server"
     )
     return recordManualCrewBillingAction(data)
+  })
+
+export const recordCrewPaymentLinkReferenceFn = createServerFn({
+  method: "POST",
+})
+  .inputValidator((data: unknown) =>
+    recordCrewPaymentLinkInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { recordCrewPaymentLinkReference } = await import(
+      "../server/crew-billing.server"
+    )
+    return recordCrewPaymentLinkReference(data)
+  })
+
+export const reconcileCrewPaymentLinkSaleFn = createServerFn({
+  method: "POST",
+})
+  .inputValidator((data: unknown) =>
+    reconcileCrewPaymentLinkSaleInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { reconcileCrewPaymentLinkSale } = await import(
+      "../server/crew-billing.server"
+    )
+    return reconcileCrewPaymentLinkSale(data)
   })
