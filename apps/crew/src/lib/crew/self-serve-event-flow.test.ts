@@ -1,6 +1,8 @@
 // @lat: [[crew#Guided Setup State]]
 // @lat: [[crew#Volunteer Self Service]]
 // @lat: [[crew#Event Day Export Packet]]
+// @lat: [[crew#Copy Prior Event Setup]]
+// @lat: [[crew#Department Leads]]
 import { describe, expect, it } from "vitest"
 import {
   CREW_ASSIGNMENT_CONFIRMATION_STATUS,
@@ -12,6 +14,17 @@ import {
   buildCrewAssignmentEmailIdempotencyKey,
   resolveCrewAssignmentConfirmationResponse,
 } from "./assignment-confirmations"
+import {
+  buildCrewCopyPriorEventPreview,
+  type CrewCopyPriorEventPlanInput,
+  serializeCrewCopyPriorEventSettings,
+} from "./copy-prior-event"
+import {
+  assertCrewDepartmentLeadCanManageShift,
+  filterCrewDepartmentLeadRoster,
+  filterCrewDepartmentLeadShifts,
+  normalizeCrewDepartmentLeadScope,
+} from "./department-leads"
 import { buildCrewPilotExports } from "./exports/pilot-exports"
 import type { CrewGuidedSetupFacts } from "./guided-setup"
 import { buildCrewGuidedSetupState } from "./guided-setup"
@@ -28,6 +41,7 @@ import type { CrewRoleShiftTemplate } from "./templates/types"
 import {
   buildCrewVolunteerSelfServiceIcs,
   buildCrewVolunteerSelfServiceSchedule,
+  resolveCrewVolunteerSelfServiceContactUpdate,
 } from "./volunteer-self-service"
 
 describe("Crew self-serve event flow", () => {
@@ -108,6 +122,68 @@ describe("Crew self-serve event flow", () => {
       sourcePlatform: "competition corner",
     })
 
+    const copyPriorPreview = buildCrewCopyPriorEventPreview(copyPriorEventInput)
+    expect(copyPriorPreview.canApply).toBe(true)
+    expect(copyPriorPreview.plan.dateShiftDays).toBe(61)
+    expect(copyPriorPreview.plan.venuesToCreate).toMatchObject([
+      { sourceVenueId: "venue_source", name: "Competition floor" },
+    ])
+    expect(copyPriorPreview.plan.heatsToCreate).toHaveLength(1)
+    expect(
+      copyPriorPreview.plan.heatsToCreate[0]?.scheduledTime?.toISOString(),
+    ).toBe("2026-08-14T15:00:00.000Z")
+    expect(copyPriorPreview.plan.shiftsToCreate).toMatchObject([
+      {
+        sourceShiftId: "shift_source_checkin",
+        name: "Volunteer check-in",
+      },
+    ])
+    expect(copyPriorPreview.plan.assumptionsToWrite).toBe(
+      "Copy one floor and one judge block.",
+    )
+    expect(
+      copyPriorPreview.summary.find(
+        (item) => item.category === "volunteer_identity",
+      ),
+    ).toMatchObject({ status: "deny", count: 2 })
+    expect(
+      copyPriorPreview.summary.find(
+        (item) => item.category === "judge_assignments",
+      ),
+    ).toMatchObject({ status: "deny", count: 1 })
+
+    const copiedSettings = serializeCrewCopyPriorEventSettings(
+      JSON.stringify({
+        guidedSetup: { steps: { roles: { note: "keep guided" } } },
+        setup: { assumptions: "" },
+      }),
+      {
+        sourceEventId: copyPriorEventInput.sourceEvent.id,
+        sourceEventName: copyPriorEventInput.sourceEvent.name,
+        appliedAt: "2026-08-01T18:00:00.000Z",
+        mode: copyPriorPreview.plan.mode,
+        assumptionsToWrite: copyPriorPreview.plan.assumptionsToWrite,
+        counts: {
+          venues: copyPriorPreview.plan.venuesToCreate.length,
+          tracks: copyPriorPreview.plan.tracksToCreate.length,
+          trackWorkouts: copyPriorPreview.plan.trackWorkoutsToCreate.length,
+          heats: copyPriorPreview.plan.heatsToCreate.length,
+          shifts: copyPriorPreview.plan.shiftsToCreate.length,
+        },
+      },
+    )
+    expect(JSON.parse(copiedSettings)).toMatchObject({
+      guidedSetup: { steps: { roles: { note: "keep guided" } } },
+      setup: {
+        assumptions: "Copy one floor and one judge block.",
+        checklist: { staffingPlanDrafted: true },
+      },
+      copyPriorEvent: {
+        sourceEventId: "comp_prior_self_serve",
+        sourceEventName: "Prior Self Serve Classic",
+      },
+    })
+
     const responseAt = new Date("2026-08-01T18:00:00.000Z")
     const response = resolveCrewAssignmentConfirmationResponse(
       {
@@ -143,6 +219,30 @@ describe("Crew self-serve event flow", () => {
     expect(buildCrewAssignmentEmailIdempotencyKey("conf_checkin", 0)).toBe(
       "crew-confirmation-conf_checkin-0",
     )
+
+    const contactUpdate = resolveCrewVolunteerSelfServiceContactUpdate(
+      JSON.stringify({
+        signupEmail: "old@example.com",
+        signupName: "Old Name",
+        availability: { friday: ["morning"] },
+      }),
+      {
+        email: " CASEY@EXAMPLE.COM ",
+        name: "Casey Check",
+        phone: " 555-0101 ",
+        availability: { friday: ["morning"], saturday: ["afternoon"] },
+        availabilityNotes: "Can judge after check-in.",
+        credentials: "L1",
+      },
+    )
+    expect(contactUpdate.changed).toBe(true)
+    expect(contactUpdate.metadata).toMatchObject({
+      signupEmail: "casey@example.com",
+      signupName: "Casey Check",
+      signupPhone: "555-0101",
+      availabilityNotes: "Can judge after check-in.",
+      credentials: "L1",
+    })
 
     const volunteerSchedule = buildCrewVolunteerSelfServiceSchedule({
       membershipId: "member_casey",
@@ -196,6 +296,69 @@ describe("Crew self-serve event flow", () => {
         generatedAt: responseAt,
       }),
     ).toContain("SUMMARY:Self Serve Classic: Volunteer check-in")
+
+    const departmentLeadScope = normalizeCrewDepartmentLeadScope({
+      id: "cdlead_judges_floor",
+      roleType: VOLUNTEER_ROLE_TYPES.JUDGE,
+      startsAt: "2026-08-14T14:00:00.000Z",
+      endsAt: "2026-08-14T18:00:00.000Z",
+      scope: { floors: ["Competition floor"] },
+    })
+    const departmentLeadAccess = {
+      kind: "department_lead" as const,
+      scopes: [departmentLeadScope],
+    }
+    const leadVisibleShifts = filterCrewDepartmentLeadShifts(
+      [
+        {
+          id: "shift_judges",
+          roleType: VOLUNTEER_ROLE_TYPES.JUDGE,
+          location: "Competition floor",
+          startTime: "2026-08-14T15:00:00.000Z",
+          endTime: "2026-08-14T18:00:00.000Z",
+          assignments: [{ membershipId: "member_casey" }],
+        },
+        {
+          id: "shift_checkin",
+          roleType: VOLUNTEER_ROLE_TYPES.CHECK_IN,
+          location: "Front desk",
+          startTime: "2026-08-14T14:00:00.000Z",
+          endTime: "2026-08-14T16:00:00.000Z",
+          assignments: [{ membershipId: "member_checkin_hidden" }],
+        },
+      ],
+      departmentLeadAccess,
+    )
+    expect(leadVisibleShifts.map((shift) => shift.id)).toEqual(["shift_judges"])
+    expect(
+      filterCrewDepartmentLeadRoster(
+        [
+          {
+            membershipId: "member_jules",
+            roleTypes: [VOLUNTEER_ROLE_TYPES.JUDGE],
+          },
+          {
+            membershipId: "member_casey",
+            roleTypes: [VOLUNTEER_ROLE_TYPES.CHECK_IN],
+          },
+          {
+            membershipId: "member_checkin_hidden",
+            roleTypes: [VOLUNTEER_ROLE_TYPES.CHECK_IN],
+          },
+        ],
+        departmentLeadAccess,
+        leadVisibleShifts,
+      ).map((volunteer) => volunteer.membershipId),
+    ).toEqual(["member_jules", "member_casey"])
+    expect(() =>
+      assertCrewDepartmentLeadCanManageShift(departmentLeadAccess, {
+        id: "shift_checkin",
+        roleType: VOLUNTEER_ROLE_TYPES.CHECK_IN,
+        location: "Front desk",
+        startTime: "2026-08-14T14:00:00.000Z",
+        endTime: "2026-08-14T16:00:00.000Z",
+      }),
+    ).toThrow("Department lead scope")
 
     const exports = buildCrewPilotExports({
       event,
@@ -341,6 +504,113 @@ const selfServeTemplate: CrewRoleShiftTemplate = {
     },
   ],
   staffingAssumptions: "One check-in owner and one judge per lane.",
+}
+
+const copyPriorEventInput: CrewCopyPriorEventPlanInput = {
+  mode: "empty_target_only",
+  sourceEvent: {
+    id: "comp_prior_self_serve",
+    name: "Prior Self Serve Classic",
+    organizingTeamId: "team_self_serve",
+    startDate: "2026-06-14",
+    endDate: "2026-06-14",
+    timezone: "America/Denver",
+    settingsText: JSON.stringify({
+      setup: { assumptions: "Copy one floor and one judge block." },
+    }),
+  },
+  targetEvent: {
+    id: "comp_self_serve",
+    name: "Self Serve Classic",
+    organizingTeamId: "team_self_serve",
+    startDate: "2026-08-14",
+    endDate: "2026-08-14",
+    timezone: "America/Denver",
+    settingsText: JSON.stringify({
+      setup: { assumptions: "" },
+    }),
+  },
+  source: {
+    venues: [
+      {
+        id: "venue_source",
+        name: "Competition floor",
+        laneCount: 2,
+        transitionMinutes: 4,
+        sortOrder: 1,
+      },
+    ],
+    tracks: [
+      {
+        id: "track_source",
+        name: "Competition events",
+        description: "Copied event structure",
+        type: "team_owned",
+        scalingGroupId: "sgrp_self_serve",
+        isPublic: 0,
+      },
+    ],
+    trackWorkouts: [
+      {
+        id: "trwk_source",
+        trackId: "track_source",
+        workoutId: "workout_fran",
+        workoutName: "Fran",
+        workoutDescription: "21-15-9",
+        workoutScope: "private",
+        workoutScheme: "time",
+        workoutScoreType: "min",
+        workoutRepsPerRound: null,
+        workoutRoundsToScore: null,
+        workoutTiebreakScheme: null,
+        workoutTimeCap: 600,
+        workoutScalingGroupId: "sgrp_self_serve",
+        parentEventId: null,
+        trackOrder: 1,
+        notes: "Copied event shell only.",
+        pointsMultiplier: 100,
+        defaultHeatsCount: 1,
+        defaultLaneShiftPattern: "same_lane",
+        minHeatBuffer: 2,
+      },
+    ],
+    heats: [
+      {
+        id: "heat_source",
+        trackWorkoutId: "trwk_source",
+        venueId: "venue_source",
+        heatNumber: 1,
+        scheduledTime: "2026-06-14T15:00:00.000Z",
+        durationMinutes: 12,
+        notes: "Shifted to target event date.",
+      },
+    ],
+    shifts: [
+      {
+        id: "shift_source_checkin",
+        name: "Volunteer check-in",
+        roleType: VOLUNTEER_ROLE_TYPES.CHECK_IN,
+        startTime: "2026-06-14T14:00:00.000Z",
+        endTime: "2026-06-14T16:00:00.000Z",
+        location: "Front desk",
+        capacity: 1,
+        notes: "Keep the station, not historical volunteers.",
+      },
+    ],
+    deniedCounts: {
+      volunteerIdentities: 2,
+      judgeAssignments: 1,
+      imports: 1,
+      payments: 0,
+      messages: 0,
+    },
+  },
+  targetExistingCounts: {
+    venues: 0,
+    tracks: 0,
+    heats: 0,
+    shifts: 0,
+  },
 }
 
 const readySetup: CrewSetupState = {
