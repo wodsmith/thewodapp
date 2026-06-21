@@ -22,6 +22,7 @@ import {
 import { teamTable } from "./teams"
 import { userTable } from "./users"
 
+// @lat: [[crew#Crew Billing State And Audit]]
 export const CREW_BILLING_EVENT_TYPE = {
   MANUAL_SALE_RECORDED: "manual_sale_recorded",
   PAYMENT_LINK_RECONCILED: "payment_link_reconciled",
@@ -33,11 +34,14 @@ export const CREW_BILLING_EVENT_TYPE = {
   EVENT_COMPED: "event_comped",
 } as const
 
+// @lat: [[crew#Crew Billing State And Audit]]
 export type CrewBillingEventType =
   (typeof CREW_BILLING_EVENT_TYPE)[keyof typeof CREW_BILLING_EVENT_TYPE]
 
+// @lat: [[crew#Crew Billing State And Audit]]
 export type CrewBillingPrivateMetadata = Record<string, unknown>
 
+// @lat: [[crew#Crew Billing State And Audit]]
 export const crewBillingEventsTable = mysqlTable(
   "crew_billing_events",
   {
@@ -88,6 +92,7 @@ export const crewBillingEventsTable = mysqlTable(
   ],
 )
 
+// @lat: [[crew#Crew Billing State And Audit]]
 export const crewBillingEventsRelations = relations(
   crewBillingEventsTable,
   ({ one }) => ({
@@ -110,5 +115,7 @@ export const crewBillingEventsRelations = relations(
   }),
 )
 
+// @lat: [[crew#Crew Billing State And Audit]]
 export type CrewBillingEvent = InferSelectModel<typeof crewBillingEventsTable>
+// @lat: [[crew#Crew Billing State And Audit]]
 export type NewCrewBillingEvent = typeof crewBillingEventsTable.$inferInsert

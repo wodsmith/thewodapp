@@ -1,5 +1,5 @@
 // @lat: [[crew#Crew Billing State And Audit]]
-import { and, desc, eq } from "drizzle-orm"
+import { desc, eq } from "drizzle-orm"
 import { getDb } from "../db"
 import {
   type CrewBillingEvent,
@@ -15,6 +15,7 @@ import {
 import { competitionsTable } from "../db/schemas/competitions"
 import {
   type CrewBillingAuditEvent,
+  isCrewBillingDuplicateEntryError,
   normalizeCrewBillingState,
   planCrewBillingAuditAppend,
   type CrewBillingPlanId,
@@ -91,45 +92,34 @@ export async function recordCrewBillingEvent(
   const db = getDb()
   const scope = await requireCrewBillingScope(data.eventId)
   const current = toCrewBillingSnapshot(scope)
-  const existingEvents = data.idempotencyKey
-    ? await db
-        .select({
-          eventType: crewBillingEventsTable.eventType,
-          idempotencyKey: crewBillingEventsTable.idempotencyKey,
-        })
-        .from(crewBillingEventsTable)
-        .where(
-          and(
-            eq(crewBillingEventsTable.competitionId, data.eventId),
-            eq(crewBillingEventsTable.eventType, data.eventType),
-            eq(crewBillingEventsTable.idempotencyKey, data.idempotencyKey),
-          ),
-        )
-    : []
-
-  const appendPlan = planCrewBillingAuditAppend(existingEvents, {
+  const appendPlan = planCrewBillingAuditAppend([], {
     ...data,
     competitionId: data.eventId,
     teamId: scope.organizingTeamId,
     current,
   })
 
-  if (appendPlan.action === "skip_duplicate") {
-    return getCrewBillingPage(data)
-  }
-
   const { event, settingsPatch } = appendPlan
 
-  await db.transaction(async (tx) => {
-    await tx.insert(crewBillingEventsTable).values(toNewCrewBillingEvent(event))
-    await tx
-      .update(crewEventSettingsTable)
-      .set({
-        ...settingsPatch,
-        updatedAt: new Date(),
-      })
-      .where(eq(crewEventSettingsTable.competitionId, data.eventId))
-  })
+  try {
+    await db.transaction(async (tx) => {
+      await tx
+        .insert(crewBillingEventsTable)
+        .values(toNewCrewBillingEvent(event))
+      await tx
+        .update(crewEventSettingsTable)
+        .set({
+          ...settingsPatch,
+          updatedAt: new Date(),
+        })
+        .where(eq(crewEventSettingsTable.competitionId, data.eventId))
+    })
+  } catch (error) {
+    if (data.idempotencyKey && isCrewBillingDuplicateEntryError(error)) {
+      return getCrewBillingPage(data)
+    }
+    throw error
+  }
 
   return getCrewBillingPage(data)
 }

@@ -270,6 +270,26 @@ export function planCrewBillingAuditAppend(
   }
 }
 
+export function isCrewBillingDuplicateEntryError(error: unknown) {
+  if (!error || typeof error !== "object") return false
+
+  const candidate = error as {
+    code?: unknown
+    errno?: unknown
+    message?: unknown
+    cause?: unknown
+  }
+
+  return (
+    candidate.code === "ER_DUP_ENTRY" ||
+    candidate.errno === 1062 ||
+    (typeof candidate.message === "string" &&
+      candidate.message.includes("Duplicate entry")) ||
+    (candidate.cause !== error &&
+      isCrewBillingDuplicateEntryError(candidate.cause))
+  )
+}
+
 function normalizeBillingState(state: unknown): CrewBillingState {
   return Object.values(CREW_BILLING_STATE).includes(state as CrewBillingState)
     ? (state as CrewBillingState)

@@ -44,6 +44,7 @@ export const CREW_PLAN = {
 
 export type CrewPlan = (typeof CREW_PLAN)[keyof typeof CREW_PLAN]
 
+// @lat: [[crew#Crew Billing State And Audit]]
 export const CREW_BILLING_STATE = {
   UNPAID: "unpaid",
   PENDING: "pending",
@@ -53,9 +54,11 @@ export const CREW_BILLING_STATE = {
   REFUNDED: "refunded",
 } as const
 
+// @lat: [[crew#Crew Billing State And Audit]]
 export type CrewBillingState =
   (typeof CREW_BILLING_STATE)[keyof typeof CREW_BILLING_STATE]
 
+// @lat: [[crew#Crew Billing State And Audit]]
 export const CREW_BILLING_SOURCE = {
   MANUAL_SALES: "manual_sales",
   PAYMENT_LINK: "payment_link",
@@ -65,6 +68,7 @@ export const CREW_BILLING_SOURCE = {
   COMP: "comp",
 } as const
 
+// @lat: [[crew#Crew Billing State And Audit]]
 export type CrewBillingSource =
   (typeof CREW_BILLING_SOURCE)[keyof typeof CREW_BILLING_SOURCE]
 
@@ -93,9 +97,10 @@ export const crewEventSettingsTable = mysqlTable(
       .$type<CrewPlan>()
       .default("self_serve")
       .notNull(),
+    // @lat: [[crew#Crew Billing State And Audit]]
     crewBillingState: varchar({ length: 30 })
       .$type<CrewBillingState>()
-      .default("unpaid")
+      .default(CREW_BILLING_STATE.UNPAID)
       .notNull(),
     crewBillingSource: varchar({ length: 40 }).$type<CrewBillingSource>(),
     crewBillingPlanId: varchar({ length: 255 }),
@@ -117,6 +122,7 @@ export const crewEventSettingsTable = mysqlTable(
     ),
     index("crew_event_settings_lifecycle_idx").on(table.lifecycle),
     index("crew_event_settings_plan_idx").on(table.crewPlan),
+    // @lat: [[crew#Crew Billing State And Audit]]
     index("crew_event_settings_billing_state_idx").on(table.crewBillingState),
     index("crew_event_settings_billing_source_idx").on(table.crewBillingSource),
     index("crew_event_settings_billing_plan_idx").on(table.crewBillingPlanId),

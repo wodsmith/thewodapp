@@ -8,6 +8,7 @@ import {
 import {
   buildCrewBillingAuditEvent,
   buildCrewBillingSettingsPatch,
+  isCrewBillingDuplicateEntryError,
   normalizeCrewBillingState,
   planCrewBillingAuditAppend,
 } from "./billing-state"
@@ -216,5 +217,26 @@ describe("Crew billing state and audit helpers", () => {
       settingsPatch: null,
     })
     expect(manualFollowUp.action).toBe("append")
+  })
+
+  it("detects MySQL duplicate entry errors for atomic idempotency handling", () => {
+    expect(isCrewBillingDuplicateEntryError({ code: "ER_DUP_ENTRY" })).toBe(
+      true,
+    )
+    expect(isCrewBillingDuplicateEntryError({ errno: 1062 })).toBe(true)
+    expect(
+      isCrewBillingDuplicateEntryError({
+        message:
+          "Duplicate entry 'comp:event:key' for key 'crew_billing_events_idempotency_unique_idx'",
+      }),
+    ).toBe(true)
+
+    expect(
+      isCrewBillingDuplicateEntryError({ code: "ER_BAD_FIELD_ERROR" }),
+    ).toBe(false)
+    expect(isCrewBillingDuplicateEntryError({ sqlState: "23000" })).toBe(false)
+    expect(isCrewBillingDuplicateEntryError(new Error("network timeout"))).toBe(
+      false,
+    )
   })
 })
