@@ -29,6 +29,10 @@ import {
 } from "../db/schemas/competitions"
 import { crewEventSettingsTable } from "../db/schemas/crew-event-settings"
 import {
+  CREW_VOLUNTEER_HISTORY_EVENT_TYPE,
+  CREW_VOLUNTEER_IDENTITY_SOURCE,
+} from "../db/schemas/crew-volunteer-intelligence"
+import {
   crewImportMappingPresetsTable,
   type CrewImportMappingPreset,
 } from "../db/schemas/crew-self-serve-presets"
@@ -95,6 +99,7 @@ import {
 import { parseCompetitionSettings } from "../utils/competition-settings"
 import { DEFAULT_TIMEZONE } from "../utils/timezone-utils"
 import { requireLocalCrewOperatorAccess } from "./crew-local-access"
+import { recordCrewVolunteerHistoryEvent } from "./crew-volunteer-history.server"
 
 export const MAX_CREW_IMPORT_BYTES = 1_000_000
 
@@ -580,6 +585,12 @@ async function applyVolunteerImport({
     existingInvitations,
     existingMemberships,
   })
+  const volunteerRowsByRowNumber = new Map(
+    previewRows.map((row) => [
+      row.rowNumber,
+      row.normalizedRow as VolunteerImportRow,
+    ]),
+  )
   const timestamp = new Date()
 
   await db.transaction(async (tx) => {
@@ -618,6 +629,40 @@ async function applyVolunteerImport({
       }
 
       await updateImportRowAudit(client, importRecord.id, row, timestamp)
+      if (
+        row.action !== "error" &&
+        row.action !== "skip" &&
+        row.targetId &&
+        row.targetType
+      ) {
+        const volunteer = volunteerRowsByRowNumber.get(row.rowNumber)
+        const membership =
+          row.targetType === "team_membership"
+            ? existingMemberships.find(
+                (candidate) => candidate.id === row.targetId,
+              )
+            : null
+        await recordCrewVolunteerHistoryEvent({
+          db: client,
+          teamId: event.organizingTeamId,
+          competitionId: event.id,
+          groupId: event.groupId,
+          eventType: CREW_VOLUNTEER_HISTORY_EVENT_TYPE.IMPORTED,
+          identity: {
+            userId: membership?.userId,
+            email: row.email,
+            phone: volunteer?.phone,
+            sourceMembershipId:
+              row.targetType === "team_membership" ? row.targetId : null,
+            sourceInvitationId:
+              row.targetType === "team_invitation" ? row.targetId : null,
+            identitySource: CREW_VOLUNTEER_IDENTITY_SOURCE.IMPORT,
+          },
+          occurredAt: timestamp,
+          sourceType: "crew_import_row",
+          sourceId: `${importRecord.id}:${row.rowNumber}`,
+        })
+      }
     }
 
     await updateImportApplySummary(
@@ -832,6 +877,7 @@ async function listVolunteerMemberships(
   const rows = await db
     .select({
       id: teamMembershipTable.id,
+      userId: teamMembershipTable.userId,
       email: userTable.email,
       isActive: teamMembershipTable.isActive,
       metadata: teamMembershipTable.metadata,
@@ -1758,6 +1804,7 @@ async function requireCrewEvent(eventId: string) {
       name: competitionsTable.name,
       organizingTeamId: competitionsTable.organizingTeamId,
       competitionTeamId: competitionsTable.competitionTeamId,
+      groupId: competitionsTable.groupId,
       startDate: competitionsTable.startDate,
       timezone: competitionsTable.timezone,
       settings: competitionsTable.settings,

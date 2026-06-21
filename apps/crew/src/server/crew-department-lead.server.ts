@@ -30,6 +30,7 @@ export interface CrewDepartmentLeadEvent {
   id: string
   organizingTeamId: string
   competitionTeamId: string
+  groupId?: string | null
   timezone: string | null
 }
 
@@ -204,6 +205,7 @@ export async function requireCrewDepartmentLeadEvent(
       id: competitionsTable.id,
       organizingTeamId: competitionsTable.organizingTeamId,
       competitionTeamId: competitionsTable.competitionTeamId,
+      groupId: competitionsTable.groupId,
       timezone: competitionsTable.timezone,
     })
     .from(crewEventSettingsTable)
@@ -222,6 +224,7 @@ export async function requireCrewDepartmentLeadEvent(
     id: event.id,
     organizingTeamId: event.organizingTeamId,
     competitionTeamId: event.competitionTeamId,
+    groupId: event.groupId,
     timezone: event.timezone,
   }
 }

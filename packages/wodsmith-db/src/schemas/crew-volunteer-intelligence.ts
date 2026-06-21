@@ -89,6 +89,8 @@ export type CrewVolunteerConsentSource =
   (typeof CREW_VOLUNTEER_CONSENT_SOURCE)[keyof typeof CREW_VOLUNTEER_CONSENT_SOURCE]
 
 export const CREW_VOLUNTEER_HISTORY_EVENT_TYPE = {
+  SIGNED_UP: "signed_up",
+  IMPORTED: "imported",
   ASSIGNED: "assigned",
   CONFIRMED: "confirmed",
   DECLINED: "declined",
