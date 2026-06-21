@@ -18,6 +18,7 @@ This strategy makes the implementation testable without requiring the full histo
 - Seed validation asserts every included test has 10 thresholds per variant and every included test has a matching tagged `trackWorkout`.
 - Seed validation traces test names, categories, units, included/deferred status, and thresholds back to `/Users/zacjones/Downloads/HillerFit_Training_Guide.pdf` or a checked-in extraction receipt.
 - Publish/read validation rejects malformed categories JSON, stale `testCount`, missing thresholds, missing variant tables, and team-sized batteries.
+- Publish/read validation rejects missing or duplicate `benchmarkTestId` mappings so every benchmark test has exactly one scorable event.
 - Submission writes Open division `scalingLevelId` and `scores.benchmarkVariant`.
 - Keep-best-on-write rejects worse/equal retests and accepts better retests.
 - Changed retest clears stale `verificationStatus` and video review status.
@@ -29,6 +30,7 @@ This strategy makes the implementation testable without requiring the full histo
 
 - Leaderboard chooses online visual variant for benchmark through `leaderboardVariant` while avoiding publish gating.
 - Stats tab appears only for `absolute_tier` competitions.
+- Direct `/stats` visits on non-benchmark competitions show unavailable copy, and benchmark load/configuration failures do not render as empty no-score states.
 - Stats page distinguishes untested, attempted tier 0, unavailable config, pending, verified, adjusted, and invalid/excluded states.
 - Route/component/navigation assertions confirm benchmark pages use generic WODsmith benchmark language and do not introduce HillerFit-branded pages, routes, tabs, stats pages, product navigation entries, calls to action, logos, marketing sections, or theme treatments.
 - Static/source review allows HillerFit references only in research docs, seed/provenance metadata, extraction receipts, and source-data tests; app routes/components/navigation must not use HillerFit as customer-facing copy.

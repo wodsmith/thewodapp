@@ -85,11 +85,13 @@ Expose the public benchmark board and per-athlete stat line.
 Acceptance criteria:
 
 - Leaderboard loads benchmark battery and thresholds once per request, not per event/score.
+- Leaderboard fails closed if benchmark tests and scorable events are not a one-to-one mirror.
 - Benchmark event results include tier and category.
 - Valid benchmark scores are visible without organizer publish actions.
 - Invalid scores remain excluded from public reads.
 - Public leaderboard ranks one Open division by Overall/100 and displays rating band/category fields.
 - Stats route renders Overall/100, category scores, per-test grid, and verification states.
+- Stats route distinguishes benchmark load/configuration errors from empty no-score states.
 - Benchmark-visible copy does not imply a normal online competition with submission windows.
 - Benchmark-visible copy remains generic WODsmith benchmark language, not HillerFit-branded page, route, navigation, stats, CTA, or marketing copy.
 - Global branding acceptance criteria pass for this leaderboard/stats slice.

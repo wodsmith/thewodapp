@@ -1,7 +1,14 @@
 "use client"
 
 import { Link, useLocation, useNavigate } from "@tanstack/react-router"
-import { Calendar, Dumbbell, List, Megaphone, Trophy } from "lucide-react"
+import {
+  BarChart3,
+  Calendar,
+  Dumbbell,
+  List,
+  Megaphone,
+  Trophy,
+} from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -9,13 +16,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  getEffectiveScoringConfig,
+  parseCompetitionSettings,
+} from "@/types/competitions"
 import { cn } from "@/utils/cn"
 
 interface CompetitionTabsProps {
   slug: string
+  settings?: string | null
 }
 
-const tabs = [
+const baseTabs = [
   { label: "Event Details", href: "", icon: List },
   { label: "Workouts", href: "/workouts", icon: Dumbbell },
   { label: "Schedule", href: "/schedule", icon: Calendar },
@@ -23,11 +35,21 @@ const tabs = [
   { label: "Announcements", href: "/announcements", icon: Megaphone },
 ]
 
-export function CompetitionTabs({ slug }: CompetitionTabsProps) {
+function shouldShowStatsTab(settings: string | null | undefined): boolean {
+  const scoringConfig = getEffectiveScoringConfig(
+    parseCompetitionSettings(settings ?? null),
+  )
+  return scoringConfig?.algorithm === "absolute_tier"
+}
+
+export function CompetitionTabs({ slug, settings }: CompetitionTabsProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const pathname = location.pathname
   const basePath = `/compete/${slug}`
+  const tabs = shouldShowStatsTab(settings)
+    ? [...baseTabs, { label: "Stats", href: "/stats", icon: BarChart3 }]
+    : baseTabs
 
   // Determine active tab value for select
   const getActiveTabValue = () => {

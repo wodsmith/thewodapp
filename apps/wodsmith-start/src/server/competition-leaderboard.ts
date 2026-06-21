@@ -48,6 +48,7 @@ import {
   sortKeyToString,
   type WorkoutScheme,
 } from "@/lib/scoring"
+import { aggregateBenchmarkScores } from "@/lib/scoring/category-aggregation"
 import {
   applyTiebreakers,
   type TiebreakerInput,
@@ -58,6 +59,12 @@ import {
   parseCompetitionSettings,
 } from "@/types/competitions"
 import { getAffiliate } from "@/utils/registration-metadata"
+import {
+  findBenchmarkRatingBand,
+  loadBenchmarkLeaderboardContext,
+  type BenchmarkLeaderboardCategoryScore,
+  type BenchmarkLeaderboardRatingBand,
+} from "./benchmark-leaderboard"
 
 // ============================================================================
 // Types
@@ -84,6 +91,12 @@ export interface CompetitionLeaderboardEntry {
   teamMembers: TeamMemberInfo[]
   /** Affiliate/gym name from registration metadata */
   affiliate: string | null
+  /** Benchmark Overall score on the battery's 0..scoreMax scale. */
+  benchmarkOverallScore: number | null
+  /** Benchmark rating band for the Overall score, if configured. */
+  benchmarkRatingBand: BenchmarkLeaderboardRatingBand | null
+  /** Benchmark category score breakdown, ordered by the battery config. */
+  benchmarkCategoryScores: BenchmarkLeaderboardCategoryScore[]
   eventResults: Array<{
     trackWorkoutId: string
     trackOrder: number
@@ -114,6 +127,16 @@ export interface CompetitionLeaderboardEntry {
     cappedRoundCount: number
     /** Total number of rounds persisted for this score (0 for single-round) */
     totalRoundCount: number
+    /** Raw score verification status, null when not reviewed or not applicable. */
+    verificationStatus: string | null
+    /** Absolute benchmark tier for this event, null when untested or not benchmark-scored. */
+    benchmarkTier: number | null
+    /** Benchmark category key for this event, null outside benchmark scoring. */
+    benchmarkCategoryKey: string | null
+    /** Benchmark category label for this event, null outside benchmark scoring. */
+    benchmarkCategoryLabel: string | null
+    /** Whether this benchmark event contributes to Overall/category scores. */
+    benchmarkIncludedInScoring: boolean | null
     /**
      * Aggregate review status across all video submissions for this event.
      * Partner/team divisions can have multiple videos (one per teammate);
@@ -196,6 +219,9 @@ export interface CompetitionLeaderboardResult {
     parentEventId: string | null
     parentEventName: string | null
     isParentEvent: boolean
+    benchmarkCategoryKey: string | null
+    benchmarkCategoryLabel: string | null
+    benchmarkIncludedInScoring: boolean | null
   }>
 }
 
@@ -205,6 +231,7 @@ export function resolveLeaderboardDivisionResults(params: {
   settings: CompetitionSettings | null | undefined
 }): CompetitionSettings["divisionResults"] | undefined {
   if (params.bypassPublicationFilter) return undefined
+  if (competitionCan(params.competitionType, "perpetual")) return undefined
 
   return (
     params.settings?.divisionResults ??
@@ -258,6 +285,7 @@ async function fetchScores(params: {
       sortKey: scoresTable.sortKey,
       secondaryValue: scoresTable.secondaryValue,
       timeCapMs: scoresTable.timeCapMs,
+      benchmarkVariant: scoresTable.benchmarkVariant,
       verificationStatus: scoresTable.verificationStatus,
       penaltyType: scoresTable.penaltyType,
       penaltyPercentage: scoresTable.penaltyPercentage,
@@ -468,6 +496,8 @@ export async function getCompetitionLeaderboard(params: {
           workoutId: trackWorkoutsTable.workoutId,
           parentEventId: trackWorkoutsTable.parentEventId,
           eventStatus: trackWorkoutsTable.eventStatus,
+          benchmarkTestId: trackWorkoutsTable.benchmarkTestId,
+          benchmarkCategory: trackWorkoutsTable.benchmarkCategory,
           workout: workouts,
         })
         .from(trackWorkoutsTable)
@@ -816,6 +846,14 @@ export async function getCompetitionLeaderboard(params: {
   const scorableEvents = filteredTrackWorkouts.filter(
     (tw) => !childEventIds.has(tw.id),
   )
+  const benchmarkContext = await loadBenchmarkLeaderboardContext({
+    competitionId: params.competitionId,
+    scoringConfig,
+    trackWorkouts: scorableEvents,
+  })
+
+  const getBenchmarkEventMetadata = (trackWorkoutId: string) =>
+    benchmarkContext?.testsByTrackWorkoutId.get(trackWorkoutId) ?? null
 
   logInfo({
     message: "[Leaderboard] Event filtering complete",
@@ -847,6 +885,12 @@ export async function getCompetitionLeaderboard(params: {
           ? (earlyParentNameMap.get(tw.parentEventId) ?? null)
           : null,
         isParentEvent: false,
+        benchmarkCategoryKey:
+          getBenchmarkEventMetadata(tw.id)?.categoryKey ?? null,
+        benchmarkCategoryLabel:
+          getBenchmarkEventMetadata(tw.id)?.categoryLabel ?? null,
+        benchmarkIncludedInScoring:
+          getBenchmarkEventMetadata(tw.id)?.includedInScoring ?? null,
       }))
     logWarning({
       message: "[Leaderboard] No registrations for competition",
@@ -967,9 +1011,14 @@ export async function getCompetitionLeaderboard(params: {
     Array<{ id: string; videoIndex: number; reviewStatus: ReviewStatus }>
   >()
   // Sort so videoIndex 0 (captain) is the representative entry in `videoMap`.
-  const sortedVideoSubmissions = [...videoSubmissions].sort(
-    (a, b) => a.videoIndex - b.videoIndex,
-  )
+  const sortedVideoSubmissions = [...videoSubmissions]
+    .filter(
+      (submission) =>
+        !benchmarkContext ||
+        params.bypassPublicationFilter === true ||
+        submission.reviewStatus !== "invalid",
+    )
+    .sort((a, b) => a.videoIndex - b.videoIndex)
   for (const vs of sortedVideoSubmissions) {
     const key = `${vs.registrationId}:${vs.trackWorkoutId}`
     if (!videoMap.has(key)) {
@@ -1087,6 +1136,9 @@ export async function getCompetitionLeaderboard(params: {
       teamName: reg.registration.teamName,
       teamMembers,
       affiliate: getAffiliate(reg.registration.metadata, reg.user.id),
+      benchmarkOverallScore: null,
+      benchmarkRatingBand: null,
+      benchmarkCategoryScores: [],
       eventResults: [],
     })
   }
@@ -1104,6 +1156,8 @@ export async function getCompetitionLeaderboard(params: {
 
   // Process each scorable event (standalone + children, skip parents)
   for (const trackWorkout of scorableEvents) {
+    const benchmarkEvent = getBenchmarkEventMetadata(trackWorkout.id)
+
     // Get scores for this event, grouped by division.
     //
     // A single (userId, competitionEventId) can have more than one row when a
@@ -1213,6 +1267,7 @@ export async function getCompetitionLeaderboard(params: {
             value: 0,
             status: "dnf" as const,
             sortKey: null,
+            variant: s.benchmarkVariant,
           }
         }
 
@@ -1240,6 +1295,7 @@ export async function getCompetitionLeaderboard(params: {
           value: s.scoreValue ?? 0,
           status: mapScoreStatus(s.status),
           sortKey: sortKeyToString(recomputedSortKey),
+          variant: s.benchmarkVariant,
         }
       })
 
@@ -1250,6 +1306,11 @@ export async function getCompetitionLeaderboard(params: {
         eventScoreInputs,
         scheme,
         scoringConfig,
+        benchmarkContext
+          ? {
+              absoluteTier: benchmarkContext.absoluteTier,
+            }
+          : undefined,
       )
 
       // Apply points multiplier
@@ -1275,7 +1336,10 @@ export async function getCompetitionLeaderboard(params: {
         const pointsResult = pointsMap.get(score.userId)
         const rank = pointsResult?.rank ?? 0
         const basePoints = pointsResult?.points ?? 0
-        const points = Math.round(basePoints * multiplier)
+        const points =
+          scoringConfig.algorithm === "absolute_tier"
+            ? basePoints
+            : Math.round(basePoints * multiplier)
 
         const roundSummary = roundCapSummariesByScoreId.get(score.id) ?? {
           cappedRoundCount: 0,
@@ -1405,6 +1469,12 @@ export async function getCompetitionLeaderboard(params: {
           isParentEvent: false,
           cappedRoundCount: roundSummary.cappedRoundCount,
           totalRoundCount: roundSummary.totalRoundCount,
+          verificationStatus: score.verificationStatus ?? null,
+          benchmarkTier:
+            scoringConfig.algorithm === "absolute_tier" ? points : null,
+          benchmarkCategoryKey: benchmarkEvent?.categoryKey ?? null,
+          benchmarkCategoryLabel: benchmarkEvent?.categoryLabel ?? null,
+          benchmarkIncludedInScoring: benchmarkEvent?.includedInScoring ?? null,
           reviewSummary: buildReviewSummary(
             registration.registration.id,
             trackWorkout.id,
@@ -1472,6 +1542,11 @@ export async function getCompetitionLeaderboard(params: {
           isParentEvent: false,
           cappedRoundCount: 0,
           totalRoundCount: 0,
+          verificationStatus: null,
+          benchmarkTier: null,
+          benchmarkCategoryKey: benchmarkEvent?.categoryKey ?? null,
+          benchmarkCategoryLabel: benchmarkEvent?.categoryLabel ?? null,
+          benchmarkIncludedInScoring: benchmarkEvent?.includedInScoring ?? null,
           reviewSummary: buildReviewSummary(
             reg.registration.id,
             trackWorkout.id,
@@ -1530,6 +1605,11 @@ export async function getCompetitionLeaderboard(params: {
           isParentEvent: false,
           cappedRoundCount: 0,
           totalRoundCount: 0,
+          verificationStatus: null,
+          benchmarkTier: null,
+          benchmarkCategoryKey: benchmarkEvent?.categoryKey ?? null,
+          benchmarkCategoryLabel: benchmarkEvent?.categoryLabel ?? null,
+          benchmarkIncludedInScoring: benchmarkEvent?.includedInScoring ?? null,
           reviewSummary: isEventDivisionPublished(
             trackWorkout.id,
             entry.divisionId,
@@ -1564,6 +1644,38 @@ export async function getCompetitionLeaderboard(params: {
     },
   })
 
+  if (benchmarkContext) {
+    for (const entry of leaderboardMap.values()) {
+      const eventTiers = entry.eventResults
+        .filter(
+          (result) =>
+            result.benchmarkTier !== null &&
+            result.benchmarkCategoryKey !== null,
+        )
+        .map((result) => ({
+          eventId: result.trackWorkoutId,
+          categoryKey: result.benchmarkCategoryKey as string,
+          tier: result.benchmarkTier as number,
+          includedInScoring: result.benchmarkIncludedInScoring ?? true,
+        }))
+
+      const aggregate = aggregateBenchmarkScores({
+        categories: benchmarkContext.categories,
+        eventTiers,
+        maxTier: benchmarkContext.maxTier,
+        scoreMax: benchmarkContext.scoreMax,
+      })
+
+      entry.benchmarkOverallScore = aggregate.overallScore
+      entry.benchmarkCategoryScores = aggregate.categories
+      entry.benchmarkRatingBand = findBenchmarkRatingBand(
+        aggregate.overallScore,
+        benchmarkContext.ratingBands,
+      )
+      entry.totalPoints = aggregate.overallScore
+    }
+  }
+
   // Convert to array and apply tiebreakers for overall ranking
   const leaderboard = Array.from(leaderboardMap.values())
 
@@ -1587,6 +1699,14 @@ export async function getCompetitionLeaderboard(params: {
             .filter((er) => er.rank > 0)
             .map((er) => [er.trackWorkoutId, er.rank]),
         ),
+        benchmarkTiers:
+          scoringConfig.algorithm === "absolute_tier"
+            ? new Map(
+                e.eventResults
+                  .filter((er) => er.benchmarkTier !== null)
+                  .map((er) => [er.trackWorkoutId, er.benchmarkTier as number]),
+              )
+            : undefined,
       })),
       config: scoringConfig.tiebreaker,
       scoringAlgorithm: scoringConfig.algorithm,
@@ -1624,6 +1744,12 @@ export async function getCompetitionLeaderboard(params: {
         ? (parentNameMap.get(tw.parentEventId) ?? null)
         : null,
       isParentEvent: false,
+      benchmarkCategoryKey:
+        getBenchmarkEventMetadata(tw.id)?.categoryKey ?? null,
+      benchmarkCategoryLabel:
+        getBenchmarkEventMetadata(tw.id)?.categoryLabel ?? null,
+      benchmarkIncludedInScoring:
+        getBenchmarkEventMetadata(tw.id)?.includedInScoring ?? null,
     }))
 
   return {

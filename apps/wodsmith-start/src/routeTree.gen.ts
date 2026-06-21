@@ -60,6 +60,7 @@ import { Route as CompeteInviteTokenRouteImport } from './routes/compete/invite/
 import { Route as CompeteCohostCompetitionIdRouteImport } from './routes/compete/cohost/$competitionId'
 import { Route as CompeteCohostInviteTokenRouteImport } from './routes/compete/cohost-invite/$token'
 import { Route as CompeteSlugVolunteerRouteImport } from './routes/compete/$slug/volunteer'
+import { Route as CompeteSlugStatsRouteImport } from './routes/compete/$slug/stats'
 import { Route as CompeteSlugScoresRouteImport } from './routes/compete/$slug/scores'
 import { Route as CompeteSlugScheduleRouteImport } from './routes/compete/$slug/schedule'
 import { Route as CompeteSlugReviewRouteImport } from './routes/compete/$slug/review'
@@ -479,6 +480,11 @@ const CompeteCohostInviteTokenRoute =
 const CompeteSlugVolunteerRoute = CompeteSlugVolunteerRouteImport.update({
   id: '/volunteer',
   path: '/volunteer',
+  getParentRoute: () => CompeteSlugRoute,
+} as any)
+const CompeteSlugStatsRoute = CompeteSlugStatsRouteImport.update({
+  id: '/stats',
+  path: '/stats',
   getParentRoute: () => CompeteSlugRoute,
 } as any)
 const CompeteSlugScoresRoute = CompeteSlugScoresRouteImport.update({
@@ -1465,6 +1471,7 @@ export interface FileRoutesByFullPath {
   '/compete/$slug/review': typeof CompeteSlugReviewRouteWithChildren
   '/compete/$slug/schedule': typeof CompeteSlugScheduleRoute
   '/compete/$slug/scores': typeof CompeteSlugScoresRoute
+  '/compete/$slug/stats': typeof CompeteSlugStatsRoute
   '/compete/$slug/volunteer': typeof CompeteSlugVolunteerRoute
   '/compete/cohost-invite/$token': typeof CompeteCohostInviteTokenRoute
   '/compete/cohost/$competitionId': typeof CompeteCohostCompetitionIdRouteWithChildren
@@ -1669,6 +1676,7 @@ export interface FileRoutesByTo {
   '/compete/$slug/review': typeof CompeteSlugReviewRouteWithChildren
   '/compete/$slug/schedule': typeof CompeteSlugScheduleRoute
   '/compete/$slug/scores': typeof CompeteSlugScoresRoute
+  '/compete/$slug/stats': typeof CompeteSlugStatsRoute
   '/compete/$slug/volunteer': typeof CompeteSlugVolunteerRoute
   '/compete/cohost-invite/$token': typeof CompeteCohostInviteTokenRoute
   '/compete/invite/$token': typeof CompeteInviteTokenRoute
@@ -1873,6 +1881,7 @@ export interface FileRoutesById {
   '/compete/$slug/review': typeof CompeteSlugReviewRouteWithChildren
   '/compete/$slug/schedule': typeof CompeteSlugScheduleRoute
   '/compete/$slug/scores': typeof CompeteSlugScoresRoute
+  '/compete/$slug/stats': typeof CompeteSlugStatsRoute
   '/compete/$slug/volunteer': typeof CompeteSlugVolunteerRoute
   '/compete/cohost-invite/$token': typeof CompeteCohostInviteTokenRoute
   '/compete/cohost/$competitionId': typeof CompeteCohostCompetitionIdRouteWithChildren
@@ -2086,6 +2095,7 @@ export interface FileRouteTypes {
     | '/compete/$slug/review'
     | '/compete/$slug/schedule'
     | '/compete/$slug/scores'
+    | '/compete/$slug/stats'
     | '/compete/$slug/volunteer'
     | '/compete/cohost-invite/$token'
     | '/compete/cohost/$competitionId'
@@ -2290,6 +2300,7 @@ export interface FileRouteTypes {
     | '/compete/$slug/review'
     | '/compete/$slug/schedule'
     | '/compete/$slug/scores'
+    | '/compete/$slug/stats'
     | '/compete/$slug/volunteer'
     | '/compete/cohost-invite/$token'
     | '/compete/invite/$token'
@@ -2493,6 +2504,7 @@ export interface FileRouteTypes {
     | '/compete/$slug/review'
     | '/compete/$slug/schedule'
     | '/compete/$slug/scores'
+    | '/compete/$slug/stats'
     | '/compete/$slug/volunteer'
     | '/compete/cohost-invite/$token'
     | '/compete/cohost/$competitionId'
@@ -3054,6 +3066,13 @@ declare module '@tanstack/react-router' {
       path: '/volunteer'
       fullPath: '/compete/$slug/volunteer'
       preLoaderRoute: typeof CompeteSlugVolunteerRouteImport
+      parentRoute: typeof CompeteSlugRoute
+    }
+    '/compete/$slug/stats': {
+      id: '/compete/$slug/stats'
+      path: '/stats'
+      fullPath: '/compete/$slug/stats'
+      preLoaderRoute: typeof CompeteSlugStatsRouteImport
       parentRoute: typeof CompeteSlugRoute
     }
     '/compete/$slug/scores': {
@@ -4423,6 +4442,7 @@ interface CompeteSlugRouteChildren {
   CompeteSlugReviewRoute: typeof CompeteSlugReviewRouteWithChildren
   CompeteSlugScheduleRoute: typeof CompeteSlugScheduleRoute
   CompeteSlugScoresRoute: typeof CompeteSlugScoresRoute
+  CompeteSlugStatsRoute: typeof CompeteSlugStatsRoute
   CompeteSlugVolunteerRoute: typeof CompeteSlugVolunteerRoute
   CompeteSlugIndexRoute: typeof CompeteSlugIndexRoute
   CompeteSlugClaimTokenRoute: typeof CompeteSlugClaimTokenRouteWithChildren
@@ -4444,6 +4464,7 @@ const CompeteSlugRouteChildren: CompeteSlugRouteChildren = {
   CompeteSlugReviewRoute: CompeteSlugReviewRouteWithChildren,
   CompeteSlugScheduleRoute: CompeteSlugScheduleRoute,
   CompeteSlugScoresRoute: CompeteSlugScoresRoute,
+  CompeteSlugStatsRoute: CompeteSlugStatsRoute,
   CompeteSlugVolunteerRoute: CompeteSlugVolunteerRoute,
   CompeteSlugIndexRoute: CompeteSlugIndexRoute,
   CompeteSlugClaimTokenRoute: CompeteSlugClaimTokenRouteWithChildren,
@@ -4926,12 +4947,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

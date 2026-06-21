@@ -181,7 +181,10 @@ function CompetitionOverviewPage() {
       <div className="space-y-4">
         {/* Sticky Tabs */}
         <div className="sticky top-4 z-10">
-          <CompetitionTabs slug={competition.slug} />
+          <CompetitionTabs
+            slug={competition.slug}
+            settings={competition.settings}
+          />
         </div>
 
         {/* Score panel — desktop only (in main column) */}
