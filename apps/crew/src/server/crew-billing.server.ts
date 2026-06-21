@@ -1,5 +1,7 @@
 // @lat: [[crew#Crew Billing State And Audit]]
 // @lat: [[crew#Manual Paid And Founder Grants]]
+// @lat: [[crew#Billing Page And Upgrade CTA]]
+import { env } from "cloudflare:workers"
 import { desc, eq } from "drizzle-orm"
 import { getDb } from "../db"
 import {
@@ -14,6 +16,14 @@ import {
   crewEventSettingsTable,
 } from "../db/schemas/crew-event-settings"
 import { competitionsTable } from "../db/schemas/competitions"
+import { TEAM_PERMISSIONS } from "../db/schemas/teams"
+import { ROLES_ENUM } from "../db/schema"
+import {
+  buildCrewBillingPageViewModel,
+  canViewCrewBillingPage,
+  type CrewBillingPageViewModel,
+} from "../lib/crew/billing-page"
+import { safeHttpUrl } from "../lib/safe-url"
 import {
   type CrewBillingAuditEvent,
   type CrewBillingAppendPlan,
@@ -25,7 +35,11 @@ import {
   type CrewBillingPlanId,
   type CrewBillingStateSnapshot,
 } from "../lib/crew/billing-state"
-import { requireLocalCrewOperatorAccess } from "./crew-local-access"
+import { getSessionFromCookie } from "../utils/auth"
+import {
+  hasLocalCrewOperatorAccess,
+  requireLocalCrewOperatorAccess,
+} from "./crew-local-access"
 
 export interface GetCrewBillingInput {
   eventId: string
@@ -85,6 +99,14 @@ export interface CrewBillingPageData {
   auditEvents: CrewBillingAuditEventRow[]
 }
 
+export interface CrewBillingOrganizerPageData {
+  event: {
+    id: string
+    name: string
+  }
+  viewModel: CrewBillingPageViewModel
+}
+
 type CrewBillingScope = CrewBillingPageData["event"] & {
   state: CrewBillingState
   source: CrewBillingSource | null
@@ -98,6 +120,7 @@ type CrewBillingScope = CrewBillingPageData["event"] & {
   creditCents: number
   fullPlatformCreditCents: number
   refundedCents: number
+  settingsText: string | null
 }
 
 export async function getCrewBillingPage(
@@ -112,6 +135,31 @@ export async function getCrewBillingPage(
     event: toCrewBillingEventSummary(scope),
     billing: toCrewBillingSnapshot(scope),
     auditEvents: auditEvents.map(toCrewBillingAuditEventRow),
+  }
+}
+
+export async function getCrewBillingOrganizerPage(
+  data: GetCrewBillingInput,
+): Promise<CrewBillingOrganizerPageData> {
+  const scope = await requireCrewBillingScope(data.eventId)
+  await requireCrewBillingOrganizerAccess(scope)
+
+  const billing = toCrewBillingSnapshot(scope)
+  const paymentLinkUrl = getCrewPaymentLinkUrlFromSettings(scope.settingsText)
+
+  return {
+    event: {
+      id: scope.id,
+      name: scope.name,
+    },
+    viewModel: buildCrewBillingPageViewModel({
+      billing,
+      paymentLink: {
+        id: billing.stripe.paymentLinkId,
+        url: paymentLinkUrl,
+      },
+      checkoutEnabled: isCrewStripeCheckoutEnabled(),
+    }),
   }
 }
 
@@ -208,6 +256,7 @@ async function requireCrewBillingScope(
       creditCents: crewEventSettingsTable.crewCreditCents,
       fullPlatformCreditCents: crewEventSettingsTable.fullPlatformCreditCents,
       refundedCents: crewEventSettingsTable.crewRefundedCents,
+      settingsText: crewEventSettingsTable.settings,
     })
     .from(crewEventSettingsTable)
     .innerJoin(
@@ -224,6 +273,28 @@ async function requireCrewBillingScope(
   return {
     ...event,
     planId: event.planId as CrewBillingPlanId | null,
+  }
+}
+
+async function requireCrewBillingOrganizerAccess(scope: CrewBillingScope) {
+  const session = await getSessionFromCookie().catch(() => null)
+  const canView = canViewCrewBillingPage({
+    isLocalCrewOperator: hasLocalCrewOperatorAccess(),
+    isSiteAdmin: session?.user.role === ROLES_ENUM.ADMIN,
+    teams:
+      session?.teams?.map((team) => ({
+        id: team.id,
+        permissions: team.permissions,
+      })) ?? [],
+    event: {
+      organizingTeamId: scope.organizingTeamId,
+      competitionTeamId: scope.competitionTeamId,
+    },
+    billingPermission: TEAM_PERMISSIONS.ACCESS_BILLING,
+  })
+
+  if (!canView) {
+    throw new Error("FORBIDDEN: You don't have access to Crew billing")
   }
 }
 
@@ -339,4 +410,64 @@ function toCrewBillingJsonValue(
   }
 
   return undefined
+}
+
+function getCrewPaymentLinkUrlFromSettings(settingsText: string | null) {
+  const settings = parseSettingsObject(settingsText)
+  if (!settings) return null
+
+  const candidates = [
+    getNestedString(settings, ["billing", "paymentLinkUrl"]),
+    getNestedString(settings, ["billing", "crewPaymentLinkUrl"]),
+    getNestedString(settings, ["crewBilling", "paymentLinkUrl"]),
+    getNestedString(settings, ["crewBilling", "crewPaymentLinkUrl"]),
+    getNestedString(settings, ["paymentLinkUrl"]),
+    getNestedString(settings, ["crewPaymentLinkUrl"]),
+  ]
+
+  for (const candidate of candidates) {
+    const safeUrl = safeHttpUrl(candidate)
+    if (safeUrl) return safeUrl
+  }
+
+  return null
+}
+
+function parseSettingsObject(settingsText: string | null) {
+  if (!settingsText) return null
+
+  try {
+    const parsed: unknown = JSON.parse(settingsText)
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null
+  } catch {
+    return null
+  }
+}
+
+function getNestedString(
+  object: Record<string, unknown>,
+  path: string[],
+): string | null {
+  let current: unknown = object
+  for (const key of path) {
+    if (!current || typeof current !== "object" || Array.isArray(current)) {
+      return null
+    }
+    current = (current as Record<string, unknown>)[key]
+  }
+
+  return typeof current === "string" ? current : null
+}
+
+function isCrewStripeCheckoutEnabled() {
+  const runtimeEnv = env as typeof env & {
+    CREW_STRIPE_CHECKOUT_ENABLED?: string | boolean
+  }
+  const value = runtimeEnv.CREW_STRIPE_CHECKOUT_ENABLED
+  return (
+    value === true ||
+    ["1", "true", "yes", "enabled"].includes(String(value ?? "").toLowerCase())
+  )
 }

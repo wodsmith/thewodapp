@@ -1,5 +1,6 @@
 // @lat: [[crew#Server Function Runtime Boundary]]
 // @lat: [[crew#Manual Paid And Founder Grants]]
+// @lat: [[crew#Billing Page And Upgrade CTA]]
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
 import { CREW_BILLING_EVENT_TYPE } from "../db/schemas/crew-billing-events"
@@ -9,7 +10,10 @@ import {
   type ManualCrewBillingActionType,
 } from "../lib/crew/billing-state"
 
-export type { CrewBillingPageData } from "../server/crew-billing.server"
+export type {
+  CrewBillingOrganizerPageData,
+  CrewBillingPageData,
+} from "../server/crew-billing.server"
 
 const getCrewBillingInputSchema = z.object({
   eventId: z.string().min(1, "Event ID is required"),
@@ -119,6 +123,15 @@ export const getCrewBillingPageFn = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const { getCrewBillingPage } = await import("../server/crew-billing.server")
     return getCrewBillingPage(data)
+  })
+
+export const getCrewBillingOrganizerPageFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => getCrewBillingInputSchema.parse(data))
+  .handler(async ({ data }) => {
+    const { getCrewBillingOrganizerPage } = await import(
+      "../server/crew-billing.server"
+    )
+    return getCrewBillingOrganizerPage(data)
   })
 
 export const recordCrewBillingEventFn = createServerFn({ method: "POST" })

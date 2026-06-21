@@ -32,6 +32,16 @@ Manual Crew paid states are private operator/server actions that assign an event
 
 Full-platform upgrade credit is single-use per Crew event. Setting or applying credit uses stable idempotency keys and rejects old credit audit rows without a tested reversal path.
 
+## Billing Page And Upgrade CTA
+
+The private Crew billing page shows organizer-safe event billing state without exposing operator-only audit metadata.
+
+[[apps/crew/src/routes/events/$eventId/billing.tsx]] renders event plan, billing status/source, fulfillment state, upgrade credit, refund state, and the narrow upgrade CTA for the selected Crew event.
+
+[[apps/crew/src/lib/crew/billing-page.ts]] derives public page labels and CTA state from normalized event-level Crew billing state. It does not read team subscription state, expose founder pricing, or pass Stripe IDs through to the route view model.
+
+[[apps/crew/src/server/crew-billing.server.ts]] and [[apps/crew/src/server-fns/crew-billing-fns.ts]] keep the organizer billing loader server-only, scoped to the event organizing team's billing permission with local operator fallback. Payment Link buttons only use an already configured safe URL from event settings, and Checkout remains a disabled flag-gated slot until a later slice creates sessions.
+
 ## Server Function Runtime Boundary
 
 Route and client code import lightweight `createServerFn` wrappers from [[apps/crew/src/server-fns]].
