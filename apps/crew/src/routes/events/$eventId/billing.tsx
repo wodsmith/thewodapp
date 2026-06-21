@@ -10,7 +10,7 @@ import {
   WalletCards,
 } from "lucide-react"
 import type { ReactNode } from "react"
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { toast } from "sonner"
 import type { CrewBillingActionViewModel } from "@/lib/crew/billing-page"
 import {
@@ -30,8 +30,11 @@ function EventBillingPage() {
   const { event, viewModel } = Route.useLoaderData()
   const createCrewCheckoutSession = useServerFn(createCrewCheckoutSessionFn)
   const [checkoutSubmitting, setCheckoutSubmitting] = useState(false)
+  const checkoutSubmittingRef = useRef(false)
 
   async function handleCheckout() {
+    if (checkoutSubmittingRef.current) return
+    checkoutSubmittingRef.current = true
     setCheckoutSubmitting(true)
     try {
       const result = await createCrewCheckoutSession({
@@ -45,6 +48,7 @@ function EventBillingPage() {
           : "Unable to start Crew Checkout",
       )
     } finally {
+      checkoutSubmittingRef.current = false
       setCheckoutSubmitting(false)
     }
   }

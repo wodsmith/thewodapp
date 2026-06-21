@@ -11,9 +11,27 @@ import {
   buildCrewCheckoutMetadata,
   buildCrewCheckoutSessionCreateParams,
   isCrewStripeCheckoutEnabledValue,
+  isReusableCrewCheckoutPendingClaim,
   normalizeCrewCheckoutCatalogPlan,
   resolveCrewCheckoutPlanId,
 } from "./checkout-sessions"
+
+const unpaidBilling = {
+  state: CREW_BILLING_STATE.UNPAID,
+  source: null,
+  planId: null,
+  amountCents: 0,
+  currency: "usd",
+  stripe: {
+    paymentLinkId: null,
+    checkoutSessionId: null,
+    paymentIntentId: null,
+  },
+  founderOverride: false,
+  creditCents: 0,
+  fullPlatformCreditCents: 0,
+  refundedCents: 0,
+} as const
 
 describe("Crew Checkout Session helpers", () => {
   it("builds the Stripe metadata contract without private billing data", () => {
@@ -182,39 +200,30 @@ describe("Crew Checkout Session helpers", () => {
   })
 
   it("prevents duplicate pending sessions and active-billing checkout starts", () => {
-    const unpaid = {
-      state: CREW_BILLING_STATE.UNPAID,
-      source: null,
-      planId: null,
-      amountCents: 0,
-      currency: "usd",
-      stripe: {
-        paymentLinkId: null,
-        checkoutSessionId: null,
-        paymentIntentId: null,
-      },
-      founderOverride: false,
-      creditCents: 0,
-      fullPlatformCreditCents: 0,
-      refundedCents: 0,
-    } as const
-
-    expect(() => assertCrewCheckoutCanStart(unpaid)).not.toThrow()
+    expect(() => assertCrewCheckoutCanStart(unpaidBilling)).not.toThrow()
     expect(() =>
       assertCrewCheckoutCanStart({
-        ...unpaid,
+        ...unpaidBilling,
         state: CREW_BILLING_STATE.PENDING,
         source: CREW_BILLING_SOURCE.STRIPE_CHECKOUT,
         planId: "crew_basic",
         stripe: {
-          ...unpaid.stripe,
+          ...unpaidBilling.stripe,
           checkoutSessionId: "cs_pending",
         },
       }),
     ).toThrow(/already pending/)
     expect(() =>
       assertCrewCheckoutCanStart({
-        ...unpaid,
+        ...unpaidBilling,
+        state: CREW_BILLING_STATE.PENDING,
+        source: CREW_BILLING_SOURCE.PAYMENT_LINK,
+        planId: "crew_basic",
+      }),
+    ).toThrow(/already pending/)
+    expect(() =>
+      assertCrewCheckoutCanStart({
+        ...unpaidBilling,
         state: CREW_BILLING_STATE.PAID,
         source: CREW_BILLING_SOURCE.STRIPE_CHECKOUT,
         planId: "crew_basic",
@@ -222,9 +231,56 @@ describe("Crew Checkout Session helpers", () => {
     ).toThrow(/already active/)
     expect(() =>
       assertCrewCheckoutCanStart({
-        ...unpaid,
+        ...unpaidBilling,
+        planId: "crew_starter",
+      }),
+    ).toThrow(/public paid plans/)
+    expect(() =>
+      assertCrewCheckoutCanStart({
+        ...unpaidBilling,
         planId: "crew_founding_2026",
       }),
     ).toThrow(/public paid plans/)
+  })
+
+  it("identifies only same-plan pending checkout claims as retryable", () => {
+    const pendingClaim = {
+      ...unpaidBilling,
+      state: CREW_BILLING_STATE.PENDING,
+      source: CREW_BILLING_SOURCE.STRIPE_CHECKOUT,
+      planId: "crew_basic",
+      amountCents: 20_000,
+    } as const
+
+    expect(
+      isReusableCrewCheckoutPendingClaim({
+        billing: pendingClaim,
+        crewPlan: "crew_basic",
+        amountCents: 20_000,
+        currency: "USD",
+      }),
+    ).toBe(true)
+    expect(
+      isReusableCrewCheckoutPendingClaim({
+        billing: pendingClaim,
+        crewPlan: "crew_pro",
+        amountCents: 80_000,
+        currency: "usd",
+      }),
+    ).toBe(false)
+    expect(
+      isReusableCrewCheckoutPendingClaim({
+        billing: {
+          ...pendingClaim,
+          stripe: {
+            ...pendingClaim.stripe,
+            checkoutSessionId: "cs_pending",
+          },
+        },
+        crewPlan: "crew_basic",
+        amountCents: 20_000,
+        currency: "usd",
+      }),
+    ).toBe(false)
   })
 })

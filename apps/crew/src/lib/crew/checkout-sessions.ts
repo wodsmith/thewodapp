@@ -33,6 +33,13 @@ export interface BuildCrewCheckoutSessionParamsInput
   appUrl: string
 }
 
+export interface CrewCheckoutPendingClaimInput {
+  billing: CrewBillingStateSnapshot
+  crewPlan: CrewCheckoutPlanId
+  amountCents: number
+  currency: string
+}
+
 export function isCrewStripeCheckoutEnabledValue(value: unknown) {
   return (
     value === true ||
@@ -73,15 +80,11 @@ export function assertCrewCheckoutCanStart(billing: CrewBillingStateSnapshot) {
     throw new Error("Crew billing is already active for this event.")
   }
 
-  if (billing.state === "pending" && billing.stripe.checkoutSessionId) {
+  if (billing.state === "pending") {
     throw new Error("Crew Checkout is already pending for this event.")
   }
 
-  if (
-    billing.planId &&
-    billing.planId !== "crew_starter" &&
-    !isCrewCheckoutPlanId(billing.planId)
-  ) {
+  if (billing.planId && !isCrewCheckoutPlanId(billing.planId)) {
     throw new Error("Crew Checkout is only available for public paid plans.")
   }
 }
@@ -141,6 +144,22 @@ export function buildCrewCheckoutBillingEventId(
   }
 
   return `cbill_checkout_${buildStableCheckoutHash(normalized)}`
+}
+
+export function isReusableCrewCheckoutPendingClaim({
+  billing,
+  crewPlan,
+  amountCents,
+  currency,
+}: CrewCheckoutPendingClaimInput) {
+  return (
+    billing.state === "pending" &&
+    billing.source === "stripe_checkout" &&
+    billing.planId === crewPlan &&
+    billing.amountCents === amountCents &&
+    billing.currency === currency.toLowerCase() &&
+    !billing.stripe.checkoutSessionId
+  )
 }
 
 export function buildCrewCheckoutMetadata({

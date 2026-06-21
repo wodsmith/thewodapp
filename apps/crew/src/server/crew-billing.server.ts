@@ -45,8 +45,10 @@ import {
   buildCrewCheckoutBillingEventId,
   buildCrewCheckoutIdempotencyKey,
   buildCrewCheckoutSessionCreateParams,
+  type CrewCheckoutCatalogPlan,
   type CrewCheckoutPlanId,
   isCrewStripeCheckoutEnabledValue,
+  isReusableCrewCheckoutPendingClaim,
   normalizeCrewCheckoutCatalogPlan,
   resolveCrewCheckoutPlanId,
 } from "../lib/crew/checkout-sessions"
@@ -308,7 +310,6 @@ export async function createCrewCheckoutSession(
   const scope = await requireCrewBillingScope(data.eventId)
   const session = await requireCrewBillingOrganizerAccess(scope)
   const current = toCrewBillingSnapshot(scope)
-  assertCrewCheckoutCanStart(current)
 
   const planId = resolveCrewCheckoutPlanId({
     requestedPlanId: data.planId,
@@ -323,14 +324,12 @@ export async function createCrewCheckoutSession(
   })
   const billingEventId = buildCrewCheckoutBillingEventId(checkoutIdempotencyKey)
 
+  const claimCurrent = await claimCrewCheckoutSessionStart({
+    eventId: scope.id,
+    current,
+    plan,
+  })
   const existingEvents = await listCrewBillingEventsForEvent(scope.id)
-  if (
-    current.state === CREW_BILLING_STATE.PENDING &&
-    current.source === CREW_BILLING_SOURCE.STRIPE_CHECKOUT &&
-    current.stripe.checkoutSessionId
-  ) {
-    throw new Error("Crew Checkout is already pending for this event.")
-  }
 
   const checkoutSession = await getStripe().checkout.sessions.create(
     buildCrewCheckoutSessionCreateParams({
@@ -356,7 +355,7 @@ export async function createCrewCheckoutSession(
     competitionId: scope.id,
     teamId: scope.organizingTeamId,
     eventType: CREW_BILLING_EVENT_TYPE.CHECKOUT_SESSION_CREATED,
-    current,
+    current: claimCurrent,
     planId: plan.id,
     amountCents: plan.price,
     currency: plan.currency,
@@ -369,6 +368,96 @@ export async function createCrewCheckoutSession(
   await persistCrewCheckoutSessionCreated(data, appendPlan)
 
   return { checkoutUrl: checkoutSession.url }
+}
+
+async function claimCrewCheckoutSessionStart({
+  eventId,
+  current,
+  plan,
+}: {
+  eventId: string
+  current: CrewBillingStateSnapshot
+  plan: CrewCheckoutCatalogPlan
+}) {
+  if (
+    isReusableCrewCheckoutPendingClaim({
+      billing: current,
+      crewPlan: plan.id,
+      amountCents: plan.price,
+      currency: plan.currency,
+    })
+  ) {
+    return current
+  }
+
+  assertCrewCheckoutCanStart(current)
+
+  const claimPatch = buildCrewCheckoutClaimSnapshot(current, plan)
+  const result = await getDb()
+    .update(crewEventSettingsTable)
+    .set({
+      crewBillingState: claimPatch.state,
+      crewBillingSource: claimPatch.source,
+      crewBillingPlanId: claimPatch.planId,
+      crewBillingAmountCents: claimPatch.amountCents,
+      crewBillingCurrency: claimPatch.currency,
+      crewStripeCheckoutSessionId: null,
+      crewStripePaymentIntentId: null,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(crewEventSettingsTable.competitionId, eventId),
+        eq(crewEventSettingsTable.crewBillingState, current.state),
+      ),
+    )
+
+  if (getAffectedRows(result) > 0) return claimPatch
+
+  const latest = toCrewBillingSnapshot(await requireCrewBillingScope(eventId))
+  if (
+    isReusableCrewCheckoutPendingClaim({
+      billing: latest,
+      crewPlan: plan.id,
+      amountCents: plan.price,
+      currency: plan.currency,
+    })
+  ) {
+    return latest
+  }
+
+  assertCrewCheckoutCanStart(latest)
+  throw new Error("Crew Checkout could not start because billing changed.")
+}
+
+function buildCrewCheckoutClaimSnapshot(
+  current: CrewBillingStateSnapshot,
+  plan: CrewCheckoutCatalogPlan,
+): CrewBillingStateSnapshot {
+  return {
+    ...current,
+    state: CREW_BILLING_STATE.PENDING,
+    source: CREW_BILLING_SOURCE.STRIPE_CHECKOUT,
+    planId: plan.id,
+    amountCents: plan.price,
+    currency: plan.currency,
+    stripe: {
+      ...current.stripe,
+      checkoutSessionId: null,
+      paymentIntentId: null,
+    },
+  }
+}
+
+function getAffectedRows(result: unknown) {
+  return (
+    (result as { rowsAffected?: number }).rowsAffected ??
+    (result as { affectedRows?: number }).affectedRows ??
+    (Array.isArray(result)
+      ? (result[0] as { affectedRows?: number } | undefined)?.affectedRows
+      : undefined) ??
+    0
+  )
 }
 
 async function persistCrewBillingAppend(
