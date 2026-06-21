@@ -80,22 +80,8 @@ describe("submission API capability gates", () => {
     mockAuthSession.mockResolvedValue({ userId: "user-1" })
   })
 
-  it("allows benchmark score submission without submission-window rows", async () => {
-    // @lat: [[competition-type-capabilities#Perpetual Submission Gate Test]]
-    mockLimit
-      .mockResolvedValueOnce([{ id: "reg-1", divisionId: "open" }])
-      .mockResolvedValueOnce([{ competitionType: "benchmark" }])
-      .mockResolvedValueOnce([{ workoutId: "workout-1", trackId: "track-1" }])
-      .mockResolvedValueOnce([
-        {
-          scheme: "time",
-          scoreType: "min",
-          tiebreakScheme: null,
-          timeCap: null,
-        },
-      ])
-      .mockResolvedValueOnce([{ ownerTeamId: "team-1" }])
-      .mockResolvedValueOnce([{ id: "score-1" }])
+  it("rejects direct benchmark score API writes so they cannot bypass benchmark rules", async () => {
+    mockLimit.mockResolvedValueOnce([{ id: "benchmark-battery-1" }])
 
     const response = await scoreSubmitRoute.server.handlers.POST({
       request: postRequest("/api/compete/scores/submit", {
@@ -111,16 +97,41 @@ describe("submission API capability gates", () => {
       error?: string
     }
 
-    expect(response.status).toBe(200)
-    expect(data).toMatchObject({ success: true, scoreId: "score-1" })
-    expect(data.error).toBeUndefined()
+    expect(response.status).toBe(422)
+    expect(data.success).not.toBe(true)
+    expect(data.scoreId).toBeUndefined()
+    expect(data.error).toEqual(expect.any(String))
+    expect(mockDb.insert).not.toHaveBeenCalled()
   })
 
-  it("allows benchmark video submission without submission-window rows", async () => {
+  it("rejects direct score API writes for malformed benchmark competitions without a battery", async () => {
     mockLimit
-      .mockResolvedValueOnce([{ id: "reg-1", divisionId: "open" }])
-      .mockResolvedValueOnce([{ competitionType: "benchmark" }])
       .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ competitionType: "benchmark" }])
+
+    const response = await scoreSubmitRoute.server.handlers.POST({
+      request: postRequest("/api/compete/scores/submit", {
+        competitionId: "comp-1",
+        trackWorkoutId: "tw-1",
+        score: "10:00",
+        status: "scored",
+      }),
+    })
+    const data = (await response.json()) as {
+      success?: boolean
+      scoreId?: string
+      error?: string
+    }
+
+    expect(response.status).toBe(422)
+    expect(data.success).not.toBe(true)
+    expect(data.scoreId).toBeUndefined()
+    expect(data.error).toEqual(expect.any(String))
+    expect(mockDb.insert).not.toHaveBeenCalled()
+  })
+
+  it("rejects direct benchmark video API writes so they cannot bypass benchmark rules", async () => {
+    mockLimit.mockResolvedValueOnce([{ id: "benchmark-battery-1" }])
 
     const response = await videoSubmitRoute.server.handlers.POST({
       request: postRequest("/api/compete/video/submit", {
@@ -135,9 +146,10 @@ describe("submission API capability gates", () => {
       error?: string
     }
 
-    expect(response.status).toBe(200)
-    expect(data.success).toBe(true)
-    expect(data.submissionId).toEqual(expect.any(String))
-    expect(data.error).toBeUndefined()
+    expect(response.status).toBe(422)
+    expect(data.success).not.toBe(true)
+    expect(data.submissionId).toBeUndefined()
+    expect(data.error).toEqual(expect.any(String))
+    expect(mockDb.insert).not.toHaveBeenCalled()
   })
 })

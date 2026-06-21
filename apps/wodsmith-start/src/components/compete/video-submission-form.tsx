@@ -69,6 +69,8 @@ interface VideoSubmissionInitialData {
   canSubmit: boolean
   reason?: string
   isRegistered: boolean
+  isBenchmarkOpenJoin?: boolean
+  videoRequired?: boolean
   submissionWindow?: {
     opensAt: string
     closesAt: string
@@ -254,6 +256,20 @@ function createInitialSlots(
   })
 }
 
+function createEmptyVideoSlot(): VideoSlotState {
+  return {
+    url: "",
+    notes: "",
+    validation: {
+      isValid: false,
+      isPending: false,
+      error: null,
+      parsedUrl: null,
+    },
+    existingSubmission: null,
+  }
+}
+
 export function VideoSubmissionForm({
   trackWorkoutId,
   competitionId,
@@ -277,6 +293,8 @@ export function VideoSubmissionForm({
 
   const teamSize = currentData?.teamSize ?? 1
   const isCaptain = currentData?.isCaptain ?? true
+  const videoRequired = currentData?.videoRequired ?? true
+  const isBenchmarkOpenJoin = currentData?.isBenchmarkOpenJoin ?? false
   const existingSubmissions = currentData?.submissions ?? []
 
   const [videoSlots, setVideoSlots] = useState<VideoSlotState[]>(() =>
@@ -569,8 +587,8 @@ export function VideoSubmissionForm({
     )
   }
 
-  // If user is not registered, show message
-  if (!currentData?.isRegistered) {
+  // If user is not registered and this is not a benchmark open-join board, show message.
+  if (!currentData?.isRegistered && !isBenchmarkOpenJoin) {
     return (
       <Card>
         <CardHeader className="pb-3">
@@ -740,7 +758,10 @@ export function VideoSubmissionForm({
       .map((slot, index) => ({ slot, index }))
       .filter(({ slot }) => slot.url.trim())
 
-    if (slotsToSubmit.length === 0) {
+    const shouldSubmitScoreOnly =
+      teamSize === 1 && !videoRequired && slotsToSubmit.length === 0
+
+    if (slotsToSubmit.length === 0 && !shouldSubmitScoreOnly) {
       setError("Please enter at least one video URL")
       return
     }
@@ -816,14 +837,19 @@ export function VideoSubmissionForm({
             .map((s) => ({ score: s.trim() }))
         : undefined
 
-      for (const { slot, index } of slotsToSubmit) {
-        const isFirstSlot = index === slotsToSubmit[0].index
+      const submissionSlots = shouldSubmitScoreOnly
+        ? [{ slot: videoSlots[0] ?? createEmptyVideoSlot(), index: 0 }]
+        : slotsToSubmit
+      const firstSubmissionIndex = submissionSlots[0]?.index ?? 0
+
+      for (const { slot, index } of submissionSlots) {
+        const isFirstSlot = index === firstSubmissionIndex
         const result = await submitVideo({
           data: {
             trackWorkoutId,
             competitionId,
             divisionId: selectedDivisionId,
-            videoUrl: slot.url.trim(),
+            videoUrl: slot.url.trim() || undefined,
             notes: slot.notes.trim() || undefined,
             videoIndex: index,
             // Only send score with the first video slot
@@ -864,6 +890,8 @@ export function VideoSubmissionForm({
         // Update local submission data
         const newSubmissions = [...submissionsData]
         for (const result of results) {
+          if (!result.submissionId) continue
+
           const slot = videoSlots[result.videoIndex]
           const existingIdx = newSubmissions.findIndex(
             (s) => s.videoIndex === result.videoIndex,
@@ -984,8 +1012,8 @@ export function VideoSubmissionForm({
                 }
               : undefined
           }
-          canEdit={currentData.canSubmit}
-          editReason={currentData.reason}
+          canEdit={currentData?.canSubmit ?? false}
+          editReason={currentData?.reason}
           timezone={timezone}
           onEdit={() => setIsEditing(true)}
         />
@@ -1010,7 +1038,9 @@ export function VideoSubmissionForm({
                 ? "Update your submission below"
                 : teamSize > 1
                   ? `Submit your team's score and ${teamSize} partner videos`
-                  : "Submit your score and video for this event"}
+                  : videoRequired
+                    ? "Submit your score and video for this event"
+                    : "Submit your score for this event"}
             </CardDescription>
           </div>
           {hasSubmitted && (
@@ -1236,7 +1266,9 @@ export function VideoSubmissionForm({
             <>
               {videoSlots.map((slot, index) => (
                 <div key={index} className="space-y-2">
-                  <Label htmlFor={`videoUrl-${index}`}>Video URL</Label>
+                  <Label htmlFor={`videoUrl-${index}`}>
+                    Video URL{videoRequired ? "" : " (Optional)"}
+                  </Label>
                   <VideoUrlInput
                     id={`videoUrl-${index}`}
                     value={slot.url}

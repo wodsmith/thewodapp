@@ -170,6 +170,8 @@ export const Route = createFileRoute("/compete/$slug/workouts/$eventId")({
             canSubmit: false,
             reason: "Not authenticated",
             isRegistered: false,
+            isBenchmarkOpenJoin: false,
+            videoRequired: true,
             workout: null,
             existingScore: null,
           }
