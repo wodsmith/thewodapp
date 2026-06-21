@@ -176,6 +176,7 @@ describe('Stripe Webhook Handler', () => {
   })
 
   describe('checkout.session.completed', () => {
+    // @lat: [[crew#Crew Stripe Webhooks]]
     it('routes Crew Checkout Sessions to Crew billing completion', async () => {
       const {buildCrewCheckoutBillingEventId, buildCrewCheckoutIdempotencyKey} =
         await import('@/lib/crew/checkout-sessions')
@@ -234,6 +235,7 @@ describe('Stripe Webhook Handler', () => {
       expect(mockWorkflowCreate).not.toHaveBeenCalled()
     })
 
+    // @lat: [[crew#Crew Stripe Webhooks]]
     it('returns 200 for invalid Crew Checkout metadata without granting access', async () => {
       const session = {
         id: 'cs_crew_invalid',
@@ -261,6 +263,7 @@ describe('Stripe Webhook Handler', () => {
       expect(mockWorkflowCreate).not.toHaveBeenCalled()
     })
 
+    // @lat: [[crew#Crew Stripe Webhooks]]
     it('treats duplicate Crew Checkout completion as webhook success', async () => {
       const {buildCrewCheckoutBillingEventId, buildCrewCheckoutIdempotencyKey} =
         await import('@/lib/crew/checkout-sessions')
@@ -304,6 +307,7 @@ describe('Stripe Webhook Handler', () => {
       expect(mockCompleteCrewCheckoutSessionFromWebhook).toHaveBeenCalledOnce()
     })
 
+    // @lat: [[crew#Crew Stripe Webhooks]]
     it('dispatches to STRIPE_CHECKOUT_WORKFLOW with correct params', async () => {
       const session = {
         id: 'cs_test_123',
@@ -359,6 +363,7 @@ describe('Stripe Webhook Handler', () => {
       })
     })
 
+    // @lat: [[crew#Crew Stripe Webhooks]]
     it('keeps non-Crew product sessions on the existing registration workflow', async () => {
       const session = {
         id: 'cs_test_registration',
