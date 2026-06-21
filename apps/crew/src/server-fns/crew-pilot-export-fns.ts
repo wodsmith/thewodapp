@@ -1,4 +1,5 @@
 // @lat: [[crew#Pilot Exports]]
+// @lat: [[crew#Event Day Export Packet]]
 // @lat: [[crew#Server Function Runtime Boundary]]
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
