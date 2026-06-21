@@ -158,6 +158,22 @@ function formatBenchmarkTier(tier: number | null | undefined): string {
   return `Tier ${formatBenchmarkNumber(tier)}`
 }
 
+function getBenchmarkVerificationLabel(
+  result: CompetitionLeaderboardEntry["eventResults"][number],
+): string | null {
+  if (result.rawScore === null) return null
+
+  const reviewStatus = result.reviewSummary?.worstStatus ?? null
+  const status = reviewStatus ?? result.verificationStatus
+
+  if (status === "invalid") return "Invalid"
+  if (status === "pending" || status === "under_review") return "Pending"
+  if (result.penaltyType || status === "penalized") return "Penalized"
+  if (result.isDirectlyModified || status === "adjusted") return "Adjusted"
+  if (status === "verified") return "Verified"
+  return null
+}
+
 function RankCell({
   rank,
   points,
@@ -223,7 +239,13 @@ function BenchmarkEventBadges({
 }: {
   result: CompetitionLeaderboardEntry["eventResults"][number]
 }) {
-  if (result.benchmarkTier === null && !result.benchmarkCategoryLabel) {
+  const verificationLabel = getBenchmarkVerificationLabel(result)
+
+  if (
+    result.benchmarkTier === null &&
+    !result.benchmarkCategoryLabel &&
+    !verificationLabel
+  ) {
     return null
   }
 
@@ -237,6 +259,11 @@ function BenchmarkEventBadges({
       {result.benchmarkCategoryLabel && (
         <span className="rounded-sm border bg-muted/30 px-1 py-px text-[10px] font-medium text-muted-foreground">
           {result.benchmarkCategoryLabel}
+        </span>
+      )}
+      {verificationLabel && (
+        <span className="rounded-sm border bg-muted/30 px-1 py-px text-[10px] font-medium text-muted-foreground">
+          {verificationLabel}
         </span>
       )}
     </span>

@@ -3,6 +3,39 @@ import { describe, expect, it } from "vitest"
 import { BenchmarkStatLine } from "@/components/benchmark-stat-line"
 import type { CompetitionLeaderboardEntry } from "@/server-fns/leaderboard-fns"
 
+type EventResult = CompetitionLeaderboardEntry["eventResults"][number]
+
+function createEventResult(overrides: Partial<EventResult> = {}): EventResult {
+  return {
+    trackWorkoutId: "tw-1",
+    trackOrder: 1,
+    eventName: "Strict Press",
+    scheme: "load",
+    rank: 1,
+    points: 8,
+    rawScore: "90000",
+    formattedScore: "198 lb",
+    formattedTiebreak: null,
+    penaltyType: null,
+    penaltyPercentage: null,
+    isDirectlyModified: false,
+    videoUrl: null,
+    videoSubmissionId: null,
+    parentEventId: null,
+    parentEventName: null,
+    isParentEvent: false,
+    cappedRoundCount: 0,
+    totalRoundCount: 0,
+    verificationStatus: "verified",
+    benchmarkTier: 8,
+    benchmarkCategoryKey: "strength",
+    benchmarkCategoryLabel: "Strength",
+    benchmarkIncludedInScoring: true,
+    reviewSummary: null,
+    ...overrides,
+  }
+}
+
 function createEntry(): CompetitionLeaderboardEntry {
   return {
     registrationId: "reg-1",
@@ -42,34 +75,8 @@ function createEntry(): CompetitionLeaderboardEntry {
       },
     ],
     eventResults: [
-      {
-        trackWorkoutId: "tw-1",
-        trackOrder: 1,
-        eventName: "Strict Press",
-        scheme: "load",
-        rank: 1,
-        points: 8,
-        rawScore: "90000",
-        formattedScore: "198 lb",
-        formattedTiebreak: null,
-        penaltyType: null,
-        penaltyPercentage: null,
-        isDirectlyModified: false,
-        videoUrl: null,
-        videoSubmissionId: null,
-        parentEventId: null,
-        parentEventName: null,
-        isParentEvent: false,
-        cappedRoundCount: 0,
-        totalRoundCount: 0,
-        verificationStatus: "verified",
-        benchmarkTier: 8,
-        benchmarkCategoryKey: "strength",
-        benchmarkCategoryLabel: "Strength",
-        benchmarkIncludedInScoring: true,
-        reviewSummary: null,
-      },
-      {
+      createEventResult(),
+      createEventResult({
         trackWorkoutId: "tw-2",
         trackOrder: 2,
         eventName: "Mile Run",
@@ -95,8 +102,8 @@ function createEntry(): CompetitionLeaderboardEntry {
         benchmarkCategoryLabel: "Engine",
         benchmarkIncludedInScoring: true,
         reviewSummary: null,
-      },
-      {
+      }),
+      createEventResult({
         trackWorkoutId: "tw-3",
         trackOrder: 3,
         eventName: "Weighted Pull-Up",
@@ -122,7 +129,56 @@ function createEntry(): CompetitionLeaderboardEntry {
         benchmarkCategoryLabel: "Strength",
         benchmarkIncludedInScoring: false,
         reviewSummary: null,
-      },
+      }),
+      createEventResult({
+        trackWorkoutId: "tw-4",
+        trackOrder: 4,
+        eventName: "Unsubmitted Snatch",
+        rank: 0,
+        points: 0,
+        rawScore: null,
+        formattedScore: "N/A",
+        verificationStatus: null,
+        benchmarkTier: null,
+      }),
+      createEventResult({
+        trackWorkoutId: "tw-5",
+        trackOrder: 5,
+        eventName: "Attempted Clean",
+        rank: 0,
+        points: 0,
+        rawScore: "0",
+        formattedScore: "0 lb",
+        verificationStatus: null,
+        benchmarkTier: 0,
+      }),
+      createEventResult({
+        trackWorkoutId: "tw-6",
+        trackOrder: 6,
+        eventName: "Pending Row",
+        rawScore: "820",
+        formattedScore: "820 watts",
+        verificationStatus: null,
+        benchmarkTier: 7,
+        benchmarkCategoryKey: "engine",
+        benchmarkCategoryLabel: "Engine",
+        reviewSummary: {
+          totalSubmitted: 1,
+          expectedVideos: 1,
+          reviewedCount: 0,
+          statuses: ["pending"],
+          worstStatus: "pending",
+        },
+      }),
+      createEventResult({
+        trackWorkoutId: "tw-7",
+        trackOrder: 7,
+        eventName: "Invalid Deadlift",
+        rawScore: "120000",
+        formattedScore: "265 lb",
+        verificationStatus: "invalid",
+        benchmarkTier: 6,
+      }),
     ],
   }
 }
@@ -144,5 +200,9 @@ describe("BenchmarkStatLine", () => {
     expect(screen.getByText("Verified")).toBeInTheDocument()
     expect(screen.getByText("Adjusted")).toBeInTheDocument()
     expect(screen.getByText("Unavailable")).toBeInTheDocument()
+    expect(screen.getByText("Untested")).toBeInTheDocument()
+    expect(screen.getByText("Tier 0")).toBeInTheDocument()
+    expect(screen.getByText("Pending")).toBeInTheDocument()
+    expect(screen.getByText("Excluded")).toBeInTheDocument()
   })
 })
