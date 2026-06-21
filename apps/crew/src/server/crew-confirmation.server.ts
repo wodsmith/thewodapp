@@ -56,6 +56,11 @@ import {
   type CrewAssignmentTokenState,
 } from "../lib/crew/assignment-confirmations"
 import {
+  assertCrewDepartmentLeadCanManageShift,
+  filterCrewDepartmentLeadShifts,
+  type CrewDepartmentLeadAccess,
+} from "../lib/crew/department-leads"
+import {
   formatVolunteerRole,
   getCrewRosterRoleTypes,
   parseCrewRosterMetadata,
@@ -69,7 +74,10 @@ import {
   formatDateTimeInTimezone,
 } from "../utils/timezone-utils"
 import { getFirstExecuteValue } from "../server-fns/db-execute"
-import { requireLocalCrewOperatorAccess } from "./crew-local-access"
+import {
+  requireCrewDepartmentLeadEvent,
+  resolveCrewDepartmentLeadAccess,
+} from "./crew-department-lead.server"
 
 type DbClient = ReturnType<typeof getDb>
 
@@ -190,6 +198,7 @@ interface CrewAssignmentEmailCandidate
   assignment: {
     id: string
     shiftName: string
+    roleType: VolunteerRoleType
     roleLabel: string
     startTime: Date
     endTime: Date
@@ -452,8 +461,8 @@ export async function loadCrewShiftAssignmentConfirmationMap(
 export async function updateCrewShiftAssignmentConfirmationState(
   data: UpdateCrewShiftAssignmentConfirmationStateInput,
 ) {
-  requireLocalCrewOperatorAccess("Crew assignment confirmations")
-
+  const event = await requireCrewDepartmentLeadEvent(data.eventId)
+  const access = await resolveCrewDepartmentLeadAccess(event)
   const db = getDb()
   const now = new Date()
 
@@ -464,6 +473,10 @@ export async function updateCrewShiftAssignmentConfirmationState(
         shiftId: volunteerShiftAssignmentsTable.shiftId,
         membershipId: volunteerShiftAssignmentsTable.membershipId,
         competitionId: volunteerShiftsTable.competitionId,
+        shiftRoleType: volunteerShiftsTable.roleType,
+        shiftStartTime: volunteerShiftsTable.startTime,
+        shiftEndTime: volunteerShiftsTable.endTime,
+        shiftLocation: volunteerShiftsTable.location,
         membershipMetadata: teamMembershipTable.metadata,
         userEmail: userTable.email,
       })
@@ -489,6 +502,12 @@ export async function updateCrewShiftAssignmentConfirmationState(
     if (!assignment) {
       throw new Error("Shift assignment not found")
     }
+    assertCrewDepartmentLeadCanManageShift(access, {
+      roleType: assignment.shiftRoleType,
+      startTime: assignment.shiftStartTime,
+      endTime: assignment.shiftEndTime,
+      location: assignment.shiftLocation,
+    })
 
     const [latestConfirmation] = await tx
       .select({
@@ -580,11 +599,14 @@ export async function updateCrewShiftAssignmentConfirmationState(
 export async function queueCrewAssignmentConfirmationEmails(
   data: QueueCrewAssignmentConfirmationEmailsInput,
 ): Promise<QueueCrewAssignmentConfirmationEmailsResult> {
-  requireLocalCrewOperatorAccess("Crew confirmation emails")
-
+  const event = await requireCrewDepartmentLeadEvent(data.eventId)
+  const access = await resolveCrewDepartmentLeadAccess(event)
   const db = getDb()
   const now = new Date()
-  const candidates = await loadCrewAssignmentEmailCandidates(data.eventId)
+  const candidates = filterCrewAssignmentEmailCandidates(
+    await loadCrewAssignmentEmailCandidates(data.eventId),
+    access,
+  )
   const plan = buildCrewAssignmentConfirmationEmailPlan({
     mode: data.mode,
     candidates,
@@ -910,12 +932,30 @@ async function loadCrewAssignmentEmailCandidates(
         id: row.confirmation.assignmentId,
         shiftName: row.shift.name,
         roleLabel: formatVolunteerRole(row.shift.roleType),
+        roleType: row.shift.roleType,
         startTime: row.shift.startTime,
         endTime: row.shift.endTime,
         location: row.shift.location,
       },
     }
   })
+}
+
+function filterCrewAssignmentEmailCandidates(
+  candidates: CrewAssignmentEmailCandidate[],
+  access: CrewDepartmentLeadAccess,
+) {
+  if (access.kind === "full") return candidates
+  return filterCrewDepartmentLeadShifts(
+    candidates.map((candidate) => ({
+      ...candidate,
+      roleType: candidate.assignment.roleType,
+      startTime: candidate.assignment.startTime,
+      endTime: candidate.assignment.endTime,
+      location: candidate.assignment.location,
+    })),
+    access,
+  )
 }
 
 async function claimCrewAssignmentEmailToken(params: {

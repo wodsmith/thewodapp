@@ -44,6 +44,13 @@ import type {
   CrewRosterVolunteer,
 } from "../lib/crew/roster-shifts"
 import {
+  assertCrewDepartmentLeadCanManageRosterTarget,
+  assertCrewDepartmentLeadCanManageShift,
+  filterCrewDepartmentLeadRoster,
+  filterCrewDepartmentLeadShifts,
+  type CrewDepartmentLeadRosterTarget,
+} from "../lib/crew/department-leads"
+import {
   buildCrewRosterVolunteerMetadataUpdate,
   buildCrewRoster,
   findCrewRosterVolunteerEmailCollision,
@@ -66,7 +73,7 @@ import {
   buildCrewStaffingMatrix,
   type CrewStaffingMatrixInput,
 } from "../lib/crew/staffing"
-import { requireLocalCrewOperatorAccess } from "../server/crew-local-access"
+import { resolveCrewDepartmentLeadAccess } from "./crew-department-lead.server"
 import {
   cancelCrewShiftAssignmentConfirmations,
   ensureCrewShiftAssignmentConfirmation,
@@ -87,6 +94,7 @@ type CrewRosterCompetition = Pick<
   | "id"
   | "name"
   | "slug"
+  | "organizingTeamId"
   | "competitionTeamId"
   | "timezone"
   | "startDate"
@@ -265,70 +273,92 @@ export interface UpdateCrewRosterVolunteerResult {
 export async function getCrewRosterPage(
   data: CrewEventInput,
 ): Promise<CrewRosterPageData> {
-  requireLocalCrewOperatorAccess("Crew roster")
-
   const event = await requireCrewRosterEvent(data.eventId)
+  const access = await resolveCrewDepartmentLeadAccess(event)
   const [roster, shifts] = await Promise.all([
     loadCrewRoster(event.competitionTeamId),
     loadCrewShifts(event.id),
   ])
+  const scopedShifts = filterCrewDepartmentLeadShifts(shifts, access)
+  const scopedRoster = filterCrewDepartmentLeadRoster(
+    roster,
+    access,
+    scopedShifts,
+  )
 
   return {
     event,
-    roster,
-    summary: summarizeCrewRoster(roster),
-    shiftSummary: summarizeCrewShifts(shifts),
+    roster: scopedRoster,
+    summary: summarizeCrewRoster(scopedRoster),
+    shiftSummary: summarizeCrewShifts(scopedShifts),
   }
 }
 
 export async function getCrewShiftBoard(
   data: CrewEventInput,
 ): Promise<CrewShiftBoardData> {
-  requireLocalCrewOperatorAccess("Crew shifts")
-
   const event = await requireCrewRosterEvent(data.eventId)
+  const access = await resolveCrewDepartmentLeadAccess(event)
   const [roster, shifts] = await Promise.all([
     loadCrewRoster(event.competitionTeamId),
     loadCrewShifts(event.id),
   ])
-  const matrixInput = buildShiftBoardStaffingMatrixInput(event, roster, shifts)
+  const scopedShifts = filterCrewDepartmentLeadShifts(shifts, access)
+  const scopedRoster = filterCrewDepartmentLeadRoster(
+    roster,
+    access,
+    scopedShifts,
+  )
+  const matrixInput = buildShiftBoardStaffingMatrixInput(
+    event,
+    scopedRoster,
+    scopedShifts,
+  )
   const matrix = buildCrewStaffingMatrix(matrixInput)
 
   return {
     event,
-    roster,
-    rosterSummary: summarizeCrewRoster(roster),
-    shifts,
-    shiftSummary: summarizeCrewShifts(shifts),
+    roster: scopedRoster,
+    rosterSummary: summarizeCrewRoster(scopedRoster),
+    shifts: scopedShifts,
+    shiftSummary: summarizeCrewShifts(scopedShifts),
     pilotOps: buildCrewShiftBoardPilotOps({
-      shifts,
-      roster,
+      shifts: scopedShifts,
+      roster: scopedRoster,
       matrix,
     }),
   }
 }
 
 export async function getCrewEventRosterShiftSummary(data: CrewEventInput) {
-  requireLocalCrewOperatorAccess("Crew dashboard")
-
   const event = await requireCrewRosterEvent(data.eventId)
+  const access = await resolveCrewDepartmentLeadAccess(event)
   const [roster, shifts] = await Promise.all([
     loadCrewRoster(event.competitionTeamId),
     loadCrewShifts(event.id),
   ])
+  const scopedShifts = filterCrewDepartmentLeadShifts(shifts, access)
+  const scopedRoster = filterCrewDepartmentLeadRoster(
+    roster,
+    access,
+    scopedShifts,
+  )
 
   return {
-    rosterSummary: summarizeCrewRoster(roster),
-    shiftSummary: summarizeCrewShifts(shifts),
+    rosterSummary: summarizeCrewRoster(scopedRoster),
+    shiftSummary: summarizeCrewShifts(scopedShifts),
   }
 }
 
 export async function createManualCrewVolunteer(
   data: ManualCrewVolunteerInput,
 ): Promise<ManualCrewVolunteerMutationResult> {
-  requireLocalCrewOperatorAccess("Crew roster")
-
   const event = await requireCrewRosterEvent(data.eventId)
+  const access = await resolveCrewDepartmentLeadAccess(event)
+  assertCrewDepartmentLeadCanManageRosterTarget(
+    access,
+    toRosterTarget(null, data.roleTypes),
+  )
   return createManualCrewVolunteerRows(event, [
     {
       rowNumber: 1,
@@ -346,9 +376,12 @@ export async function createManualCrewVolunteer(
 export async function pasteManualCrewVolunteerEmails(
   data: ManualCrewVolunteerPasteInput,
 ): Promise<ManualCrewVolunteerMutationResult> {
-  requireLocalCrewOperatorAccess("Crew roster")
-
   const event = await requireCrewRosterEvent(data.eventId)
+  const access = await resolveCrewDepartmentLeadAccess(event)
+  assertCrewDepartmentLeadCanManageRosterTarget(
+    access,
+    toRosterTarget(null, undefined),
+  )
   const parsed = parseManualVolunteerEmailPaste(data.pasteText)
   const result = await createManualCrewVolunteerRows(
     event,
@@ -377,9 +410,8 @@ export async function pasteManualCrewVolunteerEmails(
 export async function updateCrewRosterVolunteer(
   data: UpdateCrewRosterVolunteerInput,
 ): Promise<UpdateCrewRosterVolunteerResult> {
-  requireLocalCrewOperatorAccess("Crew roster")
-
   const event = await requireCrewRosterEvent(data.eventId)
+  const access = await resolveCrewDepartmentLeadAccess(event)
   const db = getDb()
   const normalizedEmail = normalizeCrewRosterVolunteerEmail(data.email)
 
@@ -410,6 +442,17 @@ export async function updateCrewRosterVolunteer(
         if (!current) {
           throw new Error("Roster volunteer not found")
         }
+        assertCrewDepartmentLeadCanManageRosterTarget(
+          access,
+          toRosterTarget(
+            currentMembership?.id ?? null,
+            parseCrewRosterMetadata(current.metadata).volunteerRoleTypes,
+          ),
+        )
+        assertCrewDepartmentLeadCanManageRosterTarget(
+          access,
+          toRosterTarget(currentMembership?.id ?? null, data.roleTypes),
+        )
 
         const collision = findCrewRosterVolunteerEmailCollision({
           source: data.source,
@@ -440,12 +483,11 @@ export async function updateCrewRosterVolunteer(
         const metadataJson = JSON.stringify(metadata)
 
         if (currentInvitation) {
-          const updateValues: Partial<
-            typeof teamInvitationTable.$inferInsert
-          > = {
-            metadata: metadataJson,
-            updatedAt: timestamp,
-          }
+          const updateValues: Partial<typeof teamInvitationTable.$inferInsert> =
+            {
+              metadata: metadataJson,
+              updatedAt: timestamp,
+            }
 
           if (
             shouldUpdateCrewRosterInvitationEmail(currentInvitation, timestamp)
@@ -494,14 +536,19 @@ export async function updateCrewRosterVolunteer(
 }
 
 export async function createCrewShift(data: CrewShiftInput) {
-  requireLocalCrewOperatorAccess("Crew shifts")
-
   const event = await requireCrewRosterEvent(data.eventId)
+  const access = await resolveCrewDepartmentLeadAccess(event)
   const { startTime, endTime } = normalizeCrewShiftTimes({
     date: data.date,
     startTime: data.startTime,
     endTime: data.endTime,
     timezone: event.timezone ?? DEFAULT_TIMEZONE,
+  })
+  assertCrewDepartmentLeadCanManageShift(access, {
+    roleType: data.roleType,
+    startTime,
+    endTime,
+    location: data.location,
   })
   const db = getDb()
 
@@ -520,9 +567,8 @@ export async function createCrewShift(data: CrewShiftInput) {
 }
 
 export async function updateCrewShift(data: UpdateCrewShiftInput) {
-  requireLocalCrewOperatorAccess("Crew shifts")
-
   const event = await requireCrewRosterEvent(data.eventId)
+  const access = await resolveCrewDepartmentLeadAccess(event)
   const db = getDb()
   await db.transaction(async (tx) => {
     const [existingShift] = await tx
@@ -587,6 +633,16 @@ export async function updateCrewShift(data: UpdateCrewShiftInput) {
     if (data.notes !== undefined) updateValues.notes = emptyToNull(data.notes)
 
     if (Object.keys(updateValues).length === 0) return
+    assertCrewDepartmentLeadCanManageShift(access, existingShift)
+    assertCrewDepartmentLeadCanManageShift(access, {
+      roleType: data.roleType ?? existingShift.roleType,
+      startTime: updateValues.startTime ?? existingShift.startTime,
+      endTime: updateValues.endTime ?? existingShift.endTime,
+      location:
+        data.location !== undefined
+          ? emptyToNull(data.location)
+          : existingShift.location,
+    })
 
     updateValues.updatedAt = new Date()
     await tx
@@ -599,10 +655,10 @@ export async function updateCrewShift(data: UpdateCrewShiftInput) {
 }
 
 export async function deleteCrewShift(data: DeleteCrewShiftInput) {
-  requireLocalCrewOperatorAccess("Crew shifts")
-
-  await requireCrewRosterEvent(data.eventId)
-  await requireCrewShift(data.eventId, data.shiftId)
+  const event = await requireCrewRosterEvent(data.eventId)
+  const access = await resolveCrewDepartmentLeadAccess(event)
+  const shift = await requireCrewShift(event.id, data.shiftId)
+  assertCrewDepartmentLeadCanManageShift(access, shift)
   const db = getDb()
 
   await db.transaction(async (tx) => {
@@ -643,10 +699,9 @@ export async function deleteCrewShift(data: DeleteCrewShiftInput) {
 export async function assignCrewVolunteerToShift(
   data: CrewShiftAssignmentInput,
 ) {
-  requireLocalCrewOperatorAccess("Crew shifts")
-
   const db = getDb()
   const event = await requireCrewRosterEvent(data.eventId)
+  const access = await resolveCrewDepartmentLeadAccess(event)
 
   return await db.transaction(async (tx) => {
     const [shift] = await tx
@@ -664,6 +719,7 @@ export async function assignCrewVolunteerToShift(
     if (!shift) {
       throw new Error("Volunteer shift not found")
     }
+    assertCrewDepartmentLeadCanManageShift(access, shift)
 
     const [assignments, membershipRows] = await Promise.all([
       tx
@@ -728,6 +784,12 @@ export async function assignCrewVolunteerToShift(
     if (!membership) {
       throw new Error("Volunteer record was not found for this event.")
     }
+    assertCrewDepartmentLeadCanManageRosterTarget(access, {
+      membershipId: membership.id,
+      roleTypes: getCrewRosterRoleTypes(
+        parseCrewRosterMetadata(membership.metadata).volunteerRoleTypes,
+      ),
+    })
 
     const assignmentId = createVolunteerShiftAssignmentId()
     const now = new Date()
@@ -758,10 +820,10 @@ export async function assignCrewVolunteerToShift(
 export async function removeCrewVolunteerShiftAssignment(
   data: CrewShiftAssignmentInput,
 ) {
-  requireLocalCrewOperatorAccess("Crew shifts")
-
   const event = await requireCrewRosterEvent(data.eventId)
+  const access = await resolveCrewDepartmentLeadAccess(event)
   const shift = await requireCrewShift(event.id, data.shiftId)
+  assertCrewDepartmentLeadCanManageShift(access, shift)
   const db = getDb()
 
   await db.transaction(async (tx) => {
@@ -800,6 +862,7 @@ async function requireCrewRosterEvent(
       id: competitionsTable.id,
       name: competitionsTable.name,
       slug: competitionsTable.slug,
+      organizingTeamId: competitionsTable.organizingTeamId,
       competitionTeamId: competitionsTable.competitionTeamId,
       timezone: competitionsTable.timezone,
       startDate: competitionsTable.startDate,
@@ -818,6 +881,16 @@ async function requireCrewRosterEvent(
   }
 
   return event
+}
+
+function toRosterTarget(
+  membershipId: string | null,
+  roleTypes: VolunteerRoleType[] | undefined,
+): CrewDepartmentLeadRosterTarget {
+  return {
+    membershipId,
+    roleTypes: getCrewRosterRoleTypes(roleTypes),
+  }
 }
 
 export async function loadCrewRoster(competitionTeamId: string) {
@@ -936,9 +1009,8 @@ async function withCrewRosterVolunteerWriteLock<T>(
   callback: () => Promise<T>,
 ) {
   let acquired = false
-  const lockName = await createCrewRosterVolunteerWriteLockName(
-    competitionTeamId,
-  )
+  const lockName =
+    await createCrewRosterVolunteerWriteLockName(competitionTeamId)
 
   try {
     const result = await db.execute(

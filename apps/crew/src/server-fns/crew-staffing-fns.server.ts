@@ -29,7 +29,12 @@ import {
   type CrewStaffingMatrixInput,
   type CrewStaffingReport,
 } from "../lib/crew/staffing"
-import { requireLocalCrewOperatorAccess } from "../server/crew-local-access"
+import type { CrewDepartmentLeadAccess } from "../lib/crew/department-leads"
+import {
+  filterCrewDepartmentLeadRoster,
+  filterCrewDepartmentLeadShifts,
+} from "../lib/crew/department-leads"
+import { resolveCrewDepartmentLeadAccess } from "../server/crew-department-lead.server"
 import {
   loadCrewRoster,
   loadCrewShifts,
@@ -42,6 +47,7 @@ export interface CrewStaffingReportEvent {
   id: string
   name: string
   slug: string
+  organizingTeamId: string
   competitionTeamId: string
   timezone: string | null
   startDate: string | null
@@ -60,11 +66,12 @@ export interface CrewStaffingReportPageData {
 export async function getCrewStaffingReportPage(
   eventId: string,
 ): Promise<CrewStaffingReportPageData> {
-  requireLocalCrewOperatorAccess("Crew staffing")
-
   const event = await requireCrewStaffingEvent(eventId)
-  const { input, activeJudgeVersions } =
-    await loadCrewStaffingMatrixInput(event)
+  const access = await resolveCrewDepartmentLeadAccess(event)
+  const { input, activeJudgeVersions } = await loadCrewStaffingMatrixInput(
+    event,
+    access,
+  )
   const matrix = buildCrewStaffingMatrix(input)
   const report = buildCrewStaffingReport(input, matrix)
 
@@ -88,6 +95,7 @@ export async function requireCrewStaffingEvent(
       id: competitionsTable.id,
       name: competitionsTable.name,
       slug: competitionsTable.slug,
+      organizingTeamId: competitionsTable.organizingTeamId,
       competitionTeamId: competitionsTable.competitionTeamId,
       timezone: competitionsTable.timezone,
       startDate: competitionsTable.startDate,
@@ -110,6 +118,7 @@ export async function requireCrewStaffingEvent(
 
 export async function loadCrewStaffingMatrixInput(
   event: CrewStaffingReportEvent,
+  access: CrewDepartmentLeadAccess = { kind: "full", scopes: [] },
 ) {
   const [roster, shifts, venues, workouts, heats] = await Promise.all([
     loadCrewRoster(event.competitionTeamId),
@@ -118,6 +127,12 @@ export async function loadCrewStaffingMatrixInput(
     loadStaffingWorkouts(event.id),
     loadStaffingHeats(event.id),
   ])
+  const scopedShifts = filterCrewDepartmentLeadShifts(shifts, access)
+  const scopedRoster = filterCrewDepartmentLeadRoster(
+    roster,
+    access,
+    scopedShifts,
+  )
   const heatIds = heats.map((heat) => heat.id)
   const trackWorkoutIds = [...new Set(heats.map((heat) => heat.trackWorkoutId))]
   const [heatLaneAssignments, judgeData] = await Promise.all([
@@ -137,7 +152,7 @@ export async function loadCrewStaffingMatrixInput(
     workouts,
     heats,
     heatLaneAssignments,
-    roster: roster.flatMap((volunteer) => {
+    roster: scopedRoster.flatMap((volunteer) => {
       if (!volunteer.membershipId) return []
       return {
         membershipId: volunteer.membershipId,
@@ -149,7 +164,7 @@ export async function loadCrewStaffingMatrixInput(
         isActive: volunteer.status === "active",
       }
     }),
-    shifts: toStaffingShifts(shifts),
+    shifts: toStaffingShifts(scopedShifts),
     judgeAssignments: judgeData.judgeAssignments,
   }
 

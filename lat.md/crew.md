@@ -200,6 +200,14 @@ Self-serve Crew setup keeps reusable setup memory in shared DB tables owned by `
 
 `crew_department_leads` stores event-scoped delegation records for role, floor, and time-slice access without expanding the broad team permission model. IDs use the `cdlead_` prefix.
 
+## Department Leads
+
+Department leads let organizers delegate Crew shift-board and roster operations for a role, floor, and time window without adding broad `TEAM_PERMISSIONS`.
+
+[[apps/crew/src/lib/crew/department-leads.ts]] owns deterministic scope normalization, read filtering, and mutation guard helpers. [[apps/crew/src/server/crew-department-lead.server.ts]] loads shared `crew_department_leads` rows and resolves either full organizer/local-operator access or active department-lead scopes. [[apps/crew/src/server-fns/crew-department-lead-fns.ts]] keeps the route-safe wrappers thin.
+
+The setup surface at [[apps/crew/src/routes/events/$eventId/setup.tsx]] manages lead rows through [[apps/crew/src/components/crew-department-leads/crew-department-leads-panel.tsx]]. Existing roster, shift, staffing, day-of, and confirmation server paths apply the same server-side scope before returning data or mutating shift/assignment state.
+
 ## Remember Import Mappings
 
 Crew import mapping memory stores confirmed CSV header mappings in `crew_import_mapping_presets` by team, source platform, import kind, and deterministic header fingerprint.

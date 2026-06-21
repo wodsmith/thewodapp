@@ -3,7 +3,9 @@ import { useEffect, useState } from "react"
 import { createFileRoute, getRouteApi, useRouter } from "@tanstack/react-router"
 import { Save } from "lucide-react"
 import { toast } from "sonner"
+import type { VolunteerRoleType } from "@/db/schemas/volunteers"
 import { CrewCopyPriorEventPanel } from "@/components/crew-copy-event/crew-copy-prior-event-panel"
+import { CrewDepartmentLeadsPanel } from "@/components/crew-department-leads/crew-department-leads-panel"
 import { GuidedSetupShell } from "@/components/crew-guided-setup/guided-setup-shell"
 import { CrewTemplatePanel } from "@/components/crew-templates/crew-template-panel"
 import type {
@@ -31,20 +33,32 @@ import {
   applyCrewCopyPriorEventFn,
   getCrewCopyPriorEventPageFn,
 } from "@/server-fns/crew-copy-event-fns"
+import {
+  createCrewDepartmentLeadFn,
+  getCrewDepartmentLeadsPageFn,
+  revokeCrewDepartmentLeadFn,
+  updateCrewDepartmentLeadFn,
+} from "@/server-fns/crew-department-lead-fns"
 
 export const Route = createFileRoute("/events/$eventId/setup")({
   loader: async ({ params }) => {
-    const [guidedSetupPage, templatePage, copyPriorEventPage] =
-      await Promise.all([
-        getCrewGuidedSetupPageFn({ data: { eventId: params.eventId } }),
-        getCrewTemplatePageFn({ data: { eventId: params.eventId } }),
-        getCrewCopyPriorEventPageFn({ data: { eventId: params.eventId } }),
-      ])
+    const [
+      guidedSetupPage,
+      templatePage,
+      copyPriorEventPage,
+      departmentLeadsPage,
+    ] = await Promise.all([
+      getCrewGuidedSetupPageFn({ data: { eventId: params.eventId } }),
+      getCrewTemplatePageFn({ data: { eventId: params.eventId } }),
+      getCrewCopyPriorEventPageFn({ data: { eventId: params.eventId } }),
+      getCrewDepartmentLeadsPageFn({ data: { eventId: params.eventId } }),
+    ])
 
     return {
       ...guidedSetupPage,
       templatePage,
       copyPriorEventPage,
+      departmentLeadsPage,
     }
   },
   component: EventSetupPage,
@@ -58,7 +72,7 @@ const parentRoute = getRouteApi("/events/$eventId")
 function EventSetupPage() {
   const router = useRouter()
   const { event } = parentRoute.useLoaderData()
-  const { guidedSetup, templatePage, copyPriorEventPage } =
+  const { guidedSetup, templatePage, copyPriorEventPage, departmentLeadsPage } =
     Route.useLoaderData()
   const parsedSettings = parseCrewSettings(event.settings.settings)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -225,6 +239,65 @@ function EventSetupPage() {
     }
   }
 
+  async function handleCreateDepartmentLead(data: {
+    eventId: string
+    email: string | null
+    name: string | null
+    membershipId: string | null
+    roleType: VolunteerRoleType
+    floor: string | null
+    startsAt: string | null
+    endsAt: string | null
+    status: "invited" | "active" | "revoked"
+    notes: string | null
+  }) {
+    try {
+      await createCrewDepartmentLeadFn({ data })
+      toast.success("Department lead added")
+      await router.invalidate()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to add lead")
+    }
+  }
+
+  async function handleUpdateDepartmentLead(data: {
+    leadId: string
+    eventId: string
+    email: string | null
+    name: string | null
+    membershipId: string | null
+    roleType: VolunteerRoleType
+    floor: string | null
+    startsAt: string | null
+    endsAt: string | null
+    status: "invited" | "active" | "revoked"
+    notes: string | null
+  }) {
+    try {
+      await updateCrewDepartmentLeadFn({ data })
+      toast.success("Department lead saved")
+      await router.invalidate()
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save lead",
+      )
+    }
+  }
+
+  async function handleRevokeDepartmentLead(leadId: string) {
+    try {
+      await revokeCrewDepartmentLeadFn({
+        data: { eventId: event.competition.id, leadId },
+      })
+      toast.success("Department lead revoked")
+      await router.invalidate()
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to revoke lead",
+      )
+    }
+  }
+
   return (
     <section className="space-y-6">
       <GuidedSetupShell
@@ -248,6 +321,13 @@ function EventSetupPage() {
         eventId={event.competition.id}
         pageData={copyPriorEventPage}
         onApply={handleCopyPriorEvent}
+      />
+
+      <CrewDepartmentLeadsPanel
+        pageData={departmentLeadsPage}
+        onCreate={handleCreateDepartmentLead}
+        onUpdate={handleUpdateDepartmentLead}
+        onRevoke={handleRevokeDepartmentLead}
       />
 
       <form
