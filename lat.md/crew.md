@@ -377,3 +377,19 @@ Crew pilot exports turn the active event staffing and judge assignment data into
 The event-day packet extends [[crew#Pilot Exports]] with a print-first index, day schedule, station cards, lane cards, role sheets, and judge cards from [[apps/crew/src/lib/crew/exports/pilot-exports.ts]], rendered at [[apps/crew/src/routes/events/$eventId/exports.tsx]].
 
 The packet is still full local-operator-only through [[apps/crew/src/server/crew-pilot-exports.server.ts]] and [[apps/crew/src/server-fns/crew-pilot-export-fns.ts]]. It does not add PDF runtime infrastructure, schema, queue/email work, public tokens, department-lead subset export access, or assignment/judge-version mutations.
+
+## Strategic Moat Privacy Model
+
+Crew Phase 5 memory is scoped, consented, factual volunteer history before it becomes discovery.
+
+[[apps/crew/docs/decisions/0005-strategic-moat-privacy-model.md]] defines the privacy boundary for returning volunteer history, communication history, reliability summaries, series crew pools, Crew-to-WODsmith conversion assistance, and regional discovery.
+
+Same-organizer returning volunteer history may show factual prior event history owned by that organizing team. Cross-organizer visibility requires explicit volunteer opt-in, supports revocation, and remains a blind intro request until the volunteer accepts.
+
+Identity matching prefers `userId` when present and normalized contact hashes for no-password volunteers. Crew must not merge identities from name-only matches, display labels, internal notes, emergency contacts, or private metadata.
+
+Reliability is auditable fact history only: assignments, confirmations, responses, attendance outcomes, credentials, and replacements. Crew must not expose public ratings, rankings, top-judge lists, negative badges, global reputation, organizer sentiment, or private notes.
+
+Raw email, phone, emergency contacts, internal notes, and private metadata stay in their existing source tables. Discovery, search, analytics, audit previews, and regional summaries must not expose those raw fields.
+
+Series crew pools stay constrained to the selected `competition_group`; conversion enriches an existing competition instead of cloning identities; regional discovery starts as opt-in intro requests only. Intelligence, series, conversion, discovery, and person-level analytics require privacy review notes and feature flags before implementation.
