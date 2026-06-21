@@ -293,3 +293,9 @@ Crew pilot exports turn the active event staffing and judge assignment data into
 [[apps/crew/src/routes/events/$eventId/exports.tsx]] renders the per-event export surface. [[apps/crew/src/server-fns/crew-pilot-export-fns.ts]] keeps the route import light while [[apps/crew/src/server/crew-pilot-exports.server.ts]] reuses server-only staffing hydration and active judge assignment data.
 
 [[apps/crew/src/lib/crew/exports/pilot-exports.ts]] owns deterministic export derivation for master schedule CSV rows, role sheets, judge heat/lane sheets, no-response and decline lists, and printable floor lead sheets. Exports are read-only and must not send reminders, create queues, alter confirmation tokens, or mutate versioned judge assignment rows.
+
+## Event Day Export Packet
+
+The event-day packet extends [[crew#Pilot Exports]] with a print-first index, day schedule, station cards, lane cards, role sheets, and judge cards from [[apps/crew/src/lib/crew/exports/pilot-exports.ts]], rendered at [[apps/crew/src/routes/events/$eventId/exports.tsx]].
+
+The packet is still full local-operator-only through [[apps/crew/src/server/crew-pilot-exports.server.ts]] and [[apps/crew/src/server-fns/crew-pilot-export-fns.ts]]. It does not add PDF runtime infrastructure, schema, queue/email work, public tokens, department-lead subset export access, or assignment/judge-version mutations.
