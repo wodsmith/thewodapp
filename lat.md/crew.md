@@ -70,6 +70,16 @@ Crew Stripe webhooks complete the event-level Checkout flow after Stripe verifie
 
 [[apps/crew/src/server/crew-billing.server.ts]] completes only a matching pending Stripe Checkout event settings row, appends one `checkout_completed` billing audit row, and patches only `crew_event_settings` billing fields. Crew Checkout completion must not mutate WODsmith team subscription state or assign Crew one-event plan IDs to `teams.currentPlanId`.
 
+## Paid Launch Ops Hardening
+
+Crew paid launch remains operator-led unless the Checkout flag is explicitly enabled.
+
+[[apps/crew/docs/guides/paid-launch-ops-runbook.md]] is the day-one runbook for manual paid grants, founder/private pricing, Stripe Payment Link reconciliation, refund and full-platform credit policy, and no-live-Stripe validation before turning on self-serve Checkout.
+
+[[apps/crew/src/lib/crew/billing-state.test.ts]] locks the manual, founder, credit, refund, Payment Link, Checkout creation, and webhook completion plans to event-level `crew_event_settings` patches without `teams.currentPlanId` mutation.
+
+[[apps/crew/src/lib/crew/billing-page.test.ts]] keeps organizer-safe billing view models free of founder pricing, invoices, private audit metadata, and raw Stripe references while preserving the disabled Checkout expectation when `CREW_STRIPE_CHECKOUT_ENABLED` is off.
+
 ## Server Function Runtime Boundary
 
 Route and client code import lightweight `createServerFn` wrappers from [[apps/crew/src/server-fns]].

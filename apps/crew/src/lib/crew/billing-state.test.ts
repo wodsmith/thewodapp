@@ -1,5 +1,6 @@
 // @lat: [[crew#Crew Billing State And Audit]]
 // @lat: [[crew#Manual Paid And Founder Grants]]
+// @lat: [[crew#Paid Launch Ops Hardening]]
 import { describe, expect, it } from "vitest"
 import { CREW_BILLING_EVENT_TYPE } from "../../db/schemas/crew-billing-events"
 import {
@@ -182,6 +183,80 @@ describe("Crew billing state and audit helpers", () => {
         "crew_concierge",
       ),
     ).toBe(true)
+  })
+
+  it("keeps every paid-launch manual operation scoped away from team subscription plans", () => {
+    const manualSale = planManualCrewBillingAction([], {
+      action: MANUAL_CREW_BILLING_ACTION.RECORD_MANUAL_PAID,
+      competitionId: "comp_manual",
+      teamId: "team_owner",
+      planId: "crew_basic",
+      amountCents: 20_000,
+      privateMetadata: { invoiceId: "inv_manual" },
+    })
+    const founderGrant = planManualCrewBillingAction([], {
+      action: MANUAL_CREW_BILLING_ACTION.APPLY_FOUNDER_GRANT,
+      competitionId: "comp_founder",
+      teamId: "team_owner",
+      privateFounderPriceCents: 9900,
+      privateMetadata: { approvalNote: "private approval" },
+    })
+    const creditSet = planManualCrewBillingAction([], {
+      action: MANUAL_CREW_BILLING_ACTION.SET_FULL_PLATFORM_CREDIT,
+      competitionId: "comp_credit",
+      teamId: "team_owner",
+      current: {
+        state: CREW_BILLING_STATE.PAID,
+        source: CREW_BILLING_SOURCE.MANUAL_SALES,
+        planId: "crew_pro",
+        amountCents: 80_000,
+      },
+      fullPlatformCreditCents: 25_000,
+    })
+    const creditApplied = planManualCrewBillingAction([creditSet.event], {
+      action: MANUAL_CREW_BILLING_ACTION.APPLY_FULL_PLATFORM_CREDIT,
+      competitionId: "comp_credit",
+      teamId: "team_owner",
+      current: {
+        state: CREW_BILLING_STATE.CREDITED,
+        source: CREW_BILLING_SOURCE.CREW_CREDIT,
+        planId: "crew_pro",
+        amountCents: 80_000,
+        fullPlatformCreditCents: 25_000,
+      },
+    })
+    const comped = planManualCrewBillingAction([], {
+      action: MANUAL_CREW_BILLING_ACTION.COMP_EVENT,
+      competitionId: "comp_comped",
+      teamId: "team_owner",
+      planId: "crew_starter",
+    })
+    const refunded = planManualCrewBillingAction([], {
+      action: MANUAL_CREW_BILLING_ACTION.RECORD_REFUND,
+      competitionId: "comp_refund",
+      teamId: "team_owner",
+      current: {
+        state: CREW_BILLING_STATE.PAID,
+        source: CREW_BILLING_SOURCE.MANUAL_SALES,
+        planId: "crew_basic",
+        amountCents: 20_000,
+      },
+      refundedCents: 20_000,
+      privateMetadata: { refundReason: "operator reversal" },
+    })
+
+    for (const plan of [
+      manualSale,
+      founderGrant,
+      creditSet,
+      creditApplied,
+      comped,
+      refunded,
+    ]) {
+      expect(plan.action).toBe("append")
+      expect(plan.settingsPatch).not.toHaveProperty("currentPlanId")
+      expect(JSON.stringify(plan.settingsPatch)).not.toContain("currentPlanId")
+    }
   })
 
   it("rejects manual paid actions without a valid plan and positive amount", () => {

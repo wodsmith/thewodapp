@@ -1,4 +1,5 @@
 // @lat: [[crew#Billing Page And Upgrade CTA]]
+// @lat: [[crew#Paid Launch Ops Hardening]]
 import { describe, expect, it } from "vitest"
 import {
   CREW_BILLING_SOURCE,
@@ -87,6 +88,25 @@ describe("Crew billing page view model", () => {
       label: "Start Checkout",
     })
     expect(enabled.checkout.helperText).toContain("Checkout Session")
+  })
+
+  it("keeps the disabled Checkout state stable for paid launch when the flag is off", () => {
+    const viewModel = buildCrewBillingPageViewModel({
+      billing: {
+        ...baseBilling,
+        planId: "crew_basic",
+      },
+      paymentLink: { id: null, url: null },
+      checkoutEnabled: false,
+    })
+
+    expect(viewModel.checkout).toEqual({
+      label: "Checkout unavailable",
+      status: "hidden",
+      href: null,
+      helperText: "Checkout is not enabled for Crew billing yet.",
+    })
+    expect(JSON.stringify(viewModel.checkout)).not.toContain("crew_basic")
   })
 
   it("disables Checkout for pending or private Crew billing states", () => {
