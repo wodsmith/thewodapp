@@ -164,6 +164,8 @@ Benchmark competitions reuse the normal competition shell. [[packages/wodsmith-d
 
 Benchmark configuration validates before write/read code consumes it. [[apps/wodsmith-start/src/schemas/benchmark.schema.ts#benchmarkCategoriesSchema]] rejects duplicate or malformed category caches, [[apps/wodsmith-start/src/schemas/benchmark.schema.ts#getBenchmarkCategoryCountIssues]] compares cached `testCount` values to included tests, [[apps/wodsmith-start/src/schemas/benchmark.schema.ts#benchmarkVariantSchema]] limits v1 score variants to the profile gender values, [[apps/wodsmith-start/src/schemas/benchmark.schema.ts#benchmarkThresholdValuesSchema]] requires ten tier thresholds per standard row, and [[apps/wodsmith-start/src/schemas/scoring.schema.ts#scoringConfigSchema]] requires `absoluteTier.batteryId` whenever `algorithm` is `absolute_tier`. Until the M2 scoring engine lands, [[apps/wodsmith-start/src/lib/scoring/algorithms/index.ts#calculateEventPoints]] fails closed for `absolute_tier` instead of returning placeholder points.
 
+The first benchmark seed treats the source PDF as provenance data, not a branded product surface. [[apps/wodsmith-start/scripts/seed/data/benchmark-training-guide.ts#buildBenchmarkSeedRows]] creates generic competition, battery, workout, and track-workout rows from 58 source tests, marks three unsupported tests as `includedInScoring=false`, emits tier thresholds only for the 55 included tests, and leaves `competition_events` empty so the board stays perpetual without submission windows.
+
 ## Volunteers
 
 Volunteers are competition staff assigned roles like judge, scorekeeper, medical, and emcee.
