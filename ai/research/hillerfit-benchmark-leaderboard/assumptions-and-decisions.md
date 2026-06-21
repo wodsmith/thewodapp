@@ -16,12 +16,12 @@ This file records what implementers should treat as settled, what still requires
 - Do not declare `optInResultPublishing` for benchmark.
 - Defer Weighted C2B, Open 16.2, and Open 18.4 from v1 scoring.
 - Use `/Users/zacjones/Downloads/HillerFit_Training_Guide.pdf` as the source artifact for the first benchmark seed.
-- Do not build HillerFit-branded pages, routes, marketing surfaces, logos, or theme treatments.
+- Treat the PDF as source data only; do not build any HillerFit-branded page, route, tab, product navigation item, marketing surface, logo, call to action, theme treatment, or customer-facing product area.
 - The first seed sets `videoPolicy: "never"` and `isOpenJoin: true`; M3 must enforce the guarded open-join checks before athlete writes.
 
 ## Source Data Check
 
-Before completing the first seed, extract tests, categories, units, and thresholds from the local training PDF and record assumptions. If the PDF is ambiguous or incomplete, ask the owner about the data gap. Do not solve ambiguity by creating branded product surfaces.
+Before completing the first seed, extract tests, categories, units, and thresholds from the local training PDF and record assumptions. If the PDF is ambiguous or incomplete, ask the owner about the data gap. Do not solve ambiguity by creating branded product surfaces; the answer is data clarification, not UI scope expansion.
 
 ## Deferred Decisions
 
@@ -33,7 +33,7 @@ Before completing the first seed, extract tests, categories, units, and threshol
 ## Rejected Alternatives
 
 - Reusing `competitionType: "online"` for benchmark.
-- HillerFit-branded pages or product navigation.
+- HillerFit-branded pages, routes, stats pages, product navigation, marketing copy, logos, calls to action, visual themes, or customer-facing product areas.
 - Requiring videos for every v1 benchmark seed submission before the scoring concept is validated.
 - Men/Women divisions for v1.
 - `settings` JSON for all tier thresholds.

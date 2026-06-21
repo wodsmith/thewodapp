@@ -399,6 +399,17 @@ describe("ScoringConfig Schema", () => {
 		expect(result.success).toBe(false)
 	})
 
+	it("rejects stale absoluteTier config for non-absolute algorithms", () => {
+		const result = scoringConfigSchema.safeParse({
+			algorithm: "traditional",
+			absoluteTier: { batteryId: "bbat_01JZ0000000000000000000000" },
+			tiebreaker: { primary: "countback" },
+			statusHandling: { dnf: "zero", dns: "zero", withdrawn: "zero" },
+		})
+
+		expect(result.success).toBe(false)
+	})
+
 	it("rejects missing algorithm", () => {
 		const result = scoringConfigSchema.safeParse({
 			tiebreaker: { primary: "countback" },

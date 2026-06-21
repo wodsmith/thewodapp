@@ -13,5 +13,5 @@ This matrix links implementation artifacts back to the guide and the required te
 | Absolute tier scoring | Guide §6.1-§6.5, §10 M2 | `technical-design.md`, `tasks.md` M2 | Tier, direction, half-tier, tiebreak, aggregation unit tests |
 | Stats page | Guide §8.3, §10 M4 | `requirements.md`, `technical-design.md`, `tasks.md` M4 | Route/component tests and manual QA |
 | V2 boundary | Guide §7, §10 V2 | `requirements.md`, `tasks.md` V2, `assumptions-and-decisions.md` | Migration check excludes `score_attempts` |
-| No HillerFit-branded pages or navigation | Guide §0 D-D, §12.12 | `requirements.md`, `technical-design.md`, `tasks.md`, `assumptions-and-decisions.md` | Route/component/navigation assertions and manual QA |
-| PDF source data | Guide §0 D-D, §12.12 | `requirements.md`, `tasks.md` M1b, `test-strategy.md` | Extraction receipt and seed validation |
+| PDF source data only | Guide §0 D-D, §12.12 | `requirements.md`, `technical-design.md`, `tasks.md` global criteria, `assumptions-and-decisions.md` | Extraction receipt, seed validation, and allowlisted source-data references |
+| No HillerFit-branded customer-facing surface | Guide §0 D-D, §12.12 | `requirements.md`, `technical-design.md`, `tasks.md` global criteria, `test-strategy.md`, `assumptions-and-decisions.md` | Route/component/navigation/static assertions and manual QA |

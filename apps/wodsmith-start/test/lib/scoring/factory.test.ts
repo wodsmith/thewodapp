@@ -7,7 +7,9 @@ import {
 	DEFAULT_PSCORE_CONFIG,
 	getScoringAlgorithmName,
 	canHaveNegativeScores,
+	BenchmarkConfigError,
 	type EventScoreInput,
+	type AbsoluteTierScoringContext,
 } from "@/lib/scoring/algorithms"
 import type { ScoringConfig } from "@/types/scoring"
 
@@ -254,11 +256,48 @@ describe("Scoring Factory", () => {
 				tiebreaker: { primary: "none" },
 				statusHandling: { dnf: "zero", dns: "zero", withdrawn: "zero" },
 			}
+			const context: AbsoluteTierScoringContext = {
+				tableByEventId: new Map([
+					[
+						"e1",
+						{
+							scoreType: "max",
+							thresholdsByVariant: new Map([
+								[
+									"male",
+									[
+										{ tier: 1, value: 100 },
+										{ tier: 2, value: 200 },
+									],
+								],
+							]),
+						},
+					],
+				]),
+			}
 
-			it("fails closed until the benchmark scoring engine is implemented", () => {
-				expect(() =>
-					calculateEventPoints("e1", baseScores, "time", config),
-				).toThrow("absolute_tier scoring is configured but not implemented")
+			it("dispatches through preloaded absolute-tier context", () => {
+				const results = calculateEventPoints(
+					"e1",
+					[
+						{ userId: "a", value: 50, status: "scored", variant: "male" },
+						{ userId: "b", value: 100, status: "scored", variant: "male" },
+						{ userId: "c", value: 250, status: "scored", variant: "male" },
+					],
+					"reps",
+					config,
+					{ absoluteTier: context },
+				)
+
+				expect(results.get("a")).toEqual({ userId: "a", points: 0.5, rank: 3 })
+				expect(results.get("b")).toEqual({ userId: "b", points: 1, rank: 2 })
+				expect(results.get("c")).toEqual({ userId: "c", points: 2, rank: 1 })
+			})
+
+			it("fails closed when context is missing", () => {
+				expect(() => calculateEventPoints("e1", baseScores, "time", config)).toThrow(
+					BenchmarkConfigError,
+				)
 			})
 		})
 	})
@@ -394,7 +433,7 @@ describe("Scoring Factory", () => {
 			expect(calculatePointsForPlace({ place: 6, config })).toBe(0)
 		})
 
-		it("fails closed for absolute_tier until static place points are implemented", () => {
+		it("returns 0 for absolute_tier missing-place points", () => {
 			const config: ScoringConfig = {
 				algorithm: "absolute_tier",
 				absoluteTier: { batteryId: "bbat_01JZ0000000000000000000000" },
@@ -402,9 +441,7 @@ describe("Scoring Factory", () => {
 				statusHandling: { dnf: "zero", dns: "zero", withdrawn: "zero" },
 			}
 
-			expect(() => calculatePointsForPlace({ place: 1, config })).toThrow(
-				"absolute_tier place points are not available",
-			)
+			expect(calculatePointsForPlace({ place: 1, config })).toBe(0)
 		})
 	})
 })
