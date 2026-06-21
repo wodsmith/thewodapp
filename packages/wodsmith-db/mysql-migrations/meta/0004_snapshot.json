@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "b22d91a4-245c-4555-9dff-bc441439225b",
+  "id": "2ed73bd8-293c-4bb6-a91f-048301106349",
   "prevId": "128d38a2-1a30-484b-b159-ce7f27fc89f4",
   "tables": {
     "addresses": {
@@ -6252,7 +6252,12 @@
         }
       },
       "uniqueConstraints": {},
-      "checkConstraint": {}
+      "checkConstraint": {
+        "crew_volunteer_identities_anchor_check": {
+          "name": "crew_volunteer_identities_anchor_check",
+          "value": "`crew_volunteer_identities`.`user_id` is not null or `crew_volunteer_identities`.`email_hash` is not null or `crew_volunteer_identities`.`phone_hash` is not null"
+        }
+      }
     },
     "crew_volunteer_intro_requests": {
       "name": "crew_volunteer_intro_requests",

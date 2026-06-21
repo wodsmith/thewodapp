@@ -126,7 +126,8 @@ CREATE TABLE `crew_volunteer_identities` (
 	CONSTRAINT `crew_volunteer_identities_id` PRIMARY KEY(`id`),
 	CONSTRAINT `crew_volunteer_identities_team_user_unique_idx` UNIQUE(`team_id`,`user_id`),
 	CONSTRAINT `crew_volunteer_identities_team_email_hash_unique_idx` UNIQUE(`team_id`,`contact_hash_version`,`email_hash`),
-	CONSTRAINT `crew_volunteer_identities_team_phone_hash_unique_idx` UNIQUE(`team_id`,`contact_hash_version`,`phone_hash`)
+	CONSTRAINT `crew_volunteer_identities_team_phone_hash_unique_idx` UNIQUE(`team_id`,`contact_hash_version`,`phone_hash`),
+	CONSTRAINT `crew_volunteer_identities_anchor_check` CHECK(`crew_volunteer_identities`.`user_id` is not null or `crew_volunteer_identities`.`email_hash` is not null or `crew_volunteer_identities`.`phone_hash` is not null)
 );
 --> statement-breakpoint
 CREATE TABLE `crew_volunteer_intro_requests` (

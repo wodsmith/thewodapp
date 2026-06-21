@@ -1,8 +1,9 @@
 // @lat: [[crew#Strategic Moat Privacy Model]]
 import type { InferSelectModel } from "drizzle-orm"
-import { relations } from "drizzle-orm"
+import { relations, sql } from "drizzle-orm"
 import {
   boolean,
+  check,
   datetime,
   index,
   mysqlTable,
@@ -230,6 +231,10 @@ export const crewVolunteerIdentitiesTable = mysqlTable(
     index("crew_volunteer_identities_status_idx").on(table.status),
     index("crew_volunteer_identities_age_status_idx").on(
       table.discoveryAgeStatus,
+    ),
+    check(
+      "crew_volunteer_identities_anchor_check",
+      sql`${table.userId} is not null or ${table.emailHash} is not null or ${table.phoneHash} is not null`,
     ),
   ],
 )
