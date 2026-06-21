@@ -251,8 +251,23 @@ function getFulfillmentLabel(billing: CrewBillingStateSnapshot) {
 }
 
 function formatMoney(cents: number, currency: string) {
+  const amount = cents / 100
+  const normalizedCurrency = currency.trim().toUpperCase() || "USD"
+
+  try {
+    return formatCurrencyWithIntl(amount, normalizedCurrency)
+  } catch {
+    try {
+      return formatCurrencyWithIntl(amount, "USD")
+    } catch {
+      return `$${amount.toFixed(2)}`
+    }
+  }
+}
+
+function formatCurrencyWithIntl(amount: number, currency: string) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: currency.toUpperCase(),
-  }).format(cents / 100)
+    currency,
+  }).format(amount)
 }

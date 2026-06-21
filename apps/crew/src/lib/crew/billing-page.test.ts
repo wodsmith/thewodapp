@@ -127,6 +127,27 @@ describe("Crew billing page view model", () => {
     expect(comped.plan.hasCrewEventAccess).toBe(true)
   })
 
+  it("falls back to USD labels instead of throwing for malformed persisted currency", () => {
+    const viewModel = buildCrewBillingPageViewModel({
+      billing: {
+        ...baseBilling,
+        state: CREW_BILLING_STATE.PAID,
+        source: CREW_BILLING_SOURCE.MANUAL_SALES,
+        planId: "crew_pro",
+        amountCents: 49900,
+        currency: "not a currency",
+        fullPlatformCreditCents: 25000,
+        refundedCents: 5000,
+      },
+      paymentLink: { id: null, url: null },
+      checkoutEnabled: false,
+    })
+
+    expect(viewModel.billing.amountLabel).toBe("$499.00")
+    expect(viewModel.billing.upgradeCreditLabel).toBe("$250.00")
+    expect(viewModel.billing.refundedLabel).toBe("$50.00")
+  })
+
   it("does not leak founder pricing, Stripe references, audit metadata, or invoices", () => {
     const viewModel = buildCrewBillingPageViewModel({
       billing: {

@@ -23,6 +23,7 @@ import {
   canViewCrewBillingPage,
   type CrewBillingPageViewModel,
 } from "../lib/crew/billing-page"
+import { safeHttpUrl } from "../lib/safe-url"
 import {
   type CrewBillingAuditEvent,
   type CrewBillingAppendPlan,
@@ -425,7 +426,7 @@ function getCrewPaymentLinkUrlFromSettings(settingsText: string | null) {
   ]
 
   for (const candidate of candidates) {
-    const safeUrl = getSafeHttpUrl(candidate)
+    const safeUrl = safeHttpUrl(candidate)
     if (safeUrl) return safeUrl
   }
 
@@ -458,19 +459,6 @@ function getNestedString(
   }
 
   return typeof current === "string" ? current : null
-}
-
-function getSafeHttpUrl(value: string | null) {
-  if (!value) return null
-
-  try {
-    const url = new URL(value)
-    return url.protocol === "http:" || url.protocol === "https:"
-      ? url.toString()
-      : null
-  } catch {
-    return null
-  }
 }
 
 function isCrewStripeCheckoutEnabled() {
