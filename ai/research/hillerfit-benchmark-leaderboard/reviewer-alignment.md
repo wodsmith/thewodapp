@@ -10,9 +10,9 @@ Reviewer A now describes the server contract as coherent: generic benchmark batt
 
 ## Reviewer B Summary
 
-Reviewer B reviewed the UI, route, test, and branding slice. They identified and then re-checked three blocking gaps: the guide header still described the pre-M0a state, the stats route collapsed load/configuration errors into the empty no-score state, and tests did not yet pin Stats tab visibility or direct `/stats` fallback behavior. The implementation now says M0a has landed and `benchmark` is registered with `videoSubmissions`/`perpetual`, renders an explicit stats load-error state, and covers tab gating plus direct stats-route unavailable/load-error states.
+Reviewer B reviewed the UI, route, test, and branding slice. They identified and then re-checked the blocking gaps: the route tree had dropped the TanStack Start registration, the stats route collapsed load/configuration errors into the empty no-score state, tests did not yet pin all required stat states or the actual benchmark table rendering, and the docs needed a sharper no-branded-pages boundary. The implementation now preserves the route registration, renders an explicit stats load-error state, covers all required stats states, covers the actual `OnlineCompetitionLeaderboardTable` benchmark display, and explicitly states that the training PDF is source data only.
 
-Reviewer B now describes the UI contract as coherent: `CompetitionTabs` exposes a generic Stats tab only for `absolute_tier`, `/compete/$slug/stats` renders generic benchmark stats or explicit fallback states, the leaderboard table shows Overall/100, rating, category, and tier fields, and the branding boundary keeps HillerFit references out of customer-facing routes/components.
+Reviewer B now describes the UI contract as coherent: `CompetitionTabs` exposes a generic Stats tab only for `absolute_tier`, `/compete/$slug/stats` renders generic benchmark stats or explicit fallback states, the leaderboard table shows Overall/100, rating, category, tier, and verification fields, and the branding boundary keeps HillerFit references out of customer-facing routes/components.
 
 ## Orchestrator Contract
 
@@ -45,10 +45,9 @@ Dependencies:
 Definition of done:
 
 - Seeded generic benchmark board, valid score submission, keep-best retest behavior, public Overall/100 leaderboard, generic stat line, invalid-score exclusion, branding boundary, focused automated tests, LAT updates, and manual smoke are satisfied.
-- Current focused M4 tests pass.
+- Current focused M4 tests, package type-check, and PR CI pass.
 - `lat check` has no benchmark errors; current failures are existing Crew references outside this slice.
-- Package-wide type-check still fails on broad existing route implicit-`any` issues, so full-package type-check remains a repo baseline caveat rather than an M4-specific blocker.
 
 ## Convergence Result
 
-The two independent reviewers materially agree on components, data model, dependencies, branding boundary, and definition of done for M4. The remaining caveats are not product forks: package-wide type-check is blocked by existing route typing debt, and `lat check` is blocked by existing Crew references outside the benchmark artifacts.
+The two independent reviewers materially agree on components, data model, dependencies, branding boundary, and definition of done for M4. The remaining caveat is not a product fork: `lat check` is blocked by existing Crew references outside the benchmark artifacts.

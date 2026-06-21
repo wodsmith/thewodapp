@@ -59,4 +59,4 @@ v1 is done when a seeded benchmark board can be created from the training PDF da
 
 ## Current Repository Baseline
 
-As of M0a, `apps/wodsmith-start/src/lib/competitions/capabilities.ts` defines `competitionCan`, `leaderboardVariant`, selectability helpers, result-entry helpers, and registered entries for `in-person`, `online`, and `benchmark`. Benchmark declares `videoSubmissions` and `perpetual`, remains hidden from the generic create picker, and still requires M1 schema/seed work before real benchmark rows can exist.
+As of M4 on `feat/hillerfit-plan`, the feature base contains the benchmark capability registry entry, schema primitives, PDF-derived seed, absolute-tier scoring, best-to-date submission path, public Overall/100 leaderboard, generic stats route, and focused tests. Benchmark declares `videoSubmissions` and `perpetual`, remains hidden from the generic create picker, and has no HillerFit-branded customer-facing surface.
