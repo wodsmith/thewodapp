@@ -4,11 +4,11 @@ import {
   CREW_BILLING_SOURCE,
   CREW_BILLING_STATE,
 } from "../../db/schemas/crew-event-settings"
-import type { CrewBillingStateSnapshot } from "./billing-state"
 import {
   buildCrewBillingPageViewModel,
   canViewCrewBillingPage,
 } from "./billing-page"
+import type { CrewBillingStateSnapshot } from "./billing-state"
 
 const baseBilling: CrewBillingStateSnapshot = {
   state: CREW_BILLING_STATE.UNPAID,
@@ -82,11 +82,47 @@ describe("Crew billing page view model", () => {
 
     expect(disabled.checkout.status).toBe("hidden")
     expect(enabled.checkout).toMatchObject({
-      status: "disabled",
+      status: "available",
       href: null,
-      label: "Checkout coming soon",
+      label: "Start Checkout",
     })
-    expect(enabled.checkout.helperText).toContain("session creation")
+    expect(enabled.checkout.helperText).toContain("Checkout Session")
+  })
+
+  it("disables Checkout for pending or private Crew billing states", () => {
+    const pending = buildCrewBillingPageViewModel({
+      billing: {
+        ...baseBilling,
+        state: CREW_BILLING_STATE.PENDING,
+        source: CREW_BILLING_SOURCE.STRIPE_CHECKOUT,
+        planId: "crew_basic",
+        amountCents: 20_000,
+        stripe: {
+          ...baseBilling.stripe,
+          checkoutSessionId: "cs_pending",
+        },
+      },
+      paymentLink: { id: null, url: null },
+      checkoutEnabled: true,
+    })
+    const privatePlan = buildCrewBillingPageViewModel({
+      billing: {
+        ...baseBilling,
+        planId: "crew_founding_2026",
+        amountCents: 9900,
+      },
+      paymentLink: { id: null, url: null },
+      checkoutEnabled: true,
+    })
+
+    expect(pending.checkout).toMatchObject({
+      status: "disabled",
+      label: "Checkout pending",
+    })
+    expect(privatePlan.checkout).toMatchObject({
+      status: "disabled",
+      label: "Checkout unavailable",
+    })
   })
 
   it("shows paid manual, comp, refund, and upgrade credit state without team subscription semantics", () => {

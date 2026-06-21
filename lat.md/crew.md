@@ -52,6 +52,14 @@ Stripe Payment Link sales are recorded manually by private Crew operators withou
 
 [[apps/crew/src/server/crew-billing.server.ts]] and [[apps/crew/src/server-fns/crew-billing-fns.ts]] expose local-operator-only Payment Link reference recording and sale reconciliation. Reconciliation appends `crew_billing_events` audit rows, patches only the selected event's `crew_event_settings` billing fields, and still works when Stripe metadata is missing because the operator supplies the event, team scope, plan, amount, and currency.
 
+## Crew Checkout Sessions
+
+Crew Checkout Session creation is feature-flagged with `CREW_STRIPE_CHECKOUT_ENABLED` and uses the existing Crew event billing state instead of team subscription billing.
+
+[[apps/crew/src/lib/crew/checkout-sessions.ts]] builds Stripe Checkout Session params for public paid Crew event plans only, with metadata `product=crew`, team/event scope, Crew plan, `crewEventSettingsId`, `billingEventId`, and a stable checkout idempotency key. Private founder/concierge pricing and audit metadata are excluded from session metadata and organizer page view models.
+
+[[apps/crew/src/server/crew-billing.server.ts]] creates sessions through the shared Stripe client, appends a pending `checkout_session_created` Crew billing audit event, and patches only event-level `crew_event_settings` Checkout reference/status fields. `checkout_completed` remains reserved for the later webhook slice, and Crew one-event purchases must not update `teams.currentPlanId`.
+
 ## Server Function Runtime Boundary
 
 Route and client code import lightweight `createServerFn` wrappers from [[apps/crew/src/server-fns]].

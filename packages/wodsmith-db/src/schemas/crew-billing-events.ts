@@ -26,6 +26,8 @@ import { userTable } from "./users"
 export const CREW_BILLING_EVENT_TYPE = {
   MANUAL_SALE_RECORDED: "manual_sale_recorded",
   PAYMENT_LINK_RECONCILED: "payment_link_reconciled",
+  // @lat: [[crew#Crew Checkout Sessions]]
+  CHECKOUT_SESSION_CREATED: "checkout_session_created",
   CHECKOUT_COMPLETED: "checkout_completed",
   FOUNDER_OVERRIDE_APPLIED: "founder_override_applied",
   CREDIT_SET: "credit_set",

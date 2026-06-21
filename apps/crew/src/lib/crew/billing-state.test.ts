@@ -7,12 +7,12 @@ import {
   CREW_BILLING_STATE,
 } from "../../db/schemas/crew-event-settings"
 import {
-  MANUAL_CREW_BILLING_ACTION,
   buildCrewBillingAuditEvent,
   buildCrewBillingSettingsPatch,
   getCrewBillingLimit,
   hasCrewBillingFeature,
   isCrewBillingDuplicateEntryError,
+  MANUAL_CREW_BILLING_ACTION,
   normalizeCrewBillingState,
   planCrewBillingAuditAppend,
   planManualCrewBillingAction,
@@ -58,11 +58,7 @@ describe("Crew billing state and audit helpers", () => {
     ).toMatchObject({
       hasCrewEventAccess: true,
       reason: "active",
-      features: [
-        "crew_events",
-        "crew_imports",
-        "crew_confirmation_reminders",
-      ],
+      features: ["crew_events", "crew_imports", "crew_confirmation_reminders"],
       limits: {
         max_crew_events: 1,
         max_crew_volunteers_per_event: -1,
@@ -201,19 +197,16 @@ describe("Crew billing state and audit helpers", () => {
         ...validManualPaidInput,
         ...overrides,
       }) as unknown as Parameters<typeof planManualCrewBillingAction>[1]
-    const unsafeManualPaidInputWithout = (
-      key: "planId" | "amountCents",
-    ) => {
+    const unsafeManualPaidInputWithout = (key: "planId" | "amountCents") => {
       const input = { ...validManualPaidInput } as Record<string, unknown>
       delete input[key]
-      return input as unknown as Parameters<typeof planManualCrewBillingAction>[1]
+      return input as unknown as Parameters<
+        typeof planManualCrewBillingAction
+      >[1]
     }
 
     expect(() =>
-      planManualCrewBillingAction(
-        [],
-        unsafeManualPaidInputWithout("planId"),
-      ),
+      planManualCrewBillingAction([], unsafeManualPaidInputWithout("planId")),
     ).toThrow(/valid Crew plan/)
     expect(() =>
       planManualCrewBillingAction(
@@ -302,6 +295,71 @@ describe("Crew billing state and audit helpers", () => {
     })
   })
 
+  it("plans Checkout Session creation as pending event-level billing without team plan mutation", () => {
+    const plan = planCrewBillingAuditAppend([], {
+      id: "cbill_checkout",
+      competitionId: "comp_checkout",
+      teamId: "team_owner",
+      eventType: CREW_BILLING_EVENT_TYPE.CHECKOUT_SESSION_CREATED,
+      planId: "crew_basic",
+      amountCents: 20_000,
+      stripeCheckoutSessionId: "cs_checkout_123",
+      idempotencyKey: "crew-checkout:comp_checkout:team_owner:crew_basic:20000",
+    })
+
+    expect(plan).toMatchObject({
+      action: "append",
+      event: {
+        id: "cbill_checkout",
+        eventType: CREW_BILLING_EVENT_TYPE.CHECKOUT_SESSION_CREATED,
+        billingState: CREW_BILLING_STATE.PENDING,
+        billingSource: CREW_BILLING_SOURCE.STRIPE_CHECKOUT,
+        planId: "crew_basic",
+        amountCents: 20_000,
+        stripeCheckoutSessionId: "cs_checkout_123",
+      },
+      settingsPatch: {
+        crewBillingState: CREW_BILLING_STATE.PENDING,
+        crewBillingSource: CREW_BILLING_SOURCE.STRIPE_CHECKOUT,
+        crewBillingPlanId: "crew_basic",
+        crewBillingAmountCents: 20_000,
+        crewStripeCheckoutSessionId: "cs_checkout_123",
+      },
+    })
+    expect(plan.settingsPatch).not.toHaveProperty("currentPlanId")
+    expect(
+      resolveCrewBillingEntitlements({
+        state: plan.settingsPatch.crewBillingState,
+        source: plan.settingsPatch.crewBillingSource,
+        planId: plan.settingsPatch.crewBillingPlanId,
+      }),
+    ).toMatchObject({
+      hasCrewEventAccess: false,
+      reason: "pending",
+    })
+
+    const duplicate = planCrewBillingAuditAppend([plan.event], {
+      competitionId: "comp_checkout",
+      teamId: "team_owner",
+      eventType: CREW_BILLING_EVENT_TYPE.CHECKOUT_SESSION_CREATED,
+      planId: "crew_basic",
+      amountCents: 20_000,
+      stripeCheckoutSessionId: "cs_checkout_123",
+      idempotencyKey: "crew-checkout:comp_checkout:team_owner:crew_basic:20000",
+    })
+    expect(duplicate.action).toBe("skip_duplicate")
+
+    expect(() =>
+      planCrewBillingAuditAppend([], {
+        competitionId: "comp_checkout",
+        teamId: "team_owner",
+        eventType: CREW_BILLING_EVENT_TYPE.CHECKOUT_SESSION_CREATED,
+        planId: "crew_basic",
+        amountCents: 20_000,
+      }),
+    ).toThrow(/Stripe session ID/)
+  })
+
   it("plans Payment Link reconciliation as an event-scoped paid Crew purchase", () => {
     const plan = planManualCrewBillingAction([], {
       action: MANUAL_CREW_BILLING_ACTION.RECONCILE_PAYMENT_LINK_SALE,
@@ -344,8 +402,9 @@ describe("Crew billing state and audit helpers", () => {
       },
     })
     expect(plan.settingsPatch).not.toHaveProperty("currentPlanId")
-    expect(JSON.stringify(resolveCrewBillingEntitlements(plan.settingsPatch)))
-      .not.toContain("plink_123")
+    expect(
+      JSON.stringify(resolveCrewBillingEntitlements(plan.settingsPatch)),
+    ).not.toContain("plink_123")
   })
 
   it("allows Payment Link reconciliation when Stripe metadata is missing", () => {

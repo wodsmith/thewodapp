@@ -1,14 +1,22 @@
 // @lat: [[crew#Billing Page And Upgrade CTA]]
+// @lat: [[crew#Crew Checkout Sessions]]
 import { createFileRoute } from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
 import {
   CreditCard,
   ExternalLink,
+  Loader2,
   LockKeyhole,
   WalletCards,
 } from "lucide-react"
 import type { ReactNode } from "react"
+import { useRef, useState } from "react"
+import { toast } from "sonner"
 import type { CrewBillingActionViewModel } from "@/lib/crew/billing-page"
-import { getCrewBillingOrganizerPageFn } from "@/server-fns/crew-billing-fns"
+import {
+  createCrewCheckoutSessionFn,
+  getCrewBillingOrganizerPageFn,
+} from "@/server-fns/crew-billing-fns"
 
 export const Route = createFileRoute("/events/$eventId/billing")({
   loader: async ({ params }) =>
@@ -20,6 +28,30 @@ export const Route = createFileRoute("/events/$eventId/billing")({
 
 function EventBillingPage() {
   const { event, viewModel } = Route.useLoaderData()
+  const createCrewCheckoutSession = useServerFn(createCrewCheckoutSessionFn)
+  const [checkoutSubmitting, setCheckoutSubmitting] = useState(false)
+  const checkoutSubmittingRef = useRef(false)
+
+  async function handleCheckout() {
+    if (checkoutSubmittingRef.current) return
+    checkoutSubmittingRef.current = true
+    setCheckoutSubmitting(true)
+    try {
+      const result = await createCrewCheckoutSession({
+        data: { eventId: event.id },
+      })
+      window.location.assign(result.checkoutUrl)
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to start Crew Checkout",
+      )
+    } finally {
+      checkoutSubmittingRef.current = false
+      setCheckoutSubmitting(false)
+    }
+  }
 
   return (
     <section className="space-y-6">
@@ -53,7 +85,11 @@ function EventBillingPage() {
             </div>
             <div className="flex w-full flex-col gap-2 sm:w-auto">
               <BillingAction action={viewModel.paymentLink} />
-              <BillingAction action={viewModel.checkout} />
+              <BillingAction
+                action={viewModel.checkout}
+                onAction={handleCheckout}
+                pending={checkoutSubmitting}
+              />
             </div>
           </div>
         </section>
@@ -122,7 +158,15 @@ function BillingFact({ label, value }: { label: string; value: ReactNode }) {
   )
 }
 
-function BillingAction({ action }: { action: CrewBillingActionViewModel }) {
+function BillingAction({
+  action,
+  onAction,
+  pending = false,
+}: {
+  action: CrewBillingActionViewModel
+  onAction?: () => void
+  pending?: boolean
+}) {
   if (action.status === "hidden") {
     return null
   }
@@ -140,6 +184,25 @@ function BillingAction({ action }: { action: CrewBillingActionViewModel }) {
         {action.label}
         <ExternalLink className="size-4" aria-hidden="true" />
       </a>
+    )
+  }
+
+  if (action.status === "available" && onAction) {
+    return (
+      <button
+        type="button"
+        onClick={onAction}
+        disabled={pending}
+        className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-70"
+        title={action.helperText}
+      >
+        {pending ? (
+          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+        ) : (
+          <CreditCard className="size-4" aria-hidden="true" />
+        )}
+        {action.label}
+      </button>
     )
   }
 

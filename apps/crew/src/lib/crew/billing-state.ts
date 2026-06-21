@@ -1,6 +1,7 @@
 // @lat: [[crew#Crew Billing State And Audit]]
 // @lat: [[crew#Manual Paid And Founder Grants]]
 // @lat: [[crew#Stripe Payment Link Sales]]
+// @lat: [[crew#Crew Checkout Sessions]]
 import {
   CREW_BILLING_EVENT_TYPE,
   type CrewBillingEventType,
@@ -75,6 +76,7 @@ export interface CrewBillingStateSnapshot {
 }
 
 export interface BuildCrewBillingEventInput {
+  id?: string | null
   competitionId: string
   teamId: string
   eventType: CrewBillingEventType
@@ -121,6 +123,7 @@ export type PlanManualCrewBillingActionInput =
     })
 
 export interface CrewBillingAuditEvent {
+  id: string | null
   competitionId: string
   teamId: string
   eventType: CrewBillingEventType
@@ -209,11 +212,7 @@ const crewBillingPlanEntitlements: Record<
     },
   },
   crew_basic: {
-    features: [
-      "crew_events",
-      "crew_imports",
-      "crew_confirmation_reminders",
-    ],
+    features: ["crew_events", "crew_imports", "crew_confirmation_reminders"],
     limits: {
       max_crew_events: 1,
       max_crew_volunteers_per_event: -1,
@@ -280,6 +279,10 @@ const eventDefaults: Record<
   [CREW_BILLING_EVENT_TYPE.PAYMENT_LINK_RECONCILED]: {
     state: CREW_BILLING_STATE.PAID,
     source: CREW_BILLING_SOURCE.PAYMENT_LINK,
+  },
+  [CREW_BILLING_EVENT_TYPE.CHECKOUT_SESSION_CREATED]: {
+    state: CREW_BILLING_STATE.PENDING,
+    source: CREW_BILLING_SOURCE.STRIPE_CHECKOUT,
   },
   [CREW_BILLING_EVENT_TYPE.CHECKOUT_COMPLETED]: {
     state: CREW_BILLING_STATE.PAID,
@@ -393,6 +396,7 @@ export function buildCrewBillingAuditEvent(
       : current.planId)
 
   return {
+    id: normalizeOptionalText(input.id),
     competitionId: input.competitionId,
     teamId: input.teamId,
     eventType: input.eventType,
@@ -619,6 +623,10 @@ function validateCrewBillingAuditAppend(
     validatePaidCrewBillingEvent(event, "Payment Link Crew billing")
   }
 
+  if (event.eventType === CREW_BILLING_EVENT_TYPE.CHECKOUT_SESSION_CREATED) {
+    validateCheckoutSessionCreatedEvent(event)
+  }
+
   if (event.eventType === CREW_BILLING_EVENT_TYPE.CREDIT_SET) {
     if (
       normalized.creditCents > 0 ||
@@ -650,9 +658,7 @@ function validateCrewBillingAuditAppend(
       normalized.creditCents <= 0 &&
       normalized.fullPlatformCreditCents <= 0
     ) {
-      throw new Error(
-        "Set a full platform upgrade credit before applying it.",
-      )
+      throw new Error("Set a full platform upgrade credit before applying it.")
     }
   }
 }
@@ -666,6 +672,13 @@ function validatePaidCrewBillingEvent(
   }
   if (event.amountCents <= 0) {
     throw new Error(`${label} requires a positive amount.`)
+  }
+}
+
+function validateCheckoutSessionCreatedEvent(event: CrewBillingAuditEvent) {
+  validatePaidCrewBillingEvent(event, "Crew Checkout session")
+  if (!event.stripeCheckoutSessionId) {
+    throw new Error("Crew Checkout session requires a Stripe session ID.")
   }
 }
 
