@@ -26,14 +26,13 @@ import {
   buildCrewStaffingReport,
   type CrewStaffingConfirmationInput,
   type CrewStaffingMatrix,
-  type CrewStaffingMatrixInput,
   type CrewStaffingReport,
 } from "../lib/crew/staffing"
-import type { CrewDepartmentLeadAccess } from "../lib/crew/department-leads"
 import {
   filterCrewDepartmentLeadRoster,
-  filterCrewDepartmentLeadShifts,
+  type CrewDepartmentLeadAccess,
 } from "../lib/crew/department-leads"
+import { filterCrewStaffingInputForDepartmentLead } from "../lib/crew/staffing/department-lead-scope"
 import { resolveCrewDepartmentLeadAccess } from "../server/crew-department-lead.server"
 import {
   loadCrewRoster,
@@ -127,20 +126,13 @@ export async function loadCrewStaffingMatrixInput(
     loadStaffingWorkouts(event.id),
     loadStaffingHeats(event.id),
   ])
-  const scopedShifts = filterCrewDepartmentLeadShifts(shifts, access)
-  const scopedRoster = filterCrewDepartmentLeadRoster(
-    roster,
-    access,
-    scopedShifts,
-  )
   const heatIds = heats.map((heat) => heat.id)
   const trackWorkoutIds = [...new Set(heats.map((heat) => heat.trackWorkoutId))]
   const [heatLaneAssignments, judgeData] = await Promise.all([
     loadHeatLaneAssignments(heatIds),
     loadActiveJudgeAssignments(heatIds, trackWorkoutIds),
   ])
-
-  const input: CrewStaffingMatrixInput = {
+  const baseInput = {
     event: {
       id: event.id,
       name: event.name,
@@ -152,6 +144,24 @@ export async function loadCrewStaffingMatrixInput(
     workouts,
     heats,
     heatLaneAssignments,
+    shifts: toStaffingShifts(shifts),
+    judgeAssignments: judgeData.judgeAssignments,
+  }
+  const scopedStaffingInput = filterCrewStaffingInputForDepartmentLead(
+    baseInput,
+    access,
+  )
+  const scopedShiftIds = new Set(
+    scopedStaffingInput.shifts?.map((shift) => shift.id),
+  )
+  const scopedRoster = filterCrewDepartmentLeadRoster(
+    roster,
+    access,
+    shifts.filter((shift) => scopedShiftIds.has(shift.id)),
+  )
+
+  const input = {
+    ...scopedStaffingInput,
     roster: scopedRoster.flatMap((volunteer) => {
       if (!volunteer.membershipId) return []
       return {
@@ -164,8 +174,6 @@ export async function loadCrewStaffingMatrixInput(
         isActive: volunteer.status === "active",
       }
     }),
-    shifts: toStaffingShifts(scopedShifts),
-    judgeAssignments: judgeData.judgeAssignments,
   }
 
   return {
