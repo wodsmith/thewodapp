@@ -22,6 +22,16 @@ Crew event billing is stored on the event settings row and remains separate from
 
 [[apps/crew/src/server/crew-billing.server.ts]] keeps Crew billing read/write operations server-only and local-operator guarded. It scopes audit rows by competition and organizing team, appends audit rows before updating event settings, and does not mutate team subscription billing.
 
+## Manual Paid And Founder Grants
+
+Manual Crew paid states are private operator/server actions that assign an event-level Crew catalog plan, append a billing audit row, and patch only `crew_event_settings`.
+
+[[apps/crew/src/lib/crew/billing-state.ts]] resolves event-level Crew entitlements from the paid/comped/credited/refunded billing state plus the event plan ID. It mirrors the launch catalog limits for Starter, Basic, Pro, Concierge, and Founding grants without reading or writing `teams.currentPlanId`.
+
+[[apps/crew/src/server/crew-billing.server.ts]] and [[apps/crew/src/server-fns/crew-billing-fns.ts]] expose the local-operator-only manual paid, founder grant, comp, refund, and full-platform credit actions. Founder pricing, credit notes, invoices, and Stripe references stay in server-only audit rows/private metadata; public Crew or volunteer surfaces should consume only derived access/limit signals.
+
+Full-platform upgrade credit is single-use per Crew event. Setting or applying credit uses stable idempotency keys and rejects old credit audit rows without a tested reversal path.
+
 ## Server Function Runtime Boundary
 
 Route and client code import lightweight `createServerFn` wrappers from [[apps/crew/src/server-fns]].

@@ -1,4 +1,5 @@
 // @lat: [[crew#Crew Billing State And Audit]]
+// @lat: [[crew#Manual Paid And Founder Grants]]
 import { describe, expect, it } from "vitest"
 import { CREW_BILLING_EVENT_TYPE } from "../../db/schemas/crew-billing-events"
 import {
@@ -6,11 +7,16 @@ import {
   CREW_BILLING_STATE,
 } from "../../db/schemas/crew-event-settings"
 import {
+  MANUAL_CREW_BILLING_ACTION,
   buildCrewBillingAuditEvent,
   buildCrewBillingSettingsPatch,
+  getCrewBillingLimit,
+  hasCrewBillingFeature,
   isCrewBillingDuplicateEntryError,
   normalizeCrewBillingState,
   planCrewBillingAuditAppend,
+  planManualCrewBillingAction,
+  resolveCrewBillingEntitlements,
 } from "./billing-state"
 
 describe("Crew billing state and audit helpers", () => {
@@ -38,8 +44,85 @@ describe("Crew billing state and audit helpers", () => {
       },
       founderOverride: false,
       creditCents: 0,
+      fullPlatformCreditCents: 0,
       refundedCents: 0,
     })
+  })
+
+  it("resolves Crew event access and limits from event billing state, not team subscriptions", () => {
+    expect(
+      resolveCrewBillingEntitlements({
+        state: CREW_BILLING_STATE.PAID,
+        planId: "crew_basic",
+      }),
+    ).toMatchObject({
+      hasCrewEventAccess: true,
+      reason: "active",
+      features: [
+        "crew_events",
+        "crew_imports",
+        "crew_confirmation_reminders",
+      ],
+      limits: {
+        max_crew_events: 1,
+        max_crew_volunteers_per_event: -1,
+        max_crew_email_sends_per_event: 500,
+        max_crew_imports_per_event: 5,
+      },
+    })
+
+    expect(
+      hasCrewBillingFeature(
+        { state: CREW_BILLING_STATE.COMPED, planId: "crew_starter" },
+        "crew_events",
+      ),
+    ).toBe(true)
+    expect(
+      getCrewBillingLimit(
+        { state: CREW_BILLING_STATE.COMPED, planId: "crew_starter" },
+        "max_crew_volunteers_per_event",
+      ),
+    ).toBe(50)
+    expect(
+      hasCrewBillingFeature(
+        { state: CREW_BILLING_STATE.PAID, planId: "crew_concierge" },
+        "crew_concierge",
+      ),
+    ).toBe(true)
+    expect(
+      getCrewBillingLimit(
+        { state: CREW_BILLING_STATE.PAID, planId: "crew_founding_2026" },
+        "max_crew_email_sends_per_event",
+      ),
+    ).toBe(2000)
+    expect(
+      resolveCrewBillingEntitlements({
+        state: CREW_BILLING_STATE.CREDITED,
+        planId: "crew_pro",
+      }).hasCrewEventAccess,
+    ).toBe(true)
+    expect(
+      resolveCrewBillingEntitlements({
+        state: CREW_BILLING_STATE.REFUNDED,
+        planId: "crew_pro",
+      }),
+    ).toMatchObject({
+      hasCrewEventAccess: false,
+      reason: "refunded",
+      features: [],
+      limits: {
+        max_crew_events: 0,
+        max_crew_volunteers_per_event: 0,
+        max_crew_email_sends_per_event: 0,
+        max_crew_imports_per_event: 0,
+      },
+    })
+    expect(
+      resolveCrewBillingEntitlements({
+        state: CREW_BILLING_STATE.UNPAID,
+        planId: "crew_pro",
+      }).reason,
+    ).toBe("unpaid")
   })
 
   it("builds manual sale audit events as event-scoped paid Crew purchases", () => {
@@ -66,6 +149,43 @@ describe("Crew billing state and audit helpers", () => {
       actorLabel: "Ops",
       publicNote: "paid by invoice",
     })
+  })
+
+  it("plans manual paid Concierge unlocks without Stripe or team plan mutation", () => {
+    const plan = planManualCrewBillingAction([], {
+      action: MANUAL_CREW_BILLING_ACTION.RECORD_MANUAL_PAID,
+      competitionId: "comp_crew",
+      teamId: "team_owner",
+      planId: "crew_concierge",
+      amountCents: 300_000,
+      actorLabel: "Ops",
+      privateMetadata: { invoiceId: "inv_manual_1" },
+    })
+
+    expect(plan.action).toBe("append")
+    expect(plan.event).toMatchObject({
+      competitionId: "comp_crew",
+      teamId: "team_owner",
+      eventType: CREW_BILLING_EVENT_TYPE.MANUAL_SALE_RECORDED,
+      billingState: CREW_BILLING_STATE.PAID,
+      billingSource: CREW_BILLING_SOURCE.MANUAL_SALES,
+      planId: "crew_concierge",
+      amountCents: 300_000,
+      stripePaymentLinkId: null,
+      stripeCheckoutSessionId: null,
+      stripePaymentIntentId: null,
+    })
+    expect(plan.settingsPatch).not.toHaveProperty("currentPlanId")
+    expect(
+      hasCrewBillingFeature(
+        {
+          state: plan.settingsPatch.crewBillingState,
+          source: plan.settingsPatch.crewBillingSource,
+          planId: plan.settingsPatch.crewBillingPlanId,
+        },
+        "crew_concierge",
+      ),
+    ).toBe(true)
   })
 
   it("keeps Payment Link and checkout Stripe references on the event state", () => {
@@ -154,6 +274,155 @@ describe("Crew billing state and audit helpers", () => {
         creditReason: "Migrated from concierge pilot.",
       },
     })
+  })
+
+  it("keeps founder grant pricing in server-only audit metadata", () => {
+    const plan = planManualCrewBillingAction([], {
+      action: MANUAL_CREW_BILLING_ACTION.APPLY_FOUNDER_GRANT,
+      competitionId: "comp_founder",
+      teamId: "team_owner",
+      privateFounderPriceCents: 9900,
+      publicNote: "Founder grant applied",
+      privateMetadata: {
+        approvalNote: "Private launch approval",
+      },
+    })
+
+    expect(plan.event).toMatchObject({
+      eventType: CREW_BILLING_EVENT_TYPE.FOUNDER_OVERRIDE_APPLIED,
+      billingState: CREW_BILLING_STATE.PAID,
+      billingSource: CREW_BILLING_SOURCE.FOUNDER_OVERRIDE,
+      planId: "crew_founding_2026",
+      amountCents: 9900,
+      publicNote: "Founder grant applied",
+      privateMetadata: {
+        approvalNote: "Private launch approval",
+        founderGrant: {
+          privatePriceCents: 9900,
+        },
+      },
+    })
+    expect(buildCrewBillingSettingsPatch({}, plan.event)).toMatchObject({
+      crewFounderOverride: true,
+      crewBillingPlanId: "crew_founding_2026",
+    })
+
+    const publicGate = resolveCrewBillingEntitlements({
+      state: plan.settingsPatch.crewBillingState,
+      source: plan.settingsPatch.crewBillingSource,
+      planId: plan.settingsPatch.crewBillingPlanId,
+    })
+    expect(publicGate).not.toHaveProperty("privateMetadata")
+    expect(publicGate).not.toHaveProperty("amountCents")
+    expect(publicGate).not.toHaveProperty("stripe")
+  })
+
+  it("sets and applies full-platform upgrade credit at most once per event", () => {
+    const creditSet = planManualCrewBillingAction([], {
+      action: MANUAL_CREW_BILLING_ACTION.SET_FULL_PLATFORM_CREDIT,
+      competitionId: "comp_credit",
+      teamId: "team_owner",
+      current: {
+        state: CREW_BILLING_STATE.PAID,
+        source: CREW_BILLING_SOURCE.MANUAL_SALES,
+        planId: "crew_pro",
+        amountCents: 80_000,
+      },
+      fullPlatformCreditCents: 25_000,
+      actorLabel: "Ops",
+    })
+
+    expect(creditSet).toMatchObject({
+      action: "append",
+      event: {
+        eventType: CREW_BILLING_EVENT_TYPE.CREDIT_SET,
+        billingState: CREW_BILLING_STATE.CREDITED,
+        billingSource: CREW_BILLING_SOURCE.CREW_CREDIT,
+        planId: "crew_pro",
+        creditCents: 25_000,
+        idempotencyKey: "full-platform-credit:set",
+      },
+      settingsPatch: {
+        crewCreditCents: 25_000,
+        fullPlatformCreditCents: 25_000,
+      },
+    })
+
+    const duplicateSet = planManualCrewBillingAction([creditSet.event], {
+      action: MANUAL_CREW_BILLING_ACTION.SET_FULL_PLATFORM_CREDIT,
+      competitionId: "comp_credit",
+      teamId: "team_owner",
+      current: {
+        state: CREW_BILLING_STATE.CREDITED,
+        planId: "crew_pro",
+        creditCents: 25_000,
+        fullPlatformCreditCents: 25_000,
+      },
+      fullPlatformCreditCents: 25_000,
+    })
+    expect(duplicateSet).toMatchObject({
+      action: "skip_duplicate",
+      settingsPatch: null,
+    })
+
+    expect(() =>
+      planManualCrewBillingAction(
+        [
+          {
+            eventType: CREW_BILLING_EVENT_TYPE.CREDIT_SET,
+            idempotencyKey: null,
+            creditCents: 25_000,
+          },
+        ],
+        {
+          action: MANUAL_CREW_BILLING_ACTION.SET_FULL_PLATFORM_CREDIT,
+          competitionId: "comp_credit",
+          teamId: "team_owner",
+          fullPlatformCreditCents: 25_000,
+        },
+      ),
+    ).toThrow(/already been set or applied/)
+
+    const creditApplied = planManualCrewBillingAction([creditSet.event], {
+      action: MANUAL_CREW_BILLING_ACTION.APPLY_FULL_PLATFORM_CREDIT,
+      competitionId: "comp_credit",
+      teamId: "team_owner",
+      current: {
+        state: CREW_BILLING_STATE.CREDITED,
+        source: CREW_BILLING_SOURCE.CREW_CREDIT,
+        planId: "crew_pro",
+        amountCents: 80_000,
+        creditCents: 25_000,
+        fullPlatformCreditCents: 25_000,
+      },
+    })
+
+    expect(creditApplied).toMatchObject({
+      action: "append",
+      event: {
+        eventType: CREW_BILLING_EVENT_TYPE.CREDIT_APPLIED,
+        billingState: CREW_BILLING_STATE.PAID,
+        billingSource: CREW_BILLING_SOURCE.CREW_CREDIT,
+        creditCents: 25_000,
+        idempotencyKey: "full-platform-credit:apply",
+      },
+    })
+
+    const duplicateApply = planManualCrewBillingAction(
+      [creditSet.event, creditApplied.event],
+      {
+        action: MANUAL_CREW_BILLING_ACTION.APPLY_FULL_PLATFORM_CREDIT,
+        competitionId: "comp_credit",
+        teamId: "team_owner",
+        current: {
+          state: CREW_BILLING_STATE.PAID,
+          planId: "crew_pro",
+          creditCents: 25_000,
+          fullPlatformCreditCents: 25_000,
+        },
+      },
+    )
+    expect(duplicateApply.action).toBe("skip_duplicate")
   })
 
   it("records comped and refunded terminal states without mutating audit history", () => {

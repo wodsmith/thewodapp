@@ -1,4 +1,5 @@
 // @lat: [[crew#Crew Billing State And Audit]]
+// @lat: [[crew#Manual Paid And Founder Grants]]
 import {
   CREW_BILLING_EVENT_TYPE,
   type CrewBillingEventType,
@@ -20,6 +21,38 @@ export const crewBillingPlanIds = [
 
 export type CrewBillingPlanId = (typeof crewBillingPlanIds)[number]
 
+export const crewBillingFeatureKeys = [
+  "crew_events",
+  "crew_imports",
+  "crew_confirmation_reminders",
+  "crew_department_leads",
+  "crew_exports",
+  "crew_concierge",
+] as const
+
+export type CrewBillingFeatureKey = (typeof crewBillingFeatureKeys)[number]
+
+export const crewBillingLimitKeys = [
+  "max_crew_events",
+  "max_crew_volunteers_per_event",
+  "max_crew_email_sends_per_event",
+  "max_crew_imports_per_event",
+] as const
+
+export type CrewBillingLimitKey = (typeof crewBillingLimitKeys)[number]
+
+export const MANUAL_CREW_BILLING_ACTION = {
+  RECORD_MANUAL_PAID: "record_manual_paid",
+  APPLY_FOUNDER_GRANT: "apply_founder_grant",
+  SET_FULL_PLATFORM_CREDIT: "set_full_platform_credit",
+  APPLY_FULL_PLATFORM_CREDIT: "apply_full_platform_credit",
+  COMP_EVENT: "comp_event",
+  RECORD_REFUND: "record_refund",
+} as const
+
+export type ManualCrewBillingActionType =
+  (typeof MANUAL_CREW_BILLING_ACTION)[keyof typeof MANUAL_CREW_BILLING_ACTION]
+
 export interface CrewBillingStripeRefs {
   paymentLinkId: string | null
   checkoutSessionId: string | null
@@ -35,6 +68,7 @@ export interface CrewBillingStateSnapshot {
   stripe: CrewBillingStripeRefs
   founderOverride: boolean
   creditCents: number
+  fullPlatformCreditCents: number
   refundedCents: number
 }
 
@@ -58,6 +92,13 @@ export interface BuildCrewBillingEventInput {
   privateMetadata?: Record<string, unknown> | null
 }
 
+export interface PlanManualCrewBillingActionInput
+  extends Omit<BuildCrewBillingEventInput, "eventType" | "creditCents"> {
+  action: ManualCrewBillingActionType
+  fullPlatformCreditCents?: number | null
+  privateFounderPriceCents?: number | null
+}
+
 export interface CrewBillingAuditEvent {
   competitionId: string
   teamId: string
@@ -78,6 +119,12 @@ export interface CrewBillingAuditEvent {
   publicNote: string | null
   privateMetadata: Record<string, unknown> | null
 }
+
+export type CrewBillingExistingAuditEvent = Pick<
+  CrewBillingAuditEvent,
+  "eventType" | "idempotencyKey"
+> &
+  Partial<Pick<CrewBillingAuditEvent, "creditCents">>
 
 export type CrewBillingAppendPlan =
   | {
@@ -102,7 +149,103 @@ export interface CrewBillingSettingsPatch {
   crewStripePaymentIntentId: string | null
   crewFounderOverride: boolean
   crewCreditCents: number
+  fullPlatformCreditCents: number
   crewRefundedCents: number
+}
+
+export interface CrewBillingPlanEntitlements {
+  features: CrewBillingFeatureKey[]
+  limits: Record<CrewBillingLimitKey, number>
+}
+
+export interface CrewBillingEntitlementResolution
+  extends CrewBillingPlanEntitlements {
+  planId: CrewBillingPlanId | null
+  billingState: CrewBillingState
+  billingSource: CrewBillingSource | null
+  hasCrewEventAccess: boolean
+  reason: "active" | "no_plan" | "unpaid" | "pending" | "refunded"
+}
+
+const emptyCrewBillingLimits: Record<CrewBillingLimitKey, number> = {
+  max_crew_events: 0,
+  max_crew_volunteers_per_event: 0,
+  max_crew_email_sends_per_event: 0,
+  max_crew_imports_per_event: 0,
+}
+
+const crewBillingPlanEntitlements: Record<
+  CrewBillingPlanId,
+  CrewBillingPlanEntitlements
+> = {
+  crew_starter: {
+    features: ["crew_events"],
+    limits: {
+      max_crew_events: 1,
+      max_crew_volunteers_per_event: 50,
+      max_crew_email_sends_per_event: 0,
+      max_crew_imports_per_event: 0,
+    },
+  },
+  crew_basic: {
+    features: [
+      "crew_events",
+      "crew_imports",
+      "crew_confirmation_reminders",
+    ],
+    limits: {
+      max_crew_events: 1,
+      max_crew_volunteers_per_event: -1,
+      max_crew_email_sends_per_event: 500,
+      max_crew_imports_per_event: 5,
+    },
+  },
+  crew_pro: {
+    features: [
+      "crew_events",
+      "crew_imports",
+      "crew_confirmation_reminders",
+      "crew_department_leads",
+      "crew_exports",
+    ],
+    limits: {
+      max_crew_events: 3,
+      max_crew_volunteers_per_event: -1,
+      max_crew_email_sends_per_event: 2000,
+      max_crew_imports_per_event: -1,
+    },
+  },
+  crew_concierge: {
+    features: [
+      "crew_events",
+      "crew_imports",
+      "crew_confirmation_reminders",
+      "crew_department_leads",
+      "crew_exports",
+      "crew_concierge",
+    ],
+    limits: {
+      max_crew_events: -1,
+      max_crew_volunteers_per_event: -1,
+      max_crew_email_sends_per_event: -1,
+      max_crew_imports_per_event: -1,
+    },
+  },
+  crew_founding_2026: {
+    features: [
+      "crew_events",
+      "crew_imports",
+      "crew_confirmation_reminders",
+      "crew_department_leads",
+      "crew_exports",
+    ],
+    limits: {
+      max_crew_events: 1,
+      max_crew_volunteers_per_event: -1,
+      max_crew_email_sends_per_event: 2000,
+      max_crew_imports_per_event: -1,
+    },
+  },
 }
 
 const eventDefaults: Record<
@@ -159,8 +302,51 @@ export function normalizeCrewBillingState(
     },
     founderOverride: input.founderOverride === true,
     creditCents: normalizeCents(input.creditCents),
+    fullPlatformCreditCents: normalizeCents(input.fullPlatformCreditCents),
     refundedCents: normalizeCents(input.refundedCents),
   }
+}
+
+export function resolveCrewBillingEntitlements(
+  input: Partial<CrewBillingStateSnapshot> = {},
+): CrewBillingEntitlementResolution {
+  const current = normalizeCrewBillingState(input)
+  const planEntitlements = current.planId
+    ? crewBillingPlanEntitlements[current.planId]
+    : null
+  const reason = resolveCrewBillingAccessReason(current)
+  const hasCrewEventAccess =
+    reason === "active" &&
+    Boolean(planEntitlements?.features.includes("crew_events"))
+
+  return {
+    planId: current.planId,
+    billingState: current.state,
+    billingSource: current.source,
+    hasCrewEventAccess,
+    reason,
+    features:
+      hasCrewEventAccess && planEntitlements
+        ? [...planEntitlements.features]
+        : [],
+    limits: hasCrewEventAccess
+      ? { ...(planEntitlements?.limits ?? emptyCrewBillingLimits) }
+      : { ...emptyCrewBillingLimits },
+  }
+}
+
+export function hasCrewBillingFeature(
+  input: Partial<CrewBillingStateSnapshot>,
+  feature: CrewBillingFeatureKey,
+) {
+  return resolveCrewBillingEntitlements(input).features.includes(feature)
+}
+
+export function getCrewBillingLimit(
+  input: Partial<CrewBillingStateSnapshot>,
+  limit: CrewBillingLimitKey,
+) {
+  return resolveCrewBillingEntitlements(input).limits[limit] ?? 0
 }
 
 export function buildCrewBillingAuditEvent(
@@ -199,7 +385,7 @@ export function buildCrewBillingAuditEvent(
     currency: normalizeCurrency(input.currency ?? current.currency),
     creditCents:
       input.creditCents === undefined || input.creditCents === null
-        ? current.creditCents
+        ? current.creditCents || current.fullPlatformCreditCents
         : normalizeCents(input.creditCents),
     refundedCents:
       input.refundedCents === undefined || input.refundedCents === null
@@ -208,7 +394,7 @@ export function buildCrewBillingAuditEvent(
     stripePaymentLinkId: stripe.paymentLinkId,
     stripeCheckoutSessionId: stripe.checkoutSessionId,
     stripePaymentIntentId: stripe.paymentIntentId,
-    idempotencyKey: normalizeOptionalText(input.idempotencyKey),
+    idempotencyKey: normalizeCrewBillingIdempotencyKey(input),
     actorUserId: normalizeOptionalText(input.actorUserId),
     actorLabel: normalizeOptionalText(input.actorLabel),
     publicNote: normalizeOptionalText(input.publicNote),
@@ -236,14 +422,17 @@ export function buildCrewBillingSettingsPatch(
     crewStripePaymentIntentId: event.stripePaymentIntentId,
     crewFounderOverride: isFounderOverride,
     crewCreditCents: event.creditCents,
+    fullPlatformCreditCents:
+      event.eventType === CREW_BILLING_EVENT_TYPE.CREDIT_SET ||
+      event.eventType === CREW_BILLING_EVENT_TYPE.CREDIT_APPLIED
+        ? event.creditCents
+        : normalized.fullPlatformCreditCents,
     crewRefundedCents: event.refundedCents,
   }
 }
 
 export function planCrewBillingAuditAppend(
-  existingEvents: Array<
-    Pick<CrewBillingAuditEvent, "eventType" | "idempotencyKey">
-  >,
+  existingEvents: CrewBillingExistingAuditEvent[],
   input: BuildCrewBillingEventInput,
 ): CrewBillingAppendPlan {
   const event = buildCrewBillingAuditEvent(input)
@@ -263,6 +452,8 @@ export function planCrewBillingAuditAppend(
     }
   }
 
+  validateCrewBillingAuditAppend(existingEvents, input.current ?? {}, event)
+
   return {
     action: "append",
     event,
@@ -270,7 +461,17 @@ export function planCrewBillingAuditAppend(
   }
 }
 
-export function isCrewBillingDuplicateEntryError(error: unknown) {
+export function planManualCrewBillingAction(
+  existingEvents: CrewBillingExistingAuditEvent[],
+  input: PlanManualCrewBillingActionInput,
+): CrewBillingAppendPlan {
+  return planCrewBillingAuditAppend(
+    existingEvents,
+    buildManualCrewBillingActionInput(input),
+  )
+}
+
+export function isCrewBillingDuplicateEntryError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false
 
   const candidate = error as {
@@ -305,6 +506,22 @@ function normalizeBillingSource(source: unknown): CrewBillingSource {
   throw new Error("Invalid Crew billing source")
 }
 
+function resolveCrewBillingAccessReason(
+  current: CrewBillingStateSnapshot,
+): CrewBillingEntitlementResolution["reason"] {
+  if (!current.planId) return "no_plan"
+  if (current.state === CREW_BILLING_STATE.REFUNDED) return "refunded"
+  if (current.state === CREW_BILLING_STATE.PENDING) return "pending"
+  if (
+    current.state === CREW_BILLING_STATE.PAID ||
+    current.state === CREW_BILLING_STATE.COMPED ||
+    current.state === CREW_BILLING_STATE.CREDITED
+  ) {
+    return "active"
+  }
+  return "unpaid"
+}
+
 function normalizeCrewBillingPlanId(planId: unknown): CrewBillingPlanId | null {
   const normalized = normalizeOptionalText(planId)
   if (!normalized) return null
@@ -317,6 +534,21 @@ function normalizeCrewBillingPlanId(planId: unknown): CrewBillingPlanId | null {
 function normalizeCents(value: unknown) {
   if (typeof value !== "number" || !Number.isFinite(value)) return 0
   return Math.max(0, Math.round(value))
+}
+
+function normalizeCrewBillingIdempotencyKey(
+  input: BuildCrewBillingEventInput,
+) {
+  if (input.eventType === CREW_BILLING_EVENT_TYPE.CREDIT_SET) {
+    return "full-platform-credit:set"
+  }
+  if (input.eventType === CREW_BILLING_EVENT_TYPE.CREDIT_APPLIED) {
+    return "full-platform-credit:apply"
+  }
+  if (input.eventType === CREW_BILLING_EVENT_TYPE.FOUNDER_OVERRIDE_APPLIED) {
+    return normalizeOptionalText(input.idempotencyKey) ?? "founder-grant"
+  }
+  return normalizeOptionalText(input.idempotencyKey)
 }
 
 function normalizeCurrency(value: unknown) {
@@ -335,4 +567,155 @@ function normalizePrivateMetadata(metadata: unknown) {
     return null
   }
   return metadata as Record<string, unknown>
+}
+
+function validateCrewBillingAuditAppend(
+  existingEvents: CrewBillingExistingAuditEvent[],
+  current: Partial<CrewBillingStateSnapshot>,
+  event: CrewBillingAuditEvent,
+) {
+  const normalized = normalizeCrewBillingState(current)
+
+  if (event.eventType === CREW_BILLING_EVENT_TYPE.CREDIT_SET) {
+    if (
+      normalized.creditCents > 0 ||
+      normalized.fullPlatformCreditCents > 0 ||
+      existingEvents.some(isCrewCreditEvent)
+    ) {
+      throw new Error(
+        "Full platform upgrade credit has already been set or applied for this Crew event.",
+      )
+    }
+    if (event.creditCents <= 0) {
+      throw new Error("Full platform upgrade credit must be greater than zero.")
+    }
+  }
+
+  if (event.eventType === CREW_BILLING_EVENT_TYPE.CREDIT_APPLIED) {
+    if (
+      existingEvents.some(
+        (existing) =>
+          existing.eventType === CREW_BILLING_EVENT_TYPE.CREDIT_APPLIED,
+      )
+    ) {
+      throw new Error(
+        "Full platform upgrade credit has already been applied for this Crew event.",
+      )
+    }
+    if (
+      event.creditCents <= 0 &&
+      normalized.creditCents <= 0 &&
+      normalized.fullPlatformCreditCents <= 0
+    ) {
+      throw new Error(
+        "Set a full platform upgrade credit before applying it.",
+      )
+    }
+  }
+}
+
+function isCrewCreditEvent(event: CrewBillingExistingAuditEvent) {
+  return (
+    event.eventType === CREW_BILLING_EVENT_TYPE.CREDIT_SET ||
+    event.eventType === CREW_BILLING_EVENT_TYPE.CREDIT_APPLIED
+  )
+}
+
+function buildManualCrewBillingActionInput(
+  input: PlanManualCrewBillingActionInput,
+): BuildCrewBillingEventInput {
+  const current = normalizeCrewBillingState(input.current)
+  const fullPlatformCreditCents =
+    normalizeCents(input.fullPlatformCreditCents) ||
+    current.creditCents ||
+    current.fullPlatformCreditCents
+  const common = {
+    competitionId: input.competitionId,
+    teamId: input.teamId,
+    current,
+    currency: input.currency,
+    actorUserId: input.actorUserId,
+    actorLabel: input.actorLabel,
+    publicNote: input.publicNote,
+    privateMetadata: input.privateMetadata,
+  }
+
+  switch (input.action) {
+    case MANUAL_CREW_BILLING_ACTION.RECORD_MANUAL_PAID:
+      return {
+        ...common,
+        eventType: CREW_BILLING_EVENT_TYPE.MANUAL_SALE_RECORDED,
+        planId: input.planId,
+        amountCents: input.amountCents,
+        idempotencyKey: input.idempotencyKey,
+      }
+    case MANUAL_CREW_BILLING_ACTION.APPLY_FOUNDER_GRANT:
+      return {
+        ...common,
+        eventType: CREW_BILLING_EVENT_TYPE.FOUNDER_OVERRIDE_APPLIED,
+        planId: "crew_founding_2026",
+        amountCents: input.privateFounderPriceCents ?? input.amountCents,
+        idempotencyKey: input.idempotencyKey,
+        privateMetadata: mergePrivateMetadata(input.privateMetadata, {
+          founderGrant: {
+            privatePriceCents: normalizeCents(
+              input.privateFounderPriceCents ?? input.amountCents,
+            ),
+          },
+        }),
+      }
+    case MANUAL_CREW_BILLING_ACTION.SET_FULL_PLATFORM_CREDIT:
+      return {
+        ...common,
+        eventType: CREW_BILLING_EVENT_TYPE.CREDIT_SET,
+        planId: input.planId ?? current.planId,
+        creditCents: input.fullPlatformCreditCents,
+        idempotencyKey: input.idempotencyKey,
+        privateMetadata: mergePrivateMetadata(input.privateMetadata, {
+          fullPlatformCreditCents: normalizeCents(
+            input.fullPlatformCreditCents,
+          ),
+        }),
+      }
+    case MANUAL_CREW_BILLING_ACTION.APPLY_FULL_PLATFORM_CREDIT:
+      return {
+        ...common,
+        eventType: CREW_BILLING_EVENT_TYPE.CREDIT_APPLIED,
+        planId: input.planId ?? current.planId,
+        amountCents: input.amountCents ?? current.amountCents,
+        creditCents: fullPlatformCreditCents,
+        idempotencyKey: input.idempotencyKey,
+        privateMetadata: mergePrivateMetadata(input.privateMetadata, {
+          fullPlatformCreditCents,
+        }),
+      }
+    case MANUAL_CREW_BILLING_ACTION.COMP_EVENT:
+      return {
+        ...common,
+        eventType: CREW_BILLING_EVENT_TYPE.EVENT_COMPED,
+        planId: input.planId ?? current.planId ?? "crew_starter",
+        amountCents: 0,
+        idempotencyKey: input.idempotencyKey,
+      }
+    case MANUAL_CREW_BILLING_ACTION.RECORD_REFUND:
+      return {
+        ...common,
+        eventType: CREW_BILLING_EVENT_TYPE.REFUND_RECORDED,
+        planId: input.planId ?? current.planId,
+        amountCents: input.amountCents ?? current.amountCents,
+        refundedCents: input.refundedCents ?? current.amountCents,
+        idempotencyKey: input.idempotencyKey,
+        stripePaymentIntentId: input.stripePaymentIntentId,
+      }
+  }
+}
+
+function mergePrivateMetadata(
+  current: Record<string, unknown> | null | undefined,
+  next: Record<string, unknown>,
+) {
+  return {
+    ...(normalizePrivateMetadata(current) ?? {}),
+    ...next,
+  }
 }
