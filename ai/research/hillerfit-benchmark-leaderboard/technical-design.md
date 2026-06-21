@@ -40,6 +40,7 @@ This design defines the components and contracts engineers should build for v1.
 - M2 absolute-tier algorithm must land before M3 can implement keep-best-on-write correctly.
 - M3 submission must land before M4 can verify real leaderboard and stats flows.
 - M1b seed data depends on extracting tests/thresholds from the local training PDF and recording extraction assumptions.
+- The first seeded battery uses `videoPolicy: "never"` and `isOpenJoin: true` as seed defaults; the later M3 write path is responsible for published/visible, profile, waiver, idempotency, and rate-limit guards before open-join submissions.
 
 ## Read Flow
 

@@ -21,6 +21,9 @@ export async function cleanup(client: Connection): Promise<void> {
 		"series_division_mappings",
 		"series_template_divisions",
 		// Competition deep children
+		"benchmark_tier_thresholds",
+		"benchmark_tests",
+		"benchmark_batteries",
 		"score_rounds",
 		"scores",
 		"judge_heat_assignments",

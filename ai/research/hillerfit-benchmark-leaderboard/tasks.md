@@ -37,6 +37,7 @@ Create the first generic benchmark battery from the local training PDF and recor
 Acceptance criteria:
 
 - Seed creates one Open division, individual-only tests, benchmark competition settings, included/deferred tests, and pre-encoded thresholds from `/Users/zacjones/Downloads/HillerFit_Training_Guide.pdf`.
+- Seed defaults are explicit: `videoPolicy: "never"`, `isOpenJoin: true`, and no submission-window rows.
 - Seed or companion receipt records extraction assumptions and any intentionally deferred tests.
 - Seed validation proves every included test has 10 thresholds per supported variant and a matching tagged `trackWorkout`.
 - No task creates HillerFit-branded pages, routes, product navigation, marketing copy, logos, or theme treatments.
