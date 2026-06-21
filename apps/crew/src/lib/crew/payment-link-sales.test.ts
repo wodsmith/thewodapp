@@ -173,4 +173,29 @@ describe("Crew Payment Link sales helpers", () => {
       }),
     ).toBe("manual-key")
   })
+
+  it("does not collide when Payment Link idempotency parts contain colons", () => {
+    const first = buildCrewPaymentLinkSaleIdempotencyKey({
+      eventId: "comp_crew",
+      organizingTeamId: "team_owner",
+      planId: "crew_basic",
+      amountCents: 20_000,
+      currency: "usd",
+      paymentLinkReference: "a:b",
+      stripePaymentIntentId: "c",
+    })
+    const second = buildCrewPaymentLinkSaleIdempotencyKey({
+      eventId: "comp_crew",
+      organizingTeamId: "team_owner",
+      planId: "crew_basic",
+      amountCents: 20_000,
+      currency: "usd",
+      paymentLinkReference: "a",
+      stripePaymentIntentId: "b:c",
+    })
+
+    expect(first).toBe("payment-link:a%3Ab:c")
+    expect(second).toBe("payment-link:a:b%3Ac")
+    expect(first).not.toBe(second)
+  })
 })

@@ -33,6 +33,8 @@ export interface CrewPaymentLinkSaleInput
   privateMetadata?: Record<string, unknown> | null
 }
 
+const MAX_PAYMENT_LINK_ID_LENGTH = 255
+
 export function normalizeCrewPaymentLinkReference({
   paymentLinkReference,
   paymentLinkUrl,
@@ -150,14 +152,14 @@ export function buildCrewPaymentLinkSaleIdempotencyKey(
   const paymentLinkReference = normalizeOptionalText(input.paymentLinkReference)
   const paymentIntentId = normalizeOptionalText(input.stripePaymentIntentId)
   if (paymentLinkReference || paymentIntentId) {
-    return [
+    return joinCrewPaymentLinkIdempotencyParts(
       "payment-link",
       paymentLinkReference ?? "missing-link",
       paymentIntentId ?? "missing-payment-intent",
-    ].join(":")
+    )
   }
 
-  return [
+  return joinCrewPaymentLinkIdempotencyParts(
     "payment-link",
     "manual",
     input.eventId,
@@ -165,12 +167,18 @@ export function buildCrewPaymentLinkSaleIdempotencyKey(
     input.planId,
     Math.max(0, Math.round(input.amountCents)),
     normalizeCurrency(input.currency),
-  ].join(":")
+  )
 }
 
 function normalizePaymentLinkId(input: string | null) {
   if (!input) return null
-  return input.length <= 255 ? input : null
+  return input.length <= MAX_PAYMENT_LINK_ID_LENGTH ? input : null
+}
+
+function joinCrewPaymentLinkIdempotencyParts(
+  ...parts: Array<string | number>
+) {
+  return parts.map((part) => encodeURIComponent(String(part))).join(":")
 }
 
 function parseSettingsObject(settingsText: string | null) {
