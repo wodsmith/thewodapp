@@ -3,8 +3,9 @@
 // @lat: [[crew#Billing Page And Upgrade CTA]]
 // @lat: [[crew#Stripe Payment Link Sales]]
 // @lat: [[crew#Crew Checkout Sessions]]
+// @lat: [[crew#Crew Stripe Webhooks]]
 import { env } from "cloudflare:workers"
-import { and, desc, eq } from "drizzle-orm"
+import { and, desc, eq, isNull, or } from "drizzle-orm"
 import { getDb } from "../db"
 import { ROLES_ENUM } from "../db/schema"
 import { competitionsTable } from "../db/schemas/competitions"
@@ -52,6 +53,11 @@ import {
   normalizeCrewCheckoutCatalogPlan,
   resolveCrewCheckoutPlanId,
 } from "../lib/crew/checkout-sessions"
+import {
+  CrewCheckoutWebhookValidationError,
+  type CrewCheckoutWebhookCompletionInput,
+  planCrewCheckoutWebhookCompletion,
+} from "../lib/crew/checkout-webhooks"
 import {
   buildCrewPaymentLinkSaleActionInput,
   getCrewPaymentLinkUrlFromSettings,
@@ -112,6 +118,10 @@ export interface CreateCrewCheckoutSessionInput extends GetCrewBillingInput {
 
 export interface CreateCrewCheckoutSessionResult {
   checkoutUrl: string
+}
+
+export interface CompleteCrewCheckoutSessionFromWebhookResult {
+  status: "completed" | "duplicate"
 }
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown
@@ -370,6 +380,38 @@ export async function createCrewCheckoutSession(
   return { checkoutUrl: checkoutSession.url }
 }
 
+export async function completeCrewCheckoutSessionFromWebhook(
+  data: CrewCheckoutWebhookCompletionInput,
+): Promise<CompleteCrewCheckoutSessionFromWebhookResult> {
+  const scope = await requireCrewBillingScope(data.eventId)
+
+  if (
+    scope.organizingTeamId !== data.teamId ||
+    scope.settingsId !== data.crewEventSettingsId
+  ) {
+    throw new CrewCheckoutWebhookValidationError(
+      "Crew Checkout metadata is outside the event billing scope.",
+    )
+  }
+
+  const current = toCrewBillingSnapshot(scope)
+  const existingEvents = await listCrewBillingEventsForEvent(data.eventId)
+  const completionPlan = planCrewCheckoutWebhookCompletion({
+    current,
+    existingEvents,
+    completion: data,
+  })
+
+  if (completionPlan.action === "skip_duplicate") {
+    return { status: "duplicate" }
+  }
+
+  return persistCrewCheckoutCompletedFromWebhook(
+    data,
+    completionPlan.appendPlan,
+  )
+}
+
 async function claimCrewCheckoutSessionStart({
   eventId,
   current,
@@ -541,6 +583,62 @@ async function persistCrewCheckoutSessionCreated(
     if (isCrewBillingDuplicateEntryError(error)) return
     throw error
   }
+}
+
+async function persistCrewCheckoutCompletedFromWebhook(
+  data: CrewCheckoutWebhookCompletionInput,
+  appendPlan: Extract<CrewBillingAppendPlan, { action: "append" }>,
+): Promise<CompleteCrewCheckoutSessionFromWebhookResult> {
+  const db = getDb()
+  const { event, settingsPatch } = appendPlan
+
+  try {
+    await db.transaction(async (tx) => {
+      await tx
+        .insert(crewBillingEventsTable)
+        .values(toNewCrewBillingEvent(event))
+      const result = await tx
+        .update(crewEventSettingsTable)
+        .set({
+          ...settingsPatch,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(crewEventSettingsTable.competitionId, data.eventId),
+            eq(crewEventSettingsTable.id, data.crewEventSettingsId),
+            eq(
+              crewEventSettingsTable.crewBillingState,
+              CREW_BILLING_STATE.PENDING,
+            ),
+            eq(
+              crewEventSettingsTable.crewBillingSource,
+              CREW_BILLING_SOURCE.STRIPE_CHECKOUT,
+            ),
+            or(
+              isNull(crewEventSettingsTable.crewStripeCheckoutSessionId),
+              eq(
+                crewEventSettingsTable.crewStripeCheckoutSessionId,
+                data.sessionId,
+              ),
+            ),
+          ),
+        )
+
+      if (getAffectedRows(result) === 0) {
+        throw new CrewCheckoutWebhookValidationError(
+          "Crew Checkout billing state is no longer pending for this session.",
+        )
+      }
+    })
+  } catch (error) {
+    if (isCrewBillingDuplicateEntryError(error)) {
+      return { status: "duplicate" }
+    }
+    throw error
+  }
+
+  return { status: "completed" }
 }
 
 async function updateCrewPaymentLinkSettings({

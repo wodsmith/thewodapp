@@ -27,6 +27,7 @@ import { Route as EventsEventIdExportsRouteImport } from './routes/events/$event
 import { Route as EventsEventIdDayOfRouteImport } from './routes/events/$eventId/day-of'
 import { Route as EventsEventIdBillingRouteImport } from './routes/events/$eventId/billing'
 import { Route as ESlugVolunteerRouteImport } from './routes/e/$slug/volunteer'
+import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
 import { Route as ApiCrewImportRouteImport } from './routes/api/crew/import'
 import { Route as ESlugScheduleTokenRouteImport } from './routes/e/$slug/schedule/$token'
 import { Route as ESlugConfirmTokenRouteImport } from './routes/e/$slug/confirm/$token'
@@ -121,6 +122,11 @@ const ESlugVolunteerRoute = ESlugVolunteerRouteImport.update({
   path: '/e/$slug/volunteer',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiWebhooksStripeRoute = ApiWebhooksStripeRouteImport.update({
+  id: '/api/webhooks/stripe',
+  path: '/api/webhooks/stripe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCrewImportRoute = ApiCrewImportRouteImport.update({
   id: '/api/crew/import',
   path: '/api/crew/import',
@@ -144,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/events/$eventId': typeof EventsEventIdRouteWithChildren
   '/events/new': typeof EventsNewRoute
   '/api/crew/import': typeof ApiCrewImportRoute
+  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/e/$slug/volunteer': typeof ESlugVolunteerRoute
   '/events/$eventId/billing': typeof EventsEventIdBillingRoute
   '/events/$eventId/day-of': typeof EventsEventIdDayOfRoute
@@ -166,6 +173,7 @@ export interface FileRoutesByTo {
   '/events': typeof EventsRouteWithChildren
   '/events/new': typeof EventsNewRoute
   '/api/crew/import': typeof ApiCrewImportRoute
+  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/e/$slug/volunteer': typeof ESlugVolunteerRoute
   '/events/$eventId/billing': typeof EventsEventIdBillingRoute
   '/events/$eventId/day-of': typeof EventsEventIdDayOfRoute
@@ -190,6 +198,7 @@ export interface FileRoutesById {
   '/events/$eventId': typeof EventsEventIdRouteWithChildren
   '/events/new': typeof EventsNewRoute
   '/api/crew/import': typeof ApiCrewImportRoute
+  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/e/$slug/volunteer': typeof ESlugVolunteerRoute
   '/events/$eventId/billing': typeof EventsEventIdBillingRoute
   '/events/$eventId/day-of': typeof EventsEventIdDayOfRoute
@@ -215,6 +224,7 @@ export interface FileRouteTypes {
     | '/events/$eventId'
     | '/events/new'
     | '/api/crew/import'
+    | '/api/webhooks/stripe'
     | '/e/$slug/volunteer'
     | '/events/$eventId/billing'
     | '/events/$eventId/day-of'
@@ -237,6 +247,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/events/new'
     | '/api/crew/import'
+    | '/api/webhooks/stripe'
     | '/e/$slug/volunteer'
     | '/events/$eventId/billing'
     | '/events/$eventId/day-of'
@@ -260,6 +271,7 @@ export interface FileRouteTypes {
     | '/events/$eventId'
     | '/events/new'
     | '/api/crew/import'
+    | '/api/webhooks/stripe'
     | '/e/$slug/volunteer'
     | '/events/$eventId/billing'
     | '/events/$eventId/day-of'
@@ -282,6 +294,7 @@ export interface RootRouteChildren {
   CalculatorRoute: typeof CalculatorRoute
   EventsRoute: typeof EventsRouteWithChildren
   ApiCrewImportRoute: typeof ApiCrewImportRoute
+  ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
   ESlugVolunteerRoute: typeof ESlugVolunteerRoute
   ESlugConfirmTokenRoute: typeof ESlugConfirmTokenRoute
   ESlugScheduleTokenRoute: typeof ESlugScheduleTokenRoute
@@ -415,6 +428,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ESlugVolunteerRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/webhooks/stripe': {
+      id: '/api/webhooks/stripe'
+      path: '/api/webhooks/stripe'
+      fullPath: '/api/webhooks/stripe'
+      preLoaderRoute: typeof ApiWebhooksStripeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/crew/import': {
       id: '/api/crew/import'
       path: '/api/crew/import'
@@ -491,6 +511,7 @@ const rootRouteChildren: RootRouteChildren = {
   CalculatorRoute: CalculatorRoute,
   EventsRoute: EventsRouteWithChildren,
   ApiCrewImportRoute: ApiCrewImportRoute,
+  ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
   ESlugVolunteerRoute: ESlugVolunteerRoute,
   ESlugConfirmTokenRoute: ESlugConfirmTokenRoute,
   ESlugScheduleTokenRoute: ESlugScheduleTokenRoute,
