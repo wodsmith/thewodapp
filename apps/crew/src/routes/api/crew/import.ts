@@ -6,7 +6,7 @@ import {
   createCrewImportPreviewRecord,
   CrewImportError,
   MAX_CREW_IMPORT_BYTES,
-} from "../../../server/crew-imports"
+} from "../../../server/crew-imports.server"
 import { CrewLocalAccessError } from "../../../server/crew-local-access"
 import type {
   ColumnMapping,

@@ -8,7 +8,9 @@ vi.mock("@tanstack/react-start", () => ({
 
 vi.mock("@/server-fns/crew-import-fns", () => ({
   applyCrewImportFn: vi.fn(),
+  getCrewImportMappingSuggestionFn: vi.fn(),
   getCrewImportsPageFn: vi.fn(),
+  saveCrewImportMappingPresetFn: vi.fn(),
 }))
 
 const reference = {

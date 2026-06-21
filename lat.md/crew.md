@@ -200,6 +200,22 @@ Self-serve Crew setup keeps reusable setup memory in shared DB tables owned by `
 
 `crew_department_leads` stores event-scoped delegation records for role, floor, and time-slice access without expanding the broad team permission model. IDs use the `cdlead_` prefix.
 
+## Department Leads
+
+Department leads let organizers delegate Crew shift-board and roster operations for a role, floor, and time window without adding broad `TEAM_PERMISSIONS`.
+
+[[apps/crew/src/lib/crew/department-leads.ts]] owns deterministic scope normalization, read filtering, and mutation guard helpers. [[apps/crew/src/server/crew-department-lead.server.ts]] loads shared `crew_department_leads` rows and resolves either full organizer/local-operator access or active department-lead scopes. [[apps/crew/src/server-fns/crew-department-lead-fns.ts]] keeps the route-safe wrappers thin.
+
+The setup surface at [[apps/crew/src/routes/events/$eventId/setup.tsx]] manages lead rows through [[apps/crew/src/components/crew-department-leads/crew-department-leads-panel.tsx]]. Existing roster, shift, staffing, day-of, and confirmation server paths apply the same server-side scope before returning data or mutating shift/assignment state.
+
+## Remember Import Mappings
+
+Crew import mapping memory stores confirmed CSV header mappings in `crew_import_mapping_presets` by team, source platform, import kind, and deterministic header fingerprint.
+
+[[apps/crew/src/lib/crew/imports/mapping-memory.ts]] owns pure header fingerprinting, source normalization, scoped suggestion selection, and save-payload sanitization. [[apps/crew/src/server-fns/crew-import-fns.ts]] keeps the route-facing functions thin while [[apps/crew/src/server/crew-imports.server.ts]] loads and upserts presets through the shared table.
+
+[[apps/crew/src/routes/events/$eventId/imports.tsx]] surfaces saved mappings as explicit suggestions. Operators must click to use or remember a mapping; previews and applies continue to use the currently visible mapping and never rewrite historical `crew_import_rows`.
+
 ## Guided Setup State
 
 Guided setup turns Crew readiness facts and operator overrides into a per-event self-serve checklist stored in `crew_event_settings.settings`.
@@ -215,6 +231,16 @@ Guided setup turns Crew readiness facts and operator overrides into a per-event 
 Crew role and shift templates provide typed built-in staffing patterns plus team-saved presets backed by `crew_template_presets`.
 
 [[apps/crew/src/lib/crew/templates]] owns deterministic built-ins, preset serialization, preview, duplicate detection, and append-only apply planning. [[apps/crew/src/server-fns/crew-template-fns.ts]] keeps route-facing wrappers thin while [[apps/crew/src/server/crew-template.server.ts]] loads saved team presets, fills empty setup assumptions only when requested, and appends only missing `volunteer_shifts`. [[apps/crew/src/components/crew-templates/crew-template-panel.tsx]] integrates preview/apply/save into the event setup page without adding a public marketplace or copy-prior-event flow.
+
+## Copy Prior Event Setup
+
+Crew copy-prior-event setup lets a local operator preview structural setup from an earlier Crew event owned by the same organizing team, then apply only empty-target draft structure into the current event.
+
+[[apps/crew/src/lib/crew/copy-prior-event.ts]] owns deterministic eligibility filtering, date-shift planning, denylist summaries, non-overwrite apply planning, and settings JSON preservation. It copies structural venues/floors, workout/event shells, heat schedule shells, shift templates, and empty setup assumptions only when the target category has no existing rows.
+
+[[apps/crew/src/server-fns/crew-copy-event-fns.ts]] exposes route-safe read/apply wrappers, while [[apps/crew/src/server/crew-copy-event.server.ts]] keeps DB/runtime imports server-only and rechecks target structure inside the apply transaction. Apply creates new target IDs, leaves source rows untouched, records `copyPriorEvent` metadata in `crew_event_settings.settings`, and does not copy volunteers, team invitations, roster memberships, confirmations, assignment responses, import history, registrations, payments, waivers, broadcasts, reminders, queues, check-in/no-show state, analytics, or published judge assignment rows.
+
+[[apps/crew/src/components/crew-copy-event/crew-copy-prior-event-panel.tsx]] renders the setup-page preview and conservative apply action on [[apps/crew/src/routes/events/$eventId/setup.tsx]].
 
 ## Assignment Confirmation Responses
 

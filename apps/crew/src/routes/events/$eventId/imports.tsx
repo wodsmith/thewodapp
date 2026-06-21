@@ -1,5 +1,5 @@
 import type { ChangeEvent, FormEvent, ReactNode } from "react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { createFileRoute, getRouteApi, useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import {
@@ -8,6 +8,7 @@ import {
   FileSpreadsheet,
   Loader2,
   PlayCircle,
+  Save,
   Upload,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -24,9 +25,12 @@ import type {
   PreviewImportRow,
   VolunteerImportRow,
 } from "@/lib/crew/imports/types"
+import type { CrewImportMappingSuggestion } from "@/lib/crew/imports/mapping-memory"
 import {
   applyCrewImportFn,
+  getCrewImportMappingSuggestionFn,
   getCrewImportsPageFn,
+  saveCrewImportMappingPresetFn,
   type CrewImportApplyResult,
   type CrewImportHistoryItem,
   type CrewImportReferenceData,
@@ -201,13 +205,55 @@ function ImportUploadPanel({
   onPreviewComplete: (preview: PersistedCrewImportPreview) => void
   onHistoryRefresh: () => Promise<void>
 }) {
+  const getMappingSuggestion = useServerFn(getCrewImportMappingSuggestionFn)
+  const saveMappingPreset = useServerFn(saveCrewImportMappingPresetFn)
   const [file, setFile] = useState<File | null>(null)
   const [headers, setHeaders] = useState<string[]>([])
   const [mapping, setMapping] = useState<ColumnMapping>({})
+  const [mappingSuggestion, setMappingSuggestion] =
+    useState<CrewImportMappingSuggestion | null>(null)
   const [sourcePlatform, setSourcePlatform] = useState("")
   const [clientIssues, setClientIssues] = useState<ImportIssue[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoadingMappingSuggestion, setIsLoadingMappingSuggestion] =
+    useState(false)
+  const [isSavingMapping, setIsSavingMapping] = useState(false)
   const fields = useMemo(() => getImportFields(kind), [kind])
+  const mappedFieldCount = Object.keys(mapping).length
+
+  useEffect(() => {
+    let ignore = false
+
+    if (headers.length === 0) {
+      setMappingSuggestion(null)
+      setIsLoadingMappingSuggestion(false)
+      return
+    }
+
+    setMappingSuggestion(null)
+    setIsLoadingMappingSuggestion(true)
+    void getMappingSuggestion({
+      data: {
+        eventId,
+        kind,
+        sourcePlatform,
+        headers,
+      },
+    })
+      .then((result) => {
+        if (!ignore) setMappingSuggestion(result.suggestion)
+      })
+      .catch(() => {
+        if (!ignore) setMappingSuggestion(null)
+      })
+      .finally(() => {
+        if (!ignore) setIsLoadingMappingSuggestion(false)
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [eventId, getMappingSuggestion, headers, kind, sourcePlatform])
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const selectedFile = event.target.files?.[0] ?? null
@@ -216,6 +262,7 @@ function ImportUploadPanel({
     if (!selectedFile) {
       setHeaders([])
       setMapping({})
+      setMappingSuggestion(null)
       setClientIssues([])
       return
     }
@@ -233,6 +280,39 @@ function ImportUploadPanel({
       else delete next[field]
       return next
     })
+  }
+
+  function handleUseSuggestedMapping(suggestion: CrewImportMappingSuggestion) {
+    setMapping(suggestion.columnMapping)
+    toast.success("Saved mapping loaded")
+  }
+
+  async function handleSaveMapping() {
+    if (headers.length === 0 || mappedFieldCount === 0) {
+      toast.error("Map at least one column first")
+      return
+    }
+
+    setIsSavingMapping(true)
+    try {
+      const result = await saveMappingPreset({
+        data: {
+          eventId,
+          kind,
+          sourcePlatform,
+          headers,
+          columnMapping: mapping,
+        },
+      })
+      setMappingSuggestion(result.suggestion)
+      toast.success("Mapping remembered")
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to remember mapping",
+      )
+    } finally {
+      setIsSavingMapping(false)
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -323,7 +403,47 @@ function ImportUploadPanel({
 
       {headers.length > 0 ? (
         <div className="mt-6 space-y-3">
-          <h4 className="text-sm font-semibold">Mapping</h4>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h4 className="text-sm font-semibold">Mapping</h4>
+            <button
+              type="button"
+              onClick={handleSaveMapping}
+              disabled={isSavingMapping || mappedFieldCount === 0}
+              className="inline-flex h-9 w-fit items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isSavingMapping ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Save className="size-4" />
+              )}
+              Remember mapping
+            </button>
+          </div>
+          {mappingSuggestion ? (
+            <div className="rounded-md bg-muted p-3 text-sm">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium">Saved mapping available</p>
+                  <p className="text-muted-foreground">
+                    {mappingSuggestion.matchedFieldCount} fields from{" "}
+                    {mappingSuggestion.sourcePlatform}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleUseSuggestedMapping(mappingSuggestion)}
+                  className="inline-flex h-9 w-fit items-center gap-2 rounded-md border bg-background px-3 text-sm font-medium hover:bg-muted"
+                >
+                  <CheckCircle2 className="size-4" />
+                  Use saved
+                </button>
+              </div>
+            </div>
+          ) : isLoadingMappingSuggestion ? (
+            <p className="text-sm text-muted-foreground">
+              Checking saved mappings...
+            </p>
+          ) : null}
           <div className="space-y-3">
             {fields.map((field) => (
               <label
@@ -354,18 +474,20 @@ function ImportUploadPanel({
         </div>
       ) : null}
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="mt-6 inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {isSubmitting ? (
-          <Loader2 className="size-4 animate-spin" />
-        ) : (
-          <Upload className="size-4" />
-        )}
-        Preview CSV
-      </button>
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isSubmitting ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Upload className="size-4" />
+          )}
+          Preview CSV
+        </button>
+      </div>
     </form>
   )
 }
