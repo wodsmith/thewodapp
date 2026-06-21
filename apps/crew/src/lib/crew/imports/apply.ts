@@ -36,6 +36,7 @@ export interface ExistingVolunteerInvitation {
 
 export interface ExistingVolunteerMembership {
   id: string
+  userId?: string | null
   email: string
   isActive?: boolean | null
 }

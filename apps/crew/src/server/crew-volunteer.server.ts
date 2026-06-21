@@ -14,6 +14,10 @@ import {
   crewEventSettingsTable,
 } from "../db/schemas/crew-event-settings"
 import {
+  CREW_VOLUNTEER_HISTORY_EVENT_TYPE,
+  CREW_VOLUNTEER_IDENTITY_SOURCE,
+} from "../db/schemas/crew-volunteer-intelligence"
+import {
   INVITATION_STATUS,
   SYSTEM_ROLES_ENUM,
   teamInvitationTable,
@@ -35,6 +39,7 @@ import {
 } from "../lib/crew/volunteer-signup"
 import { getFirstExecuteValue } from "../server-fns/db-execute"
 import type { QuestionType } from "../server-fns/registration-questions-fns"
+import { recordCrewVolunteerHistoryEvent } from "./crew-volunteer-history.server"
 
 type DbClient = ReturnType<typeof getDb>
 const PUBLIC_DUPLICATE_VOLUNTEER_SIGNUP_ERROR =
@@ -232,6 +237,22 @@ export async function submitCrewVolunteerSignup(
           data.answers ?? [],
           timestamp,
         )
+        await recordCrewVolunteerHistoryEvent({
+          db: client,
+          teamId: event.organizingTeamId,
+          competitionId: event.id,
+          groupId: event.groupId,
+          eventType: CREW_VOLUNTEER_HISTORY_EVENT_TYPE.SIGNED_UP,
+          identity: {
+            email,
+            phone: data.signupPhone,
+            sourceInvitationId: invitationId,
+            identitySource: CREW_VOLUNTEER_IDENTITY_SOURCE.SELF_SERVICE,
+          },
+          occurredAt: timestamp,
+          sourceType: "crew_volunteer_signup",
+          sourceId: invitationId,
+        })
       },
     )
   })
@@ -312,6 +333,7 @@ const publicCrewEventSelect = {
   slug: competitionsTable.slug,
   name: competitionsTable.name,
   description: competitionsTable.description,
+  organizingTeamId: competitionsTable.organizingTeamId,
   startDate: competitionsTable.startDate,
   endDate: competitionsTable.endDate,
   timezone: competitionsTable.timezone,
@@ -320,6 +342,7 @@ const publicCrewEventSelect = {
 }
 
 type InternalPublicCrewEvent = PublicCrewVolunteerEvent & {
+  organizingTeamId: string
   groupId: string | null
 }
 
