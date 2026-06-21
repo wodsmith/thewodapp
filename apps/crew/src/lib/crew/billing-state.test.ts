@@ -374,6 +374,37 @@ describe("Crew billing state and audit helpers", () => {
     })
   })
 
+  it("preserves an existing Payment Link reference during missing metadata reconciliation", () => {
+    const plan = planManualCrewBillingAction([], {
+      action: MANUAL_CREW_BILLING_ACTION.RECONCILE_PAYMENT_LINK_SALE,
+      competitionId: "comp_existing_reference",
+      teamId: "team_owner",
+      planId: "crew_basic",
+      amountCents: 20_000,
+      current: {
+        stripe: {
+          paymentLinkId: "plink_existing",
+          checkoutSessionId: null,
+          paymentIntentId: null,
+        },
+      },
+      idempotencyKey: "payment-link:plink_existing:missing-payment-intent",
+    })
+
+    expect(plan).toMatchObject({
+      action: "append",
+      event: {
+        eventType: CREW_BILLING_EVENT_TYPE.PAYMENT_LINK_RECONCILED,
+        stripePaymentLinkId: "plink_existing",
+        stripePaymentIntentId: null,
+      },
+      settingsPatch: {
+        crewStripePaymentLinkId: "plink_existing",
+        crewStripePaymentIntentId: null,
+      },
+    })
+  })
+
   it("dedupes Payment Link reconciliation by idempotency key", () => {
     const first = planManualCrewBillingAction([], {
       action: MANUAL_CREW_BILLING_ACTION.RECONCILE_PAYMENT_LINK_SALE,

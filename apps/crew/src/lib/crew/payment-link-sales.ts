@@ -3,6 +3,7 @@ import { safeHttpUrl } from "../safe-url"
 import {
   MANUAL_CREW_BILLING_ACTION,
   type CrewBillingPlanId,
+  type CrewBillingStateSnapshot,
   type PlanManualCrewBillingActionInput,
 } from "./billing-state"
 
@@ -23,6 +24,7 @@ export interface CrewPaymentLinkSaleInput
   planId: CrewBillingPlanId
   amountCents: number
   currency?: string | null
+  current?: Partial<CrewBillingStateSnapshot>
   stripePaymentIntentId?: string | null
   idempotencyKey?: string | null
   actorUserId?: string | null
@@ -106,19 +108,22 @@ export function buildCrewPaymentLinkSaleActionInput(
   input: CrewPaymentLinkSaleInput,
 ): PlanManualCrewBillingActionInput {
   const paymentLink = normalizeCrewPaymentLinkReference(input)
+  const paymentLinkReference =
+    paymentLink.reference ?? input.current?.stripe?.paymentLinkId ?? null
 
   return {
     action: MANUAL_CREW_BILLING_ACTION.RECONCILE_PAYMENT_LINK_SALE,
     competitionId: input.eventId,
     teamId: input.organizingTeamId,
+    current: input.current,
     planId: input.planId,
     amountCents: input.amountCents,
     currency: input.currency,
-    stripePaymentLinkId: paymentLink.reference,
+    stripePaymentLinkId: paymentLinkReference,
     stripePaymentIntentId: input.stripePaymentIntentId,
     idempotencyKey: buildCrewPaymentLinkSaleIdempotencyKey({
       ...input,
-      paymentLinkReference: paymentLink.reference,
+      paymentLinkReference,
     }),
     actorUserId: input.actorUserId,
     actorLabel: input.actorLabel,

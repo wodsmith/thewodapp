@@ -130,6 +130,36 @@ describe("Crew Payment Link sales helpers", () => {
     })
   })
 
+  it("preserves an existing Payment Link reference when reconciling missing metadata", () => {
+    const action = buildCrewPaymentLinkSaleActionInput({
+      eventId: "comp_existing_reference",
+      organizingTeamId: "team_scope",
+      planId: "crew_basic",
+      amountCents: 20_000,
+      currency: "USD",
+      current: {
+        stripe: {
+          paymentLinkId: "plink_existing",
+          checkoutSessionId: null,
+          paymentIntentId: null,
+        },
+      },
+    })
+
+    expect(action).toMatchObject({
+      action: "reconcile_payment_link_sale",
+      competitionId: "comp_existing_reference",
+      teamId: "team_scope",
+      stripePaymentLinkId: "plink_existing",
+      idempotencyKey: "payment-link:plink_existing:missing-payment-intent",
+      current: {
+        stripe: {
+          paymentLinkId: "plink_existing",
+        },
+      },
+    })
+  })
+
   it("prefers an admin-provided idempotency key when reconciling manually", () => {
     expect(
       buildCrewPaymentLinkSaleIdempotencyKey({

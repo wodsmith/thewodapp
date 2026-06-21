@@ -259,6 +259,7 @@ export async function reconcileCrewPaymentLinkSale(
       ...data,
       eventId: scope.id,
       organizingTeamId: scope.organizingTeamId,
+      current,
     }),
   )
 
