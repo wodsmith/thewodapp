@@ -51,7 +51,7 @@ async function requireCheckInAccess(competitionId: string): Promise<{
     id: string
     organizingTeamId: string
     competitionTeamId: string | null
-    competitionType: "in-person" | "online"
+    competitionType: string
   }
   userId: string
 }> {

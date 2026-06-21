@@ -13,6 +13,7 @@ import {
 	traditionalConfigSchema,
 	pScoreConfigSchema,
 	customTableConfigSchema,
+	absoluteTierConfigSchema,
 	tiebreakerConfigSchema,
 	statusHandlingConfigSchema,
 	type ScoringConfig,
@@ -37,6 +38,12 @@ describe("ScoringAlgorithm Schema", () => {
 		const result = scoringAlgorithmSchema.safeParse("custom")
 		expect(result.success).toBe(true)
 		expect(result.data).toBe("custom")
+	})
+
+	it("accepts 'absolute_tier' algorithm", () => {
+		const result = scoringAlgorithmSchema.safeParse("absolute_tier")
+		expect(result.success).toBe(true)
+		expect(result.data).toBe("absolute_tier")
 	})
 
 	it("rejects invalid algorithm", () => {
@@ -174,6 +181,23 @@ describe("CustomTableConfig Schema", () => {
 			baseTemplate: "invalid_template",
 			overrides: {},
 		})
+		expect(result.success).toBe(false)
+	})
+})
+
+describe("AbsoluteTierConfig Schema", () => {
+	it("accepts valid absolute-tier config", () => {
+		const result = absoluteTierConfigSchema.safeParse({
+			batteryId: "bbat_01JZ0000000000000000000000",
+		})
+
+		expect(result.success).toBe(true)
+		expect(result.data?.batteryId).toBe("bbat_01JZ0000000000000000000000")
+	})
+
+	it("rejects missing battery id", () => {
+		const result = absoluteTierConfigSchema.safeParse({})
+
 		expect(result.success).toBe(false)
 	})
 })
@@ -347,6 +371,34 @@ describe("ScoringConfig Schema", () => {
 		expect(result.data?.customTable?.baseTemplate).toBe("winner_takes_more")
 	})
 
+	it("accepts absolute_tier config with battery id", () => {
+		const config: ScoringConfig = {
+			algorithm: "absolute_tier",
+			absoluteTier: { batteryId: "bbat_01JZ0000000000000000000000" },
+			tiebreaker: { primary: "none" },
+			statusHandling: {
+				dnf: "zero",
+				dns: "zero",
+				withdrawn: "zero",
+			},
+		}
+		const result = scoringConfigSchema.safeParse(config)
+		expect(result.success).toBe(true)
+		expect(result.data?.absoluteTier?.batteryId).toBe(
+			"bbat_01JZ0000000000000000000000",
+		)
+	})
+
+	it("rejects absolute_tier config without battery id", () => {
+		const result = scoringConfigSchema.safeParse({
+			algorithm: "absolute_tier",
+			tiebreaker: { primary: "none" },
+			statusHandling: { dnf: "zero", dns: "zero", withdrawn: "zero" },
+		})
+
+		expect(result.success).toBe(false)
+	})
+
 	it("rejects missing algorithm", () => {
 		const result = scoringConfigSchema.safeParse({
 			tiebreaker: { primary: "countback" },
@@ -382,8 +434,8 @@ describe("ScoringConfig Schema", () => {
 
 describe("Type inference", () => {
 	it("infers correct type for ScoringAlgorithm", () => {
-		const algo: ScoringAlgorithm = "traditional"
-		expect(["traditional", "p_score", "custom"]).toContain(algo)
+		const algo: ScoringAlgorithm = "absolute_tier"
+		expect(["traditional", "p_score", "custom", "absolute_tier"]).toContain(algo)
 	})
 
 	it("infers correct type for TiebreakerMethod", () => {

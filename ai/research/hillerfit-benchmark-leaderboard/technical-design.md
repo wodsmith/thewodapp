@@ -18,7 +18,7 @@ This design defines the components and contracts engineers should build for v1.
 
 ### New Tables
 
-- `benchmark_batteries`: named product, owner, slug, categories JSON, rating bands JSON, `maxTier`, `scoreMax`, `videoPolicy`, `isOpenJoin`, `variantScalingGroupId`, `competitionId`, status, and non-null `ownerKey` for global slug uniqueness.
+- `benchmark_batteries`: named product, owner, slug, categories JSON payload, rating bands JSON payload, `maxTier`, `scoreMax`, `videoPolicy`, `isOpenJoin`, `variantScalingGroupId`, `competitionId`, status, and non-null `ownerKey` for global slug uniqueness. The current MySQL schema stores these JSON payloads in text columns; every write/read/publish path must parse and validate them fail-closed.
 - `benchmark_tests`: one test per battery test, with category key, name, position, workout scheme, score type, input unit, `includedInScoring`, optional time cap, and nullable v2 hybrid metadata.
 - `benchmark_tier_thresholds`: one pre-encoded threshold per `(test, variant, tier)`, with raw display value preserved.
 
@@ -35,10 +35,11 @@ This design defines the components and contracts engineers should build for v1.
 ## Core Dependencies
 
 - M0a registry extension must land before benchmark submission and leaderboard chokepoints. The base registry already exists for current competition types.
-- M1 schema/seed must land before M2 integration tests can use real benchmark rows.
+- M1a schema primitives must land before M1b can seed benchmark rows.
+- M1b PDF-derived seed and extraction receipt must land before M2 integration tests can use real benchmark rows.
 - M2 absolute-tier algorithm must land before M3 can implement keep-best-on-write correctly.
 - M3 submission must land before M4 can verify real leaderboard and stats flows.
-- M1 seed data depends on extracting tests/thresholds from the local training PDF and recording extraction assumptions.
+- M1b seed data depends on extracting tests/thresholds from the local training PDF and recording extraction assumptions.
 
 ## Read Flow
 
@@ -73,4 +74,4 @@ This design defines the components and contracts engineers should build for v1.
 
 ## Branding Boundary
 
-Benchmark routes, tabs, headings, empty states, and stats components use WODsmith's generic benchmark language. The PDF may influence seed data names, test labels, thresholds, categories, and rating bands, but it must not introduce HillerFit-branded pages, routes, logos, marketing sections, or visual theme.
+Benchmark routes, tabs, product navigation, headings, empty states, and stats components use WODsmith's generic benchmark language. The PDF may influence seed data names, test labels, thresholds, categories, and rating bands, but it must not introduce HillerFit-branded pages, routes, navigation entries, logos, marketing sections, or visual theme.

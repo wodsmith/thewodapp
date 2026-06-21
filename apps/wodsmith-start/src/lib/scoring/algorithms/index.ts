@@ -177,6 +177,8 @@ export function calculateEventPoints(
       return calculateOnlineEventPoints(scores, scheme, config)
     case "custom":
       return calculateCustomEventPoints(scores, scheme, config)
+    case "absolute_tier":
+      throw new Error("absolute_tier scoring is configured but not implemented")
     default: {
       // TypeScript exhaustiveness check
       const _exhaustive: never = config.algorithm
@@ -656,6 +658,8 @@ export function calculatePointsForPlace({
       )
     case "p_score":
       return 0
+    case "absolute_tier":
+      throw new Error("absolute_tier place points are not available")
     default: {
       const _exhaustive: never = config.algorithm
       throw new Error(`Unknown scoring algorithm: ${_exhaustive}`)
@@ -680,6 +684,8 @@ export function getScoringAlgorithmName(
       return "Online"
     case "custom":
       return "Custom"
+    case "absolute_tier":
+      return "Absolute Tier"
   }
 }
 

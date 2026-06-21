@@ -16,9 +16,9 @@ Acceptance criteria:
 - Benchmark-capable registry entry can be added without reintroducing literal online/in-person checks at those chokepoints.
 - `scoringAlgorithm === "online"` branches remain untouched.
 
-## M1 Schema And PDF-Derived Seed
+## M1a Schema Primitives
 
-Add benchmark type, benchmark tables, shared columns, validation schemas, and the training-PDF-derived seed.
+Add benchmark persistence primitives, shared columns, and validation schemas. This slice does not seed PDF-derived benchmark rows.
 
 Acceptance criteria:
 
@@ -26,9 +26,20 @@ Acceptance criteria:
 - `benchmark_batteries`, `benchmark_tests`, and `benchmark_tier_thresholds` are defined and exported.
 - `trackWorkouts.benchmarkTestId`, `trackWorkouts.benchmarkCategory`, and `scores.benchmarkVariant` are migrated.
 - Categories JSON validates on write, publish, and read; `testCount` is treated as a validated cache.
+- `absolute_tier` config validation requires `absoluteTier.batteryId`, while the scoring dispatcher fails closed until M2 implements the engine.
+- Generic create/edit forms do not expose `benchmark` as a selectable type or render in-person-only venue fields for stored benchmark rows.
+- No task creates HillerFit-branded pages, routes, product navigation, marketing copy, logos, or theme treatments.
+
+## M1b PDF-Derived Seed And Receipt
+
+Create the first generic benchmark battery from the local training PDF and record the extraction assumptions.
+
+Acceptance criteria:
+
 - Seed creates one Open division, individual-only tests, benchmark competition settings, included/deferred tests, and pre-encoded thresholds from `/Users/zacjones/Downloads/HillerFit_Training_Guide.pdf`.
 - Seed or companion receipt records extraction assumptions and any intentionally deferred tests.
-- No task creates HillerFit-branded pages, routes, marketing copy, logos, or theme treatments.
+- Seed validation proves every included test has 10 thresholds per supported variant and a matching tagged `trackWorkout`.
+- No task creates HillerFit-branded pages, routes, product navigation, marketing copy, logos, or theme treatments.
 
 ## M2 Absolute-Tier Scoring
 

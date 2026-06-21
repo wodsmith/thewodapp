@@ -55,7 +55,7 @@ import { canDisplayPhysicalVenue } from "@/lib/competitions/venue-volunteer-gate
 interface CohostSidebarProps {
   competitionId: string
   competitionName: string
-  competitionType?: "in-person" | "online"
+  competitionType?: string
   permissions: CohostMembershipMetadata
   children: React.ReactNode
 }
@@ -74,7 +74,7 @@ interface NavGroup {
 
 const getNavigation = (
   basePath: string,
-  competitionType?: "in-person" | "online",
+  competitionType?: string,
   permissions?: CohostMembershipMetadata,
 ): { overview: NavItem; groups: NavGroup[] } => {
   const type = competitionType ?? ""

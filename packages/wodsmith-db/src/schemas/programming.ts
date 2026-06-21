@@ -120,6 +120,9 @@ export const trackWorkoutsTable = mysqlTable(
     // Minimum number of heats a judge must rest between rotations
     // Nullable = inherit from competition default or system default of 2
     minHeatBuffer: int().default(2),
+    // Benchmark batteries bind competition events to source test definitions.
+    benchmarkTestId: varchar({ length: 255 }),
+    benchmarkCategory: varchar({ length: 64 }),
   },
   (table) => [
     index("track_workout_track_idx").on(table.trackId),
@@ -132,6 +135,8 @@ export const trackWorkoutsTable = mysqlTable(
       table.trackOrder,
     ),
     index("track_workout_sponsor_idx").on(table.sponsorId),
+    index("track_workout_benchmark_test_idx").on(table.benchmarkTestId),
+    index("track_workout_benchmark_category_idx").on(table.benchmarkCategory),
   ],
 )
 

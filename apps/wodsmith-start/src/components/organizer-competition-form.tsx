@@ -155,6 +155,12 @@ export function OrganizerCompetitionForm({
   const navigate = useNavigate()
   const router = useRouter()
   const isEditMode = !!competition
+  const initialCompetitionType: CompetitionTypeId =
+    isSelectableCompetitionTypeValue(competition?.competitionType)
+      ? competition.competitionType
+      : "in-person"
+  const showCompetitionTypeField =
+    !isEditMode || isSelectableCompetitionTypeValue(competition?.competitionType)
 
   // Determine if existing competition is multi-day (start and end dates differ)
   const existingIsMultiDay = competition
@@ -168,7 +174,7 @@ export function OrganizerCompetitionForm({
       teamId: competition?.organizingTeamId ?? selectedTeamId,
       name: competition?.name ?? "",
       slug: competition?.slug ?? "",
-      competitionType: competition?.competitionType ?? "in-person",
+      competitionType: initialCompetitionType,
       isMultiDay: existingIsMultiDay,
       startDate: competition?.startDate
         ? formatDateForInput(competition.startDate)
@@ -442,40 +448,41 @@ export function OrganizerCompetitionForm({
           )}
         />
 
-        {/* Competition Type */}
-        <FormField
-          control={form.control}
-          name="competitionType"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Competition Type</FormLabel>
-              <Select
-                onValueChange={field.onChange}
-                value={field.value}
-                disabled={isEditMode}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select competition type" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {selectableCompetitionTypeOptions().map((option) => (
-                    <SelectItem key={option.id} value={option.id}>
-                      {option.displayLabel}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormDescription>
-                {field.value === "online"
-                  ? "Athletes submit video recordings of their workouts"
-                  : "Athletes compete at a physical venue"}
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {showCompetitionTypeField && (
+          <FormField
+            control={form.control}
+            name="competitionType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Competition Type</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  value={field.value}
+                  disabled={isEditMode}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select competition type" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {selectableCompetitionTypeOptions().map((option) => (
+                      <SelectItem key={option.id} value={option.id}>
+                        {option.displayLabel}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  {field.value === "online"
+                    ? "Athletes submit video recordings of their workouts"
+                    : "Athletes compete at a physical venue"}
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
 
         {/* Series/Group Selector */}
         {groups.length > 0 && (

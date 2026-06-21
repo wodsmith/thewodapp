@@ -92,6 +92,10 @@ These tests pin the capability helpers that control physical venue display and v
 
 This test verifies physical venue display remains available only for in-person competitions.
 
+### Edit Form Physical Venue Gate
+
+This test verifies stored benchmark competitions do not render or submit generic edit-form venue fields through the in-person picker fallback.
+
 ### Volunteer Scheduling Availability
 
 This test verifies volunteer scheduling remains available only for in-person competitions.

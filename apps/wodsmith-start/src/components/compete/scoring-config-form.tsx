@@ -58,6 +58,18 @@ function EditablePointsPreview({
     )
   }
 
+  if (!basePoints && algorithm === "absolute_tier") {
+    return (
+      <div className="rounded-lg border bg-muted/20 p-6">
+        <h3 className="font-semibold mb-4">Points Preview</h3>
+        <p className="text-sm text-muted-foreground">
+          Absolute-tier scoring uses fixed benchmark thresholds from the
+          selected benchmark battery.
+        </p>
+      </div>
+    )
+  }
+
   // scoringAlgorithm axis, not competitionType.
   // Online scoring - static display, no customization
   if (algorithm === "online" || baseTemplate === "online") {
@@ -257,6 +269,7 @@ function getBaseTemplateFromAlgorithm(
     case "custom":
     case "p_score":
     case "online":
+    case "absolute_tier":
       return "traditional"
     case "winner_takes_more":
       return "winner_takes_more"
@@ -273,6 +286,7 @@ function getPreviewTemplateFromAlgorithm(
     case "traditional":
     case "custom":
     case "p_score":
+    case "absolute_tier":
       return "traditional"
     case "winner_takes_more":
       return "winner_takes_more"
@@ -477,6 +491,8 @@ export function ScoringConfigForm({
         return null // P-Score is dynamic
       case "online":
         return null // Online is handled separately in preview
+      case "absolute_tier":
+        return null // Benchmark thresholds are displayed by benchmark-specific UI
       default:
         return generatePointsTable("traditional", 100)
     }

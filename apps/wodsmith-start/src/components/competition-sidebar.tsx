@@ -64,7 +64,7 @@ import { cn } from "@/utils/cn"
 
 interface CompetitionSidebarProps {
   competitionId: string
-  competitionType?: "in-person" | "online"
+  competitionType?: string
   children: React.ReactNode
 }
 
@@ -82,7 +82,7 @@ interface NavGroup {
 
 const getNavigation = (
   basePath: string,
-  competitionType?: "in-person" | "online",
+  competitionType?: string,
 ): { overview: NavItem; groups: NavGroup[] } => {
   const type = competitionType ?? ""
 
