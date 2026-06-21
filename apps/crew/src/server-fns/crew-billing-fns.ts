@@ -6,6 +6,7 @@ import { CREW_BILLING_EVENT_TYPE } from "../db/schemas/crew-billing-events"
 import {
   MANUAL_CREW_BILLING_ACTION,
   crewBillingPlanIds,
+  type ManualCrewBillingActionType,
 } from "../lib/crew/billing-state"
 
 export type { CrewBillingPageData } from "../server/crew-billing.server"
@@ -23,15 +24,6 @@ const crewBillingEventTypeSchema = z.enum([
   CREW_BILLING_EVENT_TYPE.CREDIT_APPLIED,
   CREW_BILLING_EVENT_TYPE.REFUND_RECORDED,
   CREW_BILLING_EVENT_TYPE.EVENT_COMPED,
-])
-
-const manualCrewBillingActionSchema = z.enum([
-  MANUAL_CREW_BILLING_ACTION.RECORD_MANUAL_PAID,
-  MANUAL_CREW_BILLING_ACTION.APPLY_FOUNDER_GRANT,
-  MANUAL_CREW_BILLING_ACTION.SET_FULL_PLATFORM_CREDIT,
-  MANUAL_CREW_BILLING_ACTION.APPLY_FULL_PLATFORM_CREDIT,
-  MANUAL_CREW_BILLING_ACTION.COMP_EVENT,
-  MANUAL_CREW_BILLING_ACTION.RECORD_REFUND,
 ])
 
 const crewBillingPlanIdSchema = z.enum(crewBillingPlanIds)
@@ -60,15 +52,19 @@ const recordCrewBillingEventInputSchema = getCrewBillingInputSchema.extend({
   privateMetadata: privateMetadataSchema.optional(),
 })
 
-const recordManualCrewBillingActionInputSchema =
+const optionalManualCrewBillingAmountSchema = z
+  .number()
+  .int()
+  .min(0)
+  .nullable()
+  .optional()
+
+const recordManualCrewBillingActionBaseInputSchema =
   getCrewBillingInputSchema.extend({
-    action: manualCrewBillingActionSchema,
-    planId: crewBillingPlanIdSchema.nullable().optional(),
-    amountCents: z.number().int().min(0).nullable().optional(),
     currency: nullableTextSchema,
-    fullPlatformCreditCents: z.number().int().min(0).nullable().optional(),
-    privateFounderPriceCents: z.number().int().min(0).nullable().optional(),
-    refundedCents: z.number().int().min(0).nullable().optional(),
+    fullPlatformCreditCents: optionalManualCrewBillingAmountSchema,
+    privateFounderPriceCents: optionalManualCrewBillingAmountSchema,
+    refundedCents: optionalManualCrewBillingAmountSchema,
     stripePaymentIntentId: nullableTextSchema,
     idempotencyKey: nullableTextSchema,
     actorUserId: nullableTextSchema,
@@ -76,6 +72,47 @@ const recordManualCrewBillingActionInputSchema =
     publicNote: nullableTextSchema,
     privateMetadata: privateMetadataSchema.optional(),
   })
+
+const optionalManualCrewBillingActionInputSchema = (
+  action: Exclude<
+    ManualCrewBillingActionType,
+    typeof MANUAL_CREW_BILLING_ACTION.RECORD_MANUAL_PAID
+  >,
+) =>
+  recordManualCrewBillingActionBaseInputSchema.extend({
+    action: z.literal(action),
+    planId: crewBillingPlanIdSchema.nullable().optional(),
+    amountCents: optionalManualCrewBillingAmountSchema,
+  })
+
+const recordManualCrewBillingActionInputSchema = z.discriminatedUnion(
+  "action",
+  [
+    recordManualCrewBillingActionBaseInputSchema.extend({
+      action: z.literal(MANUAL_CREW_BILLING_ACTION.RECORD_MANUAL_PAID),
+      planId: crewBillingPlanIdSchema,
+      amountCents: z
+        .number()
+        .int()
+        .positive("Manual paid Crew billing requires a positive amount."),
+    }),
+    optionalManualCrewBillingActionInputSchema(
+      MANUAL_CREW_BILLING_ACTION.APPLY_FOUNDER_GRANT,
+    ),
+    optionalManualCrewBillingActionInputSchema(
+      MANUAL_CREW_BILLING_ACTION.SET_FULL_PLATFORM_CREDIT,
+    ),
+    optionalManualCrewBillingActionInputSchema(
+      MANUAL_CREW_BILLING_ACTION.APPLY_FULL_PLATFORM_CREDIT,
+    ),
+    optionalManualCrewBillingActionInputSchema(
+      MANUAL_CREW_BILLING_ACTION.COMP_EVENT,
+    ),
+    optionalManualCrewBillingActionInputSchema(
+      MANUAL_CREW_BILLING_ACTION.RECORD_REFUND,
+    ),
+  ],
+)
 
 export const getCrewBillingPageFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => getCrewBillingInputSchema.parse(data))

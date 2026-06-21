@@ -92,12 +92,25 @@ export interface BuildCrewBillingEventInput {
   privateMetadata?: Record<string, unknown> | null
 }
 
-export interface PlanManualCrewBillingActionInput
+interface BasePlanManualCrewBillingActionInput
   extends Omit<BuildCrewBillingEventInput, "eventType" | "creditCents"> {
   action: ManualCrewBillingActionType
   fullPlatformCreditCents?: number | null
   privateFounderPriceCents?: number | null
 }
+
+export type PlanManualCrewBillingActionInput =
+  | (BasePlanManualCrewBillingActionInput & {
+      action: typeof MANUAL_CREW_BILLING_ACTION.RECORD_MANUAL_PAID
+      planId: CrewBillingPlanId
+      amountCents: number
+    })
+  | (BasePlanManualCrewBillingActionInput & {
+      action: Exclude<
+        ManualCrewBillingActionType,
+        typeof MANUAL_CREW_BILLING_ACTION.RECORD_MANUAL_PAID
+      >
+    })
 
 export interface CrewBillingAuditEvent {
   competitionId: string
@@ -536,9 +549,23 @@ function normalizeCents(value: unknown) {
   return Math.max(0, Math.round(value))
 }
 
-function normalizeCrewBillingIdempotencyKey(
-  input: BuildCrewBillingEventInput,
-) {
+function requireManualPaidPlanId(planId: unknown) {
+  try {
+    const normalized = normalizeCrewBillingPlanId(planId)
+    if (normalized) return normalized
+  } catch {
+    // Fall through to the manual-paid boundary error below.
+  }
+  throw new Error("Manual paid Crew billing requires a valid Crew plan.")
+}
+
+function requireManualPaidAmountCents(amountCents: unknown) {
+  const normalized = normalizeCents(amountCents)
+  if (normalized > 0) return normalized
+  throw new Error("Manual paid Crew billing requires a positive amount.")
+}
+
+function normalizeCrewBillingIdempotencyKey(input: BuildCrewBillingEventInput) {
   if (input.eventType === CREW_BILLING_EVENT_TYPE.CREDIT_SET) {
     return "full-platform-credit:set"
   }
@@ -575,6 +602,15 @@ function validateCrewBillingAuditAppend(
   event: CrewBillingAuditEvent,
 ) {
   const normalized = normalizeCrewBillingState(current)
+
+  if (event.eventType === CREW_BILLING_EVENT_TYPE.MANUAL_SALE_RECORDED) {
+    if (!event.planId) {
+      throw new Error("Manual paid Crew billing requires a valid Crew plan.")
+    }
+    if (event.amountCents <= 0) {
+      throw new Error("Manual paid Crew billing requires a positive amount.")
+    }
+  }
 
   if (event.eventType === CREW_BILLING_EVENT_TYPE.CREDIT_SET) {
     if (
@@ -645,8 +681,8 @@ function buildManualCrewBillingActionInput(
       return {
         ...common,
         eventType: CREW_BILLING_EVENT_TYPE.MANUAL_SALE_RECORDED,
-        planId: input.planId,
-        amountCents: input.amountCents,
+        planId: requireManualPaidPlanId(input.planId),
+        amountCents: requireManualPaidAmountCents(input.amountCents),
         idempotencyKey: input.idempotencyKey,
       }
     case MANUAL_CREW_BILLING_ACTION.APPLY_FOUNDER_GRANT:

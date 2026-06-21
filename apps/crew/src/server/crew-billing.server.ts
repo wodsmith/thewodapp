@@ -18,10 +18,10 @@ import {
   type CrewBillingAuditEvent,
   type CrewBillingAppendPlan,
   isCrewBillingDuplicateEntryError,
-  type ManualCrewBillingActionType,
   normalizeCrewBillingState,
   planCrewBillingAuditAppend,
   planManualCrewBillingAction,
+  type PlanManualCrewBillingActionInput,
   type CrewBillingPlanId,
   type CrewBillingStateSnapshot,
 } from "../lib/crew/billing-state"
@@ -48,21 +48,19 @@ export interface RecordCrewBillingEventInput extends GetCrewBillingInput {
   privateMetadata?: Record<string, unknown> | null
 }
 
-export interface RecordManualCrewBillingActionInput extends GetCrewBillingInput {
-  action: ManualCrewBillingActionType
-  planId?: string | null
-  amountCents?: number | null
-  currency?: string | null
-  fullPlatformCreditCents?: number | null
-  privateFounderPriceCents?: number | null
-  refundedCents?: number | null
-  stripePaymentIntentId?: string | null
-  idempotencyKey?: string | null
-  actorUserId?: string | null
-  actorLabel?: string | null
-  publicNote?: string | null
-  privateMetadata?: Record<string, unknown> | null
-}
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown
+  ? Omit<T, K>
+  : never
+
+export type RecordManualCrewBillingActionInput = GetCrewBillingInput &
+  DistributiveOmit<
+    PlanManualCrewBillingActionInput,
+    | "competitionId"
+    | "teamId"
+    | "current"
+    | "stripePaymentLinkId"
+    | "stripeCheckoutSessionId"
+  >
 
 type CrewBillingJsonValue =
   | string
@@ -337,7 +335,7 @@ function toCrewBillingJsonValue(
   }
 
   if (typeof value === "object") {
-    return toCrewBillingJsonObject(value) ?? {}
+    return toCrewBillingJsonObject(value) ?? undefined
   }
 
   return undefined

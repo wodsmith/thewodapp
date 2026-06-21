@@ -188,6 +188,79 @@ describe("Crew billing state and audit helpers", () => {
     ).toBe(true)
   })
 
+  it("rejects manual paid actions without a valid plan and positive amount", () => {
+    const validManualPaidInput = {
+      action: MANUAL_CREW_BILLING_ACTION.RECORD_MANUAL_PAID,
+      competitionId: "comp_crew",
+      teamId: "team_owner",
+      planId: "crew_basic",
+      amountCents: 20_000,
+    } as const
+    const unsafeManualPaidInput = (overrides: Record<string, unknown>) =>
+      ({
+        ...validManualPaidInput,
+        ...overrides,
+      }) as unknown as Parameters<typeof planManualCrewBillingAction>[1]
+    const unsafeManualPaidInputWithout = (
+      key: "planId" | "amountCents",
+    ) => {
+      const input = { ...validManualPaidInput } as Record<string, unknown>
+      delete input[key]
+      return input as unknown as Parameters<typeof planManualCrewBillingAction>[1]
+    }
+
+    expect(() =>
+      planManualCrewBillingAction(
+        [],
+        unsafeManualPaidInputWithout("planId"),
+      ),
+    ).toThrow(/valid Crew plan/)
+    expect(() =>
+      planManualCrewBillingAction(
+        [],
+        unsafeManualPaidInput({ planId: "team_pro" }),
+      ),
+    ).toThrow(/valid Crew plan/)
+    expect(() =>
+      planManualCrewBillingAction(
+        [],
+        unsafeManualPaidInputWithout("amountCents"),
+      ),
+    ).toThrow(/positive amount/)
+    expect(() =>
+      planManualCrewBillingAction([], {
+        ...validManualPaidInput,
+        amountCents: 0,
+      }),
+    ).toThrow(/positive amount/)
+    expect(() =>
+      planManualCrewBillingAction([], {
+        ...validManualPaidInput,
+        amountCents: -100,
+      }),
+    ).toThrow(/positive amount/)
+  })
+
+  it("rejects direct manual sale audit appends with incomplete paid purchase data", () => {
+    expect(() =>
+      planCrewBillingAuditAppend([], {
+        competitionId: "comp_crew",
+        teamId: "team_owner",
+        eventType: CREW_BILLING_EVENT_TYPE.MANUAL_SALE_RECORDED,
+        amountCents: 20_000,
+      }),
+    ).toThrow(/valid Crew plan/)
+    expect(() =>
+      planCrewBillingAuditAppend([], {
+        competitionId: "comp_crew",
+        teamId: "team_owner",
+        eventType: CREW_BILLING_EVENT_TYPE.MANUAL_SALE_RECORDED,
+        planId: "crew_basic",
+        amountCents: 0,
+      }),
+    ).toThrow(/positive amount/)
+  })
+
   it("keeps Payment Link and checkout Stripe references on the event state", () => {
     const paymentLink = buildCrewBillingAuditEvent({
       competitionId: "comp_crew",
@@ -478,6 +551,8 @@ describe("Crew billing state and audit helpers", () => {
       competitionId: "comp_crew",
       teamId: "team_owner",
       eventType: CREW_BILLING_EVENT_TYPE.MANUAL_SALE_RECORDED,
+      planId: "crew_basic",
+      amountCents: 20_000,
       publicNote: "Operator correction note.",
     })
 
