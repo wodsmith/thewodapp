@@ -126,14 +126,9 @@ async function loadCrewConversionCounts(competitionId: string) {
   const [
     divisionRows,
     divisionFeeRows,
-    paidDivisionRows,
     athleteWaiverRows,
     activeRegistrationRows,
   ] = await Promise.all([
-    db
-      .select({ count: count() })
-      .from(competitionDivisionsTable)
-      .where(eq(competitionDivisionsTable.competitionId, competitionId)),
     db
       .select({ count: count() })
       .from(competitionDivisionsTable)
@@ -170,7 +165,7 @@ async function loadCrewConversionCounts(competitionId: string) {
   return {
     divisionCount: divisionRows[0]?.count ?? 0,
     divisionFeeCount: divisionFeeRows[0]?.count ?? 0,
-    paidDivisionCount: paidDivisionRows[0]?.count ?? 0,
+    paidDivisionCount: divisionFeeRows[0]?.count ?? 0,
     athleteWaiverCount: athleteWaiverRows[0]?.count ?? 0,
     activeRegistrationCount: activeRegistrationRows[0]?.count ?? 0,
   }

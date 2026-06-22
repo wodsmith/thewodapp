@@ -279,7 +279,7 @@ function buildFullSetupItems(
         : "Pricing is currently free or unconfirmed.",
       details: [
         `Default fee: ${formatMoney(input.event.defaultRegistrationFeeCents)}.`,
-        `${input.counts.divisionFeeCount}/${input.counts.divisionCount} divisions have explicit fee rows.`,
+        `${input.counts.divisionFeeCount}/${input.counts.divisionCount} divisions have configured paid fees.`,
       ],
       action: wodsmithAction("Open pricing", input.links.wodsmithPricing),
     },

@@ -94,6 +94,27 @@ describe("Crew conversion assistant view model", () => {
     })
   })
 
+  it("reports partial division fee coverage without mirroring the division count", () => {
+    const viewModel = buildCrewConversionAssistantViewModel({
+      ...readyInput,
+      counts: {
+        ...readyInput.counts,
+        divisionCount: 4,
+        divisionFeeCount: 2,
+        paidDivisionCount: 2,
+      },
+    })
+
+    expect(
+      viewModel.fullSetup.items.find((item) => item.key === "pricing"),
+    ).toMatchObject({
+      status: "ready",
+      details: expect.arrayContaining([
+        "2/4 divisions have configured paid fees.",
+      ]),
+    })
+  })
+
   it("preserves Crew inventory with aggregate counts only", () => {
     const viewModel = buildCrewConversionAssistantViewModel(readyInput)
     const serialized = JSON.stringify(viewModel)
