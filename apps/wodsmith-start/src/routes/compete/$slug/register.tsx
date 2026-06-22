@@ -30,7 +30,7 @@ import {
 import { cancelPendingPurchaseFn } from "@/server-fns/registration-fns"
 import { getCompetitionQuestionsFn } from "@/server-fns/registration-questions-fns"
 import { getCompetitionWaiversFn } from "@/server-fns/waiver-fns"
-import { getLocalDateKey } from "@/utils/date-utils"
+import { getRegistrationWindowStatus } from "@/utils/registration-window"
 
 // Search params validation
 const registerSearchSchema = z.object({
@@ -384,18 +384,14 @@ export const Route = createFileRoute("/compete/$slug/register")({
     // allow registration for additional divisions.
 
     // 4. Check registration window (dates are now YYYY-MM-DD strings)
-    const now = new Date()
-    const todayStr = getLocalDateKey(now)
     const regOpensAt = competition.registrationOpensAt
     const regClosesAt = competition.registrationClosesAt
 
-    // String comparison works for YYYY-MM-DD format
-    const registrationOpen = !!(
-      regOpensAt &&
-      regClosesAt &&
-      todayStr >= regOpensAt &&
-      todayStr <= regClosesAt
-    )
+    const { registrationOpen } = getRegistrationWindowStatus({
+      opensAt: regOpensAt,
+      closesAt: regClosesAt,
+      timezone: competition.timezone,
+    })
 
     // 5. Get competition settings for divisions
     const settings = parseCompetitionSettings(competition.settings)

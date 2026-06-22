@@ -3,10 +3,11 @@
 import { Link } from "@tanstack/react-router"
 import { Calendar, ClipboardList, Globe, MapPin, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import { cn } from "@/lib/utils"
 import type { CompetitionWithOrganizingTeam } from "@/server-fns/competition-fns"
 import { formatLocationBadge } from "@/utils/address"
-import { formatUTCDateRange } from "@/utils/date-utils"
+import { formatDateStringFull, formatUTCDateRange } from "@/utils/date-utils"
 
 interface CompetitionHeroProps {
   competition: CompetitionWithOrganizingTeam
@@ -30,6 +31,9 @@ export function CompetitionHero({
     competition.profileImageUrl ?? competition.organizingTeam?.avatarUrl
 
   const hasBanner = !!competition.bannerImageUrl
+  const dateText = competitionCan(competition.competitionType, "perpetual")
+    ? `Since ${formatDateStringFull(competition.startDate)}`
+    : formatUTCDateRange(competition.startDate, competition.endDate)
 
   // Format location badge using address from competition
   const locationBadge = formatLocationBadge(
@@ -106,10 +110,7 @@ export function CompetitionHero({
                   >
                     <span className="flex items-center gap-1.5">
                       <Calendar className="h-4 w-4" />
-                      {formatUTCDateRange(
-                        competition.startDate,
-                        competition.endDate,
-                      )}
+                      {dateText}
                     </span>
                     <span className="flex items-center gap-1.5">
                       <LocationIcon className="h-4 w-4" />

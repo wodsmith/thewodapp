@@ -111,6 +111,10 @@ interface VideoSubmissionFormProps {
   initialDivisionId?: string
 }
 
+type ExistingRoundScore = NonNullable<
+  NonNullable<VideoSubmissionInitialData["existingScore"]>["roundScores"]
+>[number]
+
 function formatSubmissionTime(
   date: Date | string,
   timezone?: string | null,
@@ -294,7 +298,6 @@ export function VideoSubmissionForm({
   const teamSize = currentData?.teamSize ?? 1
   const isCaptain = currentData?.isCaptain ?? true
   const videoRequired = currentData?.videoRequired ?? true
-  const isBenchmarkOpenJoin = currentData?.isBenchmarkOpenJoin ?? false
   const existingSubmissions = currentData?.submissions ?? []
 
   const [videoSlots, setVideoSlots] = useState<VideoSlotState[]>(() =>
@@ -393,7 +396,8 @@ export function VideoSubmissionForm({
         // Reset round score inputs for the new division's workout
         const newRoundsToScore = result.workout?.roundsToScore ?? 1
         if (newRoundsToScore > 1) {
-          const existingRounds = result.existingScore?.roundScores ?? []
+          const existingRounds: ExistingRoundScore[] =
+            result.existingScore?.roundScores ?? []
           setRoundScoreInputs(
             Array.from({ length: newRoundsToScore }, (_, i) => {
               const existing = existingRounds.find(
@@ -587,8 +591,7 @@ export function VideoSubmissionForm({
     )
   }
 
-  // If user is not registered and this is not a benchmark open-join board, show message.
-  if (!currentData?.isRegistered && !isBenchmarkOpenJoin) {
+  if (!currentData?.isRegistered) {
     return (
       <Card>
         <CardHeader className="pb-3">

@@ -50,11 +50,7 @@ import {
   getUserCompetitionRegistrationsForUser,
 } from "@/server/competition-detail"
 import { getSessionFromCookie, requireVerifiedEmail } from "@/utils/auth"
-import {
-  DEFAULT_TIMEZONE,
-  hasDateStartedInTimezone,
-  isDeadlinePassedInTimezone,
-} from "@/utils/timezone-utils"
+import { getRegistrationWindowStatus } from "@/utils/registration-window"
 
 // ============================================================================
 // Input Schemas
@@ -532,28 +528,11 @@ export const getRegistrationStatusFn = createServerFn({ method: "GET" })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    const timezone = data.timezone || DEFAULT_TIMEZONE
-    const regOpensAt = data.registrationOpensAt
-    const regClosesAt = data.registrationClosesAt
-
-    // Use timezone-aware comparisons
-    const hasOpened = hasDateStartedInTimezone(regOpensAt, timezone)
-    const hasClosed = isDeadlinePassedInTimezone(regClosesAt, timezone)
-
-    const registrationOpen = !!(
-      regOpensAt &&
-      regClosesAt &&
-      hasOpened &&
-      !hasClosed
-    )
-    const registrationClosed = hasClosed
-    const registrationNotYetOpen = !!(regOpensAt && !hasOpened)
-
-    return {
-      registrationOpen,
-      registrationClosed,
-      registrationNotYetOpen,
-    }
+    return getRegistrationWindowStatus({
+      opensAt: data.registrationOpensAt,
+      closesAt: data.registrationClosesAt,
+      timezone: data.timezone,
+    })
   })
 
 // ============================================================================

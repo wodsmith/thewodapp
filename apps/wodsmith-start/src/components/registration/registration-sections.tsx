@@ -36,6 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { Competition, ScalingLevel, Team, Waiver } from "@/db/schema"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import type { PublicCompetitionDivision } from "@/server-fns/competition-divisions-fns"
 import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
 import { cn } from "@/utils/cn"
@@ -216,14 +217,17 @@ export function ClosedRegistrationBanner({
   registrationClosesAt: string | null
 }) {
   const message = (() => {
-    if (!registrationOpensAt || !registrationClosesAt) {
+    if (!registrationOpensAt && !registrationClosesAt) {
       return "Registration dates have not been set yet."
     }
     const todayStr = new Date().toISOString().slice(0, 10)
-    if (todayStr < registrationOpensAt) {
-      return `Registration opens ${formatRegistrationDate(registrationOpensAt)} and closes ${formatRegistrationDate(registrationClosesAt)}`
+    if (registrationOpensAt && todayStr < registrationOpensAt) {
+      const closeText = registrationClosesAt
+        ? ` and closes ${formatRegistrationDate(registrationClosesAt)}`
+        : ""
+      return `Registration opens ${formatRegistrationDate(registrationOpensAt)}${closeText}`
     }
-    if (todayStr > registrationClosesAt) {
+    if (registrationClosesAt && todayStr > registrationClosesAt) {
       return `Registration was open from ${formatRegistrationDate(registrationOpensAt)} to ${formatRegistrationDate(registrationClosesAt)}`
     }
     return null
@@ -252,9 +256,24 @@ export function CompetitionDetailsCard({
    * invite-locked mode — invitees bypass the public registration window,
    * so the row is irrelevant and surfaces "TBA - TBA" when dates aren't
    * configured, which contradicts the "you can register now" CTA.
-   */
+  */
   hideRegistrationWindow?: boolean
 }) {
+  const isPerpetual = competitionCan(competition.competitionType, "perpetual")
+  const competitionDateLabel = isPerpetual
+    ? "Competition start"
+    : isSameDateString(competition.startDate, competition.endDate)
+      ? "Competition date"
+      : "Competition dates"
+  const competitionDateText = isPerpetual
+    ? formatRegistrationDate(competition.startDate)
+    : isSameDateString(competition.startDate, competition.endDate)
+      ? formatRegistrationDate(competition.startDate)
+      : `${formatRegistrationDate(competition.startDate)} - ${formatRegistrationDate(competition.endDate)}`
+  const registrationWindowText = registrationClosesAt
+    ? `${formatRegistrationDate(registrationOpensAt)} - ${formatRegistrationDate(registrationClosesAt)}`
+    : `Opens ${formatRegistrationDate(registrationOpensAt)}`
+
   return (
     <Card>
       <CardHeader>
@@ -263,23 +282,14 @@ export function CompetitionDetailsCard({
       <CardContent className="space-y-2">
         <div>
           <p className="text-muted-foreground text-sm">
-            {isSameDateString(competition.startDate, competition.endDate)
-              ? "Competition date"
-              : "Competition dates"}
+            {competitionDateLabel}
           </p>
-          <p className="font-medium">
-            {isSameDateString(competition.startDate, competition.endDate)
-              ? formatRegistrationDate(competition.startDate)
-              : `${formatRegistrationDate(competition.startDate)} - ${formatRegistrationDate(competition.endDate)}`}
-          </p>
+          <p className="font-medium">{competitionDateText}</p>
         </div>
         {!hideRegistrationWindow && (
           <div>
             <p className="text-muted-foreground text-sm">Registration Window</p>
-            <p className="font-medium">
-              {formatRegistrationDate(registrationOpensAt)} -{" "}
-              {formatRegistrationDate(registrationClosesAt)}
-            </p>
+            <p className="font-medium">{registrationWindowText}</p>
           </div>
         )}
         <div>

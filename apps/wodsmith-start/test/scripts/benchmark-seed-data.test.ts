@@ -122,7 +122,7 @@ describe("benchmark seed data", () => {
 		expect(rows.trackWorkouts.every((row) => row.benchmark_test_id)).toBe(true)
 		expect(rows.competitionEvents).toEqual([])
 		expect(battery.video_policy).toBe("never")
-		expect(battery.is_open_join).toBe(true)
+		expect(battery.is_open_join).toBe(false)
 	})
 
 	it("validates battery JSON blobs and keeps seeded product strings unbranded", () => {

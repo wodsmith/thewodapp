@@ -30,6 +30,8 @@ The registration form always shows the fee summary card. Before a division is se
 
 [[apps/wodsmith-start/src/components/registration-sidebar.tsx#RegistrationSidebar]] suppresses every registration-state card (the "Register now" CTA and the "opens soon" / "closed" cards) unless `competition.status === "published"`, so a draft competition never invites a registration the server would reject. Existing registrants/invitees still see their own cards.
 
+Registration windows do not require a close date. [[apps/wodsmith-start/src/utils/registration-window.ts#getRegistrationWindowStatus]] treats an opens-only window as open after the configured start day in the competition timezone, matching the server-side write guard that only blocks when a close date has actually passed.
+
 ### Organizer Manual Registration
 
 Organizers register athletes from the dashboard via `createManualRegistrationFn`, bypassing the registration window.

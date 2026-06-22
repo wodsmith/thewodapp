@@ -35,7 +35,7 @@ export const BENCHMARK_SOURCE_RECEIPT = {
 		"Weighted C2B Pull Up is deferred because v1 has no bodyweight-plus-added-load scoring contract.",
 		"Open 16.2 and Open 18.4 are deferred because v1 excludes hybrid reps/time scoring.",
 		"Deferred tests are seeded as benchmark_tests with includedInScoring=false and no tier threshold rows.",
-		"The v1 seed uses videoPolicy \"never\" and isOpenJoin true so the first demo board is self-serve; M3 must add the guarded open-join checks before athlete writes.",
+		"The v1 seed uses videoPolicy \"never\" and isOpenJoin false so athletes use the normal registration flow before submitting scores.",
 	],
 } as const
 
@@ -2599,7 +2599,7 @@ export function buildBenchmarkSeedRows(ts: string) {
 				max_tier: 10,
 				score_max: 100,
 				video_policy: "never",
-				is_open_join: true,
+				is_open_join: false,
 				variant_scaling_group_id: null,
 				competition_id: BENCHMARK_SEED_IDS.competitionId,
 				status: "published",

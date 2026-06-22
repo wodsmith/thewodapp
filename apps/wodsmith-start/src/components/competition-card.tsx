@@ -2,6 +2,7 @@
 
 import { Link } from "@tanstack/react-router"
 import { CalendarIcon, GlobeIcon, MapPinIcon } from "lucide-react"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import type { CompetitionWithOrganizingTeam } from "@/server-fns/competition-fns"
 import { formatLocationBadge } from "@/utils/address"
 import { cn } from "@/utils/cn"
@@ -116,7 +117,14 @@ export function CompetitionCard({
     competition.organizingTeam?.name,
   )
   const cfg = STATUS_CONFIG[status]
-  const dateRange = formatDateRange(competition.startDate, competition.endDate)
+  const dateRange = competitionCan(competition.competitionType, "perpetual")
+    ? `Since ${new Date(competition.startDate).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "UTC",
+      })}`
+    : formatDateRange(competition.startDate, competition.endDate)
   const profileImage = competition.profileImageUrl
   const [gradFrom, gradTo] = getGradient(competition.name)
   const initials = getInitials(competition.name)

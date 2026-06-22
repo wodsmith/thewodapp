@@ -20,10 +20,6 @@ import { userTable } from "@/db/schemas/users"
 import { videoSubmissionsTable } from "@/db/schemas/video-submissions"
 import { waiverSignaturesTable, waiversTable } from "@/db/schemas/waivers"
 import { workouts } from "@/db/schemas/workouts"
-import {
-	checkBenchmarkOpenJoinRateLimit,
-	resetBenchmarkOpenJoinRateLimitForTests,
-} from "@/server/benchmark-open-join-rate-limit"
 import { submitVideoFn } from "@/server-fns/video-submission-fns"
 
 type BenchmarkGender = "male" | "female"
@@ -484,7 +480,7 @@ function createFixture(
 		batteryStatus: "published",
 		competitionStatus: "published",
 		competitionVisibility: "public",
-		isOpenJoin: true,
+		isOpenJoin: false,
 		requiredWaiverIds: [],
 		signedWaiverIds: [],
 		existingScore: null,
@@ -563,7 +559,6 @@ function allScoreWritePayloads() {
 describe("benchmark submission M3 regressions", () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
-		resetBenchmarkOpenJoinRateLimitForTests()
 		mockDb.reset()
 	})
 
@@ -756,83 +751,17 @@ describe("benchmark submission M3 regressions", () => {
 		expect(mockDb.mutations.scoreUpdateSets).toHaveLength(0)
 	})
 
-	it("creates an open-join registration transactionally before accepting a benchmark score", async () => {
+	it("requires normal registration before accepting a benchmark score", async () => {
 		mockDb.reset({ hasRegistration: false })
 
-		await submitVideoFn({
-			data: submissionPayload({ divisionId: undefined, score: "33" }),
-		})
-
-		expect(mockDb.transaction).toHaveBeenCalled()
-		expect(mockDb.mutations.teamMembershipInserts).toContainEqual(
-			expect.objectContaining({
-				teamId: "competition-team-1",
-				userId: "athlete-1",
-			}),
-		)
-		expect(mockDb.mutations.registrationInserts).toContainEqual(
-			expect.objectContaining({
-				eventId: "competition-benchmark",
-				userId: "athlete-1",
-				divisionId: "open-division",
-			}),
-		)
-		expect(mockDb.mutations.scoreInserts).toContainEqual(
-			expect.objectContaining({
-				benchmarkVariant: "female",
-				scalingLevelId: "open-division",
-			}),
-		)
-	})
-
-	it("rejects open-join when the benchmark board is not public and published", async () => {
-		mockDb.reset({
-			hasRegistration: false,
-			competitionVisibility: "private",
-		})
-
 		await expect(
 			submitVideoFn({
 				data: submissionPayload({ divisionId: undefined, score: "33" }),
 			}),
-		).rejects.toThrow(/not open/i)
+		).rejects.toThrow(/registered/i)
 
 		expect(mockDb.mutations.registrationInserts).toHaveLength(0)
+		expect(mockDb.mutations.teamMembershipInserts).toHaveLength(0)
 		expect(mockDb.mutations.scoreInserts).toHaveLength(0)
-	})
-
-	it("rejects open-join when required waivers are unsigned", async () => {
-		mockDb.reset({
-			hasRegistration: false,
-			requiredWaiverIds: ["waiver-1"],
-			signedWaiverIds: [],
-		})
-
-		await expect(
-			submitVideoFn({
-				data: submissionPayload({ divisionId: undefined, score: "33" }),
-			}),
-		).rejects.toThrow(/waivers/i)
-
-		expect(mockDb.mutations.registrationInserts).toHaveLength(0)
-		expect(mockDb.mutations.scoreInserts).toHaveLength(0)
-	})
-
-	it("rate-limits repeated benchmark open-join attempts through the shared boundary", async () => {
-		for (let i = 0; i < 10; i++) {
-			await expect(
-				checkBenchmarkOpenJoinRateLimit({
-					userId: "athlete-rate-limited",
-					competitionId: "competition-benchmark",
-				}),
-			).resolves.toMatchObject({ allowed: true })
-		}
-
-		await expect(
-			checkBenchmarkOpenJoinRateLimit({
-				userId: "athlete-rate-limited",
-				competitionId: "competition-benchmark",
-			}),
-		).resolves.toMatchObject({ allowed: false })
 	})
 })

@@ -41,7 +41,6 @@ import { workouts } from "@/db/schemas/workouts"
 import { competitionCan } from "@/lib/competitions/capabilities"
 import type { BenchmarkVariant } from "@/schemas/benchmark.schema"
 import {
-  ensureBenchmarkOpenJoinRegistration,
   getBenchmarkProfileVariant,
   getBenchmarkSubmissionContext,
   isBenchmarkVideoEvidenceRequired,
@@ -389,63 +388,6 @@ function toSubmissionWorkout(workout: SubmissionWorkoutSource | null) {
     : null
 }
 
-async function getBenchmarkOpenJoinSubmissionState({
-  competitionId,
-  trackWorkoutId,
-  userId,
-}: {
-  competitionId: string
-  trackWorkoutId: string
-  userId: string
-}) {
-  const context = await getBenchmarkSubmissionContext(
-    competitionId,
-    trackWorkoutId,
-  )
-
-  if (!context?.isOpenJoin) return null
-
-  const workout = await getWorkoutDetails(trackWorkoutId)
-  let canSubmit = true
-  let reason: string | undefined
-
-  if (
-    context.batteryStatus !== "published" ||
-    context.competitionStatus !== "published" ||
-    context.competitionVisibility !== "public"
-  ) {
-    canSubmit = false
-    reason = "This benchmark board is not open for submissions"
-  } else if (context.openDivisionTeamSize !== 1) {
-    canSubmit = false
-    reason = "Benchmark submissions are individual-only"
-  } else {
-    try {
-      await getBenchmarkProfileVariant(userId)
-    } catch (error) {
-      canSubmit = false
-      reason =
-        error instanceof Error
-          ? error.message
-          : "Complete your athlete profile gender before submitting"
-    }
-  }
-
-  return {
-    submissions: [],
-    teamSize: 1,
-    isCaptain: true,
-    canSubmit,
-    reason,
-    isRegistered: false,
-    isBenchmarkOpenJoin: true,
-    videoRequired: context.videoPolicy === "always",
-    submissionWindow: null,
-    workout: toSubmissionWorkout(workout),
-    existingScore: null,
-  }
-}
-
 async function submitBenchmarkVideoScore({
   db,
   data,
@@ -753,13 +695,6 @@ export const getVideoSubmissionFn = createServerFn({ method: "GET" })
     )
 
     if (!registration) {
-      const benchmarkOpenJoin = await getBenchmarkOpenJoinSubmissionState({
-        competitionId: data.competitionId,
-        trackWorkoutId: data.trackWorkoutId,
-        userId: session.userId,
-      })
-      if (benchmarkOpenJoin) return benchmarkOpenJoin
-
       return {
         submissions: [],
         teamSize: 1,
@@ -1130,12 +1065,7 @@ export const getBatchEventVideoSubmissionsFn = createServerFn({
       if (!registration) {
         const results: Record<string, VideoSubmissionResult> = {}
         for (const twId of data.trackWorkoutIds) {
-          const benchmarkOpenJoin = await getBenchmarkOpenJoinSubmissionState({
-            competitionId: data.competitionId,
-            trackWorkoutId: twId,
-            userId: session.userId,
-          })
-          results[twId] = benchmarkOpenJoin ?? {
+          results[twId] = {
             submissions: [],
             teamSize: 1,
             isCaptain: true,
@@ -1692,21 +1622,6 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 
     let benchmarkContext: BenchmarkSubmissionContext | null = null
     let benchmarkVariant: BenchmarkVariant | null = null
-
-    if (!registration) {
-      benchmarkContext = await getBenchmarkSubmissionContext(
-        data.competitionId,
-        data.trackWorkoutId,
-      )
-
-      if (benchmarkContext) {
-        benchmarkVariant = await getBenchmarkProfileVariant(session.userId)
-        registration = await ensureBenchmarkOpenJoinRegistration({
-          context: benchmarkContext,
-          userId: session.userId,
-        })
-      }
-    }
 
     if (!registration) {
       throw new Error(

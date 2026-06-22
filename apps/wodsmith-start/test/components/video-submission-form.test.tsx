@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { render, screen } from "@testing-library/react"
 import { describe, expect, it, vi, beforeEach } from "vitest"
 import type { ReviewStatus } from "@/db/schemas/video-submissions"
 import type { ScoreType, WorkoutScheme } from "@/lib/scoring"
@@ -123,7 +123,6 @@ vi.mock("@/components/ui/video-url-input", () => ({
 }))
 
 import { VideoSubmissionForm } from "@/components/compete/video-submission-form"
-import { submitVideoFn } from "@/server-fns/video-submission-fns"
 
 // ── Factories ──────────────────────────────────────────────────────────────
 
@@ -280,7 +279,10 @@ describe("VideoSubmissionForm", () => {
 				<VideoSubmissionForm
 					trackWorkoutId="tw-1"
 					competitionId="comp-1"
-					initialData={createInitialData({ isRegistered: false })}
+					initialData={createInitialData({
+						isRegistered: false,
+						isBenchmarkOpenJoin: true,
+					})}
 				/>,
 			)
 
@@ -290,56 +292,6 @@ describe("VideoSubmissionForm", () => {
 					"You must be registered for this competition to submit your result.",
 				),
 			).toBeTruthy()
-		})
-
-		it("lets benchmark open-join athletes submit score-only when video is optional", async () => {
-			vi.mocked(submitVideoFn).mockResolvedValue({
-				success: true,
-				submissionId: undefined,
-				isUpdate: false,
-				retainedCurrentBest: false,
-			})
-
-			render(
-				<VideoSubmissionForm
-					trackWorkoutId="tw-1"
-					competitionId="comp-1"
-					initialData={createInitialData({
-						isRegistered: false,
-						isBenchmarkOpenJoin: true,
-						canSubmit: true,
-						videoRequired: false,
-						workout: {
-							workoutId: "wk-1",
-							name: "Benchmark test",
-							scheme: "reps",
-							scoreType: "max",
-							timeCap: null,
-							tiebreakScheme: null,
-							repsPerRound: null,
-							roundsToScore: 1,
-						},
-					})}
-				/>,
-			)
-
-			expect(screen.queryByText("Registration Required")).toBeNull()
-
-			fireEvent.change(screen.getByLabelText("Your Reps"), {
-				target: { value: "20" },
-			})
-			fireEvent.click(screen.getByRole("button", { name: "Submit result" }))
-
-			await waitFor(() => {
-				expect(submitVideoFn).toHaveBeenCalledWith({
-					data: expect.objectContaining({
-						trackWorkoutId: "tw-1",
-						competitionId: "comp-1",
-						videoUrl: undefined,
-						score: "20",
-					}),
-				})
-			})
 		})
 	})
 
