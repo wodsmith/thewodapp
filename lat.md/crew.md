@@ -96,6 +96,14 @@ Series crew pools reuse existing `competition_groups` plus the normal competitio
 
 [[apps/crew/src/server/crew-series.server.ts]] keeps the loader server-only, requires organizer dashboard access to the competition group, scopes competitions by the group's organizing team, and reads only Crew-enabled competitions in that group. [[apps/crew/src/server-fns/crew-series-fns.ts]] is the route-safe wrapper, and [[apps/crew/src/routes/series/$groupId/crew.tsx]] renders the organizer-only read model with links back to existing per-event roster and shift surfaces.
 
+## Full WODsmith Conversion Assistant
+
+The conversion assistant is a read-only organizer surface for turning a Crew-only event into the full WODsmith setup without creating a second competition.
+
+[[apps/crew/src/routes/events/$eventId/convert.tsx]] renders missing full-platform setup items plus Crew preservation checks for the selected competition. [[apps/crew/src/server/crew-conversion.server.ts]] loads only aggregate counts and safe status fields from existing competitions, Crew settings, readiness, imports, roster, shifts, judge assignments, confirmations, billing credit state, and conversion status. [[apps/crew/src/lib/crew/conversion-assistant.ts]] owns deterministic checklist derivation and excludes raw volunteer contact details, internal notes, private metadata, invoices, and Stripe references from the route view model.
+
+The assistant links to existing Crew and WODsmith organizer/public routes for follow-up. It does not mutate conversion rows, flip `crewOnly`, duplicate competitions, launch athlete registration, activate public pages, apply imports, rewrite published judge assignments, send messages, deploy, or change billing.
+
 ## Event Setup Dashboard
 
 Crew event setup pages let an operator create and review a normal competition with one `crew_event_settings` row for lifecycle, source platform URLs, concierge status, crew plan, setup checklist progress, assumptions, and internal handoff notes.

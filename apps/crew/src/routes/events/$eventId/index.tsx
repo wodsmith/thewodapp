@@ -2,6 +2,7 @@
 // @lat: [[crew#Staffing Page Gap Report]]
 // @lat: [[crew#Day Of Operations Board]]
 // @lat: [[crew#Billing Page And Upgrade CTA]]
+// @lat: [[crew#Full WODsmith Conversion Assistant]]
 import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router"
 import { formatCrewValue, getSafeHttpUrl } from "@/lib/crew-event-display"
 import {
@@ -92,6 +93,25 @@ function EventOverviewPage() {
             className="w-fit rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
             Open billing
+          </Link>
+        </div>
+      </section>
+
+      <section className="rounded-md border bg-card p-5 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold">Full WODsmith conversion</h2>
+            <p className="text-sm text-muted-foreground">
+              Inventory preserved Crew data and missing full-platform setup
+              before handoff.
+            </p>
+          </div>
+          <Link
+            to="/events/$eventId/convert"
+            params={{ eventId }}
+            className="w-fit rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Open assistant
           </Link>
         </div>
       </section>

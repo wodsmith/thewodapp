@@ -26,6 +26,7 @@ import { Route as EventsEventIdJudgesRouteImport } from './routes/events/$eventI
 import { Route as EventsEventIdImportsRouteImport } from './routes/events/$eventId/imports'
 import { Route as EventsEventIdExportsRouteImport } from './routes/events/$eventId/exports'
 import { Route as EventsEventIdDayOfRouteImport } from './routes/events/$eventId/day-of'
+import { Route as EventsEventIdConvertRouteImport } from './routes/events/$eventId/convert'
 import { Route as EventsEventIdBillingRouteImport } from './routes/events/$eventId/billing'
 import { Route as ESlugVolunteerRouteImport } from './routes/e/$slug/volunteer'
 import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
@@ -119,6 +120,11 @@ const EventsEventIdDayOfRoute = EventsEventIdDayOfRouteImport.update({
   path: '/day-of',
   getParentRoute: () => EventsEventIdRoute,
 } as any)
+const EventsEventIdConvertRoute = EventsEventIdConvertRouteImport.update({
+  id: '/convert',
+  path: '/convert',
+  getParentRoute: () => EventsEventIdRoute,
+} as any)
 const EventsEventIdBillingRoute = EventsEventIdBillingRouteImport.update({
   id: '/billing',
   path: '/billing',
@@ -165,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/e/$slug/volunteer': typeof ESlugVolunteerRoute
   '/events/$eventId/billing': typeof EventsEventIdBillingRoute
+  '/events/$eventId/convert': typeof EventsEventIdConvertRoute
   '/events/$eventId/day-of': typeof EventsEventIdDayOfRoute
   '/events/$eventId/exports': typeof EventsEventIdExportsRoute
   '/events/$eventId/imports': typeof EventsEventIdImportsRoute
@@ -190,6 +197,7 @@ export interface FileRoutesByTo {
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/e/$slug/volunteer': typeof ESlugVolunteerRoute
   '/events/$eventId/billing': typeof EventsEventIdBillingRoute
+  '/events/$eventId/convert': typeof EventsEventIdConvertRoute
   '/events/$eventId/day-of': typeof EventsEventIdDayOfRoute
   '/events/$eventId/exports': typeof EventsEventIdExportsRoute
   '/events/$eventId/imports': typeof EventsEventIdImportsRoute
@@ -217,6 +225,7 @@ export interface FileRoutesById {
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/e/$slug/volunteer': typeof ESlugVolunteerRoute
   '/events/$eventId/billing': typeof EventsEventIdBillingRoute
+  '/events/$eventId/convert': typeof EventsEventIdConvertRoute
   '/events/$eventId/day-of': typeof EventsEventIdDayOfRoute
   '/events/$eventId/exports': typeof EventsEventIdExportsRoute
   '/events/$eventId/imports': typeof EventsEventIdImportsRoute
@@ -245,6 +254,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/stripe'
     | '/e/$slug/volunteer'
     | '/events/$eventId/billing'
+    | '/events/$eventId/convert'
     | '/events/$eventId/day-of'
     | '/events/$eventId/exports'
     | '/events/$eventId/imports'
@@ -270,6 +280,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/stripe'
     | '/e/$slug/volunteer'
     | '/events/$eventId/billing'
+    | '/events/$eventId/convert'
     | '/events/$eventId/day-of'
     | '/events/$eventId/exports'
     | '/events/$eventId/imports'
@@ -296,6 +307,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/stripe'
     | '/e/$slug/volunteer'
     | '/events/$eventId/billing'
+    | '/events/$eventId/convert'
     | '/events/$eventId/day-of'
     | '/events/$eventId/exports'
     | '/events/$eventId/imports'
@@ -447,6 +459,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EventsEventIdDayOfRouteImport
       parentRoute: typeof EventsEventIdRoute
     }
+    '/events/$eventId/convert': {
+      id: '/events/$eventId/convert'
+      path: '/convert'
+      fullPath: '/events/$eventId/convert'
+      preLoaderRoute: typeof EventsEventIdConvertRouteImport
+      parentRoute: typeof EventsEventIdRoute
+    }
     '/events/$eventId/billing': {
       id: '/events/$eventId/billing'
       path: '/billing'
@@ -501,6 +520,7 @@ declare module '@tanstack/react-router' {
 
 interface EventsEventIdRouteChildren {
   EventsEventIdBillingRoute: typeof EventsEventIdBillingRoute
+  EventsEventIdConvertRoute: typeof EventsEventIdConvertRoute
   EventsEventIdDayOfRoute: typeof EventsEventIdDayOfRoute
   EventsEventIdExportsRoute: typeof EventsEventIdExportsRoute
   EventsEventIdImportsRoute: typeof EventsEventIdImportsRoute
@@ -516,6 +536,7 @@ interface EventsEventIdRouteChildren {
 
 const EventsEventIdRouteChildren: EventsEventIdRouteChildren = {
   EventsEventIdBillingRoute: EventsEventIdBillingRoute,
+  EventsEventIdConvertRoute: EventsEventIdConvertRoute,
   EventsEventIdDayOfRoute: EventsEventIdDayOfRoute,
   EventsEventIdExportsRoute: EventsEventIdExportsRoute,
   EventsEventIdImportsRoute: EventsEventIdImportsRoute,
