@@ -4,6 +4,7 @@
 // @lat: [[crew#Pilot Exports]]
 // @lat: [[crew#Billing Page And Upgrade CTA]]
 // @lat: [[crew#Full WODsmith Conversion Assistant]]
+// @lat: [[crew#Regional Judge Discovery Pilot]]
 import { createFileRoute, Link, notFound, Outlet } from "@tanstack/react-router"
 import { getCrewEventFn } from "@/server-fns/crew-event-settings-fns"
 
@@ -113,6 +114,14 @@ function EventShell() {
             className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             Judges
+          </Link>
+          <Link
+            to="/events/$eventId/discovery/judges"
+            params={{ eventId }}
+            activeProps={{ className: "bg-muted text-foreground" }}
+            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            Discovery
           </Link>
           <Link
             to="/events/$eventId/day-of"
