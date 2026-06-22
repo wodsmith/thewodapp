@@ -16,6 +16,7 @@ import {
   buildCrewRegionalJudgeDiscoveryViewModel,
   buildCrewRegionalJudgeIntroRequestView,
   resolveCrewRegionalJudgeDiscoveryGate,
+  resolveCrewRegionalJudgeIntroRequestedRole,
   type CrewRegionalJudgeDiscoveryConsentRecord,
   type CrewRegionalJudgeDiscoveryCredentialRecord,
   type CrewRegionalJudgeDiscoveryHistoryRecord,
@@ -226,6 +227,27 @@ describe("regional judge discovery", () => {
       directContactShared: false,
       contactReveal: "deferred_until_volunteer_accepts",
     })
+  })
+
+  it("normalizes intro requested roles to the candidate's eligible regional roles", () => {
+    expect(
+      resolveCrewRegionalJudgeIntroRequestedRole({
+        requestedRoleType: null,
+        eligibleRoleTypes: ["head_judge", "judge"],
+      }),
+    ).toBe("head_judge")
+    expect(
+      resolveCrewRegionalJudgeIntroRequestedRole({
+        requestedRoleType: "head_judge",
+        eligibleRoleTypes: ["head_judge", "judge"],
+      }),
+    ).toBe("head_judge")
+    expect(
+      resolveCrewRegionalJudgeIntroRequestedRole({
+        requestedRoleType: "head_judge",
+        eligibleRoleTypes: ["judge"],
+      }),
+    ).toBeNull()
   })
 })
 

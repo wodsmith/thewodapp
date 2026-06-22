@@ -31,6 +31,10 @@ export const crewRegionalJudgeDiscoveryRoleTypes = [
   "head_judge",
 ] satisfies VolunteerRoleType[]
 
+const crewRegionalJudgeDiscoveryRoleTypeSet = new Set<VolunteerRoleType>(
+  crewRegionalJudgeDiscoveryRoleTypes,
+)
+
 export interface CrewRegionalJudgeDiscoveryIdentityRecord {
   id: string
   teamId: string
@@ -262,6 +266,24 @@ export function buildCrewRegionalJudgeIntroRequestView({
     directContactShared: false,
     contactReveal: "deferred_until_volunteer_accepts",
   }
+}
+
+export function resolveCrewRegionalJudgeIntroRequestedRole({
+  requestedRoleType,
+  eligibleRoleTypes,
+}: {
+  requestedRoleType?: VolunteerRoleType | null
+  eligibleRoleTypes: VolunteerRoleType[]
+}): VolunteerRoleType | null {
+  const eligibleRegionalRoleTypes = eligibleRoleTypes.filter((roleType) =>
+    crewRegionalJudgeDiscoveryRoleTypeSet.has(roleType),
+  )
+  if (requestedRoleType == null) {
+    return eligibleRegionalRoleTypes[0] ?? null
+  }
+  return eligibleRegionalRoleTypes.includes(requestedRoleType)
+    ? requestedRoleType
+    : null
 }
 
 function buildDiscoveryCandidate({

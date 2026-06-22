@@ -1,6 +1,6 @@
 // @lat: [[crew#Regional Judge Discovery Pilot]]
 import { env } from "cloudflare:workers"
-import { and, desc, eq, gt, inArray, isNull, ne, or } from "drizzle-orm"
+import { and, desc, eq, gt, inArray, isNull, ne, or, sql } from "drizzle-orm"
 import { getDb } from "../db"
 import { addressesTable } from "../db/schemas/addresses"
 import { competitionsTable } from "../db/schemas/competitions"
@@ -26,9 +26,11 @@ import {
   buildCrewRegionalJudgeIntroRequestView,
   crewRegionalJudgeDiscoveryRoleTypes,
   resolveCrewRegionalJudgeDiscoveryGate,
+  resolveCrewRegionalJudgeIntroRequestedRole,
   type CrewRegionalJudgeDiscoveryViewModel,
   type CrewRegionalJudgeIntroRequestView,
 } from "../lib/crew/regional-judge-discovery"
+import { getFirstExecuteValue } from "../server-fns/db-execute"
 import { getSessionFromCookie } from "../utils/auth"
 import {
   requireCrewDepartmentLeadEvent,
@@ -39,6 +41,8 @@ import {
 type CrewDiscoveryRuntimeEnv = typeof env & {
   CREW_REGIONAL_JUDGE_DISCOVERY_ENABLED?: string | boolean
 }
+
+type DbClient = ReturnType<typeof getDb>
 
 export interface CrewRegionalJudgeDiscoveryPageData {
   viewModel: CrewRegionalJudgeDiscoveryViewModel
@@ -102,77 +106,94 @@ export async function requestCrewRegionalJudgeIntro(data: {
     throw new Error("That regional judge candidate is no longer eligible.")
   }
 
-  const db = getDb()
-  const [existing] = await db
-    .select({
-      id: crewVolunteerIntroRequestsTable.id,
-      status: crewVolunteerIntroRequestsTable.status,
-    })
-    .from(crewVolunteerIntroRequestsTable)
-    .where(
-      and(
-        eq(
-          crewVolunteerIntroRequestsTable.requestingTeamId,
-          scope.organizingTeamId,
-        ),
-        eq(crewVolunteerIntroRequestsTable.requestingCompetitionId, scope.id),
-        eq(
-          crewVolunteerIntroRequestsTable.volunteerIdentityId,
-          data.candidateId,
-        ),
-        eq(
-          crewVolunteerIntroRequestsTable.status,
-          CREW_VOLUNTEER_INTRO_REQUEST_STATUS.PENDING,
-        ),
-      ),
-    )
-    .orderBy(desc(crewVolunteerIntroRequestsTable.requestedAt))
-    .limit(1)
-
-  if (existing) {
-    return {
-      success: true,
-      request: buildCrewRegionalJudgeIntroRequestView({
-        requestId: existing.id,
-        status: existing.status,
-        outcome: "existing",
-      }),
-    }
-  }
-
-  const session = await getSessionFromCookie().catch(() => null)
-  const now = new Date()
-  const requestId = createCrewVolunteerIntroRequestId()
-  await db.insert(crewVolunteerIntroRequestsTable).values({
-    id: requestId,
-    requestingTeamId: scope.organizingTeamId,
-    requestingCompetitionId: scope.id,
-    volunteerIdentityId: data.candidateId,
-    discoveryConsentId: activeConsent.consentId,
-    requestedRoleType:
-      data.requestedRoleType ?? candidate.roleTypes[0] ?? "judge",
-    startsAt: null,
-    endsAt: null,
-    status: CREW_VOLUNTEER_INTRO_REQUEST_STATUS.PENDING,
-    requestedByUserId: session?.userId ?? null,
-    requestedAt: now,
-    respondedByUserId: null,
-    respondedAt: null,
-    expiresAt: null,
-    resultInvitationId: null,
-    resultMembershipId: null,
-    createdAt: now,
-    updatedAt: now,
+  const requestedRoleType = resolveCrewRegionalJudgeIntroRequestedRole({
+    requestedRoleType: data.requestedRoleType,
+    eligibleRoleTypes: candidate.roleTypes,
   })
-
-  return {
-    success: true,
-    request: buildCrewRegionalJudgeIntroRequestView({
-      requestId,
-      status: CREW_VOLUNTEER_INTRO_REQUEST_STATUS.PENDING,
-      outcome: "created",
-    }),
+  if (!requestedRoleType) {
+    throw new Error("That requested judge role is no longer eligible.")
   }
+
+  const db = getDb()
+  return await withCrewRegionalJudgeIntroRequestLock({
+    db,
+    scope,
+    candidateId: data.candidateId,
+    callback: async () => {
+      const [existing] = await db
+        .select({
+          id: crewVolunteerIntroRequestsTable.id,
+          status: crewVolunteerIntroRequestsTable.status,
+        })
+        .from(crewVolunteerIntroRequestsTable)
+        .where(
+          and(
+            eq(
+              crewVolunteerIntroRequestsTable.requestingTeamId,
+              scope.organizingTeamId,
+            ),
+            eq(
+              crewVolunteerIntroRequestsTable.requestingCompetitionId,
+              scope.id,
+            ),
+            eq(
+              crewVolunteerIntroRequestsTable.volunteerIdentityId,
+              data.candidateId,
+            ),
+            eq(
+              crewVolunteerIntroRequestsTable.status,
+              CREW_VOLUNTEER_INTRO_REQUEST_STATUS.PENDING,
+            ),
+          ),
+        )
+        .orderBy(desc(crewVolunteerIntroRequestsTable.requestedAt))
+        .limit(1)
+
+      if (existing) {
+        return {
+          success: true,
+          request: buildCrewRegionalJudgeIntroRequestView({
+            requestId: existing.id,
+            status: existing.status,
+            outcome: "existing",
+          }),
+        }
+      }
+
+      const session = await getSessionFromCookie().catch(() => null)
+      const now = new Date()
+      const requestId = createCrewVolunteerIntroRequestId()
+      await db.insert(crewVolunteerIntroRequestsTable).values({
+        id: requestId,
+        requestingTeamId: scope.organizingTeamId,
+        requestingCompetitionId: scope.id,
+        volunteerIdentityId: data.candidateId,
+        discoveryConsentId: activeConsent.consentId,
+        requestedRoleType,
+        startsAt: null,
+        endsAt: null,
+        status: CREW_VOLUNTEER_INTRO_REQUEST_STATUS.PENDING,
+        requestedByUserId: session?.userId ?? null,
+        requestedAt: now,
+        respondedByUserId: null,
+        respondedAt: null,
+        expiresAt: null,
+        resultInvitationId: null,
+        resultMembershipId: null,
+        createdAt: now,
+        updatedAt: now,
+      })
+
+      return {
+        success: true,
+        request: buildCrewRegionalJudgeIntroRequestView({
+          requestId,
+          status: CREW_VOLUNTEER_INTRO_REQUEST_STATUS.PENDING,
+          outcome: "created",
+        }),
+      }
+    },
+  })
 }
 
 async function requireCrewRegionalJudgeDiscoveryScope(eventId: string) {
@@ -443,6 +464,59 @@ async function findActiveDiscoveryConsentForCandidate({
     .limit(1)
 
   return row ?? null
+}
+
+async function withCrewRegionalJudgeIntroRequestLock({
+  db,
+  scope,
+  candidateId,
+  callback,
+}: {
+  db: DbClient
+  scope: CrewDepartmentLeadEvent
+  candidateId: string
+  callback: () => Promise<CrewRegionalJudgeIntroRequestResult>
+}) {
+  let acquired = false
+  const lockName = await createCrewRegionalJudgeIntroRequestLockName({
+    requestingTeamId: scope.organizingTeamId,
+    requestingCompetitionId: scope.id,
+    candidateId,
+  })
+
+  try {
+    const result = await db.execute(
+      sql`SELECT GET_LOCK(${lockName}, 5) FROM dual`,
+    )
+    acquired = Number(getFirstExecuteValue(result) ?? 0) === 1
+    if (!acquired) {
+      throw new Error("Intro request could not be recorded.")
+    }
+
+    return await callback()
+  } finally {
+    if (acquired) {
+      await db.execute(sql`SELECT RELEASE_LOCK(${lockName}) FROM dual`)
+    }
+  }
+}
+
+async function createCrewRegionalJudgeIntroRequestLockName({
+  requestingTeamId,
+  requestingCompetitionId,
+  candidateId,
+}: {
+  requestingTeamId: string
+  requestingCompetitionId: string
+  candidateId: string
+}) {
+  const encoded = new TextEncoder().encode(
+    `crew-regional-judge-intro:${requestingTeamId}:${requestingCompetitionId}:${candidateId}`,
+  )
+  const digest = await crypto.subtle.digest("SHA-256", encoded)
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("")
 }
 
 function getCrewRegionalJudgeDiscoveryGate() {

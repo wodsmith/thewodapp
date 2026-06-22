@@ -122,13 +122,9 @@ function CandidateCard({
           ? "Intro request already pending."
           : "Intro request recorded.",
       )
-      await router.invalidate()
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Intro request could not be recorded.",
-      )
+      await router.invalidate().catch(() => undefined)
+    } catch {
+      toast.error("Intro request could not be recorded. Please try again.")
     } finally {
       setIsSubmitting(false)
     }

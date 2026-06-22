@@ -15,7 +15,7 @@ const getCrewRegionalJudgeDiscoveryPageInputSchema = z.object({
 const requestCrewRegionalJudgeIntroInputSchema =
   getCrewRegionalJudgeDiscoveryPageInputSchema.extend({
     candidateId: z.string().min(1, "Candidate ID is required"),
-    requestedRoleType: z.enum(["judge", "head_judge"]).optional(),
+    requestedRoleType: z.enum(["judge", "head_judge"]).nullable().optional(),
   })
 
 export const getCrewRegionalJudgeDiscoveryPageFn = createServerFn({
