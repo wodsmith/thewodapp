@@ -154,13 +154,15 @@ export function OrganizerCompetitionForm({
 }: OrganizerCompetitionFormProps) {
   const navigate = useNavigate()
   const router = useRouter()
+  const competitionTypeOptions = selectableCompetitionTypeOptions()
   const isEditMode = !!competition
   const initialCompetitionType: CompetitionTypeId =
     isSelectableCompetitionTypeValue(competition?.competitionType)
       ? competition.competitionType
       : "in-person"
   const showCompetitionTypeField =
-    !isEditMode || isSelectableCompetitionTypeValue(competition?.competitionType)
+    !isEditMode ||
+    isSelectableCompetitionTypeValue(competition?.competitionType)
 
   // Determine if existing competition is multi-day (start and end dates differ)
   const existingIsMultiDay = competition
@@ -466,7 +468,7 @@ export function OrganizerCompetitionForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {selectableCompetitionTypeOptions().map((option) => (
+                    {competitionTypeOptions.map((option) => (
                       <SelectItem key={option.id} value={option.id}>
                         {option.displayLabel}
                       </SelectItem>
@@ -474,9 +476,9 @@ export function OrganizerCompetitionForm({
                   </SelectContent>
                 </Select>
                 <FormDescription>
-                  {field.value === "online"
-                    ? "Athletes submit video recordings of their workouts"
-                    : "Athletes compete at a physical venue"}
+                  {competitionTypeOptions.find(
+                    (option) => option.id === field.value,
+                  )?.description ?? "Select the competition format"}
                 </FormDescription>
                 <FormMessage />
               </FormItem>

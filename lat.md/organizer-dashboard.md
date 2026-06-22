@@ -20,9 +20,9 @@ For in-person competitions, the Registrations stat card exposes a `Go to Check-I
 
 ## Competition Editing
 
-The edit page allows organizers to modify competition name, dates, description, registration window, timezone, and series group.
+The edit page allows organizers to modify competition metadata while preserving type-specific behavior.
 
-Fetches competition groups for the organizing team. Uses `OrganizerCompetitionEditForm` component.
+Fetches competition groups for the organizing team. Uses `OrganizerCompetitionEditForm` to edit name, dates, description, registration window, timezone, series group, visibility, status, images, and selectable competition types. Stored benchmark competitions display their type without submitting generic type updates.
 
 ## Division Management
 
@@ -113,6 +113,12 @@ Why a dedicated org-side `resendTeamInviteAsOrganizerFn` exists: the captain-fac
 Configures the algorithm used to rank athletes on the leaderboard.
 
 Fetches events for head-to-head tiebreaker selection. Uses `ScoringSettingsForm` component. Settings include scoring algorithm, point distribution, and tiebreak rules.
+
+## Benchmark Tier Scoring
+
+Displays and edits absolute-tier threshold tables for benchmark competitions.
+
+Benchmark scoring tiers are scoped through the competition-type capability registry and only appear when [[competition-type-capabilities#Registry Source of Truth]] grants `benchmarkScoringTiers`. [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/scoring/tiers.tsx]] loads the benchmark battery, category metadata, rating bands, included/deferred tests, and per-variant raw threshold rows from [[apps/wodsmith-start/src/server/benchmark-scoring-tiers.ts#loadBenchmarkScoringTierSummary]], then exposes a variant selector and raw-value tier grid. Benchmark competitions missing a battery render a setup-required state instead of a broken route. Saves re-encode and validate every raw threshold via [[apps/wodsmith-start/src/server/benchmark-scoring-tiers.ts#prepareBenchmarkTierThresholdUpdates]] before writing [[packages/wodsmith-db/src/schemas/benchmarks.ts#benchmarkTierThresholdsTable]] in one transaction. The page is also the benchmark-only mode switch: [[apps/wodsmith-start/src/server/benchmark-scoring-tiers.ts#buildBenchmarkTierScoringConfig]] activates `absolute_tier` with the competition battery id, while [[apps/wodsmith-start/src/server/benchmark-scoring-tiers.ts#buildBenchmarkOnlineScoringConfig]] switches the same competition back to online scoring without retaining `absoluteTier`.
 
 ## Results Entry
 
@@ -309,7 +315,7 @@ The Compete header shows `HOST A COMP` only before one of the user's teams has a
 
 New competition form at `/compete/organizer/_dashboard/new`.
 
-Fetches organizer-eligible teams, competition groups, and series template divisions. Uses `OrganizerCompetitionForm` component. Optionally pre-selects a series group via `?groupId=` search param, inheriting the series' division template.
+Fetches organizer-eligible teams, competition groups, and series template divisions. Uses `OrganizerCompetitionForm` with registry-backed in-person, online, and benchmark type options. Optionally pre-selects a series group via `?groupId=` search param, inheriting the series' division template.
 
 ## Series Management
 

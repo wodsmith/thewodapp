@@ -9,9 +9,10 @@ export type CompetitionCapability =
   | "physicalVenue"
   | "volunteerScheduling"
   | "organizerEntersResults"
+  | "benchmarkScoringTiers"
 
 export type RegisteredCompetitionTypeId = "in-person" | "online" | "benchmark"
-export type CompetitionTypeId = Exclude<RegisteredCompetitionTypeId, "benchmark">
+export type CompetitionTypeId = RegisteredCompetitionTypeId
 export type LeaderboardVariant = "standard" | "online"
 export type ResultsEntryMode = "organizer-entered" | "athlete-submitted"
 export type ResultsNavLabel = "Results" | "Submissions"
@@ -68,8 +69,12 @@ export const COMPETITION_TYPE_REGISTRY: Readonly<
     label: "Benchmark",
     createPickerDescription: "Perpetual benchmark board with video submissions",
     leaderboardVariant: "online",
-    selectableOnCreate: false,
-    capabilities: new Set(["videoSubmissions", "perpetual"]),
+    selectableOnCreate: true,
+    capabilities: new Set([
+      "videoSubmissions",
+      "perpetual",
+      "benchmarkScoringTiers",
+    ]),
   },
 }
 

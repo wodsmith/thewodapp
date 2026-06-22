@@ -4,9 +4,9 @@ Crew is a concierge-first event operations surface that reuses normal WODsmith c
 
 ## Server Function Runtime Boundary
 
-Route and client code import lightweight `createServerFn` wrappers from [[apps/crew/src/server-fns]].
+Route and client code import lightweight `createServerFn` wrappers from `apps/crew/src/server-fns`.
 
-Those wrappers may validate input, but DB and Workers-runtime-backed implementation belongs in server-only `*.server.ts` modules under [[apps/crew/src/server]] and should be loaded inside the wrapper `handler()`.
+Those wrappers may validate input, but DB and Workers-runtime-backed implementation belongs in server-only `*.server.ts` modules under `apps/crew/src/server` and should be loaded inside the wrapper `handler()`.
 
 This prevents Vite client import analysis from walking through [[apps/crew/src/db/index.ts]] to `cloudflare:workers` while preserving stable server-function import paths.
 
@@ -136,7 +136,7 @@ Operator-facing durations render in compact hour/minute labels so workout block 
 
 Crew import preview is a private operator workflow for CSV-only volunteer and heat schedule uploads.
 
-[[apps/crew/src/routes/events/$eventId/imports.tsx]] renders upload, mapping, warnings, and history. [[apps/crew/src/routes/api/crew/import.ts]] accepts private preview uploads, while [[apps/crew/src/lib/crew/imports/preview.ts]] and [[apps/crew/src/server/crew-imports.ts]] parse and persist previews without applying rows.
+[[apps/crew/src/routes/events/$eventId/imports.tsx]] renders upload, mapping, warnings, and history. [[apps/crew/src/routes/api/crew/import.ts]] accepts private preview uploads, while [[apps/crew/src/lib/crew/imports/preview.ts]] and [[apps/crew/src/server/crew-imports.server.ts]] parse and persist previews without applying rows.
 
 ### Private Upload Route
 
@@ -153,6 +153,10 @@ Preview persistence stores import metadata, headers, column mapping, summary cou
 ### No Apply
 
 This slice is preview and history only. Applying volunteer invitations, volunteer memberships, heat schedule rows, roster rows, shifts, and assignment confirmations belongs to later Crew import PRs.
+
+## Import Tabs Duplicate Panel Regression
+
+This test verifies import tab navigation keeps only the active upload panel mounted.
 
 ## Import Apply
 
@@ -230,7 +234,7 @@ Guided setup turns Crew readiness facts and operator overrides into a per-event 
 
 Crew role and shift templates provide typed built-in staffing patterns plus team-saved presets backed by `crew_template_presets`.
 
-[[apps/crew/src/lib/crew/templates]] owns deterministic built-ins, preset serialization, preview, duplicate detection, and append-only apply planning. [[apps/crew/src/server-fns/crew-template-fns.ts]] keeps route-facing wrappers thin while [[apps/crew/src/server/crew-template.server.ts]] loads saved team presets, fills empty setup assumptions only when requested, and appends only missing `volunteer_shifts`. [[apps/crew/src/components/crew-templates/crew-template-panel.tsx]] integrates preview/apply/save into the event setup page without adding a public marketplace or copy-prior-event flow.
+[[apps/crew/src/lib/crew/templates/index.ts]] owns deterministic built-ins, preset serialization, preview, duplicate detection, and append-only apply planning. [[apps/crew/src/server-fns/crew-template-fns.ts]] keeps route-facing wrappers thin while [[apps/crew/src/server/crew-template.server.ts]] loads saved team presets, fills empty setup assumptions only when requested, and appends only missing `volunteer_shifts`. [[apps/crew/src/components/crew-templates/crew-template-panel.tsx]] integrates preview/apply/save into the event setup page without adding a public marketplace or copy-prior-event flow.
 
 ## Copy Prior Event Setup
 

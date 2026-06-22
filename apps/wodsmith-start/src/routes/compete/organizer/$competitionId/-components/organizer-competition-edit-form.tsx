@@ -38,8 +38,10 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import type { Competition, CompetitionGroup } from "@/db/schemas/competitions"
 import {
+  COMPETITION_TYPE_REGISTRY,
   type CompetitionTypeId,
   isSelectableCompetitionTypeValue,
+  type RegisteredCompetitionTypeId,
   selectableCompetitionTypeOptions,
 } from "@/lib/competitions/capabilities"
 import { canDisplayPhysicalVenue } from "@/lib/competitions/venue-volunteer-gates"
@@ -199,9 +201,16 @@ export function OrganizerCompetitionEditForm({
     isSelectableCompetitionTypeValue(competition.competitionType)
       ? competition.competitionType
       : "in-person"
-  const showCompetitionTypeField = isSelectableCompetitionTypeValue(
-    competition.competitionType,
-  )
+  const canEditCompetitionType =
+    isSelectableCompetitionTypeValue(competition.competitionType) &&
+    competition.competitionType !== "benchmark"
+  const registeredCompetitionType =
+    competition.competitionType in COMPETITION_TYPE_REGISTRY
+      ? (competition.competitionType as RegisteredCompetitionTypeId)
+      : null
+  const storedCompetitionTypeOption = registeredCompetitionType
+    ? COMPETITION_TYPE_REGISTRY[registeredCompetitionType]
+    : null
 
   const form = useForm<FormValues>({
     resolver: standardSchemaResolver(formSchema),
@@ -236,7 +245,7 @@ export function OrganizerCompetitionEditForm({
 
   const isMultiDay = form.watch("isMultiDay")
   const competitionType = form.watch("competitionType")
-  const effectiveCompetitionType = showCompetitionTypeField
+  const effectiveCompetitionType = canEditCompetitionType
     ? competitionType
     : competition.competitionType
   const showLocationSection = canDisplayPhysicalVenue(effectiveCompetitionType)
@@ -273,7 +282,7 @@ export function OrganizerCompetitionEditForm({
           groupId: data.groupId,
           visibility: data.visibility,
           status: data.status,
-          ...(showCompetitionTypeField
+          ...(canEditCompetitionType
             ? { competitionType: data.competitionType }
             : {}),
           profileImageUrl,
@@ -351,7 +360,7 @@ export function OrganizerCompetitionEditForm({
           )}
         />
 
-        {showCompetitionTypeField && (
+        {canEditCompetitionType ? (
           <FormField
             control={form.control}
             name="competitionType"
@@ -381,7 +390,29 @@ export function OrganizerCompetitionEditForm({
               </FormItem>
             )}
           />
-        )}
+        ) : storedCompetitionTypeOption ? (
+          <FormItem>
+            <FormLabel>Competition Type</FormLabel>
+            <Select value={storedCompetitionTypeOption.id} disabled>
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                <SelectItem
+                  key={storedCompetitionTypeOption.id}
+                  value={storedCompetitionTypeOption.id}
+                >
+                  {`${storedCompetitionTypeOption.label} - ${storedCompetitionTypeOption.createPickerDescription}`}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <FormDescription>
+              {storedCompetitionTypeOption.createPickerDescription}
+            </FormDescription>
+          </FormItem>
+        ) : null}
 
         {/* Location Section - Only shown for competition types with physical venues */}
         {showLocationSection && (

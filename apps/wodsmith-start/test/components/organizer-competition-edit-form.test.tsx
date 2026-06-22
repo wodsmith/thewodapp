@@ -90,7 +90,7 @@ describe("OrganizerCompetitionEditForm", () => {
   })
 
   // @lat: [[competition-type-capabilities#Venue and Volunteer Gates Test#Edit Form Physical Venue Gate]]
-  it("hides venue fields for stored benchmark competitions and omits address updates", async () => {
+  it("shows stored benchmark type while omitting type and address updates", async () => {
     render(
       <OrganizerCompetitionEditForm
         competition={createCompetition("benchmark")}
@@ -98,6 +98,16 @@ describe("OrganizerCompetitionEditForm", () => {
       />,
     )
 
+    expect(screen.getByText("Competition Type")).toBeInTheDocument()
+    const typeSelect = screen.getByRole("combobox", {
+      name: "Competition Type",
+    })
+    expect(
+      typeSelect,
+    ).toHaveTextContent(
+      "Benchmark - Perpetual benchmark board with video submissions",
+    )
+    expect(typeSelect).toBeDisabled()
     expect(screen.queryByRole("heading", { name: "Location" })).toBeNull()
     expect(screen.queryByTestId("address-fields")).toBeNull()
 
@@ -109,6 +119,7 @@ describe("OrganizerCompetitionEditForm", () => {
 
     const [{ data }] = updateCompetitionFnMock.mock.calls[0]
     expect(data.competitionId).toBe("comp_test")
+    expect(Object.hasOwn(data, "competitionType")).toBe(false)
     expect(Object.hasOwn(data, "address")).toBe(true)
     expect(data.address).toBeUndefined()
   })
