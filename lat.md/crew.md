@@ -409,3 +409,11 @@ Reliability is auditable fact history only: assignments, confirmations, response
 Raw email, phone, emergency contacts, internal notes, and private metadata stay in their existing source tables. Discovery, search, analytics, audit previews, and regional summaries must not expose those raw fields.
 
 Series crew pools stay constrained to the selected `competition_group`; conversion enriches an existing competition instead of cloning identities; regional discovery starts as opt-in intro requests only. Intelligence, series, conversion, discovery, and person-level analytics require privacy review notes and feature flags before implementation.
+
+## Regional Judge Discovery Pilot
+
+Regional judge discovery is an event-scoped, organizer-only pilot for blind intro requests to adult judges who explicitly opted into regional discovery.
+
+[[apps/crew/src/lib/crew/regional-judge-discovery.ts]] builds the deterministic privacy-safe view model from active volunteer identities, current regional-discovery consent, consented-intro history facts, safe credential facts, and pending intro requests. The model excludes import-only volunteers, same-team inventory, minors, revoked or superseded consent, raw contact fields, private metadata, negative badges, rankings, ratings, and global reputation.
+
+[[apps/crew/src/server/crew-discovery.server.ts]] keeps discovery server-only and disabled unless `CREW_REGIONAL_JUDGE_DISCOVERY_ENABLED` is explicitly enabled. The event route [[apps/crew/src/routes/events/$eventId/discovery/judges.tsx]] renders the gated pilot under the organizer event shell; when enabled it can record a `crew_volunteer_intro_requests` audit row without revealing direct contact, sending email/SMS, creating invitations, or implementing acceptance/contact reveal.
