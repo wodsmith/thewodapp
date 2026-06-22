@@ -10,6 +10,7 @@ import {
   Mail,
   Phone,
   Printer,
+  ShieldCheck,
 } from "lucide-react"
 import { useMemo } from "react"
 import { useForm } from "react-hook-form"
@@ -100,6 +101,8 @@ export const Route = createFileRoute("/e/$slug/schedule/$token")({
 
 function CrewVolunteerScheduleTokenPage() {
   const loaderData = Route.useLoaderData()
+  const { slug, token } = Route.useParams()
+  const consentHref = buildConsentCenterHref(slug, token)
 
   if (loaderData.mode === "assignment") {
     return <CrewAssignmentSchedule data={loaderData.assignmentResult} />
@@ -114,13 +117,24 @@ function CrewVolunteerScheduleTokenPage() {
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
       <section className="rounded-md border bg-card p-6 shadow-sm">
-        <p className="text-sm font-medium text-muted-foreground">
-          Volunteer schedule
-        </p>
-        <h1 className="mt-2 text-3xl font-semibold">{event.name}</h1>
-        <p className="mt-2 text-muted-foreground">
-          {event.startDate} to {event.endDate}
-        </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">
+              Volunteer schedule
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold">{event.name}</h1>
+            <p className="mt-2 text-muted-foreground">
+              {event.startDate} to {event.endDate}
+            </p>
+          </div>
+          <a
+            href={consentHref}
+            className="inline-flex h-10 w-fit items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-muted"
+          >
+            <ShieldCheck className="size-4" />
+            Consent
+          </a>
+        </div>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2">
@@ -211,6 +225,7 @@ function CrewAssignmentSchedule({
   const confirmHref = `/e/${encodeURIComponent(slug)}/confirm/${encodeURIComponent(
     token,
   )}`
+  const consentHref = buildConsentCenterHref(slug, token)
 
   async function handleContactSubmit(values: ContactFormValues) {
     try {
@@ -307,6 +322,13 @@ function CrewAssignmentSchedule({
               <Printer className="size-4" />
               Print
             </button>
+            <a
+              href={consentHref}
+              className="inline-flex h-10 items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-muted"
+            >
+              <ShieldCheck className="size-4" />
+              Consent
+            </a>
           </div>
         </div>
       </section>
@@ -574,4 +596,8 @@ function getContactDefaultValues(
 function emptyToUndefined(value: string | undefined) {
   const trimmed = value?.trim()
   return trimmed || undefined
+}
+
+function buildConsentCenterHref(slug: string, token: string) {
+  return `/e/${encodeURIComponent(slug)}/consent/${encodeURIComponent(token)}`
 }

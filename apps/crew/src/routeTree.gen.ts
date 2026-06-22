@@ -30,6 +30,7 @@ import { Route as ESlugVolunteerRouteImport } from './routes/e/$slug/volunteer'
 import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
 import { Route as ApiCrewImportRouteImport } from './routes/api/crew/import'
 import { Route as ESlugScheduleTokenRouteImport } from './routes/e/$slug/schedule/$token'
+import { Route as ESlugConsentTokenRouteImport } from './routes/e/$slug/consent/$token'
 import { Route as ESlugConfirmTokenRouteImport } from './routes/e/$slug/confirm/$token'
 
 const EventsRoute = EventsRouteImport.update({
@@ -137,6 +138,11 @@ const ESlugScheduleTokenRoute = ESlugScheduleTokenRouteImport.update({
   path: '/e/$slug/schedule/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ESlugConsentTokenRoute = ESlugConsentTokenRouteImport.update({
+  id: '/e/$slug/consent/$token',
+  path: '/e/$slug/consent/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ESlugConfirmTokenRoute = ESlugConfirmTokenRouteImport.update({
   id: '/e/$slug/confirm/$token',
   path: '/e/$slug/confirm/$token',
@@ -165,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/events/$eventId/volunteers': typeof EventsEventIdVolunteersRoute
   '/events/$eventId/': typeof EventsEventIdIndexRoute
   '/e/$slug/confirm/$token': typeof ESlugConfirmTokenRoute
+  '/e/$slug/consent/$token': typeof ESlugConsentTokenRoute
   '/e/$slug/schedule/$token': typeof ESlugScheduleTokenRoute
 }
 export interface FileRoutesByTo {
@@ -188,6 +195,7 @@ export interface FileRoutesByTo {
   '/events/$eventId/volunteers': typeof EventsEventIdVolunteersRoute
   '/events/$eventId': typeof EventsEventIdIndexRoute
   '/e/$slug/confirm/$token': typeof ESlugConfirmTokenRoute
+  '/e/$slug/consent/$token': typeof ESlugConsentTokenRoute
   '/e/$slug/schedule/$token': typeof ESlugScheduleTokenRoute
 }
 export interface FileRoutesById {
@@ -213,6 +221,7 @@ export interface FileRoutesById {
   '/events/$eventId/volunteers': typeof EventsEventIdVolunteersRoute
   '/events/$eventId/': typeof EventsEventIdIndexRoute
   '/e/$slug/confirm/$token': typeof ESlugConfirmTokenRoute
+  '/e/$slug/consent/$token': typeof ESlugConsentTokenRoute
   '/e/$slug/schedule/$token': typeof ESlugScheduleTokenRoute
 }
 export interface FileRouteTypes {
@@ -239,6 +248,7 @@ export interface FileRouteTypes {
     | '/events/$eventId/volunteers'
     | '/events/$eventId/'
     | '/e/$slug/confirm/$token'
+    | '/e/$slug/consent/$token'
     | '/e/$slug/schedule/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -262,6 +272,7 @@ export interface FileRouteTypes {
     | '/events/$eventId/volunteers'
     | '/events/$eventId'
     | '/e/$slug/confirm/$token'
+    | '/e/$slug/consent/$token'
     | '/e/$slug/schedule/$token'
   id:
     | '__root__'
@@ -286,6 +297,7 @@ export interface FileRouteTypes {
     | '/events/$eventId/volunteers'
     | '/events/$eventId/'
     | '/e/$slug/confirm/$token'
+    | '/e/$slug/consent/$token'
     | '/e/$slug/schedule/$token'
   fileRoutesById: FileRoutesById
 }
@@ -297,6 +309,7 @@ export interface RootRouteChildren {
   ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
   ESlugVolunteerRoute: typeof ESlugVolunteerRoute
   ESlugConfirmTokenRoute: typeof ESlugConfirmTokenRoute
+  ESlugConsentTokenRoute: typeof ESlugConsentTokenRoute
   ESlugScheduleTokenRoute: typeof ESlugScheduleTokenRoute
 }
 
@@ -449,6 +462,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ESlugScheduleTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/e/$slug/consent/$token': {
+      id: '/e/$slug/consent/$token'
+      path: '/e/$slug/consent/$token'
+      fullPath: '/e/$slug/consent/$token'
+      preLoaderRoute: typeof ESlugConsentTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/e/$slug/confirm/$token': {
       id: '/e/$slug/confirm/$token'
       path: '/e/$slug/confirm/$token'
@@ -514,6 +534,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
   ESlugVolunteerRoute: ESlugVolunteerRoute,
   ESlugConfirmTokenRoute: ESlugConfirmTokenRoute,
+  ESlugConsentTokenRoute: ESlugConsentTokenRoute,
   ESlugScheduleTokenRoute: ESlugScheduleTokenRoute,
 }
 export const routeTree = rootRouteImport
