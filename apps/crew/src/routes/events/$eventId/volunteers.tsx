@@ -7,7 +7,7 @@ import {
   useRouter,
 } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { ClipboardPaste, Loader2, Pencil, UserPlus } from "lucide-react"
+import { ClipboardPaste, History, Loader2, Pencil, UserPlus } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -36,6 +36,7 @@ import {
   VOLUNTEER_ROLE_OPTIONS,
 } from "@/db/schemas/volunteers"
 import { formatCrewValue } from "@/lib/crew-event-display"
+import type { CrewReturningVolunteerSuggestion } from "@/lib/crew/returning-volunteers"
 import type {
   CrewRosterStatus,
   CrewRosterVolunteer,
@@ -62,7 +63,8 @@ const parentRoute = getRouteApi("/events/$eventId")
 
 function VolunteersPage() {
   const { eventId } = parentRoute.useParams()
-  const { roster, summary, shiftSummary } = Route.useLoaderData()
+  const { roster, summary, shiftSummary, returningVolunteerSuggestions } =
+    Route.useLoaderData()
   const router = useRouter()
   const [addOpen, setAddOpen] = useState(false)
   const [pasteOpen, setPasteOpen] = useState(false)
@@ -111,6 +113,8 @@ function VolunteersPage() {
           value={shiftSummary.confirmationSummary.confirmed}
         />
       </div>
+
+      <ReturningVolunteersPanel suggestions={returningVolunteerSuggestions} />
 
       <section className="overflow-hidden rounded-md border bg-card shadow-sm">
         {roster.length > 0 ? (
@@ -169,6 +173,142 @@ function VolunteersPage() {
         onSaved={reloadRoster}
       />
     </section>
+  )
+}
+
+function ReturningVolunteersPanel({
+  suggestions,
+}: {
+  suggestions: CrewReturningVolunteerSuggestion[]
+}) {
+  if (suggestions.length === 0) return null
+
+  return (
+    <section className="rounded-md border bg-card shadow-sm">
+      <div className="flex items-center gap-2 border-b px-4 py-3">
+        <History className="h-4 w-4 text-muted-foreground" />
+        <div>
+          <h3 className="font-semibold">Returning volunteers</h3>
+          <p className="text-sm text-muted-foreground">
+            {suggestions.length} matched on organizer history
+          </p>
+        </div>
+      </div>
+      <div className="divide-y">
+        {suggestions.map((suggestion) => (
+          <ReturningVolunteerRow
+            key={suggestion.rosterVolunteerId}
+            suggestion={suggestion}
+          />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function ReturningVolunteerRow({
+  suggestion,
+}: {
+  suggestion: CrewReturningVolunteerSuggestion
+}) {
+  const facts = buildReturningVolunteerFacts(suggestion)
+
+  return (
+    <div className="grid gap-3 px-4 py-3 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+      <div>
+        <div className="font-medium">{suggestion.volunteerName}</div>
+        <div className="mt-1 text-sm text-muted-foreground">
+          {suggestion.priorEventCount} prior event
+          {suggestion.priorEventCount === 1 ? "" : "s"}
+          {suggestion.lastEvent ? (
+            <>
+              {" "}
+              · Last: {suggestion.lastEvent.label},{" "}
+              {formatReturningVolunteerDate(suggestion.lastEvent.occurredAt)}
+            </>
+          ) : null}
+        </div>
+        <div className="mt-2 flex flex-wrap gap-1">
+          {suggestion.currentRoleTypes.map((roleType) => (
+            <span
+              key={roleType}
+              className="rounded-md border bg-background px-2 py-1 text-xs"
+            >
+              {formatVolunteerRole(roleType)}
+            </span>
+          ))}
+          <span className="rounded-md border bg-background px-2 py-1 text-xs">
+            {formatVolunteerAvailability(suggestion.currentAvailability)}
+          </span>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <FactList facts={facts} />
+        {suggestion.priorRoleTypes.length > 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Prior roles:{" "}
+            {suggestion.priorRoleTypes.map(formatVolunteerRole).join(", ")}
+          </p>
+        ) : null}
+        {suggestion.credentials.length > 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Credentials:{" "}
+            {suggestion.credentials
+              .map(
+                (credential) =>
+                  `${credential.credentialLabel} (${formatCrewValue(
+                    credential.status,
+                  )})`,
+              )
+              .join(", ")}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+function FactList({ facts }: { facts: string[] }) {
+  if (facts.length === 0) return null
+  return (
+    <div className="flex flex-wrap gap-1">
+      {facts.map((fact) => (
+        <span
+          key={fact}
+          className="rounded-md border bg-background px-2 py-1 text-xs"
+        >
+          {fact}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function buildReturningVolunteerFacts(
+  suggestion: CrewReturningVolunteerSuggestion,
+) {
+  const { reliability } = suggestion
+  return [
+    formatReturningFact("Confirmed", reliability.confirmed),
+    formatReturningFact("Completed", reliability.completed),
+    formatReturningFact("Assigned", reliability.assigned),
+    formatReturningFact("Signed up", reliability.signedUp),
+    formatReturningFact("Imported", reliability.imported),
+    formatReturningFact("Declined", reliability.declined),
+    formatReturningFact("Change requested", reliability.changeRequested),
+    formatReturningFact("No-show", reliability.noShow),
+  ].filter((fact): fact is string => Boolean(fact))
+}
+
+function formatReturningFact(label: string, count: number) {
+  return count > 0 ? `${label} ${count}` : null
+}
+
+function formatReturningVolunteerDate(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return "unknown date"
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(
+    date,
   )
 }
 
