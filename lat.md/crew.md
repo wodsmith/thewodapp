@@ -88,6 +88,14 @@ Those wrappers may validate input, but DB and Workers-runtime-backed implementat
 
 This prevents Vite client import analysis from walking through [[apps/crew/src/db/index.ts]] to `cloudflare:workers` while preserving stable server-function import paths.
 
+## Series Crew Pools
+
+Series crew pools reuse existing `competition_groups` plus the normal competitions inside the group to show organizer-owned volunteer coverage across a series.
+
+[[apps/crew/src/lib/crew/series-crew-pools.ts]] builds the deterministic view model from group competitions, event rosters, same-organizer volunteer identities, same-group history events, and safe credential facts. It excludes selected/current competitions from prior-history counts and never includes raw contact fields, internal notes, private metadata, discovery details, or billing references in the pool output.
+
+[[apps/crew/src/server/crew-series.server.ts]] keeps the loader server-only, requires organizer dashboard access to the competition group, scopes competitions by the group's organizing team, and reads only Crew-enabled competitions in that group. [[apps/crew/src/server-fns/crew-series-fns.ts]] is the route-safe wrapper, and [[apps/crew/src/routes/series/$groupId/crew.tsx]] renders the organizer-only read model with links back to existing per-event roster and shift surfaces.
+
 ## Event Setup Dashboard
 
 Crew event setup pages let an operator create and review a normal competition with one `crew_event_settings` row for lifecycle, source platform URLs, concierge status, crew plan, setup checklist progress, assumptions, and internal handoff notes.

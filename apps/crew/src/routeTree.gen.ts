@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as EventsNewRouteImport } from './routes/events/new'
 import { Route as EventsEventIdRouteImport } from './routes/events/$eventId'
 import { Route as EventsEventIdIndexRouteImport } from './routes/events/$eventId/index'
+import { Route as SeriesGroupIdCrewRouteImport } from './routes/series/$groupId/crew'
 import { Route as EventsEventIdVolunteersRouteImport } from './routes/events/$eventId/volunteers'
 import { Route as EventsEventIdStaffingRouteImport } from './routes/events/$eventId/staffing'
 import { Route as EventsEventIdShiftsRouteImport } from './routes/events/$eventId/shifts'
@@ -62,6 +63,11 @@ const EventsEventIdIndexRoute = EventsEventIdIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => EventsEventIdRoute,
+} as any)
+const SeriesGroupIdCrewRoute = SeriesGroupIdCrewRouteImport.update({
+  id: '/series/$groupId/crew',
+  path: '/series/$groupId/crew',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const EventsEventIdVolunteersRoute = EventsEventIdVolunteersRouteImport.update({
   id: '/volunteers',
@@ -169,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/events/$eventId/shifts': typeof EventsEventIdShiftsRoute
   '/events/$eventId/staffing': typeof EventsEventIdStaffingRoute
   '/events/$eventId/volunteers': typeof EventsEventIdVolunteersRoute
+  '/series/$groupId/crew': typeof SeriesGroupIdCrewRoute
   '/events/$eventId/': typeof EventsEventIdIndexRoute
   '/e/$slug/confirm/$token': typeof ESlugConfirmTokenRoute
   '/e/$slug/consent/$token': typeof ESlugConsentTokenRoute
@@ -193,6 +200,7 @@ export interface FileRoutesByTo {
   '/events/$eventId/shifts': typeof EventsEventIdShiftsRoute
   '/events/$eventId/staffing': typeof EventsEventIdStaffingRoute
   '/events/$eventId/volunteers': typeof EventsEventIdVolunteersRoute
+  '/series/$groupId/crew': typeof SeriesGroupIdCrewRoute
   '/events/$eventId': typeof EventsEventIdIndexRoute
   '/e/$slug/confirm/$token': typeof ESlugConfirmTokenRoute
   '/e/$slug/consent/$token': typeof ESlugConsentTokenRoute
@@ -219,6 +227,7 @@ export interface FileRoutesById {
   '/events/$eventId/shifts': typeof EventsEventIdShiftsRoute
   '/events/$eventId/staffing': typeof EventsEventIdStaffingRoute
   '/events/$eventId/volunteers': typeof EventsEventIdVolunteersRoute
+  '/series/$groupId/crew': typeof SeriesGroupIdCrewRoute
   '/events/$eventId/': typeof EventsEventIdIndexRoute
   '/e/$slug/confirm/$token': typeof ESlugConfirmTokenRoute
   '/e/$slug/consent/$token': typeof ESlugConsentTokenRoute
@@ -246,6 +255,7 @@ export interface FileRouteTypes {
     | '/events/$eventId/shifts'
     | '/events/$eventId/staffing'
     | '/events/$eventId/volunteers'
+    | '/series/$groupId/crew'
     | '/events/$eventId/'
     | '/e/$slug/confirm/$token'
     | '/e/$slug/consent/$token'
@@ -270,6 +280,7 @@ export interface FileRouteTypes {
     | '/events/$eventId/shifts'
     | '/events/$eventId/staffing'
     | '/events/$eventId/volunteers'
+    | '/series/$groupId/crew'
     | '/events/$eventId'
     | '/e/$slug/confirm/$token'
     | '/e/$slug/consent/$token'
@@ -295,6 +306,7 @@ export interface FileRouteTypes {
     | '/events/$eventId/shifts'
     | '/events/$eventId/staffing'
     | '/events/$eventId/volunteers'
+    | '/series/$groupId/crew'
     | '/events/$eventId/'
     | '/e/$slug/confirm/$token'
     | '/e/$slug/consent/$token'
@@ -308,6 +320,7 @@ export interface RootRouteChildren {
   ApiCrewImportRoute: typeof ApiCrewImportRoute
   ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
   ESlugVolunteerRoute: typeof ESlugVolunteerRoute
+  SeriesGroupIdCrewRoute: typeof SeriesGroupIdCrewRoute
   ESlugConfirmTokenRoute: typeof ESlugConfirmTokenRoute
   ESlugConsentTokenRoute: typeof ESlugConsentTokenRoute
   ESlugScheduleTokenRoute: typeof ESlugScheduleTokenRoute
@@ -356,6 +369,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/events/$eventId/'
       preLoaderRoute: typeof EventsEventIdIndexRouteImport
       parentRoute: typeof EventsEventIdRoute
+    }
+    '/series/$groupId/crew': {
+      id: '/series/$groupId/crew'
+      path: '/series/$groupId/crew'
+      fullPath: '/series/$groupId/crew'
+      preLoaderRoute: typeof SeriesGroupIdCrewRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/events/$eventId/volunteers': {
       id: '/events/$eventId/volunteers'
@@ -533,6 +553,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCrewImportRoute: ApiCrewImportRoute,
   ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
   ESlugVolunteerRoute: ESlugVolunteerRoute,
+  SeriesGroupIdCrewRoute: SeriesGroupIdCrewRoute,
   ESlugConfirmTokenRoute: ESlugConfirmTokenRoute,
   ESlugConsentTokenRoute: ESlugConsentTokenRoute,
   ESlugScheduleTokenRoute: ESlugScheduleTokenRoute,
