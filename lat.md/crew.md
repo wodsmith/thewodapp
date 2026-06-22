@@ -74,7 +74,7 @@ Crew Stripe webhooks complete the event-level Checkout flow after Stripe verifie
 
 Crew paid launch remains operator-led unless the Checkout flag is explicitly enabled.
 
-[[apps/crew/docs/guides/paid-launch-ops-runbook.md]] is the day-one runbook for manual paid grants, founder/private pricing, Stripe Payment Link reconciliation, refund and full-platform credit policy, and no-live-Stripe validation before turning on self-serve Checkout.
+`apps/crew/docs/guides/paid-launch-ops-runbook.md` is the day-one runbook for manual paid grants, founder/private pricing, Stripe Payment Link reconciliation, refund and full-platform credit policy, and no-live-Stripe validation before turning on self-serve Checkout.
 
 [[apps/crew/src/lib/crew/billing-state.test.ts]] locks the manual, founder, credit, refund, Payment Link, Checkout creation, and webhook completion plans to event-level `crew_event_settings` patches without `teams.currentPlanId` mutation.
 
@@ -402,7 +402,7 @@ The packet is still full local-operator-only through [[apps/crew/src/server/crew
 
 Crew Phase 5 memory is scoped, consented, factual volunteer history before it becomes discovery.
 
-[[apps/crew/docs/decisions/0005-strategic-moat-privacy-model.md]] defines the privacy boundary for returning volunteer history, communication history, reliability summaries, series crew pools, Crew-to-WODsmith conversion assistance, and regional discovery.
+`apps/crew/docs/decisions/0005-strategic-moat-privacy-model.md` defines the privacy boundary for returning volunteer history, communication history, reliability summaries, series crew pools, Crew-to-WODsmith conversion assistance, and regional discovery.
 
 Same-organizer returning volunteer history may show factual prior event history owned by that organizing team. Cross-organizer visibility requires explicit volunteer opt-in, supports revocation, and remains a blind intro request until the volunteer accepts.
 
