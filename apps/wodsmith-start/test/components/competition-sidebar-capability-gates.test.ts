@@ -30,9 +30,15 @@ describe("competition sidebar capability gates", () => {
     const inPersonLabels = labelsFor(
       getCompetitionSidebarNavigation("/compete/organizer/comp_1", "in-person"),
     )
-    const onlineLabels = labelsFor(
-      getCompetitionSidebarNavigation("/compete/organizer/comp_1", "online"),
-    )
+		const onlineLabels = labelsFor(
+			getCompetitionSidebarNavigation("/compete/organizer/comp_1", "online"),
+		)
+		const benchmarkLabels = labelsFor(
+			getCompetitionSidebarNavigation(
+				"/compete/organizer/comp_1",
+				"benchmark",
+			),
+		)
 
     expect(inPersonLabels).toContain("Results")
     expect(inPersonLabels).toEqual(
@@ -45,21 +51,28 @@ describe("competition sidebar capability gates", () => {
         "Judge assignments",
       ]),
     )
-    expect(inPersonLabels).not.toContain("Submission windows")
-    expect(inPersonLabels).not.toContain("Submissions")
+		expect(inPersonLabels).not.toContain("Submission windows")
+		expect(inPersonLabels).not.toContain("Submissions")
+		expect(inPersonLabels).not.toContain("Benchmark tiers")
 
-    expect(onlineLabels).toContain("Submissions")
-    expect(onlineLabels).toContain("Submission windows")
+		expect(onlineLabels).toContain("Submissions")
+		expect(onlineLabels).toContain("Submission windows")
     expect(onlineLabels).not.toEqual(expect.arrayContaining(["Venues & lanes"]))
     expect(onlineLabels).not.toEqual(expect.arrayContaining(["Heat schedule"]))
     expect(onlineLabels).not.toEqual(
       expect.arrayContaining(["Check-in / athlete status"]),
     )
     expect(onlineLabels).not.toContain("Judge assignments")
-    expect(onlineLabels).toContain("Volunteer roster")
-    expect(onlineLabels).toContain("Volunteer shifts")
-    expect(onlineLabels).not.toContain("Results")
-  })
+		expect(onlineLabels).toContain("Volunteer roster")
+		expect(onlineLabels).toContain("Volunteer shifts")
+		expect(onlineLabels).not.toContain("Results")
+		expect(onlineLabels).not.toContain("Benchmark tiers")
+
+		expect(benchmarkLabels).toContain("Submissions")
+		expect(benchmarkLabels).toContain("Benchmark tiers")
+		expect(benchmarkLabels).not.toContain("Submission windows")
+		expect(benchmarkLabels).not.toContain("Results")
+	})
 
   it("labels and gates cohost navigation by both permissions and capabilities", () => {
     const inPersonLabels = labelsFor(

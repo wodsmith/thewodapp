@@ -2446,8 +2446,7 @@ export function buildBenchmarkThresholdRows(ts: string) {
 }
 
 const benchmarkScoringConfig = {
-	algorithm: "absolute_tier",
-	absoluteTier: { batteryId: BENCHMARK_SEED_IDS.batteryId },
+	algorithm: "online",
 	tiebreaker: { primary: "countback" },
 	statusHandling: { dnf: "zero", dns: "zero", withdrawn: "zero" },
 } as const
@@ -2579,7 +2578,14 @@ export function buildBenchmarkSeedRows(ts: string) {
 			notes: test.includedInScoring ? null : test.deferReason,
 			points_multiplier: 100,
 			heat_status: "draft",
-			event_status: test.includedInScoring ? "published" : "draft",
+			// All benchmark track workouts are published so every test — including
+			// the deferred ones — maps onto the perpetual board. The public
+			// leaderboard read fetches published-only events, and
+			// loadBenchmarkLeaderboardContext requires a 1:1 test↔track-workout
+			// mapping for every test, so a draft event here would throw
+			// "Benchmark test … is missing a mapped track workout". Deferred tests
+			// stay out of scoring via includedInScoring=false, not via draft status.
+			event_status: "published",
 			benchmark_test_id: test.id,
 			benchmark_category: test.categoryKey,
 			...commonColumns(ts),

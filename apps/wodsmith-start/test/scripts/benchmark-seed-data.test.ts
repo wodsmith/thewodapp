@@ -115,11 +115,30 @@ describe("benchmark seed data", () => {
 		expect(scoringConfigSchema.safeParse(settings.scoringConfig).success).toBe(
 			true,
 		)
+		expect(settings.scoringConfig.algorithm).toBe("online")
+		expect(settings.scoringConfig.absoluteTier).toBeUndefined()
 		expect(rows.scalingLevels).toEqual([
 			expect.objectContaining({ label: "Open", team_size: 1 }),
 		])
 		expect(rows.trackWorkouts).toHaveLength(58)
 		expect(rows.trackWorkouts.every((row) => row.benchmark_test_id)).toBe(true)
+		// Every benchmark track workout — included AND deferred — is published so
+		// the public leaderboard read (published-only) still surfaces a 1:1
+		// test↔track-workout mapping. Deferred tests stay out of scoring via
+		// includedInScoring=false, not via a draft event status.
+		expect(rows.trackWorkouts.every((row) => row.event_status === "published")).toBe(
+			true,
+		)
+		const deferredTrackWorkoutIds = new Set(
+			BENCHMARK_SEED_TESTS.filter((test) => !test.includedInScoring).map(
+				(test) => test.trackWorkoutId,
+			),
+		)
+		expect(
+			rows.trackWorkouts
+				.filter((row) => deferredTrackWorkoutIds.has(row.id))
+				.every((row) => row.event_status === "published"),
+		).toBe(true)
 		expect(rows.competitionEvents).toEqual([])
 		expect(battery.video_policy).toBe("never")
 		expect(battery.is_open_join).toBe(false)

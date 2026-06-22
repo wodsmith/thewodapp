@@ -83,6 +83,7 @@ const routeLabels: Record<string, string> = {
   "signup-questions": "Volunteer signup questions",
   waivers: "Waivers",
   scoring: "Scoring rules",
+  tiers: "Benchmark tiers",
   results: "Results",
   "leaderboard-preview": "Leaderboard preview",
   review: "Review",

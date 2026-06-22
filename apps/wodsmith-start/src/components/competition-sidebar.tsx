@@ -18,6 +18,7 @@ import {
   ClipboardSignature,
   Clock,
   DollarSign,
+  Gauge,
   Handshake,
   Home,
   Layers,
@@ -139,6 +140,15 @@ const getNavigation = (
             href: `${basePath}/scoring`,
             icon: Calculator,
           },
+          ...(competitionCan(type, "benchmarkScoringTiers")
+            ? [
+                {
+                  label: "Benchmark tiers",
+                  href: `${basePath}/scoring/tiers`,
+                  icon: Gauge,
+                },
+              ]
+            : []),
         ],
       },
       {
