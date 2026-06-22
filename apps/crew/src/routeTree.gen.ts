@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as EventsNewRouteImport } from './routes/events/new'
 import { Route as EventsEventIdRouteImport } from './routes/events/$eventId'
 import { Route as EventsEventIdIndexRouteImport } from './routes/events/$eventId/index'
+import { Route as SeriesGroupIdCrewRouteImport } from './routes/series/$groupId/crew'
 import { Route as EventsEventIdVolunteersRouteImport } from './routes/events/$eventId/volunteers'
 import { Route as EventsEventIdStaffingRouteImport } from './routes/events/$eventId/staffing'
 import { Route as EventsEventIdShiftsRouteImport } from './routes/events/$eventId/shifts'
@@ -25,9 +26,14 @@ import { Route as EventsEventIdJudgesRouteImport } from './routes/events/$eventI
 import { Route as EventsEventIdImportsRouteImport } from './routes/events/$eventId/imports'
 import { Route as EventsEventIdExportsRouteImport } from './routes/events/$eventId/exports'
 import { Route as EventsEventIdDayOfRouteImport } from './routes/events/$eventId/day-of'
+import { Route as EventsEventIdConvertRouteImport } from './routes/events/$eventId/convert'
+import { Route as EventsEventIdBillingRouteImport } from './routes/events/$eventId/billing'
 import { Route as ESlugVolunteerRouteImport } from './routes/e/$slug/volunteer'
+import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
 import { Route as ApiCrewImportRouteImport } from './routes/api/crew/import'
+import { Route as EventsEventIdDiscoveryJudgesRouteImport } from './routes/events/$eventId/discovery/judges'
 import { Route as ESlugScheduleTokenRouteImport } from './routes/e/$slug/schedule/$token'
+import { Route as ESlugConsentTokenRouteImport } from './routes/e/$slug/consent/$token'
 import { Route as ESlugConfirmTokenRouteImport } from './routes/e/$slug/confirm/$token'
 
 const EventsRoute = EventsRouteImport.update({
@@ -59,6 +65,11 @@ const EventsEventIdIndexRoute = EventsEventIdIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => EventsEventIdRoute,
+} as any)
+const SeriesGroupIdCrewRoute = SeriesGroupIdCrewRouteImport.update({
+  id: '/series/$groupId/crew',
+  path: '/series/$groupId/crew',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const EventsEventIdVolunteersRoute = EventsEventIdVolunteersRouteImport.update({
   id: '/volunteers',
@@ -110,9 +121,24 @@ const EventsEventIdDayOfRoute = EventsEventIdDayOfRouteImport.update({
   path: '/day-of',
   getParentRoute: () => EventsEventIdRoute,
 } as any)
+const EventsEventIdConvertRoute = EventsEventIdConvertRouteImport.update({
+  id: '/convert',
+  path: '/convert',
+  getParentRoute: () => EventsEventIdRoute,
+} as any)
+const EventsEventIdBillingRoute = EventsEventIdBillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => EventsEventIdRoute,
+} as any)
 const ESlugVolunteerRoute = ESlugVolunteerRouteImport.update({
   id: '/e/$slug/volunteer',
   path: '/e/$slug/volunteer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWebhooksStripeRoute = ApiWebhooksStripeRouteImport.update({
+  id: '/api/webhooks/stripe',
+  path: '/api/webhooks/stripe',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiCrewImportRoute = ApiCrewImportRouteImport.update({
@@ -120,9 +146,20 @@ const ApiCrewImportRoute = ApiCrewImportRouteImport.update({
   path: '/api/crew/import',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EventsEventIdDiscoveryJudgesRoute =
+  EventsEventIdDiscoveryJudgesRouteImport.update({
+    id: '/discovery/judges',
+    path: '/discovery/judges',
+    getParentRoute: () => EventsEventIdRoute,
+  } as any)
 const ESlugScheduleTokenRoute = ESlugScheduleTokenRouteImport.update({
   id: '/e/$slug/schedule/$token',
   path: '/e/$slug/schedule/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ESlugConsentTokenRoute = ESlugConsentTokenRouteImport.update({
+  id: '/e/$slug/consent/$token',
+  path: '/e/$slug/consent/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ESlugConfirmTokenRoute = ESlugConfirmTokenRouteImport.update({
@@ -138,7 +175,10 @@ export interface FileRoutesByFullPath {
   '/events/$eventId': typeof EventsEventIdRouteWithChildren
   '/events/new': typeof EventsNewRoute
   '/api/crew/import': typeof ApiCrewImportRoute
+  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/e/$slug/volunteer': typeof ESlugVolunteerRoute
+  '/events/$eventId/billing': typeof EventsEventIdBillingRoute
+  '/events/$eventId/convert': typeof EventsEventIdConvertRoute
   '/events/$eventId/day-of': typeof EventsEventIdDayOfRoute
   '/events/$eventId/exports': typeof EventsEventIdExportsRoute
   '/events/$eventId/imports': typeof EventsEventIdImportsRoute
@@ -149,9 +189,12 @@ export interface FileRoutesByFullPath {
   '/events/$eventId/shifts': typeof EventsEventIdShiftsRoute
   '/events/$eventId/staffing': typeof EventsEventIdStaffingRoute
   '/events/$eventId/volunteers': typeof EventsEventIdVolunteersRoute
+  '/series/$groupId/crew': typeof SeriesGroupIdCrewRoute
   '/events/$eventId/': typeof EventsEventIdIndexRoute
   '/e/$slug/confirm/$token': typeof ESlugConfirmTokenRoute
+  '/e/$slug/consent/$token': typeof ESlugConsentTokenRoute
   '/e/$slug/schedule/$token': typeof ESlugScheduleTokenRoute
+  '/events/$eventId/discovery/judges': typeof EventsEventIdDiscoveryJudgesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -159,7 +202,10 @@ export interface FileRoutesByTo {
   '/events': typeof EventsRouteWithChildren
   '/events/new': typeof EventsNewRoute
   '/api/crew/import': typeof ApiCrewImportRoute
+  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/e/$slug/volunteer': typeof ESlugVolunteerRoute
+  '/events/$eventId/billing': typeof EventsEventIdBillingRoute
+  '/events/$eventId/convert': typeof EventsEventIdConvertRoute
   '/events/$eventId/day-of': typeof EventsEventIdDayOfRoute
   '/events/$eventId/exports': typeof EventsEventIdExportsRoute
   '/events/$eventId/imports': typeof EventsEventIdImportsRoute
@@ -170,9 +216,12 @@ export interface FileRoutesByTo {
   '/events/$eventId/shifts': typeof EventsEventIdShiftsRoute
   '/events/$eventId/staffing': typeof EventsEventIdStaffingRoute
   '/events/$eventId/volunteers': typeof EventsEventIdVolunteersRoute
+  '/series/$groupId/crew': typeof SeriesGroupIdCrewRoute
   '/events/$eventId': typeof EventsEventIdIndexRoute
   '/e/$slug/confirm/$token': typeof ESlugConfirmTokenRoute
+  '/e/$slug/consent/$token': typeof ESlugConsentTokenRoute
   '/e/$slug/schedule/$token': typeof ESlugScheduleTokenRoute
+  '/events/$eventId/discovery/judges': typeof EventsEventIdDiscoveryJudgesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -182,7 +231,10 @@ export interface FileRoutesById {
   '/events/$eventId': typeof EventsEventIdRouteWithChildren
   '/events/new': typeof EventsNewRoute
   '/api/crew/import': typeof ApiCrewImportRoute
+  '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/e/$slug/volunteer': typeof ESlugVolunteerRoute
+  '/events/$eventId/billing': typeof EventsEventIdBillingRoute
+  '/events/$eventId/convert': typeof EventsEventIdConvertRoute
   '/events/$eventId/day-of': typeof EventsEventIdDayOfRoute
   '/events/$eventId/exports': typeof EventsEventIdExportsRoute
   '/events/$eventId/imports': typeof EventsEventIdImportsRoute
@@ -193,9 +245,12 @@ export interface FileRoutesById {
   '/events/$eventId/shifts': typeof EventsEventIdShiftsRoute
   '/events/$eventId/staffing': typeof EventsEventIdStaffingRoute
   '/events/$eventId/volunteers': typeof EventsEventIdVolunteersRoute
+  '/series/$groupId/crew': typeof SeriesGroupIdCrewRoute
   '/events/$eventId/': typeof EventsEventIdIndexRoute
   '/e/$slug/confirm/$token': typeof ESlugConfirmTokenRoute
+  '/e/$slug/consent/$token': typeof ESlugConsentTokenRoute
   '/e/$slug/schedule/$token': typeof ESlugScheduleTokenRoute
+  '/events/$eventId/discovery/judges': typeof EventsEventIdDiscoveryJudgesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -206,7 +261,10 @@ export interface FileRouteTypes {
     | '/events/$eventId'
     | '/events/new'
     | '/api/crew/import'
+    | '/api/webhooks/stripe'
     | '/e/$slug/volunteer'
+    | '/events/$eventId/billing'
+    | '/events/$eventId/convert'
     | '/events/$eventId/day-of'
     | '/events/$eventId/exports'
     | '/events/$eventId/imports'
@@ -217,9 +275,12 @@ export interface FileRouteTypes {
     | '/events/$eventId/shifts'
     | '/events/$eventId/staffing'
     | '/events/$eventId/volunteers'
+    | '/series/$groupId/crew'
     | '/events/$eventId/'
     | '/e/$slug/confirm/$token'
+    | '/e/$slug/consent/$token'
     | '/e/$slug/schedule/$token'
+    | '/events/$eventId/discovery/judges'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -227,7 +288,10 @@ export interface FileRouteTypes {
     | '/events'
     | '/events/new'
     | '/api/crew/import'
+    | '/api/webhooks/stripe'
     | '/e/$slug/volunteer'
+    | '/events/$eventId/billing'
+    | '/events/$eventId/convert'
     | '/events/$eventId/day-of'
     | '/events/$eventId/exports'
     | '/events/$eventId/imports'
@@ -238,9 +302,12 @@ export interface FileRouteTypes {
     | '/events/$eventId/shifts'
     | '/events/$eventId/staffing'
     | '/events/$eventId/volunteers'
+    | '/series/$groupId/crew'
     | '/events/$eventId'
     | '/e/$slug/confirm/$token'
+    | '/e/$slug/consent/$token'
     | '/e/$slug/schedule/$token'
+    | '/events/$eventId/discovery/judges'
   id:
     | '__root__'
     | '/'
@@ -249,7 +316,10 @@ export interface FileRouteTypes {
     | '/events/$eventId'
     | '/events/new'
     | '/api/crew/import'
+    | '/api/webhooks/stripe'
     | '/e/$slug/volunteer'
+    | '/events/$eventId/billing'
+    | '/events/$eventId/convert'
     | '/events/$eventId/day-of'
     | '/events/$eventId/exports'
     | '/events/$eventId/imports'
@@ -260,9 +330,12 @@ export interface FileRouteTypes {
     | '/events/$eventId/shifts'
     | '/events/$eventId/staffing'
     | '/events/$eventId/volunteers'
+    | '/series/$groupId/crew'
     | '/events/$eventId/'
     | '/e/$slug/confirm/$token'
+    | '/e/$slug/consent/$token'
     | '/e/$slug/schedule/$token'
+    | '/events/$eventId/discovery/judges'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -270,8 +343,11 @@ export interface RootRouteChildren {
   CalculatorRoute: typeof CalculatorRoute
   EventsRoute: typeof EventsRouteWithChildren
   ApiCrewImportRoute: typeof ApiCrewImportRoute
+  ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
   ESlugVolunteerRoute: typeof ESlugVolunteerRoute
+  SeriesGroupIdCrewRoute: typeof SeriesGroupIdCrewRoute
   ESlugConfirmTokenRoute: typeof ESlugConfirmTokenRoute
+  ESlugConsentTokenRoute: typeof ESlugConsentTokenRoute
   ESlugScheduleTokenRoute: typeof ESlugScheduleTokenRoute
 }
 
@@ -318,6 +394,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/events/$eventId/'
       preLoaderRoute: typeof EventsEventIdIndexRouteImport
       parentRoute: typeof EventsEventIdRoute
+    }
+    '/series/$groupId/crew': {
+      id: '/series/$groupId/crew'
+      path: '/series/$groupId/crew'
+      fullPath: '/series/$groupId/crew'
+      preLoaderRoute: typeof SeriesGroupIdCrewRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/events/$eventId/volunteers': {
       id: '/events/$eventId/volunteers'
@@ -389,11 +472,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EventsEventIdDayOfRouteImport
       parentRoute: typeof EventsEventIdRoute
     }
+    '/events/$eventId/convert': {
+      id: '/events/$eventId/convert'
+      path: '/convert'
+      fullPath: '/events/$eventId/convert'
+      preLoaderRoute: typeof EventsEventIdConvertRouteImport
+      parentRoute: typeof EventsEventIdRoute
+    }
+    '/events/$eventId/billing': {
+      id: '/events/$eventId/billing'
+      path: '/billing'
+      fullPath: '/events/$eventId/billing'
+      preLoaderRoute: typeof EventsEventIdBillingRouteImport
+      parentRoute: typeof EventsEventIdRoute
+    }
     '/e/$slug/volunteer': {
       id: '/e/$slug/volunteer'
       path: '/e/$slug/volunteer'
       fullPath: '/e/$slug/volunteer'
       preLoaderRoute: typeof ESlugVolunteerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/webhooks/stripe': {
+      id: '/api/webhooks/stripe'
+      path: '/api/webhooks/stripe'
+      fullPath: '/api/webhooks/stripe'
+      preLoaderRoute: typeof ApiWebhooksStripeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/crew/import': {
@@ -403,11 +507,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCrewImportRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/events/$eventId/discovery/judges': {
+      id: '/events/$eventId/discovery/judges'
+      path: '/discovery/judges'
+      fullPath: '/events/$eventId/discovery/judges'
+      preLoaderRoute: typeof EventsEventIdDiscoveryJudgesRouteImport
+      parentRoute: typeof EventsEventIdRoute
+    }
     '/e/$slug/schedule/$token': {
       id: '/e/$slug/schedule/$token'
       path: '/e/$slug/schedule/$token'
       fullPath: '/e/$slug/schedule/$token'
       preLoaderRoute: typeof ESlugScheduleTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/e/$slug/consent/$token': {
+      id: '/e/$slug/consent/$token'
+      path: '/e/$slug/consent/$token'
+      fullPath: '/e/$slug/consent/$token'
+      preLoaderRoute: typeof ESlugConsentTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/e/$slug/confirm/$token': {
@@ -421,6 +539,8 @@ declare module '@tanstack/react-router' {
 }
 
 interface EventsEventIdRouteChildren {
+  EventsEventIdBillingRoute: typeof EventsEventIdBillingRoute
+  EventsEventIdConvertRoute: typeof EventsEventIdConvertRoute
   EventsEventIdDayOfRoute: typeof EventsEventIdDayOfRoute
   EventsEventIdExportsRoute: typeof EventsEventIdExportsRoute
   EventsEventIdImportsRoute: typeof EventsEventIdImportsRoute
@@ -432,9 +552,12 @@ interface EventsEventIdRouteChildren {
   EventsEventIdStaffingRoute: typeof EventsEventIdStaffingRoute
   EventsEventIdVolunteersRoute: typeof EventsEventIdVolunteersRoute
   EventsEventIdIndexRoute: typeof EventsEventIdIndexRoute
+  EventsEventIdDiscoveryJudgesRoute: typeof EventsEventIdDiscoveryJudgesRoute
 }
 
 const EventsEventIdRouteChildren: EventsEventIdRouteChildren = {
+  EventsEventIdBillingRoute: EventsEventIdBillingRoute,
+  EventsEventIdConvertRoute: EventsEventIdConvertRoute,
   EventsEventIdDayOfRoute: EventsEventIdDayOfRoute,
   EventsEventIdExportsRoute: EventsEventIdExportsRoute,
   EventsEventIdImportsRoute: EventsEventIdImportsRoute,
@@ -446,6 +569,7 @@ const EventsEventIdRouteChildren: EventsEventIdRouteChildren = {
   EventsEventIdStaffingRoute: EventsEventIdStaffingRoute,
   EventsEventIdVolunteersRoute: EventsEventIdVolunteersRoute,
   EventsEventIdIndexRoute: EventsEventIdIndexRoute,
+  EventsEventIdDiscoveryJudgesRoute: EventsEventIdDiscoveryJudgesRoute,
 }
 
 const EventsEventIdRouteWithChildren = EventsEventIdRoute._addFileChildren(
@@ -470,8 +594,11 @@ const rootRouteChildren: RootRouteChildren = {
   CalculatorRoute: CalculatorRoute,
   EventsRoute: EventsRouteWithChildren,
   ApiCrewImportRoute: ApiCrewImportRoute,
+  ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
   ESlugVolunteerRoute: ESlugVolunteerRoute,
+  SeriesGroupIdCrewRoute: SeriesGroupIdCrewRoute,
   ESlugConfirmTokenRoute: ESlugConfirmTokenRoute,
+  ESlugConsentTokenRoute: ESlugConsentTokenRoute,
   ESlugScheduleTokenRoute: ESlugScheduleTokenRoute,
 }
 export const routeTree = rootRouteImport

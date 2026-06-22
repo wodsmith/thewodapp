@@ -1,4 +1,4 @@
-import {beforeEach, describe, expect, it, vi} from 'vitest'
+import {beforeAll, beforeEach, describe, expect, it, vi} from 'vitest'
 import {FakeDrizzleDb} from '@repo/test-utils'
 
 // Mock the database
@@ -59,6 +59,13 @@ vi.mock('@/server/commerce/financial-events', () => ({
   recordDisputeEvent: (...args: unknown[]) => mockRecordDisputeEvent(...args),
 }))
 
+// Mock Crew billing completion
+const mockCompleteCrewCheckoutSessionFromWebhook = vi.fn()
+vi.mock('@/server/crew-billing.server', () => ({
+  completeCrewCheckoutSessionFromWebhook: (...args: unknown[]) =>
+    mockCompleteCrewCheckoutSessionFromWebhook(...args),
+}))
+
 // Mock TanStack for route creation
 vi.mock('@tanstack/react-router', () => ({
   createFileRoute: () => (config: unknown) => config,
@@ -94,25 +101,39 @@ function buildStripeEvent(
 }
 
 // Helper to call the webhook handler
+let routeConfigPromise: Promise<{
+  server: {handlers: {POST: (args: {request: Request}) => Promise<Response>}}
+}> | null = null
+
+async function getRouteConfig() {
+  routeConfigPromise ??= import('@/routes/api/webhooks/stripe').then(
+    ({Route}) =>
+      Route as unknown as {
+        server: {
+          handlers: {POST: (args: {request: Request}) => Promise<Response>}
+        }
+      },
+  )
+  return routeConfigPromise
+}
+
 async function callWebhook(
   body: string,
   headers: Record<string, string> = {'stripe-signature': 'sig_test'},
 ) {
-  // Import after mocks are set up
-  const {Route} = await import('@/routes/api/webhooks/stripe')
-
   const request = new Request('https://test.wodsmith.com/api/webhooks/stripe', {
     method: 'POST',
     body,
     headers,
   })
 
-  // The route config has server.handlers.POST
-  const routeConfig = Route as unknown as {
-    server: {handlers: {POST: (args: {request: Request}) => Promise<Response>}}
-  }
+  const routeConfig = await getRouteConfig()
   return routeConfig.server.handlers.POST({request})
 }
+
+beforeAll(async () => {
+  await getRouteConfig()
+}, 30_000)
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -155,6 +176,138 @@ describe('Stripe Webhook Handler', () => {
   })
 
   describe('checkout.session.completed', () => {
+    // @lat: [[crew#Crew Stripe Webhooks]]
+    it('routes Crew Checkout Sessions to Crew billing completion', async () => {
+      const {buildCrewCheckoutBillingEventId, buildCrewCheckoutIdempotencyKey} =
+        await import('@/lib/crew/checkout-sessions')
+      const checkoutIdempotencyKey = buildCrewCheckoutIdempotencyKey({
+        competitionId: 'event-crew-1',
+        teamId: 'team-owner-1',
+        crewPlan: 'crew_basic',
+        amountCents: 20000,
+      })
+      const billingEventId = buildCrewCheckoutBillingEventId(
+        checkoutIdempotencyKey,
+      )
+      const session = {
+        id: 'cs_crew_123',
+        payment_intent: 'pi_crew_456',
+        amount_total: 20000,
+        currency: 'usd',
+        metadata: {
+          product: 'crew',
+          teamId: 'team-owner-1',
+          competitionId: 'event-crew-1',
+          eventId: 'event-crew-1',
+          crewPlan: 'crew_basic',
+          crewEventSettingsId: 'crewset_123',
+          billingEventId,
+          checkoutIdempotencyKey,
+        },
+      }
+
+      const event = buildStripeEvent(
+        'checkout.session.completed',
+        session,
+        'evt_crew_123',
+      )
+      mockConstructEventAsync.mockResolvedValue(event)
+      mockCompleteCrewCheckoutSessionFromWebhook.mockResolvedValue({
+        status: 'completed',
+      })
+
+      const response = await callWebhook(JSON.stringify(event))
+      expect(response.status).toBe(200)
+
+      expect(mockCompleteCrewCheckoutSessionFromWebhook).toHaveBeenCalledWith({
+        stripeEventId: 'evt_crew_123',
+        sessionId: 'cs_crew_123',
+        eventId: 'event-crew-1',
+        teamId: 'team-owner-1',
+        crewPlan: 'crew_basic',
+        crewEventSettingsId: 'crewset_123',
+        billingEventId,
+        checkoutIdempotencyKey,
+        amountCents: 20000,
+        currency: 'usd',
+        stripePaymentIntentId: 'pi_crew_456',
+      })
+      expect(mockWorkflowCreate).not.toHaveBeenCalled()
+    })
+
+    // @lat: [[crew#Crew Stripe Webhooks]]
+    it('returns 200 for invalid Crew Checkout metadata without granting access', async () => {
+      const session = {
+        id: 'cs_crew_invalid',
+        payment_intent: 'pi_crew_invalid',
+        amount_total: 20000,
+        currency: 'usd',
+        metadata: {
+          product: 'crew',
+          teamId: 'team-owner-1',
+          competitionId: 'event-crew-1',
+          crewPlan: 'crew_basic',
+        },
+      }
+
+      const event = buildStripeEvent(
+        'checkout.session.completed',
+        session,
+        'evt_crew_invalid',
+      )
+      mockConstructEventAsync.mockResolvedValue(event)
+
+      const response = await callWebhook(JSON.stringify(event))
+      expect(response.status).toBe(200)
+      expect(mockCompleteCrewCheckoutSessionFromWebhook).not.toHaveBeenCalled()
+      expect(mockWorkflowCreate).not.toHaveBeenCalled()
+    })
+
+    // @lat: [[crew#Crew Stripe Webhooks]]
+    it('treats duplicate Crew Checkout completion as webhook success', async () => {
+      const {buildCrewCheckoutBillingEventId, buildCrewCheckoutIdempotencyKey} =
+        await import('@/lib/crew/checkout-sessions')
+      const checkoutIdempotencyKey = buildCrewCheckoutIdempotencyKey({
+        competitionId: 'event-crew-1',
+        teamId: 'team-owner-1',
+        crewPlan: 'crew_basic',
+        amountCents: 20000,
+      })
+      const session = {
+        id: 'cs_crew_duplicate',
+        payment_intent: 'pi_crew_duplicate',
+        amount_total: 20000,
+        currency: 'usd',
+        metadata: {
+          product: 'crew',
+          teamId: 'team-owner-1',
+          competitionId: 'event-crew-1',
+          eventId: 'event-crew-1',
+          crewPlan: 'crew_basic',
+          crewEventSettingsId: 'crewset_123',
+          billingEventId: buildCrewCheckoutBillingEventId(
+            checkoutIdempotencyKey,
+          ),
+          checkoutIdempotencyKey,
+        },
+      }
+
+      const event = buildStripeEvent(
+        'checkout.session.completed',
+        session,
+        'evt_crew_duplicate',
+      )
+      mockConstructEventAsync.mockResolvedValue(event)
+      mockCompleteCrewCheckoutSessionFromWebhook.mockResolvedValue({
+        status: 'duplicate',
+      })
+
+      const response = await callWebhook(JSON.stringify(event))
+      expect(response.status).toBe(200)
+      expect(mockCompleteCrewCheckoutSessionFromWebhook).toHaveBeenCalledOnce()
+    })
+
+    // @lat: [[crew#Crew Stripe Webhooks]]
     it('dispatches to STRIPE_CHECKOUT_WORKFLOW with correct params', async () => {
       const session = {
         id: 'cs_test_123',
@@ -208,6 +361,48 @@ describe('Stripe Webhook Handler', () => {
           },
         },
       })
+    })
+
+    // @lat: [[crew#Crew Stripe Webhooks]]
+    it('keeps non-Crew product sessions on the existing registration workflow', async () => {
+      const session = {
+        id: 'cs_test_registration',
+        payment_intent: 'pi_test_registration',
+        amount_total: 5000,
+        customer_email: 'athlete@test.com',
+        metadata: {
+          product: 'registration',
+          purchaseId: 'purchase-1',
+          competitionId: 'comp-1',
+          divisionId: 'div-1',
+          userId: 'user-1',
+        },
+      }
+
+      const event = buildStripeEvent(
+        'checkout.session.completed',
+        session,
+        'evt_registration_product',
+      )
+      mockConstructEventAsync.mockResolvedValue(event)
+      mockWorkflowCreate.mockResolvedValue(undefined)
+      mockDb.query.commercePurchaseTable = {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'purchase-1',
+          divisionId: 'div-1',
+          totalCents: 5000,
+        }),
+        findMany: vi.fn().mockResolvedValue([]),
+      }
+
+      const response = await callWebhook(JSON.stringify(event))
+      expect(response.status).toBe(200)
+      expect(mockCompleteCrewCheckoutSessionFromWebhook).not.toHaveBeenCalled()
+      expect(mockWorkflowCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'evt_registration_product',
+        }),
+      )
     })
 
     it('returns 200 when metadata is missing (logs error, no workflow)', async () => {

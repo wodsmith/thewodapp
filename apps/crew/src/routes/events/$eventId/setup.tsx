@@ -91,9 +91,6 @@ function EventSetupPage() {
     event.settings.conciergeStatus,
   )
   const [crewPlan, setCrewPlan] = useState(event.settings.crewPlan)
-  const [fullPlatformCreditCents, setFullPlatformCreditCents] = useState(
-    String(event.settings.fullPlatformCreditCents),
-  )
   const [acquisitionSource, setAcquisitionSource] = useState(
     event.settings.acquisitionSource ?? "",
   )
@@ -108,7 +105,6 @@ function EventSetupPage() {
     setLifecycle(event.settings.lifecycle)
     setConciergeStatus(event.settings.conciergeStatus)
     setCrewPlan(event.settings.crewPlan)
-    setFullPlatformCreditCents(String(event.settings.fullPlatformCreditCents))
     setAcquisitionSource(event.settings.acquisitionSource ?? "")
     setSetup(nextSettings.setup)
   }, [event])
@@ -128,7 +124,6 @@ function EventSetupPage() {
           lifecycle,
           conciergeStatus,
           crewPlan,
-          fullPlatformCreditCents: Number(fullPlatformCreditCents || 0),
           acquisitionSource,
           settings: serializeCrewSettings(event.settings.settings, setup),
         },
@@ -423,21 +418,6 @@ function EventSetupPage() {
                   <option value="concierge">Concierge</option>
                   <option value="full_platform">Full platform</option>
                 </select>
-              </Field>
-              <Field
-                label="Full platform credit cents"
-                htmlFor="crew-settings-credit-cents"
-              >
-                <input
-                  id="crew-settings-credit-cents"
-                  type="number"
-                  min="0"
-                  value={fullPlatformCreditCents}
-                  onChange={(changeEvent) =>
-                    setFullPlatformCreditCents(changeEvent.target.value)
-                  }
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                />
               </Field>
             </div>
           </section>

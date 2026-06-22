@@ -1,4 +1,5 @@
 // @lat: [[crew#Pilot Exports]]
+// @lat: [[crew#Event Day Export Packet]]
 import {
   buildCrewPilotExports,
   type CrewPilotExports,

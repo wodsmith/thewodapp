@@ -7,6 +7,10 @@ import { env } from "cloudflare:workers"
 import { createServerOnlyFn } from "@tanstack/react-start"
 import Stripe from "stripe"
 
+type StripeEnv = typeof env & {
+  STRIPE_SECRET_KEY?: string
+}
+
 let stripeInstance: Stripe | null = null
 
 /**
@@ -18,7 +22,7 @@ export const getStripe = createServerOnlyFn(() => {
     return stripeInstance
   }
 
-  const stripeSecretKey = env.STRIPE_SECRET_KEY
+  const stripeSecretKey = (env as StripeEnv).STRIPE_SECRET_KEY
 
   if (!stripeSecretKey) {
     throw new Error("Missing STRIPE_SECRET_KEY environment variable")

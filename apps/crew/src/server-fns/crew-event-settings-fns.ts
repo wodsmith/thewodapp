@@ -67,7 +67,6 @@ const updateCrewEventSettingsInputSchema = z.object({
   lifecycle: lifecycleSchema.optional(),
   conciergeStatus: conciergeStatusSchema.optional(),
   crewPlan: crewPlanSchema.optional(),
-  fullPlatformCreditCents: z.number().int().min(0).optional(),
   acquisitionSource: nullableTextInput,
   settings: nullableTextInput,
 })

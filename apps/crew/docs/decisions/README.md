@@ -22,3 +22,5 @@ An Architecture Decision Record (ADR) captures an important architecture decisio
 - [Adopt architecture decision records](0001-adopt-architecture-decision-records.md) (accepted, 2026-03-02)
 - [Adopt fixed-amount product coupons with entitlement gating](0002-adopt-fixed-amount-product-coupons-with-entitlement-gating.md) (proposed, 2026-03-02)
 - [Add timestamped video review notes with movement tagging](0003-add-timestamped-video-review-notes-with-movement-tagging.md) (accepted, 2026-03-07)
+- [Add cohost role for competition co-management with dedicated route tree](0004-add-cohost-role-for-competition-co-management.md) (proposed, 2026-03-21)
+- [Strategic moat privacy model](0005-strategic-moat-privacy-model.md) (accepted, 2026-06-21)

@@ -1,4 +1,5 @@
 // @lat: [[crew#Pilot Exports]]
+// @lat: [[crew#Event Day Export Packet]]
 import {
   CREW_ASSIGNMENT_CONFIRMATION_STATUS,
   type CrewAssignmentConfirmationStatus,
@@ -15,6 +16,8 @@ export interface CrewPilotExportEventInput {
   name: string
   slug?: string | null
   timezone?: string | null
+  startDate?: string | null
+  endDate?: string | null
 }
 
 export interface CrewPilotExportVenueInput {
@@ -178,6 +181,46 @@ export interface CrewPilotFloorLeadSheet {
   judgeRows: CrewPilotJudgeLaneRow[]
 }
 
+export interface CrewPilotPacketIndexItem {
+  id: string
+  title: string
+  description: string
+  count: number
+}
+
+export interface CrewPilotMasterScheduleDaySection {
+  dayKey: string
+  rows: CrewPilotMasterScheduleRow[]
+}
+
+export interface CrewPilotJudgeLaneCardRow {
+  heatId: string
+  workoutName: string
+  heatNumber: number
+  startsAt: string | null
+  endsAt: string | null
+  judgeName: string
+  email: string
+  confirmationStatus: string
+}
+
+export interface CrewPilotJudgeLaneCard {
+  cardKey: string
+  venueName: string
+  laneNumber: number
+  rows: CrewPilotJudgeLaneCardRow[]
+}
+
+export interface CrewPilotStationCard {
+  stationName: string
+  startsAt: string | null
+  endsAt: string | null
+  rows: CrewPilotMasterScheduleRow[]
+  judgeRows: CrewPilotJudgeLaneRow[]
+  laneCards: CrewPilotJudgeLaneCard[]
+  openBlocks: number
+}
+
 export interface CrewPilotExports {
   generatedAt: string
   summary: {
@@ -186,11 +229,19 @@ export interface CrewPilotExports {
     judgeHeatSheets: number
     responseRows: number
     floorLeadSheets: number
+    packetIndexItems: number
+    masterScheduleDaySections: number
+    stationCards: number
+    laneCards: number
   }
+  packetIndexItems: CrewPilotPacketIndexItem[]
   masterScheduleRows: CrewPilotMasterScheduleRow[]
+  masterScheduleDaySections: CrewPilotMasterScheduleDaySection[]
   masterScheduleCsv: string
   roleSheets: CrewPilotRoleSheet[]
   judgeHeatLaneSheets: CrewPilotJudgeHeatLaneSheet[]
+  judgeLaneCards: CrewPilotJudgeLaneCard[]
+  stationCards: CrewPilotStationCard[]
   responseRows: CrewPilotResponseRow[]
   responseCsv: string
   floorLeadSheets: CrewPilotFloorLeadSheet[]
@@ -263,6 +314,26 @@ export function buildCrewPilotExports(
     masterScheduleRows,
     judgeHeatLaneSheets,
   })
+  const masterScheduleDaySections = buildMasterScheduleDaySections(
+    masterScheduleRows,
+    input.event.timezone,
+  )
+  const judgeLaneCards = buildJudgeLaneCards(judgeHeatLaneSheets)
+  const stationCards = buildStationCards({
+    masterScheduleRows,
+    judgeHeatLaneSheets,
+    judgeLaneCards,
+  })
+  const packetIndexItems = buildPacketIndexItems({
+    masterScheduleRows,
+    masterScheduleDaySections,
+    roleSheets,
+    judgeHeatLaneSheets,
+    judgeLaneCards,
+    stationCards,
+    responseRows,
+    floorLeadSheets,
+  })
 
   return {
     generatedAt,
@@ -272,8 +343,14 @@ export function buildCrewPilotExports(
       judgeHeatSheets: judgeHeatLaneSheets.length,
       responseRows: responseRows.length,
       floorLeadSheets: floorLeadSheets.length,
+      packetIndexItems: packetIndexItems.length,
+      masterScheduleDaySections: masterScheduleDaySections.length,
+      stationCards: stationCards.length,
+      laneCards: judgeLaneCards.length,
     },
+    packetIndexItems,
     masterScheduleRows,
+    masterScheduleDaySections,
     masterScheduleCsv: buildCsv(
       [
         "Type",
@@ -304,6 +381,8 @@ export function buildCrewPilotExports(
     ),
     roleSheets,
     judgeHeatLaneSheets,
+    judgeLaneCards,
+    stationCards,
     responseRows,
     responseCsv: buildCsv(
       [
@@ -592,6 +671,164 @@ function buildFloorLeadSheets(input: {
   }))
 }
 
+function buildMasterScheduleDaySections(
+  rows: CrewPilotMasterScheduleRow[],
+  timezone: string | null | undefined,
+) {
+  const rowsByDay = groupBy(rows, (row) =>
+    getDayKey(row.startsAt ?? row.endsAt, timezone),
+  )
+  return [...rowsByDay.entries()]
+    .sort(([left], [right]) => compareText(left, right))
+    .map(([dayKey, dayRows]) => ({
+      dayKey,
+      rows: dayRows.sort(compareMasterScheduleRow),
+    }))
+}
+
+function buildJudgeLaneCards(
+  judgeHeatLaneSheets: CrewPilotJudgeHeatLaneSheet[],
+) {
+  const rowsByLane = new Map<string, CrewPilotJudgeLaneCardRow[]>()
+  const cardMeta = new Map<string, { venueName: string; laneNumber: number }>()
+
+  for (const sheet of judgeHeatLaneSheets) {
+    for (const row of sheet.rows) {
+      const cardKey = `${row.venueName}:lane:${row.laneNumber}`
+      cardMeta.set(cardKey, {
+        venueName: row.venueName,
+        laneNumber: row.laneNumber,
+      })
+      const rows = rowsByLane.get(cardKey) ?? []
+      rows.push({
+        heatId: row.heatId,
+        workoutName: row.workoutName,
+        heatNumber: row.heatNumber,
+        startsAt: row.startsAt,
+        endsAt: row.endsAt,
+        judgeName: row.judgeName,
+        email: row.email,
+        confirmationStatus: row.confirmationStatus,
+      })
+      rowsByLane.set(cardKey, rows)
+    }
+  }
+
+  return [...rowsByLane.entries()]
+    .map(([cardKey, rows]) => {
+      const meta = cardMeta.get(cardKey)
+      return {
+        cardKey,
+        venueName: meta?.venueName ?? "Unassigned",
+        laneNumber: meta?.laneNumber ?? 0,
+        rows: rows.sort(compareJudgeLaneCardRow),
+      }
+    })
+    .sort(compareJudgeLaneCard)
+}
+
+function buildStationCards(input: {
+  masterScheduleRows: CrewPilotMasterScheduleRow[]
+  judgeHeatLaneSheets: CrewPilotJudgeHeatLaneSheet[]
+  judgeLaneCards: CrewPilotJudgeLaneCard[]
+}) {
+  const scheduleRowsByStation = groupBy(
+    input.masterScheduleRows,
+    (row) => row.location || "Unassigned",
+  )
+  const judgeRowsByStation = groupBy(
+    input.judgeHeatLaneSheets.flatMap((sheet) => sheet.rows),
+    (row) => row.venueName || "Unassigned",
+  )
+  const laneCardsByStation = groupBy(
+    input.judgeLaneCards,
+    (card) => card.venueName || "Unassigned",
+  )
+  const stationNames = [
+    ...new Set([
+      ...scheduleRowsByStation.keys(),
+      ...judgeRowsByStation.keys(),
+      ...laneCardsByStation.keys(),
+    ]),
+  ].sort(compareText)
+
+  return stationNames.map((stationName) => {
+    const rows = (scheduleRowsByStation.get(stationName) ?? []).sort(
+      compareMasterScheduleRow,
+    )
+    const judgeRows = (judgeRowsByStation.get(stationName) ?? []).sort(
+      compareJudgeLaneRow,
+    )
+    const laneCards = (laneCardsByStation.get(stationName) ?? []).sort(
+      compareJudgeLaneCard,
+    )
+    const allDateStrings = [
+      ...rows.flatMap((row) => [row.startsAt, row.endsAt]),
+      ...judgeRows.flatMap((row) => [row.startsAt, row.endsAt]),
+    ].filter((value): value is string => Boolean(value))
+
+    return {
+      stationName,
+      startsAt: firstDateString(allDateStrings),
+      endsAt: lastDateString(allDateStrings),
+      rows,
+      judgeRows,
+      laneCards,
+      openBlocks: rows.filter((row) => row.open > 0).length,
+    }
+  })
+}
+
+function buildPacketIndexItems(input: {
+  masterScheduleRows: CrewPilotMasterScheduleRow[]
+  masterScheduleDaySections: CrewPilotMasterScheduleDaySection[]
+  roleSheets: CrewPilotRoleSheet[]
+  judgeHeatLaneSheets: CrewPilotJudgeHeatLaneSheet[]
+  judgeLaneCards: CrewPilotJudgeLaneCard[]
+  stationCards: CrewPilotStationCard[]
+  responseRows: CrewPilotResponseRow[]
+  floorLeadSheets: CrewPilotFloorLeadSheet[]
+}) {
+  return [
+    {
+      id: "master-schedule",
+      title: "Master schedule",
+      description: `${input.masterScheduleRows.length} shift and heat rows across ${input.masterScheduleDaySections.length} day sections.`,
+      count: input.masterScheduleRows.length,
+    },
+    {
+      id: "station-cards",
+      title: "Station cards",
+      description: `${input.stationCards.length} floor or station cards with local coverage and lane summaries.`,
+      count: input.stationCards.length,
+    },
+    {
+      id: "role-sheets",
+      title: "Role sheets",
+      description: `${input.roleSheets.length} department-ready role sheets with open slots included.`,
+      count: input.roleSheets.length,
+    },
+    {
+      id: "judge-cards",
+      title: "Judge cards",
+      description: `${input.judgeHeatLaneSheets.length} heat cards and ${input.judgeLaneCards.length} lane cards.`,
+      count: input.judgeHeatLaneSheets.length + input.judgeLaneCards.length,
+    },
+    {
+      id: "response-list",
+      title: "Response list",
+      description: `${input.responseRows.length} missing, pending, declined, or change-requested assignments.`,
+      count: input.responseRows.length,
+    },
+    {
+      id: "floor-lead-sheets",
+      title: "Floor lead sheets",
+      description: `${input.floorLeadSheets.length} floor lead sheets for localized day-of handoff.`,
+      count: input.floorLeadSheets.length,
+    },
+  ]
+}
+
 function normalizeHeat(
   heat: CrewPilotExportHeatInput,
   context: {
@@ -777,6 +1014,27 @@ function compareJudgeLaneRow(
   )
 }
 
+function compareJudgeLaneCardRow(
+  left: CrewPilotJudgeLaneCardRow,
+  right: CrewPilotJudgeLaneCardRow,
+) {
+  return (
+    compareDateString(left.startsAt, right.startsAt) ||
+    left.heatNumber - right.heatNumber ||
+    compareText(left.heatId, right.heatId)
+  )
+}
+
+function compareJudgeLaneCard(
+  left: CrewPilotJudgeLaneCard,
+  right: CrewPilotJudgeLaneCard,
+) {
+  return (
+    compareText(left.venueName, right.venueName) ||
+    left.laneNumber - right.laneNumber
+  )
+}
+
 function compareJudgeAssignment(
   left: CrewPilotExportJudgeAssignmentInput,
   right: CrewPilotExportJudgeAssignmentInput,
@@ -872,6 +1130,36 @@ function toDateOrNull(value: Date | string | null | undefined) {
 
 function toIsoString(value: Date | string | null | undefined) {
   return toDateOrNull(value)?.toISOString() ?? null
+}
+
+function firstDateString(values: string[]) {
+  return values.sort(compareDateString)[0] ?? null
+}
+
+function lastDateString(values: string[]) {
+  return values.sort(compareDateString).at(-1) ?? null
+}
+
+function getDayKey(value: string | null, timezone: string | null | undefined) {
+  const date = toDateOrNull(value)
+  if (!date) return "Unscheduled"
+
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone || "UTC",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(date)
+    const year = parts.find((part) => part.type === "year")?.value
+    const month = parts.find((part) => part.type === "month")?.value
+    const day = parts.find((part) => part.type === "day")?.value
+    if (year && month && day) return `${year}-${month}-${day}`
+  } catch {
+    return date.toISOString().slice(0, 10)
+  }
+
+  return date.toISOString().slice(0, 10)
 }
 
 function positiveIntegerOrNull(value: number | null | undefined) {

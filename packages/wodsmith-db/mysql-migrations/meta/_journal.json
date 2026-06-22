@@ -29,6 +29,20 @@
       "when": 1781999669189,
       "tag": "0003_benchmark-battery",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1782032559847,
+      "tag": "0004_crew-billing-state-audit",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1782078074621,
+      "tag": "0005_crew-volunteer-intelligence-schema",
+      "breakpoints": true
     }
   ]
 }

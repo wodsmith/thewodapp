@@ -80,7 +80,6 @@ interface UpdateCrewEventSettingsInput {
   lifecycle?: CrewEventLifecycle
   conciergeStatus?: CrewConciergeStatus
   crewPlan?: CrewPlan
-  fullPlatformCreditCents?: number
   acquisitionSource?: NullableTextInput
   settings?: NullableTextInput
 }
@@ -327,9 +326,6 @@ export async function updateCrewEventSettings(
     updateData.conciergeStatus = data.conciergeStatus
   }
   if (data.crewPlan !== undefined) updateData.crewPlan = data.crewPlan
-  if (data.fullPlatformCreditCents !== undefined) {
-    updateData.fullPlatformCreditCents = data.fullPlatformCreditCents
-  }
   if (data.acquisitionSource !== undefined) {
     updateData.acquisitionSource = data.acquisitionSource
   }

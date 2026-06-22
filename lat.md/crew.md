@@ -2,6 +2,84 @@
 
 Crew is a concierge-first event operations surface that reuses normal WODsmith competitions while adding thin Crew-specific setup, import, and assignment confirmation records.
 
+## Crew Billing Catalog
+
+Crew billing catalog rows live in the existing billing seed and entitlement config surfaces while paid event access remains separate from WODsmith team subscription state.
+
+[[apps/wodsmith-start/scripts/seed/seeders/02-billing.ts]] and [[apps/crew/scripts/seed/seeders/02-billing.ts]] seed Crew plan, feature, and limit catalog rows for launch pricing. The Crew plan IDs are event-level catalog entries and must not be assigned to `teams.currentPlanId` for one-event purchases.
+
+Public launch catalog entries are `crew_starter`, `crew_basic`, and `crew_pro`. Manual/private entries are `crew_concierge` and `crew_founding_2026` so concierge and founder pricing can be granted and audited later without exposing founder pricing publicly.
+
+## Crew Billing State And Audit
+
+Crew event billing is stored on the event settings row and remains separate from WODsmith team subscription state.
+
+[[packages/wodsmith-db/src/schemas/crew-event-settings.ts]] stores event-level billing state, source, Crew catalog plan ID, amount, currency, Stripe references, founder override, credit, and refund totals. Crew one-event plan IDs must not be copied into `teams.currentPlanId`.
+
+[[packages/wodsmith-db/src/schemas/crew-billing-events.ts]] stores append-only audit rows for manual sales, Payment Link reconciliation, checkout completion, founder overrides, credit set/applied, refunds, and comped events.
+
+[[apps/crew/src/lib/crew/billing-state.ts]] owns deterministic billing state normalization, audit event construction, settings patching, private founder/credit metadata handling, and idempotency-key deduping for reconciliation events.
+
+[[apps/crew/src/server/crew-billing.server.ts]] keeps Crew billing read/write operations server-only and local-operator guarded. It scopes audit rows by competition and organizing team, appends audit rows before updating event settings, and does not mutate team subscription billing.
+
+## Manual Paid And Founder Grants
+
+Manual Crew paid states are private operator/server actions that assign an event-level Crew catalog plan, append a billing audit row, and patch only `crew_event_settings`.
+
+[[apps/crew/src/lib/crew/billing-state.ts]] resolves event-level Crew entitlements from the paid/comped/credited/refunded billing state plus the event plan ID. It mirrors the launch catalog limits for Starter, Basic, Pro, Concierge, and Founding grants without reading or writing `teams.currentPlanId`.
+
+[[apps/crew/src/server/crew-billing.server.ts]] and [[apps/crew/src/server-fns/crew-billing-fns.ts]] expose the local-operator-only manual paid, founder grant, comp, refund, and full-platform credit actions. Founder pricing, credit notes, invoices, and Stripe references stay in server-only audit rows/private metadata; public Crew or volunteer surfaces should consume only derived access/limit signals.
+
+Full-platform upgrade credit is single-use per Crew event. Setting or applying credit uses stable idempotency keys and rejects old credit audit rows without a tested reversal path.
+
+## Billing Page And Upgrade CTA
+
+The private Crew billing page shows organizer-safe event billing state without exposing operator-only audit metadata.
+
+[[apps/crew/src/routes/events/$eventId/billing.tsx]] renders event plan, billing status/source, fulfillment state, upgrade credit, refund state, and the narrow upgrade CTA for the selected Crew event.
+
+[[apps/crew/src/lib/crew/billing-page.ts]] derives public page labels and CTA state from normalized event-level Crew billing state. It does not read team subscription state, expose founder pricing, or pass Stripe IDs through to the route view model.
+
+[[apps/crew/src/server/crew-billing.server.ts]] and [[apps/crew/src/server-fns/crew-billing-fns.ts]] keep the organizer billing loader server-only, scoped to the event organizing team's billing permission with local operator fallback. Payment Link buttons only use an already configured safe URL from event settings, and Checkout remains a disabled flag-gated slot until a later slice creates sessions.
+
+## Stripe Payment Link Sales
+
+Stripe Payment Link sales are recorded manually by private Crew operators without calling Stripe APIs, creating Checkout Sessions, or wiring webhooks.
+
+[[apps/crew/src/lib/crew/payment-link-sales.ts]] normalizes operator-provided Payment Link references and organizer-safe URLs, stores safe URLs under `crew_event_settings.settings`, derives stable reconciliation idempotency keys, and builds server-scoped manual reconciliation inputs from the event ID plus organizing team ID resolved on the server.
+
+[[apps/crew/src/lib/crew/billing-state.ts]] maps Payment Link reconciliation to an event-level paid Crew purchase with source `PAYMENT_LINK`, requiring a Crew event plan and positive amount while keeping the plan separate from `teams.currentPlanId`.
+
+[[apps/crew/src/server/crew-billing.server.ts]] and [[apps/crew/src/server-fns/crew-billing-fns.ts]] expose local-operator-only Payment Link reference recording and sale reconciliation. Reconciliation appends `crew_billing_events` audit rows, patches only the selected event's `crew_event_settings` billing fields, and still works when Stripe metadata is missing because the operator supplies the event, team scope, plan, amount, and currency.
+
+## Crew Checkout Sessions
+
+Crew Checkout Session creation is feature-flagged with `CREW_STRIPE_CHECKOUT_ENABLED` and uses the existing Crew event billing state instead of team subscription billing.
+
+[[apps/crew/src/lib/crew/checkout-sessions.ts]] builds Stripe Checkout Session params for public paid Crew event plans only, with metadata `product=crew`, team/event scope, Crew plan, `crewEventSettingsId`, `billingEventId`, and a stable checkout idempotency key. Private founder/concierge pricing and audit metadata are excluded from session metadata and organizer page view models.
+
+[[apps/crew/src/server/crew-billing.server.ts]] creates sessions through the shared Stripe client, appends a pending `checkout_session_created` Crew billing audit event, and patches only event-level `crew_event_settings` Checkout reference/status fields. The webhook completion path owns the later `checkout_completed` transition, and Crew one-event purchases must not update `teams.currentPlanId`.
+
+## Crew Stripe Webhooks
+
+Crew Stripe webhooks complete the event-level Checkout flow after Stripe verifies payment.
+
+[[apps/crew/src/routes/api/webhooks/stripe.ts]] routes completed Checkout Sessions by `session.metadata.product`. Sessions with `product=crew` are handled by Crew billing completion, while non-Crew registration sessions continue through the existing athlete registration checkout workflow.
+
+[[apps/crew/src/lib/crew/checkout-webhooks.ts]] validates the Crew metadata contract, including team/event scope, public Crew plan, event settings row ID, billing event ID, checkout idempotency key, amount, currency, Checkout Session ID, and Stripe event ID. Duplicate delivery is treated as idempotent by both Stripe event ID and Checkout Session ID.
+
+[[apps/crew/src/server/crew-billing.server.ts]] completes only a matching pending Stripe Checkout event settings row, appends one `checkout_completed` billing audit row, and patches only `crew_event_settings` billing fields. Crew Checkout completion must not mutate WODsmith team subscription state or assign Crew one-event plan IDs to `teams.currentPlanId`.
+
+## Paid Launch Ops Hardening
+
+Crew paid launch remains operator-led unless the Checkout flag is explicitly enabled.
+
+[[apps/crew/docs/guides/paid-launch-ops-runbook.md]] is the day-one runbook for manual paid grants, founder/private pricing, Stripe Payment Link reconciliation, refund and full-platform credit policy, and no-live-Stripe validation before turning on self-serve Checkout.
+
+[[apps/crew/src/lib/crew/billing-state.test.ts]] locks the manual, founder, credit, refund, Payment Link, Checkout creation, and webhook completion plans to event-level `crew_event_settings` patches without `teams.currentPlanId` mutation.
+
+[[apps/crew/src/lib/crew/billing-page.test.ts]] keeps organizer-safe billing view models free of founder pricing, invoices, private audit metadata, and raw Stripe references while preserving the disabled Checkout expectation when `CREW_STRIPE_CHECKOUT_ENABLED` is off.
+
 ## Server Function Runtime Boundary
 
 Route and client code import lightweight `createServerFn` wrappers from `apps/crew/src/server-fns`.
@@ -9,6 +87,22 @@ Route and client code import lightweight `createServerFn` wrappers from `apps/cr
 Those wrappers may validate input, but DB and Workers-runtime-backed implementation belongs in server-only `*.server.ts` modules under `apps/crew/src/server` and should be loaded inside the wrapper `handler()`.
 
 This prevents Vite client import analysis from walking through [[apps/crew/src/db/index.ts]] to `cloudflare:workers` while preserving stable server-function import paths.
+
+## Series Crew Pools
+
+Series crew pools reuse existing `competition_groups` plus the normal competitions inside the group to show organizer-owned volunteer coverage across a series.
+
+[[apps/crew/src/lib/crew/series-crew-pools.ts]] builds the deterministic view model from group competitions, event rosters, same-organizer volunteer identities, same-group history events, and safe credential facts. It excludes selected/current competitions from prior-history counts and never includes raw contact fields, internal notes, private metadata, discovery details, or billing references in the pool output.
+
+[[apps/crew/src/server/crew-series.server.ts]] keeps the loader server-only, requires organizer dashboard access to the competition group, scopes competitions by the group's organizing team, and reads only Crew-enabled competitions in that group. [[apps/crew/src/server-fns/crew-series-fns.ts]] is the route-safe wrapper, and [[apps/crew/src/routes/series/$groupId/crew.tsx]] renders the organizer-only read model with links back to existing per-event roster and shift surfaces.
+
+## Full WODsmith Conversion Assistant
+
+The conversion assistant is a read-only organizer surface for turning a Crew-only event into the full WODsmith setup without creating a second competition.
+
+[[apps/crew/src/routes/events/$eventId/convert.tsx]] renders missing full-platform setup items plus Crew preservation checks for the selected competition. [[apps/crew/src/server/crew-conversion.server.ts]] loads only aggregate counts and safe status fields from existing competitions, Crew settings, readiness, imports, roster, shifts, judge assignments, confirmations, billing credit state, and conversion status. [[apps/crew/src/lib/crew/conversion-assistant.ts]] owns deterministic checklist derivation and excludes raw volunteer contact details, internal notes, private metadata, invoices, and Stripe references from the route view model.
+
+The assistant links to existing Crew and WODsmith organizer/public routes for follow-up. It does not mutate conversion rows, flip `crewOnly`, duplicate competitions, launch athlete registration, activate public pages, apply imports, rewrite published judge assignments, send messages, deploy, or change billing.
 
 ## Event Setup Dashboard
 
@@ -246,6 +340,14 @@ Crew copy-prior-event setup lets a local operator preview structural setup from 
 
 [[apps/crew/src/components/crew-copy-event/crew-copy-prior-event-panel.tsx]] renders the setup-page preview and conservative apply action on [[apps/crew/src/routes/events/$eventId/setup.tsx]].
 
+## Volunteer Self Service
+
+Crew volunteer self-service is a no-session, no-password token surface scoped to the volunteer assignment confirmation token.
+
+[[apps/crew/src/routes/e/$slug/schedule/$token.tsx]] renders the token volunteer's own schedule, response entry point, print-friendly schedule view, calendar links, and contact metadata form. [[apps/crew/src/server-fns/crew-confirmation-fns.ts]] keeps route imports thin while [[apps/crew/src/server/crew-confirmation.server.ts]] validates the event slug, token hash, Crew-only event state, assignment row, and volunteer membership before returning or mutating data.
+
+[[apps/crew/src/lib/crew/volunteer-self-service.ts]] owns deterministic schedule shaping, metadata-only contact updates, and calendar snippet helpers. Contact updates write only volunteer roster metadata on `team_memberships`; they do not mutate user account email, assignment rows, confirmation response state, reminder counts, or sent timestamps.
+
 ## Assignment Confirmation Responses
 
 Crew assignment confirmation links are token-only volunteer surfaces. Raw tokens are generated only while creating links, stored only as hashes, and used by [[apps/crew/src/routes/e/$slug/confirm/$token.tsx]] and [[apps/crew/src/routes/e/$slug/schedule/$token.tsx]] to show safe confirm, decline, and change-request flows without requiring a session.
@@ -289,3 +391,33 @@ Crew pilot exports turn the active event staffing and judge assignment data into
 [[apps/crew/src/routes/events/$eventId/exports.tsx]] renders the per-event export surface. [[apps/crew/src/server-fns/crew-pilot-export-fns.ts]] keeps the route import light while [[apps/crew/src/server/crew-pilot-exports.server.ts]] reuses server-only staffing hydration and active judge assignment data.
 
 [[apps/crew/src/lib/crew/exports/pilot-exports.ts]] owns deterministic export derivation for master schedule CSV rows, role sheets, judge heat/lane sheets, no-response and decline lists, and printable floor lead sheets. Exports are read-only and must not send reminders, create queues, alter confirmation tokens, or mutate versioned judge assignment rows.
+
+## Event Day Export Packet
+
+The event-day packet extends [[crew#Pilot Exports]] with a print-first index, day schedule, station cards, lane cards, role sheets, and judge cards from [[apps/crew/src/lib/crew/exports/pilot-exports.ts]], rendered at [[apps/crew/src/routes/events/$eventId/exports.tsx]].
+
+The packet is still full local-operator-only through [[apps/crew/src/server/crew-pilot-exports.server.ts]] and [[apps/crew/src/server-fns/crew-pilot-export-fns.ts]]. It does not add PDF runtime infrastructure, schema, queue/email work, public tokens, department-lead subset export access, or assignment/judge-version mutations.
+
+## Strategic Moat Privacy Model
+
+Crew Phase 5 memory is scoped, consented, factual volunteer history before it becomes discovery.
+
+[[apps/crew/docs/decisions/0005-strategic-moat-privacy-model.md]] defines the privacy boundary for returning volunteer history, communication history, reliability summaries, series crew pools, Crew-to-WODsmith conversion assistance, and regional discovery.
+
+Same-organizer returning volunteer history may show factual prior event history owned by that organizing team. Cross-organizer visibility requires explicit volunteer opt-in, supports revocation, and remains a blind intro request until the volunteer accepts.
+
+Identity matching prefers `userId` when present and normalized contact hashes for no-password volunteers. Crew must not merge identities from name-only matches, display labels, internal notes, emergency contacts, or private metadata.
+
+Reliability is auditable fact history only: assignments, confirmations, responses, attendance outcomes, credentials, and replacements. Crew must not expose public ratings, rankings, top-judge lists, negative badges, global reputation, organizer sentiment, or private notes.
+
+Raw email, phone, emergency contacts, internal notes, and private metadata stay in their existing source tables. Discovery, search, analytics, audit previews, and regional summaries must not expose those raw fields.
+
+Series crew pools stay constrained to the selected `competition_group`; conversion enriches an existing competition instead of cloning identities; regional discovery starts as opt-in intro requests only. Intelligence, series, conversion, discovery, and person-level analytics require privacy review notes and feature flags before implementation.
+
+## Regional Judge Discovery Pilot
+
+Regional judge discovery is an event-scoped, organizer-only pilot for blind intro requests to adult judges who explicitly opted into regional discovery.
+
+[[apps/crew/src/lib/crew/regional-judge-discovery.ts]] builds the deterministic privacy-safe view model from active volunteer identities, current regional-discovery consent, consented-intro history facts, safe credential facts, and pending intro requests. The model excludes import-only volunteers, same-team inventory, minors, revoked or superseded consent, raw contact fields, private metadata, negative badges, rankings, ratings, and global reputation.
+
+[[apps/crew/src/server/crew-discovery.server.ts]] keeps discovery server-only and disabled unless `CREW_REGIONAL_JUDGE_DISCOVERY_ENABLED` is explicitly enabled. The event route [[apps/crew/src/routes/events/$eventId/discovery/judges.tsx]] renders the gated pilot under the organizer event shell; when enabled it can record a `crew_volunteer_intro_requests` audit row without revealing direct contact, sending email/SMS, creating invitations, or implementing acceptance/contact reveal.

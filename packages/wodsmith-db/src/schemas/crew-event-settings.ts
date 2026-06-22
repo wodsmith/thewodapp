@@ -44,6 +44,34 @@ export const CREW_PLAN = {
 
 export type CrewPlan = (typeof CREW_PLAN)[keyof typeof CREW_PLAN]
 
+// @lat: [[crew#Crew Billing State And Audit]]
+export const CREW_BILLING_STATE = {
+  UNPAID: "unpaid",
+  PENDING: "pending",
+  PAID: "paid",
+  COMPED: "comped",
+  CREDITED: "credited",
+  REFUNDED: "refunded",
+} as const
+
+// @lat: [[crew#Crew Billing State And Audit]]
+export type CrewBillingState =
+  (typeof CREW_BILLING_STATE)[keyof typeof CREW_BILLING_STATE]
+
+// @lat: [[crew#Crew Billing State And Audit]]
+export const CREW_BILLING_SOURCE = {
+  MANUAL_SALES: "manual_sales",
+  PAYMENT_LINK: "payment_link",
+  STRIPE_CHECKOUT: "stripe_checkout",
+  FOUNDER_OVERRIDE: "founder_override",
+  CREW_CREDIT: "crew_credit",
+  COMP: "comp",
+} as const
+
+// @lat: [[crew#Crew Billing State And Audit]]
+export type CrewBillingSource =
+  (typeof CREW_BILLING_SOURCE)[keyof typeof CREW_BILLING_SOURCE]
+
 export const crewEventSettingsTable = mysqlTable(
   "crew_event_settings",
   {
@@ -69,6 +97,21 @@ export const crewEventSettingsTable = mysqlTable(
       .$type<CrewPlan>()
       .default("self_serve")
       .notNull(),
+    // @lat: [[crew#Crew Billing State And Audit]]
+    crewBillingState: varchar({ length: 30 })
+      .$type<CrewBillingState>()
+      .default(CREW_BILLING_STATE.UNPAID)
+      .notNull(),
+    crewBillingSource: varchar({ length: 40 }).$type<CrewBillingSource>(),
+    crewBillingPlanId: varchar({ length: 255 }),
+    crewBillingAmountCents: int().default(0).notNull(),
+    crewBillingCurrency: varchar({ length: 3 }).default("usd").notNull(),
+    crewStripePaymentLinkId: varchar({ length: 255 }),
+    crewStripeCheckoutSessionId: varchar({ length: 255 }),
+    crewStripePaymentIntentId: varchar({ length: 255 }),
+    crewFounderOverride: boolean().default(false).notNull(),
+    crewCreditCents: int().default(0).notNull(),
+    crewRefundedCents: int().default(0).notNull(),
     fullPlatformCreditCents: int().default(0).notNull(),
     acquisitionSource: varchar({ length: 255 }),
     settings: text(),
@@ -79,6 +122,19 @@ export const crewEventSettingsTable = mysqlTable(
     ),
     index("crew_event_settings_lifecycle_idx").on(table.lifecycle),
     index("crew_event_settings_plan_idx").on(table.crewPlan),
+    // @lat: [[crew#Crew Billing State And Audit]]
+    index("crew_event_settings_billing_state_idx").on(table.crewBillingState),
+    index("crew_event_settings_billing_source_idx").on(table.crewBillingSource),
+    index("crew_event_settings_billing_plan_idx").on(table.crewBillingPlanId),
+    index("crew_event_settings_payment_link_idx").on(
+      table.crewStripePaymentLinkId,
+    ),
+    index("crew_event_settings_checkout_session_idx").on(
+      table.crewStripeCheckoutSessionId,
+    ),
+    index("crew_event_settings_payment_intent_idx").on(
+      table.crewStripePaymentIntentId,
+    ),
   ],
 )
 

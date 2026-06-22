@@ -1,4 +1,5 @@
 // @lat: [[crew#Pilot Exports]]
+// @lat: [[crew#Event Day Export Packet]]
 import { describe, expect, it } from "vitest"
 import {
   CREW_ASSIGNMENT_CONFIRMATION_STATUS,
@@ -114,6 +115,79 @@ describe("Crew pilot exports", () => {
       [2, "Lane Two"],
       [3, "OPEN"],
     ])
+  })
+
+  it("assembles an event-day packet index with day, station, and lane cards", () => {
+    const input = baseInput()
+    input.venues?.push({
+      id: "venue_annex",
+      name: "Annex floor",
+      laneCount: 2,
+      sortOrder: 2,
+    })
+    input.workouts?.push({ id: "tw_event2", name: "Event 2", sortOrder: 2 })
+    input.heats?.push({
+      id: "heat_2",
+      trackWorkoutId: "tw_event2",
+      heatNumber: 1,
+      venueId: "venue_annex",
+      scheduledTime: "2026-07-02T15:00:00.000Z",
+      durationMinutes: 10,
+    })
+    input.heatLaneAssignments?.push(
+      { heatId: "heat_2", laneNumber: 1 },
+      { heatId: "heat_2", laneNumber: 2 },
+    )
+    input.shifts?.push({
+      id: "shift_annex_briefing",
+      name: "Annex briefing",
+      roleType: VOLUNTEER_ROLE_TYPES.FLOOR_MANAGER,
+      startTime: "2026-07-02T14:30:00.000Z",
+      endTime: "2026-07-02T15:00:00.000Z",
+      capacity: 1,
+      location: "Annex floor",
+      assignments: [],
+    })
+
+    const exports = buildCrewPilotExports(input)
+
+    expect(exports.packetIndexItems.map((item) => item.id)).toEqual([
+      "master-schedule",
+      "station-cards",
+      "role-sheets",
+      "judge-cards",
+      "response-list",
+      "floor-lead-sheets",
+    ])
+    expect(exports.masterScheduleDaySections.map((section) => section.dayKey))
+      .toEqual(["2026-07-01", "2026-07-02"])
+    expect(
+      exports.masterScheduleDaySections.map((section) =>
+        section.rows.map((row) => row.label),
+      ),
+    ).toEqual([
+      ["Check-in", "Event 1 - Heat 1", "Floor reset"],
+      ["Annex briefing", "Event 2 - Heat 1"],
+    ])
+    expect(exports.stationCards.map((card) => card.stationName)).toEqual([
+      "Annex floor",
+      "Competition floor",
+      "Front desk",
+    ])
+    expect(
+      exports.stationCards.find((card) => card.stationName === "Annex floor"),
+    ).toMatchObject({
+      openBlocks: 2,
+      laneCards: [
+        { laneNumber: 1, rows: [{ workoutName: "Event 2" }] },
+        { laneNumber: 2, rows: [{ judgeName: "OPEN" }] },
+      ],
+    })
+    expect(exports.summary).toMatchObject({
+      masterScheduleDaySections: 2,
+      stationCards: 3,
+      laneCards: 5,
+    })
   })
 })
 

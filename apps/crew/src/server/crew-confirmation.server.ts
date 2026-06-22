@@ -2,9 +2,11 @@ import { render } from "@react-email/render"
 // @lat: [[crew#Assignment Confirmation Responses]]
 // @lat: [[crew#Assignment Confirmations]]
 // @lat: [[crew#Confirmation Emails And Reminders]]
+// @lat: [[crew#Volunteer Self Service]]
 import { env } from "cloudflare:workers"
 import {
   and,
+  asc,
   desc,
   eq,
   inArray,
@@ -27,11 +29,18 @@ import {
   CREW_EVENT_LIFECYCLE,
   crewEventSettingsTable,
 } from "../db/schemas/crew-event-settings"
-import { teamMembershipTable } from "../db/schemas/teams"
+import {
+  CREW_VOLUNTEER_HISTORY_ASSIGNMENT_TYPE,
+  CREW_VOLUNTEER_HISTORY_EVENT_TYPE,
+  CREW_VOLUNTEER_IDENTITY_SOURCE,
+  type CrewVolunteerHistoryEventType,
+} from "../db/schemas/crew-volunteer-intelligence"
+import { SYSTEM_ROLES_ENUM, teamMembershipTable } from "../db/schemas/teams"
 import { userTable } from "../db/schemas/users"
 import {
   volunteerShiftAssignmentsTable,
   volunteerShiftsTable,
+  type VolunteerAvailability,
   type VolunteerRoleType,
 } from "../db/schemas/volunteers"
 import {
@@ -65,6 +74,11 @@ import {
   getCrewRosterRoleTypes,
   parseCrewRosterMetadata,
 } from "../lib/crew/roster-shifts"
+import {
+  buildCrewVolunteerSelfServiceSchedule,
+  resolveCrewVolunteerSelfServiceContactUpdate,
+  type CrewVolunteerSelfServiceScheduleItem,
+} from "../lib/crew/volunteer-self-service"
 import { getAppUrl } from "../lib/env"
 import { CrewAssignmentConfirmationEmail } from "../react-email/crew/assignment-confirmation"
 import { CrewAssignmentReminder24HourEmail } from "../react-email/crew/reminder-24-hour"
@@ -78,6 +92,7 @@ import {
   requireCrewDepartmentLeadEvent,
   resolveCrewDepartmentLeadAccess,
 } from "./crew-department-lead.server"
+import { recordCrewVolunteerHistoryEvent } from "./crew-volunteer-history.server"
 
 type DbClient = ReturnType<typeof getDb>
 
@@ -103,6 +118,10 @@ export interface CrewAssignmentConfirmationTokenData {
   volunteer: {
     name: string
     email: string
+    phone: string | null
+    availability: VolunteerAvailability | null
+    availabilityNotes: string | null
+    credentials: string | null
     roleTypes: VolunteerRoleType[]
   } | null
   assignment: {
@@ -117,6 +136,7 @@ export interface CrewAssignmentConfirmationTokenData {
     notes: string | null
   } | null
   confirmation: CrewAssignmentConfirmationDisplay | null
+  schedule: CrewVolunteerSelfServiceScheduleItem[]
 }
 
 export interface CrewAssignmentConfirmationResponseResult
@@ -128,6 +148,19 @@ export interface CrewAssignmentConfirmationResponseResult
     | "expired"
     | "cancelled"
     | "already_responded"
+    | "missing"
+    | "bad"
+  message: string
+}
+
+export interface CrewAssignmentConfirmationContactUpdateResult
+  extends CrewAssignmentConfirmationTokenData {
+  success: boolean
+  outcome:
+    | "updated"
+    | "idempotent"
+    | "expired"
+    | "cancelled"
     | "missing"
     | "bad"
   message: string
@@ -190,6 +223,16 @@ interface PublicTokenResponseInput extends PublicTokenInput {
   responseNote?: string
 }
 
+export interface UpdateCrewAssignmentConfirmationContactTokenInput
+  extends PublicTokenInput {
+  email: string
+  name?: string
+  phone?: string
+  availability?: VolunteerAvailability
+  availabilityNotes?: string
+  credentials?: string
+}
+
 interface CrewAssignmentEmailCandidate
   extends CrewAssignmentConfirmationEmailCandidate {
   tokenHash: string
@@ -228,7 +271,26 @@ export async function respondCrewAssignmentConfirmationToken(
   await db.transaction(async (tx) => {
     const [row] = await tx
       .select({
+        event: {
+          id: competitionsTable.id,
+          organizingTeamId: competitionsTable.organizingTeamId,
+          groupId: competitionsTable.groupId,
+        },
         confirmation: crewAssignmentConfirmationsTable,
+        assignment: {
+          id: volunteerShiftAssignmentsTable.id,
+          membershipId: volunteerShiftAssignmentsTable.membershipId,
+        },
+        shift: {
+          roleType: volunteerShiftsTable.roleType,
+        },
+        membership: {
+          userId: teamMembershipTable.userId,
+          metadata: teamMembershipTable.metadata,
+        },
+        user: {
+          email: userTable.email,
+        },
       })
       .from(crewAssignmentConfirmationsTable)
       .innerJoin(
@@ -242,6 +304,22 @@ export async function respondCrewAssignmentConfirmationToken(
         crewEventSettingsTable,
         eq(crewEventSettingsTable.competitionId, competitionsTable.id),
       )
+      .leftJoin(
+        volunteerShiftAssignmentsTable,
+        eq(
+          crewAssignmentConfirmationsTable.assignmentId,
+          volunteerShiftAssignmentsTable.id,
+        ),
+      )
+      .leftJoin(
+        volunteerShiftsTable,
+        eq(volunteerShiftAssignmentsTable.shiftId, volunteerShiftsTable.id),
+      )
+      .leftJoin(
+        teamMembershipTable,
+        eq(volunteerShiftAssignmentsTable.membershipId, teamMembershipTable.id),
+      )
+      .leftJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
       .where(
         and(
           eq(crewAssignmentConfirmationsTable.tokenHash, tokenHash),
@@ -296,7 +374,186 @@ export async function respondCrewAssignmentConfirmationToken(
           updatedAt: resolution.respondedAt,
         })
         .where(eq(crewAssignmentConfirmationsTable.id, row.confirmation.id))
+
+      const historyEventType = historyEventTypeForConfirmationStatus(
+        resolution.status,
+      )
+      const metadata = parseCrewRosterMetadata(row.membership?.metadata)
+      if (historyEventType) {
+        await recordCrewVolunteerHistoryEvent({
+          db: tx as unknown as DbClient,
+          teamId: row.event.organizingTeamId,
+          competitionId: row.event.id,
+          groupId: row.event.groupId,
+          eventType: historyEventType,
+          identity: {
+            userId: row.membership?.userId,
+            email:
+              metadata.signupEmail ?? row.confirmation.email ?? row.user?.email,
+            phone: metadata.signupPhone,
+            sourceMembershipId:
+              row.assignment?.membershipId ??
+              row.confirmation.membershipId ??
+              null,
+            identitySource: CREW_VOLUNTEER_IDENTITY_SOURCE.SELF_SERVICE,
+          },
+          assignmentType:
+            CREW_VOLUNTEER_HISTORY_ASSIGNMENT_TYPE.VOLUNTEER_SHIFT,
+          assignmentId: row.assignment?.id ?? row.confirmation.assignmentId,
+          roleType: row.shift?.roleType,
+          occurredAt: resolution.respondedAt,
+          sourceType: "crew_assignment_confirmation",
+          sourceId: row.confirmation.id,
+        })
+      }
     }
+  })
+
+  const freshData = await getCrewAssignmentConfirmationByToken(data)
+
+  return {
+    ...freshData,
+    success:
+      responseState.outcome === "updated" ||
+      responseState.outcome === "idempotent",
+    outcome: responseState.outcome,
+    message: responseState.message,
+  }
+}
+
+export async function updateCrewAssignmentConfirmationContactToken(
+  data: UpdateCrewAssignmentConfirmationContactTokenInput,
+): Promise<CrewAssignmentConfirmationContactUpdateResult> {
+  const db = getDb()
+  const tokenHash = await hashCrewAssignmentConfirmationToken(data.token)
+  const responseState: {
+    outcome: CrewAssignmentConfirmationContactUpdateResult["outcome"]
+    message: string
+  } = {
+    outcome: "missing",
+    message: "Assignment confirmation link was not found.",
+  }
+
+  await db.transaction(async (tx) => {
+    const [row] = await tx
+      .select({
+        competitionTeamId: competitionsTable.competitionTeamId,
+        confirmation: crewAssignmentConfirmationsTable,
+        assignment: {
+          id: volunteerShiftAssignmentsTable.id,
+          membershipId: volunteerShiftAssignmentsTable.membershipId,
+        },
+        membership: {
+          id: teamMembershipTable.id,
+          metadata: teamMembershipTable.metadata,
+        },
+      })
+      .from(crewAssignmentConfirmationsTable)
+      .innerJoin(
+        competitionsTable,
+        eq(
+          crewAssignmentConfirmationsTable.competitionId,
+          competitionsTable.id,
+        ),
+      )
+      .innerJoin(
+        crewEventSettingsTable,
+        eq(crewEventSettingsTable.competitionId, competitionsTable.id),
+      )
+      .leftJoin(
+        volunteerShiftAssignmentsTable,
+        eq(
+          crewAssignmentConfirmationsTable.assignmentId,
+          volunteerShiftAssignmentsTable.id,
+        ),
+      )
+      .leftJoin(
+        teamMembershipTable,
+        eq(volunteerShiftAssignmentsTable.membershipId, teamMembershipTable.id),
+      )
+      .where(
+        and(
+          eq(crewAssignmentConfirmationsTable.tokenHash, tokenHash),
+          eq(
+            crewAssignmentConfirmationsTable.assignmentType,
+            CREW_ASSIGNMENT_CONFIRMATION_TYPE.VOLUNTEER_SHIFT,
+          ),
+          eq(competitionsTable.slug, data.slug),
+          eq(crewEventSettingsTable.crewOnly, true),
+          ne(crewEventSettingsTable.lifecycle, CREW_EVENT_LIFECYCLE.ARCHIVED),
+        ),
+      )
+      .for("update")
+      .limit(1)
+
+    if (!row) {
+      responseState.outcome = "missing"
+      return
+    }
+
+    if (
+      row.confirmation.status === CREW_ASSIGNMENT_CONFIRMATION_STATUS.CANCELLED
+    ) {
+      responseState.outcome = "cancelled"
+      responseState.message = "This assignment confirmation has been cancelled."
+      return
+    }
+
+    const tokenState = getCrewAssignmentConfirmationTokenState(row.confirmation)
+    if (tokenState !== "valid") {
+      responseState.outcome = tokenState === "expired" ? "expired" : "bad"
+      responseState.message =
+        tokenState === "expired"
+          ? "This assignment link has expired."
+          : "This assignment link is no longer valid."
+      return
+    }
+
+    if (
+      !row.assignment?.id ||
+      !row.assignment.membershipId ||
+      !row.membership?.id
+    ) {
+      responseState.outcome = "bad"
+      responseState.message = "This assignment link is no longer valid."
+      return
+    }
+
+    const resolution = resolveCrewVolunteerSelfServiceContactUpdate(
+      row.membership.metadata,
+      data,
+    )
+
+    if (!resolution.changed) {
+      responseState.outcome = "idempotent"
+      responseState.message = "Your contact details were already up to date."
+      return
+    }
+
+    const updatedAt = new Date()
+    const updateResult = await tx
+      .update(teamMembershipTable)
+      .set({
+        metadata: JSON.stringify(resolution.metadata),
+        updatedAt,
+      })
+      .where(
+        and(
+          eq(teamMembershipTable.id, row.assignment.membershipId),
+          eq(teamMembershipTable.teamId, row.competitionTeamId),
+          eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+          eq(teamMembershipTable.isSystemRole, true),
+        ),
+      )
+
+    if (getAffectedRows(updateResult) === 0) {
+      responseState.outcome = "bad"
+      responseState.message = "This assignment link is no longer valid."
+      return
+    }
+
+    responseState.outcome = "updated"
+    responseState.message = "Contact details updated."
   })
 
   const freshData = await getCrewAssignmentConfirmationByToken(data)
@@ -478,6 +735,7 @@ export async function updateCrewShiftAssignmentConfirmationState(
         shiftEndTime: volunteerShiftsTable.endTime,
         shiftLocation: volunteerShiftsTable.location,
         membershipMetadata: teamMembershipTable.metadata,
+        membershipUserId: teamMembershipTable.userId,
         userEmail: userTable.email,
       })
       .from(volunteerShiftAssignmentsTable)
@@ -582,6 +840,35 @@ export async function updateCrewShiftAssignmentConfirmationState(
         updatedAt: now,
       })
       .where(eq(crewAssignmentConfirmationsTable.id, confirmation.id))
+
+    const historyEventType = historyEventTypeForOrganizerState(
+      data.state,
+      update.status,
+    )
+    if (historyEventType) {
+      const metadata = parseCrewRosterMetadata(assignment.membershipMetadata)
+      await recordCrewVolunteerHistoryEvent({
+        db: tx as unknown as DbClient,
+        teamId: event.organizingTeamId,
+        competitionId: event.id,
+        groupId: event.groupId,
+        eventType: historyEventType,
+        identity: {
+          userId: assignment.membershipUserId,
+          email: metadata.signupEmail ?? assignment.userEmail,
+          phone: metadata.signupPhone,
+          sourceMembershipId: assignment.membershipId,
+          identitySource: CREW_VOLUNTEER_IDENTITY_SOURCE.MEMBERSHIP,
+        },
+        assignmentType: CREW_VOLUNTEER_HISTORY_ASSIGNMENT_TYPE.VOLUNTEER_SHIFT,
+        assignmentId: assignment.assignmentId,
+        roleType: assignment.shiftRoleType,
+        occurredAt: update.respondedAt ?? now,
+        sourceType: "crew_assignment_confirmation",
+        sourceId: confirmation.id,
+        sourceUserId: null,
+      })
+    }
 
     return {
       success: true,
@@ -903,8 +1190,8 @@ async function loadCrewAssignmentEmailCandidates(
   return rows.map((row) => {
     const metadata = parseCrewRosterMetadata(row.membership?.metadata)
     const email =
-      normalizeConfirmationEmailForSend(row.confirmation.email) ??
       normalizeConfirmationEmailForSend(metadata.signupEmail) ??
+      normalizeConfirmationEmailForSend(row.confirmation.email) ??
       normalizeConfirmationEmailForSend(row.user?.email)
     const volunteerName =
       metadata.signupName ||
@@ -1107,9 +1394,12 @@ async function getCrewAssignmentConfirmationByToken({
       },
       assignment: {
         id: volunteerShiftAssignmentsTable.id,
+        membershipId: volunteerShiftAssignmentsTable.membershipId,
+        notes: volunteerShiftAssignmentsTable.notes,
       },
       confirmationEmail: crewAssignmentConfirmationsTable.email,
       membership: {
+        id: teamMembershipTable.id,
         metadata: teamMembershipTable.metadata,
       },
       user: {
@@ -1173,6 +1463,7 @@ async function getCrewAssignmentConfirmationByToken({
       volunteer: null,
       assignment: null,
       confirmation: toConfirmationDisplay(row.confirmation),
+      schedule: [],
     }
   }
 
@@ -1185,6 +1476,7 @@ async function getCrewAssignmentConfirmationByToken({
       volunteer: null,
       assignment: null,
       confirmation: toConfirmationDisplay(row.confirmation),
+      schedule: [],
     }
   }
 
@@ -1196,7 +1488,13 @@ async function getCrewAssignmentConfirmationByToken({
     row.confirmationEmail ||
     "Volunteer"
   const email =
-    row.confirmationEmail ?? metadata.signupEmail ?? row.user?.email ?? ""
+    metadata.signupEmail ?? row.confirmationEmail ?? row.user?.email ?? ""
+  const schedule = await loadCrewVolunteerSelfServiceSchedule({
+    db,
+    competitionId: row.event.id,
+    membershipId: assignment.membershipId,
+    tokenAssignmentId: assignment.id,
+  })
 
   return {
     status,
@@ -1204,6 +1502,10 @@ async function getCrewAssignmentConfirmationByToken({
     volunteer: {
       name,
       email,
+      phone: metadata.signupPhone ?? null,
+      availability: metadata.availability ?? null,
+      availabilityNotes: metadata.availabilityNotes ?? null,
+      credentials: metadata.credentials ?? null,
       roleTypes: getCrewRosterRoleTypes(metadata.volunteerRoleTypes),
     },
     assignment: {
@@ -1215,9 +1517,10 @@ async function getCrewAssignmentConfirmationByToken({
       startTime: shift.startTime,
       endTime: shift.endTime,
       location: shift.location,
-      notes: shift.notes,
+      notes: assignment.notes ?? shift.notes,
     },
     confirmation: toConfirmationDisplay(row.confirmation),
+    schedule,
   }
 }
 
@@ -1230,7 +1533,104 @@ function emptyTokenData(
     volunteer: null,
     assignment: null,
     confirmation: null,
+    schedule: [],
   }
+}
+
+async function loadCrewVolunteerSelfServiceSchedule({
+  db,
+  competitionId,
+  membershipId,
+  tokenAssignmentId,
+}: {
+  db: DbClient
+  competitionId: string
+  membershipId: string
+  tokenAssignmentId: string
+}) {
+  const rows = await db
+    .select({
+      assignment: {
+        id: volunteerShiftAssignmentsTable.id,
+        membershipId: volunteerShiftAssignmentsTable.membershipId,
+        notes: volunteerShiftAssignmentsTable.notes,
+      },
+      shift: {
+        id: volunteerShiftsTable.id,
+        name: volunteerShiftsTable.name,
+        roleType: volunteerShiftsTable.roleType,
+        startTime: volunteerShiftsTable.startTime,
+        endTime: volunteerShiftsTable.endTime,
+        location: volunteerShiftsTable.location,
+        notes: volunteerShiftsTable.notes,
+      },
+      confirmation: {
+        id: crewAssignmentConfirmationsTable.id,
+        status: crewAssignmentConfirmationsTable.status,
+        sentAt: crewAssignmentConfirmationsTable.sentAt,
+        respondedAt: crewAssignmentConfirmationsTable.respondedAt,
+        expiresAt: crewAssignmentConfirmationsTable.expiresAt,
+        responseNote: crewAssignmentConfirmationsTable.responseNote,
+        updatedAt: crewAssignmentConfirmationsTable.updatedAt,
+      },
+    })
+    .from(volunteerShiftAssignmentsTable)
+    .innerJoin(
+      volunteerShiftsTable,
+      eq(volunteerShiftAssignmentsTable.shiftId, volunteerShiftsTable.id),
+    )
+    .leftJoin(
+      crewAssignmentConfirmationsTable,
+      and(
+        eq(
+          crewAssignmentConfirmationsTable.assignmentType,
+          CREW_ASSIGNMENT_CONFIRMATION_TYPE.VOLUNTEER_SHIFT,
+        ),
+        eq(
+          crewAssignmentConfirmationsTable.assignmentId,
+          volunteerShiftAssignmentsTable.id,
+        ),
+      ),
+    )
+    .where(
+      and(
+        eq(volunteerShiftsTable.competitionId, competitionId),
+        eq(volunteerShiftAssignmentsTable.membershipId, membershipId),
+      ),
+    )
+    .orderBy(
+      asc(volunteerShiftsTable.startTime),
+      asc(volunteerShiftsTable.name),
+      desc(crewAssignmentConfirmationsTable.updatedAt),
+    )
+
+  return buildCrewVolunteerSelfServiceSchedule({
+    membershipId,
+    tokenAssignmentId,
+    assignments: rows.map((row) => ({
+      id: row.assignment.id,
+      membershipId: row.assignment.membershipId,
+      shiftId: row.shift.id,
+      name: row.shift.name,
+      roleType: row.shift.roleType,
+      roleLabel: formatVolunteerRole(row.shift.roleType),
+      startTime: row.shift.startTime,
+      endTime: row.shift.endTime,
+      location: row.shift.location,
+      notes: row.assignment.notes ?? row.shift.notes,
+      confirmation:
+        row.confirmation?.id && row.confirmation.status
+          ? {
+              id: row.confirmation.id,
+              status: row.confirmation.status,
+              sentAt: row.confirmation.sentAt,
+              respondedAt: row.confirmation.respondedAt,
+              expiresAt: row.confirmation.expiresAt,
+              responseNote: row.confirmation.responseNote,
+            }
+          : null,
+    })),
+  })
 }
 
 function toConfirmationDisplay(confirmation: {
@@ -1271,6 +1671,34 @@ function getResponseSuccessMessage(action: CrewAssignmentResponseAction) {
     return "Assignment declined. The organizer will see your response."
   }
   return "Change request sent. The organizer will see your note."
+}
+
+function historyEventTypeForConfirmationStatus(
+  status: CrewAssignmentConfirmationStatus,
+): CrewVolunteerHistoryEventType | null {
+  if (status === CREW_ASSIGNMENT_CONFIRMATION_STATUS.CONFIRMED) {
+    return CREW_VOLUNTEER_HISTORY_EVENT_TYPE.CONFIRMED
+  }
+  if (status === CREW_ASSIGNMENT_CONFIRMATION_STATUS.DECLINED) {
+    return CREW_VOLUNTEER_HISTORY_EVENT_TYPE.DECLINED
+  }
+  if (status === CREW_ASSIGNMENT_CONFIRMATION_STATUS.CHANGE_REQUESTED) {
+    return CREW_VOLUNTEER_HISTORY_EVENT_TYPE.CHANGE_REQUESTED
+  }
+  if (status === CREW_ASSIGNMENT_CONFIRMATION_STATUS.NO_SHOW) {
+    return CREW_VOLUNTEER_HISTORY_EVENT_TYPE.NO_SHOW
+  }
+  return null
+}
+
+function historyEventTypeForOrganizerState(
+  state: CrewAssignmentConfirmationOrganizerState,
+  status: CrewAssignmentConfirmationStatus,
+): CrewVolunteerHistoryEventType | null {
+  if (state === "replaced") {
+    return CREW_VOLUNTEER_HISTORY_EVENT_TYPE.REPLACED
+  }
+  return historyEventTypeForConfirmationStatus(status)
 }
 
 async function withCrewAssignmentConfirmationLock<T>(

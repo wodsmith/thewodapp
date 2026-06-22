@@ -1,4 +1,5 @@
 // @lat: [[crew#Pilot Exports]]
+// @lat: [[crew#Event Day Export Packet]]
 import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router"
 import { Download, FileSpreadsheet, Printer } from "lucide-react"
 import type { ReactNode } from "react"
@@ -6,10 +7,15 @@ import type {
   CrewPilotExports,
   CrewPilotFloorLeadSheet,
   CrewPilotJudgeHeatLaneSheet,
+  CrewPilotJudgeLaneCard,
   CrewPilotRoleSheet,
+  CrewPilotStationCard,
 } from "@/lib/crew/exports/pilot-exports"
 import { formatCrewValue } from "@/lib/crew-event-display"
-import { getCrewPilotExportsPageFn } from "@/server-fns/crew-pilot-export-fns"
+import {
+  getCrewPilotExportsPageFn,
+  type CrewPilotExportsPageData,
+} from "@/server-fns/crew-pilot-export-fns"
 import { formatDateTimeInTimezone } from "@/utils/timezone-utils"
 
 export const Route = createFileRoute("/events/$eventId/exports")({
@@ -25,6 +31,23 @@ const parentRoute = getRouteApi("/events/$eventId")
 function EventPilotExportsPage() {
   const { eventId } = parentRoute.useParams()
   const { event, exports, sources } = Route.useLoaderData()
+
+  return (
+    <EventPilotExportsView
+      eventId={eventId}
+      event={event}
+      exports={exports}
+      sources={sources}
+    />
+  )
+}
+
+export function EventPilotExportsView({
+  eventId,
+  event,
+  exports,
+  sources,
+}: EventPilotExportsViewProps) {
   const timezone = event.timezone ?? "America/Denver"
 
   return (
@@ -32,7 +55,9 @@ function EventPilotExportsPage() {
       <section className="space-y-5 print:hidden">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2 className="text-xl font-semibold">Pilot exports</h2>
+            <h2 className="text-xl font-semibold">
+              Event-day export packet
+            </h2>
             <p className="text-sm text-muted-foreground">
               {formatExportDate(exports.generatedAt, timezone)} / {timezone}
             </p>
@@ -70,24 +95,59 @@ function EventPilotExportsPage() {
               onClick={() => window.print()}
             >
               <Printer className="size-4" />
-              Print sheets
+              Print packet
             </button>
           </div>
         </div>
 
-        <section className="grid gap-3 md:grid-cols-6">
+        <section className="grid gap-3 md:grid-cols-4 xl:grid-cols-8">
           <MetricPanel
             label="Rows"
             value={exports.summary.masterScheduleRows}
+          />
+          <MetricPanel
+            label="Days"
+            value={exports.summary.masterScheduleDaySections}
+          />
+          <MetricPanel
+            label="Stations"
+            value={exports.summary.stationCards}
           />
           <MetricPanel label="Role sheets" value={exports.summary.roleSheets} />
           <MetricPanel
             label="Judge sheets"
             value={exports.summary.judgeHeatSheets}
           />
+          <MetricPanel label="Lane cards" value={exports.summary.laneCards} />
           <MetricPanel label="Responses" value={exports.summary.responseRows} />
-          <MetricPanel label="Floors" value={exports.summary.floorLeadSheets} />
           <MetricPanel label="Versions" value={sources.activeJudgeVersions} />
+        </section>
+
+        <section className="rounded-md border bg-card p-5 shadow-sm">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 className="font-semibold">Packet index</h3>
+              <p className="text-sm text-muted-foreground">
+                {exports.summary.masterScheduleDaySections} days /{" "}
+                {exports.summary.stationCards} stations /{" "}
+                {exports.summary.laneCards} lane cards
+              </p>
+            </div>
+            <StatusPill>{exports.summary.packetIndexItems} sections</StatusPill>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {exports.packetIndexItems.map((item) => (
+              <div key={item.id} className="rounded-md border p-3 text-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="font-medium">{item.title}</p>
+                  <StatusPill>{item.count}</StatusPill>
+                </div>
+                <p className="mt-2 text-muted-foreground">
+                  {item.description}
+                </p>
+              </div>
+            ))}
+          </div>
         </section>
 
         <section className="rounded-md border bg-card p-5 shadow-sm">
@@ -137,6 +197,19 @@ function EventPilotExportsPage() {
           ) : (
             <EmptyState message="No shift or heat rows are ready to export." />
           )}
+        </section>
+
+        <section className="space-y-4">
+          <h3 className="font-semibold">Station cards</h3>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {exports.stationCards.map((card) => (
+              <StationCardPreview
+                key={card.stationName}
+                card={card}
+                timezone={timezone}
+              />
+            ))}
+          </div>
         </section>
 
         <div className="grid gap-5 lg:grid-cols-2">
@@ -248,6 +321,13 @@ function EventPilotExportsPage() {
   )
 }
 
+interface EventPilotExportsViewProps {
+  eventId: string
+  event: CrewPilotExportsPageData["event"]
+  exports: CrewPilotExports
+  sources: CrewPilotExportsPageData["sources"]
+}
+
 function PrintSheets({
   eventName,
   exports,
@@ -262,11 +342,51 @@ function PrintSheets({
       <header className="border-b pb-4">
         <h1 className="text-2xl font-semibold">{eventName}</h1>
         <p className="text-sm">
-          Pilot exports / {formatExportDate(exports.generatedAt, timezone)}
+          Event-day export packet /{" "}
+          {formatExportDate(exports.generatedAt, timezone)}
         </p>
       </header>
 
-      <PrintSection title="Master schedule">
+      <PrintSection title="Packet index">
+        <PrintTable
+          headers={["Section", "Count", "Contents"]}
+          rows={exports.packetIndexItems.map((item) => ({
+            key: item.id,
+            cells: [item.title, item.count, item.description],
+          }))}
+        />
+      </PrintSection>
+
+      {exports.masterScheduleDaySections.map((section) => (
+        <PrintSection
+          key={section.dayKey}
+          title={`Master schedule / ${formatPacketDay(section.dayKey)}`}
+        >
+          <PrintTable
+            headers={[
+              "Time",
+              "Block",
+              "Location",
+              "Role",
+              "Coverage",
+              "People",
+            ]}
+            rows={section.rows.map((row) => ({
+              key: `${row.blockType}:${row.blockId}`,
+              cells: [
+                formatRange(row.startsAt, row.endsAt, timezone),
+                row.label,
+                row.location,
+                row.role,
+                `${row.assigned}/${row.needed}${row.open > 0 ? ` (${row.open} open)` : ""}`,
+                row.people || "Unassigned",
+              ],
+            }))}
+          />
+        </PrintSection>
+      ))}
+
+      <PrintSection title="Master schedule / all days">
         <PrintTable
           headers={["Time", "Block", "Location", "Role", "Coverage", "People"]}
           rows={exports.masterScheduleRows.map((row) => ({
@@ -282,6 +402,48 @@ function PrintSheets({
           }))}
         />
       </PrintSection>
+
+      {exports.stationCards.map((card) => (
+        <PrintSection
+          key={card.stationName}
+          title={`${card.stationName} station card`}
+        >
+          <p className="mb-2 text-sm">
+            {formatRange(card.startsAt, card.endsAt, timezone)} /{" "}
+            {card.openBlocks} open blocks
+          </p>
+          <PrintTable
+            headers={["Time", "Block", "Role", "Coverage", "People"]}
+            rows={card.rows.map((row) => ({
+              key: `${row.blockType}:${row.blockId}`,
+              cells: [
+                formatRange(row.startsAt, row.endsAt, timezone),
+                row.label,
+                row.role,
+                `${row.assigned}/${row.needed}${row.open > 0 ? ` (${row.open} open)` : ""}`,
+                row.people || "Unassigned",
+              ],
+            }))}
+            empty="No schedule rows for this station."
+          />
+          <div className="mt-4">
+            <PrintTable
+              headers={["Time", "Heat", "Lane", "Judge", "Status"]}
+              rows={card.judgeRows.map((row) => ({
+                key: `${row.heatId}:lane:${row.laneNumber}`,
+                cells: [
+                  formatRange(row.startsAt, row.endsAt, timezone),
+                  `${row.workoutName} heat ${row.heatNumber}`,
+                  row.laneNumber,
+                  row.judgeName,
+                  formatCrewValue(row.confirmationStatus),
+                ],
+              }))}
+              empty="No judge lanes for this station."
+            />
+          </div>
+        </PrintSection>
+      ))}
 
       <PrintSection title="No-response and decline list">
         <PrintTable
@@ -341,6 +503,27 @@ function PrintSheets({
                 row.judgeName,
                 row.email,
                 row.position,
+                formatCrewValue(row.confirmationStatus),
+              ],
+            }))}
+          />
+        </PrintSection>
+      ))}
+
+      {exports.judgeLaneCards.map((card) => (
+        <PrintSection
+          key={card.cardKey}
+          title={`${card.venueName} lane ${card.laneNumber} card`}
+        >
+          <PrintTable
+            headers={["Time", "Heat", "Judge", "Email", "Status"]}
+            rows={card.rows.map((row) => ({
+              key: row.heatId,
+              cells: [
+                formatRange(row.startsAt, row.endsAt, timezone),
+                `${row.workoutName} heat ${row.heatNumber}`,
+                row.judgeName,
+                row.email,
                 formatCrewValue(row.confirmationStatus),
               ],
             }))}
@@ -439,6 +622,59 @@ function PrintTable({
         ))}
       </tbody>
     </table>
+  )
+}
+
+function StationCardPreview({
+  card,
+  timezone,
+}: {
+  card: CrewPilotStationCard
+  timezone: string
+}) {
+  return (
+    <section className="rounded-md border bg-card p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h4 className="font-semibold">{card.stationName}</h4>
+          <p className="text-sm text-muted-foreground">
+            {formatRange(card.startsAt, card.endsAt, timezone)}
+          </p>
+        </div>
+        <StatusPill>
+          {card.rows.length} blocks / {card.laneCards.length} lanes
+        </StatusPill>
+      </div>
+      <div className="mt-3 grid gap-3 lg:grid-cols-2">
+        <div className="space-y-2 text-sm">
+          {card.rows.slice(0, 6).map((row) => (
+            <div key={`${row.blockType}:${row.blockId}`}>
+              <p className="font-medium">{row.label}</p>
+              <p className="text-muted-foreground">
+                {formatRange(row.startsAt, row.endsAt, timezone)} / {row.role}
+              </p>
+            </div>
+          ))}
+        </div>
+        <div className="space-y-2 text-sm">
+          {card.laneCards.slice(0, 6).map((laneCard) => (
+            <LaneCardLine key={laneCard.cardKey} card={laneCard} />
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function LaneCardLine({ card }: { card: CrewPilotJudgeLaneCard }) {
+  return (
+    <div>
+      <p className="font-medium">Lane {card.laneNumber}</p>
+      <p className="text-muted-foreground">
+        {card.rows.length} heats /{" "}
+        {card.rows.filter((row) => row.judgeName === "OPEN").length} open
+      </p>
+    </div>
   )
 }
 
@@ -596,6 +832,34 @@ function formatExportDate(value: string | null, timezone: string) {
   return Number.isNaN(date.getTime())
     ? ""
     : formatDateTimeInTimezone(date, timezone)
+}
+
+function formatPacketDay(dayKey: string) {
+  if (dayKey === "Unscheduled") return dayKey
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dayKey)
+  if (!match) return dayKey
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const date = new Date(Date.UTC(year, month - 1, day))
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return dayKey
+  }
+
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: "UTC",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(date)
+  } catch {
+    return dayKey
+  }
 }
 
 function downloadCsv(filename: string, csvText: string) {

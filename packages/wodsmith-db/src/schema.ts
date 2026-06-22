@@ -10,11 +10,15 @@ export * from "./schemas/commerce"
 export * from "./schemas/common"
 export * from "./schemas/competition-invites"
 export * from "./schemas/competitions"
+// @lat: [[crew#Crew Billing State And Audit]]
+export * from "./schemas/crew-billing-events"
 export * from "./schemas/crew-event-settings"
 // `@lat`: [[crew#Add Thin Crew Tables]]
 export * from "./schemas/crew-imports"
 // @lat: [[crew#Self Serve Preset Schema]]
 export * from "./schemas/crew-self-serve-presets"
+// @lat: [[crew#Strategic Moat Privacy Model]]
+export * from "./schemas/crew-volunteer-intelligence"
 export * from "./schemas/entitlements"
 export * from "./schemas/event-division-mappings"
 export * from "./schemas/event-resources"
