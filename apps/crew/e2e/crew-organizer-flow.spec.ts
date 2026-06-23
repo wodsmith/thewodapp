@@ -45,7 +45,11 @@ test.describe("Crew organizer demo flow", () => {
 		await expect(
 			page.getByRole("heading", { name: "Assignment actions" }),
 		).toBeVisible()
-		await expect(page.getByText(demo.shiftAssignmentName)).toBeVisible()
+		await expect(
+			page.locator("section").filter({
+				has: page.getByRole("heading", { name: "Assignment actions" }),
+			}),
+		).toContainText(demo.shiftAssignmentName)
 		await expect(
 			page.getByRole("heading", { name: "No-shows and replacements" }),
 		).toBeVisible()
