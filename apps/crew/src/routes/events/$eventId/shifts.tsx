@@ -1,11 +1,12 @@
 // @lat: [[crew#Shift Board Pilot Ops]]
 // @lat: [[crew#Assignment Confirmations]]
 // @lat: [[crew#Confirmation Emails And Reminders]]
-import type { FormEvent } from "react"
+
 import {
   createFileRoute,
   getRouteApi,
   Link,
+  redirect,
   useNavigate,
   useRouter,
   useSearch,
@@ -23,52 +24,57 @@ import {
   Trash2,
   UploadCloud,
 } from "lucide-react"
+import type { FormEvent } from "react"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
+import {
+  VOLUNTEER_ROLE_OPTIONS,
+  type VolunteerRoleType,
+} from "@/db/schemas/volunteers"
 import {
   getCrewAssignmentConfirmationStatusBadgeClassName,
   getCrewAssignmentConfirmationStatusLabel,
 } from "@/lib/crew/assignment-confirmation-display"
 import {
   CREW_ASSIGNMENT_CONFIRMATION_ORGANIZER_STATES,
-  getCrewAssignmentConfirmationOperationalState,
   type CrewAssignmentConfirmationOrganizerState,
+  getCrewAssignmentConfirmationOperationalState,
 } from "@/lib/crew/assignment-confirmations"
-import { formatCrewValue } from "@/lib/crew-event-display"
 import {
-  filterCrewShiftBoardPilotShifts,
-  getRoleFilterOptions,
-  type CrewShiftBoardPilotFilters,
-  type CrewShiftPilotShiftState,
-} from "@/lib/crew/shift-board-pilot-ops"
-import {
+  type CrewRosterVolunteer,
   formatVolunteerAvailability,
   isVolunteerCompatibleWithShift,
-  type CrewRosterVolunteer,
 } from "@/lib/crew/roster-shifts"
 import {
-  assignCrewVolunteerToShiftFn,
-  createCrewShiftFn,
-  deleteCrewShiftFn,
-  getCrewShiftBoardFn,
-  removeCrewVolunteerShiftAssignmentFn,
-  updateCrewShiftFn,
-  type CrewShiftBoardItem,
-} from "@/server-fns/crew-roster-shift-fns"
+  type CrewShiftBoardPilotFilters,
+  type CrewShiftPilotShiftState,
+  filterCrewShiftBoardPilotShifts,
+  getRoleFilterOptions,
+} from "@/lib/crew/shift-board-pilot-ops"
+import { formatCrewValue } from "@/lib/crew-event-display"
 import {
   queueCrewAssignmentConfirmationEmailsFn,
   updateCrewShiftAssignmentConfirmationStateFn,
 } from "@/server-fns/crew-confirmation-fns"
-import { formatDateTimeInTimezone } from "@/utils/timezone-utils"
 import {
-  VOLUNTEER_ROLE_OPTIONS,
-  type VolunteerRoleType,
-} from "@/db/schemas/volunteers"
+  assignCrewVolunteerToShiftFn,
+  type CrewShiftBoardData,
+  type CrewShiftBoardItem,
+  createCrewShiftFn,
+  deleteCrewShiftFn,
+  removeCrewVolunteerShiftAssignmentFn,
+  updateCrewShiftFn,
+} from "@/server-fns/crew-roster-shift-fns"
+import { formatDateTimeInTimezone } from "@/utils/timezone-utils"
 
 export const Route = createFileRoute("/events/$eventId/shifts")({
-  loader: async ({ params }) =>
-    await getCrewShiftBoardFn({ data: { eventId: params.eventId } }),
-  component: EventShiftsPage,
+  beforeLoad: ({ params, search }) => {
+    throw redirect({
+      to: "/events/$eventId/assignments",
+      params,
+      search: toLegacyAssignmentsRedirectSearch(search, "shifts"),
+    })
+  },
 })
 
 const parentRoute = getRouteApi("/events/$eventId")
@@ -88,10 +94,13 @@ const SHIFT_BOARD_SOURCE_FILTERS = new Set<
   CrewShiftBoardPilotFilters["source"]
 >(["all", "imported_assignments", "direct_assignments"])
 
-function EventShiftsPage() {
+export function CrewShiftBoardAssignmentsTab({
+  data,
+}: {
+  data: CrewShiftBoardData
+}) {
   const { eventId } = parentRoute.useParams()
-  const { event, roster, rosterSummary, shifts, shiftSummary, pilotOps } =
-    Route.useLoaderData()
+  const { event, roster, rosterSummary, shifts, shiftSummary, pilotOps } = data
   const timezone = event.timezone ?? "America/Denver"
   const router = useRouter()
   const navigate = useNavigate()
@@ -159,7 +168,7 @@ function EventShiftsPage() {
     <section className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold">Shift board</h2>
+          <h2 className="text-xl font-semibold">Shift assignments</h2>
           <p className="text-sm text-muted-foreground">
             {pilotOps.summary.readyShifts} ready,{" "}
             {pilotOps.summary.openShiftCount} with open slots,{" "}
@@ -178,7 +187,7 @@ function EventShiftsPage() {
             ) : (
               <Mail className="size-4" />
             )}
-            Send confirmations
+            Send assignment emails
           </button>
           <button
             type="button"
@@ -191,7 +200,7 @@ function EventShiftsPage() {
             ) : (
               <BellRing className="size-4" />
             )}
-            Send reminders
+            Send reminder emails
           </button>
           <Link
             to="/events/$eventId/staffing"
@@ -293,6 +302,20 @@ function EventShiftsPage() {
       </div>
     </section>
   )
+}
+
+function toLegacyAssignmentsRedirectSearch(
+  search: unknown,
+  tab: "shifts" | "judges",
+) {
+  return {
+    ...(isSearchRecord(search) ? search : {}),
+    tab,
+  }
+}
+
+function isSearchRecord(search: unknown): search is Record<string, unknown> {
+  return typeof search === "object" && search !== null && !Array.isArray(search)
 }
 
 function getShiftBoardFiltersFromSearch(
