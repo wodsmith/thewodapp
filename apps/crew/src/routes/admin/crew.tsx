@@ -11,7 +11,13 @@ import {
 } from "@/server-fns/crew-admin-event-fns"
 
 export const Route = createFileRoute("/admin/crew")({
-  loader: async () => await getCrewAdminEventListFn(),
+  loader: async ({ location }) => {
+    if (isAdminCrewEventDetailRoute(location.pathname)) {
+      return { events: [] as CrewAdminEventListItem[] }
+    }
+
+    return await getCrewAdminEventListFn()
+  },
   component: CrewAdminShell,
 })
 
