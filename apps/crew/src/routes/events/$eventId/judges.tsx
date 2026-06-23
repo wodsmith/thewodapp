@@ -1,14 +1,16 @@
 // @lat: [[crew#Judge Rotations]]
-import type { FormEvent } from "react"
+
 import {
   createFileRoute,
   getRouteApi,
+  redirect,
   useNavigate,
   useRouter,
   useSearch,
 } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { Plus, RotateCcw, Save, Send, Trash2 } from "lucide-react"
+import type { FormEvent } from "react"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
@@ -28,26 +30,27 @@ import {
   type LaneShiftPattern,
 } from "@/db/schemas/volunteers"
 import {
+  type CrewJudgeRotationDraft,
+  type CrewJudgeRotationHeat,
   expandCrewJudgeRotationDrafts,
   summarizeCrewJudgeCoverage,
   validateCrewJudgeRotationDrafts,
-  type CrewJudgeRotationDraft,
-  type CrewJudgeRotationHeat,
 } from "@/lib/crew/judge-rotations"
 import {
-  getCrewJudgeRotationsPageFn,
-  publishCrewJudgeRotationsFn,
-  saveCrewJudgeRotationsForVolunteerFn,
   type CrewJudgeRotationsPageData,
   type CrewJudgeVolunteer,
+  publishCrewJudgeRotationsFn,
+  saveCrewJudgeRotationsForVolunteerFn,
 } from "@/server-fns/crew-judge-rotations-fns"
 
 export const Route = createFileRoute("/events/$eventId/judges")({
-  loader: async ({ params }) =>
-    await getCrewJudgeRotationsPageFn({
-      data: { eventId: params.eventId },
-    }),
-  component: EventJudgeRotationsPage,
+  beforeLoad: ({ params, search }) => {
+    throw redirect({
+      to: "/events/$eventId/assignments",
+      params,
+      search: toLegacyAssignmentsRedirectSearch(search, "judges"),
+    })
+  },
 })
 
 const parentRoute = getRouteApi("/events/$eventId")
@@ -60,9 +63,13 @@ interface RotationFormRow {
   notes: string
 }
 
-function EventJudgeRotationsPage() {
+export function CrewJudgeAssignmentsTab({
+  data,
+}: {
+  data: { page: CrewJudgeRotationsPageData }
+}) {
   const { eventId } = parentRoute.useParams()
-  const { page } = Route.useLoaderData()
+  const { page } = data
   const search = useSearch({ strict: false }) as {
     workout?: string
     judge?: string
@@ -113,9 +120,10 @@ function EventJudgeRotationsPage() {
     <section className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold">Judge rotations</h2>
+          <h2 className="text-xl font-semibold">Judge assignments</h2>
           <p className="text-sm text-muted-foreground">
-            {page.judges.length} judges, {page.rotations.length} rotations
+            {page.judges.length} judges, {page.rotations.length} planned
+            assignments
           </p>
         </div>
         {selectedWorkoutId ? (
@@ -123,7 +131,7 @@ function EventJudgeRotationsPage() {
             eventId={eventId}
             trackWorkoutId={selectedWorkoutId}
             activeVersionLabel={
-              activeVersion ? `Version ${activeVersion.version}` : "No version"
+              activeVersion ? "Published schedule" : "Not published"
             }
           />
         ) : null}
@@ -134,8 +142,8 @@ function EventJudgeRotationsPage() {
         <StatusPanel label="Heats" value={workoutHeats.length} />
         <StatusPanel label="Coverage" value={`${coverage.coveragePercent}%`} />
         <StatusPanel
-          label="Published"
-          value={activeVersion ? `v${activeVersion.version}` : "Draft"}
+          label="Schedule"
+          value={activeVersion ? "Published" : "Draft"}
         />
       </div>
 
@@ -186,12 +194,12 @@ function EventJudgeRotationsPage() {
 
         <section className="rounded-md border bg-card p-4 shadow-sm">
           <h3 className="text-sm font-semibold uppercase text-muted-foreground">
-            Active version
+            Published schedule
           </h3>
           <div className="mt-3 space-y-2 text-sm">
             <Fact
-              label="Version"
-              value={activeVersion ? `v${activeVersion.version}` : "None"}
+              label="Status"
+              value={activeVersion ? "Published" : "Not published"}
             />
             <Fact
               label="Published"
@@ -212,7 +220,7 @@ function EventJudgeRotationsPage() {
       ) : page.judges.length === 0 ? (
         <EmptyState
           title="No judges"
-          body="Add volunteers with judge roles before creating rotations."
+          body="Add volunteers with judge roles before creating judge assignments."
         />
       ) : selectedWorkout && selectedJudge ? (
         <div className="grid gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
@@ -246,7 +254,7 @@ function EventJudgeRotationsPage() {
                   assignment.trackWorkoutId === selectedWorkout.id,
               )}
             />
-            <VersionHistory
+            <PublishedSchedules
               versions={page.versionHistoryByWorkout[selectedWorkout.id] ?? []}
             />
           </div>
@@ -254,6 +262,20 @@ function EventJudgeRotationsPage() {
       ) : null}
     </section>
   )
+}
+
+function toLegacyAssignmentsRedirectSearch(
+  search: unknown,
+  tab: "shifts" | "judges",
+) {
+  return {
+    ...(isSearchRecord(search) ? search : {}),
+    tab,
+  }
+}
+
+function isSearchRecord(search: unknown): search is Record<string, unknown> {
+  return typeof search === "object" && search !== null && !Array.isArray(search)
 }
 
 function PublishRotationsPanel({
@@ -273,19 +295,21 @@ function PublishRotationsPanel({
   async function handlePublish() {
     setIsPublishing(true)
     try {
-      const result = await publishRotations({
+      await publishRotations({
         data: {
           eventId,
           trackWorkoutId,
           notes,
         },
       })
-      toast.success(`Published judge schedule v${result.version.version}`)
+      toast.success("Published judge schedule")
       setNotes("")
       await router.invalidate()
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to publish rotations",
+        error instanceof Error
+          ? error.message
+          : "Failed to publish judge schedule",
       )
     } finally {
       setIsPublishing(false)
@@ -304,7 +328,7 @@ function PublishRotationsPanel({
       <Textarea
         value={notes}
         onChange={(event) => setNotes(event.target.value)}
-        placeholder="Version notes"
+        placeholder="Schedule notes"
         className="min-h-16"
       />
     </div>
@@ -352,7 +376,7 @@ function JudgeList({
                 <Badge variant={count > 0 ? "default" : "outline"}>
                   {count}
                 </Badge>
-                rotations
+                assignments
               </span>
             </button>
           )
@@ -467,11 +491,13 @@ function RotationEditor({
           })),
         },
       })
-      toast.success("Judge rotations saved")
+      toast.success("Judge assignments saved")
       await router.invalidate()
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to save rotations",
+        error instanceof Error
+          ? error.message
+          : "Failed to save judge assignments",
       )
     } finally {
       setIsSaving(false)
@@ -489,7 +515,7 @@ function RotationEditor({
             {getJudgeName(selectedJudge)}
           </h3>
           <p className="text-sm text-muted-foreground">
-            {rows.length} rotations
+            {rows.length} assignments
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -635,7 +661,7 @@ function RotationEditor({
         </table>
         {rows.length === 0 ? (
           <div className="p-6 text-center text-sm text-muted-foreground">
-            No rotations for this judge.
+            No judge assignments for this judge.
           </div>
         ) : null}
       </div>
@@ -792,14 +818,14 @@ function PublishedAssignments({
   )
 }
 
-function VersionHistory({
+function PublishedSchedules({
   versions,
 }: {
   versions: CrewJudgeRotationsPageData["versionHistoryByWorkout"][string]
 }) {
   return (
     <section className="space-y-3 rounded-md border bg-card p-4 shadow-sm">
-      <h3 className="text-lg font-semibold">Version history</h3>
+      <h3 className="text-lg font-semibold">Published schedules</h3>
       {versions.length > 0 ? (
         <div className="divide-y rounded-md border">
           {versions.map((version) => (
@@ -807,7 +833,7 @@ function VersionHistory({
               key={version.id}
               className="grid gap-2 px-3 py-3 text-sm sm:grid-cols-[6rem_1fr_10rem]"
             >
-              <div className="font-medium">v{version.version}</div>
+              <div className="font-medium">Schedule {version.version}</div>
               <div className="text-muted-foreground">
                 {version.notes || "No notes"}
               </div>
