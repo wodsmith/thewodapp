@@ -15,7 +15,7 @@ test.describe("Crew volunteer demo flow", () => {
 			page.getByRole("heading", { name: TEST_DATA.competition.name }),
 		).toBeVisible({ timeout: 15000 })
 		await expect(page.getByText(demo.volunteerName, { exact: true })).toBeVisible()
-		await expect(page.getByText(demo.volunteerEmail)).toBeVisible()
+		await expect(page.getByText(demo.volunteerEmail, { exact: true })).toBeVisible()
 		await expect(page.getByText("Preferred roles")).toBeVisible()
 		await expect(page.getByText("Judge").first()).toBeVisible()
 

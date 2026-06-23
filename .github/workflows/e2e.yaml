@@ -153,7 +153,9 @@ jobs:
               "run_worker_first": false
             },
             "vars": {
-              "DATABASE_URL": "mysql://root:testpassword@127.0.0.1:3306/wodsmith_crew_e2e"
+              "DATABASE_URL": "mysql://root:testpassword@127.0.0.1:3306/wodsmith_crew_e2e",
+              "STAGE": "test",
+              "APP_URL": "http://localhost:3002"
             },
             "kv_namespaces": [
               {
