@@ -1,35 +1,60 @@
 // @lat: [[crew#Assignment Confirmation Responses]]
-import type { FormEvent } from "react"
+
 import { createFileRoute, notFound, useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { Loader2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
+import {
+  CrewVolunteerPublicResponseControls,
+  getCrewVolunteerResponseActionKey,
+} from "@/components/crew/volunteer-public-response-controls"
 import {
   getCrewAssignmentConfirmationStatusBadgeClassName,
   getCrewAssignmentConfirmationStatusLabel,
 } from "@/lib/crew/assignment-confirmation-display"
 import {
+  type CrewAssignmentConfirmationTokenData,
   getCrewAssignmentConfirmationTokenFn,
   respondCrewAssignmentConfirmationTokenFn,
 } from "@/server-fns/crew-confirmation-fns"
+import {
+  type CrewVolunteerScheduleTokenData,
+  type CrewVolunteerVisibleAssignment,
+  getCrewVolunteerScheduleTokenFn,
+  respondCrewVolunteerScheduleTokenFn,
+} from "@/server-fns/crew-volunteer-fns"
 import { formatDateTimeInTimezone } from "@/utils/timezone-utils"
 
 export const Route = createFileRoute("/e/$slug/confirm/$token")({
   loader: async ({ params }) => {
-    const result = await getCrewAssignmentConfirmationTokenFn({
+    const assignmentResult = await getCrewAssignmentConfirmationTokenFn({
       data: { slug: params.slug, token: params.token },
     })
 
-    if (result.status === "missing") {
+    if (assignmentResult.status !== "missing") {
+      return { mode: "assignment" as const, assignmentResult }
+    }
+
+    const volunteerResult = await getCrewVolunteerScheduleTokenFn({
+      data: { slug: params.slug, token: params.token },
+    })
+
+    if (
+      volunteerResult.status !== "valid" ||
+      !volunteerResult.event ||
+      !volunteerResult.volunteer
+    ) {
       throw notFound()
     }
 
-    return result
+    return { mode: "volunteer" as const, volunteerResult }
   },
   component: CrewAssignmentConfirmationPage,
   head: ({ loaderData }) => {
-    const event = loaderData?.event
+    const event =
+      loaderData?.mode === "assignment"
+        ? loaderData.assignmentResult.event
+        : loaderData?.volunteerResult.event
     return {
       meta: [
         {
@@ -43,7 +68,22 @@ export const Route = createFileRoute("/e/$slug/confirm/$token")({
 })
 
 function CrewAssignmentConfirmationPage() {
-  const data = Route.useLoaderData()
+  const loaderData = Route.useLoaderData()
+
+  if (loaderData.mode === "assignment") {
+    return (
+      <CrewAssignmentTokenConfirmation data={loaderData.assignmentResult} />
+    )
+  }
+
+  return <CrewVolunteerTokenConfirmation data={loaderData.volunteerResult} />
+}
+
+function CrewAssignmentTokenConfirmation({
+  data,
+}: {
+  data: CrewAssignmentConfirmationTokenData
+}) {
   const { slug, token } = Route.useParams()
   const router = useRouter()
   const respond = useServerFn(respondCrewAssignmentConfirmationTokenFn)
@@ -70,17 +110,22 @@ function CrewAssignmentConfirmationPage() {
   }
 
   const timezone = data.event.timezone ?? "America/Denver"
+  const assignment = data.assignment
   const confirmationStatus = data.confirmation?.status ?? "pending"
-  const canRespond = confirmationStatus === "pending"
 
   async function submitResponse(
     action: "confirm" | "decline" | "request_change",
     responseNote?: string,
   ) {
-    setPendingAction(action)
+    setPendingAction(getCrewVolunteerResponseActionKey(assignment.id, action))
     try {
       const result = await respond({
-        data: { slug, token, action, responseNote },
+        data: {
+          slug,
+          token,
+          action,
+          responseNote: responseNote?.trim() || undefined,
+        },
       })
       if (result.success) {
         toast.success(result.message)
@@ -95,13 +140,6 @@ function CrewAssignmentConfirmationPage() {
     } finally {
       setPendingAction(null)
     }
-  }
-
-  async function handleChangeRequest(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const formData = new FormData(event.currentTarget)
-    const responseNote = getFormString(formData, "responseNote")
-    await submitResponse("request_change", responseNote)
   }
 
   return (
@@ -120,10 +158,8 @@ function CrewAssignmentConfirmationPage() {
       <section className="rounded-md border bg-card p-6 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2 className="text-xl font-semibold">{data.assignment.name}</h2>
-            <p className="mt-2 text-muted-foreground">
-              {data.assignment.roleLabel}
-            </p>
+            <h2 className="text-xl font-semibold">{assignment.name}</h2>
+            <p className="mt-2 text-muted-foreground">{assignment.roleLabel}</p>
           </div>
           <StatusBadge status={confirmationStatus} />
         </div>
@@ -132,7 +168,7 @@ function CrewAssignmentConfirmationPage() {
           <Fact
             label="Start"
             value={formatDateTimeInTimezone(
-              data.assignment.startTime,
+              assignment.startTime,
               timezone,
               "EEE, MMM d h:mm a",
             )}
@@ -140,15 +176,12 @@ function CrewAssignmentConfirmationPage() {
           <Fact
             label="End"
             value={formatDateTimeInTimezone(
-              data.assignment.endTime,
+              assignment.endTime,
               timezone,
               "EEE, MMM d h:mm a",
             )}
           />
-          <Fact
-            label="Location"
-            value={data.assignment.location ?? "Not set"}
-          />
+          <Fact label="Location" value={assignment.location ?? "Not set"} />
           <Fact
             label="Respond by"
             value={
@@ -163,77 +196,189 @@ function CrewAssignmentConfirmationPage() {
           />
         </dl>
 
-        {data.assignment.notes ? (
+        {assignment.notes ? (
           <p className="mt-5 whitespace-pre-wrap rounded-md border bg-background p-3 text-sm text-muted-foreground">
-            {data.assignment.notes}
+            {assignment.notes}
           </p>
         ) : null}
       </section>
 
-      {canRespond ? (
-        <section className="space-y-4 rounded-md border bg-card p-6 shadow-sm">
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              disabled={pendingAction !== null}
-              onClick={() => submitResponse("confirm")}
-              className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {pendingAction === "confirm" ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : null}
-              Confirm
-            </button>
-            <button
-              type="button"
-              disabled={pendingAction !== null}
-              onClick={() => submitResponse("decline")}
-              className="inline-flex h-10 items-center gap-2 rounded-md border px-4 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {pendingAction === "decline" ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : null}
-              Decline
-            </button>
-          </div>
+      <section className="rounded-md border bg-card p-6 shadow-sm">
+        <CrewVolunteerPublicResponseControls
+          assignment={{
+            id: assignment.id,
+            confirmation: data.confirmation,
+          }}
+          pendingAction={pendingAction}
+          onConfirm={() => void submitResponse("confirm")}
+          onNoteSubmit={(action, note) => submitResponse(action, note)}
+        />
+      </section>
+    </main>
+  )
+}
 
-          <form onSubmit={handleChangeRequest} className="space-y-3">
-            <label className="grid gap-2 text-sm">
-              <span className="font-medium">Request a change</span>
-              <textarea
-                name="responseNote"
-                rows={4}
-                className="rounded-md border bg-background px-3 py-2"
-                placeholder="Share what needs to change"
-              />
-            </label>
-            <button
-              type="submit"
-              disabled={pendingAction !== null}
-              className="inline-flex h-10 items-center gap-2 rounded-md border px-4 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {pendingAction === "request_change" ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : null}
-              Send request
-            </button>
-          </form>
+function CrewVolunteerTokenConfirmation({
+  data,
+}: {
+  data: CrewVolunteerScheduleTokenData
+}) {
+  const { slug, token } = Route.useParams()
+  const router = useRouter()
+  const respond = useServerFn(respondCrewVolunteerScheduleTokenFn)
+  const [pendingAction, setPendingAction] = useState<string | null>(null)
+
+  if (data.status !== "valid" || !data.event || !data.volunteer) {
+    return (
+      <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
+        <section className="rounded-md border bg-card p-6 shadow-sm">
+          <p className="text-sm font-medium text-muted-foreground">
+            Assignment confirmation
+          </p>
+          <h1 className="mt-2 text-2xl font-semibold">
+            This link is no longer valid
+          </h1>
+          <p className="mt-3 text-muted-foreground">
+            Please contact the event organizer for a fresh assignment link.
+          </p>
+        </section>
+      </main>
+    )
+  }
+
+  const timezone = data.event.timezone ?? "America/Denver"
+
+  async function submitResponse(
+    assignment: CrewVolunteerVisibleAssignment,
+    action: "confirm" | "decline" | "request_change",
+    responseNote?: string,
+  ) {
+    setPendingAction(getCrewVolunteerResponseActionKey(assignment.id, action))
+    try {
+      const result = await respond({
+        data: {
+          slug,
+          token,
+          assignmentId: assignment.id,
+          action,
+          responseNote: responseNote?.trim() || undefined,
+        },
+      })
+      if (result.success) {
+        toast.success(result.message)
+      } else {
+        toast.error(result.message)
+      }
+      await router.invalidate()
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Assignment response failed",
+      )
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
+  return (
+    <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
+      <section className="rounded-md border bg-card p-6 shadow-sm">
+        <p className="text-sm font-medium text-muted-foreground">
+          Assignment confirmation
+        </p>
+        <h1 className="mt-2 text-3xl font-semibold">{data.event.name}</h1>
+        <p className="mt-2 text-muted-foreground">
+          {data.volunteer.name ?? "Volunteer"} · {data.volunteer.email}
+        </p>
+      </section>
+
+      {data.assignments.length === 0 ? (
+        <section className="rounded-md border bg-card p-6 shadow-sm">
+          <h2 className="text-xl font-semibold">No assignments yet</h2>
+          <p className="mt-2 text-muted-foreground">
+            No volunteer assignments are published for this link yet.
+          </p>
         </section>
       ) : (
-        <section className="rounded-md border bg-card p-6 shadow-sm">
-          <h2 className="text-xl font-semibold">Response recorded</h2>
-          <p className="mt-2 text-muted-foreground">
-            Your current response is{" "}
-            {getCrewAssignmentConfirmationStatusLabel(confirmationStatus)}.
-          </p>
-          {data.confirmation?.responseNote ? (
-            <p className="mt-4 whitespace-pre-wrap rounded-md border bg-background p-3 text-sm">
-              {data.confirmation.responseNote}
-            </p>
-          ) : null}
+        <section className="space-y-4">
+          {data.assignments.map((assignment) => (
+            <VolunteerAssignmentResponseCard
+              key={assignment.id}
+              assignment={assignment}
+              timezone={timezone}
+              pendingAction={pendingAction}
+              onConfirm={() => void submitResponse(assignment, "confirm")}
+              onNoteSubmit={(action, note) =>
+                submitResponse(assignment, action, note)
+              }
+            />
+          ))}
         </section>
       )}
     </main>
+  )
+}
+
+function VolunteerAssignmentResponseCard({
+  assignment,
+  timezone,
+  pendingAction,
+  onConfirm,
+  onNoteSubmit,
+}: {
+  assignment: CrewVolunteerVisibleAssignment
+  timezone: string
+  pendingAction: string | null
+  onConfirm: () => void
+  onNoteSubmit: (
+    action: "decline" | "request_change",
+    note: string,
+  ) => Promise<void> | void
+}) {
+  const status = assignment.confirmation?.status ?? "pending"
+
+  return (
+    <article className="rounded-md border bg-card p-6 shadow-sm">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-xl font-semibold">{assignment.name}</h2>
+          <p className="mt-2 text-muted-foreground">{assignment.roleLabel}</p>
+        </div>
+        <StatusBadge status={status} />
+      </div>
+
+      <dl className="mt-6 grid gap-4 text-sm sm:grid-cols-2">
+        <Fact
+          label="Start"
+          value={formatDateTimeInTimezone(
+            assignment.startTime,
+            timezone,
+            "EEE, MMM d h:mm a",
+          )}
+        />
+        <Fact
+          label="End"
+          value={formatDateTimeInTimezone(
+            assignment.endTime,
+            timezone,
+            "EEE, MMM d h:mm a",
+          )}
+        />
+        <Fact label="Location" value={assignment.location ?? "Not set"} />
+      </dl>
+
+      {assignment.notes ? (
+        <p className="mt-5 whitespace-pre-wrap rounded-md border bg-background p-3 text-sm text-muted-foreground">
+          {assignment.notes}
+        </p>
+      ) : null}
+
+      <CrewVolunteerPublicResponseControls
+        assignment={assignment}
+        pendingAction={pendingAction}
+        onConfirm={onConfirm}
+        onNoteSubmit={onNoteSubmit}
+      />
+    </article>
   )
 }
 
@@ -256,9 +401,4 @@ function StatusBadge({ status }: { status: string }) {
       {getCrewAssignmentConfirmationStatusLabel(status)}
     </span>
   )
-}
-
-function getFormString(formData: FormData, name: string) {
-  const value = formData.get(name)
-  return typeof value === "string" ? value.trim() : ""
 }

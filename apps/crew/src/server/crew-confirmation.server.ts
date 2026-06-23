@@ -149,6 +149,7 @@ export interface CrewAssignmentConfirmationResponseResult
     | "expired"
     | "cancelled"
     | "already_responded"
+    | "missing_note"
     | "missing"
     | "bad"
   message: string

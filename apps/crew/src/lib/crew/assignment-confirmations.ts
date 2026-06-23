@@ -216,7 +216,7 @@ export type CrewAssignmentConfirmationResponseResolution =
     }
   | {
       ok: false
-      reason: "expired" | "cancelled" | "already_responded"
+      reason: "expired" | "cancelled" | "already_responded" | "missing_note"
       status: CrewAssignmentConfirmationStatus
       message: string
     }
@@ -255,13 +255,26 @@ export function resolveCrewAssignmentConfirmationResponse(
   }
 
   const nextStatus = statusForCrewAssignmentResponseAction(action)
-  const responseNote =
+  const actionRequiresNote =
+    nextStatus === CREW_ASSIGNMENT_CONFIRMATION_STATUS.DECLINED ||
     nextStatus === CREW_ASSIGNMENT_CONFIRMATION_STATUS.CHANGE_REQUESTED
-      ? normalizeResponseNote(note)
-      : null
+  const responseNote = actionRequiresNote ? normalizeResponseNote(note) : null
+
+  if (actionRequiresNote && !responseNote) {
+    return {
+      ok: false,
+      reason: "missing_note",
+      status: record.status,
+      message:
+        nextStatus === CREW_ASSIGNMENT_CONFIRMATION_STATUS.DECLINED
+          ? "Add a note before declining this assignment."
+          : "Add a note before requesting a change.",
+    }
+  }
 
   if (record.status === nextStatus) {
     const existingNote =
+      nextStatus === CREW_ASSIGNMENT_CONFIRMATION_STATUS.DECLINED ||
       nextStatus === CREW_ASSIGNMENT_CONFIRMATION_STATUS.CHANGE_REQUESTED
         ? normalizeResponseNote(record.responseNote)
         : null

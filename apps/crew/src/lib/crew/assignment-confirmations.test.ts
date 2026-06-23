@@ -3,14 +3,14 @@ import { describe, expect, it } from "vitest"
 import { CREW_ASSIGNMENT_CONFIRMATION_STATUS } from "../../db/schemas/crew-imports"
 import {
   buildCrewAssignmentConfirmationEmailPlan,
-  buildCrewAssignmentEmailIdempotencyKey,
   buildCrewAssignmentConfirmationUrls,
+  buildCrewAssignmentEmailIdempotencyKey,
   generateCrewAssignmentConfirmationToken,
   getCrewAssignmentConfirmationOperationalState,
   getCrewAssignmentConfirmationTokenState,
   hashCrewAssignmentConfirmationToken,
-  resolveCrewAssignmentConfirmationResponse,
   resolveCrewAssignmentConfirmationOrganizerStateUpdate,
+  resolveCrewAssignmentConfirmationResponse,
   summarizeCrewAssignmentConfirmationOperationalStates,
   summarizeCrewAssignmentConfirmations,
 } from "./assignment-confirmations"
@@ -81,11 +81,17 @@ describe("Crew assignment response state transitions", () => {
       respondedAt: now,
     })
     expect(
-      resolveCrewAssignmentConfirmationResponse(base, "decline", null, now),
+      resolveCrewAssignmentConfirmationResponse(
+        base,
+        "decline",
+        "I cannot make it.",
+        now,
+      ),
     ).toMatchObject({
       ok: true,
       outcome: "updated",
       status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.DECLINED,
+      responseNote: "I cannot make it.",
       respondedAt: now,
     })
     expect(
@@ -101,6 +107,38 @@ describe("Crew assignment response state transitions", () => {
       status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CHANGE_REQUESTED,
       responseNote: "I can do the afternoon.",
       respondedAt: now,
+    })
+  })
+
+  it("requires notes for decline and change requests", () => {
+    const base = {
+      status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
+      expiresAt: "2026-06-20T12:00:00.000Z",
+    }
+
+    expect(
+      resolveCrewAssignmentConfirmationResponse(
+        base,
+        "decline",
+        "  ",
+        new Date("2026-06-19T12:00:00.000Z"),
+      ),
+    ).toMatchObject({
+      ok: false,
+      reason: "missing_note",
+      message: "Add a note before declining this assignment.",
+    })
+    expect(
+      resolveCrewAssignmentConfirmationResponse(
+        base,
+        "request_change",
+        "",
+        new Date("2026-06-19T12:00:00.000Z"),
+      ),
+    ).toMatchObject({
+      ok: false,
+      reason: "missing_note",
+      message: "Add a note before requesting a change.",
     })
   })
 
@@ -127,7 +165,7 @@ describe("Crew assignment response state transitions", () => {
       resolveCrewAssignmentConfirmationResponse(
         confirmed,
         "decline",
-        null,
+        "Schedule conflict",
         now,
       ),
     ).toMatchObject({
