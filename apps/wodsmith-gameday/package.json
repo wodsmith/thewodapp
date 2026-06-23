@@ -12,19 +12,20 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@capacitor/core": "^7.2.0",
-    "@capacitor/network": "^7.0.0",
-    "@capacitor/preferences": "^7.0.0",
+    "@capacitor/core": "^8.2.0",
+    "@capacitor/ios": "^8.2.0",
+    "@capacitor/network": "^8.0.1",
+    "@capacitor/preferences": "^8.0.1",
+    "@effect/platform": "^0.78.0",
     "@tanstack/react-router": "^1.132.0",
     "effect": "^3.14.0",
-    "@effect/platform": "^0.78.0",
     "react": "catalog:",
     "react-dom": "catalog:",
     "zustand": "^5.0.5"
   },
   "devDependencies": {
     "@biomejs/biome": "2.0.6",
-    "@capacitor/cli": "^7.2.0",
+    "@capacitor/cli": "^8.2.0",
     "@tanstack/router-plugin": "^1.132.0",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
