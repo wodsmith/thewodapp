@@ -1,8 +1,9 @@
 // @lat: [[crew#Assignment Confirmation Responses]]
-import type { FormEvent } from "react"
+
 import { createFileRoute, notFound, useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { Loader2 } from "lucide-react"
+import type { FormEvent } from "react"
 import { useState } from "react"
 import { toast } from "sonner"
 import {
@@ -10,26 +11,48 @@ import {
   getCrewAssignmentConfirmationStatusLabel,
 } from "@/lib/crew/assignment-confirmation-display"
 import {
+  type CrewAssignmentConfirmationTokenData,
   getCrewAssignmentConfirmationTokenFn,
   respondCrewAssignmentConfirmationTokenFn,
 } from "@/server-fns/crew-confirmation-fns"
+import {
+  type CrewVolunteerScheduleTokenData,
+  type CrewVolunteerVisibleAssignment,
+  getCrewVolunteerScheduleTokenFn,
+  respondCrewVolunteerScheduleTokenFn,
+} from "@/server-fns/crew-volunteer-fns"
 import { formatDateTimeInTimezone } from "@/utils/timezone-utils"
 
 export const Route = createFileRoute("/e/$slug/confirm/$token")({
   loader: async ({ params }) => {
-    const result = await getCrewAssignmentConfirmationTokenFn({
+    const assignmentResult = await getCrewAssignmentConfirmationTokenFn({
       data: { slug: params.slug, token: params.token },
     })
 
-    if (result.status === "missing") {
+    if (assignmentResult.status !== "missing") {
+      return { mode: "assignment" as const, assignmentResult }
+    }
+
+    const volunteerResult = await getCrewVolunteerScheduleTokenFn({
+      data: { slug: params.slug, token: params.token },
+    })
+
+    if (
+      volunteerResult.status !== "valid" ||
+      !volunteerResult.event ||
+      !volunteerResult.volunteer
+    ) {
       throw notFound()
     }
 
-    return result
+    return { mode: "volunteer" as const, volunteerResult }
   },
   component: CrewAssignmentConfirmationPage,
   head: ({ loaderData }) => {
-    const event = loaderData?.event
+    const event =
+      loaderData?.mode === "assignment"
+        ? loaderData.assignmentResult.event
+        : loaderData?.volunteerResult.event
     return {
       meta: [
         {
@@ -43,7 +66,22 @@ export const Route = createFileRoute("/e/$slug/confirm/$token")({
 })
 
 function CrewAssignmentConfirmationPage() {
-  const data = Route.useLoaderData()
+  const loaderData = Route.useLoaderData()
+
+  if (loaderData.mode === "assignment") {
+    return (
+      <CrewAssignmentTokenConfirmation data={loaderData.assignmentResult} />
+    )
+  }
+
+  return <CrewVolunteerTokenConfirmation data={loaderData.volunteerResult} />
+}
+
+function CrewAssignmentTokenConfirmation({
+  data,
+}: {
+  data: CrewAssignmentConfirmationTokenData
+}) {
   const { slug, token } = Route.useParams()
   const router = useRouter()
   const respond = useServerFn(respondCrewAssignmentConfirmationTokenFn)
@@ -102,6 +140,13 @@ function CrewAssignmentConfirmationPage() {
     const formData = new FormData(event.currentTarget)
     const responseNote = getFormString(formData, "responseNote")
     await submitResponse("request_change", responseNote)
+  }
+
+  async function handleDecline(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const formData = new FormData(event.currentTarget)
+    const responseNote = getFormString(formData, "responseNote")
+    await submitResponse("decline", responseNote)
   }
 
   return (
@@ -172,52 +217,65 @@ function CrewAssignmentConfirmationPage() {
 
       {canRespond ? (
         <section className="space-y-4 rounded-md border bg-card p-6 shadow-sm">
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              disabled={pendingAction !== null}
-              onClick={() => submitResponse("confirm")}
-              className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {pendingAction === "confirm" ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : null}
-              Confirm
-            </button>
-            <button
-              type="button"
-              disabled={pendingAction !== null}
-              onClick={() => submitResponse("decline")}
-              className="inline-flex h-10 items-center gap-2 rounded-md border px-4 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {pendingAction === "decline" ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : null}
-              Decline
-            </button>
-          </div>
+          <button
+            type="button"
+            disabled={pendingAction !== null}
+            onClick={() => submitResponse("confirm")}
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 sm:w-fit"
+          >
+            {pendingAction === "confirm" ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : null}
+            Confirm
+          </button>
 
-          <form onSubmit={handleChangeRequest} className="space-y-3">
-            <label className="grid gap-2 text-sm">
-              <span className="font-medium">Request a change</span>
-              <textarea
-                name="responseNote"
-                rows={4}
-                className="rounded-md border bg-background px-3 py-2"
-                placeholder="Share what needs to change"
-              />
-            </label>
-            <button
-              type="submit"
-              disabled={pendingAction !== null}
-              className="inline-flex h-10 items-center gap-2 rounded-md border px-4 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {pendingAction === "request_change" ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : null}
-              Send request
-            </button>
-          </form>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <form onSubmit={handleChangeRequest} className="space-y-3">
+              <label className="grid gap-2 text-sm">
+                <span className="font-medium">Request a change</span>
+                <textarea
+                  name="responseNote"
+                  required
+                  rows={4}
+                  className="rounded-md border bg-background px-3 py-2"
+                  placeholder="Share what needs to change"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={pendingAction !== null}
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border px-4 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {pendingAction === "request_change" ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : null}
+                Send request
+              </button>
+            </form>
+
+            <form onSubmit={handleDecline} className="space-y-3">
+              <label className="grid gap-2 text-sm">
+                <span className="font-medium">Decline</span>
+                <textarea
+                  name="responseNote"
+                  required
+                  rows={4}
+                  className="rounded-md border bg-background px-3 py-2"
+                  placeholder="Let the organizer know why"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={pendingAction !== null}
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border px-4 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {pendingAction === "decline" ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : null}
+                Decline
+              </button>
+            </form>
+          </div>
         </section>
       ) : (
         <section className="rounded-md border bg-card p-6 shadow-sm">
@@ -234,6 +292,258 @@ function CrewAssignmentConfirmationPage() {
         </section>
       )}
     </main>
+  )
+}
+
+function CrewVolunteerTokenConfirmation({
+  data,
+}: {
+  data: CrewVolunteerScheduleTokenData
+}) {
+  const { slug, token } = Route.useParams()
+  const router = useRouter()
+  const respond = useServerFn(respondCrewVolunteerScheduleTokenFn)
+  const [pendingAction, setPendingAction] = useState<string | null>(null)
+
+  if (data.status !== "valid" || !data.event || !data.volunteer) {
+    return (
+      <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
+        <section className="rounded-md border bg-card p-6 shadow-sm">
+          <p className="text-sm font-medium text-muted-foreground">
+            Assignment confirmation
+          </p>
+          <h1 className="mt-2 text-2xl font-semibold">
+            This link is no longer valid
+          </h1>
+          <p className="mt-3 text-muted-foreground">
+            Please contact the event organizer for a fresh assignment link.
+          </p>
+        </section>
+      </main>
+    )
+  }
+
+  const timezone = data.event.timezone ?? "America/Denver"
+
+  async function submitResponse(
+    assignment: CrewVolunteerVisibleAssignment,
+    action: "confirm" | "decline" | "request_change",
+    responseNote?: string,
+  ) {
+    const actionKey = `${assignment.id}:${action}`
+    setPendingAction(actionKey)
+    try {
+      const result = await respond({
+        data: {
+          slug,
+          token,
+          assignmentId: assignment.id,
+          action,
+          responseNote: responseNote?.trim() || undefined,
+        },
+      })
+      if (result.success) {
+        toast.success(result.message)
+      } else {
+        toast.error(result.message)
+      }
+      await router.invalidate()
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Assignment response failed",
+      )
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
+  function handleNoteResponse(
+    assignment: CrewVolunteerVisibleAssignment,
+    action: "decline" | "request_change",
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault()
+    const formData = new FormData(event.currentTarget)
+    void submitResponse(assignment, action, getFormString(formData, "note"))
+  }
+
+  return (
+    <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
+      <section className="rounded-md border bg-card p-6 shadow-sm">
+        <p className="text-sm font-medium text-muted-foreground">
+          Assignment confirmation
+        </p>
+        <h1 className="mt-2 text-3xl font-semibold">{data.event.name}</h1>
+        <p className="mt-2 text-muted-foreground">
+          {data.volunteer.name ?? "Volunteer"} · {data.volunteer.email}
+        </p>
+      </section>
+
+      {data.assignments.length === 0 ? (
+        <section className="rounded-md border bg-card p-6 shadow-sm">
+          <h2 className="text-xl font-semibold">No assignments yet</h2>
+          <p className="mt-2 text-muted-foreground">
+            No volunteer assignments are published for this link yet.
+          </p>
+        </section>
+      ) : (
+        <section className="space-y-4">
+          {data.assignments.map((assignment) => (
+            <VolunteerAssignmentResponseCard
+              key={assignment.id}
+              assignment={assignment}
+              timezone={timezone}
+              pendingAction={pendingAction}
+              onConfirm={() => void submitResponse(assignment, "confirm")}
+              onNoteSubmit={handleNoteResponse}
+            />
+          ))}
+        </section>
+      )}
+    </main>
+  )
+}
+
+function VolunteerAssignmentResponseCard({
+  assignment,
+  timezone,
+  pendingAction,
+  onConfirm,
+  onNoteSubmit,
+}: {
+  assignment: CrewVolunteerVisibleAssignment
+  timezone: string
+  pendingAction: string | null
+  onConfirm: () => void
+  onNoteSubmit: (
+    assignment: CrewVolunteerVisibleAssignment,
+    action: "decline" | "request_change",
+    event: FormEvent<HTMLFormElement>,
+  ) => void
+}) {
+  const status = assignment.confirmation?.status ?? "pending"
+  const canRespond = status === "pending"
+  const disabled = pendingAction !== null
+  const declineKey = `${assignment.id}:decline`
+  const changeKey = `${assignment.id}:request_change`
+
+  return (
+    <article className="rounded-md border bg-card p-6 shadow-sm">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-xl font-semibold">{assignment.name}</h2>
+          <p className="mt-2 text-muted-foreground">{assignment.roleLabel}</p>
+        </div>
+        <StatusBadge status={status} />
+      </div>
+
+      <dl className="mt-6 grid gap-4 text-sm sm:grid-cols-2">
+        <Fact
+          label="Start"
+          value={formatDateTimeInTimezone(
+            assignment.startTime,
+            timezone,
+            "EEE, MMM d h:mm a",
+          )}
+        />
+        <Fact
+          label="End"
+          value={formatDateTimeInTimezone(
+            assignment.endTime,
+            timezone,
+            "EEE, MMM d h:mm a",
+          )}
+        />
+        <Fact label="Location" value={assignment.location ?? "Not set"} />
+      </dl>
+
+      {assignment.notes ? (
+        <p className="mt-5 whitespace-pre-wrap rounded-md border bg-background p-3 text-sm text-muted-foreground">
+          {assignment.notes}
+        </p>
+      ) : null}
+
+      {canRespond ? (
+        <div className="mt-5 space-y-4 rounded-md border bg-background p-4">
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={onConfirm}
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 sm:w-fit"
+          >
+            {pendingAction === `${assignment.id}:confirm` ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : null}
+            Confirm
+          </button>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <form
+              onSubmit={(event) =>
+                onNoteSubmit(assignment, "request_change", event)
+              }
+              className="space-y-3"
+            >
+              <label className="grid gap-2 text-sm">
+                <span className="font-medium">Request a change</span>
+                <textarea
+                  name="note"
+                  required
+                  rows={4}
+                  className="rounded-md border bg-card px-3 py-2"
+                  placeholder="Share what needs to change"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={disabled}
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border px-4 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {pendingAction === changeKey ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : null}
+                Send request
+              </button>
+            </form>
+
+            <form
+              onSubmit={(event) => onNoteSubmit(assignment, "decline", event)}
+              className="space-y-3"
+            >
+              <label className="grid gap-2 text-sm">
+                <span className="font-medium">Decline</span>
+                <textarea
+                  name="note"
+                  required
+                  rows={4}
+                  className="rounded-md border bg-card px-3 py-2"
+                  placeholder="Let the organizer know why"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={disabled}
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border px-4 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {pendingAction === declineKey ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : null}
+                Decline
+              </button>
+            </form>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-5 rounded-md border bg-background p-3 text-sm">
+          <p className="font-medium">{getRecordedResponseMessage(status)}</p>
+          {assignment.confirmation?.responseNote ? (
+            <p className="mt-2 whitespace-pre-wrap text-muted-foreground">
+              {assignment.confirmation.responseNote}
+            </p>
+          ) : null}
+        </div>
+      )}
+    </article>
   )
 }
 
@@ -256,6 +566,19 @@ function StatusBadge({ status }: { status: string }) {
       {getCrewAssignmentConfirmationStatusLabel(status)}
     </span>
   )
+}
+
+function getRecordedResponseMessage(status: string) {
+  if (status === "confirmed") {
+    return "Confirmed. We'll remind you before your shift."
+  }
+  if (status === "declined") {
+    return "Declined. The organizer will see your note."
+  }
+  if (status === "change_requested") {
+    return "Change request sent. The organizer will see your note."
+  }
+  return `Response recorded: ${getCrewAssignmentConfirmationStatusLabel(status)}.`
 }
 
 function getFormString(formData: FormData, name: string) {
