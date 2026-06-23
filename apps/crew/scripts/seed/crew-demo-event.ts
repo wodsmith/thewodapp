@@ -148,7 +148,7 @@ export const CREW_DEMO_EVENT = {
 	volunteerShiftName: "North Lane 2 Judge",
 	organizerTotals: {
 		volunteers: DEMO_VOLUNTEERS.length,
-		assignments: 12,
+		assignments: 11,
 	},
 } as const
 

@@ -69,7 +69,7 @@ export const TEST_DATA = {
 		shiftAssignmentName: "North Floor Crew",
 		noShowShiftName: "Medical Station",
 		volunteerCount: 18,
-		shiftAssignments: 12,
+		shiftAssignments: 11,
 	},
 	divisions: {
 		rx: { id: "e2e_div_rx", label: "RX", teamSize: 1 },

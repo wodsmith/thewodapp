@@ -109,8 +109,97 @@ jobs:
           path: apps/wodsmith-start/blob-report/
           retention-days: 1
 
+  crew-demo-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: testpassword
+          MYSQL_DATABASE: wodsmith_crew_e2e
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Setup Crew Alchemy local config
+        working-directory: apps/crew
+        run: |
+          mkdir -p .alchemy/local
+          cat > .alchemy/local/wrangler.jsonc << 'EOF'
+          {
+            "name": "wodsmith-crew-e2e",
+            "main": "@tanstack/react-start/server-entry",
+            "compatibility_date": "2025-12-17",
+            "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
+            "assets": {
+              "directory": "../../dist/client",
+              "binding": "ASSETS",
+              "not_found_handling": "none",
+              "html_handling": "auto-trailing-slash",
+              "run_worker_first": false
+            },
+            "vars": {
+              "DATABASE_URL": "mysql://root:testpassword@127.0.0.1:3306/wodsmith_crew_e2e"
+            },
+            "kv_namespaces": [
+              {
+                "binding": "KV_SESSION",
+                "id": "e2e-kv-session",
+                "preview_id": "e2e-kv-session"
+              }
+            ],
+            "r2_buckets": [
+              {
+                "binding": "R2_BUCKET",
+                "bucket_name": "e2e-uploads",
+                "preview_bucket_name": "e2e-uploads"
+              }
+            ]
+          }
+          EOF
+
+      - name: Configure Crew environment
+        working-directory: apps/crew
+        run: echo 'DATABASE_URL=mysql://root:testpassword@127.0.0.1:3306/wodsmith_crew_e2e' >> .dev.vars
+
+      - name: Setup Crew E2E database
+        working-directory: apps/crew
+        env:
+          DATABASE_URL: mysql://root:testpassword@127.0.0.1:3306/wodsmith_crew_e2e
+        run: |
+          pnpm db:push
+          pnpm db:seed
+          pnpm db:seed:e2e
+
+      - run: pnpm --filter crew exec playwright install chromium --with-deps
+        timeout-minutes: 10
+      - run: pnpm --filter crew exec playwright test e2e/crew-organizer-flow.spec.ts e2e/crew-volunteer-flow.spec.ts
+        env:
+          CI: true
+          DATABASE_URL: mysql://root:testpassword@127.0.0.1:3306/wodsmith_crew_e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: crew-demo-blob-report
+          path: apps/crew/blob-report/
+          retention-days: 1
+
   merge-reports:
-    needs: e2e
+    needs: [e2e, crew-demo-e2e]
     runs-on: ubuntu-latest
     if: always()
     steps:
