@@ -12,6 +12,7 @@ export type CrewEventNavRoute =
   | "/events/$eventId/setup"
   | "/events/$eventId/imports"
   | "/events/$eventId/assignments"
+  | "/events/$eventId/messages"
   | "/events/$eventId/day-of"
   | "/events/$eventId/exports"
 
@@ -76,10 +77,8 @@ export const CREW_EVENT_NAV_ITEMS = [
   {
     key: "confirmations",
     label: "Confirmations",
-    to: "/events/$eventId/assignments",
+    to: "/events/$eventId/messages",
     persona: ["wodsmith_operator", "organizer_admin", "department_lead"],
-    requires: ["has_assignments"],
-    hiddenWhenEmpty: true,
   },
   {
     key: "event-day",
