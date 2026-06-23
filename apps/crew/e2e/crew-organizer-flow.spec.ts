@@ -54,7 +54,7 @@ test.describe("Crew organizer demo flow", () => {
 
 async function expectPanelWithNonZeroValue(page: Page, label: string) {
 	await expect(
-		page.locator("section").filter({
+		page.getByRole("main").filter({
 			hasText: new RegExp(`${escapeRegExp(label)}\\s+[1-9]\\d*`),
 		}).first(),
 	).toBeVisible()
