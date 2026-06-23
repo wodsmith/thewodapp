@@ -1,9 +1,9 @@
-import { render } from "@react-email/render"
 // @lat: [[crew#Assignment Confirmation Responses]]
 // @lat: [[crew#Assignment Confirmations]]
 // @lat: [[crew#Confirmation Emails And Reminders]]
 // @lat: [[crew#Volunteer Self Service]]
 import { env } from "cloudflare:workers"
+import { render } from "@react-email/render"
 import {
   and,
   asc,
@@ -17,18 +17,18 @@ import {
   sql,
 } from "drizzle-orm"
 import { getDb } from "../db"
-import { competitionsTable, type Competition } from "../db/schemas/competitions"
 import { createCrewAssignmentConfirmationId } from "../db/schemas/common"
-import {
-  CREW_ASSIGNMENT_CONFIRMATION_STATUS,
-  CREW_ASSIGNMENT_CONFIRMATION_TYPE,
-  crewAssignmentConfirmationsTable,
-  type CrewAssignmentConfirmationStatus,
-} from "../db/schemas/crew-imports"
+import { type Competition, competitionsTable } from "../db/schemas/competitions"
 import {
   CREW_EVENT_LIFECYCLE,
   crewEventSettingsTable,
 } from "../db/schemas/crew-event-settings"
+import {
+  CREW_ASSIGNMENT_CONFIRMATION_STATUS,
+  CREW_ASSIGNMENT_CONFIRMATION_TYPE,
+  type CrewAssignmentConfirmationStatus,
+  crewAssignmentConfirmationsTable,
+} from "../db/schemas/crew-imports"
 import {
   CREW_VOLUNTEER_HISTORY_ASSIGNMENT_TYPE,
   CREW_VOLUNTEER_HISTORY_EVENT_TYPE,
@@ -38,36 +38,37 @@ import {
 import { SYSTEM_ROLES_ENUM, teamMembershipTable } from "../db/schemas/teams"
 import { userTable } from "../db/schemas/users"
 import {
-  volunteerShiftAssignmentsTable,
-  volunteerShiftsTable,
   type VolunteerAvailability,
   type VolunteerRoleType,
+  volunteerShiftAssignmentsTable,
+  volunteerShiftsTable,
 } from "../db/schemas/volunteers"
 import {
-  buildCrewAssignmentConfirmationUrls,
   buildCrewAssignmentConfirmationEmailPlan,
+  buildCrewAssignmentConfirmationUrls,
   buildCrewAssignmentEmailIdempotencyKey,
-  generateCrewAssignmentConfirmationToken,
-  getCrewAssignmentConfirmationTokenState,
-  hashCrewAssignmentConfirmationToken,
-  normalizeConfirmationEmailForSend,
-  resolveCrewAssignmentConfirmationResponse,
-  resolveCrewAssignmentConfirmationOrganizerStateUpdate,
-  statusForCrewAssignmentResponseAction,
-  summarizeCrewAssignmentConfirmations,
-  type CrewAssignmentConfirmationEmailOperation,
   type CrewAssignmentConfirmationEmailCandidate,
+  type CrewAssignmentConfirmationEmailOperation,
   type CrewAssignmentConfirmationEmailOperationMode,
   type CrewAssignmentConfirmationOrganizerState,
   type CrewAssignmentConfirmationStatusSummary,
   type CrewAssignmentEmailQueueMessage,
   type CrewAssignmentResponseAction,
   type CrewAssignmentTokenState,
+  generateCrewAssignmentConfirmationToken,
+  getCrewAssignmentConfirmationOperationalState,
+  getCrewAssignmentConfirmationTokenState,
+  hashCrewAssignmentConfirmationToken,
+  normalizeConfirmationEmailForSend,
+  resolveCrewAssignmentConfirmationOrganizerStateUpdate,
+  resolveCrewAssignmentConfirmationResponse,
+  statusForCrewAssignmentResponseAction,
+  summarizeCrewAssignmentConfirmations,
 } from "../lib/crew/assignment-confirmations"
 import {
   assertCrewDepartmentLeadCanManageShift,
-  filterCrewDepartmentLeadShifts,
   type CrewDepartmentLeadAccess,
+  filterCrewDepartmentLeadShifts,
 } from "../lib/crew/department-leads"
 import {
   formatVolunteerRole,
@@ -76,18 +77,18 @@ import {
 } from "../lib/crew/roster-shifts"
 import {
   buildCrewVolunteerSelfServiceSchedule,
-  resolveCrewVolunteerSelfServiceContactUpdate,
   type CrewVolunteerSelfServiceScheduleItem,
+  resolveCrewVolunteerSelfServiceContactUpdate,
 } from "../lib/crew/volunteer-self-service"
 import { getAppUrl } from "../lib/env"
 import { CrewAssignmentConfirmationEmail } from "../react-email/crew/assignment-confirmation"
 import { CrewAssignmentReminder24HourEmail } from "../react-email/crew/reminder-24-hour"
 import { CrewAssignmentReminder48HourEmail } from "../react-email/crew/reminder-48-hour"
+import { getFirstExecuteValue } from "../server-fns/db-execute"
 import {
   DEFAULT_TIMEZONE,
   formatDateTimeInTimezone,
 } from "../utils/timezone-utils"
-import { getFirstExecuteValue } from "../server-fns/db-execute"
 import {
   requireCrewDepartmentLeadEvent,
   resolveCrewDepartmentLeadAccess,
@@ -199,6 +200,65 @@ export interface QueueCrewAssignmentConfirmationEmailsResult {
   skipped: ReturnType<
     typeof buildCrewAssignmentConfirmationEmailPlan
   >["skipped"]
+}
+
+export interface CrewAssignmentEmailSendPreview {
+  mode: CrewAssignmentConfirmationEmailOperationMode
+  eligible: number
+  skipped: ReturnType<
+    typeof buildCrewAssignmentConfirmationEmailPlan
+  >["skipped"]
+}
+
+export type CrewAssignmentCommunicationState =
+  | "not_ready"
+  | "pending"
+  | "sent"
+  | "confirmed"
+  | "declined"
+  | "change_requested"
+  | "no_show"
+  | "replaced"
+
+export interface CrewAssignmentCommunicationRow {
+  volunteerName: string
+  volunteerEmail: string | null
+  shiftName: string
+  roleLabel: string
+  startsAt: Date
+  endsAt: Date
+  location: string | null
+  state: CrewAssignmentCommunicationState
+  sentAt: Date | null
+  respondedAt: Date | null
+  lastReminderAt: Date | null
+  reminderCount: number
+  responseNote: string | null
+}
+
+export interface CrewAssignmentCommunicationDashboard {
+  event: {
+    id: string
+    name: string
+    timezone: string | null
+  }
+  summary: {
+    totalAssignments: number
+    notReady: number
+    pending: number
+    sent: number
+    confirmed: number
+    declined: number
+    changeRequested: number
+    noResponse: number
+    noShow: number
+    replaced: number
+  }
+  previews: {
+    assignmentEmails: CrewAssignmentEmailSendPreview
+    reminderEmails: CrewAssignmentEmailSendPreview
+  }
+  rows: CrewAssignmentCommunicationRow[]
 }
 
 export type EnsureCrewShiftAssignmentConfirmationResult =
@@ -997,6 +1057,55 @@ export async function queueCrewAssignmentConfirmationEmails(
   }
 }
 
+export async function getCrewAssignmentCommunicationDashboard(data: {
+  eventId: string
+}): Promise<CrewAssignmentCommunicationDashboard> {
+  const event = await requireCrewDepartmentLeadEvent(data.eventId)
+  const access = await resolveCrewDepartmentLeadAccess(event)
+  const [eventDetail] = await getDb()
+    .select({ name: competitionsTable.name })
+    .from(competitionsTable)
+    .where(eq(competitionsTable.id, data.eventId))
+    .limit(1)
+  const [assignments, candidates] = await Promise.all([
+    loadCrewAssignmentCommunicationRows(data.eventId, access),
+    loadCrewAssignmentEmailCandidates(data.eventId).then((rows) =>
+      filterCrewAssignmentEmailCandidates(rows, access),
+    ),
+  ])
+  const now = new Date()
+  const assignmentEmails = buildCrewAssignmentConfirmationEmailPlan({
+    mode: "confirmations",
+    candidates,
+    now,
+  })
+  const reminderEmails = buildCrewAssignmentConfirmationEmailPlan({
+    mode: "reminders",
+    candidates,
+    now,
+  })
+
+  return {
+    event: {
+      id: event.id,
+      name: eventDetail?.name ?? "Crew confirmations",
+      timezone: event.timezone,
+    },
+    summary: summarizeCrewAssignmentCommunicationRows(assignments),
+    previews: {
+      assignmentEmails: toCrewAssignmentEmailSendPreview(
+        "confirmations",
+        assignmentEmails,
+      ),
+      reminderEmails: toCrewAssignmentEmailSendPreview(
+        "reminders",
+        reminderEmails,
+      ),
+    },
+    rows: assignments,
+  }
+}
+
 export function summarizeCrewShiftAssignmentConfirmations(
   confirmations: Array<CrewShiftAssignmentConfirmationStatus | null>,
 ): CrewAssignmentConfirmationStatusSummary {
@@ -1037,6 +1146,145 @@ export async function buildCrewAssignmentConfirmationEmailMessage(params: {
     token: params.token,
     queuedAt: new Date(),
   })
+}
+
+async function loadCrewAssignmentCommunicationRows(
+  eventId: string,
+  access: CrewDepartmentLeadAccess,
+): Promise<CrewAssignmentCommunicationRow[]> {
+  const db = getDb()
+  const assignmentRows = await db
+    .select({
+      assignment: {
+        id: volunteerShiftAssignmentsTable.id,
+        membershipId: volunteerShiftAssignmentsTable.membershipId,
+      },
+      shift: {
+        id: volunteerShiftsTable.id,
+        name: volunteerShiftsTable.name,
+        roleType: volunteerShiftsTable.roleType,
+        startTime: volunteerShiftsTable.startTime,
+        endTime: volunteerShiftsTable.endTime,
+        location: volunteerShiftsTable.location,
+      },
+      membership: {
+        metadata: teamMembershipTable.metadata,
+      },
+      user: {
+        firstName: userTable.firstName,
+        lastName: userTable.lastName,
+        email: userTable.email,
+      },
+    })
+    .from(volunteerShiftAssignmentsTable)
+    .innerJoin(
+      volunteerShiftsTable,
+      eq(volunteerShiftAssignmentsTable.shiftId, volunteerShiftsTable.id),
+    )
+    .leftJoin(
+      teamMembershipTable,
+      eq(volunteerShiftAssignmentsTable.membershipId, teamMembershipTable.id),
+    )
+    .leftJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
+    .where(eq(volunteerShiftsTable.competitionId, eventId))
+    .orderBy(
+      asc(volunteerShiftsTable.startTime),
+      asc(volunteerShiftsTable.name),
+    )
+
+  const visibleAssignments =
+    access.kind === "full"
+      ? assignmentRows
+      : filterCrewDepartmentLeadShifts(
+          assignmentRows.map((row) => ({
+            ...row,
+            roleType: row.shift.roleType,
+            startTime: row.shift.startTime,
+            endTime: row.shift.endTime,
+            location: row.shift.location,
+          })),
+          access,
+        )
+  const confirmationMap = await loadCrewShiftAssignmentConfirmationMap(
+    db,
+    visibleAssignments.map((row) => row.assignment.id),
+  )
+
+  return visibleAssignments.map((row) => {
+    const metadata = parseCrewRosterMetadata(row.membership?.metadata)
+    const email =
+      normalizeConfirmationEmailForSend(metadata.signupEmail) ??
+      normalizeConfirmationEmailForSend(row.user?.email)
+    const volunteerName =
+      metadata.signupName ||
+      [row.user?.firstName, row.user?.lastName].filter(Boolean).join(" ") ||
+      email ||
+      "Volunteer"
+    const confirmation = confirmationMap.get(row.assignment.id) ?? null
+    const operationalState =
+      getCrewAssignmentConfirmationOperationalState(confirmation)
+
+    return {
+      volunteerName,
+      volunteerEmail: email,
+      shiftName: row.shift.name,
+      roleLabel: formatVolunteerRole(row.shift.roleType),
+      startsAt: row.shift.startTime,
+      endsAt: row.shift.endTime,
+      location: row.shift.location,
+      state:
+        operationalState === "missing"
+          ? "not_ready"
+          : (operationalState as CrewAssignmentCommunicationState),
+      sentAt: confirmation?.sentAt ?? null,
+      respondedAt: confirmation?.respondedAt ?? null,
+      lastReminderAt: confirmation?.lastReminderAt ?? null,
+      reminderCount: confirmation?.reminderCount ?? 0,
+      responseNote: confirmation?.responseNote ?? null,
+    }
+  })
+}
+
+function summarizeCrewAssignmentCommunicationRows(
+  rows: CrewAssignmentCommunicationRow[],
+): CrewAssignmentCommunicationDashboard["summary"] {
+  const summary = {
+    totalAssignments: rows.length,
+    notReady: 0,
+    pending: 0,
+    sent: 0,
+    confirmed: 0,
+    declined: 0,
+    changeRequested: 0,
+    noResponse: 0,
+    noShow: 0,
+    replaced: 0,
+  }
+
+  for (const row of rows) {
+    if (row.state === "not_ready") summary.notReady += 1
+    else if (row.state === "pending") summary.pending += 1
+    else if (row.state === "sent") summary.sent += 1
+    else if (row.state === "confirmed") summary.confirmed += 1
+    else if (row.state === "declined") summary.declined += 1
+    else if (row.state === "change_requested") summary.changeRequested += 1
+    else if (row.state === "no_show") summary.noShow += 1
+    else summary.replaced += 1
+  }
+
+  summary.noResponse = summary.notReady + summary.pending + summary.sent
+  return summary
+}
+
+function toCrewAssignmentEmailSendPreview(
+  mode: CrewAssignmentConfirmationEmailOperationMode,
+  plan: ReturnType<typeof buildCrewAssignmentConfirmationEmailPlan>,
+): CrewAssignmentEmailSendPreview {
+  return {
+    mode,
+    eligible: plan.operations.length,
+    skipped: plan.skipped,
+  }
 }
 
 async function buildCrewAssignmentEmailQueueMessage(params: {
