@@ -1,3 +1,5 @@
+// @lat: [[crew#Assignment Confirmations]]
+// @lat: [[crew#Day Of Operations Board]]
 import { expect, test, type Page } from "@playwright/test"
 import { loginAsTestUser, waitForHydration } from "./fixtures/auth"
 import { TEST_DATA } from "./fixtures/test-data"

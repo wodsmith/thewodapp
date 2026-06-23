@@ -1,3 +1,5 @@
+// @lat: [[crew#Volunteer Self Service]]
+// @lat: [[crew#Assignment Confirmation Responses]]
 import { expect, test } from "@playwright/test"
 import { waitForHydration } from "./fixtures/auth"
 import { TEST_DATA } from "./fixtures/test-data"

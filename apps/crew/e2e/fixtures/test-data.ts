@@ -8,6 +8,7 @@
  */
 
 import type { Page } from "@playwright/test"
+import { CREW_DEMO_EVENT } from "../../scripts/seed/crew-demo-event"
 
 /**
  * Seeded test data - matches seed-e2e.sql exactly
@@ -60,16 +61,16 @@ export const TEST_DATA = {
 		teamId: "e2e_test_team",
 	},
 	crewDemo: {
-		eventId: "e2e_competition",
-		slug: "e2e-throwdown",
-		volunteerToken: "e2e-crew-demo-volunteer-schedule",
-		volunteerName: "Grace Martinez",
-		volunteerEmail: "grace.crew.demo@test.com",
-		volunteerShiftName: "North Lane 2 Judge",
-		shiftAssignmentName: "North Floor Crew",
-		noShowShiftName: "Medical Station",
-		volunteerCount: 18,
-		shiftAssignments: 11,
+		eventId: CREW_DEMO_EVENT.eventId,
+		slug: CREW_DEMO_EVENT.slug,
+		volunteerToken: CREW_DEMO_EVENT.volunteerToken,
+		volunteerName: CREW_DEMO_EVENT.volunteerName,
+		volunteerEmail: CREW_DEMO_EVENT.volunteerEmail,
+		volunteerShiftName: CREW_DEMO_EVENT.volunteerShiftName,
+		shiftAssignmentName: CREW_DEMO_EVENT.shiftAssignmentName,
+		noShowShiftName: CREW_DEMO_EVENT.noShowShiftName,
+		volunteerCount: CREW_DEMO_EVENT.organizerTotals.volunteers,
+		shiftAssignments: CREW_DEMO_EVENT.organizerTotals.assignments,
 	},
 	divisions: {
 		rx: { id: "e2e_div_rx", label: "RX", teamSize: 1 },

@@ -145,7 +145,10 @@ export const CREW_DEMO_EVENT = {
 	slug: SLUG,
 	volunteerToken: VOLUNTEER_TOKEN,
 	volunteerName: "Grace Martinez",
+	volunteerEmail: "grace.crew.demo@test.com",
 	volunteerShiftName: "North Lane 2 Judge",
+	shiftAssignmentName: "North Floor Crew",
+	noShowShiftName: "Medical Station",
 	organizerTotals: {
 		volunteers: DEMO_VOLUNTEERS.length,
 		assignments: 11,

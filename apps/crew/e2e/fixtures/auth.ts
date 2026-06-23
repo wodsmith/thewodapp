@@ -1,3 +1,5 @@
+// @lat: [[auth#Sessions]]
+// @lat: [[crew#Server Function Runtime Boundary]]
 /**
  * Authentication fixtures for E2E tests
  *
@@ -6,6 +8,7 @@
  */
 
 import type { Page } from "@playwright/test"
+import { SESSION_COOKIE_NAME } from "../../src/constants"
 import { TEST_DATA } from "./test-data"
 
 /**
@@ -41,7 +44,7 @@ export async function login(
 	const maxAttempts = 30
 	while (attempts < maxAttempts) {
 		const cookies = await page.context().cookies()
-		if (cookies.some(c => c.name === 'session')) {
+		if (cookies.some((c) => c.name === SESSION_COOKIE_NAME)) {
 			return
 		}
 		await page.waitForTimeout(100)
@@ -75,19 +78,19 @@ export async function loginAsAdmin(page: Page): Promise<void> {
 
 	// Extra verification for admin login - wait for session to be fully established
 	// The admin needs the session to be properly set before accessing /admin routes
-	await page.waitForLoadState('domcontentloaded')
+	await page.waitForLoadState("domcontentloaded")
 
 	// Verify the session cookie exists before proceeding
 	// This is critical for admin routes which redirect to sign-in if no session
 	const cookies = await page.context().cookies()
-	const sessionCookie = cookies.find(c => c.name === 'session')
+	const sessionCookie = cookies.find((c) => c.name === SESSION_COOKIE_NAME)
 
 	if (!sessionCookie) {
 		// If no session cookie, the login may have failed silently
 		// Try to verify by checking if we're on an authenticated page
 		const url = page.url()
-		if (url.includes('/sign-in')) {
-			throw new Error('Admin login failed - still on sign-in page')
+		if (url.includes("/sign-in")) {
+			throw new Error("Admin login failed - still on sign-in page")
 		}
 	}
 }
@@ -119,7 +122,7 @@ function getUserIdForCredentials(credentials: {
  * LogoutButton has aria-label="Log out". After logout, app redirects to /sign-in.
  */
 export async function logout(page: Page): Promise<void> {
-	const logoutButton = page.getByRole('button', { name: 'Log out' })
+	const logoutButton = page.getByRole("button", { name: "Log out" })
 	await logoutButton.click()
 	await page.waitForURL(/\/sign-in/, { timeout: 10000 })
 }
@@ -134,8 +137,8 @@ export async function logout(page: Page): Promise<void> {
 export async function waitForHydration(page: Page): Promise<void> {
 	await page.waitForFunction(
 		() => {
-			const el = document.querySelector('button, [role="combobox"], input, a')
-			return el && Object.keys(el).some(k => k.startsWith('__reactFiber'))
+			const el = document.querySelector("button, [role=\"combobox\"], input, a")
+			return el && Object.keys(el).some((k) => k.startsWith("__reactFiber"))
 		},
 		{ timeout: 15000 },
 	)

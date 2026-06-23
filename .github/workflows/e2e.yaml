@@ -112,6 +112,8 @@ jobs:
   crew-demo-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
     services:
       mysql:
         image: mysql:8.0
@@ -126,10 +128,12 @@ jobs:
           --health-timeout=5s
           --health-retries=5
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: oven-sh/setup-bun@v2
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 24
           cache: pnpm
@@ -193,10 +197,10 @@ jobs:
         env:
           CI: true
           DATABASE_URL: mysql://root:testpassword@127.0.0.1:3306/wodsmith_crew_e2e
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: crew-demo-blob-report
+          name: blob-report-crew-demo
           path: apps/crew/blob-report/
           retention-days: 1
 
@@ -230,7 +234,18 @@ jobs:
             echo "has_reports=false" >> $GITHUB_OUTPUT
             echo "No blob reports found; skipping merge."
           fi
-      - run: pnpm --filter wodsmith-start exec playwright merge-reports --reporter html ./all-blob-reports
+      - name: Configure merged Playwright report root
+        if: steps.check-reports.outputs.has_reports == 'true'
+        working-directory: apps/wodsmith-start
+        run: |
+          cat > playwright-merge.config.ts << 'EOF'
+          import { defineConfig } from "@playwright/test"
+
+          export default defineConfig({
+            testDir: "../..",
+          })
+          EOF
+      - run: pnpm --filter wodsmith-start exec playwright merge-reports -c playwright-merge.config.ts --reporter html ./all-blob-reports
         if: steps.check-reports.outputs.has_reports == 'true'
       - uses: actions/upload-artifact@v4
         if: steps.check-reports.outputs.has_reports == 'true'
