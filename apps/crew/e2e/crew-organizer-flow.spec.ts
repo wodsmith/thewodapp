@@ -21,7 +21,7 @@ test.describe("Crew organizer demo flow", () => {
 		await expect(
 			page.getByText(`${demo.shiftAssignments} assignments,`),
 		).toBeVisible()
-		await expectPanelWithNonZeroValue(page, "Pending")
+		await expectPanelWithNonZeroValue(page, "Sent")
 		await expectPanelWithNonZeroValue(page, "Confirmed")
 		await expectPanelWithNonZeroValue(page, "Declined")
 		await expectPanelWithNonZeroValue(page, "No response")
