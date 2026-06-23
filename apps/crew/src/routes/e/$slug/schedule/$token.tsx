@@ -12,10 +12,14 @@ import {
   Printer,
   ShieldCheck,
 } from "lucide-react"
-import { type FormEvent, type ReactNode, useMemo, useState } from "react"
+import { type ReactNode, useMemo, useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
+import {
+  CrewVolunteerPublicResponseControls,
+  getCrewVolunteerResponseActionKey,
+} from "@/components/crew/volunteer-public-response-controls"
 import {
   VOLUNTEER_AVAILABILITY,
   VOLUNTEER_ROLE_LABELS,
@@ -132,7 +136,6 @@ function CrewVolunteerTokenSchedule({
   const router = useRouter()
   const respond = useServerFn(respondCrewVolunteerScheduleTokenFn)
   const [pendingAction, setPendingAction] = useState<string | null>(null)
-  const [noteErrors, setNoteErrors] = useState<Record<string, string>>({})
 
   if (data.status !== "valid" || !data.event || !data.volunteer) {
     return null
@@ -164,20 +167,7 @@ function CrewVolunteerTokenSchedule({
     responseNote?: string,
   ) {
     const note = responseNote?.trim() ?? ""
-    const noteErrorKey = `${assignment.id}:${action}`
-    if ((action === "decline" || action === "request_change") && !note) {
-      setNoteErrors((current) => ({
-        ...current,
-        [noteErrorKey]:
-          action === "decline"
-            ? "Add a note before declining."
-            : "Add a note before requesting a change.",
-      }))
-      return
-    }
-
-    setPendingAction(noteErrorKey)
-    setNoteErrors((current) => ({ ...current, [noteErrorKey]: "" }))
+    setPendingAction(getCrewVolunteerResponseActionKey(assignment.id, action))
     try {
       const result = await respond({
         data: {
@@ -201,16 +191,6 @@ function CrewVolunteerTokenSchedule({
     } finally {
       setPendingAction(null)
     }
-  }
-
-  function handleNoteResponse(
-    assignment: CrewVolunteerVisibleAssignment,
-    action: "decline" | "request_change",
-    event: FormEvent<HTMLFormElement>,
-  ) {
-    event.preventDefault()
-    const formData = new FormData(event.currentTarget)
-    void submitResponse(assignment, action, getFormString(formData, "note"))
   }
 
   return (
@@ -334,12 +314,14 @@ function CrewVolunteerTokenSchedule({
               timezone={timezone}
               eventDates={eventDates}
               responseControls={
-                <VolunteerResponseControls
+                <CrewVolunteerPublicResponseControls
                   assignment={assignment}
                   pendingAction={pendingAction}
-                  noteErrors={noteErrors}
+                  className="print:hidden"
                   onConfirm={() => void submitResponse(assignment, "confirm")}
-                  onNoteSubmit={handleNoteResponse}
+                  onNoteSubmit={(action, note) =>
+                    submitResponse(assignment, action, note)
+                  }
                 />
               }
             />
@@ -741,122 +723,6 @@ function ScheduleAssignmentCard({
   )
 }
 
-function VolunteerResponseControls({
-  assignment,
-  pendingAction,
-  noteErrors,
-  onConfirm,
-  onNoteSubmit,
-}: {
-  assignment: CrewVolunteerVisibleAssignment
-  pendingAction: string | null
-  noteErrors: Record<string, string>
-  onConfirm: () => void
-  onNoteSubmit: (
-    assignment: CrewVolunteerVisibleAssignment,
-    action: "decline" | "request_change",
-    event: FormEvent<HTMLFormElement>,
-  ) => void
-}) {
-  const status = assignment.confirmation?.status ?? "pending"
-  const canRespond = status === "pending"
-
-  if (!canRespond) {
-    return (
-      <div className="mt-5 rounded-md border bg-background p-3 text-sm print:hidden">
-        <p className="font-medium">{getRecordedResponseMessage(status)}</p>
-        {assignment.confirmation?.responseNote ? (
-          <p className="mt-2 whitespace-pre-wrap text-muted-foreground">
-            {assignment.confirmation.responseNote}
-          </p>
-        ) : null}
-      </div>
-    )
-  }
-
-  const declineKey = `${assignment.id}:decline`
-  const changeKey = `${assignment.id}:request_change`
-  const disabled = pendingAction !== null
-
-  return (
-    <div className="mt-5 space-y-4 rounded-md border bg-background p-4 print:hidden">
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={onConfirm}
-        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 sm:w-fit"
-      >
-        {pendingAction === `${assignment.id}:confirm` ? (
-          <Loader2 className="size-4 animate-spin" />
-        ) : null}
-        Confirm
-      </button>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <form
-          onSubmit={(event) =>
-            onNoteSubmit(assignment, "request_change", event)
-          }
-          className="space-y-2"
-        >
-          <label className="grid gap-2 text-sm">
-            <span className="font-medium">Request change</span>
-            <textarea
-              name="note"
-              required
-              rows={3}
-              className="rounded-md border bg-card px-3 py-2"
-              placeholder="What needs to change?"
-            />
-          </label>
-          {noteErrors[changeKey] ? (
-            <p className="text-xs text-destructive">{noteErrors[changeKey]}</p>
-          ) : null}
-          <button
-            type="submit"
-            disabled={disabled}
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border px-4 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {pendingAction === changeKey ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : null}
-            Send request
-          </button>
-        </form>
-
-        <form
-          onSubmit={(event) => onNoteSubmit(assignment, "decline", event)}
-          className="space-y-2"
-        >
-          <label className="grid gap-2 text-sm">
-            <span className="font-medium">Decline</span>
-            <textarea
-              name="note"
-              required
-              rows={3}
-              className="rounded-md border bg-card px-3 py-2"
-              placeholder="Let the organizer know why"
-            />
-          </label>
-          {noteErrors[declineKey] ? (
-            <p className="text-xs text-destructive">{noteErrors[declineKey]}</p>
-          ) : null}
-          <button
-            type="submit"
-            disabled={disabled}
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border px-4 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {pendingAction === declineKey ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : null}
-            Decline
-          </button>
-        </form>
-      </div>
-    </div>
-  )
-}
-
 function InfoBlock({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border bg-card p-5 shadow-sm">
@@ -923,22 +789,4 @@ function emptyToUndefined(value: string | undefined) {
 
 function buildConsentCenterHref(slug: string, token: string) {
   return `/e/${encodeURIComponent(slug)}/consent/${encodeURIComponent(token)}`
-}
-
-function getRecordedResponseMessage(status: string) {
-  if (status === "confirmed") {
-    return "Confirmed. We'll remind you before your shift."
-  }
-  if (status === "declined") {
-    return "Declined. The organizer will see your note."
-  }
-  if (status === "change_requested") {
-    return "Change request sent. The organizer will see your note."
-  }
-  return `Response recorded: ${getCrewAssignmentConfirmationStatusLabel(status)}.`
-}
-
-function getFormString(formData: FormData, name: string) {
-  const value = formData.get(name)
-  return typeof value === "string" ? value.trim() : ""
 }

@@ -2,10 +2,12 @@
 
 import { createFileRoute, notFound, useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { Loader2 } from "lucide-react"
-import type { FormEvent } from "react"
 import { useState } from "react"
 import { toast } from "sonner"
+import {
+  CrewVolunteerPublicResponseControls,
+  getCrewVolunteerResponseActionKey,
+} from "@/components/crew/volunteer-public-response-controls"
 import {
   getCrewAssignmentConfirmationStatusBadgeClassName,
   getCrewAssignmentConfirmationStatusLabel,
@@ -108,17 +110,22 @@ function CrewAssignmentTokenConfirmation({
   }
 
   const timezone = data.event.timezone ?? "America/Denver"
+  const assignment = data.assignment
   const confirmationStatus = data.confirmation?.status ?? "pending"
-  const canRespond = confirmationStatus === "pending"
 
   async function submitResponse(
     action: "confirm" | "decline" | "request_change",
     responseNote?: string,
   ) {
-    setPendingAction(action)
+    setPendingAction(getCrewVolunteerResponseActionKey(assignment.id, action))
     try {
       const result = await respond({
-        data: { slug, token, action, responseNote },
+        data: {
+          slug,
+          token,
+          action,
+          responseNote: responseNote?.trim() || undefined,
+        },
       })
       if (result.success) {
         toast.success(result.message)
@@ -133,20 +140,6 @@ function CrewAssignmentTokenConfirmation({
     } finally {
       setPendingAction(null)
     }
-  }
-
-  async function handleChangeRequest(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const formData = new FormData(event.currentTarget)
-    const responseNote = getFormString(formData, "responseNote")
-    await submitResponse("request_change", responseNote)
-  }
-
-  async function handleDecline(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const formData = new FormData(event.currentTarget)
-    const responseNote = getFormString(formData, "responseNote")
-    await submitResponse("decline", responseNote)
   }
 
   return (
@@ -165,10 +158,8 @@ function CrewAssignmentTokenConfirmation({
       <section className="rounded-md border bg-card p-6 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2 className="text-xl font-semibold">{data.assignment.name}</h2>
-            <p className="mt-2 text-muted-foreground">
-              {data.assignment.roleLabel}
-            </p>
+            <h2 className="text-xl font-semibold">{assignment.name}</h2>
+            <p className="mt-2 text-muted-foreground">{assignment.roleLabel}</p>
           </div>
           <StatusBadge status={confirmationStatus} />
         </div>
@@ -177,7 +168,7 @@ function CrewAssignmentTokenConfirmation({
           <Fact
             label="Start"
             value={formatDateTimeInTimezone(
-              data.assignment.startTime,
+              assignment.startTime,
               timezone,
               "EEE, MMM d h:mm a",
             )}
@@ -185,15 +176,12 @@ function CrewAssignmentTokenConfirmation({
           <Fact
             label="End"
             value={formatDateTimeInTimezone(
-              data.assignment.endTime,
+              assignment.endTime,
               timezone,
               "EEE, MMM d h:mm a",
             )}
           />
-          <Fact
-            label="Location"
-            value={data.assignment.location ?? "Not set"}
-          />
+          <Fact label="Location" value={assignment.location ?? "Not set"} />
           <Fact
             label="Respond by"
             value={
@@ -208,89 +196,24 @@ function CrewAssignmentTokenConfirmation({
           />
         </dl>
 
-        {data.assignment.notes ? (
+        {assignment.notes ? (
           <p className="mt-5 whitespace-pre-wrap rounded-md border bg-background p-3 text-sm text-muted-foreground">
-            {data.assignment.notes}
+            {assignment.notes}
           </p>
         ) : null}
       </section>
 
-      {canRespond ? (
-        <section className="space-y-4 rounded-md border bg-card p-6 shadow-sm">
-          <button
-            type="button"
-            disabled={pendingAction !== null}
-            onClick={() => submitResponse("confirm")}
-            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 sm:w-fit"
-          >
-            {pendingAction === "confirm" ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : null}
-            Confirm
-          </button>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <form onSubmit={handleChangeRequest} className="space-y-3">
-              <label className="grid gap-2 text-sm">
-                <span className="font-medium">Request a change</span>
-                <textarea
-                  name="responseNote"
-                  required
-                  rows={4}
-                  className="rounded-md border bg-background px-3 py-2"
-                  placeholder="Share what needs to change"
-                />
-              </label>
-              <button
-                type="submit"
-                disabled={pendingAction !== null}
-                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border px-4 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {pendingAction === "request_change" ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : null}
-                Send request
-              </button>
-            </form>
-
-            <form onSubmit={handleDecline} className="space-y-3">
-              <label className="grid gap-2 text-sm">
-                <span className="font-medium">Decline</span>
-                <textarea
-                  name="responseNote"
-                  required
-                  rows={4}
-                  className="rounded-md border bg-background px-3 py-2"
-                  placeholder="Let the organizer know why"
-                />
-              </label>
-              <button
-                type="submit"
-                disabled={pendingAction !== null}
-                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border px-4 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {pendingAction === "decline" ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : null}
-                Decline
-              </button>
-            </form>
-          </div>
-        </section>
-      ) : (
-        <section className="rounded-md border bg-card p-6 shadow-sm">
-          <h2 className="text-xl font-semibold">Response recorded</h2>
-          <p className="mt-2 text-muted-foreground">
-            Your current response is{" "}
-            {getCrewAssignmentConfirmationStatusLabel(confirmationStatus)}.
-          </p>
-          {data.confirmation?.responseNote ? (
-            <p className="mt-4 whitespace-pre-wrap rounded-md border bg-background p-3 text-sm">
-              {data.confirmation.responseNote}
-            </p>
-          ) : null}
-        </section>
-      )}
+      <section className="rounded-md border bg-card p-6 shadow-sm">
+        <CrewVolunteerPublicResponseControls
+          assignment={{
+            id: assignment.id,
+            confirmation: data.confirmation,
+          }}
+          pendingAction={pendingAction}
+          onConfirm={() => void submitResponse("confirm")}
+          onNoteSubmit={(action, note) => submitResponse(action, note)}
+        />
+      </section>
     </main>
   )
 }
@@ -330,8 +253,7 @@ function CrewVolunteerTokenConfirmation({
     action: "confirm" | "decline" | "request_change",
     responseNote?: string,
   ) {
-    const actionKey = `${assignment.id}:${action}`
-    setPendingAction(actionKey)
+    setPendingAction(getCrewVolunteerResponseActionKey(assignment.id, action))
     try {
       const result = await respond({
         data: {
@@ -355,16 +277,6 @@ function CrewVolunteerTokenConfirmation({
     } finally {
       setPendingAction(null)
     }
-  }
-
-  function handleNoteResponse(
-    assignment: CrewVolunteerVisibleAssignment,
-    action: "decline" | "request_change",
-    event: FormEvent<HTMLFormElement>,
-  ) {
-    event.preventDefault()
-    const formData = new FormData(event.currentTarget)
-    void submitResponse(assignment, action, getFormString(formData, "note"))
   }
 
   return (
@@ -395,7 +307,9 @@ function CrewVolunteerTokenConfirmation({
               timezone={timezone}
               pendingAction={pendingAction}
               onConfirm={() => void submitResponse(assignment, "confirm")}
-              onNoteSubmit={handleNoteResponse}
+              onNoteSubmit={(action, note) =>
+                submitResponse(assignment, action, note)
+              }
             />
           ))}
         </section>
@@ -416,16 +330,11 @@ function VolunteerAssignmentResponseCard({
   pendingAction: string | null
   onConfirm: () => void
   onNoteSubmit: (
-    assignment: CrewVolunteerVisibleAssignment,
     action: "decline" | "request_change",
-    event: FormEvent<HTMLFormElement>,
-  ) => void
+    note: string,
+  ) => Promise<void> | void
 }) {
   const status = assignment.confirmation?.status ?? "pending"
-  const canRespond = status === "pending"
-  const disabled = pendingAction !== null
-  const declineKey = `${assignment.id}:decline`
-  const changeKey = `${assignment.id}:request_change`
 
   return (
     <article className="rounded-md border bg-card p-6 shadow-sm">
@@ -463,86 +372,12 @@ function VolunteerAssignmentResponseCard({
         </p>
       ) : null}
 
-      {canRespond ? (
-        <div className="mt-5 space-y-4 rounded-md border bg-background p-4">
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={onConfirm}
-            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 sm:w-fit"
-          >
-            {pendingAction === `${assignment.id}:confirm` ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : null}
-            Confirm
-          </button>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <form
-              onSubmit={(event) =>
-                onNoteSubmit(assignment, "request_change", event)
-              }
-              className="space-y-3"
-            >
-              <label className="grid gap-2 text-sm">
-                <span className="font-medium">Request a change</span>
-                <textarea
-                  name="note"
-                  required
-                  rows={4}
-                  className="rounded-md border bg-card px-3 py-2"
-                  placeholder="Share what needs to change"
-                />
-              </label>
-              <button
-                type="submit"
-                disabled={disabled}
-                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border px-4 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {pendingAction === changeKey ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : null}
-                Send request
-              </button>
-            </form>
-
-            <form
-              onSubmit={(event) => onNoteSubmit(assignment, "decline", event)}
-              className="space-y-3"
-            >
-              <label className="grid gap-2 text-sm">
-                <span className="font-medium">Decline</span>
-                <textarea
-                  name="note"
-                  required
-                  rows={4}
-                  className="rounded-md border bg-card px-3 py-2"
-                  placeholder="Let the organizer know why"
-                />
-              </label>
-              <button
-                type="submit"
-                disabled={disabled}
-                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border px-4 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {pendingAction === declineKey ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : null}
-                Decline
-              </button>
-            </form>
-          </div>
-        </div>
-      ) : (
-        <div className="mt-5 rounded-md border bg-background p-3 text-sm">
-          <p className="font-medium">{getRecordedResponseMessage(status)}</p>
-          {assignment.confirmation?.responseNote ? (
-            <p className="mt-2 whitespace-pre-wrap text-muted-foreground">
-              {assignment.confirmation.responseNote}
-            </p>
-          ) : null}
-        </div>
-      )}
+      <CrewVolunteerPublicResponseControls
+        assignment={assignment}
+        pendingAction={pendingAction}
+        onConfirm={onConfirm}
+        onNoteSubmit={onNoteSubmit}
+      />
     </article>
   )
 }
@@ -566,22 +401,4 @@ function StatusBadge({ status }: { status: string }) {
       {getCrewAssignmentConfirmationStatusLabel(status)}
     </span>
   )
-}
-
-function getRecordedResponseMessage(status: string) {
-  if (status === "confirmed") {
-    return "Confirmed. We'll remind you before your shift."
-  }
-  if (status === "declined") {
-    return "Declined. The organizer will see your note."
-  }
-  if (status === "change_requested") {
-    return "Change request sent. The organizer will see your note."
-  }
-  return `Response recorded: ${getCrewAssignmentConfirmationStatusLabel(status)}.`
-}
-
-function getFormString(formData: FormData, name: string) {
-  const value = formData.get(name)
-  return typeof value === "string" ? value.trim() : ""
 }
