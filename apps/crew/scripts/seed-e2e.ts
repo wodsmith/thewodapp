@@ -11,6 +11,7 @@
  */
 
 import mysql from "mysql2/promise"
+import { seedCrewDemoEvent } from "./seed/crew-demo-event"
 
 function currentTimestamp(): string {
 	return new Date().toISOString().slice(0, 19).replace("T", " ")
@@ -670,6 +671,8 @@ async function main(): Promise<void> {
 		}
 
 		console.log(`  volunteers: ${volunteerUsers.length} users + ${volunteerAnswers.length} answers inserted`)
+
+		await seedCrewDemoEvent(connection, ts, passwordHash)
 
 		console.log("\nE2E seed complete!")
 	} finally {

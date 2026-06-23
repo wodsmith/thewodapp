@@ -23,6 +23,7 @@ import { Route as EventsEventIdShiftsRouteImport } from './routes/events/$eventI
 import { Route as EventsEventIdSetupRouteImport } from './routes/events/$eventId/setup'
 import { Route as EventsEventIdScheduleRouteImport } from './routes/events/$eventId/schedule'
 import { Route as EventsEventIdReadinessRouteImport } from './routes/events/$eventId/readiness'
+import { Route as EventsEventIdMessagesRouteImport } from './routes/events/$eventId/messages'
 import { Route as EventsEventIdJudgesRouteImport } from './routes/events/$eventId/judges'
 import { Route as EventsEventIdImportsRouteImport } from './routes/events/$eventId/imports'
 import { Route as EventsEventIdExportsRouteImport } from './routes/events/$eventId/exports'
@@ -30,9 +31,9 @@ import { Route as EventsEventIdDayOfRouteImport } from './routes/events/$eventId
 import { Route as EventsEventIdConvertRouteImport } from './routes/events/$eventId/convert'
 import { Route as EventsEventIdBillingRouteImport } from './routes/events/$eventId/billing'
 import { Route as EventsEventIdAssignmentsRouteImport } from './routes/events/$eventId/assignments'
-import { Route as EventsEventIdMessagesRouteImport } from './routes/events/$eventId/messages'
 import { Route as ESlugVolunteerRouteImport } from './routes/e/$slug/volunteer'
 import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
+import { Route as ApiE2eSessionRouteImport } from './routes/api/e2e/session'
 import { Route as ApiCrewImportRouteImport } from './routes/api/crew/import'
 import { Route as AdminCrewEventsRouteImport } from './routes/admin/crew/events'
 import { Route as EventsEventIdDiscoveryJudgesRouteImport } from './routes/events/$eventId/discovery/judges'
@@ -114,6 +115,11 @@ const EventsEventIdReadinessRoute = EventsEventIdReadinessRouteImport.update({
   path: '/readiness',
   getParentRoute: () => EventsEventIdRoute,
 } as any)
+const EventsEventIdMessagesRoute = EventsEventIdMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => EventsEventIdRoute,
+} as any)
 const EventsEventIdJudgesRoute = EventsEventIdJudgesRouteImport.update({
   id: '/judges',
   path: '/judges',
@@ -150,11 +156,6 @@ const EventsEventIdAssignmentsRoute =
     path: '/assignments',
     getParentRoute: () => EventsEventIdRoute,
   } as any)
-const EventsEventIdMessagesRoute = EventsEventIdMessagesRouteImport.update({
-  id: '/messages',
-  path: '/messages',
-  getParentRoute: () => EventsEventIdRoute,
-} as any)
 const ESlugVolunteerRoute = ESlugVolunteerRouteImport.update({
   id: '/e/$slug/volunteer',
   path: '/e/$slug/volunteer',
@@ -163,6 +164,11 @@ const ESlugVolunteerRoute = ESlugVolunteerRouteImport.update({
 const ApiWebhooksStripeRoute = ApiWebhooksStripeRouteImport.update({
   id: '/api/webhooks/stripe',
   path: '/api/webhooks/stripe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiE2eSessionRoute = ApiE2eSessionRouteImport.update({
+  id: '/api/e2e/session',
+  path: '/api/e2e/session',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiCrewImportRoute = ApiCrewImportRouteImport.update({
@@ -229,6 +235,7 @@ export interface FileRoutesByFullPath {
   '/events/new': typeof EventsNewRoute
   '/admin/crew/events': typeof AdminCrewEventsRouteWithChildren
   '/api/crew/import': typeof ApiCrewImportRoute
+  '/api/e2e/session': typeof ApiE2eSessionRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/e/$slug/volunteer': typeof ESlugVolunteerRoute
   '/events/$eventId/assignments': typeof EventsEventIdAssignmentsRoute
@@ -264,6 +271,7 @@ export interface FileRoutesByTo {
   '/events/new': typeof EventsNewRoute
   '/admin/crew/events': typeof AdminCrewEventsRouteWithChildren
   '/api/crew/import': typeof ApiCrewImportRoute
+  '/api/e2e/session': typeof ApiE2eSessionRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/e/$slug/volunteer': typeof ESlugVolunteerRoute
   '/events/$eventId/assignments': typeof EventsEventIdAssignmentsRoute
@@ -301,6 +309,7 @@ export interface FileRoutesById {
   '/events/new': typeof EventsNewRoute
   '/admin/crew/events': typeof AdminCrewEventsRouteWithChildren
   '/api/crew/import': typeof ApiCrewImportRoute
+  '/api/e2e/session': typeof ApiE2eSessionRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/e/$slug/volunteer': typeof ESlugVolunteerRoute
   '/events/$eventId/assignments': typeof EventsEventIdAssignmentsRoute
@@ -339,6 +348,7 @@ export interface FileRouteTypes {
     | '/events/new'
     | '/admin/crew/events'
     | '/api/crew/import'
+    | '/api/e2e/session'
     | '/api/webhooks/stripe'
     | '/e/$slug/volunteer'
     | '/events/$eventId/assignments'
@@ -374,6 +384,7 @@ export interface FileRouteTypes {
     | '/events/new'
     | '/admin/crew/events'
     | '/api/crew/import'
+    | '/api/e2e/session'
     | '/api/webhooks/stripe'
     | '/e/$slug/volunteer'
     | '/events/$eventId/assignments'
@@ -410,6 +421,7 @@ export interface FileRouteTypes {
     | '/events/new'
     | '/admin/crew/events'
     | '/api/crew/import'
+    | '/api/e2e/session'
     | '/api/webhooks/stripe'
     | '/e/$slug/volunteer'
     | '/events/$eventId/assignments'
@@ -444,6 +456,7 @@ export interface RootRouteChildren {
   EventsRoute: typeof EventsRouteWithChildren
   AdminCrewRoute: typeof AdminCrewRouteWithChildren
   ApiCrewImportRoute: typeof ApiCrewImportRoute
+  ApiE2eSessionRoute: typeof ApiE2eSessionRoute
   ApiWebhooksStripeRoute: typeof ApiWebhooksStripeRoute
   ESlugVolunteerRoute: typeof ESlugVolunteerRoute
   SeriesGroupIdCrewRoute: typeof SeriesGroupIdCrewRoute
@@ -552,6 +565,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EventsEventIdReadinessRouteImport
       parentRoute: typeof EventsEventIdRoute
     }
+    '/events/$eventId/messages': {
+      id: '/events/$eventId/messages'
+      path: '/messages'
+      fullPath: '/events/$eventId/messages'
+      preLoaderRoute: typeof EventsEventIdMessagesRouteImport
+      parentRoute: typeof EventsEventIdRoute
+    }
     '/events/$eventId/judges': {
       id: '/events/$eventId/judges'
       path: '/judges'
@@ -601,13 +621,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EventsEventIdAssignmentsRouteImport
       parentRoute: typeof EventsEventIdRoute
     }
-    '/events/$eventId/messages': {
-      id: '/events/$eventId/messages'
-      path: '/messages'
-      fullPath: '/events/$eventId/messages'
-      preLoaderRoute: typeof EventsEventIdMessagesRouteImport
-      parentRoute: typeof EventsEventIdRoute
-    }
     '/e/$slug/volunteer': {
       id: '/e/$slug/volunteer'
       path: '/e/$slug/volunteer'
@@ -620,6 +633,13 @@ declare module '@tanstack/react-router' {
       path: '/api/webhooks/stripe'
       fullPath: '/api/webhooks/stripe'
       preLoaderRoute: typeof ApiWebhooksStripeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/e2e/session': {
+      id: '/api/e2e/session'
+      path: '/api/e2e/session'
+      fullPath: '/api/e2e/session'
+      preLoaderRoute: typeof ApiE2eSessionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/crew/import': {
@@ -798,6 +818,7 @@ const rootRouteChildren: RootRouteChildren = {
   EventsRoute: EventsRouteWithChildren,
   AdminCrewRoute: AdminCrewRouteWithChildren,
   ApiCrewImportRoute: ApiCrewImportRoute,
+  ApiE2eSessionRoute: ApiE2eSessionRoute,
   ApiWebhooksStripeRoute: ApiWebhooksStripeRoute,
   ESlugVolunteerRoute: ESlugVolunteerRoute,
   SeriesGroupIdCrewRoute: SeriesGroupIdCrewRoute,
