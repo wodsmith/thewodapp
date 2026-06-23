@@ -27,6 +27,7 @@ describe("EventImportTabs", () => {
       <EventImportTabs
         eventId="comp_crew_demo"
         history={[]}
+        initialTab="volunteers"
         reference={reference}
         onApplyComplete={async () => {}}
         onHistoryRefresh={async () => {}}
@@ -54,6 +55,21 @@ describe("EventImportTabs", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Volunteers" }))
     expectUploadPanel("Volunteers CSV")
+  })
+
+  it("opens the heat schedule panel when the route search selects it", () => {
+    render(
+      <EventImportTabs
+        eventId="comp_crew_demo"
+        history={[]}
+        initialTab="heat_schedule"
+        reference={reference}
+        onApplyComplete={async () => {}}
+        onHistoryRefresh={async () => {}}
+      />,
+    )
+
+    expectUploadPanel("Heat schedule CSV")
   })
 })
 

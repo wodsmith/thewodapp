@@ -1,6 +1,9 @@
-import type { ChangeEvent, FormEvent, ReactNode } from "react"
-import { useEffect, useMemo, useState } from "react"
-import { createFileRoute, getRouteApi, useRouter } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  getRouteApi,
+  useRouter,
+  useSearch,
+} from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import {
   AlertTriangle,
@@ -11,12 +14,15 @@ import {
   Save,
   Upload,
 } from "lucide-react"
+import type { ChangeEvent, FormEvent, ReactNode } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import {
   getImportFields,
   inferColumnMapping,
 } from "@/lib/crew/imports/column-mapping"
 import { parseCsv } from "@/lib/crew/imports/csv"
+import type { CrewImportMappingSuggestion } from "@/lib/crew/imports/mapping-memory"
 import type {
   ColumnMapping,
   CrewImportKind,
@@ -25,16 +31,15 @@ import type {
   PreviewImportRow,
   VolunteerImportRow,
 } from "@/lib/crew/imports/types"
-import type { CrewImportMappingSuggestion } from "@/lib/crew/imports/mapping-memory"
 import {
   applyCrewImportFn,
-  getCrewImportMappingSuggestionFn,
-  getCrewImportsPageFn,
-  saveCrewImportMappingPresetFn,
   type CrewImportApplyResult,
   type CrewImportHistoryItem,
   type CrewImportReferenceData,
+  getCrewImportMappingSuggestionFn,
+  getCrewImportsPageFn,
   type PersistedCrewImportPreview,
+  saveCrewImportMappingPresetFn,
 } from "@/server-fns/crew-import-fns"
 
 export const Route = createFileRoute("/events/$eventId/imports")({
@@ -46,10 +51,12 @@ export const Route = createFileRoute("/events/$eventId/imports")({
 const parentRoute = getRouteApi("/events/$eventId")
 
 type ImportsTab = CrewImportKind | "roles" | "history"
+type ImportSearchTab = Extract<ImportsTab, "volunteers" | "heat_schedule">
 
 function EventImportsPage() {
   const router = useRouter()
   const { eventId } = parentRoute.useParams()
+  const search = useSearch({ strict: false }) as { tab?: unknown }
   const { history, reference } = Route.useLoaderData()
   const handleHistoryRefresh = async () => {
     await router.invalidate()
@@ -63,6 +70,7 @@ function EventImportsPage() {
     <EventImportTabs
       eventId={eventId}
       history={history}
+      initialTab={normalizeImportSearchTab(search.tab)}
       reference={reference}
       onApplyComplete={handleApplyComplete}
       onHistoryRefresh={handleHistoryRefresh}
@@ -73,19 +81,25 @@ function EventImportsPage() {
 export function EventImportTabs({
   eventId,
   history,
+  initialTab,
   reference,
   onApplyComplete,
   onHistoryRefresh,
 }: {
   eventId: string
   history: CrewImportHistoryItem[]
+  initialTab: ImportSearchTab
   reference: CrewImportReferenceData
   onApplyComplete: (result: CrewImportApplyResult) => Promise<void>
   onHistoryRefresh: () => Promise<void>
 }) {
-  const [activeTab, setActiveTab] = useState<ImportsTab>("volunteers")
+  const [activeTab, setActiveTab] = useState<ImportsTab>(initialTab)
   const [latestPreview, setLatestPreview] =
     useState<PersistedCrewImportPreview | null>(null)
+
+  useEffect(() => {
+    setActiveTab(initialTab)
+  }, [initialTab])
 
   function handlePreviewComplete(preview: PersistedCrewImportPreview) {
     setLatestPreview(preview)
@@ -147,6 +161,14 @@ export function EventImportTabs({
       />
     </section>
   )
+}
+
+function isImportSearchTab(value: unknown): value is ImportSearchTab {
+  return value === "volunteers" || value === "heat_schedule"
+}
+
+function normalizeImportSearchTab(value: unknown): ImportSearchTab {
+  return isImportSearchTab(value) ? value : "volunteers"
 }
 
 function ImportTabContent({
