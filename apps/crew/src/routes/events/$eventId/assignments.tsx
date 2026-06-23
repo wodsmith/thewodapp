@@ -18,6 +18,7 @@ import { CrewJudgeAssignmentsTab } from "./judges"
 import { CrewShiftBoardAssignmentsTab } from "./shifts"
 
 type CrewAssignmentsTab = "shifts" | "judges"
+const CREW_LOCAL_ACCESS_ERROR_NAME = "CrewLocalAccessError"
 
 export const Route = createFileRoute("/events/$eventId/assignments")({
   loader: async ({ params }) => {
@@ -245,8 +246,15 @@ async function getCrewJudgeAssignmentsRouteData(eventId: string) {
 }
 
 function isCrewJudgeAssignmentsAccessError(error: unknown) {
-  return (
-    error instanceof Error &&
-    error.message.includes("Crew judge rotations access is local-operator only")
-  )
+  return getErrorName(error) === CREW_LOCAL_ACCESS_ERROR_NAME
+}
+
+function getErrorName(error: unknown) {
+  if (error instanceof Error) return error.name
+  if (typeof error !== "object" || error === null || !("name" in error)) {
+    return null
+  }
+
+  const name = error.name
+  return typeof name === "string" ? name : null
 }
