@@ -58,7 +58,11 @@ const RESPONSE_BUCKETS = [
     title: "Change requested",
     states: ["change_requested"],
   },
-  { key: "confirmed", title: "Confirmed", states: ["confirmed"] },
+  {
+    key: "confirmed",
+    title: "Confirmed",
+    states: ["confirmed", "checked_in"],
+  },
   {
     key: "event_day_outcomes",
     title: "Event-day outcomes",

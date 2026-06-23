@@ -216,6 +216,7 @@ export type CrewAssignmentCommunicationState =
   | "pending"
   | "sent"
   | "confirmed"
+  | "checked_in"
   | "declined"
   | "change_requested"
   | "no_show"
@@ -1266,8 +1267,9 @@ function summarizeCrewAssignmentCommunicationRows(
     if (row.state === "not_ready") summary.notReady += 1
     else if (row.state === "pending") summary.pending += 1
     else if (row.state === "sent") summary.sent += 1
-    else if (row.state === "confirmed") summary.confirmed += 1
-    else if (row.state === "declined") summary.declined += 1
+    else if (row.state === "confirmed" || row.state === "checked_in") {
+      summary.confirmed += 1
+    } else if (row.state === "declined") summary.declined += 1
     else if (row.state === "change_requested") summary.changeRequested += 1
     else if (row.state === "no_show") summary.noShow += 1
     else summary.replaced += 1
