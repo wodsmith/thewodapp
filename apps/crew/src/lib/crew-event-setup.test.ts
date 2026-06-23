@@ -1,3 +1,5 @@
+// @lat: [[crew#Event Setup Dashboard]]
+// @lat: [[crew#Pilot Readiness Checklist]]
 import { describe, expect, it } from "vitest"
 import {
   adminOnlyCrewSetupFieldKeys,
@@ -76,10 +78,14 @@ describe("Crew event setup", () => {
       sourceContactEmail: "taylor@example.com",
       internalNotes: "Private operator note.",
       volunteerTarget: "32",
+      staffingLead: "Sam",
       assumptions: "Two judges per lane.",
       checklist: {
         eventBasicsConfirmed: true,
+        sourceAccessConfirmed: false,
         volunteerNeedsDrafted: true,
+        staffingPlanDrafted: false,
+        operatorHandoffReady: false,
       },
     })
   })
