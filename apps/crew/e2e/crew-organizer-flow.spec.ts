@@ -48,7 +48,7 @@ test.describe("Crew organizer demo flow", () => {
 		await expect(
 			page.locator("section").filter({
 				has: page.getByRole("heading", { name: "Assignment actions" }),
-			}),
+			}).last(),
 		).toContainText(demo.shiftAssignmentName)
 		await expect(
 			page.getByRole("heading", { name: "No-shows and replacements" }),
