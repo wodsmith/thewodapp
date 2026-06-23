@@ -100,11 +100,13 @@ function ActionLink({
   variant?: "primary" | "secondary"
 }) {
   const to = toEventRoute(action.ctaTo)
+  const search = toEventRouteSearch(action.ctaTo)
 
   return (
     <Link
       to={to}
       params={{ eventId }}
+      search={search}
       className={
         variant === "primary"
           ? "w-fit rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
@@ -132,5 +134,18 @@ function toEventRoute(ctaTo: CrewOrganizerHomeView["nextAction"]["ctaTo"]) {
       return "/events/$eventId/day-of"
     case "/exports":
       return "/events/$eventId/exports"
+  }
+}
+
+function toEventRouteSearch(
+  ctaTo: CrewOrganizerHomeView["nextAction"]["ctaTo"],
+) {
+  switch (ctaTo) {
+    case "/imports?tab=volunteers":
+      return { tab: "volunteers" }
+    case "/imports?tab=heat_schedule":
+      return { tab: "heat_schedule" }
+    default:
+      return undefined
   }
 }
