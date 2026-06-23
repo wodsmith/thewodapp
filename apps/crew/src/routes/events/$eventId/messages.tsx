@@ -556,7 +556,8 @@ function downloadNoResponseCsv(
 }
 
 function escapeCsvValue(value: string) {
-  return `"${value.replaceAll('"', '""')}"`
+  const neutralized = /^[=+\-@]/.test(value) ? `'${value}` : value
+  return `"${neutralized.replaceAll('"', '""')}"`
 }
 
 function slugifyFileName(value: string) {
