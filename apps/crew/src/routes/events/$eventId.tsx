@@ -5,148 +5,55 @@
 // @lat: [[crew#Billing Page And Upgrade CTA]]
 // @lat: [[crew#Full WODsmith Conversion Assistant]]
 // @lat: [[crew#Regional Judge Discovery Pilot]]
-import { createFileRoute, Link, notFound, Outlet } from "@tanstack/react-router"
-import { getCrewEventFn } from "@/server-fns/crew-event-settings-fns"
+import {createFileRoute, Link, notFound, Outlet} from '@tanstack/react-router'
+import {getCrewEventNavItems} from '@/lib/crew/navigation'
+import {getCrewEventFn} from '@/server-fns/crew-event-settings-fns'
+import {useSession} from '@/utils/auth-client'
+import {resolveCrewViewer} from '@/utils/crew-access'
 
-export const Route = createFileRoute("/events/$eventId")({
-  loader: async ({ params }) => {
-    const result = await getCrewEventFn({ data: { eventId: params.eventId } })
+export const Route = createFileRoute('/events/$eventId')({
+  loader: async ({params}) => {
+    const result = await getCrewEventFn({data: {eventId: params.eventId}})
     if (!result.event) {
       throw notFound()
     }
-    return { event: result.event }
+    return {event: result.event}
   },
   component: EventShell,
 })
 
 function EventShell() {
-  const { eventId } = Route.useParams()
-  const { event } = Route.useLoaderData()
+  const {eventId} = Route.useParams()
+  const {event} = Route.useLoaderData()
+  const session = useSession()
+  const viewer = resolveCrewViewer({session})
+  const navItems = getCrewEventNavItems({viewerRole: viewer.role})
 
   return (
     <main className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
       <div className="flex flex-col justify-between gap-4 border-b pb-6 md:flex-row md:items-end">
         <div>
-          <p className="font-mono text-sm text-muted-foreground">{eventId}</p>
+          {viewer.isWodsmithOperator && (
+            <p className="font-mono text-sm text-muted-foreground">{eventId}</p>
+          )}
           <h1 className="text-3xl font-semibold">{event.competition.name}</h1>
           <p className="text-muted-foreground">
             {event.competition.startDate} to {event.competition.endDate}
           </p>
         </div>
         <nav className="flex flex-wrap gap-2 text-sm">
-          <Link
-            to="/events/$eventId"
-            params={{ eventId }}
-            activeOptions={{ exact: true }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Overview
-          </Link>
-          <Link
-            to="/events/$eventId/readiness"
-            params={{ eventId }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Readiness
-          </Link>
-          <Link
-            to="/events/$eventId/staffing"
-            params={{ eventId }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Staffing
-          </Link>
-          <Link
-            to="/events/$eventId/setup"
-            params={{ eventId }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Setup
-          </Link>
-          <Link
-            to="/events/$eventId/billing"
-            params={{ eventId }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Billing
-          </Link>
-          <Link
-            to="/events/$eventId/convert"
-            params={{ eventId }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Convert
-          </Link>
-          <Link
-            to="/events/$eventId/imports"
-            params={{ eventId }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Imports
-          </Link>
-          <Link
-            to="/events/$eventId/volunteers"
-            params={{ eventId }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Volunteers
-          </Link>
-          <Link
-            to="/events/$eventId/shifts"
-            params={{ eventId }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Shifts
-          </Link>
-          <Link
-            to="/events/$eventId/judges"
-            params={{ eventId }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Judges
-          </Link>
-          <Link
-            to="/events/$eventId/discovery/judges"
-            params={{ eventId }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Discovery
-          </Link>
-          <Link
-            to="/events/$eventId/day-of"
-            params={{ eventId }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Day-of
-          </Link>
-          <Link
-            to="/events/$eventId/exports"
-            params={{ eventId }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Exports
-          </Link>
-          <Link
-            to="/events/$eventId/schedule"
-            params={{ eventId }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Schedule
-          </Link>
+          {navItems.map((item) => (
+            <Link
+              key={item.key}
+              to={item.to}
+              params={{eventId}}
+              activeOptions={item.key === 'home' ? {exact: true} : undefined}
+              activeProps={{className: 'bg-muted text-foreground'}}
+              className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              {item.label}
+            </Link>
+          ))}
         </nav>
       </div>
 
