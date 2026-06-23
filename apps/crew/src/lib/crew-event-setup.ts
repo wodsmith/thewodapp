@@ -16,21 +16,53 @@ export interface CrewSetupState {
   assumptions: string
 }
 
+export interface CrewOrganizerSetupState {
+  volunteerTarget: string
+  staffingLead: string
+  assumptions: string
+  checklist: Record<CrewSetupChecklistKey, boolean>
+}
+
 export interface ParsedCrewSettings {
   setup: CrewSetupState
   baseSettings: Record<string, unknown>
   parseError: string | null
 }
 
+export const organizerCrewSetupFieldKeys = [
+  "volunteerTarget",
+  "staffingLead",
+  "assumptions",
+] as const satisfies readonly (keyof CrewOrganizerSetupState)[]
+
+export const adminOnlyCrewSetupFieldKeys = [
+  "desiredGoLiveDate",
+  "sourceContactName",
+  "sourceContactEmail",
+  "internalNotes",
+] as const satisfies readonly (keyof CrewSetupState)[]
+
 export const crewSetupChecklistItems: Array<{
   key: CrewSetupChecklistKey
   label: string
 }> = [
-  { key: "eventBasicsConfirmed", label: "Event basics confirmed" },
-  { key: "sourceAccessConfirmed", label: "Source access confirmed" },
-  { key: "volunteerNeedsDrafted", label: "Volunteer needs drafted" },
-  { key: "staffingPlanDrafted", label: "Staffing plan drafted" },
-  { key: "operatorHandoffReady", label: "Operator handoff ready" },
+  {
+    key: "eventBasicsConfirmed",
+    label: "Event name, dates, and timezone confirmed",
+  },
+  { key: "sourceAccessConfirmed", label: "Volunteer signup link added" },
+  {
+    key: "volunteerNeedsDrafted",
+    label: "Volunteer roles and targets drafted",
+  },
+  {
+    key: "staffingPlanDrafted",
+    label: "Floors, lanes, and staffing assumptions ready",
+  },
+  {
+    key: "operatorHandoffReady",
+    label: "Ready to import volunteers and heat schedule",
+  },
 ]
 
 const defaultChecklist = {} as Record<CrewSetupChecklistKey, boolean>
@@ -48,6 +80,37 @@ export function createDefaultCrewSetupState(): CrewSetupState {
     checklist: { ...defaultChecklist },
     internalNotes: "",
     assumptions: "",
+  }
+}
+
+export function createDefaultCrewOrganizerSetupState(): CrewOrganizerSetupState {
+  return toOrganizerCrewSetupState(createDefaultCrewSetupState())
+}
+
+export function toOrganizerCrewSetupState(
+  setup: CrewSetupState,
+): CrewOrganizerSetupState {
+  return {
+    volunteerTarget: setup.volunteerTarget,
+    staffingLead: setup.staffingLead,
+    assumptions: setup.assumptions,
+    checklist: { ...setup.checklist },
+  }
+}
+
+export function mergeOrganizerCrewSetupState(
+  current: CrewSetupState,
+  organizer: CrewOrganizerSetupState,
+): CrewSetupState {
+  return {
+    ...current,
+    volunteerTarget: organizer.volunteerTarget,
+    staffingLead: organizer.staffingLead,
+    assumptions: organizer.assumptions,
+    checklist: {
+      ...current.checklist,
+      ...organizer.checklist,
+    },
   }
 }
 

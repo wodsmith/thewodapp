@@ -1,112 +1,47 @@
-import type { FormEvent, ReactNode } from "react"
-import { useEffect, useState } from "react"
 import { createFileRoute, getRouteApi, useRouter } from "@tanstack/react-router"
 import { Save } from "lucide-react"
+import type { FormEvent, ReactNode } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import type { VolunteerRoleType } from "@/db/schemas/volunteers"
-import { CrewCopyPriorEventPanel } from "@/components/crew-copy-event/crew-copy-prior-event-panel"
-import { CrewDepartmentLeadsPanel } from "@/components/crew-department-leads/crew-department-leads-panel"
-import { GuidedSetupShell } from "@/components/crew-guided-setup/guided-setup-shell"
-import { CrewTemplatePanel } from "@/components/crew-templates/crew-template-panel"
-import type {
-  CrewGuidedSetupOperatorStatus,
-  CrewGuidedSetupStepKey,
-} from "@/lib/crew/guided-setup"
-import type { CrewRoleShiftTemplateRef } from "@/lib/crew/templates"
 import {
+  type CrewOrganizerSetupState,
+  type CrewSetupChecklistKey,
   crewSetupChecklistItems,
+  mergeOrganizerCrewSetupState,
   parseCrewSettings,
   serializeCrewSettings,
-  type CrewSetupChecklistKey,
+  toOrganizerCrewSetupState,
 } from "@/lib/crew-event-setup"
 import { updateCrewEventSettingsFn } from "@/server-fns/crew-event-settings-fns"
-import {
-  getCrewGuidedSetupPageFn,
-  updateCrewGuidedSetupStepFn,
-} from "@/server-fns/crew-guided-setup-fns"
-import {
-  applyCrewTemplateFn,
-  getCrewTemplatePageFn,
-  saveCrewTemplatePresetFn,
-} from "@/server-fns/crew-template-fns"
-import {
-  applyCrewCopyPriorEventFn,
-  getCrewCopyPriorEventPageFn,
-} from "@/server-fns/crew-copy-event-fns"
-import {
-  createCrewDepartmentLeadFn,
-  getCrewDepartmentLeadsPageFn,
-  revokeCrewDepartmentLeadFn,
-  updateCrewDepartmentLeadFn,
-} from "@/server-fns/crew-department-lead-fns"
 
 export const Route = createFileRoute("/events/$eventId/setup")({
-  loader: async ({ params }) => {
-    const [
-      guidedSetupPage,
-      templatePage,
-      copyPriorEventPage,
-      departmentLeadsPage,
-    ] = await Promise.all([
-      getCrewGuidedSetupPageFn({ data: { eventId: params.eventId } }),
-      getCrewTemplatePageFn({ data: { eventId: params.eventId } }),
-      getCrewCopyPriorEventPageFn({ data: { eventId: params.eventId } }),
-      getCrewDepartmentLeadsPageFn({ data: { eventId: params.eventId } }),
-    ])
-
-    return {
-      ...guidedSetupPage,
-      templatePage,
-      copyPriorEventPage,
-      departmentLeadsPage,
-    }
-  },
   component: EventSetupPage,
 })
 
 const parentRoute = getRouteApi("/events/$eventId")
 
 // @lat: [[crew#Event Setup Dashboard]]
-// @lat: [[crew#Guided Setup State]]
-// @lat: [[crew#Copy Prior Event Setup]]
 function EventSetupPage() {
   const router = useRouter()
   const { event } = parentRoute.useLoaderData()
-  const { guidedSetup, templatePage, copyPriorEventPage, departmentLeadsPage } =
-    Route.useLoaderData()
   const parsedSettings = parseCrewSettings(event.settings.settings)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [crewOnly, setCrewOnly] = useState(event.settings.crewOnly)
   const [sourcePlatform, setSourcePlatform] = useState(
     event.settings.sourcePlatform ?? "",
-  )
-  const [sourceEventUrl, setSourceEventUrl] = useState(
-    event.settings.sourceEventUrl ?? "",
   )
   const [externalRegistrationUrl, setExternalRegistrationUrl] = useState(
     event.settings.externalRegistrationUrl ?? "",
   )
-  const [lifecycle, setLifecycle] = useState(event.settings.lifecycle)
-  const [conciergeStatus, setConciergeStatus] = useState(
-    event.settings.conciergeStatus,
+  const [setup, setSetup] = useState<CrewOrganizerSetupState>(
+    toOrganizerCrewSetupState(parsedSettings.setup),
   )
-  const [crewPlan, setCrewPlan] = useState(event.settings.crewPlan)
-  const [acquisitionSource, setAcquisitionSource] = useState(
-    event.settings.acquisitionSource ?? "",
-  )
-  const [setup, setSetup] = useState(parsedSettings.setup)
+  const checklistProgress = calculateOrganizerChecklistProgress(setup)
 
   useEffect(() => {
     const nextSettings = parseCrewSettings(event.settings.settings)
-    setCrewOnly(event.settings.crewOnly)
     setSourcePlatform(event.settings.sourcePlatform ?? "")
-    setSourceEventUrl(event.settings.sourceEventUrl ?? "")
     setExternalRegistrationUrl(event.settings.externalRegistrationUrl ?? "")
-    setLifecycle(event.settings.lifecycle)
-    setConciergeStatus(event.settings.conciergeStatus)
-    setCrewPlan(event.settings.crewPlan)
-    setAcquisitionSource(event.settings.acquisitionSource ?? "")
-    setSetup(nextSettings.setup)
+    setSetup(toOrganizerCrewSetupState(nextSettings.setup))
   }, [event])
 
   async function handleSubmit(submitEvent: FormEvent<HTMLFormElement>) {
@@ -114,18 +49,17 @@ function EventSetupPage() {
     setIsSubmitting(true)
 
     try {
+      const currentSettings = parseCrewSettings(event.settings.settings)
+
       await updateCrewEventSettingsFn({
         data: {
           competitionId: event.competition.id,
-          crewOnly,
           sourcePlatform,
-          sourceEventUrl,
           externalRegistrationUrl,
-          lifecycle,
-          conciergeStatus,
-          crewPlan,
-          acquisitionSource,
-          settings: serializeCrewSettings(event.settings.settings, setup),
+          settings: serializeCrewSettings(
+            event.settings.settings,
+            mergeOrganizerCrewSetupState(currentSettings.setup, setup),
+          ),
         },
       })
 
@@ -150,492 +84,183 @@ function EventSetupPage() {
     }))
   }
 
-  async function handleGuidedSetupUpdate(data: {
-    eventId: string
-    stepKey: CrewGuidedSetupStepKey
-    status: CrewGuidedSetupOperatorStatus | null
-    note: string
-  }) {
-    try {
-      await updateCrewGuidedSetupStepFn({ data })
-      toast.success("Guided setup step saved")
-      await router.invalidate()
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to save setup step",
-      )
-    }
-  }
-
-  async function handleApplyTemplate(data: {
-    templateRef: CrewRoleShiftTemplateRef
-    fillEmptyAssumptions: boolean
-  }) {
-    try {
-      const result = await applyCrewTemplateFn({
-        data: {
-          eventId: event.competition.id,
-          templateRef: data.templateRef,
-          mode: "append_missing",
-          fillEmptyAssumptions: data.fillEmptyAssumptions,
-        },
-      })
-      toast.success(
-        `Template applied: ${result.createdShiftCount} shifts added${result.assumptionsUpdated ? ", assumptions filled" : ""}`,
-      )
-      await router.invalidate()
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to apply template",
-      )
-    }
-  }
-
-  async function handleSaveTemplatePreset(data: {
-    templateRef: CrewRoleShiftTemplateRef
-    name: string
-  }) {
-    try {
-      await saveCrewTemplatePresetFn({
-        data: {
-          eventId: event.competition.id,
-          templateRef: data.templateRef,
-          name: data.name,
-        },
-      })
-      toast.success("Template preset saved")
-      await router.invalidate()
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to save preset",
-      )
-    }
-  }
-
-  async function handleCopyPriorEvent(data: { sourceEventId: string }) {
-    try {
-      const result = await applyCrewCopyPriorEventFn({
-        data: {
-          eventId: event.competition.id,
-          sourceEventId: data.sourceEventId,
-          mode: "empty_target_only",
-        },
-      })
-      toast.success(
-        `Prior event setup copied: ${result.created.venues} venues, ${result.created.trackWorkouts} events, ${result.created.heats} heats, ${result.created.shifts} shifts`,
-      )
-      await router.invalidate()
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to copy prior event setup",
-      )
-    }
-  }
-
-  async function handleCreateDepartmentLead(data: {
-    eventId: string
-    email: string | null
-    name: string | null
-    membershipId: string | null
-    roleType: VolunteerRoleType
-    floor: string | null
-    startsAt: string | null
-    endsAt: string | null
-    status: "invited" | "active" | "revoked"
-    notes: string | null
-  }) {
-    try {
-      await createCrewDepartmentLeadFn({ data })
-      toast.success("Department lead added")
-      await router.invalidate()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to add lead")
-    }
-  }
-
-  async function handleUpdateDepartmentLead(data: {
-    leadId: string
-    eventId: string
-    email: string | null
-    name: string | null
-    membershipId: string | null
-    roleType: VolunteerRoleType
-    floor: string | null
-    startsAt: string | null
-    endsAt: string | null
-    status: "invited" | "active" | "revoked"
-    notes: string | null
-  }) {
-    try {
-      await updateCrewDepartmentLeadFn({ data })
-      toast.success("Department lead saved")
-      await router.invalidate()
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to save lead",
-      )
-    }
-  }
-
-  async function handleRevokeDepartmentLead(leadId: string) {
-    try {
-      await revokeCrewDepartmentLeadFn({
-        data: { eventId: event.competition.id, leadId },
-      })
-      toast.success("Department lead revoked")
-      await router.invalidate()
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to revoke lead",
-      )
-    }
-  }
-
   return (
-    <section className="space-y-6">
-      <GuidedSetupShell
-        eventId={event.competition.id}
-        guidedSetup={guidedSetup}
-        onUpdate={(data) =>
-          handleGuidedSetupUpdate({
-            eventId: event.competition.id,
-            ...data,
-          })
-        }
-      />
-
-      <CrewTemplatePanel
-        templatePage={templatePage}
-        onApply={handleApplyTemplate}
-        onSavePreset={handleSaveTemplatePreset}
-      />
-
-      <CrewCopyPriorEventPanel
-        eventId={event.competition.id}
-        pageData={copyPriorEventPage}
-        onApply={handleCopyPriorEvent}
-      />
-
-      <CrewDepartmentLeadsPanel
-        pageData={departmentLeadsPage}
-        onCreate={handleCreateDepartmentLead}
-        onUpdate={handleUpdateDepartmentLead}
-        onRevoke={handleRevokeDepartmentLead}
-      />
-
-      <form
-        onSubmit={handleSubmit}
-        className="grid gap-6 lg:grid-cols-[1fr_20rem]"
-      >
-        <section className="space-y-6">
-          <section className="rounded-md border bg-card p-5 shadow-sm">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h2 className="text-xl font-semibold">Setup</h2>
-                <p className="text-sm text-muted-foreground">
-                  Manage lifecycle, concierge status, source details, and
-                  operator assumptions.
-                </p>
-              </div>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={crewOnly}
-                  onChange={(changeEvent) =>
-                    setCrewOnly(changeEvent.target.checked)
-                  }
-                  className="size-4"
-                />
-                Crew-only
-              </label>
-            </div>
-
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <Field label="Lifecycle" htmlFor="crew-settings-lifecycle">
-                <select
-                  id="crew-settings-lifecycle"
-                  value={lifecycle}
-                  onChange={(changeEvent) =>
-                    setLifecycle(
-                      changeEvent.target.value as
-                        | "draft"
-                        | "setup"
-                        | "importing"
-                        | "ready"
-                        | "archived",
-                    )
-                  }
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                >
-                  <option value="draft">Draft</option>
-                  <option value="setup">Setup</option>
-                  <option value="importing">Importing</option>
-                  <option value="ready">Ready</option>
-                  <option value="archived">Archived</option>
-                </select>
-              </Field>
-              <Field
-                label="Concierge status"
-                htmlFor="crew-settings-concierge-status"
-              >
-                <select
-                  id="crew-settings-concierge-status"
-                  value={conciergeStatus}
-                  onChange={(changeEvent) =>
-                    setConciergeStatus(
-                      changeEvent.target.value as
-                        | "not_started"
-                        | "in_progress"
-                        | "ready"
-                        | "blocked",
-                    )
-                  }
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                >
-                  <option value="not_started">Not started</option>
-                  <option value="in_progress">In progress</option>
-                  <option value="ready">Ready</option>
-                  <option value="blocked">Blocked</option>
-                </select>
-              </Field>
-              <Field label="Crew plan" htmlFor="crew-settings-plan">
-                <select
-                  id="crew-settings-plan"
-                  value={crewPlan}
-                  onChange={(changeEvent) =>
-                    setCrewPlan(
-                      changeEvent.target.value as
-                        | "self_serve"
-                        | "concierge"
-                        | "full_platform",
-                    )
-                  }
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                >
-                  <option value="self_serve">Self serve</option>
-                  <option value="concierge">Concierge</option>
-                  <option value="full_platform">Full platform</option>
-                </select>
-              </Field>
-            </div>
-          </section>
-
-          <section className="rounded-md border bg-card p-5 shadow-sm">
-            <h2 className="text-xl font-semibold">Source</h2>
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <Field
-                label="Source platform"
-                htmlFor="crew-settings-source-platform"
-              >
-                <input
-                  id="crew-settings-source-platform"
-                  value={sourcePlatform}
-                  onChange={(changeEvent) =>
-                    setSourcePlatform(changeEvent.target.value)
-                  }
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                />
-              </Field>
-              <Field
-                label="Acquisition source"
-                htmlFor="crew-settings-acquisition-source"
-              >
-                <input
-                  id="crew-settings-acquisition-source"
-                  value={acquisitionSource}
-                  onChange={(changeEvent) =>
-                    setAcquisitionSource(changeEvent.target.value)
-                  }
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                />
-              </Field>
-              <Field
-                label="Source event URL"
-                htmlFor="crew-settings-source-event-url"
-                wide
-              >
-                <input
-                  id="crew-settings-source-event-url"
-                  value={sourceEventUrl}
-                  onChange={(changeEvent) =>
-                    setSourceEventUrl(changeEvent.target.value)
-                  }
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                />
-              </Field>
-              <Field
-                label="External registration URL"
-                htmlFor="crew-settings-external-registration-url"
-                wide
-              >
-                <input
-                  id="crew-settings-external-registration-url"
-                  value={externalRegistrationUrl}
-                  onChange={(changeEvent) =>
-                    setExternalRegistrationUrl(changeEvent.target.value)
-                  }
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                />
-              </Field>
-            </div>
-          </section>
-
-          <section className="rounded-md border bg-card p-5 shadow-sm">
-            <h2 className="text-xl font-semibold">Concierge notes</h2>
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <Field
-                label="Desired go-live date"
-                htmlFor="crew-setup-go-live-date"
-              >
-                <input
-                  id="crew-setup-go-live-date"
-                  type="date"
-                  value={setup.desiredGoLiveDate}
-                  onChange={(changeEvent) =>
-                    setSetup((current) => ({
-                      ...current,
-                      desiredGoLiveDate: changeEvent.target.value,
-                    }))
-                  }
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                />
-              </Field>
-              <Field
-                label="Volunteer target"
-                htmlFor="crew-setup-volunteer-target"
-              >
-                <input
-                  id="crew-setup-volunteer-target"
-                  value={setup.volunteerTarget}
-                  onChange={(changeEvent) =>
-                    setSetup((current) => ({
-                      ...current,
-                      volunteerTarget: changeEvent.target.value,
-                    }))
-                  }
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                />
-              </Field>
-              <Field label="Staffing lead" htmlFor="crew-setup-staffing-lead">
-                <input
-                  id="crew-setup-staffing-lead"
-                  value={setup.staffingLead}
-                  onChange={(changeEvent) =>
-                    setSetup((current) => ({
-                      ...current,
-                      staffingLead: changeEvent.target.value,
-                    }))
-                  }
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                />
-              </Field>
-              <Field
-                label="Source contact name"
-                htmlFor="crew-setup-source-contact-name"
-              >
-                <input
-                  id="crew-setup-source-contact-name"
-                  value={setup.sourceContactName}
-                  onChange={(changeEvent) =>
-                    setSetup((current) => ({
-                      ...current,
-                      sourceContactName: changeEvent.target.value,
-                    }))
-                  }
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                />
-              </Field>
-              <Field
-                label="Source contact email"
-                htmlFor="crew-setup-source-contact-email"
-                wide
-              >
-                <input
-                  id="crew-setup-source-contact-email"
-                  type="email"
-                  value={setup.sourceContactEmail}
-                  onChange={(changeEvent) =>
-                    setSetup((current) => ({
-                      ...current,
-                      sourceContactEmail: changeEvent.target.value,
-                    }))
-                  }
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                />
-              </Field>
-              <Field label="Assumptions" htmlFor="crew-setup-assumptions" wide>
-                <textarea
-                  id="crew-setup-assumptions"
-                  value={setup.assumptions}
-                  onChange={(changeEvent) =>
-                    setSetup((current) => ({
-                      ...current,
-                      assumptions: changeEvent.target.value,
-                    }))
-                  }
-                  className="min-h-28 w-full rounded-md border bg-background px-3 py-2 text-sm"
-                />
-              </Field>
-              <Field label="Internal notes" htmlFor="crew-setup-notes" wide>
-                <textarea
-                  id="crew-setup-notes"
-                  value={setup.internalNotes}
-                  onChange={(changeEvent) =>
-                    setSetup((current) => ({
-                      ...current,
-                      internalNotes: changeEvent.target.value,
-                    }))
-                  }
-                  className="min-h-32 w-full rounded-md border bg-background px-3 py-2 text-sm"
-                />
-              </Field>
-            </div>
-          </section>
-        </section>
-
-        <aside className="h-fit rounded-md border bg-card p-5 shadow-sm">
-          <h2 className="text-sm font-semibold uppercase text-muted-foreground">
-            Setup checklist
-          </h2>
-          <div className="mt-4 space-y-3">
-            {crewSetupChecklistItems.map((item) => (
-              <label
-                key={item.key}
-                className="flex items-start gap-3 rounded-md border bg-background px-3 py-2 text-sm"
-              >
-                <input
-                  type="checkbox"
-                  checked={setup.checklist[item.key]}
-                  onChange={(changeEvent) =>
-                    updateChecklist(item.key, changeEvent.target.checked)
-                  }
-                  className="mt-0.5 size-4"
-                />
-                <span>{item.label}</span>
-              </label>
-            ))}
+    <form
+      onSubmit={handleSubmit}
+      className="grid gap-6 lg:grid-cols-[1fr_20rem]"
+    >
+      <section className="space-y-6">
+        <section className="rounded-md border bg-card p-5 shadow-sm">
+          <div>
+            <h2 className="text-xl font-semibold">Event basics</h2>
+            <p className="text-sm text-muted-foreground">
+              Confirm the details volunteers and staff will use for planning.
+            </p>
           </div>
 
-          {parsedSettings.parseError ? (
-            <p className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              Existing settings JSON is invalid. Saving will preserve the raw
-              text as legacySettingsText.
-            </p>
-          ) : null}
+          <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2">
+            <Fact label="Event name" value={event.competition.name} />
+            <Fact
+              label="Dates"
+              value={`${event.competition.startDate} to ${event.competition.endDate}`}
+            />
+            <Fact
+              label="Timezone"
+              value={event.competition.timezone ?? "Not set"}
+            />
+          </dl>
+        </section>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
-          >
-            <Save className="size-4" aria-hidden="true" />
-            {isSubmitting ? "Saving..." : "Save setup"}
-          </button>
-        </aside>
-      </form>
-    </section>
+        <section className="rounded-md border bg-card p-5 shadow-sm">
+          <h2 className="text-xl font-semibold">Volunteer setup</h2>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <Field
+              label="Registration platform"
+              htmlFor="crew-settings-source-platform"
+            >
+              <input
+                id="crew-settings-source-platform"
+                value={sourcePlatform}
+                onChange={(changeEvent) =>
+                  setSourcePlatform(changeEvent.target.value)
+                }
+                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+              />
+            </Field>
+            <Field
+              label="Public volunteer signup link"
+              htmlFor="crew-settings-external-registration-url"
+            >
+              <input
+                id="crew-settings-external-registration-url"
+                value={externalRegistrationUrl}
+                onChange={(changeEvent) =>
+                  setExternalRegistrationUrl(changeEvent.target.value)
+                }
+                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+              />
+            </Field>
+            <Field
+              label="Expected volunteer target"
+              htmlFor="crew-setup-volunteer-target"
+            >
+              <input
+                id="crew-setup-volunteer-target"
+                value={setup.volunteerTarget}
+                onChange={(changeEvent) =>
+                  setSetup((current) => ({
+                    ...current,
+                    volunteerTarget: changeEvent.target.value,
+                  }))
+                }
+                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+              />
+            </Field>
+            <Field label="Staffing lead" htmlFor="crew-setup-staffing-lead">
+              <input
+                id="crew-setup-staffing-lead"
+                value={setup.staffingLead}
+                onChange={(changeEvent) =>
+                  setSetup((current) => ({
+                    ...current,
+                    staffingLead: changeEvent.target.value,
+                  }))
+                }
+                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+              />
+            </Field>
+            <Field
+              label="Role assumptions"
+              htmlFor="crew-setup-assumptions"
+              wide
+            >
+              <textarea
+                id="crew-setup-assumptions"
+                value={setup.assumptions}
+                onChange={(changeEvent) =>
+                  setSetup((current) => ({
+                    ...current,
+                    assumptions: changeEvent.target.value,
+                  }))
+                }
+                className="min-h-28 w-full rounded-md border bg-background px-3 py-2 text-sm"
+              />
+            </Field>
+          </div>
+        </section>
+      </section>
+
+      <aside className="h-fit rounded-md border bg-card p-5 shadow-sm">
+        <h2 className="text-sm font-semibold uppercase text-muted-foreground">
+          Setup checklist
+        </h2>
+        <p className="mt-2 text-2xl font-semibold">
+          {checklistProgress.completed}/{checklistProgress.total}
+        </p>
+        <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-primary transition-all"
+            style={{ width: `${checklistProgress.percent}%` }}
+          />
+        </div>
+
+        <div className="mt-5 space-y-3">
+          {crewSetupChecklistItems.map((item) => (
+            <label
+              key={item.key}
+              className="flex items-start gap-3 rounded-md border bg-background px-3 py-2 text-sm"
+            >
+              <input
+                type="checkbox"
+                checked={setup.checklist[item.key]}
+                onChange={(changeEvent) =>
+                  updateChecklist(item.key, changeEvent.target.checked)
+                }
+                className="mt-0.5 size-4"
+              />
+              <span>{item.label}</span>
+            </label>
+          ))}
+        </div>
+
+        {parsedSettings.parseError ? (
+          <p className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            Existing setup data needs review before it can be saved.
+          </p>
+        ) : null}
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+        >
+          <Save className="size-4" aria-hidden="true" />
+          {isSubmitting ? "Saving..." : "Save setup"}
+        </button>
+      </aside>
+    </form>
+  )
+}
+
+function calculateOrganizerChecklistProgress(setup: CrewOrganizerSetupState) {
+  const completed = crewSetupChecklistItems.filter(
+    (item) => setup.checklist[item.key],
+  ).length
+  const total = crewSetupChecklistItems.length
+
+  return {
+    completed,
+    total,
+    percent: total === 0 ? 0 : Math.round((completed / total) * 100),
+  }
+}
+
+function Fact({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div>
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="mt-1 break-words font-medium">{value}</dd>
+    </div>
   )
 }
 
