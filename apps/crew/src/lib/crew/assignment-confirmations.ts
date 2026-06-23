@@ -28,6 +28,7 @@ export interface CrewAssignmentConfirmationResponseRecord {
 export interface CrewAssignmentConfirmationStatusSummary {
   pending: number
   confirmed: number
+  checkedIn: number
   declined: number
   changeRequested: number
   noShow: number
@@ -39,6 +40,7 @@ export type CrewAssignmentConfirmationOperationalState =
   | "pending"
   | "sent"
   | "confirmed"
+  | "checked_in"
   | "declined"
   | "change_requested"
   | "no_show"
@@ -114,6 +116,7 @@ export interface CrewAssignmentConfirmationOperationalSummary {
   pending: number
   sent: number
   confirmed: number
+  checkedIn: number
   declined: number
   changeRequested: number
   noShow: number
@@ -138,6 +141,7 @@ export const CREW_ASSIGNMENT_CONFIRMATION_ORGANIZER_STATES = [
   "pending",
   "sent",
   "confirmed",
+  "checked_in",
   "declined",
   "change_requested",
   "no_show",
@@ -312,6 +316,8 @@ export function summarizeCrewAssignmentConfirmations(
     (summary, status) => {
       if (status === CREW_ASSIGNMENT_CONFIRMATION_STATUS.CONFIRMED) {
         summary.confirmed += 1
+      } else if (status === CREW_ASSIGNMENT_CONFIRMATION_STATUS.CHECKED_IN) {
+        summary.checkedIn += 1
       } else if (status === CREW_ASSIGNMENT_CONFIRMATION_STATUS.DECLINED) {
         summary.declined += 1
       } else if (
@@ -330,6 +336,7 @@ export function summarizeCrewAssignmentConfirmations(
     {
       pending: 0,
       confirmed: 0,
+      checkedIn: 0,
       declined: 0,
       changeRequested: 0,
       noShow: 0,
@@ -344,6 +351,9 @@ export function getCrewAssignmentConfirmationOperationalState(
   if (!record?.status) return "missing"
   if (record.status === CREW_ASSIGNMENT_CONFIRMATION_STATUS.CONFIRMED) {
     return "confirmed"
+  }
+  if (record.status === CREW_ASSIGNMENT_CONFIRMATION_STATUS.CHECKED_IN) {
+    return "checked_in"
   }
   if (record.status === CREW_ASSIGNMENT_CONFIRMATION_STATUS.DECLINED) {
     return "declined"
@@ -372,6 +382,7 @@ export function summarizeCrewAssignmentConfirmationOperationalStates(
       else if (state === "pending") summary.pending += 1
       else if (state === "sent") summary.sent += 1
       else if (state === "confirmed") summary.confirmed += 1
+      else if (state === "checked_in") summary.checkedIn += 1
       else if (state === "declined") summary.declined += 1
       else if (state === "change_requested") summary.changeRequested += 1
       else if (state === "no_show") summary.noShow += 1
@@ -394,6 +405,7 @@ export function summarizeCrewAssignmentConfirmationOperationalStates(
       pending: 0,
       sent: 0,
       confirmed: 0,
+      checkedIn: 0,
       declined: 0,
       changeRequested: 0,
       noShow: 0,
@@ -577,11 +589,13 @@ export function resolveCrewAssignmentConfirmationOrganizerStateUpdate(
   const status =
     state === "confirmed"
       ? CREW_ASSIGNMENT_CONFIRMATION_STATUS.CONFIRMED
-      : state === "declined"
-        ? CREW_ASSIGNMENT_CONFIRMATION_STATUS.DECLINED
-        : state === "no_show"
-          ? CREW_ASSIGNMENT_CONFIRMATION_STATUS.NO_SHOW
-          : CREW_ASSIGNMENT_CONFIRMATION_STATUS.CHANGE_REQUESTED
+      : state === "checked_in"
+        ? CREW_ASSIGNMENT_CONFIRMATION_STATUS.CHECKED_IN
+        : state === "declined"
+          ? CREW_ASSIGNMENT_CONFIRMATION_STATUS.DECLINED
+          : state === "no_show"
+            ? CREW_ASSIGNMENT_CONFIRMATION_STATUS.NO_SHOW
+            : CREW_ASSIGNMENT_CONFIRMATION_STATUS.CHANGE_REQUESTED
 
   return {
     status,

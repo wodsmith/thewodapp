@@ -28,7 +28,10 @@ function EventShell() {
   const { event } = Route.useLoaderData()
   const session = useSession()
   const viewer = resolveCrewViewer({ session })
-  const navItems = getCrewEventNavItems({ viewerRole: viewer.role })
+  const navItems = getCrewEventNavItems({
+    viewerRole: viewer.role,
+    state: event.navigationState,
+  })
   const navigation = getCrewOrganizerEventSidebarNavigation({
     eventId,
     navItems,

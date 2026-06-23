@@ -1,22 +1,40 @@
 // @lat: [[crew#Day Of Operations Board]]
-import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  getRouteApi,
+  Link,
+  useRouter,
+} from "@tanstack/react-router"
+import { useServerFn } from "@tanstack/react-start"
 import {
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
   Clock3,
+  Loader2,
   RadioTower,
+  Replace,
   UserCheck,
   UserX,
 } from "lucide-react"
-import type { ReactNode } from "react"
+import type { FormEvent, ReactNode } from "react"
+import { useState } from "react"
+import { toast } from "sonner"
+import { getCrewAssignmentConfirmationStatusLabel } from "@/lib/crew/assignment-confirmation-display"
 import type {
+  CrewDayOfAssignmentActionItem,
   CrewDayOfBlockSummary,
   CrewDayOfCriticalGap,
+  CrewDayOfReplacementOption,
   CrewDayOfResponseQueueItem,
 } from "@/lib/crew/day-of-operations"
 import { formatCrewValue } from "@/lib/crew-event-display"
-import { getCrewDayOfOperationsPageFn } from "@/server-fns/crew-day-of-fns"
+import {
+  getCrewDayOfOperationsPageFn,
+  markCrewAssignmentCheckedInFn,
+  markCrewAssignmentNoShowFn,
+  replaceCrewAssignmentFn,
+} from "@/server-fns/crew-day-of-fns"
 import { formatDateTimeInTimezone } from "@/utils/timezone-utils"
 
 export const Route = createFileRoute("/events/$eventId/day-of")({
@@ -32,12 +50,18 @@ const parentRoute = getRouteApi("/events/$eventId")
 function EventDayOfOperationsPage() {
   const { eventId } = parentRoute.useParams()
   const { event, board, sources } = Route.useLoaderData()
+  const router = useRouter()
+  const markCheckedIn = useServerFn(markCrewAssignmentCheckedInFn)
+  const markNoShow = useServerFn(markCrewAssignmentNoShowFn)
+  const replaceAssignment = useServerFn(replaceCrewAssignmentFn)
+  const [pendingAction, setPendingAction] = useState<string | null>(null)
   const timezone = event.timezone ?? "America/Denver"
   const leadBlocks =
     board.currentBlocks.length > 0 ? board.currentBlocks : board.nextBlocks
   const visibleTimeBlocks = board.timeBlocks
     .filter((block) => block.timing !== "past")
     .slice(0, 12)
+  const hasAssignments = sources.shiftAssignments + sources.judgeAssignments > 0
 
   return (
     <section className="space-y-5">
@@ -76,188 +100,442 @@ function EventDayOfOperationsPage() {
         </div>
       </div>
 
-      <section className="grid gap-3 md:grid-cols-5">
-        <MetricPanel
-          label="Open roles"
-          value={board.summary.openRoles}
-          tone={board.summary.openRoles > 0 ? "critical" : "covered"}
-        />
-        <MetricPanel
-          label="Responses due"
-          value={board.summary.noResponsesDueSoon}
-          tone={board.summary.noResponsesDueSoon > 0 ? "warning" : "covered"}
-        />
-        <MetricPanel
-          label="Declines / changes"
-          value={board.summary.decisionNeeded}
-          tone={board.summary.decisionNeeded > 0 ? "critical" : "covered"}
-        />
-        <MetricPanel
-          label="No-show / replaced"
-          value={board.summary.noShowOrReplaced}
-          tone={board.summary.noShowOrReplaced > 0 ? "critical" : "covered"}
-        />
-        <MetricPanel
-          label="Judge lanes open"
-          value={board.judgeCoverage.openLanes}
-          tone={board.judgeCoverage.openLanes > 0 ? "critical" : "covered"}
-        />
-      </section>
-
-      <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+      {!hasAssignments ? (
         <section className="rounded-md border bg-card p-5 shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h3 className="font-semibold">
-                {board.currentBlocks.length > 0 ? "Now" : "Next"}
-              </h3>
+              <h3 className="font-semibold">Event Day unavailable</h3>
               <p className="text-sm text-muted-foreground">
-                {board.currentBlocks.length} current / {board.nextBlocks.length}{" "}
-                next
+                Add crew assignments before using Event Day actions.
               </p>
             </div>
             <Clock3 className="size-5 text-muted-foreground" />
           </div>
-
-          {leadBlocks.length > 0 ? (
-            <div className="mt-4 grid gap-3">
-              {leadBlocks.map((block) => (
-                <BlockPanel
-                  key={block.timeBlockId}
-                  block={block}
-                  timezone={timezone}
-                />
-              ))}
-            </div>
-          ) : (
-            <EmptyState message="No scheduled shift or heat blocks are active or upcoming." />
-          )}
         </section>
+      ) : null}
 
-        <section className="rounded-md border bg-card p-5 shadow-sm">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h3 className="font-semibold">State tracking</h3>
-              <p className="text-sm text-muted-foreground">
-                {board.stateSummary.checkedInTracked
-                  ? `${board.stateSummary.checkedIn} checked in`
-                  : "Check-in is not persisted yet"}
-              </p>
-            </div>
-            <UserX className="size-5 text-muted-foreground" />
-          </div>
-
-          <dl className="mt-5 grid gap-3 text-sm">
-            <Fact label="No-shows" value={board.stateSummary.noShow} />
-            <Fact label="Replaced" value={board.stateSummary.replaced} />
-            <Fact
-              label="Active judge versions"
-              value={sources.activeJudgeVersions}
+      {hasAssignments ? (
+        <>
+          <section className="grid gap-3 md:grid-cols-5">
+            <MetricPanel
+              label="Open roles"
+              value={board.summary.openRoles}
+              tone={board.summary.openRoles > 0 ? "critical" : "covered"}
             />
-            <Fact label="Shift assignments" value={sources.shiftAssignments} />
-          </dl>
-        </section>
-      </div>
+            <MetricPanel
+              label="Responses due"
+              value={board.summary.noResponsesDueSoon}
+              tone={
+                board.summary.noResponsesDueSoon > 0 ? "warning" : "covered"
+              }
+            />
+            <MetricPanel
+              label="Declines / changes"
+              value={board.summary.decisionNeeded}
+              tone={board.summary.decisionNeeded > 0 ? "critical" : "covered"}
+            />
+            <MetricPanel
+              label="No-show / replaced"
+              value={board.summary.noShowOrReplaced}
+              tone={board.summary.noShowOrReplaced > 0 ? "critical" : "covered"}
+            />
+            <MetricPanel
+              label="Judge lanes open"
+              value={board.judgeCoverage.openLanes}
+              tone={board.judgeCoverage.openLanes > 0 ? "critical" : "covered"}
+            />
+          </section>
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        <CriticalGapList
-          title="Critical unfilled roles"
-          gaps={board.criticalGaps}
-          timezone={timezone}
-        />
-        <QueueList
-          title={`No-responses due in ${board.responseDueSoonHours}h`}
-          items={board.noResponsesDueSoon}
-          timezone={timezone}
-          empty="No current or near-term no-responses."
-        />
-        <QueueList
-          title="Declines and change requests"
-          items={board.decisionQueue}
-          timezone={timezone}
-          empty="No declined or change-requested assignments."
-        />
-        <QueueList
-          title="No-shows and replacements"
-          items={board.noShowReplacementQueue}
-          timezone={timezone}
-          empty="No no-show or replaced assignments."
-        />
-      </div>
-
-      <section className="rounded-md border bg-card p-5 shadow-sm">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h3 className="font-semibold">Floor and time blocks</h3>
-            <p className="text-sm text-muted-foreground">
-              {visibleTimeBlocks.length}/{board.timeBlocks.length} active or
-              upcoming blocks
-            </p>
-          </div>
-          <StatusPill tone="neutral">{formatCrewValue(event.slug)}</StatusPill>
-        </div>
-
-        {visibleTimeBlocks.length > 0 ? (
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            {visibleTimeBlocks.map((block) => (
-              <TimeBlockRow
-                key={block.timeBlockId}
-                block={block}
-                timezone={timezone}
-              />
-            ))}
-          </div>
-        ) : (
-          <EmptyState message="No active or upcoming blocks." />
-        )}
-      </section>
-
-      <section className="rounded-md border bg-card p-5 shadow-sm">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h3 className="font-semibold">Active judge coverage</h3>
-            <p className="text-sm text-muted-foreground">
-              {board.judgeCoverage.lanesFilled}/
-              {board.judgeCoverage.lanesNeeded} lanes filled across{" "}
-              {board.judgeCoverage.heatBlocks} heat blocks
-            </p>
-          </div>
-          <StatusPill
-            tone={board.judgeCoverage.openLanes > 0 ? "critical" : "covered"}
-          >
-            {board.judgeCoverage.openLanes} open
-          </StatusPill>
-        </div>
-
-        {board.judgeCoverage.currentAndNext.length > 0 ? (
-          <div className="mt-4 divide-y rounded-md border">
-            {board.judgeCoverage.currentAndNext.map((block) => (
-              <div
-                key={block.timeBlockId}
-                className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between"
-              >
+          <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+            <section className="rounded-md border bg-card p-5 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="font-medium">{block.blockLabel}</p>
+                  <h3 className="font-semibold">
+                    {board.currentBlocks.length > 0 ? "Now" : "Next"}
+                  </h3>
                   <p className="text-sm text-muted-foreground">
-                    {formatTimeWindow(block, timezone)}
+                    {board.currentBlocks.length} current /{" "}
+                    {board.nextBlocks.length} next
                   </p>
                 </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <span>
-                    {block.filled}/{block.needed}
-                  </span>
-                  <StatusPill tone={block.open > 0 ? "critical" : "covered"}>
-                    {block.open} open
-                  </StatusPill>
-                </div>
+                <Clock3 className="size-5 text-muted-foreground" />
               </div>
-            ))}
+
+              {leadBlocks.length > 0 ? (
+                <div className="mt-4 grid gap-3">
+                  {leadBlocks.map((block) => (
+                    <BlockPanel
+                      key={block.timeBlockId}
+                      block={block}
+                      timezone={timezone}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState message="No scheduled shift or heat blocks are active or upcoming." />
+              )}
+            </section>
+
+            <section className="rounded-md border bg-card p-5 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="font-semibold">State tracking</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {board.stateSummary.checkedIn} checked in
+                  </p>
+                </div>
+                <UserX className="size-5 text-muted-foreground" />
+              </div>
+
+              <dl className="mt-5 grid gap-3 text-sm">
+                <Fact label="No-shows" value={board.stateSummary.noShow} />
+                <Fact label="Replaced" value={board.stateSummary.replaced} />
+                <Fact
+                  label="Active judge versions"
+                  value={sources.activeJudgeVersions}
+                />
+                <Fact
+                  label="Shift assignments"
+                  value={sources.shiftAssignments}
+                />
+              </dl>
+            </section>
           </div>
-        ) : (
-          <EmptyState message="No current or next judge heat coverage." />
-        )}
-      </section>
+
+          <section className="rounded-md border bg-card p-5 shadow-sm">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h3 className="font-semibold">Assignment actions</h3>
+                <p className="text-sm text-muted-foreground">
+                  {board.assignmentActions.length} current or upcoming
+                  assignments
+                </p>
+              </div>
+              <StatusPill tone="neutral">
+                {board.stateSummary.checkedIn} checked in
+              </StatusPill>
+            </div>
+
+            {board.assignmentActions.length > 0 ? (
+              <div className="mt-4 divide-y rounded-md border">
+                {board.assignmentActions.slice(0, 12).map((assignment) => (
+                  <AssignmentActionRow
+                    key={`${assignment.assignmentType}:${assignment.assignmentId}`}
+                    assignment={assignment}
+                    replacementOptions={board.replacementOptions}
+                    timezone={timezone}
+                    pendingAction={pendingAction}
+                    onCheckIn={async () => {
+                      const actionKey = `${assignment.assignmentType}:${assignment.assignmentId}:checked_in`
+                      setPendingAction(actionKey)
+                      try {
+                        await markCheckedIn({
+                          data: {
+                            eventId,
+                            assignmentType: assignment.assignmentType,
+                            assignmentId: assignment.assignmentId,
+                          },
+                        })
+                        toast.success("Check-in saved")
+                        await router.invalidate()
+                      } catch (error) {
+                        toast.error(getErrorMessage(error, "Check-in failed"))
+                      } finally {
+                        setPendingAction(null)
+                      }
+                    }}
+                    onNoShow={async () => {
+                      const actionKey = `${assignment.assignmentType}:${assignment.assignmentId}:no_show`
+                      setPendingAction(actionKey)
+                      try {
+                        await markNoShow({
+                          data: {
+                            eventId,
+                            assignmentType: assignment.assignmentType,
+                            assignmentId: assignment.assignmentId,
+                          },
+                        })
+                        toast.success("No-show saved")
+                        await router.invalidate()
+                      } catch (error) {
+                        toast.error(getErrorMessage(error, "No-show failed"))
+                      } finally {
+                        setPendingAction(null)
+                      }
+                    }}
+                    onReplace={async (replacementMembershipId) => {
+                      const actionKey = `${assignment.assignmentType}:${assignment.assignmentId}:replace`
+                      setPendingAction(actionKey)
+                      try {
+                        await replaceAssignment({
+                          data: {
+                            eventId,
+                            assignmentType: assignment.assignmentType,
+                            assignmentId: assignment.assignmentId,
+                            replacementMembershipId,
+                          },
+                        })
+                        toast.success("Replacement saved")
+                        await router.invalidate()
+                      } catch (error) {
+                        toast.error(
+                          getErrorMessage(error, "Replacement failed"),
+                        )
+                      } finally {
+                        setPendingAction(null)
+                      }
+                    }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <EmptyState message="No current or upcoming assignments." />
+            )}
+          </section>
+
+          <div className="grid gap-5 lg:grid-cols-2">
+            <CriticalGapList
+              title="Critical unfilled roles"
+              gaps={board.criticalGaps}
+              timezone={timezone}
+            />
+            <QueueList
+              title={`No-responses due in ${board.responseDueSoonHours}h`}
+              items={board.noResponsesDueSoon}
+              timezone={timezone}
+              empty="No current or near-term no-responses."
+            />
+            <QueueList
+              title="Declines and change requests"
+              items={board.decisionQueue}
+              timezone={timezone}
+              empty="No declined or change-requested assignments."
+            />
+            <QueueList
+              title="No-shows and replacements"
+              items={board.noShowReplacementQueue}
+              timezone={timezone}
+              empty="No no-show or replaced assignments."
+            />
+          </div>
+
+          <section className="rounded-md border bg-card p-5 shadow-sm">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h3 className="font-semibold">Floor and time blocks</h3>
+                <p className="text-sm text-muted-foreground">
+                  {visibleTimeBlocks.length}/{board.timeBlocks.length} active or
+                  upcoming blocks
+                </p>
+              </div>
+              <StatusPill tone="neutral">
+                {formatCrewValue(event.slug)}
+              </StatusPill>
+            </div>
+
+            {visibleTimeBlocks.length > 0 ? (
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                {visibleTimeBlocks.map((block) => (
+                  <TimeBlockRow
+                    key={block.timeBlockId}
+                    block={block}
+                    timezone={timezone}
+                  />
+                ))}
+              </div>
+            ) : (
+              <EmptyState message="No active or upcoming blocks." />
+            )}
+          </section>
+
+          <section className="rounded-md border bg-card p-5 shadow-sm">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h3 className="font-semibold">Active judge coverage</h3>
+                <p className="text-sm text-muted-foreground">
+                  {board.judgeCoverage.lanesFilled}/
+                  {board.judgeCoverage.lanesNeeded} lanes filled across{" "}
+                  {board.judgeCoverage.heatBlocks} heat blocks
+                </p>
+              </div>
+              <StatusPill
+                tone={
+                  board.judgeCoverage.openLanes > 0 ? "critical" : "covered"
+                }
+              >
+                {board.judgeCoverage.openLanes} open
+              </StatusPill>
+            </div>
+
+            {board.judgeCoverage.currentAndNext.length > 0 ? (
+              <div className="mt-4 divide-y rounded-md border">
+                {board.judgeCoverage.currentAndNext.map((block) => (
+                  <div
+                    key={block.timeBlockId}
+                    className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <p className="font-medium">{block.blockLabel}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {formatTimeWindow(block, timezone)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm">
+                      <span>
+                        {block.filled}/{block.needed}
+                      </span>
+                      <StatusPill
+                        tone={block.open > 0 ? "critical" : "covered"}
+                      >
+                        {block.open} open
+                      </StatusPill>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState message="No current or next judge heat coverage." />
+            )}
+          </section>
+        </>
+      ) : null}
     </section>
+  )
+}
+
+function AssignmentActionRow({
+  assignment,
+  replacementOptions,
+  timezone,
+  pendingAction,
+  onCheckIn,
+  onNoShow,
+  onReplace,
+}: {
+  assignment: CrewDayOfAssignmentActionItem
+  replacementOptions: CrewDayOfReplacementOption[]
+  timezone: string
+  pendingAction: string | null
+  onCheckIn: () => Promise<void>
+  onNoShow: () => Promise<void>
+  onReplace: (replacementMembershipId: string) => Promise<void>
+}) {
+  const rowActionPrefix = `${assignment.assignmentType}:${assignment.assignmentId}:`
+  const checkInPending =
+    pendingAction ===
+    `${assignment.assignmentType}:${assignment.assignmentId}:checked_in`
+  const noShowPending =
+    pendingAction ===
+    `${assignment.assignmentType}:${assignment.assignmentId}:no_show`
+  const replacePending =
+    pendingAction ===
+    `${assignment.assignmentType}:${assignment.assignmentId}:replace`
+  const rowPending = pendingAction?.startsWith(rowActionPrefix) ?? false
+  const compatibleReplacements = replacementOptions.filter(
+    (option) =>
+      option.membershipId !== assignment.membershipId &&
+      option.roleTypes.includes(assignment.roleType),
+  )
+
+  async function handleReplace(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = event.currentTarget
+    const formData = new FormData(form)
+    const replacementMembershipId = String(
+      formData.get("replacementMembershipId") ?? "",
+    )
+    if (!replacementMembershipId) return
+    await onReplace(replacementMembershipId)
+    form.reset()
+  }
+
+  return (
+    <div className="grid gap-3 p-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="font-medium">{assignment.volunteerName}</p>
+          <StatusPill
+            tone={
+              assignment.state === "checked_in"
+                ? "covered"
+                : assignment.state === "no_show" ||
+                    assignment.state === "replaced"
+                  ? "critical"
+                  : "neutral"
+            }
+          >
+            {getCrewAssignmentConfirmationStatusLabel(assignment.state)}
+          </StatusPill>
+        </div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {assignment.roleLabel} / {assignment.blockLabel} /{" "}
+          {formatTimeWindow(assignment, timezone)}
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <button
+          type="button"
+          onClick={() => void onCheckIn()}
+          disabled={rowPending || assignment.state === "checked_in"}
+          className="inline-flex h-9 w-fit items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {checkInPending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <UserCheck className="size-4" />
+          )}
+          Check in
+        </button>
+        <button
+          type="button"
+          onClick={() => void onNoShow()}
+          disabled={rowPending || assignment.state === "no_show"}
+          className="inline-flex h-9 w-fit items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {noShowPending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <UserX className="size-4" />
+          )}
+          No-show
+        </button>
+        <form onSubmit={handleReplace} className="flex items-center gap-2">
+          <label
+            className="sr-only"
+            htmlFor={`replacement-${assignment.assignmentId}`}
+          >
+            Replacement for {assignment.volunteerName}
+          </label>
+          <select
+            id={`replacement-${assignment.assignmentId}`}
+            name="replacementMembershipId"
+            disabled={rowPending || compatibleReplacements.length === 0}
+            className="h-9 min-w-40 rounded-md border bg-card px-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+            defaultValue=""
+          >
+            <option value="">Replacement</option>
+            {compatibleReplacements.map((option) => (
+              <option key={option.membershipId} value={option.membershipId}>
+                {option.volunteerName}
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            disabled={rowPending || compatibleReplacements.length === 0}
+            className="inline-flex h-9 w-fit items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {replacePending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Replace className="size-4" />
+            )}
+            Save
+          </button>
+        </form>
+      </div>
+    </div>
   )
 }
 
@@ -505,6 +783,10 @@ function EmptyState({ message }: { message: string }) {
 
 function formatGeneratedAt(value: string, timezone: string) {
   return `Updated ${formatDateTimeInTimezone(new Date(value), timezone, "h:mm a")}`
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback
 }
 
 function formatTimeWindow(

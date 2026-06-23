@@ -11,7 +11,7 @@ export function getCrewAssignmentConfirmationStatusBadgeClassName(
   if (status === "sent") {
     return "border-blue-500/30 bg-blue-500/10 text-blue-700"
   }
-  if (status === "confirmed") {
+  if (status === "confirmed" || status === "checked_in") {
     return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
   }
   if (status === "declined") {
@@ -34,6 +34,7 @@ export function getCrewAssignmentConfirmationStatusBadgeClassName(
 
 export function getCrewAssignmentConfirmationStatusLabel(status: string) {
   if (status === "change_requested") return "Change requested"
+  if (status === "checked_in") return "Checked in"
   if (status === "no_show") return "No-show"
   if (status === "cancelled" || status === "replaced") return "Replaced"
   return status

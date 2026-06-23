@@ -76,6 +76,7 @@ export type CrewAssignmentConfirmationType =
 export const CREW_ASSIGNMENT_CONFIRMATION_STATUS = {
   PENDING: "pending",
   CONFIRMED: "confirmed",
+  CHECKED_IN: "checked_in",
   DECLINED: "declined",
   CHANGE_REQUESTED: "change_requested",
   NO_SHOW: "no_show",

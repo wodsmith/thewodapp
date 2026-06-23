@@ -75,10 +75,20 @@ describe("Crew day-of operations helpers", () => {
       }),
     ])
     expect(board.stateSummary).toMatchObject({
-      checkedInTracked: false,
+      checkedInTracked: true,
+      checkedIn: 0,
       noShow: 0,
       replaced: 1,
     })
+    expect(board.assignmentActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          assignmentId: "vsha_checkin_1",
+          assignmentType: CREW_ASSIGNMENT_CONFIRMATION_TYPE.VOLUNTEER_SHIFT,
+          state: "sent",
+        }),
+      ]),
+    )
   })
 
   it("summarizes active judge coverage without mutating versions", () => {
@@ -104,6 +114,7 @@ function buildBoard() {
   return buildCrewDayOfOperationsBoard({
     matrix,
     report,
+    staffingInput: input,
     now: new Date("2026-06-20T15:00:00.000Z"),
   })
 }
