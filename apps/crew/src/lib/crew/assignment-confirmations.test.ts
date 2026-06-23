@@ -286,6 +286,11 @@ describe("Crew assignment confirmation operational states", () => {
     ).toBe("confirmed")
     expect(
       getCrewAssignmentConfirmationOperationalState({
+        status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CHECKED_IN,
+      }),
+    ).toBe("checked_in")
+    expect(
+      getCrewAssignmentConfirmationOperationalState({
         status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.NO_SHOW,
       }),
     ).toBe("no_show")

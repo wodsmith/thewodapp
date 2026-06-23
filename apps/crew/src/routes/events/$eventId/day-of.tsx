@@ -224,9 +224,9 @@ function EventDayOfOperationsPage() {
                     assignment={assignment}
                     replacementOptions={board.replacementOptions}
                     timezone={timezone}
-                    isPending={pendingAction !== null}
+                    pendingAction={pendingAction}
                     onCheckIn={async () => {
-                      const actionKey = `${assignment.assignmentId}:checked_in`
+                      const actionKey = `${assignment.assignmentType}:${assignment.assignmentId}:checked_in`
                       setPendingAction(actionKey)
                       try {
                         await markCheckedIn({
@@ -245,7 +245,7 @@ function EventDayOfOperationsPage() {
                       }
                     }}
                     onNoShow={async () => {
-                      const actionKey = `${assignment.assignmentId}:no_show`
+                      const actionKey = `${assignment.assignmentType}:${assignment.assignmentId}:no_show`
                       setPendingAction(actionKey)
                       try {
                         await markNoShow({
@@ -264,7 +264,7 @@ function EventDayOfOperationsPage() {
                       }
                     }}
                     onReplace={async (replacementMembershipId) => {
-                      const actionKey = `${assignment.assignmentId}:replace`
+                      const actionKey = `${assignment.assignmentType}:${assignment.assignmentId}:replace`
                       setPendingAction(actionKey)
                       try {
                         await replaceAssignment({
@@ -407,7 +407,7 @@ function AssignmentActionRow({
   assignment,
   replacementOptions,
   timezone,
-  isPending,
+  pendingAction,
   onCheckIn,
   onNoShow,
   onReplace,
@@ -415,11 +415,22 @@ function AssignmentActionRow({
   assignment: CrewDayOfAssignmentActionItem
   replacementOptions: CrewDayOfReplacementOption[]
   timezone: string
-  isPending: boolean
+  pendingAction: string | null
   onCheckIn: () => Promise<void>
   onNoShow: () => Promise<void>
   onReplace: (replacementMembershipId: string) => Promise<void>
 }) {
+  const rowActionPrefix = `${assignment.assignmentType}:${assignment.assignmentId}:`
+  const checkInPending =
+    pendingAction ===
+    `${assignment.assignmentType}:${assignment.assignmentId}:checked_in`
+  const noShowPending =
+    pendingAction ===
+    `${assignment.assignmentType}:${assignment.assignmentId}:no_show`
+  const replacePending =
+    pendingAction ===
+    `${assignment.assignmentType}:${assignment.assignmentId}:replace`
+  const rowPending = pendingAction?.startsWith(rowActionPrefix) ?? false
   const compatibleReplacements = replacementOptions.filter(
     (option) =>
       option.membershipId !== assignment.membershipId &&
@@ -428,13 +439,14 @@ function AssignmentActionRow({
 
   async function handleReplace(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const formData = new FormData(event.currentTarget)
+    const form = event.currentTarget
+    const formData = new FormData(form)
     const replacementMembershipId = String(
       formData.get("replacementMembershipId") ?? "",
     )
     if (!replacementMembershipId) return
     await onReplace(replacementMembershipId)
-    event.currentTarget.reset()
+    form.reset()
   }
 
   return (
@@ -465,10 +477,10 @@ function AssignmentActionRow({
         <button
           type="button"
           onClick={() => void onCheckIn()}
-          disabled={isPending || assignment.state === "checked_in"}
+          disabled={rowPending || assignment.state === "checked_in"}
           className="inline-flex h-9 w-fit items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isPending ? (
+          {checkInPending ? (
             <Loader2 className="size-4 animate-spin" />
           ) : (
             <UserCheck className="size-4" />
@@ -478,10 +490,14 @@ function AssignmentActionRow({
         <button
           type="button"
           onClick={() => void onNoShow()}
-          disabled={isPending || assignment.state === "no_show"}
+          disabled={rowPending || assignment.state === "no_show"}
           className="inline-flex h-9 w-fit items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <UserX className="size-4" />
+          {noShowPending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <UserX className="size-4" />
+          )}
           No-show
         </button>
         <form onSubmit={handleReplace} className="flex items-center gap-2">
@@ -494,7 +510,7 @@ function AssignmentActionRow({
           <select
             id={`replacement-${assignment.assignmentId}`}
             name="replacementMembershipId"
-            disabled={isPending || compatibleReplacements.length === 0}
+            disabled={rowPending || compatibleReplacements.length === 0}
             className="h-9 min-w-40 rounded-md border bg-card px-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
             defaultValue=""
           >
@@ -507,10 +523,14 @@ function AssignmentActionRow({
           </select>
           <button
             type="submit"
-            disabled={isPending || compatibleReplacements.length === 0}
+            disabled={rowPending || compatibleReplacements.length === 0}
             className="inline-flex h-9 w-fit items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <Replace className="size-4" />
+            {replacePending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Replace className="size-4" />
+            )}
             Save
           </button>
         </form>

@@ -46,8 +46,8 @@ import {
 import { parseCrewRosterMetadata } from "../lib/crew/roster-shifts"
 import {
   type CrewStaffingReportEvent,
-  type CrewStaffingReportPageData,
-  getCrewStaffingReportPage,
+  type CrewStaffingReportForDayOfData,
+  getCrewStaffingReportForDayOf,
 } from "../server-fns/crew-staffing-fns.server"
 import {
   requireCrewDepartmentLeadEvent,
@@ -58,13 +58,13 @@ import { recordCrewVolunteerHistoryEvent } from "./crew-volunteer-history.server
 export interface CrewDayOfOperationsPageData {
   event: CrewStaffingReportEvent
   board: CrewDayOfOperationsBoard
-  sources: CrewStaffingReportPageData["sources"]
+  sources: CrewStaffingReportForDayOfData["sources"]
 }
 
 export async function getCrewDayOfOperationsPage(data: {
   eventId: string
 }): Promise<CrewDayOfOperationsPageData> {
-  const staffing = await getCrewStaffingReportPage(data.eventId)
+  const staffing = await getCrewStaffingReportForDayOf(data.eventId)
   const now = new Date()
 
   return {
@@ -121,6 +121,9 @@ export async function replaceCrewAssignment(data: ReplaceCrewAssignmentInput) {
       event,
       membershipId: data.replacementMembershipId,
     })
+    if (replacement.membershipId === assignment.membershipId) {
+      throw new Error("Choose a different replacement volunteer.")
+    }
     assertCrewDepartmentLeadCanManageRosterTarget(access, {
       membershipId: replacement.membershipId,
       roleTypes: replacement.roleTypes,
@@ -129,6 +132,12 @@ export async function replaceCrewAssignment(data: ReplaceCrewAssignmentInput) {
     if (!replacement.roleTypes.includes(assignment.roleType)) {
       throw new Error("Replacement volunteer does not match this assignment.")
     }
+
+    await markOriginalDayOfConfirmationReplaced(tx, {
+      event,
+      assignment,
+      now,
+    })
 
     if (data.assignmentType === CREW_ASSIGNMENT_CONFIRMATION_TYPE.JUDGE_HEAT) {
       await tx
@@ -149,13 +158,11 @@ export async function replaceCrewAssignment(data: ReplaceCrewAssignmentInput) {
         .where(eq(volunteerShiftAssignmentsTable.id, data.assignmentId))
     }
 
-    await upsertDayOfConfirmation(tx, {
+    await createReplacementDayOfConfirmation(tx, {
       event,
       assignment,
       membership: replacement,
-      state: "checked_in",
-      note: null,
-      now,
+      now: new Date(now.getTime() + 1),
     })
 
     await recordCrewVolunteerHistoryEvent({
@@ -233,6 +240,100 @@ async function updateCrewDayOfAssignmentState(
     })
 
     return { success: true }
+  })
+}
+
+async function markOriginalDayOfConfirmationReplaced(
+  tx: DbClient,
+  params: {
+    event: Awaited<ReturnType<typeof requireCrewDepartmentLeadEvent>>
+    assignment: DayOfAssignmentRecord
+    now: Date
+  },
+) {
+  const [latestConfirmation] = await tx
+    .select({
+      id: crewAssignmentConfirmationsTable.id,
+    })
+    .from(crewAssignmentConfirmationsTable)
+    .where(
+      and(
+        eq(
+          crewAssignmentConfirmationsTable.assignmentType,
+          params.assignment.assignmentType,
+        ),
+        eq(
+          crewAssignmentConfirmationsTable.assignmentId,
+          params.assignment.assignmentId,
+        ),
+        eq(
+          crewAssignmentConfirmationsTable.membershipId,
+          params.assignment.membershipId,
+        ),
+      ),
+    )
+    .orderBy(desc(crewAssignmentConfirmationsTable.updatedAt))
+    .limit(1)
+
+  if (latestConfirmation) {
+    await tx
+      .update(crewAssignmentConfirmationsTable)
+      .set({
+        status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CANCELLED,
+        respondedAt: null,
+        responseNote: "Replaced on event day.",
+        updatedAt: params.now,
+      })
+      .where(eq(crewAssignmentConfirmationsTable.id, latestConfirmation.id))
+    return
+  }
+
+  const token = generateCrewAssignmentConfirmationToken()
+  const tokenHash = await hashCrewAssignmentConfirmationToken(token)
+
+  await tx.insert(crewAssignmentConfirmationsTable).values({
+    id: createCrewAssignmentConfirmationId(),
+    competitionId: params.event.id,
+    assignmentType: params.assignment.assignmentType,
+    assignmentId: params.assignment.assignmentId,
+    membershipId: params.assignment.membershipId,
+    email: params.assignment.email,
+    tokenHash,
+    status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CANCELLED,
+    respondedAt: null,
+    expiresAt: getAssignmentConfirmationExpiry(params.now),
+    responseNote: "Replaced on event day.",
+    createdAt: params.now,
+    updatedAt: params.now,
+  })
+}
+
+async function createReplacementDayOfConfirmation(
+  tx: DbClient,
+  params: {
+    event: Awaited<ReturnType<typeof requireCrewDepartmentLeadEvent>>
+    assignment: DayOfAssignmentRecord
+    membership: DayOfMembershipRecord
+    now: Date
+  },
+) {
+  const token = generateCrewAssignmentConfirmationToken()
+  const tokenHash = await hashCrewAssignmentConfirmationToken(token)
+
+  await tx.insert(crewAssignmentConfirmationsTable).values({
+    id: createCrewAssignmentConfirmationId(),
+    competitionId: params.event.id,
+    assignmentType: params.assignment.assignmentType,
+    assignmentId: params.assignment.assignmentId,
+    membershipId: params.membership.membershipId,
+    email: params.membership.email,
+    tokenHash,
+    status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CHECKED_IN,
+    respondedAt: params.now,
+    expiresAt: getAssignmentConfirmationExpiry(params.now),
+    responseNote: null,
+    createdAt: params.now,
+    updatedAt: params.now,
   })
 }
 
