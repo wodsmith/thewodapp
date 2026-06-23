@@ -55,9 +55,21 @@ export const TEST_DATA = {
 	},
 	competition: {
 		id: "e2e_competition",
-		name: "E2E Test Throwdown",
+		name: "E2E Crew Demo Throwdown",
 		slug: "e2e-throwdown",
 		teamId: "e2e_test_team",
+	},
+	crewDemo: {
+		eventId: "e2e_competition",
+		slug: "e2e-throwdown",
+		volunteerToken: "e2e-crew-demo-volunteer-schedule",
+		volunteerName: "Grace Martinez",
+		volunteerEmail: "grace.crew.demo@test.com",
+		volunteerShiftName: "North Lane 2 Judge",
+		shiftAssignmentName: "North Floor Crew",
+		noShowShiftName: "Medical Station",
+		volunteerCount: 18,
+		shiftAssignments: 12,
 	},
 	divisions: {
 		rx: { id: "e2e_div_rx", label: "RX", teamSize: 1 },
