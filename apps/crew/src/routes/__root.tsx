@@ -5,6 +5,7 @@ import {
   Link,
   Outlet,
   Scripts,
+  useRouterState,
 } from "@tanstack/react-router"
 import type { ReactNode } from "react"
 import { Toaster } from "sonner"
@@ -42,49 +43,63 @@ export const Route = createRootRoute({
 })
 
 function RootComponent() {
+  const usesEventSidebar = useRouterState({
+    select: (state) => usesCrewEventSidebar(state.location.pathname),
+  })
+
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b bg-background/95">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-          <Link to="/" className="flex items-center gap-3 font-semibold">
-            <span className="grid size-9 place-items-center rounded-md bg-primary text-primary-foreground">
-              C
-            </span>
-            <span>WODsmith Crew</span>
-          </Link>
-          <nav className="flex items-center gap-1 text-sm">
-            <Link
-              to="/calculator"
-              activeProps={{
-                className: "bg-muted text-foreground",
-              }}
-              className="rounded-md px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              Calculator
+      {!usesEventSidebar && (
+        <header className="border-b bg-background/95">
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
+            <Link to="/" className="flex items-center gap-3 font-semibold">
+              <span className="grid size-9 place-items-center rounded-md bg-primary text-primary-foreground">
+                C
+              </span>
+              <span>WODsmith Crew</span>
             </Link>
-            <Link
-              to="/events"
-              activeProps={{
-                className: "bg-muted text-foreground",
-              }}
-              className="rounded-md px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              Events
-            </Link>
-            <Link
-              to="/events/new"
-              activeProps={{
-                className: "bg-primary text-primary-foreground",
-              }}
-              className="rounded-md bg-primary px-3 py-2 text-primary-foreground hover:bg-primary/90"
-            >
-              New event
-            </Link>
-          </nav>
-        </div>
-      </header>
+            <nav className="flex items-center gap-1 text-sm">
+              <Link
+                to="/calculator"
+                activeProps={{
+                  className: "bg-muted text-foreground",
+                }}
+                className="rounded-md px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                Calculator
+              </Link>
+              <Link
+                to="/events"
+                activeProps={{
+                  className: "bg-muted text-foreground",
+                }}
+                className="rounded-md px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                Events
+              </Link>
+              <Link
+                to="/events/new"
+                activeProps={{
+                  className: "bg-primary text-primary-foreground",
+                }}
+                className="rounded-md bg-primary px-3 py-2 text-primary-foreground hover:bg-primary/90"
+              >
+                New event
+              </Link>
+            </nav>
+          </div>
+        </header>
+      )}
       <Outlet />
     </div>
+  )
+}
+
+function usesCrewEventSidebar(pathname: string) {
+  const normalizedPathname = pathname.replace(/\/$/, "")
+  return (
+    /^\/events\/(?!new(?:\/|$))[^/]+(?:\/.*)?$/.test(normalizedPathname) ||
+    /^\/admin\/crew\/events\/[^/]+(?:\/.*)?$/.test(normalizedPathname)
   )
 }
 

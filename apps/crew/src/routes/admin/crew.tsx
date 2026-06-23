@@ -19,10 +19,17 @@ function CrewAdminShell() {
   const { events } = Route.useLoaderData() as {
     events: CrewAdminEventListItem[]
   }
+  const isAdminEventDetail = useRouterState({
+    select: (state) => isAdminCrewEventDetailRoute(state.location.pathname),
+  })
   const isAdminIndex = useRouterState({
     select: (state) =>
       state.location.pathname.replace(/\/$/, "") === "/admin/crew",
   })
+
+  if (isAdminEventDetail) {
+    return <Outlet />
+  }
 
   return (
     <main className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
@@ -92,5 +99,11 @@ function CrewAdminShell() {
         <Outlet />
       )}
     </main>
+  )
+}
+
+function isAdminCrewEventDetailRoute(pathname: string) {
+  return /^\/admin\/crew\/events\/[^/]+(?:\/.*)?$/.test(
+    pathname.replace(/\/$/, ""),
   )
 }

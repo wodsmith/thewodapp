@@ -6,6 +6,10 @@ import {
   useRouterState,
 } from "@tanstack/react-router"
 import type { ReactNode } from "react"
+import {
+  CrewEventSidebarShell,
+  getCrewAdminEventSidebarNavigation,
+} from "@/components/crew-event-sidebar"
 import { formatCrewValue, getSafeHttpUrl } from "@/lib/crew-event-display"
 import {
   type CrewAdminEventDetailView,
@@ -21,6 +25,7 @@ export const Route = createFileRoute("/admin/crew/events/$eventId")({
 function CrewAdminEventShell() {
   const { eventId } = Route.useParams()
   const { view } = Route.useLoaderData()
+  const navigation = getCrewAdminEventSidebarNavigation(eventId)
   const isOverview = useRouterState({
     select: (state) =>
       state.location.pathname.replace(/\/$/, "") ===
@@ -28,49 +33,19 @@ function CrewAdminEventShell() {
   })
 
   return (
-    <section className="space-y-6">
-      <div className="flex flex-col justify-between gap-4 border-b pb-6 md:flex-row md:items-end">
-        <div>
-          <p className="font-mono text-sm text-muted-foreground">{eventId}</p>
-          <h2 className="text-2xl font-semibold">{view.event.name}</h2>
-          <p className="text-sm text-muted-foreground">
-            {view.event.startDate} to {view.event.endDate}
-          </p>
-        </div>
-        <nav className="flex flex-wrap gap-2 text-sm">
-          <AdminTab
-            to="/admin/crew/events/$eventId"
-            eventId={eventId}
-            label="Overview"
-            exact
-          />
-          <AdminTab
-            to="/admin/crew/events/$eventId/readiness"
-            eventId={eventId}
-            label="Readiness"
-          />
-          <AdminTab
-            to="/admin/crew/events/$eventId/billing"
-            eventId={eventId}
-            label="Billing"
-          />
-          <AdminTab
-            to="/admin/crew/events/$eventId/convert"
-            eventId={eventId}
-            label="Conversion"
-          />
-          <Link
-            to="/events/$eventId"
-            params={{ eventId }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Organizer view
-          </Link>
-        </nav>
-      </div>
-
+    <CrewEventSidebarShell
+      variant="admin"
+      event={{
+        id: view.event.id,
+        name: view.event.name,
+        startDate: view.event.startDate,
+        endDate: view.event.endDate,
+      }}
+      navigation={navigation}
+      eyebrow="WODsmith Admin"
+    >
       {isOverview ? <CrewAdminEventOverview view={view} /> : <Outlet />}
-    </section>
+    </CrewEventSidebarShell>
   )
 }
 
@@ -264,34 +239,6 @@ function CrewAdminEventOverview({ view }: { view: CrewAdminEventDetailView }) {
         </div>
       </section>
     </section>
-  )
-}
-
-function AdminTab({
-  to,
-  eventId,
-  label,
-  exact = false,
-}: {
-  to:
-    | "/admin/crew/events/$eventId"
-    | "/admin/crew/events/$eventId/readiness"
-    | "/admin/crew/events/$eventId/billing"
-    | "/admin/crew/events/$eventId/convert"
-  eventId: string
-  label: string
-  exact?: boolean
-}) {
-  return (
-    <Link
-      to={to}
-      params={{ eventId }}
-      activeOptions={exact ? { exact: true } : undefined}
-      activeProps={{ className: "bg-muted text-foreground" }}
-      className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-    >
-      {label}
-    </Link>
   )
 }
 

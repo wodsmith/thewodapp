@@ -2,7 +2,11 @@
 // @lat: [[crew#Staffing Page Gap Report]]
 // @lat: [[crew#Day Of Operations Board]]
 // @lat: [[crew#Pilot Exports]]
-import { createFileRoute, Link, notFound, Outlet } from "@tanstack/react-router"
+import { createFileRoute, notFound, Outlet } from "@tanstack/react-router"
+import {
+  CrewEventSidebarShell,
+  getCrewOrganizerEventSidebarNavigation,
+} from "@/components/crew-event-sidebar"
 import { getCrewEventNavItems } from "@/lib/crew/navigation"
 import { getCrewEventFn } from "@/server-fns/crew-event-settings-fns"
 import { useSession } from "@/utils/auth-client"
@@ -25,46 +29,24 @@ function EventShell() {
   const session = useSession()
   const viewer = resolveCrewViewer({ session })
   const navItems = getCrewEventNavItems({ viewerRole: viewer.role })
+  const navigation = getCrewOrganizerEventSidebarNavigation({
+    eventId,
+    navItems,
+  })
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
-      <div className="flex flex-col justify-between gap-4 border-b pb-6 md:flex-row md:items-end">
-        <div>
-          {viewer.isWodsmithOperator && (
-            <p className="font-mono text-sm text-muted-foreground">{eventId}</p>
-          )}
-          <h1 className="text-3xl font-semibold">{event.competition.name}</h1>
-          <p className="text-muted-foreground">
-            {event.competition.startDate} to {event.competition.endDate}
-          </p>
-        </div>
-        <nav className="flex flex-wrap gap-2 text-sm">
-          {viewer.isWodsmithOperator ? (
-            <Link
-              to="/admin/crew/events/$eventId"
-              params={{ eventId }}
-              activeProps={{ className: "bg-muted text-foreground" }}
-              className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              Admin cockpit
-            </Link>
-          ) : null}
-          {navItems.map((item) => (
-            <Link
-              key={item.key}
-              to={item.to}
-              params={{ eventId }}
-              activeOptions={item.key === "home" ? { exact: true } : undefined}
-              activeProps={{ className: "bg-muted text-foreground" }}
-              className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-      </div>
-
+    <CrewEventSidebarShell
+      variant="organizer"
+      event={{
+        id: event.competition.id,
+        name: event.competition.name,
+        startDate: event.competition.startDate,
+        endDate: event.competition.endDate,
+      }}
+      navigation={navigation}
+      eyebrow="Organizer Crew"
+    >
       <Outlet />
-    </main>
+    </CrewEventSidebarShell>
   )
 }
