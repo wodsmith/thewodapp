@@ -15,6 +15,12 @@ export const Route = createFileRoute("/admin/crew/events/$eventId/billing")({
   component: CrewAdminBillingPage,
 })
 
+const auditTimestampFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: "UTC",
+})
+
 function CrewAdminBillingPage() {
   const { event, billing, auditEvents, viewModel } =
     Route.useLoaderData() as CrewAdminBillingData
@@ -115,7 +121,7 @@ function CrewAdminBillingPage() {
                 {auditEvents.map((event) => (
                   <tr key={event.id} className="border-b last:border-b-0">
                     <td className="py-3 pr-4 text-muted-foreground">
-                      {String(event.createdAt)}
+                      {formatAuditTimestamp(event.createdAt)}
                     </td>
                     <td className="py-3 pr-4 font-medium">{event.eventType}</td>
                     <td className="py-3 pr-4">{event.billingState}</td>
@@ -143,6 +149,10 @@ function BillingMetric({ label, value }: { label: string; value: string }) {
       <p className="mt-2 break-words text-lg font-semibold">{value}</p>
     </section>
   )
+}
+
+function formatAuditTimestamp(value: Date | string) {
+  return auditTimestampFormatter.format(new Date(value))
 }
 
 function BillingFact({

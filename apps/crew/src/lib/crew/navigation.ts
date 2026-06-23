@@ -1,9 +1,11 @@
+// @lat: [[crew#Event Setup Dashboard]]
 export type CrewViewerRole =
   | "wodsmith_operator"
   | "organizer_admin"
   | "department_lead"
   | "volunteer_public"
 
+// @lat: [[crew#Event Setup Dashboard]]
 export type CrewEventNavRoute =
   | "/events/$eventId"
   | "/events/$eventId/staffing"
@@ -13,6 +15,7 @@ export type CrewEventNavRoute =
   | "/events/$eventId/day-of"
   | "/events/$eventId/exports"
 
+// @lat: [[crew#Event Setup Dashboard]]
 export type CrewEventRequirement =
   | "has_assignments"
   | "has_event_day_data"
