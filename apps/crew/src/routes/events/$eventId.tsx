@@ -8,6 +8,7 @@
 import {createFileRoute, Link, notFound, Outlet} from '@tanstack/react-router'
 import {getCrewEventNavItems} from '@/lib/crew/navigation'
 import {getCrewEventFn} from '@/server-fns/crew-event-settings-fns'
+import {useSession} from '@/utils/auth-client'
 import {resolveCrewViewer} from '@/utils/crew-access'
 
 export const Route = createFileRoute('/events/$eventId')({
@@ -24,7 +25,8 @@ export const Route = createFileRoute('/events/$eventId')({
 function EventShell() {
   const {eventId} = Route.useParams()
   const {event} = Route.useLoaderData()
-  const viewer = resolveCrewViewer()
+  const session = useSession()
+  const viewer = resolveCrewViewer({session})
   const navItems = getCrewEventNavItems({viewerRole: viewer.role})
 
   return (
