@@ -5,6 +5,7 @@ import {
 } from "./organizer-next-action"
 
 describe("deriveCrewOrganizerNextAction", () => {
+  // @lat: [[crew#Organizer Home Next Action]]
   it("points a new event at setup first", () => {
     expect(
       deriveCrewOrganizerNextAction({

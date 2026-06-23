@@ -1,3 +1,4 @@
+// @lat: [[crew#Organizer Home Next Action]]
 export type CrewOrganizerNextAction =
   | { key: "finish_setup"; ctaTo: "/setup" }
   | { key: "import_volunteers"; ctaTo: "/imports?tab=volunteers" }
