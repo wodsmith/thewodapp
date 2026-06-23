@@ -113,7 +113,7 @@ export function canViewCrewNavItem(
   state: CrewEventNavigationState = {},
 ) {
   if (!item.persona.includes(viewerRole)) return false
-  if (viewerRole === "wodsmith_operator") return true
+  if (viewerRole === "wodsmith_operator" && !item.hiddenWhenEmpty) return true
 
   return (item.requires ?? []).every((requirement) =>
     crewEventRequirementIsMet(requirement, state),

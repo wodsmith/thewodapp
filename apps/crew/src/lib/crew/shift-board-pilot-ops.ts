@@ -1,17 +1,17 @@
 // @lat: [[crew#Shift Board Pilot Ops]]
 import type { CrewAssignmentConfirmationStatus } from "../../db/schemas/crew-imports"
 import {
-  getCrewAssignmentConfirmationOperationalState,
-  type CrewAssignmentConfirmationOperationalState,
-} from "./assignment-confirmations"
-import {
   VOLUNTEER_ROLE_LABELS,
   type VolunteerAvailability,
   type VolunteerRoleType,
 } from "../../db/schemas/volunteers"
 import {
-  isVolunteerCompatibleWithShift,
+  type CrewAssignmentConfirmationOperationalState,
+  getCrewAssignmentConfirmationOperationalState,
+} from "./assignment-confirmations"
+import {
   type CrewRosterVolunteer,
+  isVolunteerCompatibleWithShift,
 } from "./roster-shifts"
 import type {
   CrewStaffingConfirmationGap,
@@ -90,10 +90,7 @@ export interface CrewShiftPilotShiftState {
   openSlots: number
   importedAssignmentCount: number
   directAssignmentCount: number
-  confirmationCounts: Record<
-    CrewAssignmentConfirmationOperationalState,
-    number
-  >
+  confirmationCounts: Record<CrewAssignmentConfirmationOperationalState, number>
   warnings: CrewShiftPilotWarning[]
 }
 
@@ -414,6 +411,7 @@ function countAssignmentConfirmations(
       pending: 0,
       sent: 0,
       confirmed: 0,
+      checked_in: 0,
       declined: 0,
       change_requested: 0,
       no_show: 0,

@@ -1,18 +1,28 @@
 import { createId } from "@paralleldrive/cuid2"
-import { desc, eq } from "drizzle-orm"
+import { count, desc, eq } from "drizzle-orm"
 import { getDb } from "../db"
 import {
+  type Competition,
+  competitionHeatsTable,
+  competitionsTable,
+} from "../db/schemas/competitions"
+import {
   type CrewConciergeStatus,
-  type CrewEventSettings,
   type CrewEventLifecycle,
+  type CrewEventSettings,
   type CrewPlan,
   crewEventSettingsTable,
 } from "../db/schemas/crew-event-settings"
-import { type Competition, competitionsTable } from "../db/schemas/competitions"
 import { teamTable } from "../db/schemas/teams"
-import { requireLocalCrewOperatorAccess } from "./crew-local-access"
+import {
+  judgeHeatAssignmentsTable,
+  volunteerShiftAssignmentsTable,
+  volunteerShiftsTable,
+} from "../db/schemas/volunteers"
+import type { CrewEventNavigationState } from "../lib/crew/navigation"
 import { generateSlug } from "../utils/slugify"
 import { requireCrewDepartmentLeadFullAccess } from "./crew-department-lead.server"
+import { requireLocalCrewOperatorAccess } from "./crew-local-access"
 
 type CrewEventCompetition = Pick<
   Competition,
@@ -33,6 +43,7 @@ type CrewEventCompetition = Pick<
 export interface CrewEventDetails {
   settings: CrewEventSettings
   competition: CrewEventCompetition
+  navigationState?: CrewEventNavigationState
 }
 
 function requireLocalCrewSettingsAccess() {
@@ -144,7 +155,45 @@ async function getCrewEventByCompetitionId(
     .where(eq(crewEventSettingsTable.competitionId, competitionId))
     .limit(1)
 
-  return event ?? null
+  if (!event) return null
+
+  return {
+    ...event,
+    navigationState: await loadCrewEventNavigationState(competitionId),
+  }
+}
+
+async function loadCrewEventNavigationState(
+  competitionId: string,
+): Promise<CrewEventNavigationState> {
+  const db = getDb()
+  const [shiftAssignments, judgeAssignments] = await Promise.all([
+    db
+      .select({ count: count() })
+      .from(volunteerShiftAssignmentsTable)
+      .innerJoin(
+        volunteerShiftsTable,
+        eq(volunteerShiftAssignmentsTable.shiftId, volunteerShiftsTable.id),
+      )
+      .where(eq(volunteerShiftsTable.competitionId, competitionId)),
+    db
+      .select({ count: count() })
+      .from(judgeHeatAssignmentsTable)
+      .innerJoin(
+        competitionHeatsTable,
+        eq(judgeHeatAssignmentsTable.heatId, competitionHeatsTable.id),
+      )
+      .where(eq(competitionHeatsTable.competitionId, competitionId)),
+  ])
+  const shiftCount = shiftAssignments[0]?.count ?? 0
+  const assignmentCount = judgeAssignments[0]?.count ?? 0
+
+  return {
+    assignmentCount,
+    shiftCount,
+    hasEventDayData: assignmentCount > 0 || shiftCount > 0,
+    hasPrintPacketData: assignmentCount > 0 || shiftCount > 0,
+  }
 }
 
 export async function listCrewEvents(): Promise<{

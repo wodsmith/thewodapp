@@ -7,11 +7,11 @@ import {
   competitionsTable,
   competitionVenuesTable,
 } from "../db/schemas/competitions"
+import { crewEventSettingsTable } from "../db/schemas/crew-event-settings"
 import {
   CREW_ASSIGNMENT_CONFIRMATION_TYPE,
   crewAssignmentConfirmationsTable,
 } from "../db/schemas/crew-imports"
-import { crewEventSettingsTable } from "../db/schemas/crew-event-settings"
 import {
   programmingTracksTable,
   trackWorkoutsTable,
@@ -22,22 +22,23 @@ import {
 } from "../db/schemas/volunteers"
 import { workouts as workoutsTable } from "../db/schemas/workouts"
 import {
+  type CrewDepartmentLeadAccess,
+  filterCrewDepartmentLeadRoster,
+} from "../lib/crew/department-leads"
+import {
   buildCrewStaffingMatrix,
   buildCrewStaffingReport,
   type CrewStaffingConfirmationInput,
   type CrewStaffingMatrix,
+  type CrewStaffingMatrixInput,
   type CrewStaffingReport,
 } from "../lib/crew/staffing"
-import {
-  filterCrewDepartmentLeadRoster,
-  type CrewDepartmentLeadAccess,
-} from "../lib/crew/department-leads"
 import { filterCrewStaffingInputForDepartmentLead } from "../lib/crew/staffing/department-lead-scope"
 import { resolveCrewDepartmentLeadAccess } from "../server/crew-department-lead.server"
 import {
+  type CrewShiftBoardItem,
   loadCrewRoster,
   loadCrewShifts,
-  type CrewShiftBoardItem,
 } from "../server/crew-roster-shift.server"
 
 type DbClient = ReturnType<typeof getDb>
@@ -56,6 +57,7 @@ export interface CrewStaffingReportEvent {
 export interface CrewStaffingReportPageData {
   event: CrewStaffingReportEvent
   matrix: CrewStaffingMatrix
+  matrixInput: CrewStaffingMatrixInput
   report: CrewStaffingReport
   sources: CrewStaffingReport["sourceCounts"] & {
     activeJudgeVersions: number
@@ -76,6 +78,7 @@ export async function getCrewStaffingReportPage(
 
   return {
     event,
+    matrixInput: input,
     matrix,
     report,
     sources: {
