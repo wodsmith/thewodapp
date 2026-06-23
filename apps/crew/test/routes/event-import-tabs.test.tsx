@@ -22,7 +22,7 @@ const reference = {
 
 describe("EventImportTabs", () => {
   // @lat: [[crew#Import Tabs Duplicate Panel Regression]]
-  it("keeps a single tab panel mounted while navigating import tabs", () => {
+  it("keeps a single organizer upload panel mounted while choosing import type", () => {
     render(
       <EventImportTabs
         eventId="comp_crew_demo"
@@ -34,27 +34,39 @@ describe("EventImportTabs", () => {
       />,
     )
 
-    expectUploadPanel("Volunteers CSV")
+    expectUploadPanel("Volunteer list CSV")
+    expect(screen.queryByText("Role assumptions")).not.toBeInTheDocument()
+    expect(screen.queryByText("No uploads yet.")).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole("button", { name: "Heat schedule" }))
+    fireEvent.click(screen.getByRole("button", { name: /Upload heat schedule/ }))
     expectUploadPanel("Heat schedule CSV")
 
-    fireEvent.click(screen.getByRole("button", { name: "Roles" }))
-    expectNoUploadPanels()
+    fireEvent.click(screen.getByRole("button", { name: /Upload heat schedule/ }))
+    expectUploadPanel("Heat schedule CSV")
+
+    fireEvent.click(screen.getByRole("button", { name: /Upload volunteer list/ }))
+    expectUploadPanel("Volunteer list CSV")
+  })
+
+  it("keeps reference and upload history behind advanced details", () => {
+    render(
+      <EventImportTabs
+        eventId="comp_crew_demo"
+        history={[]}
+        initialTab="volunteers"
+        reference={reference}
+        onApplyComplete={async () => {}}
+        onHistoryRefresh={async () => {}}
+      />,
+    )
+
+    expect(screen.queryByText("Role assumptions")).not.toBeInTheDocument()
+    expect(screen.queryByText("No uploads yet.")).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByText("Advanced details"))
+
     expect(screen.getByText("Role assumptions")).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole("button", { name: "History" }))
-    expectNoUploadPanels()
-    expect(screen.getByText("No import previews yet.")).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole("button", { name: "Volunteers" }))
-    expectUploadPanel("Volunteers CSV")
-
-    fireEvent.click(screen.getByRole("button", { name: "Heat schedule" }))
-    expectUploadPanel("Heat schedule CSV")
-
-    fireEvent.click(screen.getByRole("button", { name: "Volunteers" }))
-    expectUploadPanel("Volunteers CSV")
+    expect(screen.getByText("No uploads yet.")).toBeInTheDocument()
   })
 
   it("opens the heat schedule panel when the route search selects it", () => {
@@ -73,21 +85,22 @@ describe("EventImportTabs", () => {
   })
 })
 
-function expectUploadPanel(expectedTitle: "Volunteers CSV" | "Heat schedule CSV") {
+function expectUploadPanel(
+  expectedTitle: "Volunteer list CSV" | "Heat schedule CSV",
+) {
   const otherTitle =
-    expectedTitle === "Volunteers CSV" ? "Heat schedule CSV" : "Volunteers CSV"
+    expectedTitle === "Volunteer list CSV"
+      ? "Heat schedule CSV"
+      : "Volunteer list CSV"
 
   expect(screen.getAllByText(expectedTitle)).toHaveLength(1)
   expect(screen.queryByText(otherTitle)).not.toBeInTheDocument()
-  expect(screen.getAllByRole("button", { name: "Preview CSV" })).toHaveLength(
-    1,
-  )
-}
-
-function expectNoUploadPanels() {
-  expect(screen.queryByText("Volunteers CSV")).not.toBeInTheDocument()
-  expect(screen.queryByText("Heat schedule CSV")).not.toBeInTheDocument()
   expect(
-    screen.queryByRole("button", { name: "Preview CSV" }),
-  ).not.toBeInTheDocument()
+    screen.getAllByRole("button", {
+      name:
+        expectedTitle === "Volunteer list CSV"
+          ? "Preview volunteer list"
+          : "Preview heat schedule",
+    }),
+  ).toHaveLength(1)
 }

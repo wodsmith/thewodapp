@@ -18,6 +18,14 @@ import type { ChangeEvent, FormEvent, ReactNode } from "react"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   getImportFields,
   inferColumnMapping,
 } from "@/lib/crew/imports/column-mapping"
@@ -50,8 +58,7 @@ export const Route = createFileRoute("/events/$eventId/imports")({
 
 const parentRoute = getRouteApi("/events/$eventId")
 
-type ImportsTab = CrewImportKind | "roles" | "history"
-type ImportSearchTab = Extract<ImportsTab, "volunteers" | "heat_schedule">
+type ImportSearchTab = CrewImportKind
 
 function EventImportsPage() {
   const router = useRouter()
@@ -93,9 +100,10 @@ export function EventImportTabs({
   onApplyComplete: (result: CrewImportApplyResult) => Promise<void>
   onHistoryRefresh: () => Promise<void>
 }) {
-  const [activeTab, setActiveTab] = useState<ImportsTab>(initialTab)
+  const [activeTab, setActiveTab] = useState<ImportSearchTab>(initialTab)
   const [latestPreview, setLatestPreview] =
     useState<PersistedCrewImportPreview | null>(null)
+  const [showAdvancedDetails, setShowAdvancedDetails] = useState(false)
 
   useEffect(() => {
     setActiveTab(initialTab)
@@ -119,46 +127,55 @@ export function EventImportTabs({
     <section className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold">Imports</h2>
+          <h2 className="text-xl font-semibold">
+            Import volunteers & heat schedule
+          </h2>
           <p className="text-sm text-muted-foreground">
-            CSV preview, mapping, warnings, and event import history.
+            Upload a volunteer list or heat schedule, review what Crew found,
+            then apply the rows you are ready to use.
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-          <ImportTabButton
-            active={activeTab === "volunteers"}
-            label="Volunteers"
-            onClick={() => setActiveTab("volunteers")}
-          />
-          <ImportTabButton
-            active={activeTab === "heat_schedule"}
-            label="Heat schedule"
-            onClick={() => setActiveTab("heat_schedule")}
-          />
-          <ImportTabButton
-            active={activeTab === "roles"}
-            label="Roles"
-            onClick={() => setActiveTab("roles")}
-          />
-          <ImportTabButton
-            active={activeTab === "history"}
-            label="History"
-            onClick={() => setActiveTab("history")}
-          />
-        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <ImportChoiceButton
+          active={activeTab === "volunteers"}
+          kind="volunteers"
+          onClick={() => setActiveTab("volunteers")}
+        />
+        <ImportChoiceButton
+          active={activeTab === "heat_schedule"}
+          kind="heat_schedule"
+          onClick={() => setActiveTab("heat_schedule")}
+        />
       </div>
 
       <ImportTabContent
         key={activeTab}
         activeTab={activeTab}
         eventId={eventId}
-        history={history}
         latestPreview={latestPreview}
-        reference={reference}
         onApplyComplete={handleApplyComplete}
         onHistoryRefresh={onHistoryRefresh}
         onPreviewComplete={handlePreviewComplete}
       />
+
+      <section className="rounded-md border bg-card p-5 shadow-sm">
+        <button
+          type="button"
+          aria-expanded={showAdvancedDetails}
+          onClick={() => setShowAdvancedDetails((current) => !current)}
+          className="text-sm font-medium"
+        >
+          Advanced details
+        </button>
+        {showAdvancedDetails ? (
+          <div className="mt-5 space-y-6">
+            <ReferencePanel reference={reference} />
+            <HistoryPanel history={history} />
+          </div>
+        ) : null}
+      </section>
     </section>
   )
 }
@@ -174,46 +191,34 @@ function normalizeImportSearchTab(value: unknown): ImportSearchTab {
 function ImportTabContent({
   activeTab,
   eventId,
-  history,
   latestPreview,
-  reference,
   onApplyComplete,
   onHistoryRefresh,
   onPreviewComplete,
 }: {
-  activeTab: ImportsTab
+  activeTab: ImportSearchTab
   eventId: string
-  history: CrewImportHistoryItem[]
   latestPreview: PersistedCrewImportPreview | null
-  reference: CrewImportReferenceData
   onApplyComplete: (result: CrewImportApplyResult) => Promise<void>
   onHistoryRefresh: () => Promise<void>
   onPreviewComplete: (preview: PersistedCrewImportPreview) => void
 }) {
-  switch (activeTab) {
-    case "volunteers":
-    case "heat_schedule":
-      return (
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,24rem)_1fr]">
-          <ImportUploadPanel
-            eventId={eventId}
-            kind={activeTab}
-            onPreviewComplete={onPreviewComplete}
-            onHistoryRefresh={onHistoryRefresh}
-          />
-          <PreviewPanel
-            eventId={eventId}
-            preview={latestPreview}
-            expectedKind={activeTab}
-            onApplyComplete={onApplyComplete}
-          />
-        </div>
-      )
-    case "roles":
-      return <ReferencePanel reference={reference} />
-    case "history":
-      return <HistoryPanel history={history} />
-  }
+  return (
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,24rem)_1fr]">
+      <ImportUploadPanel
+        eventId={eventId}
+        kind={activeTab}
+        onPreviewComplete={onPreviewComplete}
+        onHistoryRefresh={onHistoryRefresh}
+      />
+      <PreviewPanel
+        eventId={eventId}
+        preview={latestPreview}
+        expectedKind={activeTab}
+        onApplyComplete={onApplyComplete}
+      />
+    </div>
+  )
 }
 
 function ImportUploadPanel({
@@ -306,12 +311,12 @@ function ImportUploadPanel({
 
   function handleUseSuggestedMapping(suggestion: CrewImportMappingSuggestion) {
     setMapping(suggestion.columnMapping)
-    toast.success("Saved mapping loaded")
+    toast.success("Saved column choices loaded")
   }
 
   async function handleSaveMapping() {
     if (headers.length === 0 || mappedFieldCount === 0) {
-      toast.error("Map at least one column first")
+      toast.error("Match at least one column first")
       return
     }
 
@@ -327,10 +332,12 @@ function ImportUploadPanel({
         },
       })
       setMappingSuggestion(result.suggestion)
-      toast.success("Mapping remembered")
+      toast.success("Column choices saved")
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to remember mapping",
+        error instanceof Error
+          ? error.message
+          : "Failed to save column choices",
       )
     } finally {
       setIsSavingMapping(false)
@@ -369,7 +376,7 @@ function ImportUploadPanel({
       }
 
       onPreviewComplete(payload.importPreview)
-      toast.success("Import preview created")
+      toast.success(`${getImportCopy(kind).shortLabel} preview ready`)
       await onHistoryRefresh()
     } catch (error) {
       toast.error(
@@ -390,11 +397,11 @@ function ImportUploadPanel({
           <FileSpreadsheet className="size-5 text-muted-foreground" />
         </div>
         <div>
-          <h3 className="font-semibold">{formatKind(kind)} CSV</h3>
+          <h3 className="font-semibold">{getImportCopy(kind).uploadTitle}</h3>
           <p className="text-sm text-muted-foreground">
             {headers.length > 0
               ? `${headers.length} columns detected`
-              : "No file selected"}
+              : getImportCopy(kind).uploadHelp}
           </p>
         </div>
       </div>
@@ -409,11 +416,15 @@ function ImportUploadPanel({
             className="block w-full rounded-md border bg-background px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-sm file:font-medium"
           />
         </Field>
-        <Field label="Source platform" htmlFor={`crew-import-source-${kind}`}>
+        <Field
+          label="CSV label (optional)"
+          htmlFor={`crew-import-source-${kind}`}
+        >
           <input
             id={`crew-import-source-${kind}`}
             value={sourcePlatform}
             onChange={(event) => setSourcePlatform(event.target.value)}
+            placeholder="Competition Corner export"
             className="h-10 w-full rounded-md border bg-background px-3 text-sm"
           />
         </Field>
@@ -426,7 +437,7 @@ function ImportUploadPanel({
       {headers.length > 0 ? (
         <div className="mt-6 space-y-3">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <h4 className="text-sm font-semibold">Mapping</h4>
+            <h4 className="text-sm font-semibold">Match columns</h4>
             <button
               type="button"
               onClick={handleSaveMapping}
@@ -438,14 +449,14 @@ function ImportUploadPanel({
               ) : (
                 <Save className="size-4" />
               )}
-              Remember mapping
+              Save column choices
             </button>
           </div>
           {mappingSuggestion ? (
             <div className="rounded-md bg-muted p-3 text-sm">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="font-medium">Saved mapping available</p>
+                  <p className="font-medium">Saved column choices available</p>
                   <p className="text-muted-foreground">
                     {mappingSuggestion.matchedFieldCount} fields from{" "}
                     {mappingSuggestion.sourcePlatform}
@@ -457,13 +468,13 @@ function ImportUploadPanel({
                   className="inline-flex h-9 w-fit items-center gap-2 rounded-md border bg-background px-3 text-sm font-medium hover:bg-muted"
                 >
                   <CheckCircle2 className="size-4" />
-                  Use saved
+                  Use saved choices
                 </button>
               </div>
             </div>
           ) : isLoadingMappingSuggestion ? (
             <p className="text-sm text-muted-foreground">
-              Checking saved mappings...
+              Checking saved column choices...
             </p>
           ) : null}
           <div className="space-y-3">
@@ -507,7 +518,7 @@ function ImportUploadPanel({
           ) : (
             <Upload className="size-4" />
           )}
-          Preview CSV
+          Preview {getImportCopy(kind).shortLabel.toLowerCase()}
         </button>
       </div>
     </form>
@@ -530,31 +541,28 @@ function PreviewPanel({
   const [applyResult, setApplyResult] = useState<CrewImportApplyResult | null>(
     null,
   )
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+  const importCopy = getImportCopy(expectedKind)
 
   if (!preview || preview.kind !== expectedKind) {
     return (
       <section className="rounded-md border bg-card p-5 shadow-sm">
         <h3 className="font-semibold">Preview</h3>
         <p className="mt-2 text-sm text-muted-foreground">
-          The latest {formatKind(expectedKind).toLowerCase()} preview will
-          appear here.
+          Your {importCopy.shortLabel.toLowerCase()} preview will appear here.
         </p>
       </section>
     )
   }
 
   const canApply = preview.status === "previewed"
+  const impact = getPreviewImpact(preview)
   const appliedCount = applyResult
     ? applyResult.createdCount + applyResult.updatedCount
     : 0
 
   async function handleApply() {
     if (!preview) return
-
-    const confirmed = window.confirm(
-      `Apply ${formatKind(preview.kind).toLowerCase()} import ${preview.importId}? This will mutate Crew data from the persisted preview rows.`,
-    )
-    if (!confirmed) return
 
     setIsApplying(true)
     try {
@@ -567,10 +575,13 @@ function PreviewPanel({
       })
       setApplyResult(result)
       await onApplyComplete(result)
-      toast.success("Import applied")
+      setIsConfirmOpen(false)
+      toast.success(`${formatKind(result.kind)} applied`)
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to apply import",
+        error instanceof Error
+          ? error.message
+          : `Failed to apply ${getImportCopy(preview.kind).shortLabel.toLowerCase()}`,
       )
     } finally {
       setIsApplying(false)
@@ -581,16 +592,18 @@ function PreviewPanel({
     <section className="space-y-4 rounded-md border bg-card p-5 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h3 className="font-semibold">{preview.originalFilename}</h3>
+          <h3 className="font-semibold">
+            Preview ready: {formatPreviewReadyCount(preview)}
+          </h3>
           <p className="text-sm text-muted-foreground">
-            Import {preview.importId}
+            {preview.originalFilename}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={applyResult?.status ?? preview.status} />
           <button
             type="button"
-            onClick={handleApply}
+            onClick={() => setIsConfirmOpen(true)}
             disabled={!canApply || isApplying}
             className="inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -599,30 +612,88 @@ function PreviewPanel({
             ) : (
               <PlayCircle className="size-4" />
             )}
-            Apply
+            Apply {getImportCopy(preview.kind).shortLabel.toLowerCase()}
           </button>
         </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <SummaryMetric label="Rows" value={preview.rowCount} />
+        <SummaryMetric
+          label={`Ready ${importCopy.nounPlural}`}
+          value={impact.readyCount}
+        />
         <SummaryMetric label="Warnings" value={preview.warningCount} />
-        <SummaryMetric label="Errors" value={preview.errorCount} />
+        <SummaryMetric label="Need review" value={impact.blockedCount} />
       </div>
 
       {applyResult ? (
         <div className="grid gap-3 sm:grid-cols-3">
           <SummaryMetric label="Applied" value={appliedCount} />
-          <SummaryMetric label="Created" value={applyResult.createdCount} />
+          <SummaryMetric label="Added" value={applyResult.createdCount} />
           <SummaryMetric label="Skipped" value={applyResult.skippedCount} />
         </div>
       ) : null}
+
+      <div className="rounded-md border bg-background p-4 text-sm">
+        <p className="font-medium">What will change</p>
+        <p className="mt-1 text-muted-foreground">{importCopy.changeSummary}</p>
+        <ul className="mt-3 space-y-1 text-muted-foreground">
+          <li>{impact.readyCount} rows are ready to apply.</li>
+          <li>{impact.skippedCount} rows will be skipped.</li>
+          <li>{impact.blockedCount} rows need review before they can apply.</li>
+        </ul>
+      </div>
 
       {preview.fileIssues.length > 0 ? (
         <IssueList issues={preview.fileIssues} />
       ) : null}
 
       <PreviewTable kind={preview.kind} rows={preview.rows} />
+
+      <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Apply {getImportCopy(preview.kind).shortLabel.toLowerCase()}?
+            </DialogTitle>
+            <DialogDescription>
+              Review these changes before Crew updates your event.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p>{importCopy.changeSummary}</p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <SummaryMetric label="Ready" value={impact.readyCount} />
+              <SummaryMetric label="Skipped" value={impact.skippedCount} />
+              <SummaryMetric label="Need review" value={impact.blockedCount} />
+            </div>
+            {preview.warningCount > 0 ? (
+              <p className="text-amber-700">
+                {preview.warningCount} warnings will stay attached to the
+                preview so you can review them after applying.
+              </p>
+            ) : null}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <button
+              type="button"
+              onClick={() => setIsConfirmOpen(false)}
+              className="inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-muted"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleApply}
+              disabled={!canApply || isApplying}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isApplying ? <Loader2 className="size-4 animate-spin" /> : null}
+              Apply {getImportCopy(preview.kind).shortLabel.toLowerCase()}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   )
 }
@@ -796,29 +867,27 @@ function HistoryPanel({ history }: { history: CrewImportHistoryItem[] }) {
   if (history.length === 0) {
     return (
       <section className="rounded-md border bg-card p-5 shadow-sm">
-        <h3 className="font-semibold">Import history</h3>
-        <p className="mt-2 text-sm text-muted-foreground">
-          No import previews yet.
-        </p>
+        <h3 className="font-semibold">Upload history</h3>
+        <p className="mt-2 text-sm text-muted-foreground">No uploads yet.</p>
       </section>
     )
   }
 
   return (
     <section className="rounded-md border bg-card p-5 shadow-sm">
-      <h3 className="font-semibold">Import history</h3>
+      <h3 className="font-semibold">Recent uploads</h3>
       <div className="mt-4 overflow-hidden rounded-md border">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[48rem] text-left text-sm">
             <thead className="bg-muted text-muted-foreground">
               <tr>
                 <th className="px-3 py-2 font-medium">File</th>
-                <th className="px-3 py-2 font-medium">Kind</th>
+                <th className="px-3 py-2 font-medium">Type</th>
                 <th className="px-3 py-2 font-medium">Status</th>
                 <th className="px-3 py-2 font-medium">Rows</th>
                 <th className="px-3 py-2 font-medium">Warnings</th>
                 <th className="px-3 py-2 font-medium">Errors</th>
-                <th className="px-3 py-2 font-medium">Created</th>
+                <th className="px-3 py-2 font-medium">Added</th>
                 <th className="px-3 py-2 font-medium">Updated</th>
                 <th className="px-3 py-2 font-medium">Skipped</th>
                 <th className="px-3 py-2 font-medium">Uploaded</th>
@@ -829,10 +898,7 @@ function HistoryPanel({ history }: { history: CrewImportHistoryItem[] }) {
                 <tr key={item.id} className="border-t">
                   <td className="px-3 py-2">
                     <p className="font-medium">
-                      {item.originalFilename ?? item.id}
-                    </p>
-                    <p className="font-mono text-xs text-muted-foreground">
-                      {item.id}
+                      {item.originalFilename ?? "Uploaded CSV"}
                     </p>
                   </td>
                   <td className="px-3 py-2">{formatKind(item.kind)}</td>
@@ -858,15 +924,17 @@ function HistoryPanel({ history }: { history: CrewImportHistoryItem[] }) {
   )
 }
 
-function ImportTabButton({
+function ImportChoiceButton({
   active,
-  label,
+  kind,
   onClick,
 }: {
   active: boolean
-  label: string
+  kind: CrewImportKind
   onClick: () => void
 }) {
+  const copy = getImportCopy(kind)
+
   return (
     <button
       type="button"
@@ -874,11 +942,12 @@ function ImportTabButton({
       onClick={onClick}
       className={
         active
-          ? "rounded-md border bg-muted px-3 py-2 text-sm font-medium text-foreground"
-          : "rounded-md border px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+          ? "rounded-md border bg-muted p-4 text-left text-sm text-foreground"
+          : "rounded-md border p-4 text-left text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
       }
     >
-      {label}
+      <span className="font-medium">{copy.choiceTitle}</span>
+      <span className="mt-1 block">{copy.choiceDescription}</span>
     </button>
   )
 }
@@ -941,11 +1010,62 @@ function StatusBadge({ status }: { status: string }) {
 function formatKind(kind: string) {
   if (kind === "heat_schedule") return "Heat schedule"
   if (kind === "role_template") return "Role template"
-  if (kind === "volunteers") return "Volunteers"
+  if (kind === "volunteers") return "Volunteer list"
   return "Unknown"
 }
 
+function getImportCopy(kind: CrewImportKind) {
+  if (kind === "heat_schedule") {
+    return {
+      choiceTitle: "Upload heat schedule",
+      choiceDescription:
+        "Bring in workouts, heat labels, divisions, times, venues, and lane counts.",
+      uploadTitle: "Heat schedule CSV",
+      uploadHelp: "Choose a heat schedule CSV to preview.",
+      shortLabel: "Heat schedule",
+      nounPlural: "heat rows",
+      changeSummary:
+        "Crew will use ready rows to add heat schedule details or match existing heat entries for this event.",
+    }
+  }
+
+  return {
+    choiceTitle: "Upload volunteer list",
+    choiceDescription:
+      "Bring in volunteer names, emails, roles, divisions, availability, and notes.",
+    uploadTitle: "Volunteer list CSV",
+    uploadHelp: "Choose a volunteer list CSV to preview.",
+    shortLabel: "Volunteer list",
+    nounPlural: "volunteers",
+    changeSummary:
+      "Crew will use ready rows to add volunteers or match existing people on this event.",
+  }
+}
+
+function getPreviewImpact(preview: PersistedCrewImportPreview) {
+  return preview.rows.reduce(
+    (summary, row) => {
+      if (row.action === "skip") summary.skippedCount += 1
+      else if (row.action === "error" || row.errors.length > 0) {
+        summary.blockedCount += 1
+      } else summary.readyCount += 1
+      return summary
+    },
+    { readyCount: 0, skippedCount: 0, blockedCount: 0 },
+  )
+}
+
+function formatPreviewReadyCount(preview: PersistedCrewImportPreview) {
+  const impact = getPreviewImpact(preview)
+  const copy = getImportCopy(preview.kind)
+  return `${impact.readyCount} ${copy.nounPlural}`
+}
+
 function formatStatus(status: string) {
+  if (status === "previewed") return "Preview ready"
+  if (status === "applied") return "Applied"
+  if (status === "failed") return "Needs review"
+
   return status
     .split("_")
     .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
