@@ -17,45 +17,24 @@ export const ADMIN_USER = TEST_DATA.users.adminUser
 /**
  * Login with specified credentials
  *
- * Waits for React hydration before interacting with the form.
- * Without hydration, the form submits as native HTML GET (no method attr)
- * instead of being handled by React Hook Form's onSubmit handler.
+ * Crew does not expose the full WODsmith Start sign-in screen yet. For E2E,
+ * ask the app's guarded test endpoint to mint the same session cookie the auth
+ * server function creates after password sign-in.
  */
 export async function login(
 	page: Page,
 	credentials: { email: string; password: string },
 ): Promise<void> {
-	// Use default 'load' to ensure JS bundles are loaded (not just HTML parsed)
-	await page.goto("/sign-in")
-
-	if (!page.url().includes('/sign-in')) {
-		return
-	}
-
-	const signInButton = page.getByRole("button", { name: "Sign in" })
-	await signInButton.waitFor({ state: 'visible', timeout: 30000 })
-
-	// Wait for React hydration — the form's submit button must have React's
-	// internal fiber attached, otherwise clicking triggers native form GET
-	await page.waitForFunction(
-		() => {
-			const btn = document.querySelector('button[type="submit"]')
-			return btn && Object.keys(btn).some(k => k.startsWith('__reactFiber'))
-		},
-		{ timeout: 30000 },
-	)
-
-	await page.getByPlaceholder("name@example.com").fill(credentials.email)
-	await page.getByPlaceholder("Enter your password").fill(credentials.password)
-
-	await signInButton.click()
-
-	// After login, app redirects to "/" (REDIRECT_AFTER_SIGN_IN)
-	await page.waitForURL(/^https?:\/\/[^/]+(\/)?$/, {
-		timeout: 30000,
+	const userId = getUserIdForCredentials(credentials)
+	const response = await page.request.post("/api/e2e/session", {
+		data: { userId },
 	})
 
-	await page.waitForLoadState('domcontentloaded')
+	if (!response.ok()) {
+		throw new Error(
+			`E2E session bootstrap failed with ${response.status()}: ${await response.text()}`,
+		)
+	}
 
 	// Wait for session cookie to be set
 	let attempts = 0
@@ -63,11 +42,13 @@ export async function login(
 	while (attempts < maxAttempts) {
 		const cookies = await page.context().cookies()
 		if (cookies.some(c => c.name === 'session')) {
-			break
+			return
 		}
 		await page.waitForTimeout(100)
 		attempts++
 	}
+
+	throw new Error("E2E session bootstrap did not set a session cookie")
 }
 
 /**
@@ -109,6 +90,27 @@ export async function loginAsAdmin(page: Page): Promise<void> {
 			throw new Error('Admin login failed - still on sign-in page')
 		}
 	}
+}
+
+function getUserIdForCredentials(credentials: {
+	email: string
+	password: string
+}) {
+	if (
+		credentials.email === TEST_USER.email &&
+		credentials.password === TEST_USER.password
+	) {
+		return TEST_USER.id
+	}
+
+	if (
+		credentials.email === ADMIN_USER.email &&
+		credentials.password === ADMIN_USER.password
+	) {
+		return ADMIN_USER.id
+	}
+
+	throw new Error(`No seeded E2E user matches ${credentials.email}`)
 }
 
 /**
