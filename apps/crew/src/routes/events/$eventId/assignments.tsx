@@ -18,7 +18,6 @@ import { CrewJudgeAssignmentsTab } from "./judges"
 import { CrewShiftBoardAssignmentsTab } from "./shifts"
 
 type CrewAssignmentsTab = "shifts" | "judges"
-const CREW_LOCAL_ACCESS_ERROR_NAME = "CrewLocalAccessError"
 
 export const Route = createFileRoute("/events/$eventId/assignments")({
   loader: async ({ params }) => {
@@ -235,26 +234,5 @@ function normalizeCrewAssignmentsTab(tab: unknown): CrewAssignmentsTab {
 }
 
 async function getCrewJudgeAssignmentsRouteData(eventId: string) {
-  try {
-    return await getCrewJudgeRotationsPageFn({ data: { eventId } })
-  } catch (error) {
-    if (isCrewJudgeAssignmentsAccessError(error)) {
-      return null
-    }
-    throw error
-  }
-}
-
-function isCrewJudgeAssignmentsAccessError(error: unknown) {
-  return getErrorName(error) === CREW_LOCAL_ACCESS_ERROR_NAME
-}
-
-function getErrorName(error: unknown) {
-  if (error instanceof Error) return error.name
-  if (typeof error !== "object" || error === null || !("name" in error)) {
-    return null
-  }
-
-  const name = error.name
-  return typeof name === "string" ? name : null
+  return await getCrewJudgeRotationsPageFn({ data: { eventId } })
 }
