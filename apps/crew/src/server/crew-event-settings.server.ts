@@ -27,6 +27,7 @@ import {
   getCrewAuthState,
   getCrewManageCompetitionTeamIds,
   requireCrewEventManagerAccess,
+  requireCrewPersonalTeamId,
 } from "../server/crew-auth.server"
 import { generateSlug } from "../utils/slugify"
 import { requireCrewDepartmentLeadFullAccess } from "./crew-department-lead.server"
@@ -65,7 +66,7 @@ interface GetCrewEventInput {
 }
 
 interface CreateCrewEventInput {
-  organizingTeamId: string
+  organizingTeamId?: string
   name: string
   slug: string
   startDate: string
@@ -315,9 +316,14 @@ export async function createCrewEvent(
     )
   }
 
-  await requireOrganizingTeam(data.organizingTeamId)
+  // The new event form does not surface a team; default to the creator's
+  // personal team when no organizing team is explicitly provided.
+  const organizingTeamId =
+    data.organizingTeamId ?? (await requireCrewPersonalTeamId())
+
+  await requireOrganizingTeam(organizingTeamId)
   await requireCrewEventManagerAccess(
-    { organizingTeamId: data.organizingTeamId },
+    { organizingTeamId },
     "Crew event creation",
   )
 
@@ -353,14 +359,14 @@ export async function createCrewEvent(
       name: `${data.name} (Event)`,
       slug: teamSlug,
       type: "competition_event",
-      parentOrganizationId: data.organizingTeamId,
+      parentOrganizationId: organizingTeamId,
       description: `Competition event team for ${data.name}`,
       creditBalance: 0,
     })
 
     await tx.insert(competitionsTable).values({
       id: competitionId,
-      organizingTeamId: data.organizingTeamId,
+      organizingTeamId,
       competitionTeamId,
       name: data.name,
       slug: data.slug,

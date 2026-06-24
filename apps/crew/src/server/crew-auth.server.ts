@@ -83,6 +83,25 @@ export function canManageCrewEvent(
   )
 }
 
+/**
+ * Resolve the signed-in user's personal team id.
+ *
+ * Crew events are always organized under the creator's personal team — the
+ * product intentionally does not surface a team concept on the new event form,
+ * so the organizing team is resolved server-side rather than chosen by the user.
+ */
+// @lat: [[crew#Event Setup Dashboard]]
+export async function requireCrewPersonalTeamId(): Promise<string> {
+  const session = await requireCrewSignedIn("Crew event creation")
+  const personalTeam = session.teams?.find((team) => team.isPersonalTeam)
+
+  if (!personalTeam) {
+    throw new Error("NOT_AUTHORIZED: A personal team is required")
+  }
+
+  return personalTeam.id
+}
+
 // @lat: [[crew#Event Setup Dashboard]]
 export function getCrewManageCompetitionTeamIds(session: CrewAuthSession) {
   return new Set(
