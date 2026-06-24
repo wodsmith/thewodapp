@@ -20,7 +20,7 @@ export const Route = createFileRoute("/admin/crew")({
     if (!session) {
       throw redirect({
         to: "/sign-in",
-        search: { redirect: getCrewAuthRedirect(location) } as any,
+        search: { redirect: getCrewAuthRedirect(location) },
       })
     }
 

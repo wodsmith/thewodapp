@@ -29,10 +29,7 @@ import {
   requireCrewEventManagerAccess,
 } from "../server/crew-auth.server"
 import { generateSlug } from "../utils/slugify"
-import {
-  requireCrewDepartmentLeadFullAccess,
-  resolveCrewDepartmentLeadAccess,
-} from "./crew-department-lead.server"
+import { requireCrewDepartmentLeadFullAccess } from "./crew-department-lead.server"
 
 type CrewEventCompetition = Pick<
   Competition,
@@ -262,15 +259,12 @@ export async function getCrewEvent(
   let viewerRole: CrewViewerRole | undefined
 
   if (event) {
-    const access = await resolveCrewDepartmentLeadAccess({
+    await requireCrewDepartmentLeadFullAccess({
       id: event.competition.id,
       organizingTeamId: event.competition.organizingTeamId,
       competitionTeamId: event.competition.competitionTeamId,
       timezone: event.competition.timezone,
     })
-    if (access.kind !== "full") {
-      throw new Error("FORBIDDEN: Organizer access is required")
-    }
     viewerRole = "organizer_admin"
   }
 

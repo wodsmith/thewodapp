@@ -21,7 +21,7 @@ export const Route = createFileRoute("/events")({
     if (!session) {
       throw redirect({
         to: "/sign-in",
-        search: { redirect: getCrewAuthRedirect(location) } as any,
+        search: { redirect: getCrewAuthRedirect(location) },
       })
     }
   },

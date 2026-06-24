@@ -3,19 +3,26 @@ import { ROLES_ENUM } from "@/db/schemas/users"
 import type { SessionValidationResult } from "@/types"
 import { getSessionFromCookie } from "@/utils/auth"
 
+// @lat: [[auth#Sessions]]
+// @lat: [[crew#Event Setup Dashboard]]
 export type CrewAuthSession = NonNullable<SessionValidationResult>
 
+// @lat: [[auth#Sessions]]
+// @lat: [[crew#Event Setup Dashboard]]
 export interface CrewAuthState {
   session: SessionValidationResult
   isAdmin: boolean
   canManageCrewEvents: boolean
 }
 
+// @lat: [[crew#Event Setup Dashboard]]
 export interface CrewManageableEvent {
   organizingTeamId: string
   competitionTeamId?: string | null
 }
 
+// @lat: [[auth#Sessions]]
+// @lat: [[crew#Event Setup Dashboard]]
 export async function getCrewAuthState(): Promise<CrewAuthState> {
   const session = await getSessionFromCookie().catch(() => null)
   const isAdmin = Boolean(session && isCrewAdminSession(session))
@@ -30,6 +37,8 @@ export async function getCrewAuthState(): Promise<CrewAuthState> {
   }
 }
 
+// @lat: [[auth#Sessions]]
+// @lat: [[crew#Event Setup Dashboard]]
 export async function requireCrewSignedIn(featureName = "Crew") {
   const session = await getSessionFromCookie().catch(() => null)
 
@@ -40,6 +49,7 @@ export async function requireCrewSignedIn(featureName = "Crew") {
   return session
 }
 
+// @lat: [[crew#Event Setup Dashboard]]
 export async function requireCrewEventManagerAccess(
   event: CrewManageableEvent,
   featureName = "Crew event",
@@ -53,10 +63,13 @@ export async function requireCrewEventManagerAccess(
   return session
 }
 
+// @lat: [[auth#Sessions]]
+// @lat: [[crew#Crew Admin Shell]]
 export function isCrewAdminSession(session: CrewAuthSession) {
   return session.user.role === ROLES_ENUM.ADMIN
 }
 
+// @lat: [[crew#Event Setup Dashboard]]
 export function canManageCrewEvent(
   session: CrewAuthSession,
   event: CrewManageableEvent,
@@ -70,6 +83,7 @@ export function canManageCrewEvent(
   )
 }
 
+// @lat: [[crew#Event Setup Dashboard]]
 export function getCrewManageCompetitionTeamIds(session: CrewAuthSession) {
   return new Set(
     (session.teams ?? [])
