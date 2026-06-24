@@ -10,26 +10,26 @@ import {
   crewTemplatePresetsTable,
 } from "../db/schemas/crew-self-serve-presets"
 import { volunteerShiftsTable } from "../db/schemas/volunteers"
-import {
-  parseCrewSettings,
-  serializeCrewSettings,
-} from "../lib/crew-event-setup"
+import { normalizeCrewShiftTimes } from "../lib/crew/roster-shifts"
 import {
   buildCrewTemplateApplyPlan,
   buildCrewTemplatePreview,
   buildTemplateFromPreset,
   builtInCrewRoleShiftTemplates,
-  getBuiltInCrewRoleShiftTemplate,
-  parseCrewTemplatePresetPayload,
-  serializeCrewTemplatePresetPayload,
   type CrewRoleShiftTemplate,
   type CrewRoleShiftTemplateRef,
   type CrewTemplateEventContext,
   type CrewTemplatePreview,
+  getBuiltInCrewRoleShiftTemplate,
+  parseCrewTemplatePresetPayload,
+  serializeCrewTemplatePresetPayload,
 } from "../lib/crew/templates"
-import { normalizeCrewShiftTimes } from "../lib/crew/roster-shifts"
-import { requireLocalCrewOperatorAccess } from "./crew-local-access"
+import {
+  parseCrewSettings,
+  serializeCrewSettings,
+} from "../lib/crew-event-setup"
 import { DEFAULT_TIMEZONE } from "../utils/timezone-utils"
+import { requireCrewEventManagerAccess } from "./crew-auth.server"
 
 type DbClient = ReturnType<typeof getDb>
 
@@ -55,6 +55,7 @@ interface CrewTemplateEvent {
   id: string
   name: string
   organizingTeamId: string
+  competitionTeamId: string | null
   startDate: string | null
   endDate: string | null
   timezone: string | null
@@ -90,9 +91,8 @@ export interface SaveCrewTemplatePresetResult {
 export async function getCrewTemplatePage(
   data: CrewTemplateEventInput,
 ): Promise<CrewTemplatePageData> {
-  requireLocalCrewOperatorAccess("Crew templates")
-
   const event = await requireCrewTemplateEvent(data.eventId)
+  await requireCrewEventManagerAccess(event, "Crew templates")
   const [savedTemplates, context] = await Promise.all([
     loadTeamPresetTemplates(event.organizingTeamId),
     buildTemplateEventContext(event),
@@ -114,14 +114,13 @@ export async function getCrewTemplatePage(
 export async function applyCrewTemplate(
   data: ApplyCrewTemplateInput,
 ): Promise<ApplyCrewTemplateResult> {
-  requireLocalCrewOperatorAccess("Crew templates")
-
   if (data.mode !== "append_missing") {
     throw new Error("Unsupported template apply mode")
   }
 
   const db = getDb()
   const event = await requireCrewTemplateEvent(data.eventId)
+  await requireCrewEventManagerAccess(event, "Crew templates")
   const template = await resolveCrewTemplate(event.organizingTeamId, data)
   const context = await buildTemplateEventContext(event)
   const preview = buildCrewTemplatePreview(template, context)
@@ -205,9 +204,8 @@ export async function applyCrewTemplate(
 export async function saveCrewTemplatePreset(
   data: SaveCrewTemplatePresetInput,
 ): Promise<SaveCrewTemplatePresetResult> {
-  requireLocalCrewOperatorAccess("Crew templates")
-
   const event = await requireCrewTemplateEvent(data.eventId)
+  await requireCrewEventManagerAccess(event, "Crew templates")
   const template = await resolveCrewTemplate(event.organizingTeamId, data)
   const db = getDb()
   const [inserted] = await db
@@ -257,6 +255,7 @@ async function requireCrewTemplateEvent(
       id: competitionsTable.id,
       name: competitionsTable.name,
       organizingTeamId: competitionsTable.organizingTeamId,
+      competitionTeamId: competitionsTable.competitionTeamId,
       startDate: competitionsTable.startDate,
       endDate: competitionsTable.endDate,
       timezone: competitionsTable.timezone,

@@ -20,24 +20,24 @@ import { createJudgeRotationId } from "../db/schemas/common"
 import {
   LANE_SHIFT_PATTERN,
   type LaneShiftPattern,
+  VOLUNTEER_ROLE_TYPES,
   type VolunteerAvailability,
   type VolunteerMembershipMetadata,
   type VolunteerRoleType,
-  VOLUNTEER_ROLE_TYPES,
 } from "../db/schemas/volunteers"
 import {
   assertCrewJudgeRotationReplacementAllowed,
+  type CrewJudgeRotationDraft,
+  type CrewJudgeRotationHeat,
   expandCrewJudgeRotationDrafts,
   getCrewJudgeHeatLaneCount,
   getCrewJudgeRotationLane,
   hasCrewJudgeRotationErrors,
-  type CrewJudgeRotationDraft,
-  type CrewJudgeRotationHeat,
   validateCrewJudgeRotationDrafts,
 } from "../lib/crew/judge-rotations"
 import { getCrewRosterRoleTypes } from "../lib/crew/roster-shifts"
 import { getSessionFromCookie } from "../utils/auth"
-import { requireLocalCrewOperatorAccess } from "./crew-local-access"
+import { requireCrewEventManagerAccess } from "./crew-auth.server"
 import {
   type MaterializedJudgeAssignmentForVersion,
   publishMaterializedJudgeAssignmentsVersion,
@@ -165,16 +165,11 @@ export interface PublishCrewJudgeRotationsInput {
   notes?: string | null
 }
 
-function requireCrewJudgeRotationsAccess() {
-  requireLocalCrewOperatorAccess("Crew judge rotations")
-}
-
 export async function getCrewJudgeRotationsPage(data: {
   eventId: string
 }): Promise<{ page: CrewJudgeRotationsPageData }> {
-  requireCrewJudgeRotationsAccess()
-
   const event = await requireCrewJudgeEvent(data.eventId)
+  await requireCrewEventManagerAccess(event, "Crew judge rotations")
   const [workoutsForEvent, heats, judges] = await Promise.all([
     loadCrewJudgeWorkouts(event.id),
     loadCrewJudgeHeats(event.id),
@@ -219,10 +214,9 @@ export async function getCrewJudgeRotationsPage(data: {
 export async function saveCrewJudgeRotationsForVolunteer(
   data: SaveCrewJudgeRotationsInput,
 ) {
-  requireCrewJudgeRotationsAccess()
-
   const db = getDb()
   const event = await requireCrewJudgeEvent(data.eventId)
+  await requireCrewEventManagerAccess(event, "Crew judge rotations")
   await requireCrewJudgeWorkout(event.id, data.trackWorkoutId)
   await requireCrewJudgeMembership(event.competitionTeamId, data.membershipId)
 
@@ -336,10 +330,9 @@ export async function saveCrewJudgeRotationsForVolunteer(
 export async function publishCrewJudgeRotations(
   data: PublishCrewJudgeRotationsInput,
 ): Promise<{ version: JudgeAssignmentVersion }> {
-  requireCrewJudgeRotationsAccess()
-
   const db = getDb()
   const event = await requireCrewJudgeEvent(data.eventId)
+  await requireCrewEventManagerAccess(event, "Crew judge rotations")
   await requireCrewJudgeWorkout(event.id, data.trackWorkoutId)
   await assertCrewJudgeRotationsPublishable(event.id, data.trackWorkoutId)
   const session = await getSessionFromCookie().catch(() => null)
