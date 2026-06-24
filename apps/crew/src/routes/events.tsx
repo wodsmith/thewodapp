@@ -2,16 +2,29 @@ import {
   createFileRoute,
   Link,
   Outlet,
+  redirect,
   useRouterState,
 } from "@tanstack/react-router"
+import { getCrewAuthRedirect } from "@/lib/crew/auth-redirect"
 import { formatCrewValue } from "@/lib/crew-event-display"
 import {
   calculateSetupProgress,
   parseCrewSettings,
 } from "@/lib/crew-event-setup"
+import { getCrewAuthStateFn } from "@/server-fns/crew-auth-fns"
 import { listCrewEventsFn } from "@/server-fns/crew-event-settings-fns"
 
 export const Route = createFileRoute("/events")({
+  beforeLoad: async ({ location }) => {
+    const { session } = await getCrewAuthStateFn()
+
+    if (!session) {
+      throw redirect({
+        to: "/sign-in",
+        search: { redirect: getCrewAuthRedirect(location) } as any,
+      })
+    }
+  },
   loader: async () => await listCrewEventsFn(),
   component: EventsPage,
 })

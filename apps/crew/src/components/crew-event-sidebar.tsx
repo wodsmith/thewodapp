@@ -24,6 +24,7 @@ import {
   Rocket,
   Settings,
   Upload,
+  UserPlus,
   Users,
 } from "lucide-react"
 import type { ReactNode } from "react"
@@ -85,6 +86,7 @@ const organizerIconByKey: Record<string, LucideIcon> = {
   setup: Settings,
   imports: Upload,
   staffing: ClipboardList,
+  volunteers: UserPlus,
   assignments: Users,
   confirmations: Mail,
   "event-day": CalendarCheck,
@@ -108,7 +110,9 @@ export function getCrewOrganizerEventSidebarNavigation({
     } satisfies CrewNavItem)
 
   const workflowItems = navItems
-    .filter((item) => ["setup", "imports", "staffing"].includes(item.key))
+    .filter((item) =>
+      ["setup", "imports", "staffing", "volunteers"].includes(item.key),
+    )
     .map((item) => toOrganizerSidebarItem(item, eventId))
 
   const operationsItems = navItems

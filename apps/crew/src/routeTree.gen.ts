@@ -9,6 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SignUpRouteImport } from './routes/sign-up'
+import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as EventsRouteImport } from './routes/events'
 import { Route as CalculatorRouteImport } from './routes/calculator'
 import { Route as IndexRouteImport } from './routes/index'
@@ -45,6 +47,16 @@ import { Route as AdminCrewEventsEventIdReadinessRouteImport } from './routes/ad
 import { Route as AdminCrewEventsEventIdConvertRouteImport } from './routes/admin/crew/events/$eventId/convert'
 import { Route as AdminCrewEventsEventIdBillingRouteImport } from './routes/admin/crew/events/$eventId/billing'
 
+const SignUpRoute = SignUpRouteImport.update({
+  id: '/sign-up',
+  path: '/sign-up',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignInRoute = SignInRouteImport.update({
+  id: '/sign-in',
+  path: '/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EventsRoute = EventsRouteImport.update({
   id: '/events',
   path: '/events',
@@ -230,6 +242,8 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/calculator': typeof CalculatorRoute
   '/events': typeof EventsRouteWithChildren
+  '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
   '/admin/crew': typeof AdminCrewRouteWithChildren
   '/events/$eventId': typeof EventsEventIdRouteWithChildren
   '/events/new': typeof EventsNewRoute
@@ -267,6 +281,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/calculator': typeof CalculatorRoute
   '/events': typeof EventsRouteWithChildren
+  '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
   '/admin/crew': typeof AdminCrewRouteWithChildren
   '/events/new': typeof EventsNewRoute
   '/admin/crew/events': typeof AdminCrewEventsRouteWithChildren
@@ -304,6 +320,8 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/calculator': typeof CalculatorRoute
   '/events': typeof EventsRouteWithChildren
+  '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
   '/admin/crew': typeof AdminCrewRouteWithChildren
   '/events/$eventId': typeof EventsEventIdRouteWithChildren
   '/events/new': typeof EventsNewRoute
@@ -343,6 +361,8 @@ export interface FileRouteTypes {
     | '/'
     | '/calculator'
     | '/events'
+    | '/sign-in'
+    | '/sign-up'
     | '/admin/crew'
     | '/events/$eventId'
     | '/events/new'
@@ -380,6 +400,8 @@ export interface FileRouteTypes {
     | '/'
     | '/calculator'
     | '/events'
+    | '/sign-in'
+    | '/sign-up'
     | '/admin/crew'
     | '/events/new'
     | '/admin/crew/events'
@@ -416,6 +438,8 @@ export interface FileRouteTypes {
     | '/'
     | '/calculator'
     | '/events'
+    | '/sign-in'
+    | '/sign-up'
     | '/admin/crew'
     | '/events/$eventId'
     | '/events/new'
@@ -454,6 +478,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CalculatorRoute: typeof CalculatorRoute
   EventsRoute: typeof EventsRouteWithChildren
+  SignInRoute: typeof SignInRoute
+  SignUpRoute: typeof SignUpRoute
   AdminCrewRoute: typeof AdminCrewRouteWithChildren
   ApiCrewImportRoute: typeof ApiCrewImportRoute
   ApiE2eSessionRoute: typeof ApiE2eSessionRoute
@@ -467,6 +493,20 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sign-up': {
+      id: '/sign-up'
+      path: '/sign-up'
+      fullPath: '/sign-up'
+      preLoaderRoute: typeof SignUpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign-in': {
+      id: '/sign-in'
+      path: '/sign-in'
+      fullPath: '/sign-in'
+      preLoaderRoute: typeof SignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/events': {
       id: '/events'
       path: '/events'
@@ -816,6 +856,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CalculatorRoute: CalculatorRoute,
   EventsRoute: EventsRouteWithChildren,
+  SignInRoute: SignInRoute,
+  SignUpRoute: SignUpRoute,
   AdminCrewRoute: AdminCrewRouteWithChildren,
   ApiCrewImportRoute: ApiCrewImportRoute,
   ApiE2eSessionRoute: ApiE2eSessionRoute,

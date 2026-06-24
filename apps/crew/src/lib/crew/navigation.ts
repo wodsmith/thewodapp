@@ -11,6 +11,7 @@ export type CrewEventNavRoute =
   | "/events/$eventId/staffing"
   | "/events/$eventId/setup"
   | "/events/$eventId/imports"
+  | "/events/$eventId/volunteers"
   | "/events/$eventId/assignments"
   | "/events/$eventId/messages"
   | "/events/$eventId/day-of"
@@ -69,6 +70,12 @@ export const CREW_EVENT_NAV_ITEMS = [
     persona: ["wodsmith_operator", "organizer_admin", "department_lead"],
   },
   {
+    key: "volunteers",
+    label: "Volunteers",
+    to: "/events/$eventId/volunteers",
+    persona: ["wodsmith_operator", "organizer_admin", "department_lead"],
+  },
+  {
     key: "assignments",
     label: "Assignments",
     to: "/events/$eventId/assignments",
@@ -85,16 +92,12 @@ export const CREW_EVENT_NAV_ITEMS = [
     label: "Event Day",
     to: "/events/$eventId/day-of",
     persona: ["wodsmith_operator", "organizer_admin", "department_lead"],
-    requires: ["has_event_day_data"],
-    hiddenWhenEmpty: true,
   },
   {
     key: "print-packet",
     label: "Print Packet",
     to: "/events/$eventId/exports",
     persona: ["wodsmith_operator", "organizer_admin", "department_lead"],
-    requires: ["has_print_packet_data"],
-    hiddenWhenEmpty: true,
   },
 ] as const satisfies readonly CrewNavItem[]
 

@@ -3,39 +3,40 @@
 import { createId } from "@paralleldrive/cuid2"
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm"
 import { z } from "zod"
-import {
-  CREW_IMPORT_KIND,
-  CREW_IMPORT_ROW_ACTION,
-  CREW_IMPORT_ROW_TARGET_TYPE,
-  CREW_IMPORT_STATUS,
-  crewImportRowsTable,
-  crewImportsTable,
-  type CrewImport,
-  type CrewImportRow,
-} from "../db/schemas/crew-imports"
+import { getDb } from "../db"
 import {
   createCompetitionHeatId,
   createCompetitionVenueId,
-  createCrewImportMappingPresetId,
   createCrewImportId,
+  createCrewImportMappingPresetId,
   createProgrammingTrackId,
   createTeamInvitationId,
   createTrackWorkoutId,
 } from "../db/schemas/common"
 import {
   competitionHeatsTable,
-  competitionVenuesTable,
   competitionsTable,
+  competitionVenuesTable,
 } from "../db/schemas/competitions"
 import { crewEventSettingsTable } from "../db/schemas/crew-event-settings"
+import {
+  CREW_IMPORT_KIND,
+  CREW_IMPORT_ROW_ACTION,
+  CREW_IMPORT_ROW_TARGET_TYPE,
+  CREW_IMPORT_STATUS,
+  type CrewImport,
+  type CrewImportRow,
+  crewImportRowsTable,
+  crewImportsTable,
+} from "../db/schemas/crew-imports"
+import {
+  type CrewImportMappingPreset,
+  crewImportMappingPresetsTable,
+} from "../db/schemas/crew-self-serve-presets"
 import {
   CREW_VOLUNTEER_HISTORY_EVENT_TYPE,
   CREW_VOLUNTEER_IDENTITY_SOURCE,
 } from "../db/schemas/crew-volunteer-intelligence"
-import {
-  crewImportMappingPresetsTable,
-  type CrewImportMappingPreset,
-} from "../db/schemas/crew-self-serve-presets"
 import {
   PROGRAMMING_TRACK_TYPE,
   programmingTracksTable,
@@ -50,44 +51,43 @@ import {
 } from "../db/schemas/teams"
 import { userTable } from "../db/schemas/users"
 import { workouts } from "../db/schemas/workouts"
-import { getDb } from "../db"
 import {
   buildHeatScheduleApplyPlan,
   buildTrackWorkoutLookup,
   buildVolunteerApplyPlan,
+  type CrewApplySummary,
+  type ExistingVolunteerInvitation,
+  type ExistingVolunteerMembership,
   getAppliedHeatSupportTargets,
   getMutationAffectedRows,
+  type HeatApplyContext,
+  type HeatApplyRowPlan,
+  type HeatApplyTrackWorkout,
+  type HeatApplyVenue,
+  type ImportedHeatUpdateSnapshot,
   isImportedHeatUpdateAlreadyApplied,
   markHeatUpdateSkippedForPublicationConflict,
   mergeImportedJsonMetadata,
   normalizeLookupValue,
   selectCrewImportProgrammingTrack,
   summarizeApplyRows,
-  type CrewApplySummary,
-  type ExistingVolunteerInvitation,
-  type ExistingVolunteerMembership,
-  type HeatApplyContext,
-  type HeatApplyRowPlan,
-  type HeatApplyTrackWorkout,
-  type HeatApplyVenue,
-  type ImportedHeatUpdateSnapshot,
   type VolunteerApplyRowPlan,
 } from "../lib/crew/imports/apply"
+import {
+  buildCrewImportMappingPresetWrite,
+  type CrewImportMappingPresetCandidate,
+  type CrewImportMappingSuggestion,
+  computeImportHeaderFingerprint,
+  normalizeImportMappingSourcePlatform,
+  selectCrewImportMappingSuggestion,
+} from "../lib/crew/imports/mapping-memory"
 import {
   buildCrewImportPreview,
   defaultCrewImportRoleLabels,
 } from "../lib/crew/imports/preview"
 import {
-  buildCrewImportMappingPresetWrite,
-  computeImportHeaderFingerprint,
-  normalizeImportMappingSourcePlatform,
-  selectCrewImportMappingSuggestion,
-  type CrewImportMappingPresetCandidate,
-  type CrewImportMappingSuggestion,
-} from "../lib/crew/imports/mapping-memory"
-import {
-  CREW_IMPORT_PARSER_VERSION,
   type ColumnMapping,
+  CREW_IMPORT_PARSER_VERSION,
   type CrewImportKind,
   type CrewImportPreview,
   type CrewImportPreviewContext,
@@ -98,7 +98,7 @@ import {
 } from "../lib/crew/imports/types"
 import { parseCompetitionSettings } from "../utils/competition-settings"
 import { DEFAULT_TIMEZONE } from "../utils/timezone-utils"
-import { requireLocalCrewOperatorAccess } from "./crew-local-access"
+import { requireCrewEventManagerAccess } from "./crew-auth.server"
 import { recordCrewVolunteerHistoryEvent } from "./crew-volunteer-history.server"
 
 export const MAX_CREW_IMPORT_BYTES = 1_000_000
@@ -243,7 +243,8 @@ export interface CrewImportMappingPresetSaveResult {
 export async function loadCrewImportsPageData(
   eventId: string,
 ): Promise<CrewImportsPageData> {
-  requireLocalCrewOperatorAccess("Crew imports")
+  const event = await requireCrewEvent(eventId)
+  await requireCrewEventManagerAccess(event, "Crew imports")
 
   const [reference, history] = await Promise.all([
     loadCrewImportReferenceData(eventId),
@@ -259,10 +260,9 @@ export async function getCrewImportMappingSuggestion(input: {
   sourcePlatform?: string | null
   headers: string[]
 }): Promise<CrewImportMappingSuggestionResult> {
-  requireLocalCrewOperatorAccess("Crew import mappings")
-
   const data = crewImportMappingSuggestionInputSchema.parse(input)
   const event = await requireCrewEvent(data.eventId)
+  await requireCrewEventManagerAccess(event, "Crew import mappings")
   const suggestion = await loadCrewImportMappingSuggestion({
     teamId: event.organizingTeamId,
     kind: data.kind,
@@ -280,10 +280,9 @@ export async function saveCrewImportMappingPreset(input: {
   headers: string[]
   columnMapping: ColumnMapping
 }): Promise<CrewImportMappingPresetSaveResult> {
-  requireLocalCrewOperatorAccess("Crew import mappings")
-
   const data = saveCrewImportMappingPresetInputSchema.parse(input)
   const event = await requireCrewEvent(data.eventId)
+  await requireCrewEventManagerAccess(event, "Crew import mappings")
   const presetWrite = buildCrewImportMappingPresetWrite({
     teamId: event.organizingTeamId,
     competitionId: event.id,
@@ -370,9 +369,9 @@ export async function createCrewImportPreviewRecord(input: {
   sourcePlatform?: string | null
   columnMapping?: ColumnMapping
 }): Promise<PersistedCrewImportPreview> {
-  requireLocalCrewOperatorAccess("Crew imports")
-
   const data = uploadCrewImportInputSchema.parse(input)
+  const event = await requireCrewEvent(data.eventId)
+  await requireCrewEventManagerAccess(event, "Crew imports")
   const fileSize = Math.max(data.fileSize, getCsvByteLength(data.csvText))
 
   if (fileSize > MAX_CREW_IMPORT_BYTES) {
@@ -433,8 +432,6 @@ export async function applyCrewImportRecord(input: {
   importId: string
   confirmed: true
 }): Promise<CrewImportApplyResult> {
-  requireLocalCrewOperatorAccess("Crew imports")
-
   const data = applyCrewImportInputSchema.parse(input)
   if (!data.confirmed) {
     throw new CrewImportError(
@@ -444,8 +441,9 @@ export async function applyCrewImportRecord(input: {
     )
   }
 
-  const [event, importRecord, rows] = await Promise.all([
-    requireCrewEvent(data.eventId),
+  const event = await requireCrewEvent(data.eventId)
+  await requireCrewEventManagerAccess(event, "Crew imports")
+  const [importRecord, rows] = await Promise.all([
     requireCrewImport(data.eventId, data.importId),
     listCrewImportRows(data.importId),
   ])

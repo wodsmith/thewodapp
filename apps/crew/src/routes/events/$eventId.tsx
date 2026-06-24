@@ -9,8 +9,6 @@ import {
 } from "@/components/crew-event-sidebar"
 import { getCrewEventNavItems } from "@/lib/crew/navigation"
 import { getCrewEventFn } from "@/server-fns/crew-event-settings-fns"
-import { useSession } from "@/utils/auth-client"
-import { resolveCrewViewer } from "@/utils/crew-access"
 
 export const Route = createFileRoute("/events/$eventId")({
   loader: async ({ params }) => {
@@ -18,18 +16,19 @@ export const Route = createFileRoute("/events/$eventId")({
     if (!result.event) {
       throw notFound()
     }
-    return { event: result.event }
+    return {
+      event: result.event,
+      viewerRole: result.viewerRole ?? "organizer_admin",
+    }
   },
   component: EventShell,
 })
 
 function EventShell() {
   const { eventId } = Route.useParams()
-  const { event } = Route.useLoaderData()
-  const session = useSession()
-  const viewer = resolveCrewViewer({ session })
+  const { event, viewerRole = "organizer_admin" } = Route.useLoaderData()
   const navItems = getCrewEventNavItems({
-    viewerRole: viewer.role,
+    viewerRole,
     state: event.navigationState,
   })
   const navigation = getCrewOrganizerEventSidebarNavigation({

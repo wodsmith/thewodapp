@@ -10,10 +10,10 @@ import {
   calculateSetupProgress,
   parseCrewSettings,
 } from "../lib/crew-event-setup"
+import { requireAdmin } from "../utils/auth"
 import { getCrewBillingPage } from "./crew-billing.server"
 import { getCrewConversionAssistantPage } from "./crew-conversion.server"
 import { listCrewEvents } from "./crew-event-settings.server"
-import { requireLocalCrewOperatorAccess } from "./crew-local-access"
 import { getCrewReadinessPage } from "./crew-readiness.server"
 import { getCrewEventRosterShiftSummary } from "./crew-roster-shift.server"
 
@@ -125,7 +125,7 @@ export type CrewAdminConversionData = Awaited<
 export async function getCrewAdminEventList(): Promise<{
   events: CrewAdminEventListItem[]
 }> {
-  requireLocalCrewOperatorAccess("Crew admin")
+  await requireAdmin()
 
   const { events } = await listCrewEvents()
   return {
@@ -155,7 +155,7 @@ export async function getCrewAdminEventList(): Promise<{
 export async function getCrewAdminEventDetail(data: {
   eventId: string
 }): Promise<{ view: CrewAdminEventDetailView }> {
-  requireLocalCrewOperatorAccess("Crew admin")
+  await requireAdmin()
 
   const event = await requireCrewAdminEvent(data.eventId)
   const [rosterShiftSummary, readiness, billing] = await Promise.all([
@@ -256,14 +256,14 @@ export async function getCrewAdminEventDetail(data: {
 export async function getCrewAdminReadiness(data: {
   eventId: string
 }): Promise<CrewAdminReadinessData> {
-  requireLocalCrewOperatorAccess("Crew admin readiness")
+  await requireAdmin()
   return getCrewReadinessPage(data)
 }
 
 export async function getCrewAdminBilling(data: {
   eventId: string
 }): Promise<CrewAdminBillingData> {
-  requireLocalCrewOperatorAccess("Crew admin billing")
+  await requireAdmin()
 
   const [billing, event] = await Promise.all([
     getCrewBillingPage(data),
@@ -287,7 +287,7 @@ export async function getCrewAdminBilling(data: {
 export async function getCrewAdminConversion(data: {
   eventId: string
 }): Promise<CrewAdminConversionData> {
-  requireLocalCrewOperatorAccess("Crew admin conversion")
+  await requireAdmin()
   return getCrewConversionAssistantPage(data)
 }
 

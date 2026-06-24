@@ -3,14 +3,31 @@ import {
   createFileRoute,
   Link,
   Outlet,
+  redirect,
   useRouterState,
 } from "@tanstack/react-router"
+import { getCrewAuthRedirect } from "@/lib/crew/auth-redirect"
 import {
   type CrewAdminEventListItem,
   getCrewAdminEventListFn,
 } from "@/server-fns/crew-admin-event-fns"
+import { getCrewAuthStateFn } from "@/server-fns/crew-auth-fns"
 
 export const Route = createFileRoute("/admin/crew")({
+  beforeLoad: async ({ location }) => {
+    const { session, isAdmin } = await getCrewAuthStateFn()
+
+    if (!session) {
+      throw redirect({
+        to: "/sign-in",
+        search: { redirect: getCrewAuthRedirect(location) } as any,
+      })
+    }
+
+    if (!isAdmin) {
+      throw new Error("FORBIDDEN: Crew admin is available to WODsmith admins.")
+    }
+  },
   loader: async ({ location }) => {
     if (isAdminCrewEventDetailRoute(location.pathname)) {
       return { events: [] as CrewAdminEventListItem[] }

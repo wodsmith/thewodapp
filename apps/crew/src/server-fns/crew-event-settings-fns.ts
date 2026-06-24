@@ -1,8 +1,12 @@
 // @lat: [[crew#Server Function Runtime Boundary]]
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
+import type { CrewEventResult } from "../server/crew-event-settings.server"
 
-export type { CrewEventDetails } from "../server/crew-event-settings.server"
+export type {
+  CrewEventDetails,
+  CrewEventResult,
+} from "../server/crew-event-settings.server"
 
 const lifecycleSchema = z.enum([
   "draft",
@@ -82,7 +86,7 @@ export const listCrewEventsFn = createServerFn({ method: "GET" }).handler(
 
 export const getCrewEventFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => getCrewEventInputSchema.parse(data))
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<CrewEventResult> => {
     const { getCrewEvent } = await import(
       "../server/crew-event-settings.server"
     )
