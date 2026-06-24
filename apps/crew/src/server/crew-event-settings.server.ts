@@ -228,7 +228,7 @@ export async function listCrewEvents(): Promise<{
       eq(crewEventSettingsTable.competitionId, competitionsTable.id),
     )
 
-  const canListAllEvents = auth.isAdmin || auth.isLocalOperator
+  const canListAllEvents = auth.isAdmin
   const managedTeamIds = getCrewManageCompetitionTeamIds(auth.session)
 
   if (!canListAllEvents && managedTeamIds.size === 0) {

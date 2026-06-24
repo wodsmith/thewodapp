@@ -2,14 +2,12 @@ import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
 import type { SessionValidationResult } from "@/types"
 import { getSessionFromCookie } from "@/utils/auth"
-import { hasLocalCrewOperatorAccess } from "./crew-local-access"
 
 export type CrewAuthSession = NonNullable<SessionValidationResult>
 
 export interface CrewAuthState {
   session: SessionValidationResult
   isAdmin: boolean
-  isLocalOperator: boolean
   canManageCrewEvents: boolean
 }
 
@@ -21,18 +19,13 @@ export interface CrewManageableEvent {
 export async function getCrewAuthState(): Promise<CrewAuthState> {
   const session = await getSessionFromCookie().catch(() => null)
   const isAdmin = Boolean(session && isCrewAdminSession(session))
-  const isLocalOperator = Boolean(session && hasLocalCrewOperatorAccess())
   const canManageCrewEvents = Boolean(
-    session &&
-      (isAdmin ||
-        isLocalOperator ||
-        getCrewManageCompetitionTeamIds(session).size > 0),
+    session && (isAdmin || getCrewManageCompetitionTeamIds(session).size > 0),
   )
 
   return {
     session,
     isAdmin,
-    isLocalOperator,
     canManageCrewEvents,
   }
 }
@@ -68,7 +61,6 @@ export function canManageCrewEvent(
   session: CrewAuthSession,
   event: CrewManageableEvent,
 ) {
-  if (hasLocalCrewOperatorAccess()) return true
   if (isCrewAdminSession(session)) return true
 
   const teamIds = getCrewManageCompetitionTeamIds(session)
