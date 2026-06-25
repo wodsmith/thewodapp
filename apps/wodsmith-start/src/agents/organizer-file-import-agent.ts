@@ -324,7 +324,7 @@ export class OrganizerFileImportAgent extends Agent<Env, AgentState> {
 			},
 		})
 
-		if (this.state.status !== "proposals_ready") {
+		if (this.state.status !== "proposals_ready" && !this.state.clarification) {
 			this.setState({
 				...this.state,
 				status: "proposals_ready",
@@ -560,6 +560,7 @@ function buildTools(
 			execute: async (input) => {
 				agent.setState({
 					...agent.state,
+					status: "idle",
 					clarification: {
 						question: input.question,
 						suggestedRouteKind: input.suggestedRouteKind,
