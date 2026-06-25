@@ -12,7 +12,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
@@ -38,9 +38,12 @@ import {
 	requireFileImportRequestAccess,
 	requireFileImportTeamAccess,
 } from "@/server/organizer-file-import/access"
+import { readImportFile } from "@/server/organizer-file-import/context"
 import { inviteUserToTeam } from "@/server/team-members"
 import { getSessionFromCookie } from "@/utils/auth"
 import { sendVolunteerDirectInviteEmail } from "@/utils/email"
+
+const EMAIL_IN_TEXT_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi
 
 // ============================================================================
 // createImportRunFn
@@ -152,6 +155,9 @@ export const applyOrganizerImportFn = createServerFn({ method: "POST" })
 			throw new Error("NOT_AUTHORIZED: Not authenticated")
 		}
 		const scope = await loadFileImportScopeByRun(data.importRunId)
+		if (scope.createdByUserId !== session.user.id) {
+			throw new Error("NOT_AUTHORIZED: Import run belongs to another organizer")
+		}
 		await requireFileImportTeamAccess({ teamId: scope.organizingTeamId, scope })
 
 		if (!scope.competitionTeamId) {
@@ -163,15 +169,25 @@ export const applyOrganizerImportFn = createServerFn({ method: "POST" })
 		const run = await db.query.agentImportRunsTable.findFirst({
 			where: eq(agentImportRunsTable.id, data.importRunId),
 		})
+		if (!run) {
+			throw new Error("Import run not found")
+		}
 		const appliedEntities: AppliedEntity[] = [...(run?.appliedEntities ?? [])]
 		// Idempotency: a (importRunId, rowKey) already applied is a no-op.
 		const appliedRowKeys = new Set(appliedEntities.map((e) => e.rowKey))
+		const seenInviteEmails = new Set<string>()
 
 		const [competition] = await db
 			.select({ name: competitionsTable.name })
 			.from(competitionsTable)
 			.where(eq(competitionsTable.id, scope.competitionId))
 		const competitionName = competition?.name ?? "a competition"
+		const { table } = await readImportFile(
+			data.importRunId,
+			scope,
+			session.user.id,
+		)
+		const uploadedEmails = collectEmailsFromRows(table.rows)
 
 		const results: ApplyImportRowResult[] = []
 		let applied = 0
@@ -218,6 +234,28 @@ export const applyOrganizerImportFn = createServerFn({ method: "POST" })
 				skipped++
 				continue
 			}
+			const normalizedEmail = email.trim().toLowerCase()
+			if (!uploadedEmails.has(normalizedEmail)) {
+				results.push({
+					rowKey: proposal.rowKey,
+					proposalId: proposal.proposalId,
+					status: "skipped",
+					reason: "email not found in uploaded file",
+				})
+				skipped++
+				continue
+			}
+			if (seenInviteEmails.has(normalizedEmail)) {
+				results.push({
+					rowKey: proposal.rowKey,
+					proposalId: proposal.proposalId,
+					status: "skipped",
+					reason: "duplicate email in import",
+				})
+				skipped++
+				continue
+			}
+			seenInviteEmails.add(normalizedEmail)
 
 			try {
 				const metadata: Record<string, unknown> = {
@@ -229,8 +267,7 @@ export const applyOrganizerImportFn = createServerFn({ method: "POST" })
 				if (proposal.name) metadata.inviteName = proposal.name
 				if (proposal.credentials) metadata.credentials = proposal.credentials
 				if (proposal.shirtSize) metadata.shirtSize = proposal.shirtSize
-				if (proposal.availability)
-					metadata.availability = proposal.availability
+				if (proposal.availability) metadata.availability = proposal.availability
 
 				const res = await inviteUserToTeam({
 					teamId: competitionTeamId,
@@ -276,15 +313,31 @@ export const applyOrganizerImportFn = createServerFn({ method: "POST" })
 			}
 		}
 
+		const nextStatus =
+			failed > 0
+				? AGENT_IMPORT_STATUS.ERROR
+				: applied > 0
+					? AGENT_IMPORT_STATUS.APPLIED
+					: AGENT_IMPORT_STATUS.PROPOSALS_READY
+
 		await db
 			.update(agentImportRunsTable)
 			.set({
 				appliedEntities,
-				status: AGENT_IMPORT_STATUS.APPLIED,
-				appliedAt: new Date(),
-				appliedByUserId: session.user.id,
+				status: nextStatus,
+				appliedAt: applied > 0 ? new Date() : run.appliedAt,
+				appliedByUserId: applied > 0 ? session.user.id : run.appliedByUserId,
+				errorMessage:
+					failed > 0
+						? `${failed} row${failed === 1 ? "" : "s"} failed during apply`
+						: null,
 			})
-			.where(eq(agentImportRunsTable.id, data.importRunId))
+			.where(
+				and(
+					eq(agentImportRunsTable.id, data.importRunId),
+					eq(agentImportRunsTable.createdByUserId, session.user.id),
+				),
+			)
 
 		logInfo({
 			message: "[AgentImport] proposals applied",
@@ -309,7 +362,14 @@ const undoImportSchema = z.object({
 export const undoImportFn = createServerFn({ method: "POST" })
 	.inputValidator((data: unknown) => undoImportSchema.parse(data))
 	.handler(async ({ data }): Promise<{ removed: number }> => {
+		const session = await getSessionFromCookie()
+		if (!session) {
+			throw new Error("NOT_AUTHORIZED: Not authenticated")
+		}
 		const scope = await loadFileImportScopeByRun(data.importRunId)
+		if (scope.createdByUserId !== session.user.id) {
+			throw new Error("NOT_AUTHORIZED: Import run belongs to another organizer")
+		}
 		await requireFileImportTeamAccess({ teamId: scope.organizingTeamId, scope })
 
 		const db = getDb()
@@ -339,7 +399,12 @@ export const undoImportFn = createServerFn({ method: "POST" })
 				appliedEntities: [],
 				status: AGENT_IMPORT_STATUS.REJECTED,
 			})
-			.where(eq(agentImportRunsTable.id, data.importRunId))
+			.where(
+				and(
+					eq(agentImportRunsTable.id, data.importRunId),
+					eq(agentImportRunsTable.createdByUserId, session.user.id),
+				),
+			)
 
 		logInfo({
 			message: "[AgentImport] import undone",
@@ -347,3 +412,15 @@ export const undoImportFn = createServerFn({ method: "POST" })
 		})
 		return { removed }
 	})
+
+function collectEmailsFromRows(rows: Record<string, string>[]): Set<string> {
+	const emails = new Set<string>()
+	for (const row of rows) {
+		for (const value of Object.values(row)) {
+			for (const match of value.matchAll(EMAIL_IN_TEXT_PATTERN)) {
+				emails.add(match[0].toLowerCase())
+			}
+		}
+	}
+	return emails
+}

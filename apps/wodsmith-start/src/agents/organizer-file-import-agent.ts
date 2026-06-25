@@ -25,7 +25,10 @@ import {
 	classifyVolunteer,
 	type ExistingVolunteer,
 } from "@/lib/organizer-file-import/validate"
-import { requireFileImportAgentAccess } from "@/server/organizer-file-import/access"
+import {
+	type FileImportScope,
+	requireFileImportAgentAccess,
+} from "@/server/organizer-file-import/access"
 import {
 	type FileImportPageContext,
 	loadExistingVolunteers,
@@ -40,6 +43,8 @@ import type { ParsedTable } from "@/lib/organizer-file-import/parse"
  */
 const MODEL_ID = "workers-ai/@cf/moonshotai/kimi-k2.6"
 const MAX_STEPS = 32
+const AGENT_NAME_PATTERN =
+	/^(aimp_[0-9A-HJKMNP-TV-Z]{26})__([a-z0-9_-]{1,128})$/i
 
 const SYSTEM_PROMPT = `You are an assistant that imports volunteers and judges into a Functional Fitness competition from a file an organizer dropped onto a page. You read the file's already-parsed rows, map columns, and DRAFT proposals.
 
@@ -60,7 +65,7 @@ Workflow:
 - Do not propose the same person (same email) twice.`
 
 interface ImportRunContext {
-	scope: { competitionTeamId: string | null }
+	scope: FileImportScope
 	pageContext: FileImportPageContext
 	table: ParsedTable
 	truncated: boolean
@@ -129,7 +134,12 @@ export class OrganizerFileImportAgent extends Agent<Env, AgentState> {
 			})
 			this.logActivity("thinking", "Reading the dropped file…")
 
-			const ctx = await this.#loadContext(input.importRunId, scope, input)
+			const ctx = await this.#loadContext(
+				input.importRunId,
+				scope,
+				input,
+				userId,
+			)
 			if (ctx.table.warnings.length > 0) {
 				this.setState({ ...this.state, parseWarnings: ctx.table.warnings })
 			}
@@ -182,15 +192,21 @@ export class OrganizerFileImportAgent extends Agent<Env, AgentState> {
 				status: "thinking",
 				summary: null,
 				errorMessage: null,
+				clarification: null,
 				completedAt: null,
 			})
 			this.logActivity("thinking", `Refining draft: "${instruction}"`)
 
-			const ctx = await this.#loadContext(this.state.importRunId, scope, {
-				competitionId: this.state.competitionId,
-				routeKind: this.state.routeKind,
-				eventId: this.state.eventId ?? undefined,
-			})
+			const ctx = await this.#loadContext(
+				this.state.importRunId,
+				scope,
+				{
+					competitionId: this.state.competitionId,
+					routeKind: this.state.routeKind,
+					eventId: this.state.eventId ?? undefined,
+				},
+				userId,
+			)
 
 			await this.#generate(
 				ctx,
@@ -212,11 +228,14 @@ export class OrganizerFileImportAgent extends Agent<Env, AgentState> {
 			return { ok: false, running: false }
 		}
 		this.#abortController.abort()
+		this.#abortController = null
 		return { ok: true, running: true }
 	}
 
 	@callable()
 	reset(): { ok: true } {
+		this.#abortController?.abort()
+		this.#abortController = null
 		this.setState(initialAgentState)
 		return { ok: true }
 	}
@@ -249,12 +268,13 @@ export class OrganizerFileImportAgent extends Agent<Env, AgentState> {
 
 	async #loadContext(
 		importRunId: string,
-		scope: { competitionTeamId: string | null },
+		scope: FileImportScope,
 		page: { competitionId: string; routeKind: string; eventId?: string | null },
+		userId: string,
 	): Promise<ImportRunContext> {
 		const [{ table, truncated }, pageContext, existingVolunteers] =
 			await Promise.all([
-				readImportFile(importRunId),
+				readImportFile(importRunId, scope, userId),
 				loadPageContext({
 					competitionId: page.competitionId,
 					routeKind: page.routeKind,
@@ -358,11 +378,11 @@ export class OrganizerFileImportAgent extends Agent<Env, AgentState> {
 }
 
 function getUserIdFromAgentName(name: string): string {
-	const match = /^[a-z0-9_-]{1,128}__([a-z0-9_-]{1,128})$/i.exec(name)
-	if (!match?.[1]) {
+	const match = AGENT_NAME_PATTERN.exec(name)
+	if (!match?.[2]) {
 		throw new Error("Invalid agent name")
 	}
-	return match[1]
+	return match[2]
 }
 
 function buildKickoffPrompt(ctx: ImportRunContext): string {
@@ -445,11 +465,24 @@ function buildTools(
 				"Draft ONE volunteer/judge to import. The organizer sees it stream in immediately. Duplicate detection and no-email warnings are attached automatically.",
 			inputSchema: proposeVolunteerInputSchema,
 			execute: async (input) => {
+				const normalizedEmail = input.email?.trim().toLowerCase() ?? null
+				const isDuplicateProposal = normalizedEmail
+					? agent.state.volunteerProposals.some(
+							(p) =>
+								p.proposalId !== input.proposalId &&
+								p.email?.trim().toLowerCase() === normalizedEmail,
+						)
+					: false
 				const classification = classifyVolunteer(
 					{ email: input.email, name: input.name },
 					existingVolunteers,
 				)
 				const warnings = [...classification.warnings]
+				if (isDuplicateProposal) {
+					warnings.push(
+						"Duplicate email in this import — only the first row will be applied.",
+					)
+				}
 				if (classification.matchKind === "existing_member") {
 					warnings.push("Already a volunteer — will be skipped.")
 				} else if (classification.matchKind === "existing_invite") {
@@ -458,6 +491,7 @@ function buildTools(
 
 				const merged: VolunteerProposal = {
 					...input,
+					action: isDuplicateProposal ? "skip" : input.action,
 					matchKind: classification.matchKind,
 					matchedMembershipId: classification.matchedMembershipId,
 					warnings: dedupeStrings(warnings).slice(0, 10),

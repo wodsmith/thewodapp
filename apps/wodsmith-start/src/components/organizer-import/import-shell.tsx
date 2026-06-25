@@ -26,6 +26,7 @@ export function ImportShell({ competition, children }: ImportShellProps) {
 	const [run, setRun] = useState<{ importRunId: string } | null>(null)
 	const dragDepth = useRef(0)
 	const fileInputRef = useRef<HTMLInputElement>(null)
+	const uploadingRef = useRef(false)
 
 	const dropEnabled = intent !== null
 
@@ -34,7 +35,9 @@ export function ImportShell({ competition, children }: ImportShellProps) {
 	}
 
 	function handleDragEnter(e: React.DragEvent) {
-		if (!dropEnabled || !isFileDrag(e)) return
+		if (!isFileDrag(e)) return
+		e.preventDefault()
+		if (!dropEnabled) return
 		dragDepth.current += 1
 		setDragging(true)
 	}
@@ -49,11 +52,13 @@ export function ImportShell({ competition, children }: ImportShellProps) {
 	}
 
 	function handleDragOver(e: React.DragEvent) {
-		if (!dropEnabled || !isFileDrag(e)) return
+		if (!isFileDrag(e)) return
 		e.preventDefault()
+		if (!dropEnabled) return
 	}
 
 	async function handleDrop(e: React.DragEvent) {
+		if (isFileDrag(e)) e.preventDefault()
 		if (!dropEnabled) return
 		e.preventDefault()
 		dragDepth.current = 0
@@ -63,7 +68,8 @@ export function ImportShell({ competition, children }: ImportShellProps) {
 	}
 
 	async function processFile(file: File, pageIntent: PageIntent | null) {
-		if (!pageIntent) return
+		if (!pageIntent || uploadingRef.current) return
+		uploadingRef.current = true
 		setUploading(true)
 		try {
 			const { importRunId } = await createImportRunFn({
@@ -90,12 +96,14 @@ export function ImportShell({ competition, children }: ImportShellProps) {
 				err instanceof Error ? err.message : "Couldn't start the import",
 			)
 		} finally {
+			uploadingRef.current = false
 			setUploading(false)
 		}
 	}
 
 	return (
-		<div
+		<section
+			aria-label="Organizer content"
 			onDragEnter={handleDragEnter}
 			onDragOver={handleDragOver}
 			onDragLeave={handleDragLeave}
@@ -150,6 +158,6 @@ export function ImportShell({ competition, children }: ImportShellProps) {
 					onClose={() => setRun(null)}
 				/>
 			)}
-		</div>
+		</section>
 	)
 }

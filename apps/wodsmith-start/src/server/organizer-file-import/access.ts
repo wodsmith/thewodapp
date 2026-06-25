@@ -5,6 +5,7 @@ import { FEATURES } from "@/config/features"
 import { getDb } from "@/db"
 import {
 	type AgentImportRouteKind,
+	AGENT_IMPORT_ROUTE_KIND,
 	agentImportRunsTable,
 	competitionsTable,
 	programmingTracksTable,
@@ -40,6 +41,7 @@ export interface FileImportRunScope extends FileImportScope {
  * event, when present, belongs to the competition. Mirrors
  * judge-scheduler/access.ts#loadAiSchedulingScope.
  */
+// @lat: [[architecture#AI Agents#Organizer file-drop import]]
 export async function loadFileImportScope(input: {
 	competitionId: string
 	routeKind: AgentImportRouteKind
@@ -61,6 +63,9 @@ export async function loadFileImportScope(input: {
 	}
 
 	const eventId = input.eventId ?? null
+	if (input.routeKind === AGENT_IMPORT_ROUTE_KIND.EVENT_DETAIL && !eventId) {
+		throw new Error("Event detail imports require an event")
+	}
 	if (eventId) {
 		const [row] = await db
 			.select({ trackWorkoutId: trackWorkoutsTable.id })

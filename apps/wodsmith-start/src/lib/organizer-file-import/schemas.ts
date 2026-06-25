@@ -34,7 +34,6 @@ export const availabilitySchema = z.enum([
 
 export const proposalActionSchema = z.enum([
 	"create",
-	"update",
 	"skip",
 	"needs_input",
 ])
@@ -239,10 +238,15 @@ export const proposeEventCreateInputSchema = eventProposalSchema
 	})
 	.extend({ action: z.literal("create") })
 
-export const proposeEventUpdateInputSchema = eventProposalSchema.omit({
-	status: true,
-	warnings: true,
-})
+export const proposeEventUpdateInputSchema = eventProposalSchema
+	.omit({
+		status: true,
+		warnings: true,
+	})
+	.extend({
+		action: z.literal("update"),
+		targetTrackWorkoutId: z.string().min(1),
+	})
 
 export const revokeProposalInputSchema = z.object({
 	proposalId: z.string().min(1),

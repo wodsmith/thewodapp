@@ -127,7 +127,7 @@
     "ua-parser-js": "^2.0.3",
     "ulid": "^3.0.2",
     "workers-ai-provider": "^3.1.14",
-    "xlsx": "^0.18.5",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^4.2.1",
     "zustand": "^5.0.5"
   },

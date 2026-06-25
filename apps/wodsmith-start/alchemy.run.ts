@@ -536,6 +536,7 @@ const judgeSchedulerAgent = DurableObjectNamespace("judge-scheduler-agent", {
  *
  * @see src/agents/organizer-file-import-agent.ts
  */
+// @lat: [[architecture#AI Agents#Organizer file-drop import]]
 const organizerFileImportAgent = DurableObjectNamespace(
   "organizer-file-import-agent",
   {
@@ -676,6 +677,7 @@ const website = await TanStackStart("app", {
     /** Durable Object namespace for the AI judge-scheduling agent */
     JUDGE_SCHEDULER_AGENT: judgeSchedulerAgent,
     /** Durable Object namespace for the organizer file-drop import agent */
+    // @lat: [[architecture#AI Agents#Organizer file-drop import]]
     ORGANIZER_FILE_IMPORT_AGENT: organizerFileImportAgent,
     /** Cloudflare Workers AI binding for LLM inference */
     AI: aiBinding,

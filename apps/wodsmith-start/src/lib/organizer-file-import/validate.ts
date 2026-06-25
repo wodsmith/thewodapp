@@ -70,9 +70,7 @@ export function isBlockedVolunteer(
  * never write; an existing match downgrades a `create` to a no-op skip.
  */
 export function isApplicableVolunteer(proposal: VolunteerProposal): boolean {
-	if (proposal.action !== "create" && proposal.action !== "update") {
-		return false
-	}
+	if (proposal.action !== "create") return false
 	if (isBlockedVolunteer(proposal)) return false
 	if (proposal.action === "create" && proposal.matchKind !== "new") {
 		// already exists — treat as a skip rather than a duplicate invite

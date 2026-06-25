@@ -62,20 +62,30 @@ export async function parseXlsx(bytes: ArrayBuffer): Promise<ParsedTable> {
 	const sheetName = wb.SheetNames[0]
 	if (!sheetName) return { headers: [], rows: [], warnings: ["Empty workbook"] }
 	const sheet = wb.Sheets[sheetName]
+	const headerRows = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+		header: 1,
+		blankrows: false,
+		defval: "",
+	})
+	const headers = (headerRows[0] ?? []).map(toCellString).filter(Boolean)
 	const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+		blankrows: false,
 		defval: "",
 	})
 	const rows = raw.map((row) => {
 		const normalized: Record<string, string> = {}
 		for (const key of Object.keys(row)) {
-			normalized[key.trim()] = toCellString(row[key])
+			const header = key.trim()
+			if (header) normalized[header] = toCellString(row[key])
 		}
 		return normalized
 	})
-	const headers = rows.length ? Object.keys(rows[0]) : []
-	const warnings = wb.SheetNames.length > 1
-		? [`Workbook has ${wb.SheetNames.length} sheets; only "${sheetName}" was read.`]
-		: []
+	const warnings =
+		wb.SheetNames.length > 1
+			? [
+					`Workbook has ${wb.SheetNames.length} sheets; only "${sheetName}" was read.`,
+				]
+			: []
 	return { headers, rows, warnings }
 }
 

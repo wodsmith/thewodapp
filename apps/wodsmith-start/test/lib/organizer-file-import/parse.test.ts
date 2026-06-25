@@ -4,6 +4,7 @@ import {
 	parseCsv,
 	parseImportFile,
 	parseTsv,
+	parseXlsx,
 } from "@/lib/organizer-file-import/parse"
 
 function bytesOf(text: string): ArrayBuffer {
@@ -32,6 +33,21 @@ describe("parseTsv", () => {
 		const table = parseTsv("Name\tRole\nAda\tHead Judge")
 		expect(table.headers).toEqual(["Name", "Role"])
 		expect(table.rows).toEqual([{ Name: "Ada", Role: "Head Judge" }])
+	})
+})
+
+describe("parseXlsx", () => {
+	it("keeps headers when the sheet has no data rows", async () => {
+		const XLSX = await import("xlsx")
+		const ws = XLSX.utils.aoa_to_sheet([["Name", "Email", "Role"]])
+		const wb = XLSX.utils.book_new()
+		XLSX.utils.book_append_sheet(wb, ws, "Roster")
+		const bytes = XLSX.write(wb, { type: "array", bookType: "xlsx" })
+
+		const table = await parseXlsx(bytes)
+
+		expect(table.headers).toEqual(["Name", "Email", "Role"])
+		expect(table.rows).toEqual([])
 	})
 })
 

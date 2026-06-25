@@ -1,10 +1,11 @@
 import "server-only"
 
 import { env } from "cloudflare:workers"
-import { and, eq } from "drizzle-orm"
+import { and, eq, gt, isNull } from "drizzle-orm"
 import { getDb } from "@/db"
 import { agentImportRunsTable, competitionsTable } from "@/db/schema"
 import {
+	INVITATION_STATUS,
 	SYSTEM_ROLES_ENUM,
 	teamInvitationTable,
 	teamMembershipTable,
@@ -17,6 +18,7 @@ import {
 	parseImportFile,
 } from "@/lib/organizer-file-import/parse"
 import type { ExistingVolunteer } from "@/lib/organizer-file-import/validate"
+import type { FileImportScope } from "./access"
 
 /** Flat page facts the model sees instead of raw DB rows. */
 export interface FileImportPageContext {
@@ -26,6 +28,7 @@ export interface FileImportPageContext {
 	eventId: string | null
 }
 
+// @lat: [[architecture#AI Agents#Organizer file-drop import]]
 export async function loadPageContext(input: {
 	competitionId: string
 	routeKind: string
@@ -50,6 +53,7 @@ export async function loadPageContext(input: {
  * membership join in judge-scheduler/context.ts#loadJudgeRoster but returns the
  * whole roster (not only judges) with the email/name needed to match imports.
  */
+// @lat: [[architecture#AI Agents#Organizer file-drop import]]
 export async function loadExistingVolunteers(
 	competitionTeamId: string | null,
 ): Promise<ExistingVolunteer[]> {
@@ -62,7 +66,6 @@ export async function loadExistingVolunteers(
 		db
 			.select({
 				id: teamMembershipTable.id,
-				userId: teamMembershipTable.userId,
 				metadata: teamMembershipTable.metadata,
 				firstName: userTable.firstName,
 				lastName: userTable.lastName,
@@ -82,7 +85,6 @@ export async function loadExistingVolunteers(
 				id: teamInvitationTable.id,
 				email: teamInvitationTable.email,
 				metadata: teamInvitationTable.metadata,
-				acceptedAt: teamInvitationTable.acceptedAt,
 			})
 			.from(teamInvitationTable)
 			.where(
@@ -90,6 +92,9 @@ export async function loadExistingVolunteers(
 					eq(teamInvitationTable.teamId, competitionTeamId),
 					eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
 					eq(teamInvitationTable.isSystemRole, true),
+					eq(teamInvitationTable.status, INVITATION_STATUS.PENDING),
+					isNull(teamInvitationTable.acceptedAt),
+					gt(teamInvitationTable.expiresAt, new Date()),
 				),
 			),
 	])
@@ -107,17 +112,15 @@ export async function loadExistingVolunteers(
 		}
 	})
 
-	const invited: ExistingVolunteer[] = invitations
-		.filter((inv) => inv.acceptedAt === null)
-		.map((inv) => {
-			const meta = parseVolunteerMetadata(inv.metadata)
-			return {
-				membershipId: inv.id,
-				email: inv.email ?? null,
-				name: meta?.signupName ?? null,
-				isInvite: true,
-			}
-		})
+	const invited: ExistingVolunteer[] = invitations.map((inv) => {
+		const meta = parseVolunteerMetadata(inv.metadata)
+		return {
+			membershipId: inv.id,
+			email: inv.email ?? null,
+			name: meta?.signupName ?? null,
+			isInvite: true,
+		}
+	})
 
 	return [...members, ...invited]
 }
@@ -126,13 +129,27 @@ export async function loadExistingVolunteers(
  * Read the uploaded file for a run from private R2 storage and parse it to a
  * bounded table — server-side only, so PII never reaches the model unparsed.
  */
-export async function readImportFile(importRunId: string): Promise<{
+// @lat: [[architecture#AI Agents#Organizer file-drop import]]
+export async function readImportFile(
+	importRunId: string,
+	scope: FileImportScope,
+	userId: string,
+): Promise<{
 	table: ParsedTable
 	truncated: boolean
 }> {
 	const db = getDb()
 	const run = await db.query.agentImportRunsTable.findFirst({
-		where: eq(agentImportRunsTable.id, importRunId),
+		where: and(
+			eq(agentImportRunsTable.id, importRunId),
+			eq(agentImportRunsTable.competitionId, scope.competitionId),
+			eq(agentImportRunsTable.organizingTeamId, scope.organizingTeamId),
+			eq(agentImportRunsTable.routeKind, scope.routeKind),
+			eq(agentImportRunsTable.createdByUserId, userId),
+			scope.eventId
+				? eq(agentImportRunsTable.eventId, scope.eventId)
+				: isNull(agentImportRunsTable.eventId),
+		),
 	})
 	if (!run?.r2Key) {
 		throw new Error("Import file has not been uploaded yet")
@@ -150,6 +167,7 @@ export async function readImportFile(importRunId: string): Promise<{
 	return boundTableForModel(parsed)
 }
 
+// @lat: [[architecture#AI Agents#Organizer file-drop import]]
 function parseVolunteerMetadata(
 	raw: string | null,
 ): VolunteerMembershipMetadata | null {
@@ -161,6 +179,7 @@ function parseVolunteerMetadata(
 	}
 }
 
+// @lat: [[architecture#AI Agents#Organizer file-drop import]]
 function formatName(
 	firstName: string | null | undefined,
 	lastName: string | null | undefined,

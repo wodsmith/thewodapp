@@ -1,3 +1,4 @@
+// @lat: [[organizer-dashboard#Layout and Access Control]]
 import { useMatches } from "@tanstack/react-router"
 import {
 	AGENT_IMPORT_ROUTE_KIND,
@@ -24,10 +25,10 @@ export function usePageIntent(): PageIntent | null {
 
 	const routeId = String(last.routeId)
 
-	if (routeId.includes("/volunteers/judges")) {
+	if (/\/volunteers\/judges\/?$/.test(routeId)) {
 		return { routeKind: AGENT_IMPORT_ROUTE_KIND.JUDGES, label: "Judges" }
 	}
-	if (routeId.includes("/volunteers")) {
+	if (/\/volunteers\/?$/.test(routeId)) {
 		return {
 			routeKind: AGENT_IMPORT_ROUTE_KIND.VOLUNTEERS,
 			label: "Volunteers",

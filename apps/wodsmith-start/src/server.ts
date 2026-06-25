@@ -99,6 +99,7 @@ initWorkersLogger({
 
 // Workers runtime requires Durable Object classes to be exported from the entry point
 export { JudgeSchedulerAgent } from "./agents/judge-scheduler-agent"
+export { OrganizerFileImportAgent } from "./agents/organizer-file-import-agent"
 export { ManualRegistrationWorkflow } from "./workflows/manual-registration-workflow"
 // Workers runtime requires Workflow classes to be exported from the entry point
 export { StripeCheckoutWorkflow } from "./workflows/stripe-checkout-workflow"
@@ -106,6 +107,7 @@ export { StripeCheckoutWorkflow } from "./workflows/stripe-checkout-workflow"
 // Threshold for logging slow requests (in ms)
 const SLOW_REQUEST_THRESHOLD_MS = 2000
 
+// @lat: [[architecture#AI Agents]]
 // Create the base TanStack Start entry with default fetch handling
 const startEntry = createServerEntry({
   async fetch(request) {
@@ -121,6 +123,7 @@ const startEntry = createServerEntry({
       const namespace = parts[1]
       const name = parts[2]
       if (namespace === "judge-scheduler-agent") {
+        // @lat: [[architecture#AI Agents#Judge Scheduling]]
         // Agent instance names are `<trackWorkoutId>__<userId>` (or
         // `idle__<userId>` for the placeholder before a workout is
         // selected). Reject anything else so an attacker can't spawn /
@@ -145,12 +148,14 @@ const startEntry = createServerEntry({
         return stub.fetch(request)
       }
       if (namespace === "organizer-file-import-agent") {
+        // @lat: [[architecture#AI Agents#Organizer file-drop import]]
         // Agent instance names are `<importRunId>__<userId>`. The importRunId
         // is a ULID-suffixed id (`aimp_<ULID>`); ULID's uppercase Crockford
         // base32 is accepted case-insensitively by this regex, and the only
         // double underscore is the `__` separator. Reject anything else so a
         // caller can't materialize arbitrary DO identities via this route.
-        const match = /^([a-z0-9_-]{1,128})__([a-z0-9_-]{1,128})$/i.exec(name)
+        const match =
+          /^(aimp_[0-9A-HJKMNP-TV-Z]{26})__([a-z0-9_-]{1,128})$/i.exec(name)
         if (!match) {
           return new Response("Invalid agent name", { status: 400 })
         }

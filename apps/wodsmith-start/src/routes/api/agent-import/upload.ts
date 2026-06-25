@@ -40,6 +40,12 @@ function hasAllowedExtension(filename: string): boolean {
 	return ALLOWED_EXTENSIONS.some((ext) => lower.endsWith(ext))
 }
 
+function isSupportedUpload(file: File): boolean {
+	const hasExtension = hasAllowedExtension(file.name)
+	if (file.type === "application/octet-stream") return hasExtension
+	return ALLOWED_TYPES.has(file.type) || hasExtension
+}
+
 export const Route = createFileRoute("/api/agent-import/upload")({
 	server: {
 		handlers: {
@@ -51,22 +57,20 @@ export const Route = createFileRoute("/api/agent-import/upload")({
 				}
 
 				const formData = await request.formData()
-				const file = formData.get("file") as File | null
-				const importRunId = formData.get("importRunId") as string | null
+				const file = formData.get("file")
+				const importRunId = formData.get("importRunId")
 
-				if (!file || !importRunId) {
-					return json(
-						{ error: "Missing file or importRunId" },
-						{ status: 400 },
-					)
+				if (!(file instanceof File) || typeof importRunId !== "string") {
+					return json({ error: "Missing file or importRunId" }, { status: 400 })
+				}
+				const normalizedImportRunId = importRunId.trim()
+				if (!normalizedImportRunId) {
+					return json({ error: "Missing importRunId" }, { status: 400 })
 				}
 				if (file.size > MAX_BYTES) {
-					return json(
-						{ error: "File too large (max 15MB)" },
-						{ status: 400 },
-					)
+					return json({ error: "File too large (max 15MB)" }, { status: 400 })
 				}
-				if (!ALLOWED_TYPES.has(file.type) && !hasAllowedExtension(file.name)) {
+				if (!isSupportedUpload(file)) {
 					return json(
 						{ error: `Unsupported file type: ${file.type || file.name}` },
 						{ status: 400 },
@@ -75,7 +79,19 @@ export const Route = createFileRoute("/api/agent-import/upload")({
 
 				// Authorize against the run's competition (defense in depth) and
 				// confirm the uploader owns the run.
-				const scope = await loadFileImportScopeByRun(importRunId)
+				let scope: Awaited<ReturnType<typeof loadFileImportScopeByRun>>
+				try {
+					scope = await loadFileImportScopeByRun(normalizedImportRunId)
+				} catch (err) {
+					logWarning({
+						message: "[AgentImport] Import run lookup failed",
+						attributes: {
+							importRunId: normalizedImportRunId,
+							reason: err instanceof Error ? err.message : String(err),
+						},
+					})
+					return json({ error: "Import run not found" }, { status: 404 })
+				}
 				try {
 					await requireFileImportTeamAccess({
 						teamId: scope.organizingTeamId,
@@ -85,7 +101,7 @@ export const Route = createFileRoute("/api/agent-import/upload")({
 					logWarning({
 						message: "[AgentImport] Upload authorization denied",
 						attributes: {
-							importRunId,
+							importRunId: normalizedImportRunId,
 							reason: err instanceof Error ? err.message : String(err),
 						},
 					})
@@ -102,13 +118,15 @@ export const Route = createFileRoute("/api/agent-import/upload")({
 					.join("")
 
 				const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_")
-				const key = `agent-imports/${scope.competitionId}/${importRunId}/${safeName}`
+				const key = `agent-imports/${scope.competitionId}/${normalizedImportRunId}/${safeName}`
 
 				await env.R2_BUCKET.put(key, bytes, {
-					httpMetadata: { contentType: file.type || "application/octet-stream" },
+					httpMetadata: {
+						contentType: file.type || "application/octet-stream",
+					},
 					customMetadata: {
 						uploadedBy: session.user.id,
-						importRunId,
+						importRunId: normalizedImportRunId,
 						purpose: "agent-import",
 					},
 				})
@@ -124,11 +142,11 @@ export const Route = createFileRoute("/api/agent-import/upload")({
 						fileSize: file.size,
 						checksum,
 					})
-					.where(eq(agentImportRunsTable.id, importRunId))
+					.where(eq(agentImportRunsTable.id, normalizedImportRunId))
 
 				logInfo({
 					message: "[AgentImport] upload completed",
-					attributes: { importRunId, key, checksum },
+					attributes: { importRunId: normalizedImportRunId, key, checksum },
 				})
 
 				// No public URL — PII stays server-side.
