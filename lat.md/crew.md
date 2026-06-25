@@ -110,6 +110,8 @@ Crew event setup pages let an operator create and review a normal competition wi
 
 Additional setup dashboard state is stored in the existing `crew_event_settings.settings` JSON text field until a later slice proves that dedicated typed columns or tables are needed.
 
+The new event form ([[apps/crew/src/routes/events/new.tsx]]) does not surface a team concept. The organizing team is resolved server-side in [[apps/crew/src/server/crew-event-settings.server.ts#createCrewEvent]]: when no `organizingTeamId` is supplied it defaults to the creator's personal team via [[apps/crew/src/server/crew-auth.server.ts#requireCrewPersonalTeamId]]. The personal-team owner holds all team permissions (including `MANAGE_COMPETITIONS`), so the existing event-manager access check still passes.
+
 ## Pilot Readiness Checklist
 
 Crew pilot readiness is a read-only operator surface for deciding whether a founding organizer event is ready for handoff.

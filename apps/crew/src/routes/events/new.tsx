@@ -21,23 +21,13 @@ function getLocalDateInputValue() {
 function NewEventPage() {
   const navigate = useNavigate()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [name, setName] = useState("Pilot Weekend")
-  const [slug, setSlug] = useState("pilot-weekend")
-  const [organizingTeamId, setOrganizingTeamId] = useState("")
+  const [name, setName] = useState("")
+  const [slug, setSlug] = useState("")
   const [startDate, setStartDate] = useState(getLocalDateInputValue)
   const [endDate, setEndDate] = useState(getLocalDateInputValue)
   const [description, setDescription] = useState("")
-  const [sourcePlatform, setSourcePlatform] = useState("")
   const [sourceEventUrl, setSourceEventUrl] = useState("")
   const [externalRegistrationUrl, setExternalRegistrationUrl] = useState("")
-  const [acquisitionSource, setAcquisitionSource] = useState("")
-  const [crewPlan, setCrewPlan] = useState<
-    "self_serve" | "concierge" | "full_platform"
-  >("self_serve")
-  // @lat: [[crew#Event Setup Dashboard]]
-  const [settings, setSettings] = useState(
-    '{\n  "setup": {\n    "assumptions": ""\n  }\n}',
-  )
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -46,18 +36,13 @@ function NewEventPage() {
     try {
       const result = await createCrewEventFn({
         data: {
-          organizingTeamId,
           name,
           slug,
           startDate,
           endDate,
           description,
-          sourcePlatform,
           sourceEventUrl,
           externalRegistrationUrl,
-          acquisitionSource,
-          crewPlan,
-          settings,
         },
       })
 
@@ -112,35 +97,6 @@ function NewEventPage() {
               className="h-10 w-full rounded-md border bg-background px-3 text-sm"
             />
           </Field>
-          <Field label="Organizing team ID" htmlFor="crew-organizing-team-id">
-            <input
-              id="crew-organizing-team-id"
-              value={organizingTeamId}
-              onChange={(event) => setOrganizingTeamId(event.target.value)}
-              required
-              placeholder="team_..."
-              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-            />
-          </Field>
-          <Field label="Crew plan" htmlFor="crew-event-plan">
-            <select
-              id="crew-event-plan"
-              value={crewPlan}
-              onChange={(event) =>
-                setCrewPlan(
-                  event.target.value as
-                    | "self_serve"
-                    | "concierge"
-                    | "full_platform",
-                )
-              }
-              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-            >
-              <option value="self_serve">Self serve</option>
-              <option value="concierge">Concierge</option>
-              <option value="full_platform">Full platform</option>
-            </select>
-          </Field>
           <Field label="Start date" htmlFor="crew-event-start-date">
             <input
               id="crew-event-start-date"
@@ -158,24 +114,6 @@ function NewEventPage() {
               value={endDate}
               onChange={(event) => setEndDate(event.target.value)}
               required
-              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-            />
-          </Field>
-          <Field label="Source platform" htmlFor="crew-source-platform">
-            <input
-              id="crew-source-platform"
-              value={sourcePlatform}
-              onChange={(event) => setSourcePlatform(event.target.value)}
-              placeholder="Competition Corner"
-              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-            />
-          </Field>
-          <Field label="Acquisition source" htmlFor="crew-acquisition-source">
-            <input
-              id="crew-acquisition-source"
-              value={acquisitionSource}
-              onChange={(event) => setAcquisitionSource(event.target.value)}
-              placeholder="Concierge import"
               className="h-10 w-full rounded-md border bg-background px-3 text-sm"
             />
           </Field>
@@ -201,21 +139,13 @@ function NewEventPage() {
               className="h-10 w-full rounded-md border bg-background px-3 text-sm"
             />
           </Field>
+          {/* @lat: [[crew#Event Setup Dashboard]] */}
           <Field label="Description" htmlFor="crew-event-description" wide>
             <textarea
               id="crew-event-description"
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               className="min-h-24 w-full rounded-md border bg-background px-3 py-2 text-sm"
-            />
-          </Field>
-          {/* @lat: [[crew#Event Setup Dashboard]] */}
-          <Field label="Initial setup JSON" htmlFor="crew-assumptions" wide>
-            <textarea
-              id="crew-assumptions"
-              value={settings}
-              onChange={(event) => setSettings(event.target.value)}
-              className="min-h-32 w-full rounded-md border bg-background px-3 py-2 font-mono text-sm"
             />
           </Field>
         </div>

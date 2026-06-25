@@ -37,7 +37,9 @@ const getCrewEventInputSchema = z.object({
 })
 
 const createCrewEventInputSchema = z.object({
-  organizingTeamId: z.string().min(1, "Organizing team ID is required"),
+  // Optional: when omitted the event is organized under the creator's personal
+  // team, resolved server-side. The new event form does not surface a team.
+  organizingTeamId: z.string().min(1).optional(),
   name: z.string().min(1, "Event name is required"),
   slug: z.string().min(1, "Slug is required"),
   startDate: dateStringSchema,
