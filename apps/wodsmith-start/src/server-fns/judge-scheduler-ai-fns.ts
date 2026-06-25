@@ -162,7 +162,7 @@ async function validateAiProposalsForInsert(
 
   const existingProposals: ProposedRotation[] = existingRows.map((r) => ({
     proposalId: `existing:${r.id}`,
-    membershipId: r.membershipId,
+    membershipId: r.membershipId ?? "",
     startingHeat: r.startingHeat,
     startingLane: r.startingLane,
     heatsCount: r.heatsCount,

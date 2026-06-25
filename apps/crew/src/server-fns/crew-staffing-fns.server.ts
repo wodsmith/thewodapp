@@ -33,6 +33,10 @@ import {
   type CrewStaffingMatrixInput,
   type CrewStaffingReport,
 } from "../lib/crew/staffing"
+import {
+  getCrewRosterAssigneeId,
+  isCrewRosterVolunteerStaffable,
+} from "../lib/crew/roster-shifts"
 import { filterCrewStaffingInputForDepartmentLead } from "../lib/crew/staffing/department-lead-scope"
 import { resolveCrewDepartmentLeadAccess } from "../server/crew-department-lead.server"
 import {
@@ -183,15 +187,18 @@ export async function loadCrewStaffingMatrixInput(
   const input = {
     ...scopedStaffingInput,
     roster: scopedRoster.flatMap((volunteer) => {
-      if (!volunteer.membershipId) return []
+      // Key by canonical assignee id so invitation-based (imported / manual)
+      // volunteers participate in the staffing matrix.
+      const assigneeId = getCrewRosterAssigneeId(volunteer)
+      if (!assigneeId) return []
       return {
-        membershipId: volunteer.membershipId,
+        membershipId: assigneeId,
         name: volunteer.name,
         email: volunteer.email,
         roleTypes: volunteer.roleTypes,
         availability: volunteer.availability,
         credentials: volunteer.credentials,
-        isActive: volunteer.status === "active",
+        isActive: isCrewRosterVolunteerStaffable(volunteer),
       }
     }),
   }
@@ -317,6 +324,7 @@ async function loadActiveJudgeAssignments(
       id: judgeHeatAssignmentsTable.id,
       heatId: judgeHeatAssignmentsTable.heatId,
       membershipId: judgeHeatAssignmentsTable.membershipId,
+      invitationId: judgeHeatAssignmentsTable.invitationId,
       laneNumber: judgeHeatAssignmentsTable.laneNumber,
       position: judgeHeatAssignmentsTable.position,
       versionId: judgeHeatAssignmentsTable.versionId,
@@ -341,8 +349,12 @@ async function loadActiveJudgeAssignments(
 
   return {
     activeVersionCount: activeVersions.length,
-    judgeAssignments: assignments.map((assignment) => ({
+    judgeAssignments: assignments.map(({ invitationId, ...assignment }) => ({
       ...assignment,
+      // The staffing matrix keys judges by a single canonical id; an assignment
+      // references either a membership or an invitation (imported / manual
+      // judge), so coalesce to whichever is set.
+      membershipId: assignment.membershipId ?? invitationId ?? "",
       confirmation: confirmationMap.get(assignment.id) ?? null,
     })),
   }
@@ -403,7 +415,9 @@ function toStaffingShifts(shifts: CrewShiftBoardItem[]) {
     location: shift.location,
     assignments: shift.assignments.map((assignment) => ({
       id: assignment.id,
-      membershipId: assignment.membershipId,
+      // Canonical assignee id (membership or invitation) so the staffing matrix
+      // keys invitation-based volunteers alongside memberships.
+      membershipId: assignment.assigneeId,
       confirmation: assignment.confirmation
         ? {
             type: CREW_ASSIGNMENT_CONFIRMATION_TYPE.VOLUNTEER_SHIFT,

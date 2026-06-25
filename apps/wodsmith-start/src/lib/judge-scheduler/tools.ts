@@ -186,6 +186,7 @@ export function computeCoverageFromProposals(
         competitionId: context.competitionId,
         trackWorkoutId: context.trackWorkoutId,
         membershipId: p.membershipId,
+        invitationId: null,
         startingHeat: p.startingHeat,
         startingLane: p.startingLane,
         heatsCount: p.heatsCount,

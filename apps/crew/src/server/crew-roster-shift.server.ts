@@ -67,7 +67,10 @@ import {
   buildCrewRoster,
   findCrewRosterVolunteerEmailCollision,
   formatVolunteerRole,
+  getCrewRosterAssigneeId,
   getCrewRosterRoleTypes,
+  getCrewRosterStatus,
+  isCrewRosterVolunteerStaffable,
   normalizeCrewRosterVolunteerEmail,
   normalizeCrewShiftTimes,
   parseCrewRosterMetadata,
@@ -115,7 +118,11 @@ type CrewRosterCompetition = Pick<
 >
 
 export interface CrewShiftAssignmentVolunteer {
-  membershipId: string
+  // Canonical assignee id (membership id, or invitation id for imported /
+  // manual volunteers without an account).
+  assigneeId: string
+  membershipId: string | null
+  invitationId: string | null
   name: string
   email: string
   roleTypes: VolunteerRoleType[]
@@ -127,7 +134,10 @@ export interface CrewShiftAssignmentVolunteer {
 
 export interface CrewShiftAssignmentItem {
   id: string
-  membershipId: string
+  // Canonical assignee id (membership id or invitation id).
+  assigneeId: string
+  membershipId: string | null
+  invitationId: string | null
   notes: string | null
   confirmation: CrewShiftAssignmentConfirmationStatus | null
   volunteer: CrewShiftAssignmentVolunteer
@@ -211,12 +221,14 @@ interface DeleteCrewShiftInput extends CrewEventInput {
 }
 
 interface CrewShiftAssignmentInput extends DeleteCrewShiftInput {
-  membershipId: string
+  // Canonical assignee id: a membership id (tmem_) for account-backed
+  // volunteers, or an invitation id (tinv_) for imported / manual volunteers.
+  assigneeId: string
   notes?: string
 }
 
 interface ManualCrewVolunteerInput extends CrewEventInput {
-  email: string
+  email?: string
   name?: string
   phone?: string
   roleTypes?: VolunteerRoleType[]
@@ -232,7 +244,7 @@ interface ManualCrewVolunteerPasteInput extends CrewEventInput {
 interface UpdateCrewRosterVolunteerInput extends CrewEventInput {
   source: CrewRosterVolunteer["source"]
   sourceId: string
-  email: string
+  email?: string
   name?: string
   phone?: string
   roleTypes?: VolunteerRoleType[]
@@ -738,48 +750,35 @@ export async function assignCrewVolunteerToShift(
     }
     assertCrewDepartmentLeadCanManageShift(access, shift)
 
-    const [assignments, membershipRows] = await Promise.all([
-      tx
-        .select({
-          id: volunteerShiftAssignmentsTable.id,
-          membershipId: volunteerShiftAssignmentsTable.membershipId,
-        })
-        .from(volunteerShiftAssignmentsTable)
-        .where(eq(volunteerShiftAssignmentsTable.shiftId, shift.id)),
-      tx
-        .select({
-          id: teamMembershipTable.id,
-          isActive: teamMembershipTable.isActive,
-          metadata: teamMembershipTable.metadata,
-          email: userTable.email,
-        })
-        .from(teamMembershipTable)
-        .leftJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
-        .where(
-          and(
-            eq(teamMembershipTable.id, data.membershipId),
-            eq(teamMembershipTable.teamId, event.competitionTeamId),
-            eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
-            eq(teamMembershipTable.isSystemRole, true),
-          ),
-        )
-        .limit(1),
-    ])
-    const membership = membershipRows[0] ?? null
+    const assignments = await tx
+      .select({
+        id: volunteerShiftAssignmentsTable.id,
+        membershipId: volunteerShiftAssignmentsTable.membershipId,
+        invitationId: volunteerShiftAssignmentsTable.invitationId,
+      })
+      .from(volunteerShiftAssignmentsTable)
+      .where(eq(volunteerShiftAssignmentsTable.shiftId, shift.id))
 
-    if (!membership) {
+    // Resolve the assignee from either a membership (account-backed) or an
+    // invitation (imported / manual volunteer without an account).
+    const assignee = await resolveCrewShiftAssignee(
+      tx as unknown as DbClient,
+      event.competitionTeamId,
+      data.assigneeId,
+    )
+
+    if (!assignee) {
       throw new Error("Volunteer record was not found for this event.")
     }
-    const membershipRoleTypes = getCrewRosterRoleTypes(
-      parseCrewRosterMetadata(membership.metadata).volunteerRoleTypes,
-    )
     assertCrewDepartmentLeadCanManageRosterTarget(access, {
-      membershipId: membership.id,
-      roleTypes: membershipRoleTypes,
+      membershipId: assignee.membershipId,
+      roleTypes: assignee.roleTypes,
     })
 
     const existingAssignment = assignments.find(
-      (assignment) => assignment.membershipId === data.membershipId,
+      (assignment) =>
+        (assignment.membershipId ?? assignment.invitationId) ===
+        assignee.assigneeId,
     )
     if (existingAssignment) {
       return {
@@ -793,12 +792,12 @@ export async function assignCrewVolunteerToShift(
       shiftRoleType: shift.roleType,
       capacity: shift.capacity,
       currentAssignmentMembershipIds: assignments.map(
-        (assignment) => assignment.membershipId,
+        (assignment) => assignment.membershipId ?? assignment.invitationId ?? "",
       ),
       volunteer: {
-        membershipId: membership.id,
-        isActive: membership.isActive,
-        roleTypes: membershipRoleTypes,
+        membershipId: assignee.assigneeId,
+        isActive: assignee.isStaffable,
+        roleTypes: assignee.roleTypes,
       },
     })
 
@@ -811,25 +810,131 @@ export async function assignCrewVolunteerToShift(
     await tx.insert(volunteerShiftAssignmentsTable).values({
       id: assignmentId,
       shiftId: shift.id,
-      membershipId: membership.id,
+      membershipId: assignee.membershipId,
+      invitationId: assignee.invitationId,
       notes: emptyToNull(data.notes),
       createdAt: now,
       updatedAt: now,
     })
 
-    const metadata = parseCrewRosterMetadata(membership.metadata)
     await ensureCrewShiftAssignmentConfirmation({
       db: tx as unknown as DbClient,
       competitionId: event.id,
       assignmentId,
-      membershipId: membership.id,
-      email: emptyToNull(metadata.signupEmail) ?? emptyToNull(membership.email),
+      membershipId: assignee.membershipId,
+      invitationId: assignee.invitationId,
+      email: assignee.email,
       expiresAt: getAssignmentConfirmationExpiry(now),
       now,
     })
 
     return { success: true, action: "assigned" as const, assignmentId }
   })
+}
+
+interface ResolvedCrewShiftAssignee {
+  assigneeId: string
+  membershipId: string | null
+  invitationId: string | null
+  roleTypes: VolunteerRoleType[]
+  isStaffable: boolean
+  email: string | null
+}
+
+/**
+ * Resolve a roster assignee id (membership tmem_ or invitation tinv_) to the
+ * data needed to create a shift assignment + confirmation. Returns null if the
+ * id does not match a volunteer on this event's competition team.
+ */
+async function resolveCrewShiftAssignee(
+  db: DbClient,
+  competitionTeamId: string,
+  assigneeId: string,
+): Promise<ResolvedCrewShiftAssignee | null> {
+  const now = new Date()
+
+  if (assigneeId.startsWith("tinv_")) {
+    const [invitation] = await db
+      .select({
+        id: teamInvitationTable.id,
+        email: teamInvitationTable.email,
+        acceptedAt: teamInvitationTable.acceptedAt,
+        expiresAt: teamInvitationTable.expiresAt,
+        status: teamInvitationTable.status,
+        metadata: teamInvitationTable.metadata,
+      })
+      .from(teamInvitationTable)
+      .where(
+        and(
+          eq(teamInvitationTable.id, assigneeId),
+          eq(teamInvitationTable.teamId, competitionTeamId),
+          eq(teamInvitationTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+          eq(teamInvitationTable.isSystemRole, true),
+        ),
+      )
+      .limit(1)
+
+    if (!invitation) return null
+
+    const metadata = parseCrewRosterMetadata(invitation.metadata)
+    const status = getCrewRosterStatus(
+      { source: "team_invitation", ...invitation },
+      now,
+    )
+
+    return {
+      assigneeId: invitation.id,
+      membershipId: null,
+      invitationId: invitation.id,
+      roleTypes: getCrewRosterRoleTypes(metadata.volunteerRoleTypes),
+      isStaffable: isCrewRosterVolunteerStaffable({
+        membershipId: null,
+        invitationId: invitation.id,
+        status,
+      }),
+      email: emptyToNull(metadata.signupEmail) ?? emptyToNull(invitation.email),
+    }
+  }
+
+  const [membership] = await db
+    .select({
+      id: teamMembershipTable.id,
+      isActive: teamMembershipTable.isActive,
+      metadata: teamMembershipTable.metadata,
+      email: userTable.email,
+    })
+    .from(teamMembershipTable)
+    .leftJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
+    .where(
+      and(
+        eq(teamMembershipTable.id, assigneeId),
+        eq(teamMembershipTable.teamId, competitionTeamId),
+        eq(teamMembershipTable.roleId, SYSTEM_ROLES_ENUM.VOLUNTEER),
+        eq(teamMembershipTable.isSystemRole, true),
+      ),
+    )
+    .limit(1)
+
+  if (!membership) return null
+
+  const metadata = parseCrewRosterMetadata(membership.metadata)
+  const status = getCrewRosterStatus(
+    { source: "team_membership", isActive: membership.isActive },
+    now,
+  )
+
+  return {
+    assigneeId: membership.id,
+    membershipId: membership.id,
+    invitationId: null,
+    roleTypes: getCrewRosterRoleTypes(metadata.volunteerRoleTypes),
+    isStaffable: isCrewRosterVolunteerStaffable({
+      membershipId: membership.id,
+      invitationId: null,
+      status,
+    }),
+    email: emptyToNull(metadata.signupEmail) ?? emptyToNull(membership.email),
+  }
 }
 
 export async function removeCrewVolunteerShiftAssignment(
@@ -848,7 +953,16 @@ export async function removeCrewVolunteerShiftAssignment(
       .where(
         and(
           eq(volunteerShiftAssignmentsTable.shiftId, shift.id),
-          eq(volunteerShiftAssignmentsTable.membershipId, data.membershipId),
+          // Match the assignee by whichever column holds the canonical id.
+          data.assigneeId.startsWith("tinv_")
+            ? eq(
+                volunteerShiftAssignmentsTable.invitationId,
+                data.assigneeId,
+              )
+            : eq(
+                volunteerShiftAssignmentsTable.membershipId,
+                data.assigneeId,
+              ),
         ),
       )
       .for("update")
@@ -1323,6 +1437,7 @@ export async function loadCrewShifts(
               user: true,
             },
           },
+          invitation: true,
         },
       },
     },
@@ -1336,30 +1451,48 @@ export async function loadCrewShifts(
   )
 
   return shifts.map((shift) => {
-    const assignments = shift.assignments.map((assignment) => {
-      const metadata = parseCrewRosterMetadata(assignment.membership.metadata)
+    const assignments = shift.assignments.flatMap((assignment) => {
+      // An assignment references either a membership (account-backed volunteer)
+      // or an invitation (imported / manual volunteer without an account).
+      const sourceMetadata =
+        assignment.membership?.metadata ?? assignment.invitation?.metadata
+      const metadata = parseCrewRosterMetadata(sourceMetadata)
       const roleTypes = getCrewRosterRoleTypes(metadata.volunteerRoleTypes)
+      const assigneeId = assignment.membershipId ?? assignment.invitationId
+      if (!assigneeId) {
+        // Orphaned assignment with neither reference; skip rather than crash.
+        return []
+      }
       const name =
         metadata.signupName ||
         [
-          assignment.membership.user?.firstName,
-          assignment.membership.user?.lastName,
+          assignment.membership?.user?.firstName,
+          assignment.membership?.user?.lastName,
         ]
           .filter(Boolean)
           .join(" ") ||
-        assignment.membership.user?.email ||
+        assignment.membership?.user?.email ||
+        assignment.invitation?.email ||
         "Unknown"
+      const email =
+        metadata.signupEmail ??
+        assignment.membership?.user?.email ??
+        assignment.invitation?.email ??
+        ""
 
       return {
         id: assignment.id,
+        assigneeId,
         membershipId: assignment.membershipId,
+        invitationId: assignment.invitationId,
         notes: assignment.notes,
         confirmation: confirmationMap.get(assignment.id) ?? null,
         volunteer: {
+          assigneeId,
           membershipId: assignment.membershipId,
+          invitationId: assignment.invitationId,
           name,
-          email:
-            metadata.signupEmail ?? assignment.membership.user?.email ?? "",
+          email,
           roleTypes,
           availability: metadata.availability ?? null,
           credentials: metadata.credentials ?? null,
@@ -1402,15 +1535,19 @@ function buildShiftBoardStaffingMatrixInput(
       endDate: event.endDate,
     },
     roster: roster.flatMap((volunteer) => {
-      if (!volunteer.membershipId) return []
+      // The staffing matrix keys volunteers by their canonical assignee id so
+      // invitation-based (imported / manual) volunteers participate in coverage,
+      // double-booking, and credential checks alongside memberships.
+      const assigneeId = getCrewRosterAssigneeId(volunteer)
+      if (!assigneeId) return []
       return {
-        membershipId: volunteer.membershipId,
+        membershipId: assigneeId,
         name: volunteer.name,
         email: volunteer.email,
         roleTypes: volunteer.roleTypes,
         availability: volunteer.availability,
         credentials: volunteer.credentials,
-        isActive: volunteer.status === "active",
+        isActive: isCrewRosterVolunteerStaffable(volunteer),
       }
     }),
     shifts: shifts.map((shift) => ({
@@ -1423,7 +1560,7 @@ function buildShiftBoardStaffingMatrixInput(
       location: shift.location,
       assignments: shift.assignments.map((assignment) => ({
         id: assignment.id,
-        membershipId: assignment.membershipId,
+        membershipId: assignment.assigneeId,
         confirmation: assignment.confirmation
           ? {
               type: CREW_ASSIGNMENT_CONFIRMATION_TYPE.VOLUNTEER_SHIFT,

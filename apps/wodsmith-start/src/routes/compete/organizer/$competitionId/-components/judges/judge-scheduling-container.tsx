@@ -244,8 +244,10 @@ export function JudgeSchedulingContainer({
       assignmentCounts.set(judge.membershipId, 0)
     }
     for (const assignment of assignments) {
-      const count = assignmentCounts.get(assignment.membershipId) ?? 0
-      assignmentCounts.set(assignment.membershipId, count + 1)
+      const membershipId = assignment.membershipId
+      if (!membershipId) continue
+      const count = assignmentCounts.get(membershipId) ?? 0
+      assignmentCounts.set(membershipId, count + 1)
     }
 
     // Sort judges by assignment count (ascending)

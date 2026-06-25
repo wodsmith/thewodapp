@@ -122,13 +122,14 @@ function toEventRoute(ctaTo: CrewOrganizerHomeView["nextAction"]["ctaTo"]) {
   switch (ctaTo) {
     case "/setup":
       return "/events/$eventId/setup"
-    case "/imports?tab=volunteers":
-    case "/imports?tab=heat_schedule":
-      return "/events/$eventId/imports"
+    case "/volunteers":
+      return "/events/$eventId/volunteers"
+    case "/heats":
+      return "/events/$eventId/heats"
     case "/staffing":
       return "/events/$eventId/staffing"
-    case "/assignments":
-      return "/events/$eventId/assignments"
+    case "/shifts":
+      return "/events/$eventId/shifts"
     case "/messages":
       return "/events/$eventId/messages"
     case "/day-of":
@@ -139,14 +140,7 @@ function toEventRoute(ctaTo: CrewOrganizerHomeView["nextAction"]["ctaTo"]) {
 }
 
 function toEventRouteSearch(
-  ctaTo: CrewOrganizerHomeView["nextAction"]["ctaTo"],
+  _ctaTo: CrewOrganizerHomeView["nextAction"]["ctaTo"],
 ) {
-  switch (ctaTo) {
-    case "/imports?tab=volunteers":
-      return { tab: "volunteers" }
-    case "/imports?tab=heat_schedule":
-      return { tab: "heat_schedule" }
-    default:
-      return undefined
-  }
+  return undefined
 }

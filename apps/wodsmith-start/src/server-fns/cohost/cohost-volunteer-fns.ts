@@ -325,10 +325,12 @@ export const cohostGetVolunteerAssignmentsFn = createServerFn({
     > = {}
 
     for (const assignment of shiftAssignments) {
-      if (!assignmentMap[assignment.membershipId]) {
-        assignmentMap[assignment.membershipId] = { shifts: [], judgeHeats: [] }
+      const membershipId = assignment.membershipId
+      if (!membershipId) continue
+      if (!assignmentMap[membershipId]) {
+        assignmentMap[membershipId] = { shifts: [], judgeHeats: [] }
       }
-      assignmentMap[assignment.membershipId].shifts.push({
+      assignmentMap[membershipId].shifts.push({
         id: assignment.id,
         shiftId: assignment.shiftId,
         name: assignment.shift.name,
@@ -347,10 +349,12 @@ export const cohostGetVolunteerAssignmentsFn = createServerFn({
       const eventName =
         eventNameMap.get(heatDetails.trackWorkoutId) || "Unknown Event"
 
-      if (!assignmentMap[assignment.membershipId]) {
-        assignmentMap[assignment.membershipId] = { shifts: [], judgeHeats: [] }
+      const membershipId = assignment.membershipId
+      if (!membershipId) continue
+      if (!assignmentMap[membershipId]) {
+        assignmentMap[membershipId] = { shifts: [], judgeHeats: [] }
       }
-      assignmentMap[assignment.membershipId].judgeHeats.push({
+      assignmentMap[membershipId].judgeHeats.push({
         id: assignment.id,
         heatId: assignment.heatId,
         eventName,

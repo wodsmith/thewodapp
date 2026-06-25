@@ -67,6 +67,12 @@ const createCrewSettingsForCompetitionInputSchema = z.object({
 const updateCrewEventSettingsInputSchema = z.object({
   competitionId: z.string().min(1, "Competition ID is required"),
   crewOnly: z.boolean().optional(),
+  // Competition basics. Optional so the setup form can save them alongside
+  // the Crew-only settings in a single request.
+  name: z.string().trim().min(1, "Event name is required").optional(),
+  startDate: dateStringSchema.optional(),
+  endDate: dateStringSchema.optional(),
+  timezone: z.string().trim().min(1, "Timezone is required").optional(),
   sourcePlatform: nullableTextInput,
   sourceEventUrl: nullableTextInput,
   externalRegistrationUrl: nullableTextInput,

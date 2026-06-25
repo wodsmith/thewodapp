@@ -20,9 +20,14 @@ export type {
 const eventIdSchema = z.string().min(1, "Event ID is required")
 const eventInputSchema = z.object({ eventId: eventIdSchema })
 const shiftIdSchema = z.string().startsWith("vshf_", "Invalid shift ID")
-const membershipIdSchema = z
+// A shift can be staffed by a membership (account-backed volunteer) or an
+// invitation (imported / manual volunteer without an account).
+const assigneeIdSchema = z
   .string()
-  .startsWith("tmem_", "Invalid membership ID")
+  .refine(
+    (value) => value.startsWith("tmem_") || value.startsWith("tinv_"),
+    "Invalid membership or invitation ID",
+  )
 const rosterSourceSchema = z.enum(["team_invitation", "team_membership"])
 const rosterSourceIdSchema = z.string().min(1, "Roster volunteer ID is required")
 const roleTypeSchema = z.enum(VOLUNTEER_ROLE_TYPE_VALUES)
@@ -75,7 +80,7 @@ const updateShiftInputSchema = shiftInputSchema
 const shiftAssignmentInputSchema = z.object({
   eventId: eventIdSchema,
   shiftId: shiftIdSchema,
-  membershipId: membershipIdSchema,
+  assigneeId: assigneeIdSchema,
   notes: z.string().trim().max(500).optional(),
 })
 
@@ -84,14 +89,34 @@ const deleteShiftInputSchema = z.object({
   shiftId: shiftIdSchema,
 })
 
-const manualVolunteerMetadataInputSchema = z.object({
+// Require a name or an email so an email-less volunteer is still identifiable
+// in the roster.
+function requireNameOrEmail(
+  data: { email?: string; name?: string },
+  ctx: z.RefinementCtx,
+) {
+  if (!data.email && !data.name) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["name"],
+      message: "Enter a name or an email",
+    })
+  }
+}
+
+const manualVolunteerMetadataObject = z.object({
   eventId: eventIdSchema,
   email: z
     .string()
     .trim()
     .toLowerCase()
     .email("Enter a valid email address")
-    .max(255),
+    .max(255)
+    // Allow blank so organizers can add a volunteer with no email; the empty
+    // input arrives as "" and is normalized to undefined.
+    .or(z.literal(""))
+    .optional()
+    .transform((value) => (value ? value : undefined)),
   name: z.string().trim().max(200).optional(),
   phone: z.string().trim().max(50).optional(),
   roleTypes: z
@@ -103,19 +128,23 @@ const manualVolunteerMetadataInputSchema = z.object({
   notes: z.string().trim().max(5000).optional(),
 })
 
+const manualVolunteerMetadataInputSchema =
+  manualVolunteerMetadataObject.superRefine(requireNameOrEmail)
+
 const manualVolunteerPasteInputSchema = z.object({
   eventId: eventIdSchema,
   pasteText: z.string().trim().min(1, "Paste at least one email").max(50000),
 })
 
 const updateRosterVolunteerInputSchema =
-  manualVolunteerMetadataInputSchema
+  manualVolunteerMetadataObject
     .extend({
       source: rosterSourceSchema,
       sourceId: rosterSourceIdSchema,
       credentials: z.string().trim().max(1000).optional(),
     })
     .superRefine((data, ctx) => {
+      requireNameOrEmail(data, ctx)
       if (
         data.source === "team_invitation" &&
         !data.sourceId.startsWith("tinv_")

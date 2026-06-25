@@ -214,10 +214,10 @@ const actionCtaByKey: Record<
   CrewOrganizerNextAction["ctaTo"]
 > = {
   finish_setup: "/setup",
-  import_volunteers: "/imports?tab=volunteers",
-  import_heat_schedule: "/imports?tab=heat_schedule",
+  import_volunteers: "/volunteers",
+  import_heat_schedule: "/heats",
   build_staffing_plan: "/staffing",
-  create_assignments: "/assignments",
+  create_assignments: "/shifts",
   send_confirmations: "/messages",
   run_day_of: "/day-of",
   print_packet: "/exports",

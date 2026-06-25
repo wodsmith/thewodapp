@@ -634,7 +634,11 @@ export async function ensureCrewShiftAssignmentConfirmation(params: {
   db: DbClient
   competitionId: string
   assignmentId: string
-  membershipId: string
+  // Exactly one of membershipId / invitationId is set, mirroring the shift
+  // assignment: memberships for account-backed volunteers, invitations for
+  // imported / manual volunteers.
+  membershipId: string | null
+  invitationId?: string | null
   email: string | null
   expiresAt: Date
   now?: Date
@@ -682,6 +686,7 @@ export async function ensureCrewShiftAssignmentConfirmation(params: {
         assignmentType: CREW_ASSIGNMENT_CONFIRMATION_TYPE.VOLUNTEER_SHIFT,
         assignmentId: params.assignmentId,
         membershipId: params.membershipId,
+        invitationId: params.invitationId ?? null,
         email: params.email,
         tokenHash,
         status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
@@ -1646,6 +1651,7 @@ async function getCrewAssignmentConfirmationByToken({
       assignment: {
         id: volunteerShiftAssignmentsTable.id,
         membershipId: volunteerShiftAssignmentsTable.membershipId,
+        invitationId: volunteerShiftAssignmentsTable.invitationId,
         notes: volunteerShiftAssignmentsTable.notes,
       },
       confirmationEmail: crewAssignmentConfirmationsTable.email,
@@ -1743,7 +1749,7 @@ async function getCrewAssignmentConfirmationByToken({
   const schedule = await loadCrewVolunteerSelfServiceSchedule({
     db,
     competitionId: row.event.id,
-    membershipId: assignment.membershipId,
+    assigneeId: assignment.membershipId ?? assignment.invitationId ?? "",
     tokenAssignmentId: assignment.id,
   })
 
@@ -1791,19 +1797,24 @@ function emptyTokenData(
 async function loadCrewVolunteerSelfServiceSchedule({
   db,
   competitionId,
-  membershipId,
+  assigneeId,
   tokenAssignmentId,
 }: {
   db: DbClient
   competitionId: string
-  membershipId: string
+  // Canonical assignee id: membership id (tmem_) or invitation id (tinv_).
+  assigneeId: string
   tokenAssignmentId: string
 }) {
+  const assigneeCondition = assigneeId.startsWith("tinv_")
+    ? eq(volunteerShiftAssignmentsTable.invitationId, assigneeId)
+    : eq(volunteerShiftAssignmentsTable.membershipId, assigneeId)
   const rows = await db
     .select({
       assignment: {
         id: volunteerShiftAssignmentsTable.id,
         membershipId: volunteerShiftAssignmentsTable.membershipId,
+        invitationId: volunteerShiftAssignmentsTable.invitationId,
         notes: volunteerShiftAssignmentsTable.notes,
       },
       shift: {
@@ -1846,7 +1857,7 @@ async function loadCrewVolunteerSelfServiceSchedule({
     .where(
       and(
         eq(volunteerShiftsTable.competitionId, competitionId),
-        eq(volunteerShiftAssignmentsTable.membershipId, membershipId),
+        assigneeCondition,
       ),
     )
     .orderBy(
@@ -1856,11 +1867,12 @@ async function loadCrewVolunteerSelfServiceSchedule({
     )
 
   return buildCrewVolunteerSelfServiceSchedule({
-    membershipId,
+    assigneeId,
     tokenAssignmentId,
     assignments: rows.map((row) => ({
       id: row.assignment.id,
-      membershipId: row.assignment.membershipId,
+      assigneeId:
+        row.assignment.membershipId ?? row.assignment.invitationId ?? "",
       shiftId: row.shift.id,
       name: row.shift.name,
       roleType: row.shift.roleType,

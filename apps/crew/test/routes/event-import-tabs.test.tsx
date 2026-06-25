@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
-import { EventImportTabs } from "@/routes/events/$eventId/imports"
+import { EventImportTabs } from "@/components/crew/crew-import-tabs"
 
 vi.mock("@tanstack/react-start", () => ({
   useServerFn: () => vi.fn(),

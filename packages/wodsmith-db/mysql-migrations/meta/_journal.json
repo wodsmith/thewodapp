@@ -36,6 +36,13 @@
       "when": 1782078074621,
       "tag": "0004_crew-volunteer-intelligence-schema",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1782363932748,
+      "tag": "0005_crew-event-ops-invitation-assignees",
+      "breakpoints": true
     }
   ]
 }

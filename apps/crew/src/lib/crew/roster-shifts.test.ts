@@ -5,7 +5,9 @@ import {
   buildCrewRoster,
   buildCrewRosterVolunteerMetadataUpdate,
   findCrewRosterVolunteerEmailCollision,
+  getCrewRosterAssigneeId,
   getCrewRosterRoleTypes,
+  isCrewRosterVolunteerStaffable,
   normalizeCrewShiftTimes,
   parseCrewRosterMetadata,
   shouldUpdateCrewRosterInvitationEmail,
@@ -87,7 +89,9 @@ describe("Crew roster helpers", () => {
       pending: 1,
       inactive: 1,
       expired: 1,
-      assignable: 1,
+      // Active membership + accepted + pending invitations are all staffable;
+      // inactive memberships and expired invitations are not.
+      assignable: 3,
     })
   })
 
@@ -118,6 +122,44 @@ describe("Crew roster helpers", () => {
     expect(roster).toHaveLength(1)
     expect(roster[0]?.source).toBe("team_membership")
     expect(roster[0]?.status).toBe("active")
+  })
+
+  it("keeps email-less invitations in the roster without deduping them together", () => {
+    const roster = buildCrewRoster(
+      [
+        {
+          id: "tinv_no_email_a",
+          email: "",
+          status: "pending",
+          metadata: JSON.stringify({ signupName: "No Email A" }),
+        },
+        {
+          id: "tinv_no_email_b",
+          email: "",
+          status: "pending",
+          metadata: JSON.stringify({ signupName: "No Email B" }),
+        },
+      ],
+      [
+        {
+          id: "tmem_no_email",
+          isActive: true,
+          user: { firstName: "Member", lastName: "NoEmail", email: "" },
+          metadata: JSON.stringify({
+            signupName: "Member NoEmail",
+            volunteerRoleTypes: ["general"],
+          }),
+        },
+      ],
+    )
+
+    expect(roster).toHaveLength(3)
+    expect(roster.map((volunteer) => volunteer.name).sort()).toEqual([
+      "Member NoEmail",
+      "No Email A",
+      "No Email B",
+    ])
+    expect(roster.every((volunteer) => volunteer.email === "")).toBe(true)
   })
 
   it("defaults missing volunteer role metadata to general for roster and assignment paths", () => {
@@ -419,6 +461,147 @@ describe("Crew roster helpers", () => {
       name: "Pending Volunteer",
       roleTypes: ["check_in"],
     })
+  })
+})
+
+describe("Crew roster staffability", () => {
+  function rosterVolunteer(
+    overrides: Partial<
+      Pick<
+        ReturnType<typeof buildCrewRoster>[number],
+        "membershipId" | "invitationId" | "status" | "roleTypes"
+      >
+    >,
+  ) {
+    return {
+      membershipId: null,
+      invitationId: null,
+      status: "pending" as const,
+      roleTypes: ["general"] as ReturnType<
+        typeof buildCrewRoster
+      >[number]["roleTypes"],
+      ...overrides,
+    }
+  }
+
+  it("derives the canonical assignee id from membership or invitation", () => {
+    expect(
+      getCrewRosterAssigneeId({
+        membershipId: "tmem_1",
+        invitationId: null,
+      }),
+    ).toBe("tmem_1")
+    expect(
+      getCrewRosterAssigneeId({
+        membershipId: null,
+        invitationId: "tinv_1",
+      }),
+    ).toBe("tinv_1")
+    expect(
+      getCrewRosterAssigneeId({ membershipId: null, invitationId: null }),
+    ).toBeNull()
+  })
+
+  it("treats invitation-based imported volunteers as staffable", () => {
+    // Regression: imported volunteers are stored as invitations with a null
+    // membershipId and status "pending"/"accepted". They must be staffable.
+    expect(
+      isCrewRosterVolunteerStaffable(
+        rosterVolunteer({ invitationId: "tinv_imported", status: "pending" }),
+      ),
+    ).toBe(true)
+    expect(
+      isCrewRosterVolunteerStaffable(
+        rosterVolunteer({ invitationId: "tinv_imported", status: "accepted" }),
+      ),
+    ).toBe(true)
+    expect(
+      isCrewRosterVolunteerStaffable(
+        rosterVolunteer({ membershipId: "tmem_active", status: "active" }),
+      ),
+    ).toBe(true)
+  })
+
+  it("excludes expired invitations and inactive memberships from staffing", () => {
+    expect(
+      isCrewRosterVolunteerStaffable(
+        rosterVolunteer({ invitationId: "tinv_lapsed", status: "expired" }),
+      ),
+    ).toBe(false)
+    expect(
+      isCrewRosterVolunteerStaffable(
+        rosterVolunteer({ membershipId: "tmem_off", status: "inactive" }),
+      ),
+    ).toBe(false)
+  })
+
+  it("counts invitation-based volunteers as assignable in the roster summary", () => {
+    const now = new Date("2026-06-19T12:00:00.000Z")
+    const roster = buildCrewRoster(
+      [
+        {
+          id: "tinv_imported_general",
+          email: "imported@example.com",
+          status: "pending",
+          expiresAt: "2026-12-31T12:00:00.000Z",
+          metadata: JSON.stringify({
+            signupName: "Imported General",
+            crewImportId: "cimp_1",
+            volunteerRoleTypes: ["general"],
+          }),
+        },
+      ],
+      [],
+      now,
+    )
+
+    expect(roster[0]).toMatchObject({
+      source: "team_invitation",
+      membershipId: null,
+      invitationId: "tinv_imported_general",
+      imported: true,
+    })
+    expect(summarizeCrewRoster(roster)).toMatchObject({
+      total: 1,
+      pending: 1,
+      assignable: 1,
+    })
+  })
+
+  it("validates an invitation-based general volunteer for a general shift", () => {
+    const volunteer = buildCrewRoster(
+      [
+        {
+          id: "tinv_general",
+          email: "general@example.com",
+          status: "pending",
+          expiresAt: "2026-12-31T12:00:00.000Z",
+          metadata: JSON.stringify({
+            signupName: "General Volunteer",
+            crewImportId: "cimp_1",
+          }),
+        },
+      ],
+      [],
+    )[0]
+
+    expect(volunteer).toBeDefined()
+    if (!volunteer) return
+    const assigneeId = getCrewRosterAssigneeId(volunteer)
+    expect(assigneeId).toBe("tinv_general")
+
+    expect(
+      validateShiftAssignment({
+        shiftRoleType: "medical",
+        capacity: 2,
+        currentAssignmentMembershipIds: [],
+        volunteer: {
+          membershipId: assigneeId ?? "",
+          roleTypes: volunteer.roleTypes,
+          isActive: isCrewRosterVolunteerStaffable(volunteer),
+        },
+      }),
+    ).toEqual({ ok: true })
   })
 })
 

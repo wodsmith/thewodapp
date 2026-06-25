@@ -27,12 +27,11 @@ import { Route as EventsEventIdScheduleRouteImport } from './routes/events/$even
 import { Route as EventsEventIdReadinessRouteImport } from './routes/events/$eventId/readiness'
 import { Route as EventsEventIdMessagesRouteImport } from './routes/events/$eventId/messages'
 import { Route as EventsEventIdJudgesRouteImport } from './routes/events/$eventId/judges'
-import { Route as EventsEventIdImportsRouteImport } from './routes/events/$eventId/imports'
+import { Route as EventsEventIdHeatsRouteImport } from './routes/events/$eventId/heats'
 import { Route as EventsEventIdExportsRouteImport } from './routes/events/$eventId/exports'
 import { Route as EventsEventIdDayOfRouteImport } from './routes/events/$eventId/day-of'
 import { Route as EventsEventIdConvertRouteImport } from './routes/events/$eventId/convert'
 import { Route as EventsEventIdBillingRouteImport } from './routes/events/$eventId/billing'
-import { Route as EventsEventIdAssignmentsRouteImport } from './routes/events/$eventId/assignments'
 import { Route as ESlugVolunteerRouteImport } from './routes/e/$slug/volunteer'
 import { Route as ApiWebhooksStripeRouteImport } from './routes/api/webhooks/stripe'
 import { Route as ApiE2eSessionRouteImport } from './routes/api/e2e/session'
@@ -137,9 +136,9 @@ const EventsEventIdJudgesRoute = EventsEventIdJudgesRouteImport.update({
   path: '/judges',
   getParentRoute: () => EventsEventIdRoute,
 } as any)
-const EventsEventIdImportsRoute = EventsEventIdImportsRouteImport.update({
-  id: '/imports',
-  path: '/imports',
+const EventsEventIdHeatsRoute = EventsEventIdHeatsRouteImport.update({
+  id: '/heats',
+  path: '/heats',
   getParentRoute: () => EventsEventIdRoute,
 } as any)
 const EventsEventIdExportsRoute = EventsEventIdExportsRouteImport.update({
@@ -162,12 +161,6 @@ const EventsEventIdBillingRoute = EventsEventIdBillingRouteImport.update({
   path: '/billing',
   getParentRoute: () => EventsEventIdRoute,
 } as any)
-const EventsEventIdAssignmentsRoute =
-  EventsEventIdAssignmentsRouteImport.update({
-    id: '/assignments',
-    path: '/assignments',
-    getParentRoute: () => EventsEventIdRoute,
-  } as any)
 const ESlugVolunteerRoute = ESlugVolunteerRouteImport.update({
   id: '/e/$slug/volunteer',
   path: '/e/$slug/volunteer',
@@ -252,12 +245,11 @@ export interface FileRoutesByFullPath {
   '/api/e2e/session': typeof ApiE2eSessionRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/e/$slug/volunteer': typeof ESlugVolunteerRoute
-  '/events/$eventId/assignments': typeof EventsEventIdAssignmentsRoute
   '/events/$eventId/billing': typeof EventsEventIdBillingRoute
   '/events/$eventId/convert': typeof EventsEventIdConvertRoute
   '/events/$eventId/day-of': typeof EventsEventIdDayOfRoute
   '/events/$eventId/exports': typeof EventsEventIdExportsRoute
-  '/events/$eventId/imports': typeof EventsEventIdImportsRoute
+  '/events/$eventId/heats': typeof EventsEventIdHeatsRoute
   '/events/$eventId/judges': typeof EventsEventIdJudgesRoute
   '/events/$eventId/messages': typeof EventsEventIdMessagesRoute
   '/events/$eventId/readiness': typeof EventsEventIdReadinessRoute
@@ -290,12 +282,11 @@ export interface FileRoutesByTo {
   '/api/e2e/session': typeof ApiE2eSessionRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/e/$slug/volunteer': typeof ESlugVolunteerRoute
-  '/events/$eventId/assignments': typeof EventsEventIdAssignmentsRoute
   '/events/$eventId/billing': typeof EventsEventIdBillingRoute
   '/events/$eventId/convert': typeof EventsEventIdConvertRoute
   '/events/$eventId/day-of': typeof EventsEventIdDayOfRoute
   '/events/$eventId/exports': typeof EventsEventIdExportsRoute
-  '/events/$eventId/imports': typeof EventsEventIdImportsRoute
+  '/events/$eventId/heats': typeof EventsEventIdHeatsRoute
   '/events/$eventId/judges': typeof EventsEventIdJudgesRoute
   '/events/$eventId/messages': typeof EventsEventIdMessagesRoute
   '/events/$eventId/readiness': typeof EventsEventIdReadinessRoute
@@ -330,12 +321,11 @@ export interface FileRoutesById {
   '/api/e2e/session': typeof ApiE2eSessionRoute
   '/api/webhooks/stripe': typeof ApiWebhooksStripeRoute
   '/e/$slug/volunteer': typeof ESlugVolunteerRoute
-  '/events/$eventId/assignments': typeof EventsEventIdAssignmentsRoute
   '/events/$eventId/billing': typeof EventsEventIdBillingRoute
   '/events/$eventId/convert': typeof EventsEventIdConvertRoute
   '/events/$eventId/day-of': typeof EventsEventIdDayOfRoute
   '/events/$eventId/exports': typeof EventsEventIdExportsRoute
-  '/events/$eventId/imports': typeof EventsEventIdImportsRoute
+  '/events/$eventId/heats': typeof EventsEventIdHeatsRoute
   '/events/$eventId/judges': typeof EventsEventIdJudgesRoute
   '/events/$eventId/messages': typeof EventsEventIdMessagesRoute
   '/events/$eventId/readiness': typeof EventsEventIdReadinessRoute
@@ -371,12 +361,11 @@ export interface FileRouteTypes {
     | '/api/e2e/session'
     | '/api/webhooks/stripe'
     | '/e/$slug/volunteer'
-    | '/events/$eventId/assignments'
     | '/events/$eventId/billing'
     | '/events/$eventId/convert'
     | '/events/$eventId/day-of'
     | '/events/$eventId/exports'
-    | '/events/$eventId/imports'
+    | '/events/$eventId/heats'
     | '/events/$eventId/judges'
     | '/events/$eventId/messages'
     | '/events/$eventId/readiness'
@@ -409,12 +398,11 @@ export interface FileRouteTypes {
     | '/api/e2e/session'
     | '/api/webhooks/stripe'
     | '/e/$slug/volunteer'
-    | '/events/$eventId/assignments'
     | '/events/$eventId/billing'
     | '/events/$eventId/convert'
     | '/events/$eventId/day-of'
     | '/events/$eventId/exports'
-    | '/events/$eventId/imports'
+    | '/events/$eventId/heats'
     | '/events/$eventId/judges'
     | '/events/$eventId/messages'
     | '/events/$eventId/readiness'
@@ -448,12 +436,11 @@ export interface FileRouteTypes {
     | '/api/e2e/session'
     | '/api/webhooks/stripe'
     | '/e/$slug/volunteer'
-    | '/events/$eventId/assignments'
     | '/events/$eventId/billing'
     | '/events/$eventId/convert'
     | '/events/$eventId/day-of'
     | '/events/$eventId/exports'
-    | '/events/$eventId/imports'
+    | '/events/$eventId/heats'
     | '/events/$eventId/judges'
     | '/events/$eventId/messages'
     | '/events/$eventId/readiness'
@@ -619,11 +606,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EventsEventIdJudgesRouteImport
       parentRoute: typeof EventsEventIdRoute
     }
-    '/events/$eventId/imports': {
-      id: '/events/$eventId/imports'
-      path: '/imports'
-      fullPath: '/events/$eventId/imports'
-      preLoaderRoute: typeof EventsEventIdImportsRouteImport
+    '/events/$eventId/heats': {
+      id: '/events/$eventId/heats'
+      path: '/heats'
+      fullPath: '/events/$eventId/heats'
+      preLoaderRoute: typeof EventsEventIdHeatsRouteImport
       parentRoute: typeof EventsEventIdRoute
     }
     '/events/$eventId/exports': {
@@ -652,13 +639,6 @@ declare module '@tanstack/react-router' {
       path: '/billing'
       fullPath: '/events/$eventId/billing'
       preLoaderRoute: typeof EventsEventIdBillingRouteImport
-      parentRoute: typeof EventsEventIdRoute
-    }
-    '/events/$eventId/assignments': {
-      id: '/events/$eventId/assignments'
-      path: '/assignments'
-      fullPath: '/events/$eventId/assignments'
-      preLoaderRoute: typeof EventsEventIdAssignmentsRouteImport
       parentRoute: typeof EventsEventIdRoute
     }
     '/e/$slug/volunteer': {
@@ -756,12 +736,11 @@ declare module '@tanstack/react-router' {
 }
 
 interface EventsEventIdRouteChildren {
-  EventsEventIdAssignmentsRoute: typeof EventsEventIdAssignmentsRoute
   EventsEventIdBillingRoute: typeof EventsEventIdBillingRoute
   EventsEventIdConvertRoute: typeof EventsEventIdConvertRoute
   EventsEventIdDayOfRoute: typeof EventsEventIdDayOfRoute
   EventsEventIdExportsRoute: typeof EventsEventIdExportsRoute
-  EventsEventIdImportsRoute: typeof EventsEventIdImportsRoute
+  EventsEventIdHeatsRoute: typeof EventsEventIdHeatsRoute
   EventsEventIdJudgesRoute: typeof EventsEventIdJudgesRoute
   EventsEventIdMessagesRoute: typeof EventsEventIdMessagesRoute
   EventsEventIdReadinessRoute: typeof EventsEventIdReadinessRoute
@@ -775,12 +754,11 @@ interface EventsEventIdRouteChildren {
 }
 
 const EventsEventIdRouteChildren: EventsEventIdRouteChildren = {
-  EventsEventIdAssignmentsRoute: EventsEventIdAssignmentsRoute,
   EventsEventIdBillingRoute: EventsEventIdBillingRoute,
   EventsEventIdConvertRoute: EventsEventIdConvertRoute,
   EventsEventIdDayOfRoute: EventsEventIdDayOfRoute,
   EventsEventIdExportsRoute: EventsEventIdExportsRoute,
-  EventsEventIdImportsRoute: EventsEventIdImportsRoute,
+  EventsEventIdHeatsRoute: EventsEventIdHeatsRoute,
   EventsEventIdJudgesRoute: EventsEventIdJudgesRoute,
   EventsEventIdMessagesRoute: EventsEventIdMessagesRoute,
   EventsEventIdReadinessRoute: EventsEventIdReadinessRoute,

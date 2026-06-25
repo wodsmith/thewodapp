@@ -1,10 +1,10 @@
 // @lat: [[crew#Organizer Home Next Action]]
 export type CrewOrganizerNextAction =
   | { key: "finish_setup"; ctaTo: "/setup" }
-  | { key: "import_volunteers"; ctaTo: "/imports?tab=volunteers" }
-  | { key: "import_heat_schedule"; ctaTo: "/imports?tab=heat_schedule" }
+  | { key: "import_volunteers"; ctaTo: "/volunteers" }
+  | { key: "import_heat_schedule"; ctaTo: "/heats" }
   | { key: "build_staffing_plan"; ctaTo: "/staffing" }
-  | { key: "create_assignments"; ctaTo: "/assignments" }
+  | { key: "create_assignments"; ctaTo: "/shifts" }
   | { key: "send_confirmations"; ctaTo: "/messages" }
   | { key: "run_day_of"; ctaTo: "/day-of" }
   | { key: "print_packet"; ctaTo: "/exports" }
@@ -65,7 +65,7 @@ export function deriveCrewOrganizerNextAction({
     roster.total === 0 &&
     roster.assignable === 0
   ) {
-    return { key: "import_volunteers", ctaTo: "/imports?tab=volunteers" }
+    return { key: "import_volunteers", ctaTo: "/volunteers" }
   }
 
   if (
@@ -75,7 +75,7 @@ export function deriveCrewOrganizerNextAction({
   ) {
     return {
       key: "import_heat_schedule",
-      ctaTo: "/imports?tab=heat_schedule",
+      ctaTo: "/heats",
     }
   }
 
@@ -84,7 +84,7 @@ export function deriveCrewOrganizerNextAction({
   }
 
   if (shifts.assignedSlots === 0) {
-    return { key: "create_assignments", ctaTo: "/assignments" }
+    return { key: "create_assignments", ctaTo: "/shifts" }
   }
 
   if (confirmations.missing > 0 || confirmations.pending > 0) {

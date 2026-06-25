@@ -106,11 +106,51 @@ The assistant links to existing Crew and WODsmith organizer/public routes for fo
 
 ## Event Setup Dashboard
 
-Crew event setup pages let an operator create and review a normal competition with one `crew_event_settings` row for lifecycle, source platform URLs, concierge status, crew plan, setup checklist progress, assumptions, and internal handoff notes.
+Crew event setup pages let an operator create and review a normal competition backed by one `crew_event_settings` row for lifecycle, source platform URLs, concierge status, crew plan, and internal handoff state.
 
-Additional setup dashboard state is stored in the existing `crew_event_settings.settings` JSON text field until a later slice proves that dedicated typed columns or tables are needed.
+The per-event setup page ([[apps/crew/src/routes/events/$eventId/setup.tsx]]) is a focused "Event details" form: it edits the competition `name`, `startDate`, `endDate`, and `timezone` only. These persist to the `competitions` row via [[apps/crew/src/server/crew-event-settings.server.ts#updateCrewEventSettings]], which accepts optional competition fields alongside the Crew-only settings and rejects an end date earlier than the start date. The earlier Volunteer-setup fields (registration platform, signup link, volunteer target, staffing lead, role assumptions) and the self-attestation setup checklist were removed from this page because they did not help an organizer build the volunteer schedule; the actual scheduling lives on the staffing, shifts, and judges pages.
+
+The `crew_event_settings.settings` JSON text field and its checklist/assumptions shape still exist for template ([[apps/crew/src/server/crew-template.server.ts]]) and copy-prior-event ([[apps/crew/src/lib/crew/copy-prior-event.ts]]) handoff, but are no longer edited from the setup page.
 
 The new event form ([[apps/crew/src/routes/events/new.tsx]]) does not surface a team concept. The organizing team is resolved server-side in [[apps/crew/src/server/crew-event-settings.server.ts#createCrewEvent]]: when no `organizingTeamId` is supplied it defaults to the creator's personal team via [[apps/crew/src/server/crew-auth.server.ts#requireCrewPersonalTeamId]]. The personal-team owner holds all team permissions (including `MANAGE_COMPETITIONS`), so the existing event-manager access check still passes.
+
+The Setup page also hosts a "Workouts" section (see [[crew#Workout Shells]]) below the Event-details form for creating the workout shells that heats attach to, and a "Locations" section (see [[crew#Event Locations]]) below Workouts for creating the floors/areas heats are scheduled to.
+
+## Workout Shells
+
+A workout shell is a minimal workout (title + description only) that a Crew organizer creates so heats can be attached to a named workout. Crew deliberately omits movements, scoring, and scaling; these shells exist purely to group and schedule heats.
+
+The Setup page ([[apps/crew/src/routes/events/$eventId/setup.tsx]]) renders shells as cards (title + description + heat count) with add/edit/delete, driven by [[apps/crew/src/server-fns/crew-workout-shells-fns.ts]]. The card UI uses a single dialog for both create and edit. Its loader calls [[apps/crew/src/server-fns/crew-workout-shells-fns.ts#getCrewWorkoutShellsFn]]; all shell server functions are gated behind `requireCrewEventManagerAccess` and scoped to the event's programming track so one event never reads or mutates another's workouts.
+
+Storage reuses the standard competition chain. A shell maps to one `programming_tracks` row per competition (get-or-create, type `team_owned`, owned by the organizing team — created lazily on the first shell via [[apps/crew/src/server-fns/crew-workout-shells-fns.ts#createCrewWorkoutShellFn]]), one `workouts` row holding `name` + `description`, and one `track_workouts` row at the next integer `trackOrder`. The `workouts` NOT-NULL columns Crew does not model are defaulted: `scheme` to `"time"`, `scope` to `"private"`, and `teamId` to the organizing team. The `track_workouts.id` is the value [[packages/wodsmith-db/src/schemas/competitions.ts]] heats reference via `trackWorkoutId`, so shells appear as the workout groupings on the Heats page. The workout + track-workout inserts run inside `db.transaction()` so a partial shell never persists.
+
+Deleting a shell is blocked while it still has heats — [[apps/crew/src/server-fns/crew-workout-shells-fns.ts#deleteCrewWorkoutShellFn]] throws a count-aware message and the card surfaces it, so the organizer must remove the heats first. This is the safer UX than cascading, which would silently destroy scheduled heat times. When no heats remain, the trackWorkout link and its workout row are deleted together in a transaction.
+
+## Heats Page
+
+The Heats page lets an organizer view, manually schedule, and import heats for a Crew event, combining a list-first manual UI with the existing CSV import infrastructure.
+
+[[apps/crew/src/routes/events/$eventId/heats.tsx]] renders a per-workout breakdown of scheduled heats plus an "Import from CSV" modal. The loader calls [[apps/crew/src/server-fns/crew-heats-fns.ts#getCrewHeatsPageFn]] which fetches track workouts, existing heats enriched with location (venue) name and lane count plus division names, and location options (each carrying `laneCount`) in parallel, gated behind `requireCrewEventManagerAccess`. The page appears in the sidebar navigation for `wodsmith_operator`, `organizer_admin`, and `department_lead` roles.
+
+Heat creation is bulk-first (see [[crew#Bulk Heat Scheduling]]): the "Add heats" dialog takes a count plus a start time and auto-spaces the heats into a per-heat editable list. `getNextHeatNumberFn` from [[apps/crew/src/server-fns/competition-heats-fns.ts]] supplies the starting heat number; the explicit per-heat rows are persisted by `generateHeatsFn` from [[apps/crew/src/server-fns/crew-heats-fns.ts]]. Deletion uses `deleteHeatFn` with an inline confirm step. Each heat row shows its number, scheduled time, location (with its lane count, e.g. "Main Floor · 6 lanes"), division badge, and draft/published status. The "Add heats" dialog's location dropdown is populated from the event's locations (see [[crew#Event Locations]]) and shows each option's lane count. After any mutation the page calls `router.invalidate()` to refetch loader data.
+
+The CSV import modal reuses the `heat_schedule` kind from the shared import infrastructure: `getImportFields` and `inferColumnMapping` from [[apps/crew/src/lib/crew/imports/column-mapping.ts]], `parseCsv` from [[apps/crew/src/lib/crew/imports/csv.ts]], the `/api/crew/import` endpoint for preview, and `applyCrewImportFn` from [[apps/crew/src/server-fns/crew-import-fns.ts]]. The existing `schedule.tsx` is a redirect stub to the Volunteer Shifts page (`/events/$eventId/shifts`).
+
+## Bulk Heat Scheduling
+
+Crew organizers add heats in bulk and have them auto-spaced by a configurable heat length plus heat gap, while each heat keeps its own editable time input that can be manually overridden.
+
+The "Add heats" dialog on [[apps/crew/src/routes/events/$eventId/heats.tsx]] has the global controls — heat count, start time, heat length, and heat gap (defaults 8m / 2m) — plus a list with one `datetime-local` input per heat. [[apps/crew/src/lib/crew/heat-scheduling.ts#buildCascadedLocalTimes]] is the pure helper that cascades the list: heat N = `start + (N-1) × (length + gap)`, the same formula wodsmith-start's `copyHeatsFromEventFn` uses. It operates on naive wall-clock `datetime-local` strings (via a UTC calendar container) so it never crosses a browser DST boundary; the event timezone is applied only when the strings are converted to stored UTC datetimes at submit.
+
+The re-sync rule: editing any GLOBAL control (start time, length, gap, count, or the starting heat number) recomputes the entire list and intentionally overwrites manual per-heat edits, while editing a single heat's input changes only that row until the next global change. On submit the per-heat times are sent AS-IS (overrides preserved) to `generateHeatsFn` in [[apps/crew/src/server-fns/crew-heats-fns.ts]], which persists an explicit `{ heatNumber, scheduledTime }` array — unlike `bulkCreateHeatsFn`, it does not re-number or re-space, so the organizer's adjustments survive. It is gated by `requireCrewEventManagerAccess`, scoped to the event's track, auto-publishes heats that have a time, and is capped by `MAX_BULK_HEATS`. Wall-clock inputs are converted to UTC with `parseTimeInTimezone` from [[apps/crew/src/utils/timezone-utils.ts]] in the event timezone. When no start time is given the heats are created without scheduled times.
+
+## Event Locations
+
+Locations are the floors or areas where heats run; each has a name and a lane count — the number of lanes a heat there has. Crew does not assign athletes to lanes; lane count is purely a property of the location shown at the heat level.
+
+Locations are `competition_venues` rows scoped to the event (`competitionId` = event id), reusing the existing venue table with no schema change; heats associate to a location via the existing `competition_heats.venueId`. The Setup page ([[apps/crew/src/routes/events/$eventId/setup.tsx]]) renders a "Locations" section below Workouts as name + lane-count cards with add/edit/delete via a single create/edit dialog, loaded by [[apps/crew/src/server-fns/crew-locations-fns.ts#getCrewLocationsFn]]. CRUD is handled by [[apps/crew/src/server-fns/crew-locations-fns.ts]] — list, create, update, delete — each gated behind `requireCrewEventManagerAccess` and scoped to the event, with lane count clamped to [1, 100] (default 3) and never passing `id` on insert. After any mutation the page calls `router.invalidate()`.
+
+Deleting a location does not delete its heats: [[apps/crew/src/server-fns/crew-locations-fns.ts#deleteCrewLocationFn]] first nulls out `venueId` on any heat referencing it (scoped to the event), then deletes the location, both inside `db.transaction()`. This avoids orphaning heats with a dangling `venueId` — affected heats keep their number and time and simply show no location until reassigned. The lane count flows to heats through [[apps/crew/src/server-fns/crew-heats-fns.ts#getCrewHeatsPageFn]], which returns `laneCount` on each location option and on each heat row's location, so the Heats page (see [[crew#Heats Page]]) can display it.
 
 ## Pilot Readiness Checklist
 
@@ -134,6 +174,14 @@ Roster shifts assignments normalize volunteer invitations, memberships, shifts, 
 
 The pure helpers preserve source identity for invitations and memberships, derive roster status, and keep role, availability, credential, import, and assignment details together so Crew pages can render staffing state without mutating event data.
 
+### Invitation-based shift staffing
+
+Shift assignments reference a volunteer by a canonical assignee id, so imported / manual volunteers stay schedulable before they ever have an account. The id is a membership id (`tmem_`) or, for imported volunteers, an invitation id (`tinv_`).
+
+`volunteer_shift_assignments` carries a nullable `membershipId` and a nullable `invitationId` (exactly one is set per row), mirroring `crew_assignment_confirmations`. [[apps/crew/src/lib/crew/roster-shifts.ts#getCrewRosterAssigneeId]] derives the canonical id and [[apps/crew/src/lib/crew/roster-shifts.ts#isCrewRosterVolunteerStaffable]] gates the assignable pool: a volunteer is staffable when it has a usable id and a staffable status (`active`, `accepted`, or `pending`); `inactive` memberships and `expired` invitations are excluded. Role compatibility (General matches every shift) is checked separately by [[apps/crew/src/lib/crew/roster-shifts.ts#isVolunteerCompatibleWithShift]].
+
+[[apps/crew/src/server/crew-roster-shift.server.ts#assignCrewVolunteerToShift]] resolves the assignee from either source, stores the matching column, and seeds the confirmation with the same `invitationId`/`membershipId`. The shift board, staffing matrix, and pilot ops all key assignments by the canonical assignee id so invitation-based volunteers participate in coverage, double-booking, and credential checks. Day-of check-in still requires a membership and rejects invitation-based assignees with a clear message.
+
 ## Roster Volunteer Editing
 
 Roster volunteer editing lets local Crew operators correct existing volunteer contact and staffing metadata on [[apps/crew/src/routes/events/$eventId/volunteers.tsx|the volunteer roster page]].
@@ -142,15 +190,29 @@ Roster volunteer editing lets local Crew operators correct existing volunteer co
 
 [[apps/crew/src/lib/crew/roster-shifts.ts]] owns deterministic metadata normalization and duplicate email detection so import audit/source metadata, assignments, confirmations, and shift relationships survive roster corrections.
 
+### Bulk Role Assignment
+
+The roster table supports bulk role assignment: row checkboxes allow multi-select, a header checkbox provides select-all/deselect-all (with indeterminate state when partially selected), and a bulk action bar appears when any volunteers are selected.
+
+The bar shows a count, a role selector from `VOLUNTEER_ROLE_OPTIONS`, and an "Assign role" button. On submit, [[apps/crew/src/server-fns/volunteer-fns.ts#bulkAssignVolunteerRoleFn]] receives the collected `volunteer.sourceId` values (raw membership or invitation ids), `event.id` as `competitionId`, and `event.organizingTeamId`. The server function is idempotent — it adds the role only when the volunteer does not already have it. On success the selection and role picker are reset and the roster reloads via `router.invalidate()`.
+
 ## Shift Board Pilot Ops
 
 Crew shift board pilot ops adapts the existing shift surface into an operator handoff board for real pilot events.
 
-[[apps/crew/src/routes/events/$eventId/shifts.tsx]] keeps Crew-owned shift create, edit, assign, and remove actions while adding role, credential, source, and status filters.
+The pilot-ops board renders on [[apps/crew/src/routes/events/$eventId/shifts.tsx|the Volunteer Shifts page]] via the `ShiftList` component, keeping Crew-owned shift create, edit, assign, and remove actions while adding role, credential, source, and status filters plus assignment confirmation controls.
 
 [[apps/crew/src/server/crew-roster-shift.server.ts]] hydrates the board from existing roster, shift, assignment, confirmation, and staffing-matrix inputs without creating schema or mutating judge rows.
 
 [[apps/crew/src/lib/crew/shift-board-pilot-ops.ts]] derives per-shift open-slot, confirmation, availability, role, double-booking, import-source, and ready/blocked status signals for the route.
+
+## Volunteer Shifts Page
+
+The Volunteer Shifts page is a focused shift-management surface ported from the wodsmith-start organizer experience, reached from the Workflow sidebar group and the staffing report.
+
+[[apps/crew/src/routes/events/$eventId/shifts.tsx]] loads the shift board through [[apps/crew/src/server-fns/crew-roster-shift-fns.ts#getCrewShiftBoardFn]] and renders the ported [[apps/crew/src/routes/events/$eventId/-components/shifts/shift-list.tsx|ShiftList]]. Shifts group by event-timezone calendar day in cards; each row opens a [[apps/crew/src/routes/events/$eventId/-components/shifts/shift-assignment-panel.tsx|assignment sheet]] that assigns or removes roster volunteers compatible with the shift role, and an add/edit [[apps/crew/src/routes/events/$eventId/-components/shifts/shift-form-dialog.tsx|dialog]] creates and updates shifts.
+
+All create, update, delete, assign, and remove actions reuse Crew's existing event-scoped server functions in [[apps/crew/src/server-fns/crew-roster-shift-fns.ts]] (eventId plus `YYYY-MM-DD`/`HH:mm` strings normalized server-side in the event timezone), so the page shares the same auth, capacity, and role-compatibility rules as the assignments shift board. The "Volunteer Shifts" sidebar item is registered in [[apps/crew/src/lib/crew/navigation.ts]] and allow-listed in [[apps/crew/src/components/crew-event-sidebar.tsx]].
 
 ## Judge Assignment Version Publishing
 
@@ -164,7 +226,7 @@ Per-event publishing uses an advisory lock before allocating the next version nu
 
 Crew judge rotations adapt the existing judge scheduling model into a local-operator event surface.
 
-[[apps/crew/src/routes/events/$eventId/judges.tsx]] renders workout selection, judge selection, per-judge rotation replacement, coverage preview, active published assignments, and version history.
+[[apps/crew/src/routes/events/$eventId/judges.tsx]] selects a workout and renders the drag-and-drop judging grid plus publishing described in [[crew#Judge Rotations#Judge Assignments Grid]].
 
 [[apps/crew/src/server-fns/crew-judge-rotations-fns.ts]] keeps route imports lightweight while [[apps/crew/src/server/crew-judge-rotations.server.ts]] owns Crew event hydration, scoped rotation writes, and publishing through the versioned assignment helper.
 
@@ -172,13 +234,37 @@ Crew judge rotations adapt the existing judge scheduling model into a local-oper
 
 Publishing rotations creates a new active `judge_assignment_versions` row and materializes `judge_heat_assignments` under the advisory-lock flow from [[crew#Judge Assignment Version Publishing]].
 
+### Judge Roster Eligibility and Imported Judges
+
+The judge roster includes every staffable volunteer on the competition team, whether account-backed or invitation-based, that is judge-eligible.
+
+`loadCrewJudgeVolunteers` builds the roster from the same membership + invitation union as [[crew#Roster Shifts Assignments]] ([[apps/crew/src/server/crew-roster-shift.server.ts#loadCrewRoster]]), so imported / manually-added volunteers (stored as `team_invitations` with no user account) appear alongside account-backed memberships. Eligibility is decided by [[apps/crew/src/lib/crew/judge-rotations.ts#isCrewJudgeEligible]], which accepts `judge` / `head_judge` AND `general` — mirroring how General acts as a shift wildcard ([[apps/crew/src/lib/crew/roster-shifts.ts#isVolunteerCompatibleWithShift]]). Organizers routinely import a batch of General volunteers intending to seat them as judges, so excluding General would leave the grid empty after a bulk import.
+
+Every judge is keyed by a canonical assignee id: the membership id (`tmem_`) for account-backed volunteers, or the invitation id (`tinv_`) for imported ones. `CrewJudgeVolunteer.membershipId` carries this canonical id so the grid keys judges unchanged. `competition_judge_rotations` and `judge_heat_assignments` each carry a nullable `membershipId` and a nullable `invitationId` (exactly one set), parallel to `volunteer_shift_assignments`. Saving, conflict validation, materialization, and active-assignment hydration all resolve through the canonical id, so invitation-based judges are assignable and publishable end to end. Day-of check-in / replacement remains membership-keyed and rejects accountless judges with a clear message until that flow is widened.
+
+### Judge Assignments Grid
+
+The Crew judging grid is the wodsmith-start organizer judging experience ported into Crew: judges are dragged from a roster panel onto heat lanes, with multi-select bulk drops and cross-heat moves.
+
+[[apps/crew/src/routes/events/$eventId/-components/judges/judge-scheduling-container.tsx]] holds the grid layout (workout selector, available-judges panel, heat cards, overview, publish panel) and the local cell state. [[apps/crew/src/routes/events/$eventId/-components/judges/judge-heat-card.tsx]] and [[apps/crew/src/routes/events/$eventId/-components/judges/draggable-judge.tsx]] provide the `@atlaskit/pragmatic-drag-and-drop` draggable judges and droppable lanes.
+
+The grid reconciles wodsmith-start's per-heat judge placement with Crew's per-volunteer rotation model: every grid cell (one judge in one heat + lane) is a single-heat rotation (`heatsCount = 1`, lane-shift `stay`). [[apps/crew/src/routes/events/$eventId/-components/judges/judge-grid-utils.ts]] converts saved rotations to grid cells and back ([[apps/crew/src/routes/events/$eventId/-components/judges/judge-grid-utils.ts#rotationsToGridCells]], [[apps/crew/src/routes/events/$eventId/-components/judges/judge-grid-utils.ts#gridCellsToRotationRows]]). Each drop, move, or remove persists the affected judge's full cell set through `saveCrewJudgeRotationsForVolunteerFn`, and the Publish button materializes them with `publishCrewJudgeRotationsFn` — no new server functions are added.
+
 ## Manual Volunteer Intake
 
 Manual volunteer intake lets Crew operators build the roster from [[apps/crew/src/routes/events/$eventId/volunteers.tsx|the event volunteer page]] without leaving the existing volunteer primitives.
 
-Single-add and paste flows call [[apps/crew/src/server-fns/crew-roster-shift-fns.ts|route-safe server functions]] backed by [[apps/crew/src/server/crew-roster-shift.server.ts|server-only roster mutations]] to create pending volunteer `team_invitations` with `SYSTEM_ROLES_ENUM.VOLUNTEER`, normalize email casing and whitespace, skip existing volunteer invitations or memberships, and use the same volunteer membership metadata shape consumed by [[crew#Roster Shifts Assignments]], public signup, import, roster display, shifts, and assignment validation.
+Single-add, paste, and CSV import flows are all available as dialogs on the volunteers page. Single-add and paste flows call [[apps/crew/src/server-fns/crew-roster-shift-fns.ts|route-safe server functions]] backed by [[apps/crew/src/server/crew-roster-shift.server.ts|server-only roster mutations]] to create pending volunteer `team_invitations` with `SYSTEM_ROLES_ENUM.VOLUNTEER`, normalize email casing and whitespace, skip existing volunteer invitations or memberships, and use the same volunteer membership metadata shape consumed by [[crew#Roster Shifts Assignments]], public signup, import, roster display, shifts, and assignment validation.
 
 [[apps/crew/src/lib/crew/manual-volunteer-intake.ts|Manual intake helpers]] parse pasted email batches and default missing role selections through `getCrewRosterRoleTypes()` so manually entered volunteers display as General and stay compatible with shift assignment behavior.
+
+### Email-less Volunteers
+
+The single-add form makes email optional so operators can roster a volunteer with only a name, then assign roles, shifts, and heats off the invitation id rather than an email.
+
+Email-less volunteers store an empty-string `team_invitations.email` (the column stays `notNull`) and omit `signupEmail` from metadata, so dedup, identity matching, and the roster never treat them as sharing a blank email anchor. The schema requires a name or an email, no invite email is sent (the manual path never sends one), and roster, shift, and assignment surfaces render a "No email" placeholder. Bulk role assignment and scheduling already key off the membership-or-invitation id, so email-less volunteers are fully selectable and assignable. The paste flow stays email-only.
+
+The CSV import modal uses [[apps/crew/src/components/crew/volunteer-import-flow.tsx]] to render the upload, column-mapping, preview, and apply steps inside a Dialog, scoped to the volunteer kind only. On a successful apply the modal closes and the router invalidates so newly imported volunteers appear without a page navigation.
 
 ## Staffing Page Gap Report
 
@@ -232,7 +318,7 @@ Operator-facing durations render in compact hour/minute labels so workout block 
 
 Crew import preview is a private operator workflow for CSV-only volunteer and heat schedule uploads.
 
-[[apps/crew/src/routes/events/$eventId/imports.tsx]] renders upload, mapping, warnings, and history. [[apps/crew/src/routes/api/crew/import.ts]] accepts private preview uploads, while [[apps/crew/src/lib/crew/imports/preview.ts]] and [[apps/crew/src/server/crew-imports.ts]] parse and persist previews without applying rows.
+Volunteer imports surface as a modal on [[apps/crew/src/routes/events/$eventId/volunteers.tsx|the Volunteers page]] via [[apps/crew/src/components/crew/volunteer-import-flow.tsx]]. Heat schedule imports surface as a modal on [[apps/crew/src/routes/events/$eventId/heats.tsx|the Heats page]]. The shared tab UI component lives in [[apps/crew/src/components/crew/crew-import-tabs.tsx]]. [[apps/crew/src/routes/api/crew/import.ts]] accepts private preview uploads, while [[apps/crew/src/lib/crew/imports/preview.ts]] and [[apps/crew/src/server/crew-imports.ts]] parse and persist previews without applying rows.
 
 ### Private Upload Route
 
@@ -310,7 +396,7 @@ Crew import mapping memory stores confirmed CSV header mappings in `crew_import_
 
 [[apps/crew/src/lib/crew/imports/mapping-memory.ts]] owns pure header fingerprinting, source normalization, scoped suggestion selection, and save-payload sanitization. [[apps/crew/src/server-fns/crew-import-fns.ts]] keeps the route-facing functions thin while [[apps/crew/src/server/crew-imports.server.ts]] loads and upserts presets through the shared table.
 
-[[apps/crew/src/routes/events/$eventId/imports.tsx]] surfaces saved mappings as explicit suggestions. Operators must click to use or remember a mapping; previews and applies continue to use the currently visible mapping and never rewrite historical `crew_import_rows`.
+The volunteer import modal on [[apps/crew/src/routes/events/$eventId/volunteers.tsx|the Volunteers page]] surfaces saved mappings as explicit suggestions. Operators must click to use or remember a mapping; previews and applies continue to use the currently visible mapping and never rewrite historical `crew_import_rows`.
 
 ## Guided Setup State
 

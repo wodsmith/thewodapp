@@ -94,6 +94,10 @@ interface CreateCrewSettingsForCompetitionInput {
 interface UpdateCrewEventSettingsInput {
   competitionId: string
   crewOnly?: boolean
+  name?: string
+  startDate?: string
+  endDate?: string
+  timezone?: string
   sourcePlatform?: NullableTextInput
   sourceEventUrl?: NullableTextInput
   externalRegistrationUrl?: NullableTextInput
@@ -429,11 +433,32 @@ export async function updateCrewEventSettings(
   }
   if (data.settings !== undefined) updateData.settings = data.settings
 
+  const competitionUpdate: Partial<typeof competitionsTable.$inferInsert> = {}
+  if (data.name !== undefined) competitionUpdate.name = data.name
+  if (data.startDate !== undefined) competitionUpdate.startDate = data.startDate
+  if (data.endDate !== undefined) competitionUpdate.endDate = data.endDate
+  if (data.timezone !== undefined) competitionUpdate.timezone = data.timezone
+
+  if (
+    competitionUpdate.startDate !== undefined &&
+    competitionUpdate.endDate !== undefined &&
+    competitionUpdate.endDate < competitionUpdate.startDate
+  ) {
+    throw new Error("End date must be on or after the start date")
+  }
+
   const db = getDb()
   await db
     .update(crewEventSettingsTable)
     .set(updateData)
     .where(eq(crewEventSettingsTable.competitionId, data.competitionId))
+
+  if (Object.keys(competitionUpdate).length > 0) {
+    await db
+      .update(competitionsTable)
+      .set(competitionUpdate)
+      .where(eq(competitionsTable.id, data.competitionId))
+  }
 
   const event = await getCrewEventByCompetitionId(data.competitionId)
   if (!event) {

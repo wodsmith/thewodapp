@@ -309,8 +309,10 @@ export function RotationTimeline({
   const rotationsByVolunteer = useMemo(() => {
     const grouped = new Map<string, CompetitionJudgeRotation[]>()
     for (const rotation of rotations) {
-      const existing = grouped.get(rotation.membershipId) || []
-      grouped.set(rotation.membershipId, [...existing, rotation])
+      const membershipId = rotation.membershipId
+      if (!membershipId) continue
+      const existing = grouped.get(membershipId) || []
+      grouped.set(membershipId, [...existing, rotation])
     }
     return grouped
   }, [rotations])

@@ -11,6 +11,8 @@ import {
 } from "./assignment-confirmations"
 import {
   type CrewRosterVolunteer,
+  getCrewRosterAssigneeId,
+  isCrewRosterVolunteerStaffable,
   isVolunteerCompatibleWithShift,
 } from "./roster-shifts"
 import type {
@@ -56,7 +58,10 @@ export interface CrewShiftBoardPilotFilters {
 
 export interface CrewShiftPilotOpsAssignment {
   id: string
-  membershipId: string
+  // Membership id for account-backed volunteers; null for invitation-based
+  // (imported / manual) volunteers, who are identified by invitationId instead.
+  membershipId?: string | null
+  invitationId?: string | null
   confirmation?: {
     status: CrewAssignmentConfirmationStatus
     sentAt?: Date | string | null
@@ -162,7 +167,7 @@ export function buildCrewShiftBoardPilotOps(input: {
       ),
     ]
     const importedAssignmentCount = shift.assignments.filter((assignment) =>
-      isImportedAssignment(assignment.membershipId, rosterByMembershipId),
+      isImportedAssignment(getAssignmentAssigneeId(assignment), rosterByMembershipId),
     ).length
     const confirmationCounts = countAssignmentConfirmations(shift.assignments)
     const status = getShiftPilotStatus(warnings)
@@ -219,8 +224,7 @@ export function buildCrewShiftBoardPilotOps(input: {
       ),
       credentialedAssignableCount: input.roster.filter(
         (volunteer) =>
-          volunteer.status === "active" &&
-          volunteer.membershipId &&
+          isCrewRosterVolunteerStaffable(volunteer) &&
           hasText(volunteer.credentials),
       ).length,
     },
@@ -258,7 +262,7 @@ export function filterCrewShiftBoardPilotShifts<
     if (
       input.filters.source === "imported_assignments" &&
       !shift.assignments.some((assignment) =>
-        isImportedAssignment(assignment.membershipId, rosterByMembershipId),
+        isImportedAssignment(getAssignmentAssigneeId(assignment), rosterByMembershipId),
       )
     ) {
       return false
@@ -268,7 +272,7 @@ export function filterCrewShiftBoardPilotShifts<
       input.filters.source === "direct_assignments" &&
       !shift.assignments.some(
         (assignment) =>
-          !isImportedAssignment(assignment.membershipId, rosterByMembershipId),
+          !isImportedAssignment(getAssignmentAssigneeId(assignment), rosterByMembershipId),
       )
     ) {
       return false
@@ -438,19 +442,27 @@ function getShiftIdFromTimeBlock(timeBlockId: string) {
     : null
 }
 
+function getAssignmentAssigneeId(assignment: CrewShiftPilotOpsAssignment) {
+  return assignment.membershipId ?? assignment.invitationId ?? null
+}
+
+// Keyed by canonical assignee id so invitation-based (imported / manual)
+// volunteers are matched as well as account-backed memberships.
 function buildRosterByMembershipId(roster: CrewRosterVolunteer[]) {
   return new Map(
-    roster.flatMap((volunteer) =>
-      volunteer.membershipId ? [[volunteer.membershipId, volunteer]] : [],
-    ),
+    roster.flatMap((volunteer) => {
+      const assigneeId = getCrewRosterAssigneeId(volunteer)
+      return assigneeId ? [[assigneeId, volunteer] as const] : []
+    }),
   )
 }
 
 function isImportedAssignment(
-  membershipId: string,
+  assigneeId: string | null,
   rosterByMembershipId: Map<string, CrewRosterVolunteer>,
 ) {
-  return rosterByMembershipId.get(membershipId)?.imported === true
+  if (!assigneeId) return false
+  return rosterByMembershipId.get(assigneeId)?.imported === true
 }
 
 function shiftMatchesCredentialQuery(
@@ -458,17 +470,20 @@ function shiftMatchesCredentialQuery(
   roster: CrewRosterVolunteer[],
   credentialQuery: string,
 ) {
-  const assignedMembershipIds = new Set(
-    shift.assignments.map((assignment) => assignment.membershipId),
+  const assignedAssigneeIds = new Set(
+    shift.assignments
+      .map((assignment) => getAssignmentAssigneeId(assignment))
+      .filter((id): id is string => Boolean(id)),
   )
   return roster.some((volunteer) => {
-    if (!volunteer.membershipId) return false
+    const assigneeId = volunteer.membershipId ?? volunteer.invitationId
+    if (!assigneeId) return false
     if (!normalizeSearch(volunteer.credentials).includes(credentialQuery)) {
       return false
     }
-    if (assignedMembershipIds.has(volunteer.membershipId)) return true
+    if (assignedAssigneeIds.has(assigneeId)) return true
     return (
-      volunteer.status === "active" &&
+      isCrewRosterVolunteerStaffable(volunteer) &&
       isVolunteerCompatibleWithShift(shift.roleType, volunteer.roleTypes)
     )
   })

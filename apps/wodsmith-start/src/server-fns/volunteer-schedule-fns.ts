@@ -661,7 +661,7 @@ export const getVolunteerScheduleDataFn = createServerFn({ method: "GET" })
           id: rotation.id,
           competitionId: rotation.competitionId,
           trackWorkoutId: rotation.trackWorkoutId,
-          membershipId: rotation.membershipId,
+          membershipId: rotation.membershipId ?? "",
           startingHeat: rotation.startingHeat,
           startingLane: rotation.startingLane,
           heatsCount: rotation.heatsCount,

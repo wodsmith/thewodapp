@@ -122,11 +122,11 @@ function CrewMessagesPage() {
           </p>
         </div>
         <Link
-          to="/events/$eventId/assignments"
+          to="/events/$eventId/shifts"
           params={{ eventId }}
           className="inline-flex h-10 w-fit items-center rounded-md border px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
         >
-          Assignments
+          Shifts
         </Link>
       </div>
 

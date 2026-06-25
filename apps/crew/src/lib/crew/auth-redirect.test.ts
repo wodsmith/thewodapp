@@ -9,10 +9,16 @@ describe("Crew auth redirects", () => {
   it("preserves Crew workflow destinations", () => {
     expect(
       getCrewAuthRedirect({
-        pathname: "/events/comp_123/assignments",
-        searchStr: "?tab=judges",
+        pathname: "/events/comp_123/judges",
+        searchStr: undefined,
       }),
-    ).toBe("/events/comp_123/assignments?tab=judges")
+    ).toBe("/events/comp_123/judges")
+    expect(
+      getCrewAuthRedirect({
+        pathname: "/events/comp_123/shifts",
+        searchStr: undefined,
+      }),
+    ).toBe("/events/comp_123/shifts")
   })
 
   it("falls back for unsafe or looping redirects", () => {

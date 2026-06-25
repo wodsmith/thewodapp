@@ -730,7 +730,7 @@ async function loadCrewVolunteerVisibleAssignments(
 
   if (params.membershipId) {
     return buildCrewVolunteerSelfServiceSchedule({
-      membershipId: params.membershipId,
+      assigneeId: params.membershipId,
       tokenAssignmentId: "",
       assignments: toSelfServiceAssignmentRecords(rows),
     })
@@ -816,6 +816,7 @@ async function loadCrewVolunteerAssignmentRows(
       assignment: {
         id: volunteerShiftAssignmentsTable.id,
         membershipId: volunteerShiftAssignmentsTable.membershipId,
+        invitationId: volunteerShiftAssignmentsTable.invitationId,
         notes: volunteerShiftAssignmentsTable.notes,
       },
       shift: {
@@ -893,7 +894,8 @@ function toSelfServiceAssignmentRecords(
 ): CrewVolunteerSelfServiceAssignmentRecord[] {
   return rows.map((row) => ({
     id: row.assignment.id,
-    membershipId: row.assignment.membershipId,
+    assigneeId:
+      row.assignment.membershipId ?? row.assignment.invitationId ?? "",
     shiftId: row.shift.id,
     name: row.shift.name,
     roleType: row.shift.roleType,
@@ -978,7 +980,8 @@ async function createCrewVolunteerScheduleConfirmation(
   params: {
     competitionId: string
     assignmentId: string
-    membershipId: string
+    // Null for invitation-based volunteers, who are identified by invitationId.
+    membershipId: string | null
     invitationId: string
     email: string
   },

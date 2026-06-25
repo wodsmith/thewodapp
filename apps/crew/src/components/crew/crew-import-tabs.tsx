@@ -1,9 +1,5 @@
-import {
-  createFileRoute,
-  getRouteApi,
-  useRouter,
-  useSearch,
-} from "@tanstack/react-router"
+"use client"
+
 import { useServerFn } from "@tanstack/react-start"
 import {
   AlertTriangle,
@@ -45,45 +41,11 @@ import {
   type CrewImportHistoryItem,
   type CrewImportReferenceData,
   getCrewImportMappingSuggestionFn,
-  getCrewImportsPageFn,
   type PersistedCrewImportPreview,
   saveCrewImportMappingPresetFn,
 } from "@/server-fns/crew-import-fns"
 
-export const Route = createFileRoute("/events/$eventId/imports")({
-  loader: async ({ params }) =>
-    await getCrewImportsPageFn({ data: { eventId: params.eventId } }),
-  component: EventImportsPage,
-})
-
-const parentRoute = getRouteApi("/events/$eventId")
-
 type ImportSearchTab = CrewImportKind
-
-function EventImportsPage() {
-  const router = useRouter()
-  const { eventId } = parentRoute.useParams()
-  const search = useSearch({ strict: false }) as { tab?: unknown }
-  const { history, reference } = Route.useLoaderData()
-  const handleHistoryRefresh = async () => {
-    await router.invalidate()
-  }
-
-  const handleApplyComplete = async () => {
-    await router.invalidate()
-  }
-
-  return (
-    <EventImportTabs
-      eventId={eventId}
-      history={history}
-      initialTab={normalizeImportSearchTab(search.tab)}
-      reference={reference}
-      onApplyComplete={handleApplyComplete}
-      onHistoryRefresh={handleHistoryRefresh}
-    />
-  )
-}
 
 export function EventImportTabs({
   eventId,
@@ -178,14 +140,6 @@ export function EventImportTabs({
       </section>
     </section>
   )
-}
-
-function isImportSearchTab(value: unknown): value is ImportSearchTab {
-  return value === "volunteers" || value === "heat_schedule"
-}
-
-function normalizeImportSearchTab(value: unknown): ImportSearchTab {
-  return isImportSearchTab(value) ? value : "volunteers"
 }
 
 function ImportTabContent({
