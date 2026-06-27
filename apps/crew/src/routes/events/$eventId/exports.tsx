@@ -1,20 +1,23 @@
 // @lat: [[crew#Pilot Exports]]
 // @lat: [[crew#Event Day Export Packet]]
-import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router"
-import { Download, FileSpreadsheet, Printer } from "lucide-react"
+import {
+  createFileRoute,
+  getRouteApi,
+  useNavigate,
+  useSearch,
+} from "@tanstack/react-router"
+import { Download, Printer } from "lucide-react"
 import type { ReactNode } from "react"
 import type {
   CrewPilotExports,
-  CrewPilotFloorLeadSheet,
-  CrewPilotJudgeHeatLaneSheet,
-  CrewPilotJudgeLaneCard,
-  CrewPilotRoleSheet,
-  CrewPilotStationCard,
+  CrewPilotJudgeEventSection,
+  CrewPilotMasterScheduleDaySection,
+  CrewPilotShiftSheet,
 } from "@/lib/crew/exports/pilot-exports"
 import { formatCrewValue } from "@/lib/crew-event-display"
 import {
-  getCrewPilotExportsPageFn,
   type CrewPilotExportsPageData,
+  getCrewPilotExportsPageFn,
 } from "@/server-fns/crew-pilot-export-fns"
 import { formatDateTimeInTimezone } from "@/utils/timezone-utils"
 
@@ -28,9 +31,35 @@ export const Route = createFileRoute("/events/$eventId/exports")({
 
 const parentRoute = getRouteApi("/events/$eventId")
 
+const PACKET_TABS = [
+  { id: "schedule", label: "Master Schedule" },
+  { id: "judges", label: "Judges" },
+  { id: "shifts", label: "Shifts" },
+] as const
+
+type PacketTabId = (typeof PACKET_TABS)[number]["id"]
+
+function isPacketTabId(value: unknown): value is PacketTabId {
+  return PACKET_TABS.some((tab) => tab.id === value)
+}
+
 function EventPilotExportsPage() {
   const { eventId } = parentRoute.useParams()
   const { event, exports, sources } = Route.useLoaderData()
+  const navigate = useNavigate()
+  const search = useSearch({ strict: false }) as { tab?: string }
+  const activeTab = isPacketTabId(search.tab) ? search.tab : "schedule"
+
+  function handleTabChange(tabId: PacketTabId) {
+    void navigate({
+      to: ".",
+      search: (previous: Record<string, unknown>) => ({
+        ...previous,
+        tab: tabId,
+      }),
+      replace: true,
+    })
+  }
 
   return (
     <EventPilotExportsView
@@ -38,31 +67,32 @@ function EventPilotExportsPage() {
       event={event}
       exports={exports}
       sources={sources}
+      activeTab={activeTab}
+      onTabChange={handleTabChange}
     />
   )
 }
 
 export function EventPilotExportsView({
-  eventId,
   event,
   exports,
   sources,
+  activeTab,
+  onTabChange,
 }: EventPilotExportsViewProps) {
   const timezone = event.timezone ?? "America/Denver"
 
   return (
-    <>
-      <section className="space-y-5 print:hidden">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="text-xl font-semibold">
-              Event-day export packet
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {formatExportDate(exports.generatedAt, timezone)} / {timezone}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
+    <section className="space-y-5">
+      <div className="flex flex-col gap-3 print:hidden sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-xl font-semibold">Print packet</h2>
+          <p className="text-sm text-muted-foreground">
+            {formatExportDate(exports.generatedAt, timezone)} / {timezone}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {activeTab === "schedule" ? (
             <button
               type="button"
               className="inline-flex h-10 items-center gap-2 rounded-md border px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -76,248 +106,63 @@ export function EventPilotExportsView({
               <Download className="size-4" />
               Master CSV
             </button>
-            <button
-              type="button"
-              className="inline-flex h-10 items-center gap-2 rounded-md border px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
-              onClick={() =>
-                downloadCsv(
-                  `${event.slug || event.id}-responses.csv`,
-                  exports.responseCsv,
-                )
-              }
-            >
-              <FileSpreadsheet className="size-4" />
-              Responses CSV
-            </button>
-            <button
-              type="button"
-              className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-              onClick={() => window.print()}
-            >
-              <Printer className="size-4" />
-              Print packet
-            </button>
-          </div>
+          ) : null}
+          <button
+            type="button"
+            className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            onClick={() => window.print()}
+          >
+            <Printer className="size-4" />
+            Print
+          </button>
         </div>
+      </div>
 
-        <section className="grid gap-3 md:grid-cols-4 xl:grid-cols-8">
-          <MetricPanel
-            label="Rows"
-            value={exports.summary.masterScheduleRows}
-          />
-          <MetricPanel
-            label="Days"
-            value={exports.summary.masterScheduleDaySections}
-          />
-          <MetricPanel
-            label="Stations"
-            value={exports.summary.stationCards}
-          />
-          <MetricPanel label="Role sheets" value={exports.summary.roleSheets} />
-          <MetricPanel
-            label="Judge sheets"
-            value={exports.summary.judgeHeatSheets}
-          />
-          <MetricPanel label="Lane cards" value={exports.summary.laneCards} />
-          <MetricPanel label="Responses" value={exports.summary.responseRows} />
-          <MetricPanel label="Versions" value={sources.activeJudgeVersions} />
-        </section>
+      <div
+        className="flex flex-wrap gap-2 border-b print:hidden"
+        role="tablist"
+        aria-label="Print packet sections"
+      >
+        {PACKET_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${
+              activeTab === tab.id
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+            onClick={() => onTabChange(tab.id)}
+          >
+            {tab.label} ({getTabCount(tab.id, exports, sources)})
+          </button>
+        ))}
+      </div>
 
-        <section className="rounded-md border bg-card p-5 shadow-sm">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h3 className="font-semibold">Packet index</h3>
-              <p className="text-sm text-muted-foreground">
-                {exports.summary.masterScheduleDaySections} days /{" "}
-                {exports.summary.stationCards} stations /{" "}
-                {exports.summary.laneCards} lane cards
-              </p>
-            </div>
-            <StatusPill>{exports.summary.packetIndexItems} sections</StatusPill>
-          </div>
-          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {exports.packetIndexItems.map((item) => (
-              <div key={item.id} className="rounded-md border p-3 text-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <p className="font-medium">{item.title}</p>
-                  <StatusPill>{item.count}</StatusPill>
-                </div>
-                <p className="mt-2 text-muted-foreground">
-                  {item.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-md border bg-card p-5 shadow-sm">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h3 className="font-semibold">Master schedule</h3>
-              <p className="text-sm text-muted-foreground">
-                {sources.shifts} shifts / {sources.heats} heats
-              </p>
-            </div>
-            <StatusPill>{formatCrewValue(event.slug)}</StatusPill>
-          </div>
-          {exports.masterScheduleRows.length > 0 ? (
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full min-w-[900px] text-left text-sm">
-                <thead className="border-b text-xs uppercase text-muted-foreground">
-                  <tr>
-                    <th className="py-2 pr-3">Time</th>
-                    <th className="py-2 pr-3">Block</th>
-                    <th className="py-2 pr-3">Location</th>
-                    <th className="py-2 pr-3">Role</th>
-                    <th className="py-2 pr-3">Coverage</th>
-                    <th className="py-2 pr-3">People</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {exports.masterScheduleRows.map((row) => (
-                    <tr key={`${row.blockType}:${row.blockId}`}>
-                      <td className="py-3 pr-3 text-muted-foreground">
-                        {formatRange(row.startsAt, row.endsAt, timezone)}
-                      </td>
-                      <td className="py-3 pr-3 font-medium">{row.label}</td>
-                      <td className="py-3 pr-3">{row.location}</td>
-                      <td className="py-3 pr-3">{row.role}</td>
-                      <td className="py-3 pr-3">
-                        {row.assigned}/{row.needed}
-                        {row.open > 0 ? ` (${row.open} open)` : ""}
-                      </td>
-                      <td className="py-3 pr-3 text-muted-foreground">
-                        {row.people || "Unassigned"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <EmptyState message="No shift or heat rows are ready to export." />
-          )}
-        </section>
-
-        <section className="space-y-4">
-          <h3 className="font-semibold">Station cards</h3>
-          <div className="grid gap-4 lg:grid-cols-2">
-            {exports.stationCards.map((card) => (
-              <StationCardPreview
-                key={card.stationName}
-                card={card}
-                timezone={timezone}
-              />
-            ))}
-          </div>
-        </section>
-
-        <div className="grid gap-5 lg:grid-cols-2">
-          <section className="rounded-md border bg-card p-5 shadow-sm">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="font-semibold">No-response and declines</h3>
-                <p className="text-sm text-muted-foreground">
-                  {sources.shiftAssignments + sources.judgeAssignments} active
-                  assignments
-                </p>
-              </div>
-              <Link
-                to="/events/$eventId/day-of"
-                params={{ eventId }}
-                className="text-sm font-medium text-primary hover:underline"
-              >
-                Day-of
-              </Link>
-            </div>
-            {exports.responseRows.length > 0 ? (
-              <div className="mt-4 grid gap-3">
-                {exports.responseRows.slice(0, 12).map((row) => (
-                  <div
-                    key={`${row.assignmentType}:${row.assignmentId}`}
-                    className="rounded-md border p-3 text-sm"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-medium">{row.volunteerName}</p>
-                        <p className="text-muted-foreground">
-                          {row.blockLabel} / {row.role}
-                        </p>
-                      </div>
-                      <StatusPill>{formatCrewValue(row.reason)}</StatusPill>
-                    </div>
-                    <p className="mt-2 text-muted-foreground">
-                      {formatRange(row.startsAt, row.endsAt, timezone)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <EmptyState message="No missing, pending, declined, or change-requested responses." />
-            )}
-          </section>
-
-          <section className="rounded-md border bg-card p-5 shadow-sm">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="font-semibold">Judge heat sheets</h3>
-                <p className="text-sm text-muted-foreground">
-                  {sources.judgeAssignments}/{sources.heatLaneAssignments} lanes
-                  assigned
-                </p>
-              </div>
-              <Link
-                to="/events/$eventId/judges"
-                params={{ eventId }}
-                className="text-sm font-medium text-primary hover:underline"
-              >
-                Judges
-              </Link>
-            </div>
-            <div className="mt-4 grid gap-3">
-              {exports.judgeHeatLaneSheets.slice(0, 4).map((sheet) => (
-                <JudgeHeatSheetPreview
-                  key={sheet.heatId}
-                  sheet={sheet}
-                  timezone={timezone}
-                />
-              ))}
-            </div>
-          </section>
-        </div>
-
-        <section className="space-y-4">
-          <h3 className="font-semibold">Role sheets</h3>
-          <div className="grid gap-4 lg:grid-cols-2">
-            {exports.roleSheets.map((sheet) => (
-              <RoleSheetPreview
-                key={sheet.roleType}
-                sheet={sheet}
-                timezone={timezone}
-              />
-            ))}
-          </div>
-        </section>
-
-        <section className="space-y-4">
-          <h3 className="font-semibold">Floor lead sheets</h3>
-          <div className="grid gap-4">
-            {exports.floorLeadSheets.map((sheet) => (
-              <FloorLeadSheetPreview
-                key={sheet.floorName}
-                sheet={sheet}
-                timezone={timezone}
-              />
-            ))}
-          </div>
-        </section>
-      </section>
-      <PrintSheets
+      <PrintHeader
         eventName={event.name}
-        exports={exports}
-        timezone={timezone}
+        subtitle={PACKET_TABS.find((tab) => tab.id === activeTab)?.label ?? ""}
+        generatedAt={formatExportDate(exports.generatedAt, timezone)}
       />
-    </>
+
+      {activeTab === "schedule" ? (
+        <ScheduleTab
+          daySections={exports.masterScheduleDaySections}
+          timezone={timezone}
+        />
+      ) : null}
+      {activeTab === "judges" ? (
+        <JudgesTab
+          eventSections={exports.judgeEventSections}
+          timezone={timezone}
+        />
+      ) : null}
+      {activeTab === "shifts" ? (
+        <ShiftsTab shiftSheets={exports.shiftSheets} timezone={timezone} />
+      ) : null}
+    </section>
   )
 }
 
@@ -326,43 +171,39 @@ interface EventPilotExportsViewProps {
   event: CrewPilotExportsPageData["event"]
   exports: CrewPilotExports
   sources: CrewPilotExportsPageData["sources"]
+  activeTab: PacketTabId
+  onTabChange: (tabId: PacketTabId) => void
 }
 
-function PrintSheets({
-  eventName,
-  exports,
+function getTabCount(
+  tabId: PacketTabId,
+  exports: CrewPilotExports,
+  sources: CrewPilotExportsPageData["sources"],
+) {
+  if (tabId === "schedule") return exports.summary.masterScheduleRows
+  if (tabId === "judges") return exports.summary.judgeHeatSheets
+  return sources.shifts
+}
+
+function ScheduleTab({
+  daySections,
   timezone,
 }: {
-  eventName: string
-  exports: CrewPilotExports
+  daySections: CrewPilotMasterScheduleDaySection[]
   timezone: string
 }) {
+  if (daySections.length === 0) {
+    return <EmptyState message="No shift or heat rows are ready to export." />
+  }
+
   return (
-    <section className="hidden space-y-8 bg-white text-black print:block">
-      <header className="border-b pb-4">
-        <h1 className="text-2xl font-semibold">{eventName}</h1>
-        <p className="text-sm">
-          Event-day export packet /{" "}
-          {formatExportDate(exports.generatedAt, timezone)}
-        </p>
-      </header>
-
-      <PrintSection title="Packet index">
-        <PrintTable
-          headers={["Section", "Count", "Contents"]}
-          rows={exports.packetIndexItems.map((item) => ({
-            key: item.id,
-            cells: [item.title, item.count, item.description],
-          }))}
-        />
-      </PrintSection>
-
-      {exports.masterScheduleDaySections.map((section) => (
-        <PrintSection
+    <div className="space-y-8">
+      {daySections.map((section) => (
+        <PacketSection
           key={section.dayKey}
-          title={`Master schedule / ${formatPacketDay(section.dayKey)}`}
+          title={formatPacketDay(section.dayKey)}
         >
-          <PrintTable
+          <PacketTable
             headers={[
               "Time",
               "Block",
@@ -383,210 +224,136 @@ function PrintSheets({
               ],
             }))}
           />
-        </PrintSection>
+        </PacketSection>
       ))}
-
-      <PrintSection title="Master schedule / all days">
-        <PrintTable
-          headers={["Time", "Block", "Location", "Role", "Coverage", "People"]}
-          rows={exports.masterScheduleRows.map((row) => ({
-            key: `${row.blockType}:${row.blockId}`,
-            cells: [
-              formatRange(row.startsAt, row.endsAt, timezone),
-              row.label,
-              row.location,
-              row.role,
-              `${row.assigned}/${row.needed}${row.open > 0 ? ` (${row.open} open)` : ""}`,
-              row.people || "Unassigned",
-            ],
-          }))}
-        />
-      </PrintSection>
-
-      {exports.stationCards.map((card) => (
-        <PrintSection
-          key={card.stationName}
-          title={`${card.stationName} station card`}
-        >
-          <p className="mb-2 text-sm">
-            {formatRange(card.startsAt, card.endsAt, timezone)} /{" "}
-            {card.openBlocks} open blocks
-          </p>
-          <PrintTable
-            headers={["Time", "Block", "Role", "Coverage", "People"]}
-            rows={card.rows.map((row) => ({
-              key: `${row.blockType}:${row.blockId}`,
-              cells: [
-                formatRange(row.startsAt, row.endsAt, timezone),
-                row.label,
-                row.role,
-                `${row.assigned}/${row.needed}${row.open > 0 ? ` (${row.open} open)` : ""}`,
-                row.people || "Unassigned",
-              ],
-            }))}
-            empty="No schedule rows for this station."
-          />
-          <div className="mt-4">
-            <PrintTable
-              headers={["Time", "Heat", "Lane", "Judge", "Status"]}
-              rows={card.judgeRows.map((row) => ({
-                key: `${row.heatId}:lane:${row.laneNumber}`,
-                cells: [
-                  formatRange(row.startsAt, row.endsAt, timezone),
-                  `${row.workoutName} heat ${row.heatNumber}`,
-                  row.laneNumber,
-                  row.judgeName,
-                  formatCrewValue(row.confirmationStatus),
-                ],
-              }))}
-              empty="No judge lanes for this station."
-            />
-          </div>
-        </PrintSection>
-      ))}
-
-      <PrintSection title="No-response and decline list">
-        <PrintTable
-          headers={["Time", "Volunteer", "Block", "Role", "Status", "Note"]}
-          rows={exports.responseRows.map((row) => ({
-            key: `${row.assignmentType}:${row.assignmentId}`,
-            cells: [
-              formatRange(row.startsAt, row.endsAt, timezone),
-              `${row.volunteerName}${row.email ? ` <${row.email}>` : ""}`,
-              row.blockLabel,
-              row.role,
-              formatCrewValue(row.reason),
-              row.responseNote,
-            ],
-          }))}
-          empty="No missing, pending, declined, or change-requested responses."
-        />
-      </PrintSection>
-
-      {exports.roleSheets.map((sheet) => (
-        <PrintSection key={sheet.roleType} title={`${sheet.roleLabel} sheet`}>
-          <PrintTable
-            headers={[
-              "Time",
-              "Volunteer",
-              "Email",
-              "Block",
-              "Location",
-              "Status",
-            ]}
-            rows={sheet.rows.map((row) => ({
-              key: row.rowKey,
-              cells: [
-                formatRange(row.startsAt, row.endsAt, timezone),
-                row.volunteerName,
-                row.email,
-                row.blockLabel,
-                row.location,
-                formatCrewValue(row.confirmationStatus),
-              ],
-            }))}
-          />
-        </PrintSection>
-      ))}
-
-      {exports.judgeHeatLaneSheets.map((sheet) => (
-        <PrintSection key={sheet.heatId} title={`${sheet.label} judge lanes`}>
-          <p className="mb-2 text-sm">
-            {formatExportDate(sheet.startsAt, timezone)} / {sheet.venueName}
-          </p>
-          <PrintTable
-            headers={["Lane", "Judge", "Email", "Position", "Status"]}
-            rows={sheet.rows.map((row) => ({
-              key: `${row.heatId}:lane:${row.laneNumber}`,
-              cells: [
-                row.laneNumber,
-                row.judgeName,
-                row.email,
-                row.position,
-                formatCrewValue(row.confirmationStatus),
-              ],
-            }))}
-          />
-        </PrintSection>
-      ))}
-
-      {exports.judgeLaneCards.map((card) => (
-        <PrintSection
-          key={card.cardKey}
-          title={`${card.venueName} lane ${card.laneNumber} card`}
-        >
-          <PrintTable
-            headers={["Time", "Heat", "Judge", "Email", "Status"]}
-            rows={card.rows.map((row) => ({
-              key: row.heatId,
-              cells: [
-                formatRange(row.startsAt, row.endsAt, timezone),
-                `${row.workoutName} heat ${row.heatNumber}`,
-                row.judgeName,
-                row.email,
-                formatCrewValue(row.confirmationStatus),
-              ],
-            }))}
-          />
-        </PrintSection>
-      ))}
-
-      {exports.floorLeadSheets.map((sheet) => (
-        <PrintSection
-          key={sheet.floorName}
-          title={`${sheet.floorName} floor lead`}
-        >
-          <PrintTable
-            headers={["Time", "Block", "Role", "Coverage", "People"]}
-            rows={sheet.rows.map((row) => ({
-              key: `${row.blockType}:${row.blockId}`,
-              cells: [
-                formatRange(row.startsAt, row.endsAt, timezone),
-                row.label,
-                row.role,
-                `${row.assigned}/${row.needed}${row.open > 0 ? ` (${row.open} open)` : ""}`,
-                row.people || "Unassigned",
-              ],
-            }))}
-          />
-          <div className="mt-4">
-            <PrintTable
-              headers={["Time", "Heat", "Lane", "Judge", "Status"]}
-              rows={sheet.judgeRows.map((row) => ({
-                key: `${row.heatId}:lane:${row.laneNumber}`,
-                cells: [
-                  formatRange(row.startsAt, row.endsAt, timezone),
-                  `${row.workoutName} heat ${row.heatNumber}`,
-                  row.laneNumber,
-                  row.judgeName,
-                  formatCrewValue(row.confirmationStatus),
-                ],
-              }))}
-              empty="No judge lanes for this floor."
-            />
-          </div>
-        </PrintSection>
-      ))}
-    </section>
+    </div>
   )
 }
 
-function PrintSection({
+function JudgesTab({
+  eventSections,
+  timezone,
+}: {
+  eventSections: CrewPilotJudgeEventSection[]
+  timezone: string
+}) {
+  if (eventSections.length === 0) {
+    return <EmptyState message="No heats are ready for judge assignment." />
+  }
+
+  return (
+    <div className="space-y-8">
+      {eventSections.map((section) => (
+        <PacketSection key={section.workoutId} title={section.workoutName}>
+          <div className="space-y-4">
+            {section.heats.map((heat) => (
+              <div key={heat.heatId} className="break-inside-avoid space-y-1">
+                <p className="text-sm font-medium">
+                  Heat {heat.heatNumber} / {heat.venueName} /{" "}
+                  {formatExportDate(heat.startsAt, timezone) || "Unscheduled"}
+                </p>
+                <PacketTable
+                  headers={["Lane", "Judge", "Position", "Status"]}
+                  rows={heat.rows.map((row) => ({
+                    key: `${heat.heatId}:lane:${row.laneNumber}`,
+                    cells: [
+                      row.laneNumber,
+                      row.judgeName,
+                      row.position,
+                      formatCrewValue(row.confirmationStatus),
+                    ],
+                  }))}
+                  empty="No lanes for this heat."
+                />
+              </div>
+            ))}
+          </div>
+        </PacketSection>
+      ))}
+    </div>
+  )
+}
+
+function ShiftsTab({
+  shiftSheets,
+  timezone,
+}: {
+  shiftSheets: CrewPilotShiftSheet[]
+  timezone: string
+}) {
+  if (shiftSheets.length === 0) {
+    return <EmptyState message="No shifts are ready to export." />
+  }
+
+  return (
+    <div className="space-y-8">
+      {shiftSheets.map((sheet) => (
+        <PacketSection
+          key={sheet.shiftId}
+          title={sheet.name}
+          subtitle={`${formatRange(sheet.startsAt, sheet.endsAt, timezone)} / ${sheet.location} / ${sheet.roleLabel} / ${sheet.assigned}/${sheet.needed} filled${sheet.open > 0 ? ` (${sheet.open} open)` : ""}`}
+        >
+          <PacketTable
+            headers={["Volunteer", "Status"]}
+            rows={sheet.rows.map((row) => ({
+              key: row.rowKey,
+              cells: [
+                row.volunteerName,
+                formatCrewValue(row.confirmationStatus),
+              ],
+            }))}
+            empty="No volunteers on this shift."
+          />
+        </PacketSection>
+      ))}
+    </div>
+  )
+}
+
+function PrintHeader({
+  eventName,
+  subtitle,
+  generatedAt,
+}: {
+  eventName: string
+  subtitle: string
+  generatedAt: string
+}) {
+  return (
+    <header className="hidden border-b pb-4 print:block">
+      <h1 className="text-2xl font-semibold">{eventName}</h1>
+      <p className="text-sm">
+        {subtitle} / {generatedAt}
+      </p>
+    </header>
+  )
+}
+
+function PacketSection({
   title,
+  subtitle,
   children,
 }: {
   title: string
+  subtitle?: string
   children: ReactNode
 }) {
   return (
-    <section className="break-inside-avoid space-y-3 print:break-before-page first:print:break-before-auto">
-      <h2 className="text-xl font-semibold">{title}</h2>
+    <section className="space-y-3 break-inside-avoid print:break-before-page first:print:break-before-auto">
+      <div>
+        <h3 className="text-lg font-semibold">{title}</h3>
+        {subtitle ? (
+          <p className="text-sm text-muted-foreground print:text-black">
+            {subtitle}
+          </p>
+        ) : null}
+      </div>
       {children}
     </section>
   )
 }
 
-function PrintTable({
+function PacketTable({
   headers,
   rows,
   empty = "No rows.",
@@ -596,214 +363,37 @@ function PrintTable({
   empty?: string
 }) {
   if (rows.length === 0) {
-    return <p className="text-sm">{empty}</p>
+    return <p className="text-sm text-muted-foreground">{empty}</p>
   }
 
   return (
-    <table className="w-full border-collapse text-left text-xs">
-      <thead>
-        <tr>
-          {headers.map((header) => (
-            <th key={header} className="border px-2 py-1 font-semibold">
-              {header}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => (
-          <tr key={row.key}>
-            {headers.map((header, cellIndex) => (
-              <td key={header} className="border px-2 py-1 align-top">
-                {row.cells[cellIndex]}
-              </td>
+    <div className="overflow-x-auto">
+      <table className="w-full border-collapse text-left text-sm">
+        <thead>
+          <tr>
+            {headers.map((header) => (
+              <th
+                key={header}
+                className="border px-2 py-1 text-xs font-semibold uppercase text-muted-foreground print:text-black"
+              >
+                {header}
+              </th>
             ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
-  )
-}
-
-function StationCardPreview({
-  card,
-  timezone,
-}: {
-  card: CrewPilotStationCard
-  timezone: string
-}) {
-  return (
-    <section className="rounded-md border bg-card p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h4 className="font-semibold">{card.stationName}</h4>
-          <p className="text-sm text-muted-foreground">
-            {formatRange(card.startsAt, card.endsAt, timezone)}
-          </p>
-        </div>
-        <StatusPill>
-          {card.rows.length} blocks / {card.laneCards.length} lanes
-        </StatusPill>
-      </div>
-      <div className="mt-3 grid gap-3 lg:grid-cols-2">
-        <div className="space-y-2 text-sm">
-          {card.rows.slice(0, 6).map((row) => (
-            <div key={`${row.blockType}:${row.blockId}`}>
-              <p className="font-medium">{row.label}</p>
-              <p className="text-muted-foreground">
-                {formatRange(row.startsAt, row.endsAt, timezone)} / {row.role}
-              </p>
-            </div>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.key}>
+              {headers.map((header, cellIndex) => (
+                <td key={header} className="border px-2 py-1 align-top">
+                  {row.cells[cellIndex]}
+                </td>
+              ))}
+            </tr>
           ))}
-        </div>
-        <div className="space-y-2 text-sm">
-          {card.laneCards.slice(0, 6).map((laneCard) => (
-            <LaneCardLine key={laneCard.cardKey} card={laneCard} />
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function LaneCardLine({ card }: { card: CrewPilotJudgeLaneCard }) {
-  return (
-    <div>
-      <p className="font-medium">Lane {card.laneNumber}</p>
-      <p className="text-muted-foreground">
-        {card.rows.length} heats /{" "}
-        {card.rows.filter((row) => row.judgeName === "OPEN").length} open
-      </p>
+        </tbody>
+      </table>
     </div>
-  )
-}
-
-function JudgeHeatSheetPreview({
-  sheet,
-  timezone,
-}: {
-  sheet: CrewPilotJudgeHeatLaneSheet
-  timezone: string
-}) {
-  return (
-    <div className="rounded-md border p-3 text-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="font-medium">{sheet.label}</p>
-          <p className="text-muted-foreground">
-            {formatExportDate(sheet.startsAt, timezone)} / {sheet.venueName}
-          </p>
-        </div>
-        <StatusPill>{sheet.rows.length} lanes</StatusPill>
-      </div>
-      <div className="mt-3 grid gap-2">
-        {sheet.rows.map((row) => (
-          <div
-            key={`${sheet.heatId}:${row.laneNumber}`}
-            className="grid grid-cols-[4rem_1fr_auto] gap-2"
-          >
-            <span className="text-muted-foreground">Lane {row.laneNumber}</span>
-            <span>{row.judgeName}</span>
-            <span className="text-muted-foreground">
-              {formatCrewValue(row.confirmationStatus)}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function RoleSheetPreview({
-  sheet,
-  timezone,
-}: {
-  sheet: CrewPilotRoleSheet
-  timezone: string
-}) {
-  return (
-    <section className="rounded-md border bg-card p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <h4 className="font-semibold">{sheet.roleLabel}</h4>
-        <StatusPill>{sheet.rows.length} rows</StatusPill>
-      </div>
-      <div className="mt-3 grid gap-2 text-sm">
-        {sheet.rows.slice(0, 8).map((row) => (
-          <div key={row.rowKey} className="grid gap-1 rounded-md border p-3">
-            <div className="flex items-start justify-between gap-3">
-              <p className="font-medium">{row.volunteerName}</p>
-              <span className="text-muted-foreground">
-                {formatCrewValue(row.confirmationStatus)}
-              </span>
-            </div>
-            <p className="text-muted-foreground">
-              {row.blockLabel} / {row.location}
-            </p>
-            <p className="text-muted-foreground">
-              {formatRange(row.startsAt, row.endsAt, timezone)}
-            </p>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function FloorLeadSheetPreview({
-  sheet,
-  timezone,
-}: {
-  sheet: CrewPilotFloorLeadSheet
-  timezone: string
-}) {
-  return (
-    <section className="rounded-md border bg-card p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <h4 className="font-semibold">{sheet.floorName}</h4>
-        <StatusPill>
-          {sheet.rows.length} blocks / {sheet.judgeRows.length} lanes
-        </StatusPill>
-      </div>
-      <div className="mt-3 grid gap-3 lg:grid-cols-2">
-        <div className="space-y-2 text-sm">
-          {sheet.rows.slice(0, 8).map((row) => (
-            <div key={`${row.blockType}:${row.blockId}`}>
-              <p className="font-medium">{row.label}</p>
-              <p className="text-muted-foreground">
-                {formatRange(row.startsAt, row.endsAt, timezone)} / {row.role}
-              </p>
-            </div>
-          ))}
-        </div>
-        <div className="space-y-2 text-sm">
-          {sheet.judgeRows.slice(0, 8).map((row) => (
-            <div key={`${row.heatId}:${row.laneNumber}`}>
-              <p className="font-medium">
-                {row.workoutName} heat {row.heatNumber}, lane {row.laneNumber}
-              </p>
-              <p className="text-muted-foreground">{row.judgeName}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function MetricPanel({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <section className="rounded-md border bg-card p-4 shadow-sm">
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-semibold">{value}</p>
-    </section>
-  )
-}
-
-function StatusPill({ children }: { children: ReactNode }) {
-  return (
-    <span className="rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
-      {children}
-    </span>
   )
 }
 

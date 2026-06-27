@@ -6,8 +6,8 @@ import {
   CREW_ASSIGNMENT_CONFIRMATION_TYPE,
 } from "../../../db/schemas/crew-imports"
 import { VOLUNTEER_ROLE_TYPES } from "../../../db/schemas/volunteers"
-import { buildCrewPilotExports } from "./pilot-exports"
 import type { CrewPilotExportInput } from "./pilot-exports"
+import { buildCrewPilotExports } from "./pilot-exports"
 
 describe("Crew pilot exports", () => {
   it("requires explicit generatedAt input for deterministic output", () => {
@@ -66,58 +66,53 @@ describe("Crew pilot exports", () => {
     expect(exports.masterScheduleCsv).toContain("'+Mallory")
   })
 
-  it("groups role sheets with open shift slots and judge assignments", () => {
+  it("builds flat time-ordered shift sheets with open slots and statuses", () => {
     const exports = buildCrewPilotExports(baseInput())
 
-    const equipment = exports.roleSheets.find(
-      (sheet) => sheet.roleType === VOLUNTEER_ROLE_TYPES.EQUIPMENT,
-    )
-    const judges = exports.roleSheets.find(
-      (sheet) => sheet.roleType === VOLUNTEER_ROLE_TYPES.JUDGE,
-    )
-
-    expect(equipment?.rows).toMatchObject([
-      { volunteerName: "Rae Reset", blockLabel: "Floor reset" },
-      { volunteerName: "OPEN", confirmationStatus: "open" },
+    expect(exports.shiftSheets.map((sheet) => sheet.name)).toEqual([
+      "Check-in",
+      "Floor reset",
     ])
-    expect(judges?.rows.map((row) => row.volunteerName)).toEqual([
-      "Jules Judge",
-      "Lane Two",
-    ])
-  })
 
-  it("derives no-response and decline rows from confirmation states", () => {
-    const exports = buildCrewPilotExports(baseInput())
-
+    const checkIn = exports.shiftSheets.find(
+      (sheet) => sheet.name === "Check-in",
+    )
     expect(
-      exports.responseRows.map((row) => [
-        row.volunteerName,
-        row.status,
-        row.reason,
-      ]),
+      checkIn?.rows.map((row) => [row.volunteerName, row.confirmationStatus]),
     ).toEqual([
-      ["Casey Check", "pending", "no_response"],
-      ["Lane Two", "declined", "declined"],
-      ["Rae Reset", "missing", "missing_confirmation"],
+      ["Ari Arrivals", "confirmed"],
+      ["Casey Check", "pending"],
     ])
-    expect(exports.responseCsv).toContain(
-      "heat,jha_lane2,Lane Two,lane2@example.com",
+
+    const floorReset = exports.shiftSheets.find(
+      (sheet) => sheet.name === "Floor reset",
     )
+    expect(floorReset?.open).toBe(1)
+    expect(floorReset?.rows[0]).not.toHaveProperty("email")
+    expect(floorReset?.rows[0]).not.toHaveProperty("responseNote")
+    expect(
+      floorReset?.rows.map((row) => [row.volunteerName, row.isOpen]),
+    ).toEqual([
+      ["Rae Reset", false],
+      ["OPEN", true],
+    ])
   })
 
-  it("generates judge heat lane sheets with open lanes", () => {
+  it("groups judge event sections by workout with open lanes per heat", () => {
     const exports = buildCrewPilotExports(baseInput())
-    const [sheet] = exports.judgeHeatLaneSheets
+    const [section] = exports.judgeEventSections
 
-    expect(sheet?.label).toBe("Event 1 - Heat 1")
-    expect(sheet?.rows.map((row) => [row.laneNumber, row.judgeName])).toEqual([
+    expect(section?.workoutName).toBe("Event 1")
+    const [heat] = section?.heats ?? []
+    expect(heat?.label).toBe("Event 1 - Heat 1")
+    expect(heat?.rows.map((row) => [row.laneNumber, row.judgeName])).toEqual([
       [1, "Jules Judge"],
       [2, "Lane Two"],
       [3, "OPEN"],
     ])
   })
 
-  it("assembles an event-day packet index with day, station, and lane cards", () => {
+  it("orders day sections and judge event sections across multiple events", () => {
     const input = baseInput()
     input.venues?.push({
       id: "venue_annex",
@@ -138,55 +133,28 @@ describe("Crew pilot exports", () => {
       { heatId: "heat_2", laneNumber: 1 },
       { heatId: "heat_2", laneNumber: 2 },
     )
-    input.shifts?.push({
-      id: "shift_annex_briefing",
-      name: "Annex briefing",
-      roleType: VOLUNTEER_ROLE_TYPES.FLOOR_MANAGER,
-      startTime: "2026-07-02T14:30:00.000Z",
-      endTime: "2026-07-02T15:00:00.000Z",
-      capacity: 1,
-      location: "Annex floor",
-      assignments: [],
-    })
 
     const exports = buildCrewPilotExports(input)
 
-    expect(exports.packetIndexItems.map((item) => item.id)).toEqual([
-      "master-schedule",
-      "station-cards",
-      "role-sheets",
-      "judge-cards",
-      "response-list",
-      "floor-lead-sheets",
-    ])
-    expect(exports.masterScheduleDaySections.map((section) => section.dayKey))
-      .toEqual(["2026-07-01", "2026-07-02"])
+    expect(
+      exports.masterScheduleDaySections.map((section) => section.dayKey),
+    ).toEqual(["2026-07-01", "2026-07-02"])
     expect(
       exports.masterScheduleDaySections.map((section) =>
         section.rows.map((row) => row.label),
       ),
     ).toEqual([
       ["Check-in", "Event 1 - Heat 1", "Floor reset"],
-      ["Annex briefing", "Event 2 - Heat 1"],
-    ])
-    expect(exports.stationCards.map((card) => card.stationName)).toEqual([
-      "Annex floor",
-      "Competition floor",
-      "Front desk",
+      ["Event 2 - Heat 1"],
     ])
     expect(
-      exports.stationCards.find((card) => card.stationName === "Annex floor"),
-    ).toMatchObject({
-      openBlocks: 2,
-      laneCards: [
-        { laneNumber: 1, rows: [{ workoutName: "Event 2" }] },
-        { laneNumber: 2, rows: [{ judgeName: "OPEN" }] },
-      ],
-    })
+      exports.judgeEventSections.map((section) => section.workoutName),
+    ).toEqual(["Event 1", "Event 2"])
     expect(exports.summary).toMatchObject({
       masterScheduleDaySections: 2,
-      stationCards: 3,
-      laneCards: 5,
+      judgeEventSections: 2,
+      judgeHeatSheets: 2,
+      shiftSheets: 2,
     })
   })
 })
