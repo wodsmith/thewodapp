@@ -368,6 +368,8 @@ It keeps the destructive boundary explicit: preview remains read-only, while con
 
 Crew-owned database tables live in `@repo/wodsmith-db` so Start and Crew consume one shared schema source. App DB files remain forwarding shims and do not own `mysqlTable` definitions.
 
+The shared DB package keeps schema definitions in source and does not commit generated MySQL migrations. PlanetScale schema changes are applied through the existing push/deploy-request workflow.
+
 The first Crew schema slice adds [[crew#crew_imports]], [[crew#crew_import_rows]], and [[crew#crew_assignment_confirmations]] through the shared DB package.
 
 ## crew_imports

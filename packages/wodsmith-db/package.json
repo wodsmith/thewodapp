@@ -13,8 +13,7 @@
   "main": "./src/index.ts",
   "files": [
     "src/**",
-    "drizzle.config.ts",
-    "mysql-migrations/**"
+    "drizzle.config.ts"
   ],
   "scripts": {
     "type-check": "tsc --noEmit",
