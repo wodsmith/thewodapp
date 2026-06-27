@@ -149,7 +149,11 @@ export const getCrewHeatsPageFn = createServerFn({ method: "GET" })
 
     const heatsByTrackWorkoutId: Record<string, CrewHeatRow[]> = {}
     for (const heat of heatRows) {
-      const rows = (heatsByTrackWorkoutId[heat.trackWorkoutId] ??= [])
+      let rows = heatsByTrackWorkoutId[heat.trackWorkoutId]
+      if (!rows) {
+        rows = []
+        heatsByTrackWorkoutId[heat.trackWorkoutId] = rows
+      }
       rows.push({
         id: heat.id,
         heatNumber: heat.heatNumber,

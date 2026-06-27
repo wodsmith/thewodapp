@@ -74,7 +74,7 @@ Crew Stripe webhooks complete the event-level Checkout flow after Stripe verifie
 
 Crew paid launch remains operator-led unless the Checkout flag is explicitly enabled.
 
-[[apps/crew/docs/guides/paid-launch-ops-runbook.md]] is the day-one runbook for manual paid grants, founder/private pricing, Stripe Payment Link reconciliation, refund and full-platform credit policy, and no-live-Stripe validation before turning on self-serve Checkout.
+`apps/crew/docs/guides/paid-launch-ops-runbook.md` is the day-one runbook for manual paid grants, founder/private pricing, Stripe Payment Link reconciliation, refund and full-platform credit policy, and no-live-Stripe validation before turning on self-serve Checkout.
 
 [[apps/crew/src/lib/crew/billing-state.test.ts]] locks the manual, founder, credit, refund, Payment Link, Checkout creation, and webhook completion plans to event-level `crew_event_settings` patches without `teams.currentPlanId` mutation.
 
@@ -82,11 +82,17 @@ Crew paid launch remains operator-led unless the Checkout flag is explicitly ena
 
 ## Server Function Runtime Boundary
 
-Route and client code import lightweight `createServerFn` wrappers from [[apps/crew/src/server-fns]].
+Route and client code import lightweight `createServerFn` wrappers from `apps/crew/src/server-fns`.
 
-Those wrappers may validate input, but DB and Workers-runtime-backed implementation belongs in server-only `*.server.ts` modules under [[apps/crew/src/server]] and should be loaded inside the wrapper `handler()`.
+Those wrappers may validate input, but DB and Workers-runtime-backed implementation belongs in server-only `*.server.ts` modules under `apps/crew/src/server` and should be loaded inside the wrapper `handler()`.
 
 This prevents Vite client import analysis from walking through [[apps/crew/src/db/index.ts]] to `cloudflare:workers` while preserving stable server-function import paths.
+
+## Crew Admin Shell
+
+The Crew admin shell is a private local-operator surface for listing Crew events and opening admin-only event tools without joining organizer navigation.
+
+[[apps/crew/src/routes/admin/crew.tsx]] and its child routes render the local operator dashboard, event list, event detail, conversion, billing, and readiness pages. [[apps/crew/src/server/crew-admin-event.server.ts]] and [[apps/crew/src/server-fns/crew-admin-event-fns.ts]] keep the data access server-only and scoped to Crew operator checks.
 
 ## Series Crew Pools
 
@@ -115,6 +121,12 @@ The `crew_event_settings.settings` JSON text field and its checklist/assumptions
 The new event form ([[apps/crew/src/routes/events/new.tsx]]) does not surface a team concept. The organizing team is resolved server-side in [[apps/crew/src/server/crew-event-settings.server.ts#createCrewEvent]]: when no `organizingTeamId` is supplied it defaults to the creator's personal team via [[apps/crew/src/server/crew-auth.server.ts#requireCrewPersonalTeamId]]. The personal-team owner holds all team permissions (including `MANAGE_COMPETITIONS`), so the existing event-manager access check still passes.
 
 The Setup page also hosts a "Workouts" section (see [[crew#Workout Shells]]) below the Event-details form for creating the workout shells that heats attach to, and a "Locations" section (see [[crew#Event Locations]]) below Workouts for creating the floors/areas heats are scheduled to.
+
+## Organizer Home Next Action
+
+The Crew organizer home computes one primary next action from event setup, readiness, billing, import, and scheduling state so the event landing page stays task-focused.
+
+[[apps/crew/src/lib/crew/organizer-next-action.ts]] owns deterministic action ranking, while [[apps/crew/src/server/crew-organizer-home.server.ts]] and [[apps/crew/src/server-fns/crew-organizer-home-fns.ts]] load the server-side facts for [[apps/crew/src/routes/events/$eventId/index.tsx]].
 
 ## Workout Shells
 
@@ -318,7 +330,7 @@ Operator-facing durations render in compact hour/minute labels so workout block 
 
 Crew import preview is a private operator workflow for CSV-only volunteer and heat schedule uploads.
 
-Volunteer imports surface as a modal on [[apps/crew/src/routes/events/$eventId/volunteers.tsx|the Volunteers page]] via [[apps/crew/src/components/crew/volunteer-import-flow.tsx]]. Heat schedule imports surface as a modal on [[apps/crew/src/routes/events/$eventId/heats.tsx|the Heats page]]. The shared tab UI component lives in [[apps/crew/src/components/crew/crew-import-tabs.tsx]]. [[apps/crew/src/routes/api/crew/import.ts]] accepts private preview uploads, while [[apps/crew/src/lib/crew/imports/preview.ts]] and [[apps/crew/src/server/crew-imports.ts]] parse and persist previews without applying rows.
+Volunteer imports surface as a modal on [[apps/crew/src/routes/events/$eventId/volunteers.tsx|the Volunteers page]] via [[apps/crew/src/components/crew/volunteer-import-flow.tsx]]. Heat schedule imports surface as a modal on [[apps/crew/src/routes/events/$eventId/heats.tsx|the Heats page]]. The shared tab UI component lives in [[apps/crew/src/components/crew/crew-import-tabs.tsx]]. [[apps/crew/src/routes/api/crew/import.ts]] accepts private preview uploads, while [[apps/crew/src/lib/crew/imports/preview.ts]] and [[apps/crew/src/server/crew-imports.server.ts]] parse and persist previews without applying rows.
 
 ### Private Upload Route
 
@@ -335,6 +347,10 @@ Preview persistence stores import metadata, headers, column mapping, summary cou
 ### No Apply
 
 This slice is preview and history only. Applying volunteer invitations, volunteer memberships, heat schedule rows, roster rows, shifts, and assignment confirmations belongs to later Crew import PRs.
+
+## Import Tabs Duplicate Panel Regression
+
+The import tab regression test verifies the organizer upload panel is mounted once while switching between volunteer-list and heat-schedule imports.
 
 ## Import Apply
 
@@ -412,7 +428,7 @@ Guided setup turns Crew readiness facts and operator overrides into a per-event 
 
 Crew role and shift templates provide typed built-in staffing patterns plus team-saved presets backed by `crew_template_presets`.
 
-[[apps/crew/src/lib/crew/templates]] owns deterministic built-ins, preset serialization, preview, duplicate detection, and append-only apply planning. [[apps/crew/src/server-fns/crew-template-fns.ts]] keeps route-facing wrappers thin while [[apps/crew/src/server/crew-template.server.ts]] loads saved team presets, fills empty setup assumptions only when requested, and appends only missing `volunteer_shifts`. [[apps/crew/src/components/crew-templates/crew-template-panel.tsx]] integrates preview/apply/save into the event setup page without adding a public marketplace or copy-prior-event flow.
+[[apps/crew/src/lib/crew/templates/index.ts]] owns deterministic built-ins, preset serialization, preview, duplicate detection, and append-only apply planning. [[apps/crew/src/server-fns/crew-template-fns.ts]] keeps route-facing wrappers thin while [[apps/crew/src/server/crew-template.server.ts]] loads saved team presets, fills empty setup assumptions only when requested, and appends only missing `volunteer_shifts`. [[apps/crew/src/components/crew-templates/crew-template-panel.tsx]] integrates preview/apply/save into the event setup page without adding a public marketplace or copy-prior-event flow.
 
 ## Copy Prior Event Setup
 
@@ -486,7 +502,7 @@ The packet is still full local-operator-only through [[apps/crew/src/server/crew
 
 Crew Phase 5 memory is scoped, consented, factual volunteer history before it becomes discovery.
 
-[[apps/crew/docs/decisions/0005-strategic-moat-privacy-model.md]] defines the privacy boundary for returning volunteer history, communication history, reliability summaries, series crew pools, Crew-to-WODsmith conversion assistance, and regional discovery.
+`apps/crew/docs/decisions/0005-strategic-moat-privacy-model.md` defines the privacy boundary for returning volunteer history, communication history, reliability summaries, series crew pools, Crew-to-WODsmith conversion assistance, and regional discovery.
 
 Same-organizer returning volunteer history may show factual prior event history owned by that organizing team. Cross-organizer visibility requires explicit volunteer opt-in, supports revocation, and remains a blind intro request until the volunteer accepts.
 
