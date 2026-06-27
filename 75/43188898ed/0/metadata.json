@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "7543188898ed",
+  "session_id": "12855a0e-c592-498f-8e2d-ac8bb64a1658",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-27T23:21:44.651245Z",
+  "branch": "crew-judges-grid",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "apps/crew/src/routes/events/$eventId/-components/judges/event-defaults-editor.tsx",
+    "apps/crew/src/routes/events/$eventId/-components/judges/judge-scheduling-container.tsx",
+    "apps/crew/src/routes/events/$eventId/-components/judges/multi-rotation-editor.tsx",
+    "apps/crew/src/routes/events/$eventId/-components/judges/publish-rotations-button.tsx",
+    "apps/crew/src/routes/events/$eventId/-components/judges/rotation-overview.tsx",
+    "apps/crew/src/routes/events/$eventId/-components/judges/rotation-timeline.tsx",
+    "apps/crew/src/routes/events/$eventId/judges.tsx",
+    "apps/crew/src/server-fns/crew-judge-rotations-fns.ts",
+    "apps/crew/src/server/crew-judge-rotations.server.ts",
+    "lat.md/crew.md"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 23241,
+    "cache_creation_tokens": 299716,
+    "cache_read_tokens": 20233725,
+    "output_tokens": 109298,
+    "api_call_count": 83
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-27T23:21:44.451662Z",
+    "agent_lines": 2642,
+    "human_added": 48,
+    "human_modified": 77,
+    "human_removed": 0,
+    "total_committed": 2767,
+    "agent_percentage": 95.48247199132635
+  }
+}

@@ -1,0 +1,41 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+the crew @apps/crew/src/server-fns/judge-assignment-fns.ts is supposed to have a scheduling type grid for the organizer to schedule judges pre-publish. it is not showing up in the ui right now [Image #1] this is the ui i want to show up _after_ the user publishes the grid. this is the grid i am talking about [Image #2] apps/wodsmith-start/src/routes/compete/organizer/$competitionId/-components/judges/judge-scheduling-container.tsx please make sure this component is copied over to crew and has th...
+
+### Prompt 2
+
+[Image: source: REDACTED.png]
+
+[Image: source: REDACTED.png]
+
+### Prompt 3
+
+Stop hook feedback:
+The codebase has changes (586 lines) but `lat.md/` may not be fully in sync (10 lines changed). Verify `lat.md/` is in sync — run `lat search` to find relevant sections. Run `lat check` at the end.
+
+### Prompt 4
+
+copy over the local alchemy folder from /Users/zacjones/Documents/02.Areas/wodsmith/thewodapp-2/apps/crew/.alchemy so that you can run the dev server in this folder. the expose the host to 0.0.0.0 so i can access it in my local computers browser
+
+### Prompt 5
+
+Stop hook feedback:
+The codebase has changes (586 lines) but `lat.md/` may not be fully in sync (10 lines changed). Verify `lat.md/` is in sync — run `lat search` to find relevant sections. Run `lat check` at the end.
+
+### Prompt 6
+
+ok lets remove the double header on that page [Image #3]. then i want you to add the defaults tray for setting judge shift length defaults and shift or stay in lane like wodsmith-start has. then i want you to put the grid on the bottom and the "published schedules" on the top.
+
+### Prompt 7
+
+[Image: source: REDACTED.png]
+
+### Prompt 8
+
+Stop hook feedback:
+The codebase has changes (687 lines) but `lat.md/` may not be fully in sync (10 lines changed). Verify `lat.md/` is in sync — run `lat search` to find relevant sections. Run `lat check` at the end.
+
