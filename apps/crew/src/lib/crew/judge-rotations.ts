@@ -3,7 +3,10 @@ import type {
   LaneShiftPattern,
   VolunteerRoleType,
 } from "@/db/schemas/volunteers"
-import { LANE_SHIFT_PATTERN, VOLUNTEER_ROLE_TYPES } from "@/db/schemas/volunteers"
+import {
+  LANE_SHIFT_PATTERN,
+  VOLUNTEER_ROLE_TYPES,
+} from "@/db/schemas/volunteers"
 
 /**
  * Whether a volunteer's role types make them eligible to staff the judge grid.
@@ -245,18 +248,6 @@ export function hasCrewJudgeRotationErrors(
   issues: CrewJudgeRotationValidationIssue[],
 ) {
   return issues.some((issue) => issue.severity === "error")
-}
-
-export function assertCrewJudgeRotationReplacementAllowed({
-  assignmentReferenceCount,
-}: {
-  assignmentReferenceCount: number
-}) {
-  if (assignmentReferenceCount > 0) {
-    throw new Error(
-      "These rotations are already attached to judge assignments. Publish a new judge schedule revision instead of replacing draft rotations.",
-    )
-  }
 }
 
 export function getCrewJudgeHeatLaneCount({

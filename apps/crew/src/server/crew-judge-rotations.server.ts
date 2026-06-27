@@ -24,7 +24,6 @@ import {
   type VolunteerRoleType,
 } from "../db/schemas/volunteers"
 import {
-  assertCrewJudgeRotationReplacementAllowed,
   type CrewJudgeRotationDraft,
   type CrewJudgeRotationHeat,
   expandCrewJudgeRotationDrafts,
@@ -39,9 +38,9 @@ import {
   getCrewRosterAssigneeId,
   isCrewRosterVolunteerStaffable,
 } from "../lib/crew/roster-shifts"
-import { loadCrewRoster } from "./crew-roster-shift.server"
 import { getSessionFromCookie } from "../utils/auth"
 import { requireCrewEventManagerAccess } from "./crew-auth.server"
+import { loadCrewRoster } from "./crew-roster-shift.server"
 import {
   type MaterializedJudgeAssignmentForVersion,
   publishMaterializedJudgeAssignmentsVersion,
@@ -262,8 +261,7 @@ export async function saveCrewJudgeRotationsForVolunteer(
       // rows (matched by canonical assignee id) so re-saving doesn't self-block.
       rotations: otherRotations
         .filter(
-          (rotation) =>
-            getRotationAssigneeId(rotation) !== data.membershipId,
+          (rotation) => getRotationAssigneeId(rotation) !== data.membershipId,
         )
         .map(toCrewJudgeRotationDraft),
     })
@@ -313,18 +311,11 @@ export async function saveCrewJudgeRotationsForVolunteer(
 
     const existingRotationIds = existingRotations.map((rotation) => rotation.id)
     if (existingRotationIds.length > 0) {
-      const assignmentReferences = await tx
-        .select({ id: judgeHeatAssignmentsTable.id })
-        .from(judgeHeatAssignmentsTable)
-        .where(
-          inArray(judgeHeatAssignmentsTable.rotationId, existingRotationIds),
-        )
-        .limit(1)
-
-      assertCrewJudgeRotationReplacementAllowed({
-        assignmentReferenceCount: assignmentReferences.length,
-      })
-
+      // Draft rotations stay editable after publishing. Published versions are
+      // immutable snapshots keyed by versionId; their assignment rows persist
+      // independently and only carry rotationId as provenance, so replacing the
+      // draft rotations here doesn't touch any published version. Re-publishing
+      // materializes the updated draft into a brand-new version.
       await tx
         .delete(competitionJudgeRotationsTable)
         .where(inArray(competitionJudgeRotationsTable.id, existingRotationIds))
@@ -352,6 +343,53 @@ export async function saveCrewJudgeRotationsForVolunteer(
     success: true,
     rotations: await loadCrewJudgeRotations([data.trackWorkoutId]),
   }
+}
+
+export interface UpdateCrewJudgeEventDefaultsInput {
+  eventId: string
+  trackWorkoutId: string
+  defaultHeatsCount?: number | null
+  defaultLaneShiftPattern?: LaneShiftPattern | null
+  minHeatBuffer?: number | null
+}
+
+/**
+ * Update the per-workout judge rotation defaults (default rotation length,
+ * lane-shift pattern, and minimum heat buffer). Scoped through Crew event
+ * manager access; mirrors wodsmith-start's event defaults editor without the
+ * team-membership permission path.
+ */
+export async function updateCrewJudgeEventDefaults(
+  data: UpdateCrewJudgeEventDefaultsInput,
+): Promise<{ success: true }> {
+  const db = getDb()
+  const event = await requireCrewJudgeEvent(data.eventId)
+  await requireCrewEventManagerAccess(event, "Crew judge rotations")
+  await requireCrewJudgeWorkout(event.id, data.trackWorkoutId)
+
+  const updateData: {
+    defaultHeatsCount?: number | null
+    defaultLaneShiftPattern?: LaneShiftPattern | null
+    minHeatBuffer?: number | null
+    updatedAt: Date
+  } = { updatedAt: new Date() }
+
+  if (data.defaultHeatsCount !== undefined) {
+    updateData.defaultHeatsCount = data.defaultHeatsCount
+  }
+  if (data.defaultLaneShiftPattern !== undefined) {
+    updateData.defaultLaneShiftPattern = data.defaultLaneShiftPattern
+  }
+  if (data.minHeatBuffer !== undefined) {
+    updateData.minHeatBuffer = data.minHeatBuffer
+  }
+
+  await db
+    .update(trackWorkoutsTable)
+    .set(updateData)
+    .where(eq(trackWorkoutsTable.id, data.trackWorkoutId))
+
+  return { success: true }
 }
 
 export async function publishCrewJudgeRotations(
@@ -448,7 +486,9 @@ async function requireCrewJudgeAssignee(
   assigneeId: string,
 ) {
   const judges = await loadCrewJudgeVolunteers(competitionTeamId)
-  const judge = judges.find((volunteer) => volunteer.membershipId === assigneeId)
+  const judge = judges.find(
+    (volunteer) => volunteer.membershipId === assigneeId,
+  )
 
   if (!judge) {
     throw new Error("Selected volunteer is not an eligible judge")

@@ -73,14 +73,6 @@ function EventJudgeAssignmentsPage() {
 
   return (
     <section className="space-y-6">
-      <div className="max-w-3xl">
-        <h2 className="text-xl font-semibold">Judge assignments</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Drag judges onto heat lanes to plan rotations, then publish the judge
-          schedule for each workout.
-        </p>
-      </div>
-
       {availability.available ? (
         <JudgeSchedulingContainer
           eventId={eventId}
