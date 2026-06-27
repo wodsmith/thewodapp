@@ -11,11 +11,14 @@ import { Link, useRouterState } from "@tanstack/react-router"
 import {
   ArrowLeft,
   CalendarCheck,
+  CalendarClock,
   ClipboardList,
   CreditCard,
   Eye,
   Gauge,
+  Gavel,
   Home,
+  LayoutGrid,
   ListChecks,
   type LucideIcon,
   Mail,
@@ -23,9 +26,7 @@ import {
   Printer,
   Rocket,
   Settings,
-  Upload,
   UserPlus,
-  Users,
 } from "lucide-react"
 import type { ReactNode } from "react"
 import {
@@ -84,10 +85,11 @@ interface CrewEventSidebarShellProps {
 const organizerIconByKey: Record<string, LucideIcon> = {
   home: Home,
   setup: Settings,
-  imports: Upload,
+  heats: LayoutGrid,
   staffing: ClipboardList,
   volunteers: UserPlus,
-  assignments: Users,
+  shifts: CalendarClock,
+  judges: Gavel,
   confirmations: Mail,
   "event-day": CalendarCheck,
   "print-packet": Printer,
@@ -111,13 +113,15 @@ export function getCrewOrganizerEventSidebarNavigation({
 
   const workflowItems = navItems
     .filter((item) =>
-      ["setup", "imports", "staffing", "volunteers"].includes(item.key),
+      ["setup", "heats", "staffing", "volunteers"].includes(
+        item.key,
+      ),
     )
     .map((item) => toOrganizerSidebarItem(item, eventId))
 
   const operationsItems = navItems
     .filter((item) =>
-      ["assignments", "confirmations", "event-day", "print-packet"].includes(
+      ["shifts", "judges", "confirmations", "event-day", "print-packet"].includes(
         item.key,
       ),
     )

@@ -7,7 +7,7 @@ import {
   useRouter,
 } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { ClipboardPaste, History, Loader2, Pencil, UserPlus } from "lucide-react"
+import { ClipboardPaste, FileUp, History, Loader2, Pencil, UserPlus } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { VolunteerImportFlow } from "@/components/crew/volunteer-import-flow"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -52,6 +53,7 @@ import {
   pasteManualCrewVolunteerEmailsFn,
   updateCrewRosterVolunteerFn,
 } from "@/server-fns/crew-roster-shift-fns"
+import { bulkAssignVolunteerRoleFn } from "@/server-fns/volunteer-fns"
 
 export const Route = createFileRoute("/events/$eventId/volunteers")({
   loader: async ({ params }) =>
@@ -63,15 +65,71 @@ const parentRoute = getRouteApi("/events/$eventId")
 
 function VolunteersPage() {
   const { eventId } = parentRoute.useParams()
-  const { roster, summary, shiftSummary, returningVolunteerSuggestions } =
+  const { event, roster, summary, shiftSummary, returningVolunteerSuggestions } =
     Route.useLoaderData()
   const router = useRouter()
   const [addOpen, setAddOpen] = useState(false)
   const [pasteOpen, setPasteOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const [editingVolunteer, setEditingVolunteer] =
     useState<CrewRosterVolunteer | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkRole, setBulkRole] = useState<VolunteerRoleType | "">("")
+  const [isBulkSubmitting, setIsBulkSubmitting] = useState(false)
+  const bulkAssignRole = useServerFn(bulkAssignVolunteerRoleFn)
+
   const reloadRoster = async () => {
     await router.invalidate()
+  }
+
+  const allIds = roster.map((v) => v.sourceId)
+  const selectedCount = selectedIds.size
+  const allSelected = allIds.length > 0 && allIds.every((id) => selectedIds.has(id))
+  const someSelected = selectedCount > 0 && !allSelected
+
+  function handleSelectAll(checked: boolean) {
+    if (checked) {
+      setSelectedIds(new Set(allIds))
+    } else {
+      setSelectedIds(new Set())
+    }
+  }
+
+  function handleSelectVolunteer(sourceId: string, checked: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (checked) {
+        next.add(sourceId)
+      } else {
+        next.delete(sourceId)
+      }
+      return next
+    })
+  }
+
+  async function handleBulkAssign() {
+    if (!bulkRole || selectedIds.size === 0) return
+    setIsBulkSubmitting(true)
+    try {
+      await bulkAssignRole({
+        data: {
+          membershipIds: Array.from(selectedIds),
+          organizingTeamId: event.organizingTeamId,
+          competitionId: event.id,
+          roleType: bulkRole,
+        },
+      })
+      toast.success(
+        `Assigned "${VOLUNTEER_ROLE_OPTIONS.find((o) => o.value === bulkRole)?.label ?? bulkRole}" to ${selectedIds.size} volunteer${selectedIds.size === 1 ? "" : "s"}`,
+      )
+      setSelectedIds(new Set())
+      setBulkRole("")
+      await router.invalidate()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Bulk assign failed")
+    } finally {
+      setIsBulkSubmitting(false)
+    }
   }
 
   return (
@@ -87,6 +145,10 @@ function VolunteersPage() {
           <Button variant="outline" onClick={() => setPasteOpen(true)}>
             <ClipboardPaste />
             Paste emails
+          </Button>
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <FileUp />
+            Import volunteers
           </Button>
           <Button onClick={() => setAddOpen(true)}>
             <UserPlus />
@@ -116,12 +178,67 @@ function VolunteersPage() {
 
       <ReturningVolunteersPanel suggestions={returningVolunteerSuggestions} />
 
+      {selectedCount > 0 ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-md border bg-muted/50 px-4 py-3 text-sm">
+          <span className="font-medium">
+            {selectedCount} volunteer{selectedCount === 1 ? "" : "s"} selected
+          </span>
+          <label htmlFor="bulk-role-select" className="sr-only">
+            Role to assign
+          </label>
+          <select
+            id="bulk-role-select"
+            value={bulkRole}
+            onChange={(e) => setBulkRole(e.target.value as VolunteerRoleType | "")}
+            className="h-9 rounded-md border bg-background px-3 text-sm"
+            disabled={isBulkSubmitting}
+          >
+            <option value="">Pick a role…</option>
+            {VOLUNTEER_ROLE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleBulkAssign}
+            disabled={isBulkSubmitting || !bulkRole}
+          >
+            {isBulkSubmitting ? <Loader2 className="animate-spin" /> : null}
+            Assign role
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => setSelectedIds(new Set())}
+            disabled={isBulkSubmitting}
+          >
+            Clear selection
+          </Button>
+        </div>
+      ) : null}
+
       <section className="overflow-hidden rounded-md border bg-card shadow-sm">
         {roster.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="w-full min-w-[800px] text-sm">
               <thead className="border-b bg-muted/50 text-left text-muted-foreground">
                 <tr>
+                  <th className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      aria-label="Select all volunteers"
+                      checked={allSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = someSelected
+                      }}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="size-4"
+                    />
+                  </th>
                   <th className="px-4 py-3 font-medium">Volunteer</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Roles</th>
@@ -135,6 +252,10 @@ function VolunteersPage() {
                   <VolunteerRow
                     key={volunteer.id}
                     volunteer={volunteer}
+                    selected={selectedIds.has(volunteer.sourceId)}
+                    onSelectChange={(checked) =>
+                      handleSelectVolunteer(volunteer.sourceId, checked)
+                    }
                     onEdit={() => setEditingVolunteer(volunteer)}
                   />
                 ))}
@@ -163,6 +284,12 @@ function VolunteersPage() {
         eventId={eventId}
         onOpenChange={setPasteOpen}
         onCreated={reloadRoster}
+      />
+      <ImportVolunteersDialog
+        open={importOpen}
+        eventId={eventId}
+        onOpenChange={setImportOpen}
+        onImported={reloadRoster}
       />
       <EditRosterVolunteerDialog
         volunteer={editingVolunteer}
@@ -388,9 +515,11 @@ function AddVolunteerDialog({
                 id="manual-volunteer-email"
                 name="email"
                 type="email"
-                required
                 disabled={isSubmitting}
               />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Optional. Leave blank to add a volunteer without an email.
+              </p>
             </Field>
             <Field label="Name" htmlFor="manual-volunteer-name">
               <Input
@@ -398,6 +527,9 @@ function AddVolunteerDialog({
                 name="name"
                 disabled={isSubmitting}
               />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Required when no email is provided.
+              </p>
             </Field>
             <Field label="Phone" htmlFor="manual-volunteer-phone">
               <Input
@@ -574,6 +706,37 @@ function PasteVolunteerEmailsDialog({
   )
 }
 
+function ImportVolunteersDialog({
+  open,
+  eventId,
+  onOpenChange,
+  onImported,
+}: {
+  open: boolean
+  eventId: string
+  onOpenChange: (open: boolean) => void
+  onImported: () => Promise<void>
+}) {
+  async function handleApplyComplete() {
+    onOpenChange(false)
+    await onImported()
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Import volunteers</DialogTitle>
+        </DialogHeader>
+        <VolunteerImportFlow
+          eventId={eventId}
+          onApplyComplete={handleApplyComplete}
+        />
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function EditRosterVolunteerDialog({
   volunteer,
   eventId,
@@ -652,11 +815,13 @@ function EditRosterVolunteerDialog({
                   id="edit-volunteer-email"
                   name="email"
                   type="email"
-                  required
                   disabled={isSubmitting}
                   maxLength={255}
                   defaultValue={volunteer.email}
                 />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Optional when a name is provided.
+                </p>
               </Field>
               <Field label="Name" htmlFor="edit-volunteer-name">
                 <Input
@@ -908,9 +1073,13 @@ function getFormStringList(
 
 function VolunteerRow({
   volunteer,
+  selected,
+  onSelectChange,
   onEdit,
 }: {
   volunteer: CrewRosterVolunteer
+  selected: boolean
+  onSelectChange: (checked: boolean) => void
   onEdit: () => void
 }) {
   const editLabelTarget =
@@ -919,8 +1088,19 @@ function VolunteerRow({
   return (
     <tr className="border-b last:border-0">
       <td className="px-4 py-3 align-top">
+        <input
+          type="checkbox"
+          aria-label={`Select ${editLabelTarget}`}
+          checked={selected}
+          onChange={(e) => onSelectChange(e.target.checked)}
+          className="size-4"
+        />
+      </td>
+      <td className="px-4 py-3 align-top">
         <div className="font-medium">{volunteer.name}</div>
-        <div className="text-muted-foreground">{volunteer.email}</div>
+        <div className="text-muted-foreground">
+          {volunteer.email.trim() || "No email"}
+        </div>
         {volunteer.phone ? (
           <div className="text-muted-foreground">{volunteer.phone}</div>
         ) : null}

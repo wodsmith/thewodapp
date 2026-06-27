@@ -488,6 +488,14 @@ async function loadDayOfAssignmentForUpdate(
       .limit(1)
 
     if (!row) throw new Error("Assignment not found")
+    // Day-of check-in / replacement currently operates on account-backed
+    // memberships. Invitation-based (imported / manual) judges can be assigned
+    // to heats but are not yet supported in this membership-keyed flow.
+    if (!row.membershipId) {
+      throw new Error(
+        "Day-of actions are not yet available for imported judges without an account.",
+      )
+    }
     const metadata = parseCrewRosterMetadata(row.membershipMetadata)
     const roleType = row.roleType ?? VOLUNTEER_ROLE_TYPES.JUDGE
     const startTime = row.heatStartTime
@@ -546,6 +554,14 @@ async function loadDayOfAssignmentForUpdate(
     .limit(1)
 
   if (!row) throw new Error("Assignment not found")
+  // Day-of check-in / replacement currently operates on account-backed
+  // memberships. Invitation-based (imported / manual) volunteers can be staffed
+  // onto shifts but are not yet supported in this membership-keyed flow.
+  if (!row.membershipId) {
+    throw new Error(
+      "Day-of actions are not yet available for imported volunteers without an account.",
+    )
+  }
   const metadata = parseCrewRosterMetadata(row.membershipMetadata)
   return {
     assignmentType: data.assignmentType,

@@ -32,7 +32,12 @@ export interface PublishedJudgeAssignmentRevision {
 
 export type MaterializedJudgeAssignmentForVersion = Pick<
   JudgeHeatAssignmentInsert,
-  "heatId" | "membershipId" | "rotationId" | "laneNumber" | "position"
+  | "heatId"
+  | "membershipId"
+  | "invitationId"
+  | "rotationId"
+  | "laneNumber"
+  | "position"
 >
 
 export interface PublishMaterializedJudgeAssignmentsVersionParams {
@@ -142,6 +147,7 @@ export async function publishMaterializedJudgeAssignmentsVersion(
         materializedAssignments.map((assignment) => ({
           heatId: assignment.heatId,
           membershipId: assignment.membershipId,
+          invitationId: assignment.invitationId,
           rotationId: assignment.rotationId,
           laneNumber: assignment.laneNumber,
           position: assignment.position,

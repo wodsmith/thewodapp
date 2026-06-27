@@ -33,7 +33,7 @@ export interface CrewRosterMetadata
 }
 
 export interface CrewRosterVolunteerMetadataInput {
-  email: string
+  email?: string
   name?: string
   phone?: string
   roleTypes?: VolunteerRoleType[]
@@ -105,14 +105,19 @@ export interface CrewRosterSummary {
 }
 
 export interface ShiftAssignmentCandidate {
+  // Canonical assignee id (membership id for account-backed volunteers,
+  // invitation id for imported / manual volunteers).
   membershipId: string
   roleTypes: VolunteerRoleType[]
+  // Whether the candidate is staffable (active membership, or an
+  // invitation-based volunteer in a staffable status).
   isActive: boolean
 }
 
 export interface ShiftAssignmentValidationInput {
   shiftRoleType: VolunteerRoleType
   capacity: number
+  // Canonical assignee ids already assigned to the shift.
   currentAssignmentMembershipIds: string[]
   volunteer: ShiftAssignmentCandidate | null
 }
@@ -154,6 +159,43 @@ const statusWeight: Record<CrewRosterStatus, number> = {
   expired: 4,
 }
 
+// Roster statuses that may be staffed onto a shift. Active memberships are the
+// common case, but imported / manually-added volunteers are stored as
+// invitations and live in the "pending"/"accepted" states before they ever
+// have an account — they must still be schedulable. Deactivated memberships
+// ("inactive") and lapsed invitations ("expired") are intentionally excluded.
+const STAFFABLE_ROSTER_STATUSES: ReadonlySet<CrewRosterStatus> = new Set<
+  CrewRosterStatus
+>(["active", "accepted", "pending"])
+
+/**
+ * Canonical id used to reference a roster volunteer in a shift assignment.
+ * Account-backed volunteers resolve to their membership id; invitation-based
+ * (imported / manual) volunteers resolve to their invitation id.
+ */
+export function getCrewRosterAssigneeId(
+  volunteer: Pick<CrewRosterVolunteer, "membershipId" | "invitationId">,
+): string | null {
+  return volunteer.membershipId ?? volunteer.invitationId
+}
+
+/**
+ * Whether a roster volunteer can be staffed onto a shift: they need a usable
+ * roster id (membership or invitation) and a staffable status. Role
+ * compatibility is checked separately via {@link isVolunteerCompatibleWithShift}.
+ */
+export function isCrewRosterVolunteerStaffable(
+  volunteer: Pick<
+    CrewRosterVolunteer,
+    "membershipId" | "invitationId" | "status"
+  >,
+): boolean {
+  return (
+    getCrewRosterAssigneeId(volunteer) !== null &&
+    STAFFABLE_ROSTER_STATUSES.has(volunteer.status)
+  )
+}
+
 export function parseCrewRosterMetadata(
   metadata: string | null | undefined,
 ): CrewRosterMetadata {
@@ -167,8 +209,10 @@ export function parseCrewRosterMetadata(
   }
 }
 
-export function normalizeCrewRosterVolunteerEmail(value: string) {
-  return value.trim().toLowerCase()
+export function normalizeCrewRosterVolunteerEmail(
+  value: string | undefined | null,
+) {
+  return (value ?? "").trim().toLowerCase()
 }
 
 export function buildCrewRosterVolunteerMetadataUpdate(
@@ -179,7 +223,7 @@ export function buildCrewRosterVolunteerMetadataUpdate(
   const next: CrewRosterMetadata = {
     ...existing,
     volunteerRoleTypes: getCrewRosterRoleTypes(input.roleTypes),
-    signupEmail: normalizeCrewRosterVolunteerEmail(input.email),
+    signupEmail: emptyToUndefined(normalizeCrewRosterVolunteerEmail(input.email)),
     signupName: emptyToUndefined(input.name),
     inviteName: undefined,
     signupPhone: emptyToUndefined(input.phone),
@@ -354,7 +398,7 @@ export function summarizeCrewRoster(
     (summary, volunteer) => {
       summary.total += 1
       summary[volunteer.status] += 1
-      if (volunteer.membershipId && volunteer.status === "active") {
+      if (isCrewRosterVolunteerStaffable(volunteer)) {
         summary.assignable += 1
       }
       return summary

@@ -344,7 +344,13 @@ export const getJudgeHeatAssignmentsFn = createServerFn({ method: "GET" })
     }
 
     // Get unique membership IDs
-    const membershipIds = [...new Set(assignments.map((a) => a.membershipId))]
+    const membershipIds = [
+      ...new Set(
+        assignments
+          .map((a) => a.membershipId)
+          .filter((id): id is string => id !== null),
+      ),
+    ]
 
     // Fetch memberships
     const memberships = await db
@@ -395,9 +401,9 @@ export const getJudgeHeatAssignmentsFn = createServerFn({ method: "GET" })
     return assignments.map((assignment) => ({
       ...assignment,
       volunteer:
-        membershipMap.get(assignment.membershipId) ??
+        membershipMap.get(assignment.membershipId ?? "") ??
         ({
-          membershipId: assignment.membershipId,
+          membershipId: assignment.membershipId ?? "",
           userId: "",
           firstName: null,
           lastName: null,
@@ -564,7 +570,11 @@ export const getJudgeSchedulingDataForEventsFn = createServerFn({
 
       if (assignments.length > 0) {
         const membershipIds = [
-          ...new Set(assignments.map((a) => a.membershipId)),
+          ...new Set(
+            assignments
+              .map((a) => a.membershipId)
+              .filter((id): id is string => id !== null),
+          ),
         ]
         const memberships = await db
           .select({
@@ -614,9 +624,9 @@ export const getJudgeSchedulingDataForEventsFn = createServerFn({
           judgeAssignments.push({
             ...assignment,
             volunteer:
-              membershipMap.get(assignment.membershipId) ??
+              membershipMap.get(assignment.membershipId ?? "") ??
               ({
-                membershipId: assignment.membershipId,
+                membershipId: assignment.membershipId ?? "",
                 userId: "",
                 firstName: null,
                 lastName: null,
@@ -1414,7 +1424,11 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
 
     // Get membership and user info for judges
     const membershipIds = [
-      ...new Set(judgeAssignments.map((a) => a.membershipId)),
+      ...new Set(
+        judgeAssignments
+          .map((a) => a.membershipId)
+          .filter((id): id is string => id !== null),
+      ),
     ]
     const memberships =
       membershipIds.length > 0
@@ -1595,12 +1609,12 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
       // Build judge list for this heat
       const heatJudges = judgesByHeat.get(heat.id) || []
       const judges = heatJudges.map((ja) => {
-        const membership = membershipMap.get(ja.membershipId)
+        const membership = membershipMap.get(ja.membershipId ?? "")
         const user = membership ? userMap.get(membership.userId) : null
         return {
           assignmentId: ja.id,
           laneNumber: ja.laneNumber,
-          membershipId: ja.membershipId,
+          membershipId: ja.membershipId ?? "",
           userId: membership?.userId || "",
           firstName: user?.firstName || null,
           lastName: user?.lastName || null,

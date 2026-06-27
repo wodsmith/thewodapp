@@ -1,6 +1,25 @@
 // @lat: [[crew#Judge Rotations]]
-import type { LaneShiftPattern } from "@/db/schemas/volunteers"
-import { LANE_SHIFT_PATTERN } from "@/db/schemas/volunteers"
+import type {
+  LaneShiftPattern,
+  VolunteerRoleType,
+} from "@/db/schemas/volunteers"
+import { LANE_SHIFT_PATTERN, VOLUNTEER_ROLE_TYPES } from "@/db/schemas/volunteers"
+
+/**
+ * Whether a volunteer's role types make them eligible to staff the judge grid.
+ * Judge / Head Judge are obviously eligible, and — mirroring how General acts
+ * as a wildcard for shift assignment ({@link isVolunteerCompatibleWithShift}) —
+ * General volunteers are eligible too. Organizers routinely import a batch of
+ * General volunteers intending to seat them as judges, so excluding General
+ * would leave the roster empty after a bulk import.
+ */
+export function isCrewJudgeEligible(roleTypes: VolunteerRoleType[]): boolean {
+  return (
+    roleTypes.includes(VOLUNTEER_ROLE_TYPES.JUDGE) ||
+    roleTypes.includes(VOLUNTEER_ROLE_TYPES.HEAD_JUDGE) ||
+    roleTypes.includes(VOLUNTEER_ROLE_TYPES.GENERAL)
+  )
+}
 
 export interface CrewJudgeRotationHeat {
   heatNumber: number

@@ -21,7 +21,9 @@ export interface CrewVolunteerSelfServiceConfirmation {
 
 export interface CrewVolunteerSelfServiceAssignmentRecord {
   id: string
-  membershipId: string
+  // Canonical assignee id (membership id, or invitation id for imported /
+  // manual volunteers without an account).
+  assigneeId: string
   shiftId: string
   name: string
   roleType: VolunteerRoleType
@@ -36,7 +38,7 @@ export interface CrewVolunteerSelfServiceAssignmentRecord {
 export interface CrewVolunteerSelfServiceScheduleItem
   extends Omit<
     CrewVolunteerSelfServiceAssignmentRecord,
-    "membershipId" | "startTime" | "endTime"
+    "assigneeId" | "startTime" | "endTime"
   > {
   startTime: Date
   endTime: Date
@@ -54,17 +56,17 @@ export interface CrewVolunteerSelfServiceContactInput {
 
 export function buildCrewVolunteerSelfServiceSchedule({
   assignments,
-  membershipId,
+  assigneeId,
   tokenAssignmentId,
 }: {
   assignments: CrewVolunteerSelfServiceAssignmentRecord[]
-  membershipId: string
+  assigneeId: string
   tokenAssignmentId: string
 }): CrewVolunteerSelfServiceScheduleItem[] {
   const byAssignmentId = new Map<string, CrewVolunteerSelfServiceScheduleItem>()
 
   for (const assignment of assignments) {
-    if (assignment.membershipId !== membershipId) continue
+    if (assignment.assigneeId !== assigneeId) continue
     if (byAssignmentId.has(assignment.id)) continue
 
     const startTime = toValidDate(assignment.startTime)

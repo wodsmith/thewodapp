@@ -10,9 +10,10 @@ export type CrewEventNavRoute =
   | "/events/$eventId"
   | "/events/$eventId/staffing"
   | "/events/$eventId/setup"
-  | "/events/$eventId/imports"
   | "/events/$eventId/volunteers"
-  | "/events/$eventId/assignments"
+  | "/events/$eventId/shifts"
+  | "/events/$eventId/judges"
+  | "/events/$eventId/heats"
   | "/events/$eventId/messages"
   | "/events/$eventId/day-of"
   | "/events/$eventId/exports"
@@ -51,10 +52,10 @@ export const CREW_EVENT_NAV_ITEMS = [
     persona: ["wodsmith_operator", "organizer_admin", "department_lead"],
   },
   {
-    key: "imports",
-    label: "Imports",
-    to: "/events/$eventId/imports",
-    persona: ["wodsmith_operator", "organizer_admin"],
+    key: "heats",
+    label: "Heats",
+    to: "/events/$eventId/heats",
+    persona: ["wodsmith_operator", "organizer_admin", "department_lead"],
   },
   {
     key: "staffing",
@@ -69,9 +70,15 @@ export const CREW_EVENT_NAV_ITEMS = [
     persona: ["wodsmith_operator", "organizer_admin", "department_lead"],
   },
   {
-    key: "assignments",
-    label: "Assignments",
-    to: "/events/$eventId/assignments",
+    key: "shifts",
+    label: "Volunteer Shifts",
+    to: "/events/$eventId/shifts",
+    persona: ["wodsmith_operator", "organizer_admin", "department_lead"],
+  },
+  {
+    key: "judges",
+    label: "Judge Assignments",
+    to: "/events/$eventId/judges",
     persona: ["wodsmith_operator", "organizer_admin", "department_lead"],
   },
   {

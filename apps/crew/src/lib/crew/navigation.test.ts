@@ -8,21 +8,23 @@ describe("getCrewEventNavItems", () => {
     expect(navItems.map((item) => item.key)).toEqual([
       "home",
       "setup",
-      "imports",
+      "heats",
       "staffing",
       "volunteers",
-      "assignments",
+      "shifts",
+      "judges",
       "confirmations",
       "event-day",
       "print-packet",
     ])
   })
 
-  it("centers organizer assignment navigation on the consolidated route", () => {
+  it("navigates shifts and judges via their own dedicated pages", () => {
     const navItems = getCrewEventNavItems({ viewerRole: "organizer_admin" })
-    const assignments = navItems.find((item) => item.key === "assignments")
+    const shifts = navItems.find((item) => item.key === "shifts")
+    const judges = navItems.find((item) => item.key === "judges")
 
-    expect(assignments?.label).toBe("Assignments")
-    expect(assignments?.to).toBe("/events/$eventId/assignments")
+    expect(shifts?.to).toBe("/events/$eventId/shifts")
+    expect(judges?.to).toBe("/events/$eventId/judges")
   })
 })
