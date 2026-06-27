@@ -34,6 +34,7 @@ function EventStaffingPage() {
 
   const roleGaps = report.roleSummaries.filter((role) => role.open > 0)
   const blockGaps = report.underfilledRows
+  const blockGapCount = new Set(blockGaps.map((row) => row.timeBlockId)).size
 
   return (
     <section className="space-y-6">
@@ -50,7 +51,7 @@ function EventStaffingPage() {
         openSlots={openSlots}
         totalFilled={totalFilled}
         totalNeeded={totalNeeded}
-        blockGapCount={blockGaps.length}
+        blockGapCount={blockGapCount}
       />
 
       {openSlots > 0 && (
@@ -156,13 +157,25 @@ function RoleGaps({
   eventId: string
   roleGaps: CrewStaffingRoleSummary[]
 }) {
+  const hasJudgeGaps = roleGaps.some((role) => isJudgeRole(role.roleType))
+  const hasShiftGaps = roleGaps.some((role) => !isJudgeRole(role.roleType))
+
   return (
     <section className="rounded-lg border bg-card p-5 shadow-sm">
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-semibold">Who you need</h3>
-        <PillLink to="/events/$eventId/shifts" eventId={eventId}>
-          Manage shifts
-        </PillLink>
+        <div className="flex flex-wrap justify-end gap-2">
+          {hasShiftGaps && (
+            <PillLink to="/events/$eventId/shifts" eventId={eventId}>
+              Manage shifts
+            </PillLink>
+          )}
+          {hasJudgeGaps && (
+            <PillLink to="/events/$eventId/judges" eventId={eventId}>
+              Assign judges
+            </PillLink>
+          )}
+        </div>
       </div>
       <ul className="mt-4 space-y-2">
         {roleGaps.map((role) => (
@@ -254,7 +267,10 @@ function PillLink({
   eventId,
   children,
 }: {
-  to: "/events/$eventId/shifts" | "/events/$eventId/heats"
+  to:
+    | "/events/$eventId/shifts"
+    | "/events/$eventId/heats"
+    | "/events/$eventId/judges"
   eventId: string
   children: ReactNode
 }) {
@@ -267,6 +283,10 @@ function PillLink({
       {children}
     </Link>
   )
+}
+
+function isJudgeRole(roleType: CrewStaffingRoleSummary["roleType"]) {
+  return roleType === "judge" || roleType === "head_judge"
 }
 
 function formatTimeWindow(
