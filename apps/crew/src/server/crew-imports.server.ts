@@ -73,6 +73,7 @@ import {
   summarizeApplyRows,
   type VolunteerApplyRowPlan,
 } from "../lib/crew/imports/apply"
+import { isSupportedCrewImportFile } from "../lib/crew/imports/file"
 import {
   buildCrewImportMappingPresetWrite,
   type CrewImportMappingPresetCandidate,
@@ -142,7 +143,10 @@ export class CrewImportError extends Error {
 const uploadCrewImportInputSchema = z.object({
   eventId: z.string().min(1, "Event ID is required"),
   kind: z.enum([CREW_IMPORT_KIND.VOLUNTEERS, CREW_IMPORT_KIND.HEAT_SCHEDULE]),
-  csvText: z.string(),
+  fileBytes: z.custom<Uint8Array>(
+    (value) => value instanceof Uint8Array,
+    "File bytes are required",
+  ),
   originalFilename: z.string().min(1, "Filename is required"),
   mimeType: z.string().nullable().optional(),
   fileSize: z.number().int().min(0),
@@ -362,7 +366,7 @@ export async function saveCrewImportMappingPreset(input: {
 export async function createCrewImportPreviewRecord(input: {
   eventId: string
   kind: CrewImportKind
-  csvText: string
+  fileBytes: Uint8Array
   originalFilename: string
   mimeType?: string | null
   fileSize: number
@@ -372,27 +376,31 @@ export async function createCrewImportPreviewRecord(input: {
   const data = uploadCrewImportInputSchema.parse(input)
   const event = await requireCrewEvent(data.eventId)
   await requireCrewEventManagerAccess(event, "Crew imports")
-  const fileSize = Math.max(data.fileSize, getCsvByteLength(data.csvText))
+  const fileSize = Math.max(data.fileSize, data.fileBytes.byteLength)
 
   if (fileSize > MAX_CREW_IMPORT_BYTES) {
     throw new CrewImportError(
       "PAYLOAD_TOO_LARGE",
-      "CSV is larger than the Crew preview limit.",
+      "File is larger than the Crew preview limit.",
       413,
     )
   }
 
-  if (!isCsvUpload(data.originalFilename, data.mimeType)) {
+  if (!isSupportedCrewImportFile(data.originalFilename, data.mimeType)) {
     throw new CrewImportError(
       "INVALID_FILE_TYPE",
-      "Crew import preview accepts CSV files only.",
+      "Crew import preview accepts CSV files and Excel workbooks saved as .xlsx or .xlsm.",
       415,
     )
   }
 
   const reference = await loadCrewImportReferenceData(data.eventId)
   const preview = buildCrewImportPreview({
-    csvText: data.csvText,
+    file: {
+      filename: data.originalFilename,
+      mimeType: data.mimeType,
+      data: data.fileBytes,
+    },
     kind: data.kind,
     columnMapping: data.columnMapping,
     context: reference,
@@ -1830,29 +1838,6 @@ async function listDivisionsForGroup(scalingGroupId: string) {
 async function listWorkoutsForCompetition(eventId: string) {
   const db = getDb()
   return await listWorkoutsForCompetitionWithDb(db, eventId)
-}
-
-function getCsvByteLength(csvText: string) {
-  return new TextEncoder().encode(csvText).byteLength
-}
-
-function isCsvUpload(filename: string, mimeType?: string | null) {
-  return isCsvFilename(filename) || isCsvMimeType(mimeType)
-}
-
-function isCsvMimeType(mimeType?: string | null) {
-  if (!mimeType) return false
-
-  const normalizedMimeType = mimeType.split(";")[0]?.trim().toLowerCase()
-  return (
-    normalizedMimeType === "text/csv" ||
-    normalizedMimeType === "application/csv" ||
-    normalizedMimeType === "application/vnd.ms-excel"
-  )
-}
-
-function isCsvFilename(filename: string) {
-  return filename.toLowerCase().endsWith(".csv")
 }
 
 function toIssueList(issues: PreviewImportRow["warnings"]) {

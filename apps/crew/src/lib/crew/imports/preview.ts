@@ -8,11 +8,12 @@ import {
 } from "./column-mapping"
 import { parseCsv } from "./csv"
 import { addDuplicateEmailWarnings } from "./dedupe"
+import { parseCrewImportFile } from "./file"
 import { normalizeHeatScheduleRow } from "./normalize-heat-row"
 import { normalizeVolunteerRow } from "./normalize-volunteer-row"
 import {
-  CREW_IMPORT_PARSER_VERSION,
   type ColumnMapping,
+  CREW_IMPORT_PARSER_VERSION,
   type CrewImportKind,
   type CrewImportPreview,
   type CrewImportPreviewContext,
@@ -33,16 +34,24 @@ export const defaultCrewImportRoleLabels = [
 
 export function buildCrewImportPreview({
   csvText,
+  file,
   kind,
   columnMapping,
   context,
 }: {
-  csvText: string
+  csvText?: string
+  file?: {
+    filename: string
+    mimeType?: string | null
+    data: Uint8Array | ArrayBuffer
+  }
   kind: CrewImportKind
   columnMapping?: ColumnMapping
   context: CrewImportPreviewContext
 }): CrewImportPreview {
-  const parsed = parseCsv(csvText, { maxRows: MAX_PREVIEW_ROWS })
+  const parsed = file
+    ? parseCrewImportFile(file, { maxRows: MAX_PREVIEW_ROWS })
+    : parseCsv(csvText ?? "", { maxRows: MAX_PREVIEW_ROWS })
   const inferredMapping = inferColumnMapping(parsed.headers, kind)
   const mapping = sanitizeColumnMapping(
     { ...inferredMapping, ...columnMapping },

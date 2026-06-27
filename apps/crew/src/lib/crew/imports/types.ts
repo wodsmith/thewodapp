@@ -1,5 +1,5 @@
 // @lat: [[crew#Import CSV Preview#Parser Warnings]]
-export const CREW_IMPORT_PARSER_VERSION = "crew-csv-preview-v1"
+export const CREW_IMPORT_PARSER_VERSION = "crew-tabular-preview-v2"
 
 export type CrewImportKind = "volunteers" | "heat_schedule"
 
@@ -27,6 +27,9 @@ export interface CsvParseResult {
   fileIssues: ImportIssue[]
   skippedRowCount: number
 }
+
+export type ImportFileRecord = CsvRecord
+export type ImportFileParseResult = CsvParseResult
 
 export interface ImportFieldDefinition {
   key: string

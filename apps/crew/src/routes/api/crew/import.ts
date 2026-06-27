@@ -32,21 +32,24 @@ export const Route = createFileRoute("/api/crew/import")({
           }
 
           if (!(file instanceof File)) {
-            return json({ error: "CSV file is required." }, { status: 400 })
+            return json(
+              { error: "CSV or Excel file is required." },
+              { status: 400 },
+            )
           }
 
           if (file.size > MAX_CREW_IMPORT_BYTES) {
             return json(
-              { error: "CSV is larger than the Crew preview limit." },
+              { error: "File is larger than the Crew preview limit." },
               { status: 413 },
             )
           }
 
-          const csvText = await file.text()
+          const fileBytes = new Uint8Array(await file.arrayBuffer())
           const importPreview = await createCrewImportPreviewRecord({
             eventId,
             kind,
-            csvText,
+            fileBytes,
             originalFilename: file.name,
             mimeType: file.type || null,
             fileSize: file.size,
