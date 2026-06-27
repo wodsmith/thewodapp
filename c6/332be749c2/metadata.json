@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "c6332be749c2",
+  "strategy": "manual-commit",
+  "branch": "crew-print-packets",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/crew/src/lib/crew/exports/pilot-exports.test.ts",
+    "apps/crew/src/lib/crew/exports/pilot-exports.ts",
+    "apps/crew/src/lib/crew/self-serve-event-flow.test.ts",
+    "apps/crew/src/routes/events/$eventId/exports.tsx",
+    "apps/crew/src/server/crew-pilot-exports.server.ts",
+    "apps/crew/test/routes/event-day-export-packet.test.tsx",
+    "lat.md/crew.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/c6/332be749c2/0/metadata.json",
+      "transcript": "/c6/332be749c2/0/full.jsonl",
+      "context": "/c6/332be749c2/0/context.md",
+      "content_hash": "/c6/332be749c2/0/content_hash.txt",
+      "prompt": "/c6/332be749c2/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 15814,
+    "cache_creation_tokens": 131016,
+    "cache_read_tokens": 5811794,
+    "output_tokens": 49877,
+    "api_call_count": 53
+  }
+}
