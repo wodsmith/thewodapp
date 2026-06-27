@@ -63,7 +63,9 @@ export function CapacitySettingsForm({ competition, onSaveCapacity }: Props) {
 
       if (
         parsedTotal !== null &&
-        (!Number.isFinite(parsedTotal) || !Number.isInteger(parsedTotal) || parsedTotal < 1)
+        (!Number.isFinite(parsedTotal) ||
+          !Number.isInteger(parsedTotal) ||
+          parsedTotal < 1)
       ) {
         toast.error("Please enter a valid number (1 or higher)")
         setIsSubmitting(false)
@@ -94,7 +96,11 @@ export function CapacitySettingsForm({ competition, onSaveCapacity }: Props) {
     const parsed = maxSpots.trim() === "" ? null : parseInt(maxSpots, 10)
     if (parsed !== null && Number.isNaN(parsed)) return false
     const parsedTotal = maxTotal.trim() === "" ? null : Number(maxTotal)
-    if (parsedTotal !== null && (!Number.isFinite(parsedTotal) || !Number.isInteger(parsedTotal))) return false
+    if (
+      parsedTotal !== null &&
+      (!Number.isFinite(parsedTotal) || !Number.isInteger(parsedTotal))
+    )
+      return false
     return (
       parsed !== competition.defaultMaxSpotsPerDivision ||
       parsedTotal !== competition.maxTotalRegistrations
@@ -106,10 +112,11 @@ export function CapacitySettingsForm({ competition, onSaveCapacity }: Props) {
       <CardHeader>
         <div className="flex items-center gap-2">
           <Users className="h-5 w-5 text-muted-foreground" />
-          <CardTitle>Capacity Settings</CardTitle>
+          <CardTitle>Capacity</CardTitle>
         </div>
         <CardDescription>
-          Set registration limits for this competition.
+          Set competition-wide limits and the default capacity used by division
+          rows without their own override.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">

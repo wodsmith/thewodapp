@@ -158,6 +158,7 @@ const updateCompetitionDivisionInputSchema = z.object({
   teamId: z.string().min(1, "Team ID is required"),
   divisionId: z.string().min(1, "Division ID is required"),
   label: z.string().min(1, "Division name is required").max(100),
+  teamSize: z.number().int().min(1).max(10).optional(),
 })
 
 const deleteCompetitionDivisionInputSchema = z.object({
@@ -954,7 +955,7 @@ export const addCompetitionDivisionFn = createServerFn({ method: "POST" })
   })
 
 /**
- * Update a division label
+ * Update a division's editable model fields.
  */
 export const updateCompetitionDivisionFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
@@ -993,7 +994,11 @@ export const updateCompetitionDivisionFn = createServerFn({ method: "POST" })
 
     await db
       .update(scalingLevelsTable)
-      .set({ label: data.label, updatedAt: new Date() })
+      .set({
+        label: data.label,
+        ...(data.teamSize !== undefined ? { teamSize: data.teamSize } : {}),
+        updatedAt: new Date(),
+      })
       .where(eq(scalingLevelsTable.id, data.divisionId))
 
     return { success: true }
