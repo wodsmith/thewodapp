@@ -26,6 +26,10 @@ import {
   filterCrewDepartmentLeadRoster,
 } from "../lib/crew/department-leads"
 import {
+  getCrewRosterAssigneeId,
+  isCrewRosterVolunteerStaffable,
+} from "../lib/crew/roster-shifts"
+import {
   buildCrewStaffingMatrix,
   buildCrewStaffingReport,
   type CrewStaffingConfirmationInput,
@@ -33,10 +37,6 @@ import {
   type CrewStaffingMatrixInput,
   type CrewStaffingReport,
 } from "../lib/crew/staffing"
-import {
-  getCrewRosterAssigneeId,
-  isCrewRosterVolunteerStaffable,
-} from "../lib/crew/roster-shifts"
 import { filterCrewStaffingInputForDepartmentLead } from "../lib/crew/staffing/department-lead-scope"
 import { resolveCrewDepartmentLeadAccess } from "../server/crew-department-lead.server"
 import {
@@ -199,6 +199,7 @@ export async function loadCrewStaffingMatrixInput(
         availability: volunteer.availability,
         credentials: volunteer.credentials,
         isActive: isCrewRosterVolunteerStaffable(volunteer),
+        isAccountless: !volunteer.membershipId,
       }
     }),
   }

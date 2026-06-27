@@ -192,7 +192,7 @@ Shift assignments reference a volunteer by a canonical assignee id, so imported 
 
 `volunteer_shift_assignments` carries a nullable `membershipId` and a nullable `invitationId` (exactly one is set per row), mirroring `crew_assignment_confirmations`. [[apps/crew/src/lib/crew/roster-shifts.ts#getCrewRosterAssigneeId]] derives the canonical id and [[apps/crew/src/lib/crew/roster-shifts.ts#isCrewRosterVolunteerStaffable]] gates the assignable pool: a volunteer is staffable when it has a usable id and a staffable status (`active`, `accepted`, or `pending`); `inactive` memberships and `expired` invitations are excluded. Role compatibility (General matches every shift) is checked separately by [[apps/crew/src/lib/crew/roster-shifts.ts#isVolunteerCompatibleWithShift]].
 
-[[apps/crew/src/server/crew-roster-shift.server.ts#assignCrewVolunteerToShift]] resolves the assignee from either source, stores the matching column, and seeds the confirmation with the same `invitationId`/`membershipId`. The shift board, staffing matrix, and pilot ops all key assignments by the canonical assignee id so invitation-based volunteers participate in coverage, double-booking, and credential checks. Day-of check-in still requires a membership and rejects invitation-based assignees with a clear message.
+[[apps/crew/src/server/crew-roster-shift.server.ts#assignCrewVolunteerToShift]] resolves the assignee from either source, stores the matching column, and seeds the confirmation with the same `invitationId`/`membershipId`. The shift board, staffing matrix, pilot ops, and day-of actions all key assignments by the canonical assignee id so invitation-based volunteers participate in coverage, double-booking, credential checks, and organizer-entered attendance overrides.
 
 ## Roster Volunteer Editing
 
@@ -478,13 +478,15 @@ Crew confirmation email operations use `crew_assignment_confirmations` as the so
 
 ## Day Of Operations Board
 
-Crew day-of operations is a compact read-only board for current blocks, response queues, role gaps, no-shows, replacements, and active judge lane coverage.
+Crew day-of operations is a compact board for current blocks, response queues, role gaps, no-shows, replacements, active judge lane coverage, and organizer-entered attendance state.
 
-[[apps/crew/src/routes/events/$eventId/day-of.tsx]] renders the event board. [[apps/crew/src/server-fns/crew-day-of-fns.ts]] keeps the route import light while [[apps/crew/src/server/crew-day-of.server.ts]] reuses staffing hydration without mutating event data.
+[[apps/crew/src/routes/events/$eventId/day-of.tsx]] renders the event board. [[apps/crew/src/server-fns/crew-day-of-fns.ts]] keeps the route import light while [[apps/crew/src/server/crew-day-of.server.ts]] reuses staffing hydration and mutates only assignment confirmation state for check-in, no-show, and replacement actions.
 
-[[apps/crew/src/lib/crew/day-of-operations.ts]] derives current and next blocks, critical unfilled roles, due-soon no-responses, decision queues, no-show/replaced queues, time-block status, and judge coverage.
+[[apps/crew/src/lib/crew/day-of-operations.ts]] derives current and next blocks, critical unfilled roles, due-soon no-responses, decision queues, no-show/replaced queues, time-block status, judge coverage, and accountless assignment action metadata.
 
-The board does not add schema, exports, queue bindings, live email sends, public token changes, assignment automation, or published judge-row mutation. Checked-in remains unavailable until a dedicated primitive exists.
+Accountless volunteers keep their invitation identity on `crew_assignment_confirmations`: organizer-entered check-in/no-show writes `invitationId`, null `membershipId`, normalized contact fields when present, and a day-of override note without creating an account, accepting an invite, authenticating the volunteer, or changing public token flows. Replacement remains account-backed only.
+
+The board does not add schema, exports, queue bindings, live email sends, public token changes, assignment automation, or published judge-row mutation.
 
 ## Pilot Exports
 
