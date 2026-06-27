@@ -102,6 +102,7 @@
     "date-fns-tz": "^3.2.0",
     "drizzle-orm": "^0.39.3",
     "evlog": "^2.8.0",
+    "fflate": "^0.8.3",
     "ipaddr.js": "^2.2.0",
     "lexical": "^0.39.0",
     "lucide-react": "^0.544.0",

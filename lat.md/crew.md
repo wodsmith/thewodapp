@@ -140,13 +140,13 @@ Deleting a shell is blocked while it still has heats — [[apps/crew/src/server-
 
 ## Heats Page
 
-The Heats page lets an organizer view, manually schedule, and import heats for a Crew event, combining a list-first manual UI with the existing CSV import infrastructure.
+The Heats page lets an organizer view, manually schedule, and import heats for a Crew event, combining a list-first manual UI with the import infrastructure.
 
-[[apps/crew/src/routes/events/$eventId/heats.tsx]] renders a per-workout breakdown of scheduled heats plus an "Import from CSV" modal. The loader calls [[apps/crew/src/server-fns/crew-heats-fns.ts#getCrewHeatsPageFn]] which fetches track workouts, existing heats enriched with location (venue) name and lane count plus division names, and location options (each carrying `laneCount`) in parallel, gated behind `requireCrewEventManagerAccess`. The page appears in the sidebar navigation for `wodsmith_operator`, `organizer_admin`, and `department_lead` roles.
+[[apps/crew/src/routes/events/$eventId/heats.tsx]] renders a per-workout breakdown of scheduled heats plus an "Import from CSV or Excel" modal. The loader calls [[apps/crew/src/server-fns/crew-heats-fns.ts#getCrewHeatsPageFn]] which fetches track workouts, existing heats enriched with location (venue) name and lane count plus division names, and location options (each carrying `laneCount`) in parallel, gated behind `requireCrewEventManagerAccess`. The page appears in the sidebar navigation for `wodsmith_operator`, `organizer_admin`, and `department_lead` roles.
 
 Heat creation is bulk-first (see [[crew#Bulk Heat Scheduling]]): the "Add heats" dialog takes a count plus a start time and auto-spaces the heats into a per-heat editable list. `getNextHeatNumberFn` from [[apps/crew/src/server-fns/competition-heats-fns.ts]] supplies the starting heat number; the explicit per-heat rows are persisted by `generateHeatsFn` from [[apps/crew/src/server-fns/crew-heats-fns.ts]]. Deletion uses `deleteHeatFn` with an inline confirm step. Each heat row shows its number, scheduled time, location (with its lane count, e.g. "Main Floor · 6 lanes"), division badge, and draft/published status. The "Add heats" dialog's location dropdown is populated from the event's locations (see [[crew#Event Locations]]) and shows each option's lane count. After any mutation the page calls `router.invalidate()` to refetch loader data.
 
-The CSV import modal reuses the `heat_schedule` kind from the shared import infrastructure: `getImportFields` and `inferColumnMapping` from [[apps/crew/src/lib/crew/imports/column-mapping.ts]], `parseCsv` from [[apps/crew/src/lib/crew/imports/csv.ts]], the `/api/crew/import` endpoint for preview, and `applyCrewImportFn` from [[apps/crew/src/server-fns/crew-import-fns.ts]]. The existing `schedule.tsx` is a redirect stub to the Volunteer Shifts page (`/events/$eventId/shifts`).
+The import modal reuses the `heat_schedule` kind from the shared import infrastructure: `getImportFields` and `inferColumnMapping` from [[apps/crew/src/lib/crew/imports/column-mapping.ts]], the CSV/Excel router in [[apps/crew/src/lib/crew/imports/file.ts#parseCrewImportFile]], the `/api/crew/import` endpoint for preview, and `applyCrewImportFn` from [[apps/crew/src/server-fns/crew-import-fns.ts]]. The existing `schedule.tsx` is a redirect stub to the Volunteer Shifts page (`/events/$eventId/shifts`).
 
 ## Bulk Heat Scheduling
 
@@ -328,13 +328,17 @@ Operator-facing durations render in compact hour/minute labels so workout block 
 
 ## Import CSV Preview
 
-Crew import preview is a private operator workflow for CSV-only volunteer and heat schedule uploads.
+Crew import preview is a private operator workflow for volunteer and heat schedule uploads from CSV or Excel workbooks.
 
 Volunteer imports surface as a modal on [[apps/crew/src/routes/events/$eventId/volunteers.tsx|the Volunteers page]] via [[apps/crew/src/components/crew/volunteer-import-flow.tsx]]. Heat schedule imports surface as a modal on [[apps/crew/src/routes/events/$eventId/heats.tsx|the Heats page]]. The shared tab UI component lives in [[apps/crew/src/components/crew/crew-import-tabs.tsx]]. [[apps/crew/src/routes/api/crew/import.ts]] accepts private preview uploads, while [[apps/crew/src/lib/crew/imports/preview.ts]] and [[apps/crew/src/server/crew-imports.server.ts]] parse and persist previews without applying rows.
+
+CSV parsing still uses [[apps/crew/src/lib/crew/imports/csv.ts#parseCsv]]. Excel workbook parsing accepts `.xlsx` and `.xlsm` uploads, reads the first worksheet through [[apps/crew/src/lib/crew/imports/xlsx.ts#parseXlsx]], converts shared strings and styled time/date cells into text, and feeds the same tabular parser shape as CSV so column mapping, warning generation, and apply planning remain shared.
 
 ### Private Upload Route
 
 The Crew import upload route is `/api/crew/import`. It is separate from the existing public file upload path and does not write uploaded files to public object storage.
+
+Uploads are parsed from raw file bytes so binary Excel workbooks are not coerced through text decoding before preview. The route accepts CSV plus `.xlsx` and `.xlsm` workbook files.
 
 ### Parser Warnings
 

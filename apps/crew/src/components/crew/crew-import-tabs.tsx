@@ -25,7 +25,10 @@ import {
   getImportFields,
   inferColumnMapping,
 } from "@/lib/crew/imports/column-mapping"
-import { parseCsv } from "@/lib/crew/imports/csv"
+import {
+  CREW_IMPORT_ACCEPTED_FILE_TYPES,
+  parseCrewImportFile,
+} from "@/lib/crew/imports/file"
 import type { CrewImportMappingSuggestion } from "@/lib/crew/imports/mapping-memory"
 import type {
   ColumnMapping,
@@ -248,10 +251,17 @@ function ImportUploadPanel({
       return
     }
 
-    const csv = parseCsv(await selectedFile.text(), { maxRows: 20 })
-    setHeaders(csv.headers)
-    setMapping(inferColumnMapping(csv.headers, kind))
-    setClientIssues(csv.fileIssues)
+    const parsed = parseCrewImportFile(
+      {
+        filename: selectedFile.name,
+        mimeType: selectedFile.type,
+        data: await selectedFile.arrayBuffer(),
+      },
+      { maxRows: 20 },
+    )
+    setHeaders(parsed.headers)
+    setMapping(inferColumnMapping(parsed.headers, kind))
+    setClientIssues(parsed.fileIssues)
   }
 
   function updateMapping(field: string, header: string) {
@@ -302,7 +312,7 @@ function ImportUploadPanel({
     event.preventDefault()
 
     if (!file) {
-      toast.error("Choose a CSV file first")
+      toast.error("Choose a CSV or Excel file first")
       return
     }
 
@@ -361,17 +371,17 @@ function ImportUploadPanel({
       </div>
 
       <div className="mt-5 space-y-4">
-        <Field label="CSV file" htmlFor={`crew-import-file-${kind}`}>
+        <Field label="CSV or Excel file" htmlFor={`crew-import-file-${kind}`}>
           <input
             id={`crew-import-file-${kind}`}
             type="file"
-            accept=".csv,text/csv"
+            accept={CREW_IMPORT_ACCEPTED_FILE_TYPES}
             onChange={handleFileChange}
             className="block w-full rounded-md border bg-background px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-sm file:font-medium"
           />
         </Field>
         <Field
-          label="CSV label (optional)"
+          label="Source label (optional)"
           htmlFor={`crew-import-source-${kind}`}
         >
           <input
@@ -852,7 +862,7 @@ function HistoryPanel({ history }: { history: CrewImportHistoryItem[] }) {
                 <tr key={item.id} className="border-t">
                   <td className="px-3 py-2">
                     <p className="font-medium">
-                      {item.originalFilename ?? "Uploaded CSV"}
+                      {item.originalFilename ?? "Uploaded file"}
                     </p>
                   </td>
                   <td className="px-3 py-2">{formatKind(item.kind)}</td>
@@ -974,8 +984,8 @@ function getImportCopy(kind: CrewImportKind) {
       choiceTitle: "Upload heat schedule",
       choiceDescription:
         "Bring in workouts, heat labels, divisions, times, venues, and lane counts.",
-      uploadTitle: "Heat schedule CSV",
-      uploadHelp: "Choose a heat schedule CSV to preview.",
+      uploadTitle: "Heat schedule file",
+      uploadHelp: "Choose a heat schedule CSV or Excel file to preview.",
       shortLabel: "Heat schedule",
       nounPlural: "heat rows",
       changeSummary:
@@ -987,8 +997,8 @@ function getImportCopy(kind: CrewImportKind) {
     choiceTitle: "Upload volunteer list",
     choiceDescription:
       "Bring in volunteer names, emails, roles, divisions, availability, and notes.",
-    uploadTitle: "Volunteer list CSV",
-    uploadHelp: "Choose a volunteer list CSV to preview.",
+    uploadTitle: "Volunteer list file",
+    uploadHelp: "Choose a volunteer list CSV or Excel file to preview.",
     shortLabel: "Volunteer list",
     nounPlural: "volunteers",
     changeSummary:

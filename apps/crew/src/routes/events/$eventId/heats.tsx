@@ -41,7 +41,10 @@ import {
   getImportFields,
   inferColumnMapping,
 } from "@/lib/crew/imports/column-mapping"
-import { parseCsv } from "@/lib/crew/imports/csv"
+import {
+  CREW_IMPORT_ACCEPTED_FILE_TYPES,
+  parseCrewImportFile,
+} from "@/lib/crew/imports/file"
 import type { CrewImportMappingSuggestion } from "@/lib/crew/imports/mapping-memory"
 import type {
   ColumnMapping,
@@ -49,13 +52,6 @@ import type {
   ImportIssue,
   PreviewImportRow,
 } from "@/lib/crew/imports/types"
-import {
-  applyCrewImportFn,
-  type CrewImportApplyResult,
-  getCrewImportMappingSuggestionFn,
-  type PersistedCrewImportPreview,
-  saveCrewImportMappingPresetFn,
-} from "@/server-fns/crew-import-fns"
 import {
   deleteHeatFn,
   getNextHeatNumberFn,
@@ -67,6 +63,13 @@ import {
   generateHeatsFn,
   getCrewHeatsPageFn,
 } from "@/server-fns/crew-heats-fns"
+import {
+  applyCrewImportFn,
+  type CrewImportApplyResult,
+  getCrewImportMappingSuggestionFn,
+  type PersistedCrewImportPreview,
+  saveCrewImportMappingPresetFn,
+} from "@/server-fns/crew-import-fns"
 import { DEFAULT_TIMEZONE, parseTimeInTimezone } from "@/utils/timezone-utils"
 
 export const Route = createFileRoute("/events/$eventId/heats")({
@@ -82,8 +85,7 @@ function EventHeatsPage() {
   const { eventId } = parentRoute.useParams()
   const { event } = parentRoute.useLoaderData()
   const timezone = event.competition.timezone ?? DEFAULT_TIMEZONE
-  const { trackWorkouts, heatsByTrackWorkoutId, venues } =
-    Route.useLoaderData()
+  const { trackWorkouts, heatsByTrackWorkoutId, venues } = Route.useLoaderData()
 
   const [importOpen, setImportOpen] = useState(false)
 
@@ -118,7 +120,7 @@ function EventHeatsPage() {
           className="inline-flex h-10 w-fit items-center gap-2 rounded-md border px-4 text-sm font-medium hover:bg-muted"
         >
           <FileSpreadsheet className="size-4" />
-          Import from CSV
+          Import from CSV or Excel
         </button>
       </div>
 
@@ -231,7 +233,7 @@ function WorkoutHeatSection({
         </div>
       ) : (
         <p className="px-5 py-4 text-sm text-muted-foreground">
-          No heats yet — add some manually or import from CSV.
+          No heats yet — add some manually or import from CSV or Excel.
         </p>
       )}
 
@@ -269,7 +271,9 @@ function HeatRow({ heat, onHeatChange }: HeatRowProps) {
       toast.success("Heat removed")
       await onHeatChange()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to remove heat")
+      toast.error(
+        error instanceof Error ? error.message : "Failed to remove heat",
+      )
     } finally {
       setIsDeleting(false)
       setConfirmDelete(false)
@@ -393,7 +397,9 @@ function AddHeatsDialog({
   const [lengthMinutes, setLengthMinutes] = useState(
     String(DEFAULT_HEAT_DURATION_MINUTES),
   )
-  const [gapMinutes, setGapMinutes] = useState(String(DEFAULT_TRANSITION_MINUTES))
+  const [gapMinutes, setGapMinutes] = useState(
+    String(DEFAULT_TRANSITION_MINUTES),
+  )
   // The editable per-heat list. Recomputed from the global controls below;
   // individual rows can be overridden until the next global change.
   const [heatRows, setHeatRows] = useState<CascadedHeatRow[]>([])
@@ -616,7 +622,9 @@ function AddHeatsDialog({
               disabled={isSubmitting}
               className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : null}
+              {isSubmitting ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : null}
               Add{" "}
               {Number.isInteger(heatCount) && heatCount > 0 ? heatCount : ""}{" "}
               {heatCount === 1 ? "heat" : "heats"}
@@ -646,7 +654,7 @@ function AddHeatField({
 }
 
 // ============================================================================
-// Heat CSV import dialog
+// Heat schedule import dialog
 // ============================================================================
 
 interface HeatImportDialogProps {
@@ -687,10 +695,10 @@ function HeatImportDialog({
     <Dialog open={open} onOpenChange={(val) => !val && handleClose()}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Import heat schedule from CSV</DialogTitle>
+          <DialogTitle>Import heat schedule from CSV or Excel</DialogTitle>
           <DialogDescription>
-            Upload a CSV file with heat schedule details. Review the preview,
-            then apply the rows you are ready to use.
+            Upload a CSV or Excel file with heat schedule details. Review the
+            preview, then apply the rows you are ready to use.
           </DialogDescription>
         </DialogHeader>
         <div className="max-h-[70vh] space-y-4 overflow-y-auto">
@@ -780,10 +788,17 @@ function HeatImportUploadPanel({
       return
     }
 
-    const csv = parseCsv(await selectedFile.text(), { maxRows: 20 })
-    setHeaders(csv.headers)
-    setMapping(inferColumnMapping(csv.headers, "heat_schedule"))
-    setClientIssues(csv.fileIssues)
+    const parsed = parseCrewImportFile(
+      {
+        filename: selectedFile.name,
+        mimeType: selectedFile.type,
+        data: await selectedFile.arrayBuffer(),
+      },
+      { maxRows: 20 },
+    )
+    setHeaders(parsed.headers)
+    setMapping(inferColumnMapping(parsed.headers, "heat_schedule"))
+    setClientIssues(parsed.fileIssues)
   }
 
   function updateMapping(field: string, header: string) {
@@ -821,7 +836,9 @@ function HeatImportUploadPanel({
       toast.success("Column choices saved")
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to save column choices",
+        error instanceof Error
+          ? error.message
+          : "Failed to save column choices",
       )
     } finally {
       setIsSavingMapping(false)
@@ -832,7 +849,7 @@ function HeatImportUploadPanel({
     event.preventDefault()
 
     if (!file) {
-      toast.error("Choose a CSV file first")
+      toast.error("Choose a CSV or Excel file first")
       return
     }
 
@@ -880,26 +897,29 @@ function HeatImportUploadPanel({
           <FileSpreadsheet className="size-5 text-muted-foreground" />
         </div>
         <div>
-          <h3 className="font-semibold">Heat schedule CSV</h3>
+          <h3 className="font-semibold">Heat schedule file</h3>
           <p className="text-sm text-muted-foreground">
             {headers.length > 0
               ? `${headers.length} columns detected`
-              : "Choose a heat schedule CSV to preview."}
+              : "Choose a heat schedule CSV or Excel file to preview."}
           </p>
         </div>
       </div>
 
       <div className="mt-5 space-y-4">
-        <ImportField label="CSV file" htmlFor="heat-import-file">
+        <ImportField label="CSV or Excel file" htmlFor="heat-import-file">
           <input
             id="heat-import-file"
             type="file"
-            accept=".csv,text/csv"
+            accept={CREW_IMPORT_ACCEPTED_FILE_TYPES}
             onChange={handleFileChange}
             className="block w-full rounded-md border bg-background px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-sm file:font-medium"
           />
         </ImportField>
-        <ImportField label="CSV label (optional)" htmlFor="heat-import-source">
+        <ImportField
+          label="Source label (optional)"
+          htmlFor="heat-import-source"
+        >
           <input
             id="heat-import-source"
             value={sourcePlatform}
@@ -1043,7 +1063,9 @@ function HeatImportPreviewPanel({
       toast.success("Heat schedule applied")
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to apply heat schedule",
+        error instanceof Error
+          ? error.message
+          : "Failed to apply heat schedule",
       )
     } finally {
       setIsApplying(false)
@@ -1187,9 +1209,7 @@ function HeatPreviewTable({ rows }: { rows: PreviewImportRow[] }) {
                   <td className="px-3 py-2">
                     {heat.scheduledTime || "Not mapped"}
                   </td>
-                  <td className="px-3 py-2">
-                    {heat.division || "Not mapped"}
-                  </td>
+                  <td className="px-3 py-2">{heat.division || "Not mapped"}</td>
                   <td className="px-3 py-2">
                     {issues.length === 0 ? (
                       <span className="inline-flex items-center gap-1 text-emerald-700">

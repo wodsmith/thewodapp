@@ -23,7 +23,10 @@ import {
   getImportFields,
   inferColumnMapping,
 } from "@/lib/crew/imports/column-mapping"
-import { parseCsv } from "@/lib/crew/imports/csv"
+import {
+  CREW_IMPORT_ACCEPTED_FILE_TYPES,
+  parseCrewImportFile,
+} from "@/lib/crew/imports/file"
 import type { CrewImportMappingSuggestion } from "@/lib/crew/imports/mapping-memory"
 import type {
   ColumnMapping,
@@ -34,13 +37,13 @@ import type {
 import {
   applyCrewImportFn,
   type CrewImportApplyResult,
-  type PersistedCrewImportPreview,
   getCrewImportMappingSuggestionFn,
+  type PersistedCrewImportPreview,
   saveCrewImportMappingPresetFn,
 } from "@/server-fns/crew-import-fns"
 
 /**
- * Self-contained volunteer CSV import flow: upload → column mapping → preview → apply.
+ * Self-contained volunteer import flow: upload → column mapping → preview → apply.
  * Scoped to volunteer imports only (kind = "volunteers").
  * Call onApplyComplete when an import is successfully applied.
  */
@@ -152,10 +155,17 @@ function VolunteerUploadPanel({
       return
     }
 
-    const csv = parseCsv(await selectedFile.text(), { maxRows: 20 })
-    setHeaders(csv.headers)
-    setMapping(inferColumnMapping(csv.headers, kind))
-    setClientIssues(csv.fileIssues)
+    const parsed = parseCrewImportFile(
+      {
+        filename: selectedFile.name,
+        mimeType: selectedFile.type,
+        data: await selectedFile.arrayBuffer(),
+      },
+      { maxRows: 20 },
+    )
+    setHeaders(parsed.headers)
+    setMapping(inferColumnMapping(parsed.headers, kind))
+    setClientIssues(parsed.fileIssues)
   }
 
   function updateMapping(field: string, header: string) {
@@ -206,7 +216,7 @@ function VolunteerUploadPanel({
     event.preventDefault()
 
     if (!file) {
-      toast.error("Choose a CSV file first")
+      toast.error("Choose a CSV or Excel file first")
       return
     }
 
@@ -254,27 +264,27 @@ function VolunteerUploadPanel({
           <FileSpreadsheet className="size-5 text-muted-foreground" />
         </div>
         <div>
-          <h3 className="font-semibold">Volunteer list CSV</h3>
+          <h3 className="font-semibold">Volunteer list file</h3>
           <p className="text-sm text-muted-foreground">
             {headers.length > 0
               ? `${headers.length} columns detected`
-              : "Choose a volunteer list CSV to preview."}
+              : "Choose a volunteer list CSV or Excel file to preview."}
           </p>
         </div>
       </div>
 
       <div className="mt-5 space-y-4">
-        <ImportField label="CSV file" htmlFor="volunteer-import-file">
+        <ImportField label="CSV or Excel file" htmlFor="volunteer-import-file">
           <input
             id="volunteer-import-file"
             type="file"
-            accept=".csv,text/csv"
+            accept={CREW_IMPORT_ACCEPTED_FILE_TYPES}
             onChange={handleFileChange}
             className="block w-full rounded-md border bg-background px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-sm file:font-medium"
           />
         </ImportField>
         <ImportField
-          label="CSV label (optional)"
+          label="Source label (optional)"
           htmlFor="volunteer-import-source"
         >
           <input
@@ -433,7 +443,9 @@ function VolunteerPreviewPanel({
       toast.success("Volunteer list applied")
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to apply volunteer list",
+        error instanceof Error
+          ? error.message
+          : "Failed to apply volunteer list",
       )
     } finally {
       setIsApplying(false)
@@ -512,8 +524,8 @@ function VolunteerPreviewPanel({
           </DialogHeader>
           <div className="space-y-3 text-sm">
             <p>
-              Crew will use ready rows to add volunteers or match existing people
-              on this event.
+              Crew will use ready rows to add volunteers or match existing
+              people on this event.
             </p>
             <div className="grid gap-3 sm:grid-cols-3">
               <SummaryMetric label="Ready" value={impact.readyCount} />
