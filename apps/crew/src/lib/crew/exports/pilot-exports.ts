@@ -1,7 +1,6 @@
 // @lat: [[crew#Pilot Exports]]
 // @lat: [[crew#Event Day Export Packet]]
 import {
-  CREW_ASSIGNMENT_CONFIRMATION_STATUS,
   type CrewAssignmentConfirmationStatus,
   type CrewAssignmentConfirmationType,
 } from "../../../db/schemas/crew-imports"
@@ -94,11 +93,6 @@ export interface CrewPilotExportInput {
 }
 
 export type CrewPilotExportBlockType = "shift" | "heat"
-export type CrewPilotExportResponseReason =
-  | "missing_confirmation"
-  | "no_response"
-  | "declined"
-  | "change_requested"
 
 export interface CrewPilotMasterScheduleRow {
   blockType: CrewPilotExportBlockType
@@ -115,25 +109,9 @@ export interface CrewPilotMasterScheduleRow {
   confirmationSummary: string
 }
 
-export interface CrewPilotRoleSheetAssignmentRow {
-  rowKey: string
-  assignmentType: CrewPilotExportBlockType
-  assignmentId: string | null
-  blockId: string
-  volunteerName: string
-  email: string
-  startsAt: string | null
-  endsAt: string | null
-  location: string
-  blockLabel: string
-  confirmationStatus: string
-  responseNote: string
-}
-
-export interface CrewPilotRoleSheet {
-  roleType: VolunteerRoleType
-  roleLabel: string
-  rows: CrewPilotRoleSheetAssignmentRow[]
+export interface CrewPilotMasterScheduleDaySection {
+  dayKey: string
+  rows: CrewPilotMasterScheduleRow[]
 }
 
 export interface CrewPilotJudgeLaneRow {
@@ -154,102 +132,64 @@ export interface CrewPilotJudgeLaneRow {
 export interface CrewPilotJudgeHeatLaneSheet {
   heatId: string
   label: string
+  heatNumber: number
   startsAt: string | null
+  endsAt: string | null
   venueName: string
   rows: CrewPilotJudgeLaneRow[]
 }
 
-export interface CrewPilotResponseRow {
-  assignmentType: CrewPilotExportBlockType
-  assignmentId: string
-  membershipId: string
+export interface CrewPilotJudgeEventSection {
+  workoutId: string
+  workoutName: string
+  heats: CrewPilotJudgeHeatLaneSheet[]
+}
+
+export interface CrewPilotShiftSheetRow {
+  rowKey: string
+  assignmentId: string | null
   volunteerName: string
   email: string
+  confirmationStatus: string
+  responseNote: string
+  isOpen: boolean
+}
+
+export interface CrewPilotShiftSheet {
+  shiftId: string
+  name: string
+  roleType: VolunteerRoleType
+  roleLabel: string
   startsAt: string | null
   endsAt: string | null
   location: string
-  blockLabel: string
-  role: string
-  status: string
-  reason: CrewPilotExportResponseReason
-  responseNote: string
-}
-
-export interface CrewPilotFloorLeadSheet {
-  floorName: string
-  rows: CrewPilotMasterScheduleRow[]
-  judgeRows: CrewPilotJudgeLaneRow[]
-}
-
-export interface CrewPilotPacketIndexItem {
-  id: string
-  title: string
-  description: string
-  count: number
-}
-
-export interface CrewPilotMasterScheduleDaySection {
-  dayKey: string
-  rows: CrewPilotMasterScheduleRow[]
-}
-
-export interface CrewPilotJudgeLaneCardRow {
-  heatId: string
-  workoutName: string
-  heatNumber: number
-  startsAt: string | null
-  endsAt: string | null
-  judgeName: string
-  email: string
-  confirmationStatus: string
-}
-
-export interface CrewPilotJudgeLaneCard {
-  cardKey: string
-  venueName: string
-  laneNumber: number
-  rows: CrewPilotJudgeLaneCardRow[]
-}
-
-export interface CrewPilotStationCard {
-  stationName: string
-  startsAt: string | null
-  endsAt: string | null
-  rows: CrewPilotMasterScheduleRow[]
-  judgeRows: CrewPilotJudgeLaneRow[]
-  laneCards: CrewPilotJudgeLaneCard[]
-  openBlocks: number
+  needed: number
+  assigned: number
+  open: number
+  rows: CrewPilotShiftSheetRow[]
 }
 
 export interface CrewPilotExports {
   generatedAt: string
   summary: {
     masterScheduleRows: number
-    roleSheets: number
-    judgeHeatSheets: number
-    responseRows: number
-    floorLeadSheets: number
-    packetIndexItems: number
     masterScheduleDaySections: number
-    stationCards: number
-    laneCards: number
+    judgeEventSections: number
+    judgeHeatSheets: number
+    shiftSheets: number
   }
-  packetIndexItems: CrewPilotPacketIndexItem[]
   masterScheduleRows: CrewPilotMasterScheduleRow[]
   masterScheduleDaySections: CrewPilotMasterScheduleDaySection[]
   masterScheduleCsv: string
-  roleSheets: CrewPilotRoleSheet[]
-  judgeHeatLaneSheets: CrewPilotJudgeHeatLaneSheet[]
-  judgeLaneCards: CrewPilotJudgeLaneCard[]
-  stationCards: CrewPilotStationCard[]
-  responseRows: CrewPilotResponseRow[]
-  responseCsv: string
-  floorLeadSheets: CrewPilotFloorLeadSheet[]
+  judgeEventSections: CrewPilotJudgeEventSection[]
+  shiftSheets: CrewPilotShiftSheet[]
 }
 
 interface NormalizedHeat {
   input: CrewPilotExportHeatInput
+  workoutId: string
   workoutName: string
+  workoutSortOrder: number | null
   venueName: string
   startsAt: Date | null
   endsAt: Date | null
@@ -287,7 +227,6 @@ export function buildCrewPilotExports(
       heatLaneAssignments,
     }),
   )
-  const heatById = new Map(normalizedHeats.map((heat) => [heat.input.id, heat]))
 
   const masterScheduleRows = [
     ...shifts.map(buildShiftMasterScheduleRow),
@@ -298,57 +237,34 @@ export function buildCrewPilotExports(
       ),
     ),
   ].sort(compareMasterScheduleRow)
-  const roleSheets = buildRoleSheets({ shifts, judgeAssignments, heatById })
+  const masterScheduleDaySections = buildMasterScheduleDaySections(
+    masterScheduleRows,
+    input.event.timezone,
+  )
   const judgeHeatLaneSheets = normalizedHeats.map((heat) =>
     buildJudgeHeatLaneSheet(
       heat,
       judgeAssignmentsByHeatId.get(heat.input.id) ?? [],
     ),
   )
-  const responseRows = buildResponseRows({
-    shifts,
-    judgeAssignments,
-    heatById,
-  })
-  const floorLeadSheets = buildFloorLeadSheets({
-    masterScheduleRows,
-    judgeHeatLaneSheets,
-  })
-  const masterScheduleDaySections = buildMasterScheduleDaySections(
-    masterScheduleRows,
-    input.event.timezone,
+  const sheetByHeatId = new Map(
+    judgeHeatLaneSheets.map((sheet) => [sheet.heatId, sheet]),
   )
-  const judgeLaneCards = buildJudgeLaneCards(judgeHeatLaneSheets)
-  const stationCards = buildStationCards({
-    masterScheduleRows,
-    judgeHeatLaneSheets,
-    judgeLaneCards,
-  })
-  const packetIndexItems = buildPacketIndexItems({
-    masterScheduleRows,
-    masterScheduleDaySections,
-    roleSheets,
-    judgeHeatLaneSheets,
-    judgeLaneCards,
-    stationCards,
-    responseRows,
-    floorLeadSheets,
-  })
+  const judgeEventSections = buildJudgeEventSections(
+    normalizedHeats,
+    sheetByHeatId,
+  )
+  const shiftSheets = buildShiftSheets(shifts)
 
   return {
     generatedAt,
     summary: {
       masterScheduleRows: masterScheduleRows.length,
-      roleSheets: roleSheets.length,
-      judgeHeatSheets: judgeHeatLaneSheets.length,
-      responseRows: responseRows.length,
-      floorLeadSheets: floorLeadSheets.length,
-      packetIndexItems: packetIndexItems.length,
       masterScheduleDaySections: masterScheduleDaySections.length,
-      stationCards: stationCards.length,
-      laneCards: judgeLaneCards.length,
+      judgeEventSections: judgeEventSections.length,
+      judgeHeatSheets: judgeHeatLaneSheets.length,
+      shiftSheets: shiftSheets.length,
     },
-    packetIndexItems,
     masterScheduleRows,
     masterScheduleDaySections,
     masterScheduleCsv: buildCsv(
@@ -379,42 +295,8 @@ export function buildCrewPilotExports(
         row.confirmationSummary,
       ]),
     ),
-    roleSheets,
-    judgeHeatLaneSheets,
-    judgeLaneCards,
-    stationCards,
-    responseRows,
-    responseCsv: buildCsv(
-      [
-        "Type",
-        "Assignment ID",
-        "Volunteer",
-        "Email",
-        "Start",
-        "End",
-        "Location",
-        "Block",
-        "Role",
-        "Status",
-        "Reason",
-        "Note",
-      ],
-      responseRows.map((row) => [
-        row.assignmentType,
-        row.assignmentId,
-        row.volunteerName,
-        row.email,
-        row.startsAt ?? "",
-        row.endsAt ?? "",
-        row.location,
-        row.blockLabel,
-        row.role,
-        row.status,
-        row.reason,
-        row.responseNote,
-      ]),
-    ),
-    floorLeadSheets,
+    judgeEventSections,
+    shiftSheets,
   }
 }
 
@@ -466,89 +348,6 @@ function buildHeatMasterScheduleRow(
   }
 }
 
-function buildRoleSheets(input: {
-  shifts: CrewPilotExportShiftInput[]
-  judgeAssignments: CrewPilotExportJudgeAssignmentInput[]
-  heatById: Map<string, NormalizedHeat>
-}) {
-  const rowsByRoleType = new Map<
-    VolunteerRoleType,
-    CrewPilotRoleSheetAssignmentRow[]
-  >()
-
-  for (const shift of input.shifts) {
-    const roleRows = rowsByRoleType.get(shift.roleType) ?? []
-    for (const assignment of shift.assignments) {
-      roleRows.push({
-        rowKey: assignment.id,
-        assignmentType: "shift",
-        assignmentId: assignment.id,
-        blockId: shift.id,
-        volunteerName: assignment.volunteerName,
-        email: assignment.email ?? "",
-        startsAt: toIsoString(shift.startTime),
-        endsAt: toIsoString(shift.endTime),
-        location: shift.location || "Unassigned",
-        blockLabel: shift.name,
-        confirmationStatus: formatConfirmationStatus(assignment.confirmation),
-        responseNote: assignment.confirmation?.responseNote ?? "",
-      })
-    }
-    for (
-      let index = shift.assignments.length;
-      index < shift.capacity;
-      index++
-    ) {
-      roleRows.push({
-        rowKey: `open:${shift.id}:${index}`,
-        assignmentType: "shift",
-        assignmentId: null,
-        blockId: shift.id,
-        volunteerName: "OPEN",
-        email: "",
-        startsAt: toIsoString(shift.startTime),
-        endsAt: toIsoString(shift.endTime),
-        location: shift.location || "Unassigned",
-        blockLabel: shift.name,
-        confirmationStatus: "open",
-        responseNote: "",
-      })
-    }
-    rowsByRoleType.set(shift.roleType, roleRows)
-  }
-
-  for (const assignment of input.judgeAssignments) {
-    const roleType = getJudgeRoleType(assignment.position)
-    const heat = input.heatById.get(assignment.heatId)
-    const roleRows = rowsByRoleType.get(roleType) ?? []
-    roleRows.push({
-      rowKey: assignment.id,
-      assignmentType: "heat",
-      assignmentId: assignment.id,
-      blockId: assignment.heatId,
-      volunteerName: assignment.volunteerName,
-      email: assignment.email ?? "",
-      startsAt: toIsoString(heat?.startsAt),
-      endsAt: toIsoString(heat?.endsAt),
-      location: heat?.venueName ?? "Unassigned",
-      blockLabel: heat
-        ? `${heat.workoutName} - Heat ${heat.input.heatNumber}`
-        : assignment.heatId,
-      confirmationStatus: formatConfirmationStatus(assignment.confirmation),
-      responseNote: assignment.confirmation?.responseNote ?? "",
-    })
-    rowsByRoleType.set(roleType, roleRows)
-  }
-
-  return [...rowsByRoleType.entries()]
-    .map(([roleType, rows]) => ({
-      roleType,
-      roleLabel: formatRole(roleType),
-      rows: rows.sort(compareRoleSheetRow),
-    }))
-    .sort((left, right) => compareText(left.roleLabel, right.roleLabel))
-}
-
 function buildJudgeHeatLaneSheet(
   heat: NormalizedHeat,
   assignments: CrewPilotExportJudgeAssignmentInput[],
@@ -586,89 +385,85 @@ function buildJudgeHeatLaneSheet(
   return {
     heatId: heat.input.id,
     label: `${heat.workoutName} - Heat ${heat.input.heatNumber}`,
+    heatNumber: heat.input.heatNumber,
     startsAt: toIsoString(heat.startsAt),
+    endsAt: toIsoString(heat.endsAt),
     venueName: heat.venueName,
     rows,
   }
 }
 
-function buildResponseRows(input: {
-  shifts: CrewPilotExportShiftInput[]
-  judgeAssignments: CrewPilotExportJudgeAssignmentInput[]
-  heatById: Map<string, NormalizedHeat>
-}) {
-  const shiftRows = input.shifts.flatMap((shift) =>
-    shift.assignments.flatMap((assignment) => {
-      const reason = getResponseReason(assignment.confirmation)
-      if (!reason) return []
-      return {
-        assignmentType: "shift" as const,
-        assignmentId: assignment.id,
-        membershipId: assignment.membershipId,
-        volunteerName: assignment.volunteerName,
-        email: assignment.email ?? "",
-        startsAt: toIsoString(shift.startTime),
-        endsAt: toIsoString(shift.endTime),
-        location: shift.location || "Unassigned",
-        blockLabel: shift.name,
-        role: formatRole(shift.roleType),
-        status: formatConfirmationStatus(assignment.confirmation),
-        reason,
-        responseNote: assignment.confirmation?.responseNote ?? "",
-      }
-    }),
-  )
-  const judgeRows = input.judgeAssignments.flatMap((assignment) => {
-    const reason = getResponseReason(assignment.confirmation)
-    if (!reason) return []
-    const heat = input.heatById.get(assignment.heatId)
-    return {
-      assignmentType: "heat" as const,
-      assignmentId: assignment.id,
-      membershipId: assignment.membershipId,
-      volunteerName: assignment.volunteerName,
-      email: assignment.email ?? "",
-      startsAt: toIsoString(heat?.startsAt),
-      endsAt: toIsoString(heat?.endsAt),
-      location: heat?.venueName ?? "Unassigned",
-      blockLabel: heat
-        ? `${heat.workoutName} - Heat ${heat.input.heatNumber}`
-        : assignment.heatId,
-      role: formatRole(getJudgeRoleType(assignment.position)),
-      status: formatConfirmationStatus(assignment.confirmation),
-      reason,
-      responseNote: assignment.confirmation?.responseNote ?? "",
-    }
-  })
+function buildJudgeEventSections(
+  normalizedHeats: NormalizedHeat[],
+  sheetByHeatId: Map<string, CrewPilotJudgeHeatLaneSheet>,
+): CrewPilotJudgeEventSection[] {
+  const heatsByWorkoutId = groupBy(normalizedHeats, (heat) => heat.workoutId)
 
-  return [...shiftRows, ...judgeRows].sort(compareResponseRow)
+  return [...heatsByWorkoutId.entries()]
+    .map(([workoutId, heats]) => ({
+      workoutId,
+      workoutName: heats[0]?.workoutName ?? "Workout",
+      sortOrder: heats[0]?.workoutSortOrder ?? null,
+      heats: heats
+        .map((heat) => sheetByHeatId.get(heat.input.id))
+        .filter((sheet): sheet is CrewPilotJudgeHeatLaneSheet =>
+          Boolean(sheet),
+        ),
+    }))
+    .sort(
+      (left, right) =>
+        (left.sortOrder ?? Number.POSITIVE_INFINITY) -
+          (right.sortOrder ?? Number.POSITIVE_INFINITY) ||
+        compareText(left.workoutName, right.workoutName) ||
+        compareText(left.workoutId, right.workoutId),
+    )
+    .map(({ sortOrder: _sortOrder, ...section }) => section)
 }
 
-function buildFloorLeadSheets(input: {
-  masterScheduleRows: CrewPilotMasterScheduleRow[]
-  judgeHeatLaneSheets: CrewPilotJudgeHeatLaneSheet[]
-}) {
-  const scheduleRowsByFloor = groupBy(
-    input.masterScheduleRows,
-    (row) => row.location || "Unassigned",
-  )
-  const judgeRowsByFloor = groupBy(
-    input.judgeHeatLaneSheets.flatMap((sheet) => sheet.rows),
-    (row) => row.venueName || "Unassigned",
-  )
-  const floorNames = [
-    ...new Set([...scheduleRowsByFloor.keys(), ...judgeRowsByFloor.keys()]),
-  ].sort(compareText)
+function buildShiftSheets(
+  shifts: CrewPilotExportShiftInput[],
+): CrewPilotShiftSheet[] {
+  return shifts.map((shift) => {
+    const assigned = shift.assignments.length
+    const rows: CrewPilotShiftSheetRow[] = shift.assignments
+      .map((assignment) => ({
+        rowKey: assignment.id,
+        assignmentId: assignment.id,
+        volunteerName: assignment.volunteerName,
+        email: assignment.email ?? "",
+        confirmationStatus: formatConfirmationStatus(assignment.confirmation),
+        responseNote: assignment.confirmation?.responseNote ?? "",
+        isOpen: false,
+      }))
+      .sort((left, right) =>
+        compareText(left.volunteerName, right.volunteerName),
+      )
+    for (let index = assigned; index < shift.capacity; index++) {
+      rows.push({
+        rowKey: `open:${shift.id}:${index}`,
+        assignmentId: null,
+        volunteerName: "OPEN",
+        email: "",
+        confirmationStatus: "open",
+        responseNote: "",
+        isOpen: true,
+      })
+    }
 
-  return floorNames.map((floorName) => ({
-    floorName,
-    rows: (scheduleRowsByFloor.get(floorName) ?? []).sort(
-      compareMasterScheduleRow,
-    ),
-    judgeRows: (judgeRowsByFloor.get(floorName) ?? []).sort(
-      compareJudgeLaneRow,
-    ),
-  }))
+    return {
+      shiftId: shift.id,
+      name: shift.name,
+      roleType: shift.roleType,
+      roleLabel: formatRole(shift.roleType),
+      startsAt: toIsoString(shift.startTime),
+      endsAt: toIsoString(shift.endTime),
+      location: shift.location || "Unassigned",
+      needed: shift.capacity,
+      assigned,
+      open: Math.max(shift.capacity - assigned, 0),
+      rows,
+    }
+  })
 }
 
 function buildMasterScheduleDaySections(
@@ -684,149 +479,6 @@ function buildMasterScheduleDaySections(
       dayKey,
       rows: dayRows.sort(compareMasterScheduleRow),
     }))
-}
-
-function buildJudgeLaneCards(
-  judgeHeatLaneSheets: CrewPilotJudgeHeatLaneSheet[],
-) {
-  const rowsByLane = new Map<string, CrewPilotJudgeLaneCardRow[]>()
-  const cardMeta = new Map<string, { venueName: string; laneNumber: number }>()
-
-  for (const sheet of judgeHeatLaneSheets) {
-    for (const row of sheet.rows) {
-      const cardKey = `${row.venueName}:lane:${row.laneNumber}`
-      cardMeta.set(cardKey, {
-        venueName: row.venueName,
-        laneNumber: row.laneNumber,
-      })
-      const rows = rowsByLane.get(cardKey) ?? []
-      rows.push({
-        heatId: row.heatId,
-        workoutName: row.workoutName,
-        heatNumber: row.heatNumber,
-        startsAt: row.startsAt,
-        endsAt: row.endsAt,
-        judgeName: row.judgeName,
-        email: row.email,
-        confirmationStatus: row.confirmationStatus,
-      })
-      rowsByLane.set(cardKey, rows)
-    }
-  }
-
-  return [...rowsByLane.entries()]
-    .map(([cardKey, rows]) => {
-      const meta = cardMeta.get(cardKey)
-      return {
-        cardKey,
-        venueName: meta?.venueName ?? "Unassigned",
-        laneNumber: meta?.laneNumber ?? 0,
-        rows: rows.sort(compareJudgeLaneCardRow),
-      }
-    })
-    .sort(compareJudgeLaneCard)
-}
-
-function buildStationCards(input: {
-  masterScheduleRows: CrewPilotMasterScheduleRow[]
-  judgeHeatLaneSheets: CrewPilotJudgeHeatLaneSheet[]
-  judgeLaneCards: CrewPilotJudgeLaneCard[]
-}) {
-  const scheduleRowsByStation = groupBy(
-    input.masterScheduleRows,
-    (row) => row.location || "Unassigned",
-  )
-  const judgeRowsByStation = groupBy(
-    input.judgeHeatLaneSheets.flatMap((sheet) => sheet.rows),
-    (row) => row.venueName || "Unassigned",
-  )
-  const laneCardsByStation = groupBy(
-    input.judgeLaneCards,
-    (card) => card.venueName || "Unassigned",
-  )
-  const stationNames = [
-    ...new Set([
-      ...scheduleRowsByStation.keys(),
-      ...judgeRowsByStation.keys(),
-      ...laneCardsByStation.keys(),
-    ]),
-  ].sort(compareText)
-
-  return stationNames.map((stationName) => {
-    const rows = (scheduleRowsByStation.get(stationName) ?? []).sort(
-      compareMasterScheduleRow,
-    )
-    const judgeRows = (judgeRowsByStation.get(stationName) ?? []).sort(
-      compareJudgeLaneRow,
-    )
-    const laneCards = (laneCardsByStation.get(stationName) ?? []).sort(
-      compareJudgeLaneCard,
-    )
-    const allDateStrings = [
-      ...rows.flatMap((row) => [row.startsAt, row.endsAt]),
-      ...judgeRows.flatMap((row) => [row.startsAt, row.endsAt]),
-    ].filter((value): value is string => Boolean(value))
-
-    return {
-      stationName,
-      startsAt: firstDateString(allDateStrings),
-      endsAt: lastDateString(allDateStrings),
-      rows,
-      judgeRows,
-      laneCards,
-      openBlocks: rows.filter((row) => row.open > 0).length,
-    }
-  })
-}
-
-function buildPacketIndexItems(input: {
-  masterScheduleRows: CrewPilotMasterScheduleRow[]
-  masterScheduleDaySections: CrewPilotMasterScheduleDaySection[]
-  roleSheets: CrewPilotRoleSheet[]
-  judgeHeatLaneSheets: CrewPilotJudgeHeatLaneSheet[]
-  judgeLaneCards: CrewPilotJudgeLaneCard[]
-  stationCards: CrewPilotStationCard[]
-  responseRows: CrewPilotResponseRow[]
-  floorLeadSheets: CrewPilotFloorLeadSheet[]
-}) {
-  return [
-    {
-      id: "master-schedule",
-      title: "Master schedule",
-      description: `${input.masterScheduleRows.length} shift and heat rows across ${input.masterScheduleDaySections.length} day sections.`,
-      count: input.masterScheduleRows.length,
-    },
-    {
-      id: "station-cards",
-      title: "Station cards",
-      description: `${input.stationCards.length} floor or station cards with local coverage and lane summaries.`,
-      count: input.stationCards.length,
-    },
-    {
-      id: "role-sheets",
-      title: "Role sheets",
-      description: `${input.roleSheets.length} department-ready role sheets with open slots included.`,
-      count: input.roleSheets.length,
-    },
-    {
-      id: "judge-cards",
-      title: "Judge cards",
-      description: `${input.judgeHeatLaneSheets.length} heat cards and ${input.judgeLaneCards.length} lane cards.`,
-      count: input.judgeHeatLaneSheets.length + input.judgeLaneCards.length,
-    },
-    {
-      id: "response-list",
-      title: "Response list",
-      description: `${input.responseRows.length} missing, pending, declined, or change-requested assignments.`,
-      count: input.responseRows.length,
-    },
-    {
-      id: "floor-lead-sheets",
-      title: "Floor lead sheets",
-      description: `${input.floorLeadSheets.length} floor lead sheets for localized day-of handoff.`,
-      count: input.floorLeadSheets.length,
-    },
-  ]
 }
 
 function normalizeHeat(
@@ -863,30 +515,14 @@ function normalizeHeat(
 
   return {
     input: heat,
+    workoutId: heat.trackWorkoutId,
     workoutName: workout?.name ?? "Workout",
+    workoutSortOrder: workout?.sortOrder ?? null,
     venueName: venue?.name ?? "Unassigned",
     startsAt,
     endsAt,
     laneNumbers,
   }
-}
-
-function getResponseReason(
-  confirmation: CrewPilotExportConfirmationInput | null | undefined,
-): CrewPilotExportResponseReason | null {
-  if (!confirmation) return "missing_confirmation"
-  if (confirmation.status === CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING) {
-    return confirmation.sentAt ? "no_response" : "missing_confirmation"
-  }
-  if (confirmation.status === CREW_ASSIGNMENT_CONFIRMATION_STATUS.DECLINED) {
-    return "declined"
-  }
-  if (
-    confirmation.status === CREW_ASSIGNMENT_CONFIRMATION_STATUS.CHANGE_REQUESTED
-  ) {
-    return "change_requested"
-  }
-  return null
 }
 
 function formatConfirmationSummary(
@@ -969,69 +605,6 @@ function compareMasterScheduleRow(
     compareText(left.blockType, right.blockType) ||
     compareText(left.label, right.label) ||
     compareText(left.blockId, right.blockId)
-  )
-}
-
-function compareRoleSheetRow(
-  left: CrewPilotRoleSheetAssignmentRow,
-  right: CrewPilotRoleSheetAssignmentRow,
-) {
-  return (
-    compareDateString(left.startsAt, right.startsAt) ||
-    compareText(left.location, right.location) ||
-    compareText(left.blockLabel, right.blockLabel) ||
-    Number(isOpenRoleRow(left)) - Number(isOpenRoleRow(right)) ||
-    compareText(left.volunteerName, right.volunteerName) ||
-    compareText(left.assignmentId ?? "", right.assignmentId ?? "")
-  )
-}
-
-function isOpenRoleRow(row: CrewPilotRoleSheetAssignmentRow) {
-  return row.assignmentId === null
-}
-
-function compareResponseRow(
-  left: CrewPilotResponseRow,
-  right: CrewPilotResponseRow,
-) {
-  return (
-    compareDateString(left.startsAt, right.startsAt) ||
-    compareText(left.reason, right.reason) ||
-    compareText(left.volunteerName, right.volunteerName) ||
-    compareText(left.assignmentId, right.assignmentId)
-  )
-}
-
-function compareJudgeLaneRow(
-  left: CrewPilotJudgeLaneRow,
-  right: CrewPilotJudgeLaneRow,
-) {
-  return (
-    compareDateString(left.startsAt, right.startsAt) ||
-    left.heatNumber - right.heatNumber ||
-    left.laneNumber - right.laneNumber ||
-    compareText(left.assignmentId ?? "", right.assignmentId ?? "")
-  )
-}
-
-function compareJudgeLaneCardRow(
-  left: CrewPilotJudgeLaneCardRow,
-  right: CrewPilotJudgeLaneCardRow,
-) {
-  return (
-    compareDateString(left.startsAt, right.startsAt) ||
-    left.heatNumber - right.heatNumber ||
-    compareText(left.heatId, right.heatId)
-  )
-}
-
-function compareJudgeLaneCard(
-  left: CrewPilotJudgeLaneCard,
-  right: CrewPilotJudgeLaneCard,
-) {
-  return (
-    compareText(left.venueName, right.venueName) ||
-    left.laneNumber - right.laneNumber
   )
 }
 
@@ -1130,14 +703,6 @@ function toDateOrNull(value: Date | string | null | undefined) {
 
 function toIsoString(value: Date | string | null | undefined) {
   return toDateOrNull(value)?.toISOString() ?? null
-}
-
-function firstDateString(values: string[]) {
-  return values.sort(compareDateString)[0] ?? null
-}
-
-function lastDateString(values: string[]) {
-  return values.sort(compareDateString).at(-1) ?? null
 }
 
 function getDayKey(value: string | null, timezone: string | null | undefined) {

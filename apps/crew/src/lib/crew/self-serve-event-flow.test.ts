@@ -425,16 +425,11 @@ describe("Crew self-serve event flow", () => {
 
     expect(exports.summary).toMatchObject({
       masterScheduleRows: 2,
-      roleSheets: 2,
+      judgeEventSections: 1,
       judgeHeatSheets: 1,
-      responseRows: 0,
-      stationCards: 2,
-      laneCards: 2,
+      shiftSheets: 1,
     })
-    expect(exports.packetIndexItems.map((item) => item.id)).toContain(
-      "station-cards",
-    )
-    expect(exports.judgeHeatLaneSheets[0]?.rows).toMatchObject([
+    expect(exports.judgeEventSections[0]?.heats[0]?.rows).toMatchObject([
       {
         laneNumber: 1,
         judgeName: "Jules Judge",

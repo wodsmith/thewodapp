@@ -24,9 +24,7 @@ export interface CrewPilotExportsPageData {
     shifts: number
     shiftAssignments: number
     heats: number
-    heatLaneAssignments: number
     judgeAssignments: number
-    activeJudgeVersions: number
   }
 }
 
@@ -35,10 +33,10 @@ export async function getCrewPilotExportsPage(data: {
 }): Promise<CrewPilotExportsPageData> {
   const event = await requireCrewStaffingEvent(data.eventId)
   await requireCrewDepartmentLeadFullAccess(event)
-  const { input, activeJudgeVersions } = await loadCrewStaffingMatrixInput(
-    event,
-    { kind: "full", scopes: [] },
-  )
+  const { input } = await loadCrewStaffingMatrixInput(event, {
+    kind: "full",
+    scopes: [],
+  })
   const pilotExports = buildCrewPilotExports({
     event,
     generatedAt: new Date(),
@@ -61,12 +59,7 @@ export async function getCrewPilotExportsPage(data: {
           0,
         ) ?? 0,
       heats: input.heats?.length ?? 0,
-      heatLaneAssignments: pilotExports.judgeHeatLaneSheets.reduce(
-        (total, sheet) => total + sheet.rows.length,
-        0,
-      ),
       judgeAssignments: input.judgeAssignments?.length ?? 0,
-      activeJudgeVersions,
     },
   }
 }
