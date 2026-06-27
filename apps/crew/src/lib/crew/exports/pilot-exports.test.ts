@@ -6,8 +6,8 @@ import {
   CREW_ASSIGNMENT_CONFIRMATION_TYPE,
 } from "../../../db/schemas/crew-imports"
 import { VOLUNTEER_ROLE_TYPES } from "../../../db/schemas/volunteers"
-import { buildCrewPilotExports } from "./pilot-exports"
 import type { CrewPilotExportInput } from "./pilot-exports"
+import { buildCrewPilotExports } from "./pilot-exports"
 
 describe("Crew pilot exports", () => {
   it("requires explicit generatedAt input for deterministic output", () => {
@@ -88,6 +88,8 @@ describe("Crew pilot exports", () => {
       (sheet) => sheet.name === "Floor reset",
     )
     expect(floorReset?.open).toBe(1)
+    expect(floorReset?.rows[0]).not.toHaveProperty("email")
+    expect(floorReset?.rows[0]).not.toHaveProperty("responseNote")
     expect(
       floorReset?.rows.map((row) => [row.volunteerName, row.isOpen]),
     ).toEqual([
@@ -134,8 +136,9 @@ describe("Crew pilot exports", () => {
 
     const exports = buildCrewPilotExports(input)
 
-    expect(exports.masterScheduleDaySections.map((section) => section.dayKey))
-      .toEqual(["2026-07-01", "2026-07-02"])
+    expect(
+      exports.masterScheduleDaySections.map((section) => section.dayKey),
+    ).toEqual(["2026-07-01", "2026-07-02"])
     expect(
       exports.masterScheduleDaySections.map((section) =>
         section.rows.map((row) => row.label),

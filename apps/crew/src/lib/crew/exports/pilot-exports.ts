@@ -1,8 +1,8 @@
 // @lat: [[crew#Pilot Exports]]
 // @lat: [[crew#Event Day Export Packet]]
-import {
-  type CrewAssignmentConfirmationStatus,
-  type CrewAssignmentConfirmationType,
+import type {
+  CrewAssignmentConfirmationStatus,
+  CrewAssignmentConfirmationType,
 } from "../../../db/schemas/crew-imports"
 import {
   VOLUNTEER_ROLE_LABELS,
@@ -149,9 +149,7 @@ export interface CrewPilotShiftSheetRow {
   rowKey: string
   assignmentId: string | null
   volunteerName: string
-  email: string
   confirmationStatus: string
-  responseNote: string
   isOpen: boolean
 }
 
@@ -430,9 +428,7 @@ function buildShiftSheets(
         rowKey: assignment.id,
         assignmentId: assignment.id,
         volunteerName: assignment.volunteerName,
-        email: assignment.email ?? "",
         confirmationStatus: formatConfirmationStatus(assignment.confirmation),
-        responseNote: assignment.confirmation?.responseNote ?? "",
         isOpen: false,
       }))
       .sort((left, right) =>
@@ -443,9 +439,7 @@ function buildShiftSheets(
         rowKey: `open:${shift.id}:${index}`,
         assignmentId: null,
         volunteerName: "OPEN",
-        email: "",
         confirmationStatus: "open",
-        responseNote: "",
         isOpen: true,
       })
     }

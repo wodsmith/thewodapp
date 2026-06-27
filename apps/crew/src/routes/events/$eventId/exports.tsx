@@ -3,10 +3,11 @@
 import {
   createFileRoute,
   getRouteApi,
+  useNavigate,
   useSearch,
 } from "@tanstack/react-router"
 import { Download, Printer } from "lucide-react"
-import { type ReactNode, useState } from "react"
+import type { ReactNode } from "react"
 import type {
   CrewPilotExports,
   CrewPilotJudgeEventSection,
@@ -15,8 +16,8 @@ import type {
 } from "@/lib/crew/exports/pilot-exports"
 import { formatCrewValue } from "@/lib/crew-event-display"
 import {
-  getCrewPilotExportsPageFn,
   type CrewPilotExportsPageData,
+  getCrewPilotExportsPageFn,
 } from "@/server-fns/crew-pilot-export-fns"
 import { formatDateTimeInTimezone } from "@/utils/timezone-utils"
 
@@ -45,8 +46,20 @@ function isPacketTabId(value: unknown): value is PacketTabId {
 function EventPilotExportsPage() {
   const { eventId } = parentRoute.useParams()
   const { event, exports, sources } = Route.useLoaderData()
+  const navigate = useNavigate()
   const search = useSearch({ strict: false }) as { tab?: string }
-  const initialTab = isPacketTabId(search.tab) ? search.tab : "schedule"
+  const activeTab = isPacketTabId(search.tab) ? search.tab : "schedule"
+
+  function handleTabChange(tabId: PacketTabId) {
+    void navigate({
+      to: ".",
+      search: (previous: Record<string, unknown>) => ({
+        ...previous,
+        tab: tabId,
+      }),
+      replace: true,
+    })
+  }
 
   return (
     <EventPilotExportsView
@@ -54,7 +67,8 @@ function EventPilotExportsPage() {
       event={event}
       exports={exports}
       sources={sources}
-      initialTab={initialTab}
+      activeTab={activeTab}
+      onTabChange={handleTabChange}
     />
   )
 }
@@ -63,10 +77,10 @@ export function EventPilotExportsView({
   event,
   exports,
   sources,
-  initialTab = "schedule",
+  activeTab,
+  onTabChange,
 }: EventPilotExportsViewProps) {
   const timezone = event.timezone ?? "America/Denver"
-  const [activeTab, setActiveTab] = useState<PacketTabId>(initialTab)
 
   return (
     <section className="space-y-5">
@@ -120,7 +134,7 @@ export function EventPilotExportsView({
                 ? "border-primary text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => onTabChange(tab.id)}
           >
             {tab.label} ({getTabCount(tab.id, exports, sources)})
           </button>
@@ -157,7 +171,8 @@ interface EventPilotExportsViewProps {
   event: CrewPilotExportsPageData["event"]
   exports: CrewPilotExports
   sources: CrewPilotExportsPageData["sources"]
-  initialTab?: PacketTabId
+  activeTab: PacketTabId
+  onTabChange: (tabId: PacketTabId) => void
 }
 
 function getTabCount(
@@ -189,7 +204,14 @@ function ScheduleTab({
           title={formatPacketDay(section.dayKey)}
         >
           <PacketTable
-            headers={["Time", "Block", "Location", "Role", "Coverage", "People"]}
+            headers={[
+              "Time",
+              "Block",
+              "Location",
+              "Role",
+              "Coverage",
+              "People",
+            ]}
             rows={section.rows.map((row) => ({
               key: `${row.blockType}:${row.blockId}`,
               cells: [
@@ -272,12 +294,11 @@ function ShiftsTab({
           subtitle={`${formatRange(sheet.startsAt, sheet.endsAt, timezone)} / ${sheet.location} / ${sheet.roleLabel} / ${sheet.assigned}/${sheet.needed} filled${sheet.open > 0 ? ` (${sheet.open} open)` : ""}`}
         >
           <PacketTable
-            headers={["Volunteer", "Email", "Status"]}
+            headers={["Volunteer", "Status"]}
             rows={sheet.rows.map((row) => ({
               key: row.rowKey,
               cells: [
                 row.volunteerName,
-                row.email,
                 formatCrewValue(row.confirmationStatus),
               ],
             }))}

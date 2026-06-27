@@ -492,11 +492,11 @@ Crew pilot exports turn the active event staffing and judge assignment data into
 
 [[apps/crew/src/routes/events/$eventId/exports.tsx]] renders the per-event export surface. [[apps/crew/src/server-fns/crew-pilot-export-fns.ts]] keeps the route import light while [[apps/crew/src/server/crew-pilot-exports.server.ts]] reuses server-only staffing hydration and active judge assignment data.
 
-[[apps/crew/src/lib/crew/exports/pilot-exports.ts]] owns deterministic export derivation for the three focused packets: master schedule rows (with CSV) grouped into day sections, judge event sections (heats grouped by workout, each with per-lane judge rows), and flat time-ordered shift sheets (each shift with its assigned volunteers and open slots). Exports are read-only and must not send reminders, create queues, alter confirmation tokens, or mutate versioned judge assignment rows.
+[[apps/crew/src/lib/crew/exports/pilot-exports.ts]] owns deterministic export derivation for the three focused packets: master schedule rows (with CSV) grouped into day sections, judge event sections (heats grouped by workout, each with per-lane judge rows), and flat time-ordered shift sheets (each shift with its assigned volunteers and open slots). Default shift sheets omit contact details and response notes; exports are read-only and must not send reminders, create queues, alter confirmation tokens, or mutate versioned judge assignment rows.
 
 ## Event Day Export Packet
 
-The event-day packet renders [[crew#Pilot Exports]] as three printable tabs at [[apps/crew/src/routes/events/$eventId/exports.tsx]], one per operator packet, with the active tab driving `window.print()` so each prints on its own.
+The event-day packet renders [[crew#Pilot Exports]] as three printable tabs at [[apps/crew/src/routes/events/$eventId/exports.tsx]], one per operator packet, with the active `tab` search parameter driving `window.print()` so each prints on its own.
 
 The tabs are **Master Schedule** (shifts and heats combined, day-sectioned, with a Master CSV download), **Judges** (per event/workout, a clear heat × lane × judge table), and **Shifts** (each shift as its own section listing who is on and when).
 

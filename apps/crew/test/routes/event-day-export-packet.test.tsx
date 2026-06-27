@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react"
+import { useState } from "react"
 import { describe, expect, it, vi } from "vitest"
 import { VOLUNTEER_ROLE_TYPES } from "@/db/schemas/volunteers"
 import {
@@ -23,30 +24,40 @@ vi.mock("@/server-fns/crew-pilot-export-fns", () => ({
 }))
 
 function renderView() {
-  const exports = buildCrewPilotExports(packetInput())
+  const input = packetInput()
+  const exports = buildCrewPilotExports(input)
 
-  render(
-    <EventPilotExportsView
-      eventId="comp_packet"
-      event={{
-        id: "comp_packet",
-        name: "Packet Classic",
-        slug: "packet-classic",
-        organizingTeamId: "team_org",
-        competitionTeamId: "team_comp",
-        timezone: "Pacific/Kiritimati",
-        startDate: "2026-07-01",
-        endDate: "2026-07-02",
-      }}
-      exports={exports}
-      sources={{
-        shifts: 1,
-        shiftAssignments: 1,
-        heats: 1,
-        judgeAssignments: 1,
-      }}
-    />,
-  )
+  function TestView() {
+    const [activeTab, setActiveTab] = useState<"schedule" | "judges" | "shifts">(
+      "schedule",
+    )
+    return (
+      <EventPilotExportsView
+        eventId="comp_packet"
+        event={{
+          id: "comp_packet",
+          name: "Packet Classic",
+          slug: "packet-classic",
+          organizingTeamId: "team_org",
+          competitionTeamId: "team_comp",
+          timezone: input.event.timezone,
+          startDate: "2026-07-01",
+          endDate: "2026-07-02",
+        }}
+        exports={exports}
+        sources={{
+          shifts: 1,
+          shiftAssignments: 1,
+          heats: 1,
+          judgeAssignments: 1,
+        }}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
+    )
+  }
+
+  render(<TestView />)
 }
 
 describe("EventPilotExportsView", () => {
@@ -73,10 +84,11 @@ describe("EventPilotExportsView", () => {
       screen.queryByRole("button", { name: "Master CSV" }),
     ).not.toBeInTheDocument()
 
-    // Shifts tab lists each shift as its own section.
+    // Shifts tab lists each shift as its own section without contact details.
     fireEvent.click(screen.getByRole("tab", { name: /Shifts/ }))
     expect(screen.getByText("Floor reset")).toBeInTheDocument()
     expect(screen.getByText("Rae Reset")).toBeInTheDocument()
+    expect(screen.queryByText("reset@example.com")).not.toBeInTheDocument()
   })
 })
 
