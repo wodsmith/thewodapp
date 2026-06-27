@@ -21,7 +21,7 @@ import {
   programmingTracksTable,
   trackWorkoutsTable,
 } from "../db/schemas/programming"
-import { teamMembershipTable } from "../db/schemas/teams"
+import { teamInvitationTable, teamMembershipTable } from "../db/schemas/teams"
 import { userTable } from "../db/schemas/users"
 import {
   judgeHeatAssignmentsTable,
@@ -43,7 +43,11 @@ import {
   assertCrewDepartmentLeadCanManageRosterTarget,
   assertCrewDepartmentLeadCanManageShift,
 } from "../lib/crew/department-leads"
-import { parseCrewRosterMetadata } from "../lib/crew/roster-shifts"
+import {
+  type CrewRosterMetadata,
+  normalizeCrewRosterVolunteerEmail,
+  parseCrewRosterMetadata,
+} from "../lib/crew/roster-shifts"
 import {
   type CrewStaffingReportEvent,
   type CrewStaffingReportForDayOfData,
@@ -114,8 +118,13 @@ export async function replaceCrewAssignment(data: ReplaceCrewAssignmentInput) {
   const now = new Date()
 
   return await db.transaction(async (tx) => {
-    const assignment = await loadDayOfAssignmentForUpdate(tx, data)
+    const assignment = await loadDayOfAssignmentForUpdate(tx, data, event)
     assertCrewDepartmentLeadCanManageShift(access, assignment.shiftTarget)
+    if (assignment.isAccountless) {
+      throw new Error(
+        "Replacement is not available for volunteers without an account.",
+      )
+    }
 
     const replacement = await loadReplacementMembership(tx, {
       event,
@@ -144,6 +153,7 @@ export async function replaceCrewAssignment(data: ReplaceCrewAssignmentInput) {
         .update(judgeHeatAssignmentsTable)
         .set({
           membershipId: replacement.membershipId,
+          invitationId: null,
           isManualOverride: true,
           updatedAt: now,
         })
@@ -153,6 +163,7 @@ export async function replaceCrewAssignment(data: ReplaceCrewAssignmentInput) {
         .update(volunteerShiftAssignmentsTable)
         .set({
           membershipId: replacement.membershipId,
+          invitationId: null,
           updatedAt: now,
         })
         .where(eq(volunteerShiftAssignmentsTable.id, data.assignmentId))
@@ -201,15 +212,16 @@ async function updateCrewDayOfAssignmentState(
   const now = new Date()
 
   return await db.transaction(async (tx) => {
-    const assignment = await loadDayOfAssignmentForUpdate(tx, data)
+    const assignment = await loadDayOfAssignmentForUpdate(tx, data, event)
     assertCrewDepartmentLeadCanManageShift(access, assignment.shiftTarget)
 
     const result = await upsertDayOfConfirmation(tx, {
       event,
       assignment,
-      membership: assignment,
       state,
-      note: null,
+      note: assignment.isAccountless
+        ? `${state === "checked_in" ? "Checked in" : "Marked no-show"} by organizer override.`
+        : null,
       now,
     })
 
@@ -228,7 +240,10 @@ async function updateCrewDayOfAssignmentState(
         email: assignment.email,
         phone: assignment.phone,
         sourceMembershipId: assignment.membershipId,
-        identitySource: CREW_VOLUNTEER_IDENTITY_SOURCE.MEMBERSHIP,
+        sourceInvitationId: assignment.invitationId,
+        identitySource: assignment.isAccountless
+          ? getInvitationHistoryIdentitySource(assignment.metadata)
+          : CREW_VOLUNTEER_IDENTITY_SOURCE.MEMBERSHIP,
       },
       assignmentType: toHistoryAssignmentType(data.assignmentType),
       assignmentId: data.assignmentId,
@@ -251,6 +266,11 @@ async function markOriginalDayOfConfirmationReplaced(
     now: Date
   },
 ) {
+  const membershipId = params.assignment.membershipId
+  if (!membershipId) {
+    throw new Error("Replacement requires an account-backed assignment.")
+  }
+
   const [latestConfirmation] = await tx
     .select({
       id: crewAssignmentConfirmationsTable.id,
@@ -266,10 +286,7 @@ async function markOriginalDayOfConfirmationReplaced(
           crewAssignmentConfirmationsTable.assignmentId,
           params.assignment.assignmentId,
         ),
-        eq(
-          crewAssignmentConfirmationsTable.membershipId,
-          params.assignment.membershipId,
-        ),
+        eq(crewAssignmentConfirmationsTable.membershipId, membershipId),
       ),
     )
     .orderBy(desc(crewAssignmentConfirmationsTable.updatedAt))
@@ -297,6 +314,7 @@ async function markOriginalDayOfConfirmationReplaced(
     assignmentType: params.assignment.assignmentType,
     assignmentId: params.assignment.assignmentId,
     membershipId: params.assignment.membershipId,
+    invitationId: params.assignment.invitationId,
     email: params.assignment.email,
     tokenHash,
     status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CANCELLED,
@@ -326,6 +344,7 @@ async function createReplacementDayOfConfirmation(
     assignmentType: params.assignment.assignmentType,
     assignmentId: params.assignment.assignmentId,
     membershipId: params.membership.membershipId,
+    invitationId: null,
     email: params.membership.email,
     tokenHash,
     status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CHECKED_IN,
@@ -342,7 +361,6 @@ async function upsertDayOfConfirmation(
   params: {
     event: Awaited<ReturnType<typeof requireCrewDepartmentLeadEvent>>
     assignment: DayOfAssignmentRecord
-    membership: DayOfMembershipRecord
     state: "checked_in" | "no_show"
     note: string | null
     now: Date
@@ -381,8 +399,9 @@ async function upsertDayOfConfirmation(
       competitionId: params.event.id,
       assignmentType: params.assignment.assignmentType,
       assignmentId: params.assignment.assignmentId,
-      membershipId: params.membership.membershipId,
-      email: params.membership.email,
+      membershipId: params.assignment.membershipId,
+      invitationId: params.assignment.invitationId,
+      email: params.assignment.email,
       tokenHash,
       status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
       expiresAt: getAssignmentConfirmationExpiry(params.now),
@@ -407,8 +426,9 @@ async function upsertDayOfConfirmation(
   await tx
     .update(crewAssignmentConfirmationsTable)
     .set({
-      membershipId: params.membership.membershipId,
-      email: params.membership.email,
+      membershipId: params.assignment.membershipId,
+      invitationId: params.assignment.invitationId,
+      email: params.assignment.email,
       status: update.status,
       sentAt: update.sentAt,
       respondedAt: update.respondedAt,
@@ -431,26 +451,41 @@ interface DayOfMembershipRecord {
   roleTypes: VolunteerRoleType[]
 }
 
-interface DayOfAssignmentRecord extends DayOfMembershipRecord {
+interface DayOfAssignmentRecord {
   assignmentType: CrewDayOfAssignmentMutationInput["assignmentType"]
   assignmentId: string
+  membershipId: string | null
+  invitationId: string | null
+  assigneeId: string
+  membershipUserId: string | null
+  email: string | null
+  phone: string | null
+  roleTypes: VolunteerRoleType[]
   roleType: VolunteerRoleType
   shiftTarget: Parameters<typeof assertCrewDepartmentLeadCanManageShift>[1]
+  isAccountless: boolean
+  metadata: CrewRosterMetadata
 }
 
 async function loadDayOfAssignmentForUpdate(
   tx: DbClient,
   data: CrewDayOfAssignmentMutationInput,
+  event: Awaited<ReturnType<typeof requireCrewDepartmentLeadEvent>>,
 ): Promise<DayOfAssignmentRecord> {
   if (data.assignmentType === CREW_ASSIGNMENT_CONFIRMATION_TYPE.JUDGE_HEAT) {
     const [row] = await tx
       .select({
         assignmentId: judgeHeatAssignmentsTable.id,
         membershipId: judgeHeatAssignmentsTable.membershipId,
+        invitationId: judgeHeatAssignmentsTable.invitationId,
         roleType: judgeHeatAssignmentsTable.position,
         membershipUserId: teamMembershipTable.userId,
+        membershipTeamId: teamMembershipTable.teamId,
         membershipMetadata: teamMembershipTable.metadata,
         userEmail: userTable.email,
+        invitationTeamId: teamInvitationTable.teamId,
+        invitationEmail: teamInvitationTable.email,
+        invitationMetadata: teamInvitationTable.metadata,
         heatStartTime: competitionHeatsTable.scheduledTime,
         heatDurationMinutes: competitionHeatsTable.durationMinutes,
         venueName: competitionVenuesTable.name,
@@ -478,37 +513,49 @@ async function loadDayOfAssignmentForUpdate(
         eq(judgeHeatAssignmentsTable.membershipId, teamMembershipTable.id),
       )
       .leftJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
+      .leftJoin(
+        teamInvitationTable,
+        eq(judgeHeatAssignmentsTable.invitationId, teamInvitationTable.id),
+      )
       .where(
         and(
           eq(judgeHeatAssignmentsTable.id, data.assignmentId),
-          eq(programmingTracksTable.competitionId, data.eventId),
+          eq(programmingTracksTable.competitionId, event.id),
         ),
       )
       .for("update")
       .limit(1)
 
     if (!row) throw new Error("Assignment not found")
-    // Day-of check-in / replacement currently operates on account-backed
-    // memberships. Invitation-based (imported / manual) judges can be assigned
-    // to heats but are not yet supported in this membership-keyed flow.
-    if (!row.membershipId) {
-      throw new Error(
-        "Day-of actions are not yet available for imported judges without an account.",
-      )
-    }
-    const metadata = parseCrewRosterMetadata(row.membershipMetadata)
+    validateDayOfAssigneeIdentity({
+      membershipId: row.membershipId,
+      membershipTeamId: row.membershipTeamId,
+      invitationId: row.invitationId,
+      invitationTeamId: row.invitationTeamId,
+      competitionTeamId: event.competitionTeamId,
+    })
+    const metadata = parseCrewRosterMetadata(
+      row.membershipId ? row.membershipMetadata : row.invitationMetadata,
+    )
     const roleType = row.roleType ?? VOLUNTEER_ROLE_TYPES.JUDGE
     const startTime = row.heatStartTime
     const endTime =
       startTime && row.heatDurationMinutes
         ? new Date(startTime.getTime() + row.heatDurationMinutes * 60_000)
         : startTime
+    const assigneeId = row.membershipId ?? row.invitationId
+    if (!assigneeId) throw new Error("Assignment assignee not found")
+
     return {
       assignmentType: data.assignmentType,
       assignmentId: row.assignmentId,
       membershipId: row.membershipId,
+      invitationId: row.invitationId,
+      assigneeId,
       membershipUserId: row.membershipUserId,
-      email: metadata.signupEmail ?? row.userEmail,
+      email: normalizeNullableEmail(
+        metadata.signupEmail ?? row.userEmail ?? row.invitationEmail,
+      ),
       phone: metadata.signupPhone ?? null,
       roleTypes: metadata.volunteerRoleTypes ?? [roleType],
       roleType,
@@ -519,6 +566,8 @@ async function loadDayOfAssignmentForUpdate(
         location: row.venueName,
         venueId: row.venueId,
       },
+      isAccountless: !row.membershipId,
+      metadata,
     }
   }
 
@@ -526,9 +575,14 @@ async function loadDayOfAssignmentForUpdate(
     .select({
       assignmentId: volunteerShiftAssignmentsTable.id,
       membershipId: volunteerShiftAssignmentsTable.membershipId,
+      invitationId: volunteerShiftAssignmentsTable.invitationId,
       membershipUserId: teamMembershipTable.userId,
+      membershipTeamId: teamMembershipTable.teamId,
       membershipMetadata: teamMembershipTable.metadata,
       userEmail: userTable.email,
+      invitationTeamId: teamInvitationTable.teamId,
+      invitationEmail: teamInvitationTable.email,
+      invitationMetadata: teamInvitationTable.metadata,
       roleType: volunteerShiftsTable.roleType,
       startTime: volunteerShiftsTable.startTime,
       endTime: volunteerShiftsTable.endTime,
@@ -544,31 +598,43 @@ async function loadDayOfAssignmentForUpdate(
       eq(volunteerShiftAssignmentsTable.membershipId, teamMembershipTable.id),
     )
     .leftJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
+    .leftJoin(
+      teamInvitationTable,
+      eq(volunteerShiftAssignmentsTable.invitationId, teamInvitationTable.id),
+    )
     .where(
       and(
         eq(volunteerShiftAssignmentsTable.id, data.assignmentId),
-        eq(volunteerShiftsTable.competitionId, data.eventId),
+        eq(volunteerShiftsTable.competitionId, event.id),
       ),
     )
     .for("update")
     .limit(1)
 
   if (!row) throw new Error("Assignment not found")
-  // Day-of check-in / replacement currently operates on account-backed
-  // memberships. Invitation-based (imported / manual) volunteers can be staffed
-  // onto shifts but are not yet supported in this membership-keyed flow.
-  if (!row.membershipId) {
-    throw new Error(
-      "Day-of actions are not yet available for imported volunteers without an account.",
-    )
-  }
-  const metadata = parseCrewRosterMetadata(row.membershipMetadata)
+  validateDayOfAssigneeIdentity({
+    membershipId: row.membershipId,
+    membershipTeamId: row.membershipTeamId,
+    invitationId: row.invitationId,
+    invitationTeamId: row.invitationTeamId,
+    competitionTeamId: event.competitionTeamId,
+  })
+  const metadata = parseCrewRosterMetadata(
+    row.membershipId ? row.membershipMetadata : row.invitationMetadata,
+  )
+  const assigneeId = row.membershipId ?? row.invitationId
+  if (!assigneeId) throw new Error("Assignment assignee not found")
+
   return {
     assignmentType: data.assignmentType,
     assignmentId: row.assignmentId,
     membershipId: row.membershipId,
+    invitationId: row.invitationId,
+    assigneeId,
     membershipUserId: row.membershipUserId,
-    email: metadata.signupEmail ?? row.userEmail,
+    email: normalizeNullableEmail(
+      metadata.signupEmail ?? row.userEmail ?? row.invitationEmail,
+    ),
     phone: metadata.signupPhone ?? null,
     roleTypes: metadata.volunteerRoleTypes ?? [row.roleType],
     roleType: row.roleType,
@@ -578,7 +644,46 @@ async function loadDayOfAssignmentForUpdate(
       endTime: row.endTime,
       location: row.location,
     },
+    isAccountless: !row.membershipId,
+    metadata,
   }
+}
+
+function validateDayOfAssigneeIdentity(params: {
+  membershipId: string | null
+  membershipTeamId: string | null
+  invitationId: string | null
+  invitationTeamId: string | null
+  competitionTeamId: string
+}) {
+  if (params.membershipId && params.invitationId) {
+    throw new Error("Assignment has multiple assignees")
+  }
+  if (!params.membershipId && !params.invitationId) {
+    throw new Error("Assignment assignee not found")
+  }
+  if (
+    params.membershipId &&
+    params.membershipTeamId !== params.competitionTeamId
+  ) {
+    throw new Error("Assignment assignee not found")
+  }
+  if (
+    params.invitationId &&
+    params.invitationTeamId !== params.competitionTeamId
+  ) {
+    throw new Error("Assignment assignee not found")
+  }
+}
+
+function normalizeNullableEmail(value: string | null | undefined) {
+  return normalizeCrewRosterVolunteerEmail(value) || null
+}
+
+function getInvitationHistoryIdentitySource(metadata: CrewRosterMetadata) {
+  return metadata.crewImportId
+    ? CREW_VOLUNTEER_IDENTITY_SOURCE.IMPORT
+    : CREW_VOLUNTEER_IDENTITY_SOURCE.MANUAL
 }
 
 async function loadReplacementMembership(

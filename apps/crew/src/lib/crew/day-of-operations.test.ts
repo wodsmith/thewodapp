@@ -85,6 +85,8 @@ describe("Crew day-of operations helpers", () => {
         expect.objectContaining({
           assignmentId: "vsha_checkin_1",
           assignmentType: CREW_ASSIGNMENT_CONFIRMATION_TYPE.VOLUNTEER_SHIFT,
+          assigneeId: "tinv_checkin",
+          isAccountless: true,
           state: "sent",
         }),
       ]),
@@ -169,11 +171,12 @@ function createStaffingInput(): CrewStaffingMatrixInput {
     ],
     roster: [
       {
-        membershipId: "tmem_checkin",
+        membershipId: "tinv_checkin",
         name: "Casey Check-In",
         roleTypes: [VOLUNTEER_ROLE_TYPES.CHECK_IN],
         availability: VOLUNTEER_AVAILABILITY.ALL_DAY,
         isActive: true,
+        isAccountless: true,
       },
       {
         membershipId: "tmem_judge",
@@ -202,7 +205,7 @@ function createStaffingInput(): CrewStaffingMatrixInput {
         assignments: [
           {
             id: "vsha_checkin_1",
-            membershipId: "tmem_checkin",
+            membershipId: "tinv_checkin",
             confirmation: {
               type: CREW_ASSIGNMENT_CONFIRMATION_TYPE.VOLUNTEER_SHIFT,
               status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
