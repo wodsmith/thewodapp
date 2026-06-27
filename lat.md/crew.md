@@ -484,7 +484,7 @@ Crew day-of operations is a compact board for current blocks, response queues, r
 
 [[apps/crew/src/lib/crew/day-of-operations.ts]] derives current and next blocks, critical unfilled roles, due-soon no-responses, decision queues, no-show/replaced queues, time-block status, judge coverage, and accountless assignment action metadata.
 
-Accountless volunteers keep their invitation identity on `crew_assignment_confirmations`: organizer-entered check-in/no-show writes `invitationId`, null `membershipId`, normalized contact fields when present, and an override note without creating an account, accepting an invite, authenticating the volunteer, or changing public token flows. Replacement remains account-backed only.
+Accountless volunteers keep their invitation identity on `crew_assignment_confirmations`: organizer-entered check-in/no-show writes `invitationId`, null `membershipId`, normalized contact fields when present, and a day-of override note without creating an account, accepting an invite, authenticating the volunteer, or changing public token flows. Replacement remains account-backed only.
 
 The board does not add schema, exports, queue bindings, live email sends, public token changes, assignment automation, or published judge-row mutation.
 

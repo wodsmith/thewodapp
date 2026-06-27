@@ -432,7 +432,7 @@ async function upsertDayOfConfirmation(
       status: update.status,
       sentAt: update.sentAt,
       respondedAt: update.respondedAt,
-      responseNote: update.responseNote,
+      responseNote: params.note ?? update.responseNote,
       updatedAt: params.now,
     })
     .where(eq(crewAssignmentConfirmationsTable.id, confirmation.id))
