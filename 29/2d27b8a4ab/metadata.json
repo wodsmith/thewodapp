@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "292d27b8a4ab",
+  "strategy": "manual-commit",
+  "branch": "crew-staffing-plan",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/crew/src/routes/events/$eventId/staffing.tsx",
+    "lat.md/crew.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/29/2d27b8a4ab/0/metadata.json",
+      "transcript": "/29/2d27b8a4ab/0/full.jsonl",
+      "context": "/29/2d27b8a4ab/0/context.md",
+      "content_hash": "/29/2d27b8a4ab/0/content_hash.txt",
+      "prompt": "/29/2d27b8a4ab/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 14487,
+    "cache_creation_tokens": 80482,
+    "cache_read_tokens": 2126410,
+    "output_tokens": 19676,
+    "api_call_count": 30
+  }
+}

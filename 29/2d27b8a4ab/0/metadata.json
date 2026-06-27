@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "292d27b8a4ab",
+  "session_id": "87103aaa-7ead-4e51-bb33-f641f10309d7",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-27T22:51:09.546253Z",
+  "branch": "crew-staffing-plan",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/crew/src/routes/events/$eventId/staffing.tsx",
+    "lat.md/crew.md"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 14487,
+    "cache_creation_tokens": 80482,
+    "cache_read_tokens": 2126410,
+    "output_tokens": 19676,
+    "api_call_count": 30
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-27T22:51:09.491616Z",
+    "agent_lines": 198,
+    "human_added": 0,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 199,
+    "agent_percentage": 99.49748743718592
+  }
+}

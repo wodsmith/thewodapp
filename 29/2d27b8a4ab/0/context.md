@@ -1,0 +1,13 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+research the staffing plan page on the crew event page. the page feels super chaotic to me. there are so many numbers its impossible to tell what the page is even for. I think it might still have some purpose but we need to trim the cruft of the page way down. I think the page should answer the question "What are my gaps in volunteers" we dont need to over expose a bunch of information to the organizer. lets find the most minimal version of this page and apply design and ux thinking to enable th...
+
+### Prompt 2
+
+Stop hook feedback:
+The codebase has changes (602 lines) but `lat.md/` may not be fully in sync (6 lines changed). Verify `lat.md/` is in sync — run `lat search` to find relevant sections. Run `lat check` at the end.
+
