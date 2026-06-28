@@ -16,9 +16,15 @@ export type {
 
 const eventIdSchema = z.string().min(1, "Event ID is required")
 const trackWorkoutIdSchema = z.string().min(1, "Workout ID is required")
-const membershipIdSchema = z
+// The grid keys judges by a canonical assignee id: a membership id (tmem_) for
+// account-backed volunteers, or an invitation id (tinv_) for imported / manual
+// volunteers without an account.
+const assigneeIdSchema = z
   .string()
-  .startsWith("tmem_", "Invalid membership ID")
+  .refine(
+    (value) => value.startsWith("tmem_") || value.startsWith("tinv_"),
+    "Invalid judge assignee ID",
+  )
 const laneShiftPatternSchema = z.enum([
   LANE_SHIFT_PATTERN.STAY,
   LANE_SHIFT_PATTERN.SHIFT_RIGHT,
@@ -32,7 +38,7 @@ const getCrewJudgeRotationsPageInputSchema = z.object({
 const saveCrewJudgeRotationsForVolunteerInputSchema = z.object({
   eventId: eventIdSchema,
   trackWorkoutId: trackWorkoutIdSchema,
-  membershipId: membershipIdSchema,
+  membershipId: assigneeIdSchema,
   laneShiftPattern: laneShiftPatternSchema,
   rotations: z
     .array(

@@ -1,6 +1,7 @@
 // @lat: [[crew#Copy Prior Event Setup]]
 import { asc, count, desc, eq, inArray } from "drizzle-orm"
 import { getDb } from "../db"
+import { competitionBroadcastsTable } from "../db/schemas/broadcasts"
 import {
   createCompetitionHeatId,
   createCompetitionVenueId,
@@ -11,8 +12,8 @@ import {
   competitionHeatAssignmentsTable,
   competitionHeatsTable,
   competitionRegistrationsTable,
-  competitionVenuesTable,
   competitionsTable,
+  competitionVenuesTable,
 } from "../db/schemas/competitions"
 import { crewEventSettingsTable } from "../db/schemas/crew-event-settings"
 import { crewImportsTable } from "../db/schemas/crew-imports"
@@ -28,11 +29,8 @@ import {
   volunteerShiftsTable,
 } from "../db/schemas/volunteers"
 import { workouts } from "../db/schemas/workouts"
-import { competitionBroadcastsTable } from "../db/schemas/broadcasts"
 import {
   buildCrewCopyPriorEventPreview,
-  filterEligibleCrewCopyPriorEvents,
-  serializeCrewCopyPriorEventSettings,
   type CrewCopyPriorEventApplyMode,
   type CrewCopyPriorEventCandidate,
   type CrewCopyPriorEventDeniedCounts,
@@ -44,9 +42,11 @@ import {
   type CrewCopyPriorEventSourceTrack,
   type CrewCopyPriorEventSourceTrackWorkout,
   type CrewCopyPriorEventSourceVenue,
+  filterEligibleCrewCopyPriorEvents,
+  serializeCrewCopyPriorEventSettings,
 } from "../lib/crew/copy-prior-event"
 import { DEFAULT_TIMEZONE } from "../utils/timezone-utils"
-import { requireLocalCrewOperatorAccess } from "./crew-local-access"
+import { requireCrewEventManagerAccess } from "./crew-auth.server"
 
 type DbClient = ReturnType<typeof getDb>
 type NewWorkout = typeof workouts.$inferInsert
@@ -100,9 +100,8 @@ export interface ApplyCrewCopyPriorEventResult {
 export async function getCrewCopyPriorEventPage(
   data: CrewCopyPriorEventInput,
 ): Promise<CrewCopyPriorEventPageData> {
-  requireLocalCrewOperatorAccess("Copy prior event setup")
-
   const target = await loadCopyEventSnapshot(data.eventId)
+  await requireCrewEventManagerAccess(target.event, "Copy prior event setup")
   const eligibleEvents = filterEligibleCrewCopyPriorEvents(
     snapshotToCandidate(target),
     await listTeamCopyCandidates(target.event.organizingTeamId),
@@ -125,8 +124,6 @@ export async function getCrewCopyPriorEventPage(
 export async function applyCrewCopyPriorEvent(
   data: ApplyCrewCopyPriorEventInput,
 ): Promise<ApplyCrewCopyPriorEventResult> {
-  requireLocalCrewOperatorAccess("Copy prior event setup")
-
   if (data.mode !== "empty_target_only") {
     throw new Error("Unsupported copy mode")
   }
@@ -137,6 +134,7 @@ export async function applyCrewCopyPriorEvent(
   await db.transaction(async (tx) => {
     const client = tx as unknown as DbClient
     const target = await loadCopyEventSnapshot(data.eventId, client, true)
+    await requireCrewEventManagerAccess(target.event, "Copy prior event setup")
     const source = await loadCopyEventSnapshot(data.sourceEventId, client)
 
     assertEligibleSource(target, source)

@@ -18,7 +18,7 @@ export type CrewReadinessCategory =
 
 export type CrewReadinessActionTo =
   | "/events/$eventId/setup"
-  | "/events/$eventId/imports"
+  | "/events/$eventId/heats"
   | "/events/$eventId/volunteers"
   | "/events/$eventId/shifts"
   | "/events/$eventId/schedule"
@@ -240,7 +240,7 @@ function buildWorkoutsHeatsItem(
       `${schedule.publishedHeatCount}/${schedule.heatCount} heat schedules published.`,
       `${input.imports.appliedHeatScheduleImportCount}/${input.imports.heatScheduleImportCount} heat schedule imports applied.`,
     ],
-    action: { label: "Review imports", to: "/events/$eventId/imports" },
+    action: { label: "Review imports", to: "/events/$eventId/heats" },
   }
 }
 

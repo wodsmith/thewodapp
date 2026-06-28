@@ -245,12 +245,12 @@ describe("Crew self-serve event flow", () => {
     })
 
     const volunteerSchedule = buildCrewVolunteerSelfServiceSchedule({
-      membershipId: "member_casey",
+      assigneeId: "member_casey",
       tokenAssignmentId: "assign_checkin",
       assignments: [
         {
           id: "assign_judge",
-          membershipId: "member_jules",
+          assigneeId: "member_jules",
           shiftId: "shift_judges",
           name: "Lane judges",
           roleType: VOLUNTEER_ROLE_TYPES.JUDGE,
@@ -263,7 +263,7 @@ describe("Crew self-serve event flow", () => {
         },
         {
           id: "assign_checkin",
-          membershipId: "member_casey",
+          assigneeId: "member_casey",
           shiftId: "shift_checkin",
           name: "Volunteer check-in",
           roleType: VOLUNTEER_ROLE_TYPES.CHECK_IN,

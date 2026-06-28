@@ -20,28 +20,28 @@ import {
 describe("Crew volunteer self-service schedule", () => {
   it("keeps token access isolated to the volunteer membership schedule", () => {
     const schedule = buildCrewVolunteerSelfServiceSchedule({
-      membershipId: "tmem_ada",
+      assigneeId: "tmem_ada",
       tokenAssignmentId: "vsha_token",
       assignments: [
         assignment({
           id: "vsha_other",
-          membershipId: "tmem_other",
+          assigneeId: "tmem_other",
           startTime: "2026-06-20T14:00:00.000Z",
         }),
         assignment({
           id: "vsha_later",
-          membershipId: "tmem_ada",
+          assigneeId: "tmem_ada",
           startTime: "2026-06-20T18:00:00.000Z",
         }),
         assignment({
           id: "vsha_token",
-          membershipId: "tmem_ada",
+          assigneeId: "tmem_ada",
           startTime: "2026-06-20T15:00:00.000Z",
           confirmationStatus: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CONFIRMED,
         }),
         assignment({
           id: "vsha_token",
-          membershipId: "tmem_ada",
+          assigneeId: "tmem_ada",
           startTime: "2026-06-20T15:00:00.000Z",
           confirmationStatus: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CANCELLED,
         }),
@@ -120,12 +120,12 @@ describe("Crew volunteer self-service contact updates", () => {
 describe("Crew volunteer self-service calendar helpers", () => {
   it("builds deterministic iCal, Google Calendar, and filename outputs", () => {
     const [item] = buildCrewVolunteerSelfServiceSchedule({
-      membershipId: "tmem_ada",
+      assigneeId: "tmem_ada",
       tokenAssignmentId: "vsha_token",
       assignments: [
         assignment({
           id: "vsha_token",
-          membershipId: "tmem_ada",
+          assigneeId: "tmem_ada",
           name: "Morning Check-In",
           roleLabel: "Check-In",
           startTime: "2026-06-20T15:00:00.000Z",
@@ -171,7 +171,7 @@ function assignment(
 ): CrewVolunteerSelfServiceAssignmentRecord {
   return {
     id: overrides.id ?? "vsha_default",
-    membershipId: overrides.membershipId ?? "tmem_ada",
+    assigneeId: overrides.assigneeId ?? "tmem_ada",
     shiftId: overrides.shiftId ?? "vshf_default",
     name: overrides.name ?? "Check-In",
     roleType: overrides.roleType ?? VOLUNTEER_ROLE_TYPES.CHECK_IN,

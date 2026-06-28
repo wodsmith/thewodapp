@@ -3,12 +3,12 @@ import { and, asc, eq, or, sql } from "drizzle-orm"
 import { getDb } from "@/db"
 import { createCrewDepartmentLeadId } from "@/db/schemas/common"
 import { competitionsTable } from "@/db/schemas/competitions"
+import { crewEventSettingsTable } from "@/db/schemas/crew-event-settings"
 import {
   CREW_DEPARTMENT_LEAD_STATUS,
-  crewDepartmentLeadsTable,
   type CrewDepartmentLeadStatus,
+  crewDepartmentLeadsTable,
 } from "@/db/schemas/crew-self-serve-presets"
-import { crewEventSettingsTable } from "@/db/schemas/crew-event-settings"
 import {
   SYSTEM_ROLES_ENUM,
   TEAM_PERMISSIONS,
@@ -24,7 +24,6 @@ import {
   parseCrewDepartmentLeadDateTimeLocal,
 } from "@/lib/crew/department-leads"
 import { getSessionFromCookie } from "@/utils/auth"
-import { hasLocalCrewOperatorAccess } from "./crew-local-access"
 
 export interface CrewDepartmentLeadEvent {
   id: string
@@ -232,10 +231,6 @@ export async function requireCrewDepartmentLeadEvent(
 export async function resolveCrewDepartmentLeadAccess(
   event: CrewDepartmentLeadEvent,
 ): Promise<CrewDepartmentLeadAccess> {
-  if (hasLocalCrewOperatorAccess()) {
-    return { kind: "full", scopes: [] }
-  }
-
   const session = await getSessionFromCookie().catch(() => null)
   if (!session?.userId) {
     throw new Error("NOT_AUTHORIZED: Not authenticated")

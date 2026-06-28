@@ -354,6 +354,7 @@ async function validateRotationConflictsInternal(
         ...rotation,
         id: rotation.id ?? "new",
         competitionId: "", // Not needed for expansion
+        invitationId: null,
         notes: null,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -843,7 +844,7 @@ export const updateJudgeRotationFn = createServerFn({ method: "POST" })
     const validation = await validateRotationConflictsInternal({
       id: data.rotationId,
       trackWorkoutId: existing.trackWorkoutId,
-      membershipId: existing.membershipId,
+      membershipId: existing.membershipId ?? "",
       startingHeat: data.startingHeat ?? existing.startingHeat,
       startingLane: data.startingLane ?? existing.startingLane,
       heatsCount: data.heatsCount ?? existing.heatsCount,
@@ -1413,7 +1414,7 @@ export const adjustRotationsForOccupiedLanesFn = createServerFn({
           teamId: data.teamId,
           competitionId: data.competitionId,
           trackWorkoutId: data.trackWorkoutId,
-          membershipId: rotation.membershipId,
+          membershipId: rotation.membershipId ?? "",
           startingHeat: newRot.startingHeat,
           startingLane: newRot.startingLane,
           heatsCount: newRot.heatsCount,

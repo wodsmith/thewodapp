@@ -37,7 +37,6 @@ export type CrewGuidedSetupOperatorStatus = CrewGuidedSetupStatus
 export type CrewGuidedSetupActionTo =
   | "/events/$eventId/setup"
   | "/events/$eventId/schedule"
-  | "/events/$eventId/imports"
   | "/events/$eventId/volunteers"
   | "/events/$eventId/staffing"
   | "/events/$eventId/shifts"
@@ -299,7 +298,7 @@ function buildImportsStep(
       `${imports.appliedHeatScheduleImportCount}/${imports.heatScheduleImportCount} heat schedule imports applied.`,
       `${roster.total} volunteer${plural(roster.total)} and ${schedule.heatCount} heat${plural(schedule.heatCount)} available after import or manual setup.`,
     ],
-    action: { label: "Review imports", to: "/events/$eventId/imports" },
+    action: { label: "Review imports", to: "/events/$eventId/volunteers" },
   })
 }
 
@@ -330,32 +329,20 @@ function buildRolesStep(input: BuildCrewGuidedSetupInput): CrewGuidedSetupStep {
 function buildStaffingAssumptionsStep(
   input: BuildCrewGuidedSetupInput,
 ): CrewGuidedSetupStep {
-  const hasAssumptions = input.setup.assumptions.trim().length > 0
-  const hasOwnerOrTarget = Boolean(
-    input.setup.staffingLead.trim() || input.setup.volunteerTarget.trim(),
-  )
   const hasChecklist = input.setup.checklist.staffingPlanDrafted === true
-  const status =
-    hasAssumptions && hasOwnerOrTarget && hasChecklist
-      ? "complete"
-      : hasAssumptions || hasOwnerOrTarget || hasChecklist
-        ? "in_progress"
-        : "not_started"
+  const status = hasChecklist ? "complete" : "not_started"
 
   return createBaseStep({
     key: "staffing_assumptions",
     label: "Staffing assumptions",
     status,
-    summary: hasOwnerOrTarget
-      ? "Staffing owner or volunteer target recorded."
-      : "No staffing owner or target is recorded.",
+    summary: hasChecklist
+      ? "Floors, lanes, and staffing assumptions marked ready."
+      : "Staffing assumptions not yet marked ready.",
     details: [
-      hasAssumptions
-        ? "Assumptions are recorded for handoff."
-        : "Record staffing assumptions before template or role decisions.",
       hasChecklist
         ? "Operator staffing plan check is complete."
-        : "Mark the staffing plan check when the assumptions are usable.",
+        : "Mark the staffing plan check once floors, lanes, and roles are mapped out.",
     ],
     action: { label: "Edit setup", to: "/events/$eventId/setup" },
   })

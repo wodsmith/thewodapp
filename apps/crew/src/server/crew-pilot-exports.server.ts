@@ -4,18 +4,18 @@ import {
   buildCrewPilotExports,
   type CrewPilotExports,
 } from "../lib/crew/exports/pilot-exports"
-import {
-  loadCrewStaffingMatrixInput,
-  requireCrewStaffingEvent,
-  type CrewStaffingReportEvent,
-} from "../server-fns/crew-staffing-fns.server"
-import { requireLocalCrewOperatorAccess } from "../server/crew-local-access"
 import type {
   CrewStaffingJudgeAssignmentInput,
   CrewStaffingMatrixInput,
   CrewStaffingShiftInput,
   CrewStaffingVolunteerInput,
 } from "../lib/crew/staffing"
+import { requireCrewDepartmentLeadFullAccess } from "../server/crew-department-lead.server"
+import {
+  type CrewStaffingReportEvent,
+  loadCrewStaffingMatrixInput,
+  requireCrewStaffingEvent,
+} from "../server-fns/crew-staffing-fns.server"
 
 export interface CrewPilotExportsPageData {
   event: CrewStaffingReportEvent
@@ -33,9 +33,8 @@ export interface CrewPilotExportsPageData {
 export async function getCrewPilotExportsPage(data: {
   eventId: string
 }): Promise<CrewPilotExportsPageData> {
-  requireLocalCrewOperatorAccess("Crew pilot exports")
-
   const event = await requireCrewStaffingEvent(data.eventId)
+  await requireCrewDepartmentLeadFullAccess(event)
   const { input, activeJudgeVersions } = await loadCrewStaffingMatrixInput(
     event,
     { kind: "full", scopes: [] },

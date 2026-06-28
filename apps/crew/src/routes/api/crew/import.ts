@@ -2,16 +2,15 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
 import { ZodError } from "zod"
-import {
-  createCrewImportPreviewRecord,
-  CrewImportError,
-  MAX_CREW_IMPORT_BYTES,
-} from "../../../server/crew-imports.server"
-import { CrewLocalAccessError } from "../../../server/crew-local-access"
 import type {
   ColumnMapping,
   CrewImportKind,
 } from "../../../lib/crew/imports/types"
+import {
+  CrewImportError,
+  createCrewImportPreviewRecord,
+  MAX_CREW_IMPORT_BYTES,
+} from "../../../server/crew-imports.server"
 
 export const Route = createFileRoute("/api/crew/import")({
   server: {
@@ -101,8 +100,13 @@ function parseColumnMapping(value: string): ColumnMapping | undefined {
 }
 
 function getImportErrorResponse(error: unknown) {
-  if (error instanceof CrewLocalAccessError) {
-    return { status: 403, message: error.message }
+  if (error instanceof Error) {
+    if (error.message.startsWith("NOT_AUTHORIZED:")) {
+      return { status: 401, message: error.message }
+    }
+    if (error.message.startsWith("FORBIDDEN:")) {
+      return { status: 403, message: error.message }
+    }
   }
 
   if (error instanceof CrewImportError) {

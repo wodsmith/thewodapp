@@ -24,7 +24,6 @@ export interface CrewBillingPageTeamAccess {
 }
 
 export interface CanViewCrewBillingPageInput {
-  isLocalCrewOperator: boolean
   isSiteAdmin: boolean
   teams: CrewBillingPageTeamAccess[]
   event: CrewBillingPageEventAccess
@@ -102,13 +101,12 @@ const billingSourceLabels: Record<CrewBillingSource, string> = {
 }
 
 export function canViewCrewBillingPage({
-  isLocalCrewOperator,
   isSiteAdmin,
   teams,
   event,
   billingPermission,
 }: CanViewCrewBillingPageInput) {
-  if (isLocalCrewOperator || isSiteAdmin) return true
+  if (isSiteAdmin) return true
 
   return teams.some(
     (team) =>

@@ -14,7 +14,7 @@ import {
 export const MANUAL_VOLUNTEER_PASTE_BATCH_LIMIT = 500
 
 export interface ManualVolunteerMetadataInput {
-  email: string
+  email?: string
   name?: string
   phone?: string
   roleTypes?: VolunteerRoleType[]
@@ -83,8 +83,8 @@ export type ManualVolunteerIntakePlan =
       message: string
     }
 
-export function normalizeManualVolunteerEmail(value: string) {
-  return value.trim().toLowerCase()
+export function normalizeManualVolunteerEmail(value: string | undefined | null) {
+  return (value ?? "").trim().toLowerCase()
 }
 
 export function parseManualVolunteerEmailPaste(
@@ -133,6 +133,10 @@ export function buildManualVolunteerMetadata(
   createdAt = new Date(),
 ): ManualVolunteerMetadata {
   const availability = input.availability || undefined
+  // Email-less volunteers omit signupEmail entirely so downstream readers
+  // (dedup, display, identity matching) treat them as having no email rather
+  // than as sharing an empty-string email anchor.
+  const signupEmail = emptyToUndefined(normalizeManualVolunteerEmail(input.email))
 
   return removeUndefined({
     volunteerRoleTypes: getCrewRosterRoleTypes(input.roleTypes),
@@ -141,7 +145,7 @@ export function buildManualVolunteerMetadata(
     internalNotes: emptyToUndefined(input.notes),
     status: "pending" as const,
     inviteSource: VOLUNTEER_INVITE_SOURCE.DIRECT,
-    signupEmail: normalizeManualVolunteerEmail(input.email),
+    signupEmail,
     signupName: emptyToUndefined(input.name),
     signupPhone: emptyToUndefined(input.phone),
     crewSignupSource: "manual_operator" as const,

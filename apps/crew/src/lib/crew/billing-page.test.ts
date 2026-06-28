@@ -236,7 +236,7 @@ describe("Crew billing page view model", () => {
 })
 
 describe("Crew billing page access", () => {
-  it("allows local operators, site admins, and organizer billing members", () => {
+  it("allows site admins and organizer billing members", () => {
     const event = {
       organizingTeamId: "team_org",
       competitionTeamId: "team_event",
@@ -244,16 +244,6 @@ describe("Crew billing page access", () => {
 
     expect(
       canViewCrewBillingPage({
-        isLocalCrewOperator: true,
-        isSiteAdmin: false,
-        teams: [],
-        event,
-        billingPermission: "access_billing",
-      }),
-    ).toBe(true)
-    expect(
-      canViewCrewBillingPage({
-        isLocalCrewOperator: false,
         isSiteAdmin: true,
         teams: [],
         event,
@@ -262,7 +252,6 @@ describe("Crew billing page access", () => {
     ).toBe(true)
     expect(
       canViewCrewBillingPage({
-        isLocalCrewOperator: false,
         isSiteAdmin: false,
         teams: [{ id: "team_org", permissions: ["access_billing"] }],
         event,
@@ -279,7 +268,6 @@ describe("Crew billing page access", () => {
 
     expect(
       canViewCrewBillingPage({
-        isLocalCrewOperator: false,
         isSiteAdmin: false,
         teams: [{ id: "team_other", permissions: ["access_billing"] }],
         event,
@@ -288,7 +276,6 @@ describe("Crew billing page access", () => {
     ).toBe(false)
     expect(
       canViewCrewBillingPage({
-        isLocalCrewOperator: false,
         isSiteAdmin: false,
         teams: [{ id: "team_event", permissions: ["access_billing"] }],
         event,

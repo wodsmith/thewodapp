@@ -121,7 +121,7 @@ export function expandRotationToAssignments(
     assignments.push({
       heatNumber,
       laneNumber,
-      membershipId: rotation.membershipId,
+      membershipId: rotation.membershipId ?? "",
       rotationId: rotation.id,
     })
   }

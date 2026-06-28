@@ -6,12 +6,12 @@ import {
   competitionsTable,
   competitionVenuesTable,
 } from "../db/schemas/competitions"
+import { crewEventSettingsTable } from "../db/schemas/crew-event-settings"
 import {
   CREW_IMPORT_KIND,
   CREW_IMPORT_STATUS,
   crewImportsTable,
 } from "../db/schemas/crew-imports"
-import { crewEventSettingsTable } from "../db/schemas/crew-event-settings"
 import {
   programmingTracksTable,
   trackWorkoutsTable,
@@ -22,10 +22,6 @@ import {
   judgeHeatAssignmentsTable,
 } from "../db/schemas/volunteers"
 import {
-  calculateSetupProgress,
-  parseCrewSettings,
-} from "../lib/crew-event-setup"
-import {
   buildCrewReadinessChecklist,
   type CrewReadinessChecklist,
   type CrewReadinessImportInput,
@@ -34,12 +30,16 @@ import {
   type CrewReadinessVenueInput,
 } from "../lib/crew/readiness"
 import { summarizeCrewRoster } from "../lib/crew/roster-shifts"
-import { requireLocalCrewOperatorAccess } from "../server/crew-local-access"
 import {
+  calculateSetupProgress,
+  parseCrewSettings,
+} from "../lib/crew-event-setup"
+import { requireCrewDepartmentLeadFullAccess } from "./crew-department-lead.server"
+import {
+  type CrewShiftSummary,
   loadCrewRoster,
   loadCrewShifts,
   summarizeCrewShifts,
-  type CrewShiftSummary,
 } from "./crew-roster-shift.server"
 
 export interface CrewReadinessPageData {
@@ -58,9 +58,18 @@ export interface CrewReadinessPageData {
 export async function getCrewReadinessPage(data: {
   eventId: string
 }): Promise<CrewReadinessPageData> {
-  requireLocalCrewOperatorAccess("Crew pilot readiness")
-
   const event = await requireCrewReadinessEvent(data.eventId)
+  if (!event.competitionTeamId) {
+    throw new Error("Crew event is missing a competition team")
+  }
+
+  await requireCrewDepartmentLeadFullAccess({
+    id: event.id,
+    organizingTeamId: event.organizingTeamId,
+    competitionTeamId: event.competitionTeamId,
+    timezone: event.timezone,
+  })
+
   const [roster, shifts, venues, schedule, imports, judge] = await Promise.all([
     loadCrewRoster(event.competitionTeamId),
     loadCrewShifts(event.id),
@@ -108,6 +117,7 @@ async function requireCrewReadinessEvent(eventId: string) {
   const [event] = await db
     .select({
       id: competitionsTable.id,
+      organizingTeamId: competitionsTable.organizingTeamId,
       competitionTeamId: competitionsTable.competitionTeamId,
       startDate: competitionsTable.startDate,
       endDate: competitionsTable.endDate,

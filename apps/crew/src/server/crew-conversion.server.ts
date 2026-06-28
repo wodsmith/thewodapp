@@ -202,7 +202,7 @@ function buildCrewConversionLinks({
   return {
     crewEvent: `/events/${eventId}`,
     crewSetup: `/events/${eventId}/setup`,
-    crewImports: `/events/${eventId}/imports`,
+    crewImports: `/events/${eventId}/volunteers`,
     crewVolunteers: `/events/${eventId}/volunteers`,
     crewShifts: `/events/${eventId}/shifts`,
     crewJudges: `/events/${eventId}/judges`,

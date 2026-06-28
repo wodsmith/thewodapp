@@ -164,7 +164,7 @@ export async function loadEventContext(
     minHeatBuffer: eventRow.minHeatBuffer ?? DEFAULT_MIN_HEAT_BUFFER,
     heats,
     existingRotations: rotationRows.map((r) => ({
-      membershipId: r.membershipId,
+      membershipId: r.membershipId ?? "",
       judgeName: formatJudgeName(r.firstName, r.lastName, r.email),
       startingHeat: r.startingHeat,
       startingLane: r.startingLane,

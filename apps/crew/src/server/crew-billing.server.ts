@@ -54,8 +54,8 @@ import {
   resolveCrewCheckoutPlanId,
 } from "../lib/crew/checkout-sessions"
 import {
-  CrewCheckoutWebhookValidationError,
   type CrewCheckoutWebhookCompletionInput,
+  CrewCheckoutWebhookValidationError,
   planCrewCheckoutWebhookCompletion,
 } from "../lib/crew/checkout-webhooks"
 import {
@@ -67,11 +67,7 @@ import {
 } from "../lib/crew/payment-link-sales"
 import { getAppUrl } from "../lib/env"
 import { getStripe } from "../lib/stripe"
-import { getSessionFromCookie } from "../utils/auth"
-import {
-  hasLocalCrewOperatorAccess,
-  requireLocalCrewOperatorAccess,
-} from "./crew-local-access"
+import { getSessionFromCookie, requireAdmin } from "../utils/auth"
 
 export interface GetCrewBillingInput {
   eventId: string
@@ -189,7 +185,7 @@ type CrewBillingScope = CrewBillingPageData["event"] & {
 export async function getCrewBillingPage(
   data: GetCrewBillingInput,
 ): Promise<CrewBillingPageData> {
-  requireLocalCrewOperatorAccess("Crew billing")
+  await requireAdmin()
 
   const scope = await requireCrewBillingScope(data.eventId)
   const auditEvents = await listCrewBillingEventsForEvent(data.eventId)
@@ -229,7 +225,7 @@ export async function getCrewBillingOrganizerPage(
 export async function recordCrewBillingEvent(
   data: RecordCrewBillingEventInput,
 ): Promise<CrewBillingPageData> {
-  requireLocalCrewOperatorAccess("Crew billing")
+  await requireAdmin()
 
   const scope = await requireCrewBillingScope(data.eventId)
   const current = toCrewBillingSnapshot(scope)
@@ -247,7 +243,7 @@ export async function recordCrewBillingEvent(
 export async function recordManualCrewBillingAction(
   data: RecordManualCrewBillingActionInput,
 ): Promise<CrewBillingPageData> {
-  requireLocalCrewOperatorAccess("Crew billing")
+  await requireAdmin()
 
   const scope = await requireCrewBillingScope(data.eventId)
   const current = toCrewBillingSnapshot(scope)
@@ -265,7 +261,7 @@ export async function recordManualCrewBillingAction(
 export async function recordCrewPaymentLinkReference(
   data: RecordCrewPaymentLinkInput,
 ): Promise<CrewBillingPageData> {
-  requireLocalCrewOperatorAccess("Crew billing")
+  await requireAdmin()
 
   const scope = await requireCrewBillingScope(data.eventId)
   const paymentLink = normalizeCrewPaymentLinkReference(data)
@@ -285,7 +281,7 @@ export async function recordCrewPaymentLinkReference(
 export async function reconcileCrewPaymentLinkSale(
   data: ReconcileCrewPaymentLinkSaleInput,
 ): Promise<CrewBillingPageData> {
-  requireLocalCrewOperatorAccess("Crew billing")
+  await requireAdmin()
 
   const scope = await requireCrewBillingScope(data.eventId)
   const current = toCrewBillingSnapshot(scope)
@@ -712,7 +708,6 @@ async function requireCrewBillingScope(
 async function requireCrewBillingOrganizerAccess(scope: CrewBillingScope) {
   const session = await getSessionFromCookie().catch(() => null)
   const canView = canViewCrewBillingPage({
-    isLocalCrewOperator: hasLocalCrewOperatorAccess(),
     isSiteAdmin: session?.user.role === ROLES_ENUM.ADMIN,
     teams:
       session?.teams?.map((team) => ({

@@ -19,6 +19,7 @@ function createRotation(
     competitionId: 'comp-1',
     trackWorkoutId: 'tw-1',
     membershipId: 'mem-1',
+    invitationId: null,
     startingHeat: 1,
     startingLane: 1,
     heatsCount: 3,

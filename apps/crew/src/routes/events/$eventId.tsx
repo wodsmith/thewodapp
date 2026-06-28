@@ -2,10 +2,12 @@
 // @lat: [[crew#Staffing Page Gap Report]]
 // @lat: [[crew#Day Of Operations Board]]
 // @lat: [[crew#Pilot Exports]]
-// @lat: [[crew#Billing Page And Upgrade CTA]]
-// @lat: [[crew#Full WODsmith Conversion Assistant]]
-// @lat: [[crew#Regional Judge Discovery Pilot]]
-import { createFileRoute, Link, notFound, Outlet } from "@tanstack/react-router"
+import { createFileRoute, notFound, Outlet } from "@tanstack/react-router"
+import {
+  CrewEventSidebarShell,
+  getCrewOrganizerEventSidebarNavigation,
+} from "@/components/crew-event-sidebar"
+import { getCrewEventNavItems } from "@/lib/crew/navigation"
 import { getCrewEventFn } from "@/server-fns/crew-event-settings-fns"
 
 export const Route = createFileRoute("/events/$eventId")({
@@ -14,143 +16,39 @@ export const Route = createFileRoute("/events/$eventId")({
     if (!result.event) {
       throw notFound()
     }
-    return { event: result.event }
+    return {
+      event: result.event,
+      viewerRole: result.viewerRole ?? "organizer_admin",
+    }
   },
   component: EventShell,
 })
 
 function EventShell() {
   const { eventId } = Route.useParams()
-  const { event } = Route.useLoaderData()
+  const { event, viewerRole = "organizer_admin" } = Route.useLoaderData()
+  const navItems = getCrewEventNavItems({
+    viewerRole,
+    state: event.navigationState,
+  })
+  const navigation = getCrewOrganizerEventSidebarNavigation({
+    eventId,
+    navItems,
+  })
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
-      <div className="flex flex-col justify-between gap-4 border-b pb-6 md:flex-row md:items-end">
-        <div>
-          <p className="font-mono text-sm text-muted-foreground">{eventId}</p>
-          <h1 className="text-3xl font-semibold">{event.competition.name}</h1>
-          <p className="text-muted-foreground">
-            {event.competition.startDate} to {event.competition.endDate}
-          </p>
-        </div>
-        <nav className="flex flex-wrap gap-2 text-sm">
-          <Link
-            to="/events/$eventId"
-            params={{ eventId }}
-            activeOptions={{ exact: true }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Overview
-          </Link>
-          <Link
-            to="/events/$eventId/readiness"
-            params={{ eventId }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Readiness
-          </Link>
-          <Link
-            to="/events/$eventId/staffing"
-            params={{ eventId }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Staffing
-          </Link>
-          <Link
-            to="/events/$eventId/setup"
-            params={{ eventId }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Setup
-          </Link>
-          <Link
-            to="/events/$eventId/billing"
-            params={{ eventId }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Billing
-          </Link>
-          <Link
-            to="/events/$eventId/convert"
-            params={{ eventId }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Convert
-          </Link>
-          <Link
-            to="/events/$eventId/imports"
-            params={{ eventId }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Imports
-          </Link>
-          <Link
-            to="/events/$eventId/volunteers"
-            params={{ eventId }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Volunteers
-          </Link>
-          <Link
-            to="/events/$eventId/shifts"
-            params={{ eventId }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Shifts
-          </Link>
-          <Link
-            to="/events/$eventId/judges"
-            params={{ eventId }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Judges
-          </Link>
-          <Link
-            to="/events/$eventId/discovery/judges"
-            params={{ eventId }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Discovery
-          </Link>
-          <Link
-            to="/events/$eventId/day-of"
-            params={{ eventId }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Day-of
-          </Link>
-          <Link
-            to="/events/$eventId/exports"
-            params={{ eventId }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Exports
-          </Link>
-          <Link
-            to="/events/$eventId/schedule"
-            params={{ eventId }}
-            activeProps={{ className: "bg-muted text-foreground" }}
-            className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            Schedule
-          </Link>
-        </nav>
-      </div>
-
+    <CrewEventSidebarShell
+      variant="organizer"
+      event={{
+        id: event.competition.id,
+        name: event.competition.name,
+        startDate: event.competition.startDate,
+        endDate: event.competition.endDate,
+      }}
+      navigation={navigation}
+      eyebrow="Organizer Crew"
+    >
       <Outlet />
-    </main>
+    </CrewEventSidebarShell>
   )
 }

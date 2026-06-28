@@ -1455,12 +1455,15 @@ export const getVolunteerAssignmentsFn = createServerFn({ method: "GET" })
       }
     > = {}
 
-    // Process shift assignments
+    // Process shift assignments. Invitation-based (imported / manual)
+    // volunteers have no membership id; this membership-keyed view skips them.
     for (const assignment of shiftAssignments) {
-      if (!assignmentMap[assignment.membershipId]) {
-        assignmentMap[assignment.membershipId] = { shifts: [], judgeHeats: [] }
+      const membershipId = assignment.membershipId
+      if (!membershipId) continue
+      if (!assignmentMap[membershipId]) {
+        assignmentMap[membershipId] = { shifts: [], judgeHeats: [] }
       }
-      assignmentMap[assignment.membershipId].shifts.push({
+      assignmentMap[membershipId].shifts.push({
         id: assignment.id,
         shiftId: assignment.shiftId,
         name: assignment.shift.name,
@@ -1472,18 +1475,21 @@ export const getVolunteerAssignmentsFn = createServerFn({ method: "GET" })
       })
     }
 
-    // Process judge heat assignments
+    // Process judge heat assignments. Invitation-based (imported / manual)
+    // judges have no membership id; this membership-keyed view skips them.
     for (const assignment of judgeAssignments) {
       const heatDetails = heatDetailsMap.get(assignment.heatId)
       if (!heatDetails) continue
+      const membershipId = assignment.membershipId
+      if (!membershipId) continue
 
       const eventName =
         eventNameMap.get(heatDetails.trackWorkoutId) || "Unknown Event"
 
-      if (!assignmentMap[assignment.membershipId]) {
-        assignmentMap[assignment.membershipId] = { shifts: [], judgeHeats: [] }
+      if (!assignmentMap[membershipId]) {
+        assignmentMap[membershipId] = { shifts: [], judgeHeats: [] }
       }
-      assignmentMap[assignment.membershipId].judgeHeats.push({
+      assignmentMap[membershipId].judgeHeats.push({
         id: assignment.id,
         heatId: assignment.heatId,
         eventName,

@@ -3,14 +3,14 @@ import { describe, expect, it } from "vitest"
 import { CREW_ASSIGNMENT_CONFIRMATION_STATUS } from "../../db/schemas/crew-imports"
 import {
   buildCrewAssignmentConfirmationEmailPlan,
-  buildCrewAssignmentEmailIdempotencyKey,
   buildCrewAssignmentConfirmationUrls,
+  buildCrewAssignmentEmailIdempotencyKey,
   generateCrewAssignmentConfirmationToken,
   getCrewAssignmentConfirmationOperationalState,
   getCrewAssignmentConfirmationTokenState,
   hashCrewAssignmentConfirmationToken,
-  resolveCrewAssignmentConfirmationResponse,
   resolveCrewAssignmentConfirmationOrganizerStateUpdate,
+  resolveCrewAssignmentConfirmationResponse,
   summarizeCrewAssignmentConfirmationOperationalStates,
   summarizeCrewAssignmentConfirmations,
 } from "./assignment-confirmations"
@@ -81,11 +81,17 @@ describe("Crew assignment response state transitions", () => {
       respondedAt: now,
     })
     expect(
-      resolveCrewAssignmentConfirmationResponse(base, "decline", null, now),
+      resolveCrewAssignmentConfirmationResponse(
+        base,
+        "decline",
+        "I cannot make it.",
+        now,
+      ),
     ).toMatchObject({
       ok: true,
       outcome: "updated",
       status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.DECLINED,
+      responseNote: "I cannot make it.",
       respondedAt: now,
     })
     expect(
@@ -101,6 +107,38 @@ describe("Crew assignment response state transitions", () => {
       status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CHANGE_REQUESTED,
       responseNote: "I can do the afternoon.",
       respondedAt: now,
+    })
+  })
+
+  it("requires notes for decline and change requests", () => {
+    const base = {
+      status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.PENDING,
+      expiresAt: "2026-06-20T12:00:00.000Z",
+    }
+
+    expect(
+      resolveCrewAssignmentConfirmationResponse(
+        base,
+        "decline",
+        "  ",
+        new Date("2026-06-19T12:00:00.000Z"),
+      ),
+    ).toMatchObject({
+      ok: false,
+      reason: "missing_note",
+      message: "Add a note before declining this assignment.",
+    })
+    expect(
+      resolveCrewAssignmentConfirmationResponse(
+        base,
+        "request_change",
+        "",
+        new Date("2026-06-19T12:00:00.000Z"),
+      ),
+    ).toMatchObject({
+      ok: false,
+      reason: "missing_note",
+      message: "Add a note before requesting a change.",
     })
   })
 
@@ -127,7 +165,7 @@ describe("Crew assignment response state transitions", () => {
       resolveCrewAssignmentConfirmationResponse(
         confirmed,
         "decline",
-        null,
+        "Schedule conflict",
         now,
       ),
     ).toMatchObject({
@@ -202,6 +240,7 @@ describe("Crew assignment confirmation summaries", () => {
     ).toEqual({
       pending: 1,
       confirmed: 1,
+      checkedIn: 0,
       declined: 1,
       changeRequested: 1,
       noShow: 0,
@@ -247,6 +286,11 @@ describe("Crew assignment confirmation operational states", () => {
     ).toBe("confirmed")
     expect(
       getCrewAssignmentConfirmationOperationalState({
+        status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CHECKED_IN,
+      }),
+    ).toBe("checked_in")
+    expect(
+      getCrewAssignmentConfirmationOperationalState({
         status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.NO_SHOW,
       }),
     ).toBe("no_show")
@@ -270,6 +314,7 @@ describe("Crew assignment confirmation operational states", () => {
           sentAt: "2026-06-19T12:00:00.000Z",
         },
         { status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CONFIRMED },
+        { status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CHECKED_IN },
         { status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.DECLINED },
         { status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CHANGE_REQUESTED },
         { status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.NO_SHOW },
@@ -280,11 +325,12 @@ describe("Crew assignment confirmation operational states", () => {
       pending: 1,
       sent: 1,
       confirmed: 1,
+      checkedIn: 1,
       declined: 1,
       changeRequested: 1,
       noShow: 1,
       replaced: 1,
-      total: 8,
+      total: 9,
       responseNeeded: 3,
       organizerActionNeeded: 7,
     })

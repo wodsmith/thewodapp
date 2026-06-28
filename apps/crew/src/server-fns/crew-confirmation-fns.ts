@@ -8,6 +8,7 @@ import { z } from "zod"
 import { VOLUNTEER_AVAILABILITY } from "../db/schemas/volunteers"
 import { CREW_ASSIGNMENT_CONFIRMATION_ORGANIZER_STATES } from "../lib/crew/assignment-confirmations"
 import type {
+  CrewAssignmentCommunicationDashboard,
   QueueCrewAssignmentConfirmationEmailsInput,
   QueueCrewAssignmentConfirmationEmailsResult,
   UpdateCrewAssignmentConfirmationContactTokenInput,
@@ -15,15 +16,19 @@ import type {
 } from "../server/crew-confirmation.server"
 
 export type {
-  CrewAssignmentEmailQueueMessage,
+  CrewAssignmentCommunicationDashboard,
+  CrewAssignmentCommunicationRow,
+  CrewAssignmentCommunicationState,
   CrewAssignmentConfirmationContactUpdateResult,
   CrewAssignmentConfirmationResponseResult,
   CrewAssignmentConfirmationTokenData,
-  UpdateCrewAssignmentConfirmationContactTokenInput,
+  CrewAssignmentEmailQueueMessage,
+  CrewAssignmentEmailSendPreview,
   CrewShiftAssignmentConfirmationStatus,
   EnsureCrewShiftAssignmentConfirmationResult,
   QueueCrewAssignmentConfirmationEmailsInput,
   QueueCrewAssignmentConfirmationEmailsResult,
+  UpdateCrewAssignmentConfirmationContactTokenInput,
   UpdateCrewShiftAssignmentConfirmationStateInput,
 } from "../server/crew-confirmation.server"
 
@@ -62,6 +67,10 @@ const queueCrewAssignmentConfirmationEmailsInputSchema = z.object({
   eventId: z.string().min(1, "Event ID is required"),
   mode: z.enum(["confirmations", "reminders"]),
 }) satisfies z.ZodType<QueueCrewAssignmentConfirmationEmailsInput>
+
+const crewAssignmentCommunicationDashboardInputSchema = z.object({
+  eventId: z.string().min(1, "Event ID is required"),
+})
 
 export const getCrewAssignmentConfirmationTokenFn = createServerFn({
   method: "GET",
@@ -123,3 +132,16 @@ export const queueCrewAssignmentConfirmationEmailsFn = createServerFn({
       return queueCrewAssignmentConfirmationEmails(data)
     },
   )
+
+export const getCrewAssignmentCommunicationDashboardFn = createServerFn({
+  method: "GET",
+})
+  .inputValidator((data: unknown) =>
+    crewAssignmentCommunicationDashboardInputSchema.parse(data),
+  )
+  .handler(async ({ data }): Promise<CrewAssignmentCommunicationDashboard> => {
+    const { getCrewAssignmentCommunicationDashboard } = await import(
+      "../server/crew-confirmation.server"
+    )
+    return getCrewAssignmentCommunicationDashboard(data)
+  })

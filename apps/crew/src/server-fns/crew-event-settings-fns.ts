@@ -1,8 +1,12 @@
 // @lat: [[crew#Server Function Runtime Boundary]]
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
+import type { CrewEventResult } from "../server/crew-event-settings.server"
 
-export type { CrewEventDetails } from "../server/crew-event-settings.server"
+export type {
+  CrewEventDetails,
+  CrewEventResult,
+} from "../server/crew-event-settings.server"
 
 const lifecycleSchema = z.enum([
   "draft",
@@ -33,7 +37,9 @@ const getCrewEventInputSchema = z.object({
 })
 
 const createCrewEventInputSchema = z.object({
-  organizingTeamId: z.string().min(1, "Organizing team ID is required"),
+  // Optional: when omitted the event is organized under the creator's personal
+  // team, resolved server-side. The new event form does not surface a team.
+  organizingTeamId: z.string().min(1).optional(),
   name: z.string().min(1, "Event name is required"),
   slug: z.string().min(1, "Slug is required"),
   startDate: dateStringSchema,
@@ -61,6 +67,12 @@ const createCrewSettingsForCompetitionInputSchema = z.object({
 const updateCrewEventSettingsInputSchema = z.object({
   competitionId: z.string().min(1, "Competition ID is required"),
   crewOnly: z.boolean().optional(),
+  // Competition basics. Optional so the setup form can save them alongside
+  // the Crew-only settings in a single request.
+  name: z.string().trim().min(1, "Event name is required").optional(),
+  startDate: dateStringSchema.optional(),
+  endDate: dateStringSchema.optional(),
+  timezone: z.string().trim().min(1, "Timezone is required").optional(),
   sourcePlatform: nullableTextInput,
   sourceEventUrl: nullableTextInput,
   externalRegistrationUrl: nullableTextInput,
@@ -82,7 +94,7 @@ export const listCrewEventsFn = createServerFn({ method: "GET" }).handler(
 
 export const getCrewEventFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => getCrewEventInputSchema.parse(data))
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<CrewEventResult> => {
     const { getCrewEvent } = await import(
       "../server/crew-event-settings.server"
     )

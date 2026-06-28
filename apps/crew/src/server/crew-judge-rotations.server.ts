@@ -1,5 +1,5 @@
 // @lat: [[crew#Judge Rotations]]
-import { and, asc, desc, eq, inArray, ne } from "drizzle-orm"
+import { and, asc, desc, eq, inArray } from "drizzle-orm"
 import { getDb } from "../db"
 import {
   competitionHeatAssignmentsTable,
@@ -11,7 +11,6 @@ import {
   judgeAssignmentVersionsTable,
   judgeHeatAssignmentsTable,
   programmingTracksTable,
-  teamMembershipTable,
   trackWorkoutsTable,
   userTable,
   workouts,
@@ -20,24 +19,29 @@ import { createJudgeRotationId } from "../db/schemas/common"
 import {
   LANE_SHIFT_PATTERN,
   type LaneShiftPattern,
-  type VolunteerAvailability,
-  type VolunteerMembershipMetadata,
-  type VolunteerRoleType,
   VOLUNTEER_ROLE_TYPES,
+  type VolunteerAvailability,
+  type VolunteerRoleType,
 } from "../db/schemas/volunteers"
 import {
   assertCrewJudgeRotationReplacementAllowed,
+  type CrewJudgeRotationDraft,
+  type CrewJudgeRotationHeat,
   expandCrewJudgeRotationDrafts,
   getCrewJudgeHeatLaneCount,
   getCrewJudgeRotationLane,
   hasCrewJudgeRotationErrors,
-  type CrewJudgeRotationDraft,
-  type CrewJudgeRotationHeat,
+  isCrewJudgeEligible,
   validateCrewJudgeRotationDrafts,
 } from "../lib/crew/judge-rotations"
-import { getCrewRosterRoleTypes } from "../lib/crew/roster-shifts"
+import {
+  type CrewRosterVolunteer,
+  getCrewRosterAssigneeId,
+  isCrewRosterVolunteerStaffable,
+} from "../lib/crew/roster-shifts"
+import { loadCrewRoster } from "./crew-roster-shift.server"
 import { getSessionFromCookie } from "../utils/auth"
-import { requireLocalCrewOperatorAccess } from "./crew-local-access"
+import { requireCrewEventManagerAccess } from "./crew-auth.server"
 import {
   type MaterializedJudgeAssignmentForVersion,
   publishMaterializedJudgeAssignmentsVersion,
@@ -100,8 +104,18 @@ export interface CrewJudgeHeat extends CrewJudgeRotationHeat {
 }
 
 export interface CrewJudgeVolunteer {
+  /**
+   * Canonical assignee id used to key this judge across the grid and the
+   * rotation / assignment data layer. For account-backed volunteers this is the
+   * membership id (tmem_); for invitation-based (imported / manual) volunteers
+   * it is the invitation id (tinv_). Kept named `membershipId` so the existing
+   * grid components, which key judges by `membershipId`, work unchanged.
+   */
   membershipId: string
-  userId: string
+  source: CrewRosterVolunteer["source"]
+  sourceId: string
+  invitationId: string | null
+  userId: string | null
   firstName: string | null
   lastName: string | null
   email: string | null
@@ -117,7 +131,9 @@ export interface CrewJudgeHeatAssignment {
   heatId: string
   trackWorkoutId: string
   heatNumber: number
+  // Canonical assignee id (membership id or invitation id) for this assignment.
   membershipId: string
+  invitationId: string | null
   rotationId: string | null
   versionId: string | null
   laneNumber: number | null
@@ -167,16 +183,11 @@ export interface PublishCrewJudgeRotationsInput {
   notes?: string | null
 }
 
-function requireCrewJudgeRotationsAccess() {
-  requireLocalCrewOperatorAccess("Crew judge rotations")
-}
-
 export async function getCrewJudgeRotationsPage(data: {
   eventId: string
 }): Promise<{ page: CrewJudgeRotationsPageData }> {
-  requireCrewJudgeRotationsAccess()
-
   const event = await requireCrewJudgeEvent(data.eventId)
+  await requireCrewEventManagerAccess(event, "Crew judge rotations")
   const [workoutsForEvent, heats, judges] = await Promise.all([
     loadCrewJudgeWorkouts(event.id),
     loadCrewJudgeHeats(event.id),
@@ -221,12 +232,12 @@ export async function getCrewJudgeRotationsPage(data: {
 export async function saveCrewJudgeRotationsForVolunteer(
   data: SaveCrewJudgeRotationsInput,
 ) {
-  requireCrewJudgeRotationsAccess()
-
   const db = getDb()
   const event = await requireCrewJudgeEvent(data.eventId)
+  await requireCrewEventManagerAccess(event, "Crew judge rotations")
   await requireCrewJudgeWorkout(event.id, data.trackWorkoutId)
-  await requireCrewJudgeMembership(event.competitionTeamId, data.membershipId)
+  await requireCrewJudgeAssignee(event.competitionTeamId, data.membershipId)
+  const assigneeColumns = toJudgeAssigneeColumns(data.membershipId)
 
   const normalizedRotations = data.rotations.map((rotation) => ({
     membershipId: data.membershipId,
@@ -245,17 +256,18 @@ export async function saveCrewJudgeRotationsForVolunteer(
       .select()
       .from(competitionJudgeRotationsTable)
       .where(
-        and(
-          eq(
-            competitionJudgeRotationsTable.trackWorkoutId,
-            data.trackWorkoutId,
-          ),
-          ne(competitionJudgeRotationsTable.membershipId, data.membershipId),
-        ),
+        eq(competitionJudgeRotationsTable.trackWorkoutId, data.trackWorkoutId),
       )
     const occupiedSlots = expandCrewJudgeRotationDrafts({
       heats,
-      rotations: otherRotations.map(toCrewJudgeRotationDraft),
+      // Treat every other judge's rotation as occupied; exclude this judge's own
+      // rows (matched by canonical assignee id) so re-saving doesn't self-block.
+      rotations: otherRotations
+        .filter(
+          (rotation) =>
+            getRotationAssigneeId(rotation) !== data.membershipId,
+        )
+        .map(toCrewJudgeRotationDraft),
     })
     const issues = validateCrewJudgeRotationDrafts({
       heats,
@@ -289,7 +301,15 @@ export async function saveCrewJudgeRotationsForVolunteer(
             competitionJudgeRotationsTable.trackWorkoutId,
             data.trackWorkoutId,
           ),
-          eq(competitionJudgeRotationsTable.membershipId, data.membershipId),
+          assigneeColumns.invitationId
+            ? eq(
+                competitionJudgeRotationsTable.invitationId,
+                assigneeColumns.invitationId,
+              )
+            : eq(
+                competitionJudgeRotationsTable.membershipId,
+                assigneeColumns.membershipId ?? "",
+              ),
         ),
       )
 
@@ -318,7 +338,8 @@ export async function saveCrewJudgeRotationsForVolunteer(
           id: createJudgeRotationId(),
           competitionId: event.id,
           trackWorkoutId: data.trackWorkoutId,
-          membershipId: data.membershipId,
+          membershipId: assigneeColumns.membershipId,
+          invitationId: assigneeColumns.invitationId,
           startingHeat: rotation.startingHeat,
           startingLane: rotation.startingLane,
           heatsCount: rotation.heatsCount,
@@ -338,10 +359,9 @@ export async function saveCrewJudgeRotationsForVolunteer(
 export async function publishCrewJudgeRotations(
   data: PublishCrewJudgeRotationsInput,
 ): Promise<{ version: JudgeAssignmentVersion }> {
-  requireCrewJudgeRotationsAccess()
-
   const db = getDb()
   const event = await requireCrewJudgeEvent(data.eventId)
+  await requireCrewEventManagerAccess(event, "Crew judge rotations")
   await requireCrewJudgeWorkout(event.id, data.trackWorkoutId)
   await assertCrewJudgeRotationsPublishable(event.id, data.trackWorkoutId)
   const session = await getSessionFromCookie().catch(() => null)
@@ -419,37 +439,21 @@ async function requireCrewJudgeWorkout(
   }
 }
 
-async function requireCrewJudgeMembership(
+/**
+ * Validate that a canonical assignee id (membership tmem_ or invitation tinv_)
+ * resolves to a judge-eligible, staffable volunteer on this event's competition
+ * team. Resolves against the same roster the grid is built from so invitation-
+ * based (imported / manual) judges are accepted just like membership-based ones.
+ */
+async function requireCrewJudgeAssignee(
   competitionTeamId: string,
-  membershipId: string,
+  assigneeId: string,
 ) {
-  const db = getDb()
-  const [membership] = await db
-    .select({
-      id: teamMembershipTable.id,
-      metadata: teamMembershipTable.metadata,
-    })
-    .from(teamMembershipTable)
-    .where(
-      and(
-        eq(teamMembershipTable.id, membershipId),
-        eq(teamMembershipTable.teamId, competitionTeamId),
-      ),
-    )
-    .limit(1)
+  const judges = await loadCrewJudgeVolunteers(competitionTeamId)
+  const judge = judges.find((volunteer) => volunteer.membershipId === assigneeId)
 
-  if (!membership) {
-    throw new Error("Judge membership not found for this Crew event")
-  }
-
-  if (
-    !isJudgeRole(
-      getCrewRosterRoleTypes(
-        parseVolunteerMetadata(membership.metadata)?.volunteerRoleTypes,
-      ),
-    )
-  ) {
-    throw new Error("Selected volunteer is not marked as a judge")
+  if (!judge) {
+    throw new Error("Selected volunteer is not an eligible judge")
   }
 }
 
@@ -524,46 +528,60 @@ async function loadCrewJudgeHeats(eventId: string): Promise<CrewJudgeHeat[]> {
   return toCrewJudgeHeats(heatRows, heatAssignmentRows)
 }
 
+/**
+ * Load the judge roster for an event's competition team. Built from the same
+ * union of team memberships AND team invitations the shift roster uses, so
+ * imported / manually-added volunteers (stored as invitations, often without a
+ * user account) appear alongside account-backed volunteers. Filtered to
+ * judge-eligible role types (judge / head_judge / general — see
+ * {@link isCrewJudgeEligible}) and to staffable statuses, then mapped to the
+ * grid-facing shape keyed by a canonical assignee id.
+ */
 async function loadCrewJudgeVolunteers(
   competitionTeamId: string,
 ): Promise<CrewJudgeVolunteer[]> {
-  const db = getDb()
-  const rows = await db
-    .select({
-      membershipId: teamMembershipTable.id,
-      userId: teamMembershipTable.userId,
-      metadata: teamMembershipTable.metadata,
-      firstName: userTable.firstName,
-      lastName: userTable.lastName,
-      email: userTable.email,
-      avatar: userTable.avatar,
-    })
-    .from(teamMembershipTable)
-    .innerJoin(userTable, eq(teamMembershipTable.userId, userTable.id))
-    .where(eq(teamMembershipTable.teamId, competitionTeamId))
+  const roster = await loadCrewRoster(competitionTeamId)
 
-  return rows
-    .map((row) => {
-      const metadata = parseVolunteerMetadata(row.metadata)
-      const volunteerRoleTypes = getCrewRosterRoleTypes(
-        metadata?.volunteerRoleTypes,
-      )
-
-      return {
-        membershipId: row.membershipId,
-        userId: row.userId,
-        firstName: row.firstName,
-        lastName: row.lastName,
-        email: row.email,
-        avatar: row.avatar,
-        volunteerRoleTypes,
-        credentials: metadata?.credentials,
-        availability: metadata?.availability,
-        availabilityNotes: metadata?.availabilityNotes,
-      }
-    })
-    .filter((volunteer) => isJudgeRole(volunteer.volunteerRoleTypes))
+  return roster
+    .filter(
+      (volunteer) =>
+        isCrewRosterVolunteerStaffable(volunteer) &&
+        isCrewJudgeEligible(volunteer.roleTypes),
+    )
+    .map(toCrewJudgeVolunteer)
+    .filter((volunteer): volunteer is CrewJudgeVolunteer => volunteer !== null)
     .sort((a, b) => getJudgeName(a).localeCompare(getJudgeName(b)))
+}
+
+/**
+ * Map a roster volunteer to the grid-facing judge shape. The canonical assignee
+ * id (membership id for account-backed, invitation id for imported / manual
+ * volunteers) is stored in `membershipId` so the grid keeps keying judges off
+ * `membershipId` unchanged. Returns null if the volunteer has no usable id.
+ */
+function toCrewJudgeVolunteer(
+  volunteer: CrewRosterVolunteer,
+): CrewJudgeVolunteer | null {
+  const assigneeId = getCrewRosterAssigneeId(volunteer)
+  if (!assigneeId) return null
+
+  return {
+    membershipId: assigneeId,
+    source: volunteer.source,
+    sourceId: volunteer.sourceId,
+    invitationId: volunteer.invitationId,
+    userId: null,
+    // The roster collapses first/last name into a single display name; carry it
+    // in firstName so getJudgeName / getCrewJudgeName render it unchanged.
+    firstName: volunteer.name || null,
+    lastName: null,
+    email: volunteer.email || null,
+    avatar: null,
+    volunteerRoleTypes: volunteer.roleTypes,
+    credentials: volunteer.credentials ?? undefined,
+    availability: volunteer.availability ?? undefined,
+    availabilityNotes: volunteer.availabilityNotes ?? undefined,
+  }
 }
 
 async function loadCrewJudgeRotations(trackWorkoutIds: string[]) {
@@ -645,6 +663,7 @@ async function loadCrewJudgeActiveAssignments(
       trackWorkoutId: competitionHeatsTable.trackWorkoutId,
       heatNumber: competitionHeatsTable.heatNumber,
       membershipId: judgeHeatAssignmentsTable.membershipId,
+      invitationId: judgeHeatAssignmentsTable.invitationId,
       rotationId: judgeHeatAssignmentsTable.rotationId,
       versionId: judgeHeatAssignmentsTable.versionId,
       laneNumber: judgeHeatAssignmentsTable.laneNumber,
@@ -662,14 +681,20 @@ async function loadCrewJudgeActiveAssignments(
       asc(competitionHeatsTable.heatNumber),
       asc(judgeHeatAssignmentsTable.laneNumber),
     )
-  const judgeByMembershipId = new Map(
+  const judgeByAssigneeId = new Map(
     judges.map((judge) => [judge.membershipId, judge]),
   )
 
-  return rows.map((row) => ({
-    ...row,
-    volunteer: judgeByMembershipId.get(row.membershipId) ?? null,
-  }))
+  return rows.map((row) => {
+    // The assignment references either a membership or an invitation; resolve
+    // the canonical assignee id to look the judge up in the roster.
+    const assigneeId = row.membershipId ?? row.invitationId ?? ""
+    return {
+      ...row,
+      membershipId: assigneeId,
+      volunteer: judgeByAssigneeId.get(assigneeId) ?? null,
+    }
+  })
 }
 
 function groupVersionsByWorkout(
@@ -742,13 +767,15 @@ async function materializeCrewJudgeRotations(
       })
       if (laneNumber < 1 || laneNumber > heat.laneCount) continue
 
-      const key = `${heat.id}:${rotation.membershipId}`
+      const assigneeId = getRotationAssigneeId(rotation)
+      const key = `${heat.id}:${assigneeId}`
       if (seen.has(key)) continue
       seen.add(key)
 
       assignments.push({
         heatId: heat.id,
         membershipId: rotation.membershipId,
+        invitationId: rotation.invitationId,
         rotationId: rotation.id,
         laneNumber,
         position: VOLUNTEER_ROLE_TYPES.JUDGE,
@@ -838,11 +865,37 @@ function toCrewJudgeHeats(
   })
 }
 
+/**
+ * Canonical assignee id for a stored rotation: the membership id for account-
+ * backed judges, otherwise the invitation id for imported / manual judges.
+ */
+function getRotationAssigneeId(
+  rotation: Pick<CompetitionJudgeRotation, "membershipId" | "invitationId">,
+): string {
+  return rotation.membershipId ?? rotation.invitationId ?? ""
+}
+
+/**
+ * Split a canonical assignee id into the membership / invitation columns. An
+ * invitation id (tinv_) sets invitationId; anything else is treated as a
+ * membership id.
+ */
+function toJudgeAssigneeColumns(assigneeId: string): {
+  membershipId: string | null
+  invitationId: string | null
+} {
+  if (assigneeId.startsWith("tinv_")) {
+    return { membershipId: null, invitationId: assigneeId }
+  }
+  return { membershipId: assigneeId, invitationId: null }
+}
+
 function toCrewJudgeRotationDraft(
   rotation: Pick<
     CompetitionJudgeRotation,
     | "id"
     | "membershipId"
+    | "invitationId"
     | "startingHeat"
     | "startingLane"
     | "heatsCount"
@@ -851,31 +904,14 @@ function toCrewJudgeRotationDraft(
 ): CrewJudgeRotationDraft {
   return {
     id: rotation.id,
-    membershipId: rotation.membershipId,
+    // Use the canonical assignee id so rotation dedup / lane-conflict checks
+    // work uniformly for membership- and invitation-based judges.
+    membershipId: getRotationAssigneeId(rotation),
     startingHeat: rotation.startingHeat,
     startingLane: rotation.startingLane,
     heatsCount: rotation.heatsCount,
     laneShiftPattern: rotation.laneShiftPattern,
   }
-}
-
-function parseVolunteerMetadata(
-  metadata: string | null,
-): VolunteerMembershipMetadata | null {
-  if (!metadata) return null
-
-  try {
-    return JSON.parse(metadata) as VolunteerMembershipMetadata
-  } catch {
-    return null
-  }
-}
-
-function isJudgeRole(roleTypes: VolunteerRoleType[]) {
-  return (
-    roleTypes.includes(VOLUNTEER_ROLE_TYPES.JUDGE) ||
-    roleTypes.includes(VOLUNTEER_ROLE_TYPES.HEAD_JUDGE)
-  )
 }
 
 export function getJudgeName(judge: {

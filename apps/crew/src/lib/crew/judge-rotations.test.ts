@@ -1,14 +1,16 @@
 // @lat: [[crew#Judge Rotations]]
 import { describe, expect, it } from "vitest"
-import { LANE_SHIFT_PATTERN } from "@/db/schemas/volunteers"
+import { LANE_SHIFT_PATTERN, VOLUNTEER_ROLE_TYPES } from "@/db/schemas/volunteers"
 import {
   assertCrewJudgeRotationReplacementAllowed,
   expandCrewJudgeRotationDrafts,
   getCrewJudgeHeatLaneCount,
   hasCrewJudgeRotationErrors,
+  isCrewJudgeEligible,
   summarizeCrewJudgeCoverage,
   validateCrewJudgeRotationDrafts,
 } from "./judge-rotations"
+import { buildCrewRoster, getCrewRosterAssigneeId } from "./roster-shifts"
 
 const heats = [
   { heatNumber: 1, laneCount: 3 },
@@ -183,5 +185,57 @@ describe("Crew judge rotation helpers", () => {
         ],
       },
     ])
+  })
+})
+
+describe("isCrewJudgeEligible", () => {
+  it("includes judge and head judge roles", () => {
+    expect(isCrewJudgeEligible([VOLUNTEER_ROLE_TYPES.JUDGE])).toBe(true)
+    expect(isCrewJudgeEligible([VOLUNTEER_ROLE_TYPES.HEAD_JUDGE])).toBe(true)
+  })
+
+  it("includes general volunteers so imported batches can be staffed as judges", () => {
+    // Organizers import volunteers with the General role intending to seat them
+    // as judges; excluding General would leave the judge roster empty.
+    expect(isCrewJudgeEligible([VOLUNTEER_ROLE_TYPES.GENERAL])).toBe(true)
+  })
+
+  it("excludes non-judge specialist roles", () => {
+    expect(isCrewJudgeEligible([VOLUNTEER_ROLE_TYPES.MEDICAL])).toBe(false)
+    expect(isCrewJudgeEligible([VOLUNTEER_ROLE_TYPES.CHECK_IN])).toBe(false)
+    expect(isCrewJudgeEligible([])).toBe(false)
+  })
+})
+
+describe("imported (invitation-based) judge eligibility", () => {
+  it("surfaces an imported General volunteer as a judge-eligible roster entry keyed by invitation id", () => {
+    // Repro for the empty judge grid: an organizer imports a batch of General
+    // volunteers (stored as team_invitation rows, no user account). They must
+    // appear in the judge roster and be keyed by their invitation id.
+    const roster = buildCrewRoster(
+      [
+        {
+          id: "tinv_imported_general",
+          email: "imported@example.com",
+          status: "pending",
+          metadata: JSON.stringify({
+            volunteerRoleTypes: [VOLUNTEER_ROLE_TYPES.GENERAL],
+            signupName: "Imported Judge",
+            crewImportId: "import_1",
+          }),
+        },
+      ],
+      [],
+    )
+
+    expect(roster).toHaveLength(1)
+    const volunteer = roster[0]
+    if (!volunteer) throw new Error("expected imported volunteer")
+
+    // Cause #1: General is judge-eligible.
+    expect(isCrewJudgeEligible(volunteer.roleTypes)).toBe(true)
+    // Cause #2: the invitation has no membership; it is keyed by invitation id.
+    expect(volunteer.membershipId).toBeNull()
+    expect(getCrewRosterAssigneeId(volunteer)).toBe("tinv_imported_general")
   })
 })

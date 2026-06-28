@@ -1,16 +1,34 @@
 import { createId } from "@paralleldrive/cuid2"
-import { desc, eq } from "drizzle-orm"
+import { count, desc, eq, inArray, or } from "drizzle-orm"
 import { getDb } from "../db"
 import {
+  type Competition,
+  competitionHeatsTable,
+  competitionsTable,
+} from "../db/schemas/competitions"
+import {
   type CrewConciergeStatus,
-  type CrewEventSettings,
   type CrewEventLifecycle,
+  type CrewEventSettings,
   type CrewPlan,
   crewEventSettingsTable,
 } from "../db/schemas/crew-event-settings"
-import { type Competition, competitionsTable } from "../db/schemas/competitions"
 import { teamTable } from "../db/schemas/teams"
-import { requireLocalCrewOperatorAccess } from "./crew-local-access"
+import {
+  judgeHeatAssignmentsTable,
+  volunteerShiftAssignmentsTable,
+  volunteerShiftsTable,
+} from "../db/schemas/volunteers"
+import type {
+  CrewEventNavigationState,
+  CrewViewerRole,
+} from "../lib/crew/navigation"
+import {
+  getCrewAuthState,
+  getCrewManageCompetitionTeamIds,
+  requireCrewEventManagerAccess,
+  requireCrewPersonalTeamId,
+} from "../server/crew-auth.server"
 import { generateSlug } from "../utils/slugify"
 import { requireCrewDepartmentLeadFullAccess } from "./crew-department-lead.server"
 
@@ -33,10 +51,12 @@ type CrewEventCompetition = Pick<
 export interface CrewEventDetails {
   settings: CrewEventSettings
   competition: CrewEventCompetition
+  navigationState?: CrewEventNavigationState
 }
 
-function requireLocalCrewSettingsAccess() {
-  requireLocalCrewOperatorAccess("Crew event settings")
+export interface CrewEventResult {
+  event: CrewEventDetails | null
+  viewerRole?: CrewViewerRole
 }
 
 type NullableTextInput = string | null | undefined
@@ -46,7 +66,7 @@ interface GetCrewEventInput {
 }
 
 interface CreateCrewEventInput {
-  organizingTeamId: string
+  organizingTeamId?: string
   name: string
   slug: string
   startDate: string
@@ -74,6 +94,10 @@ interface CreateCrewSettingsForCompetitionInput {
 interface UpdateCrewEventSettingsInput {
   competitionId: string
   crewOnly?: boolean
+  name?: string
+  startDate?: string
+  endDate?: string
+  timezone?: string
   sourcePlatform?: NullableTextInput
   sourceEventUrl?: NullableTextInput
   externalRegistrationUrl?: NullableTextInput
@@ -107,6 +131,7 @@ async function requireCrewEventCompetition(competitionId: string) {
   const [competition] = await db
     .select({
       organizingTeamId: competitionsTable.organizingTeamId,
+      competitionTeamId: competitionsTable.competitionTeamId,
     })
     .from(competitionsTable)
     .where(eq(competitionsTable.id, competitionId))
@@ -115,6 +140,8 @@ async function requireCrewEventCompetition(competitionId: string) {
   if (!competition) {
     throw new Error("Crew event not found")
   }
+
+  return competition
 }
 
 async function requireOrganizingTeam(organizingTeamId: string) {
@@ -144,31 +171,98 @@ async function getCrewEventByCompetitionId(
     .where(eq(crewEventSettingsTable.competitionId, competitionId))
     .limit(1)
 
-  return event ?? null
+  if (!event) return null
+
+  return {
+    ...event,
+    navigationState: await loadCrewEventNavigationState(competitionId),
+  }
+}
+
+async function loadCrewEventNavigationState(
+  competitionId: string,
+): Promise<CrewEventNavigationState> {
+  const db = getDb()
+  const [shiftAssignments, judgeAssignments] = await Promise.all([
+    db
+      .select({ count: count() })
+      .from(volunteerShiftAssignmentsTable)
+      .innerJoin(
+        volunteerShiftsTable,
+        eq(volunteerShiftAssignmentsTable.shiftId, volunteerShiftsTable.id),
+      )
+      .where(eq(volunteerShiftsTable.competitionId, competitionId)),
+    db
+      .select({ count: count() })
+      .from(judgeHeatAssignmentsTable)
+      .innerJoin(
+        competitionHeatsTable,
+        eq(judgeHeatAssignmentsTable.heatId, competitionHeatsTable.id),
+      )
+      .where(eq(competitionHeatsTable.competitionId, competitionId)),
+  ])
+  const shiftCount = shiftAssignments[0]?.count ?? 0
+  const assignmentCount = judgeAssignments[0]?.count ?? 0
+
+  return {
+    assignmentCount,
+    shiftCount,
+    hasEventDayData: assignmentCount > 0 || shiftCount > 0,
+    hasPrintPacketData: assignmentCount > 0 || shiftCount > 0,
+  }
 }
 
 export async function listCrewEvents(): Promise<{
   events: CrewEventDetails[]
 }> {
-  requireLocalCrewSettingsAccess()
+  const auth = await getCrewAuthState()
+
+  if (!auth.session) {
+    throw new Error("NOT_AUTHORIZED: Crew events require sign-in")
+  }
 
   const db = getDb()
-  const events = await db
+  const baseQuery = db
     .select(crewEventSelect)
     .from(crewEventSettingsTable)
     .innerJoin(
       competitionsTable,
       eq(crewEventSettingsTable.competitionId, competitionsTable.id),
     )
-    .orderBy(desc(crewEventSettingsTable.createdAt))
+
+  const canListAllEvents = auth.isAdmin
+  const managedTeamIds = getCrewManageCompetitionTeamIds(auth.session)
+
+  if (!canListAllEvents && managedTeamIds.size === 0) {
+    return { events: [] }
+  }
+
+  const events = canListAllEvents
+    ? await baseQuery.orderBy(desc(crewEventSettingsTable.createdAt))
+    : await baseQuery
+        .where(
+          or(
+            inArray(
+              competitionsTable.organizingTeamId,
+              Array.from(managedTeamIds),
+            ),
+            inArray(
+              competitionsTable.competitionTeamId,
+              Array.from(managedTeamIds),
+            ),
+          ),
+        )
+        .orderBy(desc(crewEventSettingsTable.createdAt))
 
   return { events }
 }
 
 export async function getCrewEvent(
   data: GetCrewEventInput,
-): Promise<{ event: CrewEventDetails | null }> {
+): Promise<CrewEventResult> {
   const event = await getCrewEventByCompetitionId(data.eventId)
+  let viewerRole: CrewViewerRole | undefined
+
   if (event) {
     await requireCrewDepartmentLeadFullAccess({
       id: event.competition.id,
@@ -176,16 +270,17 @@ export async function getCrewEvent(
       competitionTeamId: event.competition.competitionTeamId,
       timezone: event.competition.timezone,
     })
+    viewerRole = "organizer_admin"
   }
 
-  return { event }
+  return { event, viewerRole }
 }
 
 export async function createCrewSettingsForCompetition(
   data: CreateCrewSettingsForCompetitionInput,
 ): Promise<{ event: CrewEventDetails }> {
-  requireLocalCrewSettingsAccess()
-  await requireCrewEventCompetition(data.competitionId)
+  const competition = await requireCrewEventCompetition(data.competitionId)
+  await requireCrewEventManagerAccess(competition, "Crew event settings")
 
   const db = getDb()
   const existing = await getCrewEventByCompetitionId(data.competitionId)
@@ -212,8 +307,6 @@ export async function createCrewSettingsForCompetition(
 export async function createCrewEvent(
   data: CreateCrewEventInput,
 ): Promise<{ event: CrewEventDetails }> {
-  requireLocalCrewSettingsAccess()
-
   const db = getDb()
   const existingCompetition = await db
     .select({ id: competitionsTable.id })
@@ -227,7 +320,16 @@ export async function createCrewEvent(
     )
   }
 
-  await requireOrganizingTeam(data.organizingTeamId)
+  // The new event form does not surface a team; default to the creator's
+  // personal team when no organizing team is explicitly provided.
+  const organizingTeamId =
+    data.organizingTeamId ?? (await requireCrewPersonalTeamId())
+
+  await requireOrganizingTeam(organizingTeamId)
+  await requireCrewEventManagerAccess(
+    { organizingTeamId },
+    "Crew event creation",
+  )
 
   let teamSlug = generateSlug(`${data.name}-event`)
   let teamSlugIsUnique = false
@@ -261,14 +363,14 @@ export async function createCrewEvent(
       name: `${data.name} (Event)`,
       slug: teamSlug,
       type: "competition_event",
-      parentOrganizationId: data.organizingTeamId,
+      parentOrganizationId: organizingTeamId,
       description: `Competition event team for ${data.name}`,
       creditBalance: 0,
     })
 
     await tx.insert(competitionsTable).values({
       id: competitionId,
-      organizingTeamId: data.organizingTeamId,
+      organizingTeamId,
       competitionTeamId,
       name: data.name,
       slug: data.slug,
@@ -331,11 +433,32 @@ export async function updateCrewEventSettings(
   }
   if (data.settings !== undefined) updateData.settings = data.settings
 
+  const competitionUpdate: Partial<typeof competitionsTable.$inferInsert> = {}
+  if (data.name !== undefined) competitionUpdate.name = data.name
+  if (data.startDate !== undefined) competitionUpdate.startDate = data.startDate
+  if (data.endDate !== undefined) competitionUpdate.endDate = data.endDate
+  if (data.timezone !== undefined) competitionUpdate.timezone = data.timezone
+
+  if (
+    competitionUpdate.startDate !== undefined &&
+    competitionUpdate.endDate !== undefined &&
+    competitionUpdate.endDate < competitionUpdate.startDate
+  ) {
+    throw new Error("End date must be on or after the start date")
+  }
+
   const db = getDb()
   await db
     .update(crewEventSettingsTable)
     .set(updateData)
     .where(eq(crewEventSettingsTable.competitionId, data.competitionId))
+
+  if (Object.keys(competitionUpdate).length > 0) {
+    await db
+      .update(competitionsTable)
+      .set(competitionUpdate)
+      .where(eq(competitionsTable.id, data.competitionId))
+  }
 
   const event = await getCrewEventByCompetitionId(data.competitionId)
   if (!event) {

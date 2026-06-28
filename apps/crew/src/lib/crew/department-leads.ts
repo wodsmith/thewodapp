@@ -123,27 +123,32 @@ export function filterCrewDepartmentLeadShifts<
 }
 
 export function filterCrewDepartmentLeadRoster<
-  T extends CrewDepartmentLeadRosterTarget,
+  T extends CrewDepartmentLeadRosterTarget & { invitationId?: string | null },
 >(
   roster: T[],
   access: CrewDepartmentLeadAccess,
   visibleShiftAssignments: Array<{
-    assignments: Array<{ membershipId: string }>
+    assignments: Array<{
+      membershipId?: string | null
+      invitationId?: string | null
+    }>
   }>,
 ): T[] {
   if (access.kind === "full") return roster
 
-  const visibleMembershipIds = new Set(
+  // Match on the canonical assignee id so invitation-based (imported / manual)
+  // volunteers assigned to a visible shift remain visible to scoped leads.
+  const visibleAssigneeIds = new Set(
     visibleShiftAssignments.flatMap((shift) =>
-      shift.assignments.map((assignment) => assignment.membershipId),
+      shift.assignments
+        .map((assignment) => assignment.membershipId ?? assignment.invitationId)
+        .filter((id): id is string => Boolean(id)),
     ),
   )
 
   return roster.filter((volunteer) => {
-    if (
-      volunteer.membershipId &&
-      visibleMembershipIds.has(volunteer.membershipId)
-    ) {
+    const assigneeId = volunteer.membershipId ?? volunteer.invitationId
+    if (assigneeId && visibleAssigneeIds.has(assigneeId)) {
       return true
     }
 

@@ -101,6 +101,24 @@ describe("buildManualVolunteerMetadata", () => {
       manualCreatedAt: "2026-06-19T12:00:00.000Z",
     })
   })
+
+  it("omits signupEmail when email is absent but keeps the name", () => {
+    const metadata = buildManualVolunteerMetadata({
+      name: "Grace Hopper",
+    })
+
+    expect(metadata.signupName).toBe("Grace Hopper")
+    expect(metadata).not.toHaveProperty("signupEmail")
+  })
+
+  it("omits signupEmail when email is only whitespace", () => {
+    const metadata = buildManualVolunteerMetadata({
+      email: "   ",
+      name: "Grace Hopper",
+    })
+
+    expect(metadata).not.toHaveProperty("signupEmail")
+  })
 })
 
 describe("planManualVolunteerIntake", () => {
@@ -167,5 +185,26 @@ describe("planManualVolunteerIntake", () => {
       targetId: "tmem_metadata",
       reason: "active_membership",
     })
+  })
+
+  it("does not dedup email-less volunteers against each other", () => {
+    expect(
+      planManualVolunteerIntake("", {
+        existingInvitations: [
+          {
+            id: "tinv_no_email",
+            email: "",
+            status: INVITATION_STATUS.PENDING,
+          },
+        ],
+        existingMemberships: [
+          {
+            id: "tmem_no_email",
+            email: "",
+            isActive: true,
+          },
+        ],
+      }),
+    ).toEqual({ action: "create_invitation", targetId: null })
   })
 })

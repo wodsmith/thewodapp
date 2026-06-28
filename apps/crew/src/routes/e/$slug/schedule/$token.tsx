@@ -12,10 +12,14 @@ import {
   Printer,
   ShieldCheck,
 } from "lucide-react"
-import { useMemo } from "react"
+import { type ReactNode, useMemo, useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
+import {
+  CrewVolunteerPublicResponseControls,
+  getCrewVolunteerResponseActionKey,
+} from "@/components/crew/volunteer-public-response-controls"
 import {
   VOLUNTEER_AVAILABILITY,
   VOLUNTEER_ROLE_LABELS,
@@ -27,16 +31,21 @@ import {
   getCrewAssignmentConfirmationStatusLabel,
 } from "@/lib/crew/assignment-confirmation-display"
 import {
-  getCrewAssignmentConfirmationTokenFn,
-  type CrewAssignmentConfirmationTokenData,
-  updateCrewAssignmentConfirmationContactTokenFn,
-} from "@/server-fns/crew-confirmation-fns"
-import {
   buildCrewVolunteerSelfServiceGoogleCalendarUrl,
   buildCrewVolunteerSelfServiceIcs,
   buildCrewVolunteerSelfServiceIcsFilename,
 } from "@/lib/crew/volunteer-self-service"
-import { getCrewVolunteerScheduleTokenFn } from "@/server-fns/crew-volunteer-fns"
+import {
+  type CrewAssignmentConfirmationTokenData,
+  getCrewAssignmentConfirmationTokenFn,
+  updateCrewAssignmentConfirmationContactTokenFn,
+} from "@/server-fns/crew-confirmation-fns"
+import {
+  type CrewVolunteerScheduleTokenData,
+  type CrewVolunteerVisibleAssignment,
+  getCrewVolunteerScheduleTokenFn,
+  respondCrewVolunteerScheduleTokenFn,
+} from "@/server-fns/crew-volunteer-fns"
 import { formatDateTimeInTimezone } from "@/utils/timezone-utils"
 
 const optionalContactString = (maxLength: number) =>
@@ -108,70 +117,216 @@ function CrewVolunteerScheduleTokenPage() {
     return <CrewAssignmentSchedule data={loaderData.assignmentResult} />
   }
 
-  const { event, volunteer } = loaderData.volunteerResult
+  return (
+    <CrewVolunteerTokenSchedule
+      data={loaderData.volunteerResult}
+      consentHref={consentHref}
+    />
+  )
+}
 
-  if (!event || !volunteer) {
+function CrewVolunteerTokenSchedule({
+  data,
+  consentHref,
+}: {
+  data: CrewVolunteerScheduleTokenData
+  consentHref: string
+}) {
+  const { slug, token } = Route.useParams()
+  const router = useRouter()
+  const respond = useServerFn(respondCrewVolunteerScheduleTokenFn)
+  const [pendingAction, setPendingAction] = useState<string | null>(null)
+
+  if (data.status !== "valid" || !data.event || !data.volunteer) {
     return null
   }
 
+  const timezone = data.event.timezone ?? "America/Denver"
+  const eventDates = `${data.event.startDate} to ${data.event.endDate}`
+  const icsText = buildCrewVolunteerSelfServiceIcs({
+    eventName: data.event.name,
+    assignments: data.assignments,
+  })
+  const icsHref = `data:text/calendar;charset=utf-8,${encodeURIComponent(
+    icsText,
+  )}`
+  const firstAssignment = data.assignments[0] ?? null
+  const googleCalendarUrl = firstAssignment
+    ? buildCrewVolunteerSelfServiceGoogleCalendarUrl({
+        eventName: data.event.name,
+        assignment: firstAssignment,
+      })
+    : null
+  const confirmHref = `/e/${encodeURIComponent(slug)}/confirm/${encodeURIComponent(
+    token,
+  )}`
+
+  async function submitResponse(
+    assignment: CrewVolunteerVisibleAssignment,
+    action: "confirm" | "decline" | "request_change",
+    responseNote?: string,
+  ) {
+    const note = responseNote?.trim() ?? ""
+    setPendingAction(getCrewVolunteerResponseActionKey(assignment.id, action))
+    try {
+      const result = await respond({
+        data: {
+          slug,
+          token,
+          assignmentId: assignment.id,
+          action,
+          responseNote: note || undefined,
+        },
+      })
+      if (result.success) {
+        toast.success(result.message)
+      } else {
+        toast.error(result.message)
+      }
+      await router.invalidate()
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Assignment response failed",
+      )
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
   return (
-    <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
-      <section className="rounded-md border bg-card p-6 shadow-sm">
+    <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6 print:max-w-none print:px-0">
+      <section className="rounded-md border bg-card p-6 shadow-sm print:border-0 print:shadow-none">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-sm font-medium text-muted-foreground">
               Volunteer schedule
             </p>
-            <h1 className="mt-2 text-3xl font-semibold">{event.name}</h1>
+            <h1 className="mt-2 text-3xl font-semibold">{data.event.name}</h1>
             <p className="mt-2 text-muted-foreground">
-              {event.startDate} to {event.endDate}
+              {data.volunteer.name ?? "Volunteer"} · {data.volunteer.email}
             </p>
           </div>
-          <a
-            href={consentHref}
-            className="inline-flex h-10 w-fit items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-muted"
-          >
-            <ShieldCheck className="size-4" />
-            Consent
-          </a>
+          <div className="flex flex-wrap gap-2 print:hidden">
+            {data.assignments.length > 0 ? (
+              <>
+                <a
+                  href={icsHref}
+                  download={buildCrewVolunteerSelfServiceIcsFilename(
+                    data.event.name,
+                  )}
+                  className="inline-flex h-10 items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-muted"
+                >
+                  <CalendarPlus className="size-4" />
+                  iCal
+                </a>
+                {googleCalendarUrl ? (
+                  <a
+                    href={googleCalendarUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex h-10 items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-muted"
+                  >
+                    <ExternalLink className="size-4" />
+                    Google
+                  </a>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="inline-flex h-10 items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-muted"
+                >
+                  <Printer className="size-4" />
+                  Print
+                </button>
+              </>
+            ) : null}
+            <a
+              href={consentHref}
+              className="inline-flex h-10 w-fit items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-muted"
+            >
+              <ShieldCheck className="size-4" />
+              Consent
+            </a>
+          </div>
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2">
-        <InfoBlock label="Volunteer" value={volunteer.name ?? "Not provided"} />
-        <InfoBlock label="Email" value={volunteer.email} />
+      <section className="grid gap-4 sm:grid-cols-2 print:hidden">
+        <InfoBlock
+          label="Volunteer"
+          value={data.volunteer.name ?? "Not provided"}
+        />
+        <InfoBlock label="Email" value={data.volunteer.email} />
         <InfoBlock
           label="Availability"
-          value={formatAvailability(volunteer.availability)}
+          value={formatAvailability(data.volunteer.availability)}
         />
         <InfoBlock
           label="Preferred roles"
-          value={formatRoleTypes(volunteer.roleTypes)}
+          value={formatRoleTypes(data.volunteer.roleTypes)}
         />
       </section>
 
-      {(volunteer.phone ||
-        volunteer.credentials ||
-        volunteer.availabilityNotes) && (
-        <section className="space-y-4 rounded-md border bg-card p-6 shadow-sm">
-          {volunteer.phone && <InfoRow label="Phone" value={volunteer.phone} />}
-          {volunteer.credentials && (
-            <InfoRow label="Credentials" value={volunteer.credentials} />
+      {(data.volunteer.phone ||
+        data.volunteer.credentials ||
+        data.volunteer.availabilityNotes) && (
+        <section className="space-y-4 rounded-md border bg-card p-6 shadow-sm print:hidden">
+          {data.volunteer.phone && (
+            <InfoRow label="Phone" value={data.volunteer.phone} />
           )}
-          {volunteer.availabilityNotes && (
+          {data.volunteer.credentials && (
+            <InfoRow label="Credentials" value={data.volunteer.credentials} />
+          )}
+          {data.volunteer.availabilityNotes && (
             <InfoRow
               label="Availability notes"
-              value={volunteer.availabilityNotes}
+              value={data.volunteer.availabilityNotes}
             />
           )}
         </section>
       )}
 
-      <section className="rounded-md border bg-card p-6 shadow-sm">
-        <h2 className="text-xl font-semibold">Assignments</h2>
-        <p className="mt-2 text-muted-foreground">
-          No volunteer assignments are published for this link yet.
-        </p>
+      <section className="space-y-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-xl font-semibold">Assignments</h2>
+          {data.assignments.length > 0 ? (
+            <a
+              href={confirmHref}
+              className="inline-flex h-10 w-fit items-center gap-2 rounded-md border px-4 text-sm font-medium hover:bg-muted print:hidden"
+            >
+              <ExternalLink className="size-4" />
+              Response page
+            </a>
+          ) : null}
+        </div>
+
+        {data.assignments.length === 0 ? (
+          <div className="rounded-md border bg-card p-6 shadow-sm">
+            <p className="text-muted-foreground">
+              No volunteer assignments are published for this link yet.
+            </p>
+          </div>
+        ) : (
+          data.assignments.map((assignment) => (
+            <ScheduleAssignmentCard
+              key={assignment.id}
+              assignment={assignment}
+              timezone={timezone}
+              eventDates={eventDates}
+              responseControls={
+                <CrewVolunteerPublicResponseControls
+                  assignment={assignment}
+                  pendingAction={pendingAction}
+                  className="print:hidden"
+                  onConfirm={() => void submitResponse(assignment, "confirm")}
+                  onNoteSubmit={(action, note) =>
+                    submitResponse(assignment, action, note)
+                  }
+                />
+              }
+            />
+          ))
+        )}
       </section>
     </main>
   )
@@ -357,62 +512,24 @@ function CrewAssignmentSchedule({
       <section className="space-y-3">
         <h2 className="text-xl font-semibold">Assignments</h2>
         {schedule.map((assignment) => (
-          <article
+          <ScheduleAssignmentCard
             key={assignment.id}
-            className={`rounded-md border bg-card p-5 shadow-sm print:break-inside-avoid print:shadow-none ${
-              assignment.isTokenAssignment ? "border-primary/50" : ""
-            }`}
-          >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h3 className="text-lg font-semibold">{assignment.name}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {assignment.roleLabel}
-                </p>
-              </div>
-              <StatusBadge status={assignment.confirmation?.status} />
-            </div>
-
-            <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2">
-              <InfoRow
-                label="Start"
-                value={formatDateTimeInTimezone(
-                  assignment.startTime,
-                  timezone,
-                  "EEE, MMM d h:mm a",
-                )}
-              />
-              <InfoRow
-                label="End"
-                value={formatDateTimeInTimezone(
-                  assignment.endTime,
-                  timezone,
-                  "EEE, MMM d h:mm a",
-                )}
-              />
-              <InfoRow
-                label="Location"
-                value={assignment.location ?? "Not set"}
-              />
-              <InfoRow label="Event dates" value={eventDates} />
-            </dl>
-
-            {assignment.notes ? (
-              <p className="mt-5 whitespace-pre-wrap rounded-md border bg-background p-3 text-sm text-muted-foreground">
-                {assignment.notes}
-              </p>
-            ) : null}
-
-            {assignment.isTokenAssignment ? (
-              <a
-                href={confirmHref}
-                className="mt-5 inline-flex h-10 items-center gap-2 rounded-md border px-4 text-sm font-medium hover:bg-muted print:hidden"
-              >
-                <ExternalLink className="size-4" />
-                Update response
-              </a>
-            ) : null}
-          </article>
+            assignment={assignment}
+            timezone={timezone}
+            eventDates={eventDates}
+            highlighted={assignment.isTokenAssignment}
+            responseControls={
+              assignment.isTokenAssignment ? (
+                <a
+                  href={confirmHref}
+                  className="mt-5 inline-flex h-10 items-center gap-2 rounded-md border px-4 text-sm font-medium hover:bg-muted print:hidden"
+                >
+                  <ExternalLink className="size-4" />
+                  Update response
+                </a>
+              ) : null
+            }
+          />
         ))}
       </section>
 
@@ -531,6 +648,78 @@ function CrewAssignmentSchedule({
         </form>
       </section>
     </main>
+  )
+}
+
+interface ScheduleAssignmentCardData {
+  id: string
+  name: string
+  roleLabel: string
+  startTime: Date
+  endTime: Date
+  location: string | null
+  notes: string | null
+  confirmation?: { status?: string | null; responseNote?: string | null } | null
+}
+
+function ScheduleAssignmentCard({
+  assignment,
+  timezone,
+  eventDates,
+  highlighted = false,
+  responseControls = null,
+}: {
+  assignment: ScheduleAssignmentCardData
+  timezone: string
+  eventDates: string
+  highlighted?: boolean
+  responseControls?: ReactNode
+}) {
+  return (
+    <article
+      className={`rounded-md border bg-card p-5 shadow-sm print:break-inside-avoid print:shadow-none ${
+        highlighted ? "border-primary/50" : ""
+      }`}
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3 className="text-lg font-semibold">{assignment.name}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {assignment.roleLabel}
+          </p>
+        </div>
+        <StatusBadge status={assignment.confirmation?.status} />
+      </div>
+
+      <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2">
+        <InfoRow
+          label="Start"
+          value={formatDateTimeInTimezone(
+            assignment.startTime,
+            timezone,
+            "EEE, MMM d h:mm a",
+          )}
+        />
+        <InfoRow
+          label="End"
+          value={formatDateTimeInTimezone(
+            assignment.endTime,
+            timezone,
+            "EEE, MMM d h:mm a",
+          )}
+        />
+        <InfoRow label="Location" value={assignment.location ?? "Not set"} />
+        <InfoRow label="Event dates" value={eventDates} />
+      </dl>
+
+      {assignment.notes ? (
+        <p className="mt-5 whitespace-pre-wrap rounded-md border bg-background p-3 text-sm text-muted-foreground">
+          {assignment.notes}
+        </p>
+      ) : null}
+
+      {responseControls}
+    </article>
   )
 }
 

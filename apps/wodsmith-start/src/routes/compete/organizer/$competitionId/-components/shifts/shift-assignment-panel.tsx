@@ -226,9 +226,11 @@ export function ShiftAssignmentPanel({
     for (const s of allShifts) {
       if (s.id === shift.id) continue // Exclude current shift
       for (const assignment of s.assignments) {
-        const existing = map.get(assignment.membershipId) ?? []
+        const membershipId = assignment.membershipId
+        if (!membershipId) continue
+        const existing = map.get(membershipId) ?? []
         existing.push(s)
-        map.set(assignment.membershipId, existing)
+        map.set(membershipId, existing)
       }
     }
     return map
@@ -429,7 +431,7 @@ export function ShiftAssignmentPanel({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleUnassign(assignment.membershipId)}
+                        onClick={() => handleUnassign(assignment.membershipId ?? "")}
                         disabled={unassigningId === assignment.membershipId}
                         aria-label={`Remove ${volunteerName}`}
                       >

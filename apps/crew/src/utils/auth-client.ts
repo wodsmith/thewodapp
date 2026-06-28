@@ -3,7 +3,15 @@
  * Provides hooks to access session data from route context
  */
 
-import { useRouteContext } from "@tanstack/react-router"
+import {useRouteContext} from '@tanstack/react-router'
+
+interface CrewSessionContext {
+  session?: {
+    user?: {
+      role?: string | null
+    } | null
+  } | null
+}
 
 /**
  * Hook to access the current session from route context.
@@ -12,6 +20,6 @@ import { useRouteContext } from "@tanstack/react-router"
  * @returns The current session or null if not authenticated
  */
 export function useSession() {
-  const context = useRouteContext({ from: "__root__" })
-  return context.session
+  const context = useRouteContext({from: '__root__'}) as CrewSessionContext
+  return context.session ?? null
 }

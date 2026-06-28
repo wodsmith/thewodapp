@@ -7,11 +7,11 @@ import {
   competitionsTable,
   competitionVenuesTable,
 } from "../db/schemas/competitions"
+import { crewEventSettingsTable } from "../db/schemas/crew-event-settings"
 import {
   CREW_ASSIGNMENT_CONFIRMATION_TYPE,
   crewAssignmentConfirmationsTable,
 } from "../db/schemas/crew-imports"
-import { crewEventSettingsTable } from "../db/schemas/crew-event-settings"
 import {
   programmingTracksTable,
   trackWorkoutsTable,
@@ -22,22 +22,27 @@ import {
 } from "../db/schemas/volunteers"
 import { workouts as workoutsTable } from "../db/schemas/workouts"
 import {
+  type CrewDepartmentLeadAccess,
+  filterCrewDepartmentLeadRoster,
+} from "../lib/crew/department-leads"
+import {
   buildCrewStaffingMatrix,
   buildCrewStaffingReport,
   type CrewStaffingConfirmationInput,
   type CrewStaffingMatrix,
+  type CrewStaffingMatrixInput,
   type CrewStaffingReport,
 } from "../lib/crew/staffing"
 import {
-  filterCrewDepartmentLeadRoster,
-  type CrewDepartmentLeadAccess,
-} from "../lib/crew/department-leads"
+  getCrewRosterAssigneeId,
+  isCrewRosterVolunteerStaffable,
+} from "../lib/crew/roster-shifts"
 import { filterCrewStaffingInputForDepartmentLead } from "../lib/crew/staffing/department-lead-scope"
 import { resolveCrewDepartmentLeadAccess } from "../server/crew-department-lead.server"
 import {
+  type CrewShiftBoardItem,
   loadCrewRoster,
   loadCrewShifts,
-  type CrewShiftBoardItem,
 } from "../server/crew-roster-shift.server"
 
 type DbClient = ReturnType<typeof getDb>
@@ -62,9 +67,27 @@ export interface CrewStaffingReportPageData {
   }
 }
 
+export interface CrewStaffingReportForDayOfData
+  extends CrewStaffingReportPageData {
+  matrixInput: CrewStaffingMatrixInput
+}
+
 export async function getCrewStaffingReportPage(
   eventId: string,
 ): Promise<CrewStaffingReportPageData> {
+  const staffing = await getCrewStaffingReportForDayOf(eventId)
+
+  return {
+    event: staffing.event,
+    matrix: staffing.matrix,
+    report: staffing.report,
+    sources: staffing.sources,
+  }
+}
+
+export async function getCrewStaffingReportForDayOf(
+  eventId: string,
+): Promise<CrewStaffingReportForDayOfData> {
   const event = await requireCrewStaffingEvent(eventId)
   const access = await resolveCrewDepartmentLeadAccess(event)
   const { input, activeJudgeVersions } = await loadCrewStaffingMatrixInput(
@@ -76,6 +99,7 @@ export async function getCrewStaffingReportPage(
 
   return {
     event,
+    matrixInput: input,
     matrix,
     report,
     sources: {
@@ -163,15 +187,18 @@ export async function loadCrewStaffingMatrixInput(
   const input = {
     ...scopedStaffingInput,
     roster: scopedRoster.flatMap((volunteer) => {
-      if (!volunteer.membershipId) return []
+      // Key by canonical assignee id so invitation-based (imported / manual)
+      // volunteers participate in the staffing matrix.
+      const assigneeId = getCrewRosterAssigneeId(volunteer)
+      if (!assigneeId) return []
       return {
-        membershipId: volunteer.membershipId,
+        membershipId: assigneeId,
         name: volunteer.name,
         email: volunteer.email,
         roleTypes: volunteer.roleTypes,
         availability: volunteer.availability,
         credentials: volunteer.credentials,
-        isActive: volunteer.status === "active",
+        isActive: isCrewRosterVolunteerStaffable(volunteer),
       }
     }),
   }
@@ -297,6 +324,7 @@ async function loadActiveJudgeAssignments(
       id: judgeHeatAssignmentsTable.id,
       heatId: judgeHeatAssignmentsTable.heatId,
       membershipId: judgeHeatAssignmentsTable.membershipId,
+      invitationId: judgeHeatAssignmentsTable.invitationId,
       laneNumber: judgeHeatAssignmentsTable.laneNumber,
       position: judgeHeatAssignmentsTable.position,
       versionId: judgeHeatAssignmentsTable.versionId,
@@ -321,8 +349,12 @@ async function loadActiveJudgeAssignments(
 
   return {
     activeVersionCount: activeVersions.length,
-    judgeAssignments: assignments.map((assignment) => ({
+    judgeAssignments: assignments.map(({ invitationId, ...assignment }) => ({
       ...assignment,
+      // The staffing matrix keys judges by a single canonical id; an assignment
+      // references either a membership or an invitation (imported / manual
+      // judge), so coalesce to whichever is set.
+      membershipId: assignment.membershipId ?? invitationId ?? "",
       confirmation: confirmationMap.get(assignment.id) ?? null,
     })),
   }
@@ -383,7 +415,9 @@ function toStaffingShifts(shifts: CrewShiftBoardItem[]) {
     location: shift.location,
     assignments: shift.assignments.map((assignment) => ({
       id: assignment.id,
-      membershipId: assignment.membershipId,
+      // Canonical assignee id (membership or invitation) so the staffing matrix
+      // keys invitation-based volunteers alongside memberships.
+      membershipId: assignment.assigneeId,
       confirmation: assignment.confirmation
         ? {
             type: CREW_ASSIGNMENT_CONFIRMATION_TYPE.VOLUNTEER_SHIFT,

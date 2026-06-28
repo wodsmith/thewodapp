@@ -20,7 +20,7 @@ import {
 } from "./common"
 import { competitionHeatsTable, competitionsTable } from "./competitions"
 import { trackWorkoutsTable } from "./programming"
-import { teamMembershipTable } from "./teams"
+import { teamInvitationTable, teamMembershipTable } from "./teams"
 import { userTable } from "./users"
 
 // Volunteer role types
@@ -188,8 +188,14 @@ export const judgeHeatAssignmentsTable = mysqlTable(
       .notNull(),
     // The heat this volunteer is assigned to
     heatId: varchar({ length: 255 }).notNull(),
-    // The team membership (must have volunteer role)
-    membershipId: varchar({ length: 255 }).notNull(),
+    // The team membership (account-backed volunteer with a volunteer role).
+    // Null when the assignee is an invitation-based (imported / manual)
+    // volunteer without an account — see invitationId below.
+    membershipId: varchar({ length: 255 }),
+    // The team invitation (imported / manual volunteer) being assigned. Null
+    // when the assignee is an account-backed membership. Exactly one of
+    // membershipId / invitationId is set per assignment.
+    invitationId: varchar({ length: 255 }),
     // Optional reference to the rotation that generated this assignment
     // (null for manually created assignments)
     // IMPORTANT: Keep this - it tracks which rotation generated an assignment
@@ -209,12 +215,22 @@ export const judgeHeatAssignmentsTable = mysqlTable(
   (table) => [
     index("judge_heat_assignments_heat_idx").on(table.heatId),
     index("judge_heat_assignments_membership_idx").on(table.membershipId),
+    index("judge_heat_assignments_invitation_idx").on(table.invitationId),
     index("judge_heat_assignments_rotation_idx").on(table.rotationId),
     index("judge_heat_assignments_version_idx").on(table.versionId),
-    // Ensure a volunteer can only be assigned once per heat per version
+    // Ensure a membership volunteer can only be assigned once per heat per
+    // version. Invitation-based judges have a NULL membershipId, which MySQL
+    // treats as distinct, so they are constrained by the invitation index below.
     uniqueIndex("judge_heat_assignments_unique_idx").on(
       table.heatId,
       table.membershipId,
+      table.versionId,
+    ),
+    // Ensure an invitation volunteer can only be assigned once per heat per
+    // version.
+    uniqueIndex("judge_heat_assignments_invitation_unique_idx").on(
+      table.heatId,
+      table.invitationId,
       table.versionId,
     ),
   ],
@@ -234,8 +250,13 @@ export const competitionJudgeRotationsTable = mysqlTable(
     competitionId: varchar({ length: 255 }).notNull(),
     // The event/workout this rotation is for
     trackWorkoutId: varchar({ length: 255 }).notNull(),
-    // The judge (team membership with volunteer role)
-    membershipId: varchar({ length: 255 }).notNull(),
+    // The judge as an account-backed team membership. Null when the judge is an
+    // invitation-based (imported / manual) volunteer without an account — see
+    // invitationId below. Exactly one of membershipId / invitationId is set.
+    membershipId: varchar({ length: 255 }),
+    // The judge as a team invitation (imported / manual volunteer). Null when
+    // the judge is an account-backed membership.
+    invitationId: varchar({ length: 255 }),
     // Starting heat number (1-indexed)
     startingHeat: int().notNull(),
     // Starting lane number (1-indexed)
@@ -256,6 +277,7 @@ export const competitionJudgeRotationsTable = mysqlTable(
     ),
     index("competition_judge_rotations_workout_idx").on(table.trackWorkoutId),
     index("competition_judge_rotations_membership_idx").on(table.membershipId),
+    index("competition_judge_rotations_invitation_idx").on(table.invitationId),
     // Composite index for efficient rotation lookups
     index("competition_judge_rotations_event_heat_idx").on(
       table.trackWorkoutId,
@@ -299,8 +321,12 @@ export const volunteerShiftsTable = mysqlTable(
 )
 
 // Volunteer Shift Assignments Table
-// Junction table to assign volunteers (team memberships) to shifts
-// A volunteer can be assigned to multiple shifts, and a shift can have multiple volunteers up to its capacity
+// Junction table to assign volunteers to shifts. A volunteer is referenced
+// either by their team membership (account-backed volunteers) OR by their
+// team invitation (imported / manually-added volunteers who have no account
+// yet). Exactly one of membershipId / invitationId is set per assignment.
+// A volunteer can be assigned to multiple shifts, and a shift can have multiple
+// volunteers up to its capacity.
 export const volunteerShiftAssignmentsTable = mysqlTable(
   "volunteer_shift_assignments",
   {
@@ -311,18 +337,28 @@ export const volunteerShiftAssignmentsTable = mysqlTable(
       .notNull(),
     // The shift this assignment is for
     shiftId: varchar({ length: 255 }).notNull(),
-    // The team membership (volunteer) being assigned
-    membershipId: varchar({ length: 255 }).notNull(),
+    // The team membership (volunteer) being assigned. Null when the assignee is
+    // an invitation-based volunteer without an account.
+    membershipId: varchar({ length: 255 }),
+    // The team invitation (imported / manual volunteer) being assigned. Null
+    // when the assignee is an account-backed membership.
+    invitationId: varchar({ length: 255 }),
     // Optional notes/instructions for this specific assignment
     notes: text(),
   },
   (table) => [
     index("volunteer_shift_assignments_shift_idx").on(table.shiftId),
     index("volunteer_shift_assignments_membership_idx").on(table.membershipId),
-    // Ensure a volunteer can only be assigned once per shift
+    index("volunteer_shift_assignments_invitation_idx").on(table.invitationId),
+    // Ensure a membership volunteer can only be assigned once per shift
     uniqueIndex("volunteer_shift_assignments_unique_idx").on(
       table.shiftId,
       table.membershipId,
+    ),
+    // Ensure an invitation volunteer can only be assigned once per shift
+    uniqueIndex("volunteer_shift_assignments_invitation_unique_idx").on(
+      table.shiftId,
+      table.invitationId,
     ),
   ],
 )
@@ -373,6 +409,10 @@ export const judgeHeatAssignmentsRelations = relations(
       fields: [judgeHeatAssignmentsTable.membershipId],
       references: [teamMembershipTable.id],
     }),
+    invitation: one(teamInvitationTable, {
+      fields: [judgeHeatAssignmentsTable.invitationId],
+      references: [teamInvitationTable.id],
+    }),
     rotation: one(competitionJudgeRotationsTable, {
       fields: [judgeHeatAssignmentsTable.rotationId],
       references: [competitionJudgeRotationsTable.id],
@@ -404,6 +444,10 @@ export const competitionJudgeRotationsRelations = relations(
       fields: [competitionJudgeRotationsTable.membershipId],
       references: [teamMembershipTable.id],
     }),
+    invitation: one(teamInvitationTable, {
+      fields: [competitionJudgeRotationsTable.invitationId],
+      references: [teamInvitationTable.id],
+    }),
   }),
 )
 
@@ -434,6 +478,10 @@ export const volunteerShiftAssignmentsRelations = relations(
     membership: one(teamMembershipTable, {
       fields: [volunteerShiftAssignmentsTable.membershipId],
       references: [teamMembershipTable.id],
+    }),
+    invitation: one(teamInvitationTable, {
+      fields: [volunteerShiftAssignmentsTable.invitationId],
+      references: [teamInvitationTable.id],
     }),
   }),
 )

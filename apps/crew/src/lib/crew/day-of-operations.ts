@@ -1,13 +1,22 @@
 // @lat: [[crew#Day Of Operations Board]]
 import {
+  CREW_ASSIGNMENT_CONFIRMATION_TYPE,
+  type CrewAssignmentConfirmationType,
+} from "../../db/schemas/crew-imports"
+import {
   VOLUNTEER_ROLE_LABELS,
   VOLUNTEER_ROLE_TYPES,
   type VolunteerRoleType,
 } from "../../db/schemas/volunteers"
+import {
+  type CrewAssignmentConfirmationOperationalState,
+  getCrewAssignmentConfirmationOperationalState,
+} from "./assignment-confirmations"
 import type {
   CrewStaffingConfirmationGap,
   CrewStaffingCoverageRow,
   CrewStaffingMatrix,
+  CrewStaffingMatrixInput,
   CrewStaffingReport,
   CrewStaffingTimeBlock,
 } from "./staffing"
@@ -24,6 +33,7 @@ export type CrewDayOfBlockStatus = "covered" | "attention" | "critical"
 export interface CrewDayOfOperationsBoardInput {
   matrix: CrewStaffingMatrix
   report: CrewStaffingReport
+  staffingInput?: CrewStaffingMatrixInput
   now?: Date | string
   responseDueSoonHours?: number
 }
@@ -72,6 +82,7 @@ export interface CrewDayOfCriticalGap {
 
 export interface CrewDayOfResponseQueueItem {
   assignmentId: string
+  assignmentType: CrewAssignmentConfirmationType
   membershipId: string
   volunteerName: string
   timeBlockId: string
@@ -112,6 +123,27 @@ export interface CrewDayOfStateSummary {
   replaced: number
 }
 
+export interface CrewDayOfAssignmentActionItem {
+  assignmentId: string
+  assignmentType: CrewAssignmentConfirmationType
+  membershipId: string
+  volunteerName: string
+  roleType: VolunteerRoleType
+  roleLabel: string
+  timeBlockId: string
+  blockLabel: string
+  timing: CrewDayOfBlockTiming
+  startsAt: string | null
+  endsAt: string | null
+  state: CrewAssignmentConfirmationOperationalState
+}
+
+export interface CrewDayOfReplacementOption {
+  membershipId: string
+  volunteerName: string
+  roleTypes: VolunteerRoleType[]
+}
+
 export interface CrewDayOfOperationsBoard {
   generatedAt: string
   responseDueSoonHours: number
@@ -122,6 +154,8 @@ export interface CrewDayOfOperationsBoard {
   noResponsesDueSoon: CrewDayOfResponseQueueItem[]
   decisionQueue: CrewDayOfResponseQueueItem[]
   noShowReplacementQueue: CrewDayOfResponseQueueItem[]
+  assignmentActions: CrewDayOfAssignmentActionItem[]
+  replacementOptions: CrewDayOfReplacementOption[]
   judgeCoverage: CrewDayOfJudgeCoverageSummary
   stateSummary: CrewDayOfStateSummary
   summary: {
@@ -200,6 +234,10 @@ export function buildCrewDayOfOperationsBoard(
     matrix: input.matrix,
     blockSummaryById,
   })
+  const assignmentActions = buildAssignmentActionItems({
+    staffingInput: input.staffingInput,
+    blockSummaryById,
+  })
 
   return {
     generatedAt: now.toISOString(),
@@ -211,10 +249,13 @@ export function buildCrewDayOfOperationsBoard(
     noResponsesDueSoon,
     decisionQueue,
     noShowReplacementQueue,
+    assignmentActions,
+    replacementOptions: buildReplacementOptions(input.staffingInput),
     judgeCoverage,
     stateSummary: {
-      checkedInTracked: false,
-      checkedIn: 0,
+      checkedInTracked: Boolean(input.staffingInput),
+      checkedIn: assignmentActions.filter((item) => item.state === "checked_in")
+        .length,
       noShow: input.matrix.summary.confirmationNoShows,
       replaced: input.matrix.summary.confirmationReplaced,
     },
@@ -400,6 +441,7 @@ function buildResponseQueueItems(input: {
       const block = input.blockSummaryById.get(gap.timeBlockId)
       return {
         assignmentId: gap.assignmentId,
+        assignmentType: gap.type,
         membershipId: gap.membershipId,
         volunteerName: gap.volunteerName,
         timeBlockId: gap.timeBlockId,
@@ -411,6 +453,87 @@ function buildResponseQueueItems(input: {
       }
     })
     .sort(compareQueueItem)
+}
+
+function buildAssignmentActionItems(input: {
+  staffingInput: CrewStaffingMatrixInput | undefined
+  blockSummaryById: Map<string, CrewDayOfBlockSummary>
+}): CrewDayOfAssignmentActionItem[] {
+  if (!input.staffingInput) return []
+
+  const rosterByMembershipId = new Map(
+    (input.staffingInput.roster ?? []).map((volunteer) => [
+      volunteer.membershipId,
+      volunteer,
+    ]),
+  )
+  const items: CrewDayOfAssignmentActionItem[] = []
+
+  for (const shift of input.staffingInput.shifts ?? []) {
+    const block = input.blockSummaryById.get(`shift:${shift.id}`)
+    if (!block || block.timing === "past") continue
+
+    for (const assignment of shift.assignments) {
+      const volunteer = rosterByMembershipId.get(assignment.membershipId)
+      items.push({
+        assignmentId: assignment.id,
+        assignmentType: CREW_ASSIGNMENT_CONFIRMATION_TYPE.VOLUNTEER_SHIFT,
+        membershipId: assignment.membershipId,
+        volunteerName: volunteer?.name ?? "Volunteer",
+        roleType: shift.roleType,
+        roleLabel: formatRole(shift.roleType),
+        timeBlockId: block.timeBlockId,
+        blockLabel: block.label,
+        timing: block.timing,
+        startsAt: block.startsAt,
+        endsAt: block.endsAt,
+        state: getCrewAssignmentConfirmationOperationalState(
+          assignment.confirmation,
+        ),
+      })
+    }
+  }
+
+  for (const assignment of input.staffingInput.judgeAssignments ?? []) {
+    const block = input.blockSummaryById.get(`heat:${assignment.heatId}`)
+    if (!block || block.timing === "past") continue
+
+    const roleType = assignment.position ?? VOLUNTEER_ROLE_TYPES.JUDGE
+    const volunteer = rosterByMembershipId.get(assignment.membershipId)
+    items.push({
+      assignmentId: assignment.id,
+      assignmentType: CREW_ASSIGNMENT_CONFIRMATION_TYPE.JUDGE_HEAT,
+      membershipId: assignment.membershipId,
+      volunteerName: volunteer?.name ?? "Volunteer",
+      roleType,
+      roleLabel: formatRole(roleType),
+      timeBlockId: block.timeBlockId,
+      blockLabel: block.label,
+      timing: block.timing,
+      startsAt: block.startsAt,
+      endsAt: block.endsAt,
+      state: getCrewAssignmentConfirmationOperationalState(
+        assignment.confirmation,
+      ),
+    })
+  }
+
+  return items.sort(compareAssignmentActionItem)
+}
+
+function buildReplacementOptions(
+  input: CrewStaffingMatrixInput | undefined,
+): CrewDayOfReplacementOption[] {
+  return (input?.roster ?? [])
+    .filter((volunteer) => volunteer.isActive !== false)
+    .map((volunteer) => ({
+      membershipId: volunteer.membershipId,
+      volunteerName: volunteer.name,
+      roleTypes: volunteer.roleTypes,
+    }))
+    .sort((left, right) =>
+      left.volunteerName.localeCompare(right.volunteerName),
+    )
 }
 
 function isNoResponseDueSoon(
@@ -511,6 +634,19 @@ function compareQueueItem(
   return (
     timingRank(left.timing) - timingRank(right.timing) ||
     compareNullableIso(left.startsAt, right.startsAt) ||
+    left.volunteerName.localeCompare(right.volunteerName) ||
+    left.assignmentId.localeCompare(right.assignmentId)
+  )
+}
+
+function compareAssignmentActionItem(
+  left: CrewDayOfAssignmentActionItem,
+  right: CrewDayOfAssignmentActionItem,
+) {
+  return (
+    timingRank(left.timing) - timingRank(right.timing) ||
+    compareNullableIso(left.startsAt, right.startsAt) ||
+    left.blockLabel.localeCompare(right.blockLabel) ||
     left.volunteerName.localeCompare(right.volunteerName) ||
     left.assignmentId.localeCompare(right.assignmentId)
   )
