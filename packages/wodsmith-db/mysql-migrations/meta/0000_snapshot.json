@@ -1,8 +1,8 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "2ed73bd8-293c-4bb6-a91f-048301106349",
-  "prevId": "128d38a2-1a30-484b-b159-ce7f27fc89f4",
+  "id": "97cfa333-f35f-43af-b278-29332295913c",
+  "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "addresses": {
       "name": "addresses",
@@ -468,6 +468,439 @@
           ]
         }
       },
+      "checkConstraint": {}
+    },
+    "benchmark_batteries": {
+      "name": "benchmark_batteries",
+      "columns": {
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "update_counter": {
+          "name": "update_counter",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "id": {
+          "name": "id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "owner_team_id": {
+          "name": "owner_team_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "owner_key": {
+          "name": "owner_key",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "slug": {
+          "name": "slug",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "categories": {
+          "name": "categories",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "rating_bands": {
+          "name": "rating_bands",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "max_tier": {
+          "name": "max_tier",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 10
+        },
+        "score_max": {
+          "name": "score_max",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 100
+        },
+        "video_policy": {
+          "name": "video_policy",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'never'"
+        },
+        "is_open_join": {
+          "name": "is_open_join",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "variant_scaling_group_id": {
+          "name": "variant_scaling_group_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "competition_id": {
+          "name": "competition_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'draft'"
+        }
+      },
+      "indexes": {
+        "benchmark_batteries_owner_key_unique": {
+          "name": "benchmark_batteries_owner_key_unique",
+          "columns": [
+            "owner_key"
+          ],
+          "isUnique": true
+        },
+        "benchmark_batteries_competition_unique": {
+          "name": "benchmark_batteries_competition_unique",
+          "columns": [
+            "competition_id"
+          ],
+          "isUnique": true
+        },
+        "benchmark_batteries_owner_team_idx": {
+          "name": "benchmark_batteries_owner_team_idx",
+          "columns": [
+            "owner_team_id"
+          ],
+          "isUnique": false
+        },
+        "benchmark_batteries_status_idx": {
+          "name": "benchmark_batteries_status_idx",
+          "columns": [
+            "status"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "benchmark_batteries_id": {
+          "name": "benchmark_batteries_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "benchmark_tests": {
+      "name": "benchmark_tests",
+      "columns": {
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "update_counter": {
+          "name": "update_counter",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "id": {
+          "name": "id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "battery_id": {
+          "name": "battery_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "category_key": {
+          "name": "category_key",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "position": {
+          "name": "position",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "scheme": {
+          "name": "scheme",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "score_type": {
+          "name": "score_type",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "input_unit": {
+          "name": "input_unit",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "included_in_scoring": {
+          "name": "included_in_scoring",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "time_cap_ms": {
+          "name": "time_cap_ms",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "score_model": {
+          "name": "score_model",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'standard'"
+        },
+        "hybrid_flip_tier": {
+          "name": "hybrid_flip_tier",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "hybrid_scale": {
+          "name": "hybrid_scale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "benchmark_tests_battery_position_unique": {
+          "name": "benchmark_tests_battery_position_unique",
+          "columns": [
+            "battery_id",
+            "position"
+          ],
+          "isUnique": true
+        },
+        "benchmark_tests_battery_idx": {
+          "name": "benchmark_tests_battery_idx",
+          "columns": [
+            "battery_id"
+          ],
+          "isUnique": false
+        },
+        "benchmark_tests_category_idx": {
+          "name": "benchmark_tests_category_idx",
+          "columns": [
+            "battery_id",
+            "category_key"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "benchmark_tests_id": {
+          "name": "benchmark_tests_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "benchmark_tier_thresholds": {
+      "name": "benchmark_tier_thresholds",
+      "columns": {
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "update_counter": {
+          "name": "update_counter",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "id": {
+          "name": "id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "test_id": {
+          "name": "test_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "variant": {
+          "name": "variant",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tier": {
+          "name": "tier",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "threshold_value": {
+          "name": "threshold_value",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "raw_value": {
+          "name": "raw_value",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "benchmark_thresholds_test_variant_tier_unique": {
+          "name": "benchmark_thresholds_test_variant_tier_unique",
+          "columns": [
+            "test_id",
+            "variant",
+            "tier"
+          ],
+          "isUnique": true
+        },
+        "benchmark_thresholds_test_variant_idx": {
+          "name": "benchmark_thresholds_test_variant_idx",
+          "columns": [
+            "test_id",
+            "variant"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "benchmark_tier_thresholds_id": {
+          "name": "benchmark_tier_thresholds_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
       "checkConstraint": {}
     },
     "competition_broadcast_recipients": {
@@ -9076,6 +9509,20 @@
           "notNull": false,
           "autoincrement": false,
           "default": 2
+        },
+        "benchmark_test_id": {
+          "name": "benchmark_test_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "benchmark_category": {
+          "name": "benchmark_category",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {
@@ -9120,6 +9567,20 @@
           "name": "track_workout_sponsor_idx",
           "columns": [
             "sponsor_id"
+          ],
+          "isUnique": false
+        },
+        "track_workout_benchmark_test_idx": {
+          "name": "track_workout_benchmark_test_idx",
+          "columns": [
+            "benchmark_test_id"
+          ],
+          "isUnique": false
+        },
+        "track_workout_benchmark_category_idx": {
+          "name": "track_workout_benchmark_category_idx",
+          "columns": [
+            "benchmark_category"
           ],
           "isUnique": false
         }
@@ -11306,6 +11767,13 @@
           "autoincrement": false,
           "default": false
         },
+        "benchmark_variant": {
+          "name": "benchmark_variant",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "notes": {
           "name": "notes",
           "type": "text",
@@ -11406,6 +11874,14 @@
             "scaling_level_id"
           ],
           "isUnique": true
+        },
+        "idx_scores_benchmark_variant": {
+          "name": "idx_scores_benchmark_variant",
+          "columns": [
+            "competition_event_id",
+            "benchmark_variant"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {},
@@ -13054,7 +13530,14 @@
           "name": "membership_id",
           "type": "varchar(255)",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "invitation_id": {
+          "name": "invitation_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "starting_heat": {
@@ -13113,6 +13596,13 @@
           "name": "competition_judge_rotations_membership_idx",
           "columns": [
             "membership_id"
+          ],
+          "isUnique": false
+        },
+        "competition_judge_rotations_invitation_idx": {
+          "name": "competition_judge_rotations_invitation_idx",
+          "columns": [
+            "invitation_id"
           ],
           "isUnique": false
         },
@@ -13293,7 +13783,14 @@
           "name": "membership_id",
           "type": "varchar(255)",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "invitation_id": {
+          "name": "invitation_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "rotation_id": {
@@ -13355,6 +13852,13 @@
           ],
           "isUnique": false
         },
+        "judge_heat_assignments_invitation_idx": {
+          "name": "judge_heat_assignments_invitation_idx",
+          "columns": [
+            "invitation_id"
+          ],
+          "isUnique": false
+        },
         "judge_heat_assignments_rotation_idx": {
           "name": "judge_heat_assignments_rotation_idx",
           "columns": [
@@ -13374,6 +13878,15 @@
           "columns": [
             "heat_id",
             "membership_id",
+            "version_id"
+          ],
+          "isUnique": true
+        },
+        "judge_heat_assignments_invitation_unique_idx": {
+          "name": "judge_heat_assignments_invitation_unique_idx",
+          "columns": [
+            "heat_id",
+            "invitation_id",
             "version_id"
           ],
           "isUnique": true
@@ -13434,7 +13947,14 @@
           "name": "membership_id",
           "type": "varchar(255)",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "invitation_id": {
+          "name": "invitation_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "notes": {
@@ -13460,11 +13980,26 @@
           ],
           "isUnique": false
         },
+        "volunteer_shift_assignments_invitation_idx": {
+          "name": "volunteer_shift_assignments_invitation_idx",
+          "columns": [
+            "invitation_id"
+          ],
+          "isUnique": false
+        },
         "volunteer_shift_assignments_unique_idx": {
           "name": "volunteer_shift_assignments_unique_idx",
           "columns": [
             "shift_id",
             "membership_id"
+          ],
+          "isUnique": true
+        },
+        "volunteer_shift_assignments_invitation_unique_idx": {
+          "name": "volunteer_shift_assignments_invitation_unique_idx",
+          "columns": [
+            "shift_id",
+            "invitation_id"
           ],
           "isUnique": true
         }
