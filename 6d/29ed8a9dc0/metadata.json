@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "6d29ed8a9dc0",
+  "strategy": "manual-commit",
+  "branch": "zac/crew-print-packets",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/crew/src/components/crew-event-sidebar.tsx",
+    "apps/crew/src/components/ui/sidebar.tsx",
+    "apps/crew/src/routes/events/$eventId/exports.tsx",
+    "lat.md/crew.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/6d/29ed8a9dc0/0/metadata.json",
+      "transcript": "/6d/29ed8a9dc0/0/full.jsonl",
+      "context": "/6d/29ed8a9dc0/0/context.md",
+      "content_hash": "/6d/29ed8a9dc0/0/content_hash.txt",
+      "prompt": "/6d/29ed8a9dc0/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 13683,
+    "cache_creation_tokens": 55809,
+    "cache_read_tokens": 1501265,
+    "output_tokens": 11224,
+    "api_call_count": 26
+  }
+}

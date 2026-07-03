@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "6d29ed8a9dc0",
+  "session_id": "671d38d8-b97d-4a6e-8fec-8937cd0fecd4",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-03T22:56:44.553079Z",
+  "branch": "zac/crew-print-packets",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/crew/src/components/crew-event-sidebar.tsx",
+    "apps/crew/src/components/ui/sidebar.tsx",
+    "apps/crew/src/routes/events/$eventId/exports.tsx",
+    "lat.md/crew.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "930abca3-b206-4828-bfdf-f236f882d7aa",
+  "token_usage": {
+    "input_tokens": 13683,
+    "cache_creation_tokens": 55809,
+    "cache_read_tokens": 1501265,
+    "output_tokens": 11224,
+    "api_call_count": 26
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-07-03T22:56:44.481406Z",
+    "agent_lines": 66,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 66,
+    "agent_percentage": 100
+  }
+}

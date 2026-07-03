@@ -1,0 +1,17 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+investigate the print packets implementation, [Image #1] i dont want the first page of the print package to look like this. I want a small clean wodsmith header on each page.
+
+### Prompt 2
+
+[Image: source: REDACTED.png]
+
+### Prompt 3
+
+Stop hook feedback:
+The codebase has changes (96 lines) but `lat.md/` may not be fully in sync (2 lines changed). Verify `lat.md/` is in sync — run `lat search` to find relevant sections. Run `lat check` at the end.
+
