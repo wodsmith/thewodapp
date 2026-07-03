@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "8d396ba390f6",
+  "session_id": "c9989a6f-3d35-4ee5-8693-c741ce3e0b3a",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-03T23:34:24.885678Z",
+  "branch": "crew-judges-grid",
+  "checkpoints_count": 7,
+  "files_touched": [
+    "apps/crew/src/components/ui/searchable-select.tsx",
+    "apps/crew/src/routes/events/$eventId/-components/judges/judge-scheduling-container.tsx",
+    "apps/crew/src/routes/events/$eventId/-components/judges/multi-rotation-editor.tsx",
+    "apps/crew/src/routes/events/$eventId/-components/judges/rotation-timeline.tsx"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "83013e37-754b-457a-a8c4-90dabe4087dc",
+  "token_usage": {
+    "input_tokens": 21714,
+    "cache_creation_tokens": 218317,
+    "cache_read_tokens": 14089900,
+    "output_tokens": 37695,
+    "api_call_count": 129
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-07-03T23:34:24.80095Z",
+    "agent_lines": 116,
+    "human_added": 0,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 117,
+    "agent_percentage": 99.14529914529915
+  }
+}

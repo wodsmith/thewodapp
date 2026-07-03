@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "8d396ba390f6",
+  "strategy": "manual-commit",
+  "branch": "crew-judges-grid",
+  "checkpoints_count": 7,
+  "files_touched": [
+    "apps/crew/src/components/ui/searchable-select.tsx",
+    "apps/crew/src/routes/events/$eventId/-components/judges/judge-scheduling-container.tsx",
+    "apps/crew/src/routes/events/$eventId/-components/judges/multi-rotation-editor.tsx",
+    "apps/crew/src/routes/events/$eventId/-components/judges/rotation-timeline.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/8d/396ba390f6/0/metadata.json",
+      "transcript": "/8d/396ba390f6/0/full.jsonl",
+      "context": "/8d/396ba390f6/0/context.md",
+      "content_hash": "/8d/396ba390f6/0/content_hash.txt",
+      "prompt": "/8d/396ba390f6/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 21714,
+    "cache_creation_tokens": 218317,
+    "cache_read_tokens": 14089900,
+    "output_tokens": 37695,
+    "api_call_count": 129
+  }
+}
