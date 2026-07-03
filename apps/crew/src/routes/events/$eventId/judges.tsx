@@ -1,19 +1,24 @@
 // @lat: [[crew#Judge Rotations]]
 
-import {
-  createFileRoute,
-  getRouteApi,
-  Link,
-  useNavigate,
-  useSearch,
-} from "@tanstack/react-router"
+import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router"
 import {
   type CrewJudgeRotationsPageData,
   getCrewJudgeRotationsPageFn,
 } from "@/server-fns/crew-judge-rotations-fns"
 import { JudgeSchedulingContainer } from "./-components/judges/judge-scheduling-container"
 
+interface JudgesSearch {
+  workout?: string
+}
+
+function validateJudgesSearch(search: Record<string, unknown>): JudgesSearch {
+  return {
+    workout: typeof search.workout === "string" ? search.workout : undefined,
+  }
+}
+
 export const Route = createFileRoute("/events/$eventId/judges")({
+  validateSearch: validateJudgesSearch,
   loader: async ({ params }) =>
     await getCrewJudgeRotationsPageFn({ data: { eventId: params.eventId } }),
   component: EventJudgeAssignmentsPage,
@@ -49,8 +54,8 @@ function getJudgeAssignmentsAvailability(
 function EventJudgeAssignmentsPage() {
   const { eventId } = parentRoute.useParams()
   const data = Route.useLoaderData()
-  const navigate = useNavigate()
-  const search = useSearch({ strict: false }) as { workout?: string }
+  const navigate = Route.useNavigate()
+  const search = Route.useSearch()
   const availability = getJudgeAssignmentsAvailability(data.page)
 
   const { page } = data
@@ -62,11 +67,7 @@ function EventJudgeAssignmentsPage() {
 
   function handleWorkoutChange(workoutId: string) {
     void navigate({
-      to: ".",
-      search: (previous: Record<string, unknown>) => ({
-        ...previous,
-        workout: workoutId,
-      }),
+      search: (previous) => ({ ...previous, workout: workoutId }),
       replace: true,
     })
   }
