@@ -21,19 +21,18 @@ const parentRoute = getRouteApi("/events/$eventId")
 
 function EventStaffingPage() {
   const { eventId } = parentRoute.useParams()
-  const { matrix, report, event } = Route.useLoaderData()
+  const { timeBlocks, summary, roleSummaries, underfilledRows, event } =
+    Route.useLoaderData()
   const timezone = event.timezone ?? "America/Denver"
 
-  const timeBlockById = new Map(
-    matrix.timeBlocks.map((block) => [block.id, block]),
-  )
-  const openSlots = matrix.summary.openCapacity
-  const totalNeeded = matrix.summary.totalNeeded
-  const totalFilled = matrix.summary.totalFilled
-  const hasStaffingBlocks = matrix.timeBlocks.length > 0 && totalNeeded > 0
+  const timeBlockById = new Map(timeBlocks.map((block) => [block.id, block]))
+  const openSlots = summary.openCapacity
+  const totalNeeded = summary.totalNeeded
+  const totalFilled = summary.totalFilled
+  const hasStaffingBlocks = timeBlocks.length > 0 && totalNeeded > 0
 
-  const roleGaps = report.roleSummaries.filter((role) => role.open > 0)
-  const blockGaps = report.underfilledRows
+  const roleGaps = roleSummaries.filter((role) => role.open > 0)
+  const blockGaps = underfilledRows
   const blockGapCount = new Set(blockGaps.map((row) => row.timeBlockId)).size
 
   return (

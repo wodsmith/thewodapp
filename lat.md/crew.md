@@ -284,7 +284,7 @@ The Crew staffing page answers a single question — "what volunteer gaps do I s
 
 [[apps/crew/src/server-fns/crew-staffing-fns.ts]] exposes a lightweight route-safe server-function wrapper.
 
-[[apps/crew/src/server-fns/crew-staffing-fns.server.ts]] hydrates the matrix from existing event, venue, heat, lane, roster, shift, active judge assignment, and confirmation data.
+[[apps/crew/src/server-fns/crew-staffing-fns.server.ts]] hydrates the matrix from existing event, venue, heat, lane, roster, shift, active judge assignment, and confirmation data. `getCrewStaffingReportForDayOf` keeps the full matrix and report for the Event Day surface, while `getCrewStaffingReportPage` trims the loader payload to just the gap data the page renders: event, time blocks, the needed/filled/open summary, role summaries, and underfilled rows.
 
 [[apps/crew/src/routes/events/$eventId/staffing.tsx]] renders a gaps-only view: a single verdict (open slots needed, fully staffed, or nothing to staff yet) plus two complementary cuts of the open slots — "who you need" (by role) and "when they're needed" (by distinct time block). Judge lane gaps surface as judge-role coverage rows, so the role action links operators to the Judges page for judge gaps and the Shifts page for shift gaps. Confirmation, conflict, availability, and credential signals live on the Confirmations and Event Day pages, not here. The page never mutates schema or assignments.
 
