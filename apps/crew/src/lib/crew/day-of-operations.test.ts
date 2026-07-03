@@ -93,6 +93,18 @@ describe("Crew day-of operations helpers", () => {
     )
   })
 
+  it("offers only account-backed volunteers as replacement options", () => {
+    const board = buildBoard()
+
+    const replacementIds = board.replacementOptions.map(
+      (option) => option.membershipId,
+    )
+    expect(replacementIds).not.toContain("tinv_checkin")
+    expect(replacementIds).toEqual(
+      expect.arrayContaining(["tmem_judge", "tmem_equipment"]),
+    )
+  })
+
   it("summarizes active judge coverage without mutating versions", () => {
     const board = buildBoard()
 

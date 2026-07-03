@@ -127,7 +127,6 @@ export interface CrewDayOfAssignmentActionItem {
   assignmentId: string
   assignmentType: CrewAssignmentConfirmationType
   assigneeId: string
-  membershipId: string
   isAccountless: boolean
   volunteerName: string
   roleType: VolunteerRoleType
@@ -481,7 +480,6 @@ function buildAssignmentActionItems(input: {
         assignmentId: assignment.id,
         assignmentType: CREW_ASSIGNMENT_CONFIRMATION_TYPE.VOLUNTEER_SHIFT,
         assigneeId: assignment.membershipId,
-        membershipId: assignment.membershipId,
         isAccountless: volunteer?.isAccountless ?? false,
         volunteerName: volunteer?.name ?? "Volunteer",
         roleType: shift.roleType,
@@ -508,7 +506,6 @@ function buildAssignmentActionItems(input: {
       assignmentId: assignment.id,
       assignmentType: CREW_ASSIGNMENT_CONFIRMATION_TYPE.JUDGE_HEAT,
       assigneeId: assignment.membershipId,
-      membershipId: assignment.membershipId,
       isAccountless: volunteer?.isAccountless ?? false,
       volunteerName: volunteer?.name ?? "Volunteer",
       roleType,
@@ -531,7 +528,10 @@ function buildReplacementOptions(
   input: CrewStaffingMatrixInput | undefined,
 ): CrewDayOfReplacementOption[] {
   return (input?.roster ?? [])
-    .filter((volunteer) => volunteer.isActive !== false)
+    .filter(
+      (volunteer) =>
+        volunteer.isActive !== false && volunteer.isAccountless !== true,
+    )
     .map((volunteer) => ({
       membershipId: volunteer.membershipId,
       volunteerName: volunteer.name,
