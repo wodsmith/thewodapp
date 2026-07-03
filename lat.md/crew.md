@@ -496,7 +496,7 @@ Crew pilot exports turn the active event staffing and judge assignment data into
 
 ## Event Day Export Packet
 
-The event-day packet renders [[crew#Pilot Exports]] as three printable tabs at [[apps/crew/src/routes/events/$eventId/exports.tsx]], one per operator packet, with the active `tab` search parameter driving `window.print()` so each prints on its own.
+The event-day packet renders [[crew#Pilot Exports]] as three printable tabs at [[apps/crew/src/routes/events/$eventId/exports.tsx]], one per operator packet, with the route-validated active `tab` search parameter driving `window.print()` so each prints on its own.
 
 The tabs are **Master Schedule** (shifts and heats combined, day-sectioned, with a Master CSV download), **Judges** (per event/workout, a clear heat × lane × judge table), and **Shifts** (each shift as its own section listing who is on and when).
 

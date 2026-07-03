@@ -12,11 +12,9 @@ vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (config: Record<string, unknown>) => ({
     ...config,
     useLoaderData: vi.fn(),
+    useNavigate: () => vi.fn(),
+    useSearch: () => ({ tab: "schedule" }),
   }),
-  getRouteApi: () => ({
-    useParams: () => ({ eventId: "comp_packet" }),
-  }),
-  useSearch: () => ({}),
 }))
 
 vi.mock("@/server-fns/crew-pilot-export-fns", () => ({
@@ -33,7 +31,6 @@ function renderView() {
     )
     return (
       <EventPilotExportsView
-        eventId="comp_packet"
         event={{
           id: "comp_packet",
           name: "Packet Classic",
@@ -45,12 +42,6 @@ function renderView() {
           endDate: "2026-07-02",
         }}
         exports={exports}
-        sources={{
-          shifts: 1,
-          shiftAssignments: 1,
-          heats: 1,
-          judgeAssignments: 1,
-        }}
         activeTab={activeTab}
         onTabChange={setActiveTab}
       />

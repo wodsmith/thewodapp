@@ -1,11 +1,6 @@
 // @lat: [[crew#Pilot Exports]]
 // @lat: [[crew#Event Day Export Packet]]
-import {
-  createFileRoute,
-  getRouteApi,
-  useNavigate,
-  useSearch,
-} from "@tanstack/react-router"
+import { createFileRoute } from "@tanstack/react-router"
 import { Download, Printer } from "lucide-react"
 import type { ReactNode } from "react"
 import type {
@@ -21,16 +16,6 @@ import {
 } from "@/server-fns/crew-pilot-export-fns"
 import { formatDateTimeInTimezone } from "@/utils/timezone-utils"
 
-export const Route = createFileRoute("/events/$eventId/exports")({
-  loader: async ({ params }) =>
-    await getCrewPilotExportsPageFn({
-      data: { eventId: params.eventId },
-    }),
-  component: EventPilotExportsPage,
-})
-
-const parentRoute = getRouteApi("/events/$eventId")
-
 const PACKET_TABS = [
   { id: "schedule", label: "Master Schedule" },
   { id: "judges", label: "Judges" },
@@ -43,30 +28,41 @@ function isPacketTabId(value: unknown): value is PacketTabId {
   return PACKET_TABS.some((tab) => tab.id === value)
 }
 
+interface ExportsSearch {
+  tab: PacketTabId
+}
+
+function validateExportsSearch(search: Record<string, unknown>): ExportsSearch {
+  return {
+    tab: isPacketTabId(search.tab) ? search.tab : "schedule",
+  }
+}
+
+export const Route = createFileRoute("/events/$eventId/exports")({
+  validateSearch: validateExportsSearch,
+  loader: async ({ params }) =>
+    await getCrewPilotExportsPageFn({
+      data: { eventId: params.eventId },
+    }),
+  component: EventPilotExportsPage,
+})
+
 function EventPilotExportsPage() {
-  const { eventId } = parentRoute.useParams()
-  const { event, exports, sources } = Route.useLoaderData()
-  const navigate = useNavigate()
-  const search = useSearch({ strict: false }) as { tab?: string }
-  const activeTab = isPacketTabId(search.tab) ? search.tab : "schedule"
+  const { event, exports } = Route.useLoaderData()
+  const navigate = Route.useNavigate()
+  const { tab: activeTab } = Route.useSearch()
 
   function handleTabChange(tabId: PacketTabId) {
     void navigate({
-      to: ".",
-      search: (previous: Record<string, unknown>) => ({
-        ...previous,
-        tab: tabId,
-      }),
+      search: (previous) => ({ ...previous, tab: tabId }),
       replace: true,
     })
   }
 
   return (
     <EventPilotExportsView
-      eventId={eventId}
       event={event}
       exports={exports}
-      sources={sources}
       activeTab={activeTab}
       onTabChange={handleTabChange}
     />
@@ -76,7 +72,6 @@ function EventPilotExportsPage() {
 export function EventPilotExportsView({
   event,
   exports,
-  sources,
   activeTab,
   onTabChange,
 }: EventPilotExportsViewProps) {
@@ -136,7 +131,7 @@ export function EventPilotExportsView({
             }`}
             onClick={() => onTabChange(tab.id)}
           >
-            {tab.label} ({getTabCount(tab.id, exports, sources)})
+            {tab.label} ({getTabCount(tab.id, exports)})
           </button>
         ))}
       </div>
@@ -167,22 +162,16 @@ export function EventPilotExportsView({
 }
 
 interface EventPilotExportsViewProps {
-  eventId: string
   event: CrewPilotExportsPageData["event"]
   exports: CrewPilotExports
-  sources: CrewPilotExportsPageData["sources"]
   activeTab: PacketTabId
   onTabChange: (tabId: PacketTabId) => void
 }
 
-function getTabCount(
-  tabId: PacketTabId,
-  exports: CrewPilotExports,
-  sources: CrewPilotExportsPageData["sources"],
-) {
+function getTabCount(tabId: PacketTabId, exports: CrewPilotExports) {
   if (tabId === "schedule") return exports.summary.masterScheduleRows
   if (tabId === "judges") return exports.summary.judgeHeatSheets
-  return sources.shifts
+  return exports.summary.shiftSheets
 }
 
 function ScheduleTab({
