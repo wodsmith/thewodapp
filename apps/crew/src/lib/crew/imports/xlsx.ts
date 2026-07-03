@@ -3,6 +3,9 @@ import { strFromU8, unzipSync } from "fflate"
 import { buildTabularParseResult } from "./tabular"
 import type { CsvParseResult, ImportIssue } from "./types"
 
+const MAX_ENTRY_BYTES = 20 * 1024 * 1024
+const MAX_TOTAL_BYTES = 50 * 1024 * 1024
+
 interface ParseXlsxOptions {
   maxRows?: number
 }
@@ -20,13 +23,34 @@ export function parseXlsx(
 ): CsvParseResult {
   const fileIssues: ImportIssue[] = []
   let files: Record<string, Uint8Array>
+  let totalBytes = 0
+  let exceededSizeCap = false
 
   try {
     files = unzipSync(
       input instanceof Uint8Array ? input : new Uint8Array(input),
+      {
+        filter: (file) => {
+          if (!isReadableEntry(file.name)) return false
+          if (file.originalSize > MAX_ENTRY_BYTES) {
+            exceededSizeCap = true
+            return false
+          }
+          totalBytes += file.originalSize
+          if (totalBytes > MAX_TOTAL_BYTES) {
+            exceededSizeCap = true
+            return false
+          }
+          return true
+        },
+      },
     )
   } catch {
     return emptyWorkbookError("Excel workbook could not be opened.")
+  }
+
+  if (exceededSizeCap) {
+    return emptyWorkbookError("Excel workbook is too large to import.")
   }
 
   const workbookXml = readZipText(files, "xl/workbook.xml")
@@ -88,6 +112,16 @@ function emptyWorkbookError(message: string): CsvParseResult {
     fileIssues: [{ code: "invalid_workbook", severity: "error", message }],
     skippedRowCount: 0,
   }
+}
+
+function isReadableEntry(name: string) {
+  return (
+    name === "xl/workbook.xml" ||
+    name === "xl/_rels/workbook.xml.rels" ||
+    name === "xl/sharedStrings.xml" ||
+    name === "xl/styles.xml" ||
+    name.startsWith("xl/worksheets/")
+  )
 }
 
 function readZipText(files: Record<string, Uint8Array>, path: string) {
@@ -226,7 +260,12 @@ function parseSheetRows(
 
     rows.push({
       rowNumber,
-      values: trimTrailingEmptyValues(values.map((value) => value ?? "")),
+      values: trimTrailingEmptyValues(
+        Array.from(
+          { length: values.length },
+          (_, index) => values[index] ?? "",
+        ),
+      ),
     })
     rowMatch = rowPattern.exec(worksheetXml)
   }
@@ -259,7 +298,7 @@ function parseCellValue(
     ? dateStyles.get(styleIndex)
     : undefined
 
-  if (dateStyleKind) {
+  if (dateStyleKind && rawValue !== "") {
     const formatted = formatExcelDateNumber(rawValue, dateStyleKind)
     if (formatted) return formatted
   }
@@ -353,10 +392,13 @@ function extractFirstTagValue(xml: string, tagName: string) {
 }
 
 function extractText(xml: string) {
-  const textParts = [...xml.matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)].map(
-    (match) => decodeXml(match[1] ?? ""),
-  )
-  return textParts.length > 0 ? textParts.join("") : decodeXml(stripTags(xml))
+  const withoutPhonetic = xml.replace(/<rPh\b[\s\S]*?<\/rPh>/g, "")
+  const textParts = [
+    ...withoutPhonetic.matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g),
+  ].map((match) => decodeXml(match[1] ?? ""))
+  return textParts.length > 0
+    ? textParts.join("")
+    : decodeXml(stripTags(withoutPhonetic))
 }
 
 function stripTags(value: string) {
@@ -365,8 +407,9 @@ function stripTags(value: string) {
 
 function getAttribute(tag: string, name: string) {
   const escapedName = name.replace(":", "\\:")
-  const pattern = new RegExp(`\\b${escapedName}="([^"]*)"`)
-  return decodeXml(tag.match(pattern)?.[1] ?? "")
+  const pattern = new RegExp(`\\b${escapedName}=(?:"([^"]*)"|'([^']*)')`)
+  const match = tag.match(pattern)
+  return decodeXml(match?.[1] ?? match?.[2] ?? "")
 }
 
 function decodeXml(value: string) {

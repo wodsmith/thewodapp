@@ -259,11 +259,86 @@ describe("buildCrewImportPreview", () => {
   })
 })
 
+describe("parseXlsx edge cases", () => {
+  const xlsxFile = (data: Uint8Array) => ({
+    filename: "workbook.xlsx",
+    mimeType:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    data,
+  })
+
+  it("fills omitted leading cells in short rows", () => {
+    const workbook = createXlsxWorkbook([], {
+      worksheetXml: [
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">',
+        "<sheetData>",
+        '<row r="1"><c r="A1" t="inlineStr"><is><t>Full Name</t></is></c><c r="B1" t="inlineStr"><is><t>Email</t></is></c><c r="C1" t="inlineStr"><is><t>Role</t></is></c></row>',
+        '<row r="2"><c r="B2" t="inlineStr"><is><t>ian@example.com</t></is></c></row>',
+        "</sheetData>",
+        "</worksheet>",
+      ].join(""),
+    })
+
+    const parsed = parseCrewImportFile(xlsxFile(workbook))
+
+    expect(parsed.headers).toEqual(["Full Name", "Email", "Role"])
+    expect(parsed.rows[0]?.values).toMatchObject({
+      "Full Name": "",
+      Email: "ian@example.com",
+      Role: "",
+    })
+    expect(parsed.rows[0]?.issues).toEqual([])
+  })
+
+  it("rejects workbooks whose entries exceed the decompression cap", () => {
+    const workbook = createXlsxWorkbook([["Name"], ["Ian"]], {
+      sharedStringsXml: "a".repeat(21 * 1024 * 1024),
+    })
+
+    const parsed = parseCrewImportFile(xlsxFile(workbook))
+
+    expect(parsed.fileIssues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "invalid_workbook" }),
+      ]),
+    )
+  })
+
+  it("ignores phonetic furigana runs in shared strings", () => {
+    const workbook = createXlsxWorkbook([], {
+      worksheetXml: [
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">',
+        "<sheetData>",
+        '<row r="1"><c r="A1" t="s"><v>0</v></c></row>',
+        '<row r="2"><c r="A2" t="inlineStr"><is><t>Ian</t></is></c></row>',
+        "</sheetData>",
+        "</worksheet>",
+      ].join(""),
+      sharedStringsXml: [
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+        '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="1" uniqueCount="1">',
+        '<si><r><t>漢字</t></r><rPh sb="0" eb="2"><t>かんじ</t></rPh></si>',
+        "</sst>",
+      ].join(""),
+    })
+
+    const parsed = parseCrewImportFile(xlsxFile(workbook))
+
+    expect(parsed.headers).toEqual(["漢字"])
+  })
+})
+
 type XlsxCell = string | number | { value: string | number; style?: number }
 
 function createXlsxWorkbook(
   rows: XlsxCell[][],
-  options: { stylesXml?: string } = {},
+  options: {
+    stylesXml?: string
+    worksheetXml?: string
+    sharedStringsXml?: string
+  } = {},
 ) {
   const files: Record<string, Uint8Array> = {
     "[Content_Types].xml": strToU8(
@@ -304,7 +379,9 @@ function createXlsxWorkbook(
         "</Relationships>",
       ].join(""),
     ),
-    "xl/worksheets/sheet1.xml": strToU8(createWorksheetXml(rows)),
+    "xl/worksheets/sheet1.xml": strToU8(
+      options.worksheetXml ?? createWorksheetXml(rows),
+    ),
     "xl/styles.xml": strToU8(
       options.stylesXml ??
         [
@@ -314,6 +391,10 @@ function createXlsxWorkbook(
           "</styleSheet>",
         ].join(""),
     ),
+  }
+
+  if (options.sharedStringsXml) {
+    files["xl/sharedStrings.xml"] = strToU8(options.sharedStringsXml)
   }
 
   return zipSync(files)

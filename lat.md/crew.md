@@ -334,6 +334,8 @@ Volunteer imports surface as a modal on [[apps/crew/src/routes/events/$eventId/v
 
 CSV parsing still uses [[apps/crew/src/lib/crew/imports/csv.ts#parseCsv]]. Excel workbook parsing accepts `.xlsx` and `.xlsm` uploads, reads the first worksheet through [[apps/crew/src/lib/crew/imports/xlsx.ts#parseXlsx]], converts shared strings and styled time/date cells into text, and feeds the same tabular parser shape as CSV so column mapping, warning generation, and apply planning remain shared.
 
+To bound decompression on the worker, `parseXlsx` only extracts the workbook parts it reads (workbook metadata, worksheets, shared strings, and styles) and rejects the upload with an `invalid_workbook` error when any entry exceeds 20 MB or the extracted total exceeds 50 MB. Shared-string extraction ignores phonetic furigana (`<rPh>`) runs so only base text becomes cell values.
+
 ### Private Upload Route
 
 The Crew import upload route is `/api/crew/import`. It is separate from the existing public file upload path and does not write uploaded files to public object storage.
