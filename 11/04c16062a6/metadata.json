@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "1104c16062a6",
+  "strategy": "manual-commit",
+  "branch": "crew-judges-grid",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "lat.md/crew.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/11/04c16062a6/0/metadata.json",
+      "transcript": "/11/04c16062a6/0/full.jsonl",
+      "context": "/11/04c16062a6/0/context.md",
+      "content_hash": "/11/04c16062a6/0/content_hash.txt",
+      "prompt": "/11/04c16062a6/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 15613,
+    "cache_creation_tokens": 121863,
+    "cache_read_tokens": 3649841,
+    "output_tokens": 19600,
+    "api_call_count": 37
+  }
+}
