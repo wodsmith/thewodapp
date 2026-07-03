@@ -142,17 +142,20 @@ export function RotationTimeline({
   )
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // Sync rotations state when initialRotations prop changes (e.g. event switch
-  // or after a mutation reloads the loader). Also reset UI state.
+  // Sync rotations state when initialRotations prop changes (e.g. after a
+  // mutation reloads the loader). Deliberately does NOT reset UI state — the
+  // parent remounts this component on workout switch via key, so this effect
+  // only fires on data refreshes, where clobbering the user's selection /
+  // expanded panels / open editor would be a regression. The one exception is
+  // clearing a stale rotation selection whose id no longer exists (saves use
+  // replace semantics, so ids change).
   useEffect(() => {
     setRotations(initialRotations)
-    setIsEditorOpen(false)
-    setEditingVolunteerId(null)
-    setSelectedRotationId(null)
-    setSelectedVolunteerId(null)
-    setExpandedVolunteers(new Set())
-    setPreviewCells([])
-    setEditingRotationCells(new Set())
+    setSelectedRotationId((prev) =>
+      prev !== null && !initialRotations.some((r) => r.id === prev)
+        ? null
+        : prev,
+    )
   }, [initialRotations])
 
   // Occupied lanes per heat, sourced from Crew heat occupancy.
@@ -230,7 +233,10 @@ export function RotationTimeline({
     judgeSearchQuery,
   ])
 
-  // Maps between display index (1-based) and actual heat number.
+  // Maps between display index (1-based) and actual heat number. Crew heat
+  // numbers aren't guaranteed to start at 1 (or be gap-free), so the grid works
+  // in display-index space for geometry while the editor + stored rotations work
+  // in actual heat-number space; these maps convert at the boundary.
   const { displayToHeatNumber, heatNumberToDisplay } = useMemo(() => {
     const displayToHeat = new Map<number, number>()
     const heatToDisplay = new Map<number, number>()
@@ -243,6 +249,12 @@ export function RotationTimeline({
       heatNumberToDisplay: heatToDisplay,
     }
   }, [heatsWithAssignments])
+
+  // Actual heat-number bounds (heats are sorted by heat number by the parent).
+  const minHeatNumber = heatsWithAssignments[0]?.heatNumber ?? 1
+  const maxHeatNumber =
+    heatsWithAssignments[heatsWithAssignments.length - 1]?.heatNumber ??
+    heatsCount
 
   // Coverage grid with rotation IDs for highlighting and buffer zones.
   const coverageGrid = useMemo(() => {
@@ -358,12 +370,16 @@ export function RotationTimeline({
   ])
 
   const previewCellMap = useMemo(() => {
+    // Preview cells are emitted in actual heat-number space; convert to display
+    // index so keys line up with the display-space coverage grid.
     const map = new Map<string, number>()
     for (const cell of previewCells) {
-      map.set(`${cell.heat}:${cell.lane}`, cell.blockIndex)
+      const displayIdx = heatNumberToDisplay.get(cell.heat)
+      if (displayIdx === undefined) continue
+      map.set(`${displayIdx}:${cell.lane}`, cell.blockIndex)
     }
     return map
-  }, [previewCells])
+  }, [previewCells, heatNumberToDisplay])
 
   const selectedVolunteerCells = useMemo(() => {
     if (!selectedVolunteerId) return new Set<string>()
@@ -411,9 +427,13 @@ export function RotationTimeline({
   const handleRotationDrop = useCallback(
     async (
       rotation: CompetitionJudgeRotation,
-      targetHeat: number,
+      targetDisplayHeat: number,
       targetLane: number,
     ) => {
+      // The dropped-on cell is in display-index space; the rotation's
+      // startingHeat is in actual heat-number space.
+      const targetHeat = displayToHeatNumber.get(targetDisplayHeat)
+      if (targetHeat === undefined) return
       if (
         rotation.startingHeat === targetHeat &&
         rotation.startingLane === targetLane
@@ -447,7 +467,7 @@ export function RotationTimeline({
         )
       }
     },
-    [rotationsByVolunteer, onSaveVolunteerRotations],
+    [rotationsByVolunteer, onSaveVolunteerRotations, displayToHeatNumber],
   )
 
   function handleCreateRotation() {
@@ -459,7 +479,12 @@ export function RotationTimeline({
     setIsEditorOpen(true)
   }
 
-  function handleCellClick(heat: number, lane: number) {
+  function handleCellClick(displayHeat: number, lane: number) {
+    // Grid columns are display indices; convert to the actual heat number that
+    // occupancy and the editor operate in.
+    const heat = displayToHeatNumber.get(displayHeat)
+    if (heat === undefined) return
+
     if (filterEmptyLanes) {
       const occupiedLanes = occupiedLanesByHeat.get(heat)
       if (!occupiedLanes?.has(lane)) return
@@ -648,7 +673,8 @@ export function RotationTimeline({
           <CardContent className="pt-0">
             {isEditorOpen ? (
               <MultiRotationEditor
-                maxHeats={heatsCount}
+                minHeat={minHeatNumber}
+                maxHeat={maxHeatNumber}
                 maxLanes={laneCount}
                 availableJudges={availableJudges}
                 rotationsByVolunteer={rotationsByVolunteer}
@@ -728,7 +754,7 @@ export function RotationTimeline({
                         start: r.startingHeat,
                         end: Math.min(
                           r.startingHeat + r.heatsCount - 1,
-                          heatsCount,
+                          maxHeatNumber,
                         ),
                       }))
                       const minHeat = Math.min(
@@ -840,7 +866,7 @@ export function RotationTimeline({
                                   rotation.startingHeat +
                                     rotation.heatsCount -
                                     1,
-                                  heatsCount,
+                                  maxHeatNumber,
                                 )
                                 const isSelected =
                                   selectedRotationId === rotation.id
@@ -909,12 +935,12 @@ export function RotationTimeline({
                     Lane
                   </div>
                   {Array.from({ length: heatsCount }, (_, i) => i + 1).map(
-                    (heat) => (
+                    (displayIdx) => (
                       <div
-                        key={heat}
+                        key={displayIdx}
                         className="flex items-center justify-center border-b border-r bg-muted text-xs font-medium tabular-nums last:border-r-0"
                       >
-                        H{heat}
+                        H{displayToHeatNumber.get(displayIdx) ?? displayIdx}
                       </div>
                     ),
                   )}

@@ -43,7 +43,11 @@ export interface RotationDraft {
   notes?: string
 }
 
-/** Extended preview cell with block index for multi-rotation preview */
+/**
+ * Extended preview cell with block index for multi-rotation preview.
+ * `heat` is an actual heat number (not a display index); the timeline converts
+ * it to a display column via its heatNumber→display map.
+ */
 export interface MultiPreviewCell {
   heat: number
   lane: number
@@ -51,14 +55,19 @@ export interface MultiPreviewCell {
 }
 
 interface MultiRotationEditorProps {
-  maxHeats: number
+  /** Smallest actual heat number in the workout (heats aren't always 1-based). */
+  minHeat: number
+  /** Largest actual heat number in the workout. */
+  maxHeat: number
   maxLanes: number
   availableJudges: CrewJudgeVolunteer[]
   /** All rotations grouped by canonical assignee id (membershipId) */
   rotationsByVolunteer: Map<string, CompetitionJudgeRotation[]>
   existingRotations?: CompetitionJudgeRotation[] // For editing - all rotations for this volunteer
+  /** Starting heat for a new rotation, in actual heat-number space. */
   initialHeat?: number
   initialLane?: number
+  /** Cell click applied to the active block; heat is an actual heat number. */
   externalPosition?: { heat: number; lane: number; timestamp?: number } | null
   activeBlockIndex: number
   onActiveBlockChange: (index: number) => void
@@ -106,7 +115,8 @@ type MultiRotationFormValues = z.infer<typeof multiRotationSchema>
  * Preview cells for ALL blocks with different visual treatment per block.
  */
 export function MultiRotationEditor({
-  maxHeats,
+  minHeat,
+  maxHeat,
   maxLanes,
   availableJudges,
   rotationsByVolunteer,
@@ -150,9 +160,10 @@ export function MultiRotationEditor({
             }))
           : [
               {
-                startingHeat: initialHeat ?? 1,
+                startingHeat: initialHeat ?? minHeat,
                 startingLane: initialLane ?? 1,
-                heatsCount: eventDefaultHeatsCount ?? Math.min(4, maxHeats),
+                heatsCount:
+                  eventDefaultHeatsCount ?? Math.min(4, maxHeat - minHeat + 1),
                 notes: "",
               },
             ],
@@ -171,21 +182,24 @@ export function MultiRotationEditor({
     name: "rotations",
   })
 
-  // Track if we've already auto-added for this activeBlockIndex to prevent double-adds
-  const hasAutoAddedRef = useRef(false)
+  // Track the last activeBlockIndex we auto-added for, so the guard is
+  // per-index: moving to a new out-of-range index auto-adds again, but the same
+  // index never double-adds.
+  const lastAutoAddedIndexRef = useRef<number | null>(null)
 
   // Auto-add a new rotation block if activeBlockIndex is beyond current fields
   useEffect(() => {
     if (
       activeBlockIndex >= fields.length &&
       fields.length > 0 &&
-      !hasAutoAddedRef.current
+      lastAutoAddedIndexRef.current !== activeBlockIndex
     ) {
-      hasAutoAddedRef.current = true
+      lastAutoAddedIndexRef.current = activeBlockIndex
       append({
-        startingHeat: 1,
+        startingHeat: minHeat,
         startingLane: 1,
-        heatsCount: eventDefaultHeatsCount ?? Math.min(4, maxHeats),
+        heatsCount:
+          eventDefaultHeatsCount ?? Math.min(4, maxHeat - minHeat + 1),
         notes: "",
       })
       setOpenBlocks(new Set([fields.length]))
@@ -195,7 +209,8 @@ export function MultiRotationEditor({
     fields.length,
     append,
     eventDefaultHeatsCount,
-    maxHeats,
+    minHeat,
+    maxHeat,
   ])
 
   /**
@@ -229,7 +244,7 @@ export function MultiRotationEditor({
 
       for (let i = 0; i < rotation.heatsCount; i++) {
         const heat = rotation.startingHeat + i
-        if (heat > maxHeats) break
+        if (heat > maxHeat) break
 
         const lane = calculateLane(rotation.startingLane, i)
         allCells.push({ heat, lane, blockIndex })
@@ -237,7 +252,7 @@ export function MultiRotationEditor({
     }
 
     return allCells
-  }, [watchedRotations, maxHeats, calculateLane])
+  }, [watchedRotations, maxHeat, calculateLane])
 
   // Notify parent of preview changes
   useEffect(() => {
@@ -267,10 +282,10 @@ export function MultiRotationEditor({
       { shouldValidate: true },
     )
 
-    // Clamp heatsCount so rotation doesn't extend beyond maxHeats
+    // Clamp heatsCount so rotation doesn't extend beyond the last heat number
     const currentHeatsCount =
       form.getValues(`rotations.${activeBlockIndex}.heatsCount`) ?? 1
-    const maxAllowedHeats = maxHeats - externalPosition.heat + 1
+    const maxAllowedHeats = maxHeat - externalPosition.heat + 1
     if (currentHeatsCount > maxAllowedHeats) {
       form.setValue(
         `rotations.${activeBlockIndex}.heatsCount`,
@@ -286,15 +301,15 @@ export function MultiRotationEditor({
     fields.length,
     form,
     lastAppliedTimestamp,
-    maxHeats,
+    maxHeat,
   ])
 
   async function onSubmit(values: MultiRotationFormValues) {
-    // Clamp heatsCount so rotations don't extend beyond maxHeats
+    // Clamp heatsCount so rotations don't extend beyond the last heat number
     const finalRotations: RotationDraft[] = values.rotations.map((r) => ({
       startingHeat: r.startingHeat,
       startingLane: r.startingLane,
-      heatsCount: Math.min(r.heatsCount, maxHeats - r.startingHeat + 1),
+      heatsCount: Math.min(r.heatsCount, maxHeat - r.startingHeat + 1),
       notes: r.notes,
     }))
 
@@ -328,9 +343,9 @@ export function MultiRotationEditor({
   const addRotation = () => {
     const newIndex = fields.length
     append({
-      startingHeat: 1,
+      startingHeat: minHeat,
       startingLane: 1,
-      heatsCount: eventDefaultHeatsCount ?? Math.min(4, maxHeats),
+      heatsCount: eventDefaultHeatsCount ?? Math.min(4, maxHeat - minHeat + 1),
       notes: "",
     })
     setOpenBlocks((prev) => new Set([...prev, newIndex]))
@@ -447,7 +462,7 @@ export function MultiRotationEditor({
                                   rotation.startingHeat +
                                     rotation.heatsCount -
                                     1,
-                                  maxHeats,
+                                  maxHeat,
                                 )
                                 return rotation.startingHeat === endHeat
                                   ? `Heat ${rotation.startingHeat}`
@@ -490,8 +505,8 @@ export function MultiRotationEditor({
                               <FormControl>
                                 <Input
                                   type="number"
-                                  min={1}
-                                  max={maxHeats}
+                                  min={minHeat}
+                                  max={maxHeat}
                                   className="h-8"
                                   {...field}
                                   onChange={(e) =>
@@ -535,7 +550,7 @@ export function MultiRotationEditor({
                                 <Input
                                   type="number"
                                   min={1}
-                                  max={maxHeats}
+                                  max={maxHeat - minHeat + 1}
                                   className="h-8"
                                   {...field}
                                   onChange={(e) =>

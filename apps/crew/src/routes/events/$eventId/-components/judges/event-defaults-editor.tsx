@@ -67,17 +67,22 @@ export function EventDefaultsEditor({
   const effectivePattern = defaultLaneShiftPattern ?? FALLBACK_PATTERN
   const effectiveBuffer = minHeatBuffer ?? FALLBACK_BUFFER
 
-  const [localHeats, setLocalHeats] = useState(effectiveHeats)
-  const [localBuffer, setLocalBuffer] = useState(effectiveBuffer)
+  // Raw input strings so the user can clear/retype freely; parsed + validated
+  // before saving, and snapped back to the effective value on blur if invalid.
+  const [localHeats, setLocalHeats] = useState(String(effectiveHeats))
+  const [localBuffer, setLocalBuffer] = useState(String(effectiveBuffer))
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const bufferDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Sync from props only when no debounced save is pending — the prop only
+  // changes after this component's own save, so overwriting is fine, but we
+  // must not clobber the field while the user is mid-typing.
   useEffect(() => {
-    setLocalHeats(effectiveHeats)
+    if (!debounceRef.current) setLocalHeats(String(effectiveHeats))
   }, [effectiveHeats])
 
   useEffect(() => {
-    setLocalBuffer(effectiveBuffer)
+    if (!bufferDebounceRef.current) setLocalBuffer(String(effectiveBuffer))
   }, [effectiveBuffer])
 
   async function save(data: {
@@ -88,7 +93,6 @@ export function EventDefaultsEditor({
     setIsSubmitting(true)
     try {
       await saveDefaults({ data: { eventId, trackWorkoutId, ...data } })
-      toast.success("Event defaults updated")
       await router.invalidate()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update")
@@ -98,25 +102,39 @@ export function EventDefaultsEditor({
   }
 
   function handleHeatsChange(value: string) {
+    setLocalHeats(value)
     const newHeats = Number.parseInt(value, 10)
     if (Number.isNaN(newHeats) || newHeats < 1 || newHeats > 20) return
-    setLocalHeats(newHeats)
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(
-      () => save({ defaultHeatsCount: newHeats }),
-      DEBOUNCE_MS,
-    )
+    debounceRef.current = setTimeout(() => {
+      debounceRef.current = null
+      save({ defaultHeatsCount: newHeats })
+    }, DEBOUNCE_MS)
+  }
+
+  function handleHeatsBlur() {
+    const parsed = Number.parseInt(localHeats, 10)
+    if (Number.isNaN(parsed) || parsed < 1 || parsed > 20) {
+      setLocalHeats(String(effectiveHeats))
+    }
   }
 
   function handleBufferChange(value: string) {
+    setLocalBuffer(value)
     const newBuffer = Number.parseInt(value, 10)
     if (Number.isNaN(newBuffer) || newBuffer < 1 || newBuffer > 10) return
-    setLocalBuffer(newBuffer)
     if (bufferDebounceRef.current) clearTimeout(bufferDebounceRef.current)
-    bufferDebounceRef.current = setTimeout(
-      () => save({ minHeatBuffer: newBuffer }),
-      DEBOUNCE_MS,
-    )
+    bufferDebounceRef.current = setTimeout(() => {
+      bufferDebounceRef.current = null
+      save({ minHeatBuffer: newBuffer })
+    }, DEBOUNCE_MS)
+  }
+
+  function handleBufferBlur() {
+    const parsed = Number.parseInt(localBuffer, 10)
+    if (Number.isNaN(parsed) || parsed < 1 || parsed > 10) {
+      setLocalBuffer(String(effectiveBuffer))
+    }
   }
 
   useEffect(() => {
@@ -141,6 +159,7 @@ export function EventDefaultsEditor({
             max={20}
             value={localHeats}
             onChange={(e) => handleHeatsChange(e.target.value)}
+            onBlur={handleHeatsBlur}
             disabled={isSubmitting}
             className="max-w-[120px]"
           />
@@ -203,6 +222,7 @@ export function EventDefaultsEditor({
             max={10}
             value={localBuffer}
             onChange={(e) => handleBufferChange(e.target.value)}
+            onBlur={handleBufferBlur}
             disabled={isSubmitting}
             className="max-w-[120px]"
           />
