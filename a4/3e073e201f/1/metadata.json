@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "a43e073e201f",
+  "session_id": "b0460ae6-a14b-44c4-b61b-4c5c97932240",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-03T23:03:40.50715Z",
+  "branch": "crew-judges-grid",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "lat.md/crew.md"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 29351,
+    "cache_creation_tokens": 374464,
+    "cache_read_tokens": 4965425,
+    "output_tokens": 22199,
+    "api_call_count": 44
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-07-03T23:03:40.437982Z",
+    "agent_lines": 1,
+    "human_added": 137,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 138,
+    "agent_percentage": 0.7246376811594203
+  }
+}
