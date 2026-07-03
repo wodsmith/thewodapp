@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils"
 export interface SearchableSelectOption {
   value: string
   label: string
-  /** Optional description shown below the label */
+  /** Optional description shown below the label; newlines render as line breaks */
   description?: string
 }
 
@@ -108,7 +108,7 @@ export function SearchableSelect({
                   <div className="flex flex-col items-start">
                     <span>{option.label}</span>
                     {option.description && (
-                      <span className="text-xs text-muted-foreground">
+                      <span className="whitespace-pre-line text-left text-xs text-muted-foreground">
                         {option.description}
                       </span>
                     )}

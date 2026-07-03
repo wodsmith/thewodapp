@@ -58,6 +58,14 @@ const publishCrewJudgeRotationsInputSchema = z.object({
   notes: optionalNotesSchema,
 })
 
+const updateCrewJudgeEventDefaultsInputSchema = z.object({
+  eventId: eventIdSchema,
+  trackWorkoutId: trackWorkoutIdSchema,
+  defaultHeatsCount: z.number().int().min(1).max(20).nullable().optional(),
+  defaultLaneShiftPattern: laneShiftPatternSchema.nullable().optional(),
+  minHeatBuffer: z.number().int().min(1).max(10).nullable().optional(),
+})
+
 export const getCrewJudgeRotationsPageFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) =>
     getCrewJudgeRotationsPageInputSchema.parse(data),
@@ -91,4 +99,15 @@ export const publishCrewJudgeRotationsFn = createServerFn({ method: "POST" })
       "../server/crew-judge-rotations.server"
     )
     return publishCrewJudgeRotations(data)
+  })
+
+export const updateCrewJudgeEventDefaultsFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    updateCrewJudgeEventDefaultsInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { updateCrewJudgeEventDefaults } = await import(
+      "../server/crew-judge-rotations.server"
+    )
+    return updateCrewJudgeEventDefaults(data)
   })
