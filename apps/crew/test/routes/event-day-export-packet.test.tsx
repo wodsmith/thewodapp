@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react"
-import type { ReactNode } from "react"
+import { fireEvent, render, screen } from "@testing-library/react"
+import { useState } from "react"
 import { describe, expect, it, vi } from "vitest"
 import { VOLUNTEER_ROLE_TYPES } from "@/db/schemas/volunteers"
 import {
@@ -12,70 +12,74 @@ vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (config: Record<string, unknown>) => ({
     ...config,
     useLoaderData: vi.fn(),
+    useNavigate: () => vi.fn(),
+    useSearch: () => ({ tab: "schedule" }),
   }),
-  getRouteApi: () => ({
-    useParams: () => ({ eventId: "comp_packet" }),
-  }),
-  Link: ({ children, to }: { children: ReactNode; to: string }) => (
-    <a href={to}>{children}</a>
-  ),
 }))
 
 vi.mock("@/server-fns/crew-pilot-export-fns", () => ({
   getCrewPilotExportsPageFn: vi.fn(),
 }))
 
-describe("EventPilotExportsView", () => {
-  // @lat: [[crew#Event Day Export Packet]]
-  it("renders packet index, station cards, and print packet sections", () => {
-    const exports = buildCrewPilotExports(packetInput())
+function renderView() {
+  const input = packetInput()
+  const exports = buildCrewPilotExports(input)
 
-    render(
+  function TestView() {
+    const [activeTab, setActiveTab] = useState<"schedule" | "judges" | "shifts">(
+      "schedule",
+    )
+    return (
       <EventPilotExportsView
-        eventId="comp_packet"
         event={{
           id: "comp_packet",
           name: "Packet Classic",
           slug: "packet-classic",
           organizingTeamId: "team_org",
           competitionTeamId: "team_comp",
-          timezone: "Pacific/Kiritimati",
+          timezone: input.event.timezone,
           startDate: "2026-07-01",
           endDate: "2026-07-02",
         }}
         exports={exports}
-        sources={{
-          shifts: 1,
-          shiftAssignments: 1,
-          heats: 1,
-          heatLaneAssignments: 2,
-          judgeAssignments: 1,
-          activeJudgeVersions: 1,
-        }}
-      />,
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
     )
+  }
+
+  render(<TestView />)
+}
+
+describe("EventPilotExportsView", () => {
+  // @lat: [[crew#Event Day Export Packet]]
+  it("renders schedule, judges, and shifts tabs and switches between them", () => {
+    renderView()
 
     expect(
-      screen.getByRole("heading", { name: "Event-day export packet" }),
+      screen.getByRole("heading", { name: "Print packet" }),
     ).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Print" })).toBeInTheDocument()
+
+    // Master schedule tab is active by default.
+    expect(screen.getByText("Jul 1, 2026")).toBeInTheDocument()
     expect(
-      screen.getByRole("button", { name: "Print packet" }),
+      screen.getByRole("button", { name: "Master CSV" }),
     ).toBeInTheDocument()
-    expect(screen.getAllByText("Packet index").length).toBeGreaterThan(0)
-    expect(screen.getAllByText("Station cards").length).toBeGreaterThan(0)
+
+    // Judges tab groups heats by event.
+    fireEvent.click(screen.getByRole("tab", { name: /Judges/ }))
+    expect(screen.getByText("Event 1")).toBeInTheDocument()
+    expect(screen.getByText(/Heat 1 \/ Competition floor/)).toBeInTheDocument()
     expect(
-      screen.getByText("Competition floor station card"),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText("Competition floor lane 1 card"),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText("Master schedule / Jul 1, 2026"),
-    ).toBeInTheDocument()
-    expect(
-      screen.queryByText("Master schedule / Jul 2, 2026"),
+      screen.queryByRole("button", { name: "Master CSV" }),
     ).not.toBeInTheDocument()
-    expect(screen.getByText("Master schedule / all days")).toBeInTheDocument()
+
+    // Shifts tab lists each shift as its own section without contact details.
+    fireEvent.click(screen.getByRole("tab", { name: /Shifts/ }))
+    expect(screen.getByText("Floor reset")).toBeInTheDocument()
+    expect(screen.getByText("Rae Reset")).toBeInTheDocument()
+    expect(screen.queryByText("reset@example.com")).not.toBeInTheDocument()
   })
 })
 
