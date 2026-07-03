@@ -47,6 +47,7 @@ import type {
 } from "@/server-fns/crew-judge-rotations-fns"
 import { getCrewJudgeName } from "./judge-grid-utils"
 import {
+  type JudgeLatestAssignment,
   type MultiPreviewCell,
   MultiRotationEditor,
   type RotationDraft,
@@ -58,6 +59,8 @@ interface RotationTimelineProps {
   heats: CrewJudgeHeat[]
   laneCount: number
   availableJudges: CrewJudgeVolunteer[]
+  /** Latest scheduled heat per judge across all workouts, by canonical assignee id. */
+  latestAssignmentByJudge: Map<string, JudgeLatestAssignment>
   /** Rotations for the selected workout (controlled by the parent). */
   initialRotations: CompetitionJudgeRotation[]
   eventLaneShiftPattern: LaneShiftPattern
@@ -92,6 +95,7 @@ export function RotationTimeline({
   heats: heatsWithAssignments,
   laneCount,
   availableJudges,
+  latestAssignmentByJudge,
   initialRotations,
   eventLaneShiftPattern,
   eventDefaultHeatsCount,
@@ -251,6 +255,20 @@ export function RotationTimeline({
       heatNumberToDisplay: heatToDisplay,
     }
   }, [heatsWithAssignments])
+
+  // Heats prop for the editor. Must be referentially stable: the editor derives
+  // its preview cells from this array and reports them back via onPreviewChange
+  // (setPreviewCells here). An inline .map() would create a new array every
+  // render and close an infinite re-render loop (preview → setState → render →
+  // new array → preview...).
+  const editorHeats = useMemo(
+    () =>
+      heatsWithAssignments.map((heat) => ({
+        heatNumber: heat.heatNumber,
+        laneCount: heat.laneCount,
+      })),
+    [heatsWithAssignments],
+  )
 
   // Actual heat-number bounds (heats are sorted by heat number by the parent).
   const minHeatNumber = heatsWithAssignments[0]?.heatNumber ?? 1
@@ -697,12 +715,10 @@ export function RotationTimeline({
                 minHeat={minHeatNumber}
                 maxHeat={maxHeatNumber}
                 maxLanes={laneCount}
-                heats={heatsWithAssignments.map((heat) => ({
-                  heatNumber: heat.heatNumber,
-                  laneCount: heat.laneCount,
-                }))}
+                heats={editorHeats}
                 availableJudges={availableJudges}
                 rotationsByVolunteer={rotationsByVolunteer}
+                latestAssignmentByJudge={latestAssignmentByJudge}
                 existingRotations={
                   editingVolunteerId
                     ? rotationsByVolunteer.get(editingVolunteerId)

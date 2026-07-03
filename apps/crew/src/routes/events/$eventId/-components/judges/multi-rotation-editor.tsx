@@ -54,6 +54,17 @@ export interface MultiPreviewCell {
   blockIndex: number
 }
 
+/**
+ * A judge's most recent scheduled heat across the whole event, in actual
+ * heat-number space, with a human-readable label for the workout it's from.
+ */
+export interface JudgeLatestAssignment {
+  heatNumber: number
+  /** Scheduled time of that heat, when the heat has one. */
+  scheduledTime: Date | null
+  eventLabel: string
+}
+
 interface MultiRotationEditorProps {
   /** Smallest actual heat number in the workout (heats aren't always 1-based). */
   minHeat: number
@@ -69,6 +80,8 @@ interface MultiRotationEditorProps {
   availableJudges: CrewJudgeVolunteer[]
   /** All rotations grouped by canonical assignee id (membershipId) */
   rotationsByVolunteer: Map<string, CompetitionJudgeRotation[]>
+  /** Latest scheduled heat per judge across all workouts, by canonical assignee id. */
+  latestAssignmentByJudge?: Map<string, JudgeLatestAssignment>
   existingRotations?: CompetitionJudgeRotation[] // For editing - all rotations for this volunteer
   /** Starting heat for a new rotation, in actual heat-number space. */
   initialHeat?: number
@@ -129,6 +142,7 @@ export function MultiRotationEditor({
   heats,
   availableJudges,
   rotationsByVolunteer,
+  latestAssignmentByJudge,
   existingRotations,
   initialHeat,
   initialLane,
@@ -446,16 +460,24 @@ export function MultiRotationEditor({
                 const labelWithCredentials = judge.credentials
                   ? `${judgeName} (${judge.credentials})`
                   : judgeName
-                const description =
-                  rotationCount === 0
-                    ? "No rotations"
-                    : rotationCount === 1
-                      ? "1 rotation"
-                      : `${rotationCount} rotations`
+                const countLabel =
+                  rotationCount === 1
+                    ? "1 rotation"
+                    : `${rotationCount} rotations`
+                const latest = latestAssignmentByJudge?.get(judge.membershipId)
+                const lastTime = latest?.scheduledTime
+                  ? latest.scheduledTime.toLocaleTimeString("en-US", {
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })
+                  : null
+                const description = latest
+                  ? `Last: Heat ${latest.heatNumber}${lastTime ? ` · ${lastTime}` : ""}\n${latest.eventLabel}`
+                  : "Not yet scheduled"
 
                 return {
                   value: judge.membershipId,
-                  label: labelWithCredentials,
+                  label: `${labelWithCredentials} · ${countLabel}`,
                   description,
                 }
               },

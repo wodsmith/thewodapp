@@ -52,7 +52,10 @@ import {
 } from "./judge-grid-utils"
 import { type HeatLaneAssignment, JudgeHeatCard } from "./judge-heat-card"
 import { JudgeOverview } from "./judge-overview"
-import type { RotationDraft } from "./multi-rotation-editor"
+import type {
+  JudgeLatestAssignment,
+  RotationDraft,
+} from "./multi-rotation-editor"
 import { RotationOverview } from "./rotation-overview"
 import { RotationTimeline } from "./rotation-timeline"
 
@@ -117,6 +120,67 @@ export function JudgeSchedulingContainer({
       ),
     [page.rotations, selectedWorkoutId],
   )
+
+  // Latest scheduled heat per judge across ALL workouts (not just the selected
+  // one), keyed by canonical assignee id. Drives the "last scheduled" hint in
+  // the rotation editor's judge dropdown. "Latest" is by workout trackOrder,
+  // then by the rotation's ending heat number.
+  const latestAssignmentByJudge = useMemo(() => {
+    const workoutById = new Map(
+      workouts.map((workout) => [workout.id, workout]),
+    )
+    const heatsByWorkout = new Map<
+      string,
+      Array<{ heatNumber: number; scheduledTime: Date | null }>
+    >()
+    for (const heat of heats) {
+      const entry = {
+        heatNumber: heat.heatNumber,
+        scheduledTime: heat.scheduledTime ?? null,
+      }
+      const list = heatsByWorkout.get(heat.trackWorkoutId)
+      if (list) {
+        list.push(entry)
+      } else {
+        heatsByWorkout.set(heat.trackWorkoutId, [entry])
+      }
+    }
+    for (const list of heatsByWorkout.values()) {
+      list.sort((a, b) => a.heatNumber - b.heatNumber)
+    }
+
+    const latest = new Map<
+      string,
+      JudgeLatestAssignment & { trackOrder: number }
+    >()
+    for (const rotation of page.rotations) {
+      const assigneeId = rotation.membershipId ?? rotation.invitationId
+      const workout = workoutById.get(rotation.trackWorkoutId)
+      if (!assigneeId || !workout) continue
+      // Mirror expandRotationToAssignments: skip heat-number gaps and cover at
+      // most heatsCount heats, so the ending heat matches the saved grid.
+      const covered = (heatsByWorkout.get(rotation.trackWorkoutId) ?? [])
+        .filter((heat) => heat.heatNumber >= rotation.startingHeat)
+        .slice(0, rotation.heatsCount)
+      const endHeat = covered.at(-1)
+      if (endHeat === undefined) continue
+      const current = latest.get(assigneeId)
+      if (
+        !current ||
+        workout.trackOrder > current.trackOrder ||
+        (workout.trackOrder === current.trackOrder &&
+          endHeat.heatNumber > current.heatNumber)
+      ) {
+        latest.set(assigneeId, {
+          heatNumber: endHeat.heatNumber,
+          scheduledTime: endHeat.scheduledTime,
+          trackOrder: workout.trackOrder,
+          eventLabel: `Event ${workout.trackOrder}: ${workout.workout.name}`,
+        })
+      }
+    }
+    return latest
+  }, [page.rotations, workouts, heats])
 
   // Saved rotations expanded into grid cells (for the heat-lane grid).
   const savedGridCells = useMemo(
@@ -806,6 +870,7 @@ export function JudgeSchedulingContainer({
             heats={workoutHeats}
             laneCount={maxLanes}
             availableJudges={judges}
+            latestAssignmentByJudge={latestAssignmentByJudge}
             initialRotations={workoutRotations}
             eventLaneShiftPattern={eventLaneShiftPattern}
             eventDefaultHeatsCount={eventDefaultHeatsCount}
