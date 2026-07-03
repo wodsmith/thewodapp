@@ -167,20 +167,22 @@ export function RotationTimeline({
     return map
   }, [heatsWithAssignments])
 
-  // Heats array for coverage calculation.
+  // Heats array for coverage calculation. Each heat keeps its own laneCount so
+  // coverage matches the RotationOverview (heats can have differing lane counts;
+  // the laneCount prop is only the max across heats, used for grid geometry).
   const heats = useMemo(
     () =>
       heatsWithAssignments.map((heat) => {
         if (filterEmptyLanes) {
           return {
             heatNumber: heat.heatNumber,
-            laneCount,
+            laneCount: heat.laneCount,
             occupiedLanes: new Set(heat.occupiedLanes),
           }
         }
-        return { heatNumber: heat.heatNumber, laneCount }
+        return { heatNumber: heat.heatNumber, laneCount: heat.laneCount }
       }),
-    [heatsWithAssignments, laneCount, filterEmptyLanes],
+    [heatsWithAssignments, filterEmptyLanes],
   )
 
   const coverage: CoverageStats = useMemo(
@@ -271,9 +273,27 @@ export function RotationTimeline({
       }
     >()
 
+    // Per-heat lane counts. Heats can have fewer lanes than the grid's max
+    // (laneCount prop); cells beyond a heat's own laneCount are not real slots.
+    const laneCountByHeat = new Map<number, number>()
+    for (const heat of heatsWithAssignments) {
+      laneCountByHeat.set(heat.heatNumber, heat.laneCount)
+    }
+
     for (let displayIdx = 1; displayIdx <= heatsCount; displayIdx++) {
       const actualHeatNumber = displayToHeatNumber.get(displayIdx) ?? displayIdx
+      const heatLaneCount = laneCountByHeat.get(actualHeatNumber) ?? laneCount
       for (let lane = 1; lane <= laneCount; lane++) {
+        // Lanes beyond this heat's own lane count aren't real slots — assignments
+        // there are dropped by expandRotationToAssignments, so render them as
+        // hatched/disabled rather than clickable "empty" gaps.
+        if (lane > heatLaneCount) {
+          grid.set(`${displayIdx}:${lane}`, {
+            status: "unavailable",
+            rotationIds: [],
+          })
+          continue
+        }
         if (filterEmptyLanes) {
           const occupiedLanes = occupiedLanesByHeat.get(actualHeatNumber)
           const hasAthlete = occupiedLanes?.has(lane) ?? false
@@ -359,6 +379,7 @@ export function RotationTimeline({
     rotations,
     heats,
     heatsCount,
+    heatsWithAssignments,
     laneCount,
     editingVolunteerId,
     rotationsByVolunteer,
@@ -676,6 +697,10 @@ export function RotationTimeline({
                 minHeat={minHeatNumber}
                 maxHeat={maxHeatNumber}
                 maxLanes={laneCount}
+                heats={heatsWithAssignments.map((heat) => ({
+                  heatNumber: heat.heatNumber,
+                  laneCount: heat.laneCount,
+                }))}
                 availableJudges={availableJudges}
                 rotationsByVolunteer={rotationsByVolunteer}
                 existingRotations={

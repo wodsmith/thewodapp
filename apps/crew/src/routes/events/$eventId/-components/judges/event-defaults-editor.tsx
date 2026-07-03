@@ -73,16 +73,22 @@ export function EventDefaultsEditor({
   const [localBuffer, setLocalBuffer] = useState(String(effectiveBuffer))
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const bufferDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const heatsFocusedRef = useRef(false)
+  const bufferFocusedRef = useRef(false)
 
-  // Sync from props only when no debounced save is pending — the prop only
-  // changes after this component's own save, so overwriting is fine, but we
-  // must not clobber the field while the user is mid-typing.
+  // Sync from props only when no debounced save is pending and the field isn't
+  // focused — the prop only changes after this component's own save, so
+  // overwriting is fine, but we must not clobber the field while the user is
+  // mid-typing (a superseded stale save that nulls the debounce ref before
+  // firing would otherwise let this snap back the in-progress input).
   useEffect(() => {
-    if (!debounceRef.current) setLocalHeats(String(effectiveHeats))
+    if (!debounceRef.current && !heatsFocusedRef.current)
+      setLocalHeats(String(effectiveHeats))
   }, [effectiveHeats])
 
   useEffect(() => {
-    if (!bufferDebounceRef.current) setLocalBuffer(String(effectiveBuffer))
+    if (!bufferDebounceRef.current && !bufferFocusedRef.current)
+      setLocalBuffer(String(effectiveBuffer))
   }, [effectiveBuffer])
 
   async function save(data: {
@@ -104,7 +110,14 @@ export function EventDefaultsEditor({
   function handleHeatsChange(value: string) {
     setLocalHeats(value)
     const newHeats = Number.parseInt(value, 10)
-    if (Number.isNaN(newHeats) || newHeats < 1 || newHeats > 20) return
+    if (Number.isNaN(newHeats) || newHeats < 1 || newHeats > 20) {
+      // Cancel any pending save — its value is now superseded and must not fire.
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current)
+        debounceRef.current = null
+      }
+      return
+    }
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => {
       debounceRef.current = null
@@ -113,6 +126,7 @@ export function EventDefaultsEditor({
   }
 
   function handleHeatsBlur() {
+    heatsFocusedRef.current = false
     const parsed = Number.parseInt(localHeats, 10)
     if (Number.isNaN(parsed) || parsed < 1 || parsed > 20) {
       setLocalHeats(String(effectiveHeats))
@@ -122,7 +136,14 @@ export function EventDefaultsEditor({
   function handleBufferChange(value: string) {
     setLocalBuffer(value)
     const newBuffer = Number.parseInt(value, 10)
-    if (Number.isNaN(newBuffer) || newBuffer < 1 || newBuffer > 10) return
+    if (Number.isNaN(newBuffer) || newBuffer < 1 || newBuffer > 10) {
+      // Cancel any pending save — its value is now superseded and must not fire.
+      if (bufferDebounceRef.current) {
+        clearTimeout(bufferDebounceRef.current)
+        bufferDebounceRef.current = null
+      }
+      return
+    }
     if (bufferDebounceRef.current) clearTimeout(bufferDebounceRef.current)
     bufferDebounceRef.current = setTimeout(() => {
       bufferDebounceRef.current = null
@@ -131,6 +152,7 @@ export function EventDefaultsEditor({
   }
 
   function handleBufferBlur() {
+    bufferFocusedRef.current = false
     const parsed = Number.parseInt(localBuffer, 10)
     if (Number.isNaN(parsed) || parsed < 1 || parsed > 10) {
       setLocalBuffer(String(effectiveBuffer))
@@ -158,6 +180,9 @@ export function EventDefaultsEditor({
             min={1}
             max={20}
             value={localHeats}
+            onFocus={() => {
+              heatsFocusedRef.current = true
+            }}
             onChange={(e) => handleHeatsChange(e.target.value)}
             onBlur={handleHeatsBlur}
             disabled={isSubmitting}
@@ -221,6 +246,9 @@ export function EventDefaultsEditor({
             min={1}
             max={10}
             value={localBuffer}
+            onFocus={() => {
+              bufferFocusedRef.current = true
+            }}
             onChange={(e) => handleBufferChange(e.target.value)}
             onBlur={handleBufferBlur}
             disabled={isSubmitting}

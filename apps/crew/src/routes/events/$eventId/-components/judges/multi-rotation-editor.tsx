@@ -60,6 +60,12 @@ interface MultiRotationEditorProps {
   /** Largest actual heat number in the workout. */
   maxHeat: number
   maxLanes: number
+  /**
+   * Heats present in the workout, in actual heat-number space. Used to expand
+   * previews exactly like expandRotationToAssignments: gaps are skipped and each
+   * heat's own laneCount drives shift_right, so previews match the saved grid.
+   */
+  heats: Array<{ heatNumber: number; laneCount: number }>
   availableJudges: CrewJudgeVolunteer[]
   /** All rotations grouped by canonical assignee id (membershipId) */
   rotationsByVolunteer: Map<string, CompetitionJudgeRotation[]>
@@ -83,8 +89,10 @@ interface MultiRotationEditorProps {
 }
 
 /**
- * Form schema for multiple rotations.
- * Judge selected once, multiple rotation blocks managed with useFieldArray.
+ * Form shape for multiple rotations. Judge selected once, multiple rotation
+ * blocks managed with useFieldArray. This module-level schema is used only to
+ * derive the form-values type — the resolver uses a per-instance schema built in
+ * the component that also bounds fields to the workout's heat/lane range.
  */
 const multiRotationSchema = z.object({
   membershipId: z.string().min(1, "Judge is required"),
@@ -118,6 +126,7 @@ export function MultiRotationEditor({
   minHeat,
   maxHeat,
   maxLanes,
+  heats,
   availableJudges,
   rotationsByVolunteer,
   existingRotations,
@@ -146,8 +155,44 @@ export function MultiRotationEditor({
 
   const [isSaving, setIsSaving] = useState(false)
 
+  // Schema bound to this workout's actual heat/lane range. Without these bounds a
+  // user could enter a startingHeat outside [minHeat, maxHeat] or a startingLane
+  // above maxLanes; the rotation would save but expand to zero grid cells.
+  const boundedSchema = useMemo(
+    () =>
+      z.object({
+        membershipId: z.string().min(1, "Judge is required"),
+        rotations: z
+          .array(
+            z.object({
+              startingHeat: z
+                .number()
+                .int()
+                .min(minHeat, `Heat must be at least ${minHeat}`)
+                .max(maxHeat, `Heat must be at most ${maxHeat}`),
+              startingLane: z
+                .number()
+                .int()
+                .min(1, "Starting lane must be at least 1")
+                .max(maxLanes, `Lane must be at most ${maxLanes}`),
+              heatsCount: z
+                .number()
+                .int()
+                .min(1, "Must cover at least 1 heat")
+                .max(
+                  maxHeat - minHeat + 1,
+                  `Cannot exceed ${maxHeat - minHeat + 1} heats`,
+                ),
+              notes: z.string().max(500, "Notes too long").optional(),
+            }),
+          )
+          .min(1, "At least one rotation required"),
+      }),
+    [minHeat, maxHeat, maxLanes],
+  )
+
   const form = useForm<MultiRotationFormValues>({
-    resolver: standardSchemaResolver(multiRotationSchema),
+    resolver: standardSchemaResolver(boundedSchema),
     defaultValues: {
       membershipId: getRotationAssigneeId(existingRotations?.[0]) ?? "",
       rotations:
@@ -214,21 +259,31 @@ export function MultiRotationEditor({
   ])
 
   /**
-   * Calculate the lane for a given heat iteration. Uses the same logic as
-   * expandRotationToAssignments in judge-rotation-utils.ts.
+   * Calculate the lane for a given heat iteration, mirroring
+   * expandRotationToAssignments in judge-rotation-utils.ts: shift_right cycles
+   * through that heat's own laneCount, so the preview matches the saved grid.
    */
   const calculateLane = useCallback(
-    (startingLane: number, iteration: number): number => {
+    (startingLane: number, iteration: number, laneCount: number): number => {
       if (eventLaneShiftPattern === LANE_SHIFT_PATTERN.STAY) {
         return startingLane
       }
       // shift_right
-      return ((startingLane - 1 + iteration) % maxLanes) + 1
+      return ((startingLane - 1 + iteration) % laneCount) + 1
     },
-    [eventLaneShiftPattern, maxLanes],
+    [eventLaneShiftPattern],
   )
 
-  // Calculate preview cells for ALL rotations
+  // Per-heat lane counts, keyed by actual heat number (heats can have gaps).
+  const laneCountByHeat = useMemo(() => {
+    const map = new Map<number, number>()
+    for (const heat of heats) map.set(heat.heatNumber, heat.laneCount)
+    return map
+  }, [heats])
+
+  // Calculate preview cells for ALL rotations. Mirrors
+  // expandRotationToAssignments: heats that don't exist are skipped, and lanes
+  // outside a heat's own laneCount are dropped.
   const previewCells = useMemo(() => {
     if (!watchedRotations) return []
 
@@ -244,15 +299,18 @@ export function MultiRotationEditor({
 
       for (let i = 0; i < rotation.heatsCount; i++) {
         const heat = rotation.startingHeat + i
-        if (heat > maxHeat) break
+        const laneCount = laneCountByHeat.get(heat)
+        if (laneCount === undefined) continue // heat doesn't exist (gap)
 
-        const lane = calculateLane(rotation.startingLane, i)
+        const lane = calculateLane(rotation.startingLane, i, laneCount)
+        if (lane < 1 || lane > laneCount) continue
+
         allCells.push({ heat, lane, blockIndex })
       }
     }
 
     return allCells
-  }, [watchedRotations, maxHeat, calculateLane])
+  }, [watchedRotations, laneCountByHeat, calculateLane])
 
   // Notify parent of preview changes
   useEffect(() => {
