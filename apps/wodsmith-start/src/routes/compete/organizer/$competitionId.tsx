@@ -95,9 +95,11 @@ const routeLabels: Record<string, string> = {
   "danger-zone": "Danger zone",
 }
 
-function CompetitionLayout() {
+export function CompetitionLayout() {
   const { competition } = Route.useLoaderData()
-  const { entitlements } = Route.useRouteContext()
+  const { entitlements } = Route.useRouteContext() as {
+    entitlements?: { isPendingApproval?: boolean }
+  }
   const matches = useMatches()
 
   // Get the current child route segment for breadcrumb
@@ -124,7 +126,7 @@ function CompetitionLayout() {
       competitionId={competition.id}
       competitionType={competition.competitionType}
     >
-      {entitlements.isPendingApproval && (
+      {entitlements?.isPendingApproval && (
         <PendingOrganizerBanner variant="sidebar-inset" />
       )}
       <div className="flex flex-1 flex-col gap-4 p-4 sm:gap-6 sm:p-6">
