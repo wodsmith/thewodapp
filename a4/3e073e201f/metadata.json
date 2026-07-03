@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "a43e073e201f",
+  "strategy": "manual-commit",
+  "branch": "crew-judges-grid",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/crew/vite.config.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a4/3e073e201f/0/metadata.json",
+      "transcript": "/a4/3e073e201f/0/full.jsonl",
+      "context": "/a4/3e073e201f/0/context.md",
+      "content_hash": "/a4/3e073e201f/0/content_hash.txt",
+      "prompt": "/a4/3e073e201f/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1565,
+    "cache_creation_tokens": 9609,
+    "cache_read_tokens": 2478499,
+    "output_tokens": 4664,
+    "api_call_count": 18
+  }
+}
