@@ -8,6 +8,8 @@ The layout route fetches competition data and verifies the user has organizer-le
 
 Access requires authentication plus one of: platform admin role, or owner/admin membership on the competition's `organizingTeamId`. The layout provides competition data to all child routes via `parentMatchPromise`, avoiding redundant fetches. Each child route uses `getRouteApi("/compete/organizer/$competitionId")` to access parent loader data.
 
+The competition layout reads organizer entitlement context defensively: missing route context is treated as "not pending approval" so deep links to [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId.tsx#CompetitionLayout]] still render instead of crashing while the parent bootstrap settles.
+
 The layout header renders [[apps/wodsmith-start/src/components/competition-header.tsx#CompetitionHeader]], which groups publication, visibility, registration, and competition metadata into compact fields under the competition name. The registration field combines open/closed state with the registration date range so organizers can scan state and timing without reading a long inline sentence. The header's actions are "View public page" and (for series competitions) "Go to Series" — there is no Edit button because the sidebar's "Competition details" link already navigates to the edit page.
 
 ## Overview Page
