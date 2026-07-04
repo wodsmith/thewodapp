@@ -136,27 +136,47 @@ export function EventPilotExportsView({
         ))}
       </div>
 
-      <PrintHeader
-        eventName={event.name}
-        subtitle={PACKET_TABS.find((tab) => tab.id === activeTab)?.label ?? ""}
-        generatedAt={formatExportDate(exports.generatedAt, timezone)}
-      />
-
-      {activeTab === "schedule" ? (
-        <ScheduleTab
-          daySections={exports.masterScheduleDaySections}
-          timezone={timezone}
-        />
-      ) : null}
-      {activeTab === "judges" ? (
-        <JudgesTab
-          eventSections={exports.judgeEventSections}
-          timezone={timezone}
-        />
-      ) : null}
-      {activeTab === "shifts" ? (
-        <ShiftsTab shiftSheets={exports.shiftSheets} timezone={timezone} />
-      ) : null}
+      {/* The thead repeats on every printed page, giving each page a compact
+          branded header without any screen-layout impact. */}
+      <table className="w-full">
+        <thead className="hidden print:table-header-group">
+          <tr>
+            <td className="pb-4">
+              <PrintPageHeader
+                eventName={event.name}
+                subtitle={
+                  PACKET_TABS.find((tab) => tab.id === activeTab)?.label ?? ""
+                }
+                generatedAt={formatExportDate(exports.generatedAt, timezone)}
+              />
+            </td>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              {activeTab === "schedule" ? (
+                <ScheduleTab
+                  daySections={exports.masterScheduleDaySections}
+                  timezone={timezone}
+                />
+              ) : null}
+              {activeTab === "judges" ? (
+                <JudgesTab
+                  eventSections={exports.judgeEventSections}
+                  timezone={timezone}
+                />
+              ) : null}
+              {activeTab === "shifts" ? (
+                <ShiftsTab
+                  shiftSheets={exports.shiftSheets}
+                  timezone={timezone}
+                />
+              ) : null}
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </section>
   )
 }
@@ -299,7 +319,7 @@ function ShiftsTab({
   )
 }
 
-function PrintHeader({
+function PrintPageHeader({
   eventName,
   subtitle,
   generatedAt,
@@ -309,12 +329,24 @@ function PrintHeader({
   generatedAt: string
 }) {
   return (
-    <header className="hidden border-b pb-4 print:block">
-      <h1 className="text-2xl font-semibold">{eventName}</h1>
-      <p className="text-sm">
-        {subtitle} / {generatedAt}
+    <div className="flex items-center justify-between gap-4 border-b pb-2">
+      <div className="flex min-w-0 items-center gap-2">
+        <img
+          src="/wodsmith-logo-no-text.png"
+          alt=""
+          width={20}
+          height={20}
+          className="size-5 shrink-0"
+        />
+        <span className="whitespace-nowrap text-sm">
+          <span className="font-black uppercase">wod</span>smith{" "}
+          <span className="font-medium">Crew</span>
+        </span>
+      </div>
+      <p className="truncate text-xs">
+        {eventName} / {subtitle} / {generatedAt}
       </p>
-    </header>
+    </div>
   )
 }
 
