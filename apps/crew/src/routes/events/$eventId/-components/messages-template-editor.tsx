@@ -6,14 +6,15 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
-  CREW_MESSAGE_TEMPLATE_TYPES,
-  type CrewMessageTemplateType,
-  getCrewMessageTemplateVariables,
-  renderCrewMessageTemplate,
+  type CrewTemplateVariableKey,
+  getCompetitionMessageTemplateVariables,
+  MESSAGE_TEMPLATE_TYPES,
+  type MessageTemplateType,
+  renderCompetitionMessageTemplate,
 } from "@/lib/crew/message-templates"
 
 export const TEMPLATE_TYPE_META: Record<
-  CrewMessageTemplateType,
+  MessageTemplateType,
   { label: string; description: string }
 > = {
   assignment_confirmation: {
@@ -52,14 +53,14 @@ export function MessageTemplateEditor({
   onSave,
   onReset,
 }: {
-  templateType: CrewMessageTemplateType
+  templateType: MessageTemplateType
   draft: TemplateDraft
   isCustomized: boolean
   isDirty: boolean
   isSaving: boolean
   isResetting: boolean
-  sampleValues: Record<string, string>
-  onSelectType: (type: CrewMessageTemplateType) => void
+  sampleValues: Record<CrewTemplateVariableKey, string>
+  onSelectType: (type: MessageTemplateType) => void
   onDraftChange: (draft: TemplateDraft) => void
   onSave: () => void
   onReset: () => void
@@ -68,14 +69,14 @@ export function MessageTemplateEditor({
   const bodyRef = useRef<HTMLTextAreaElement>(null)
   const activeFieldRef = useRef<"subject" | "body">("body")
 
-  const variables = getCrewMessageTemplateVariables(templateType)
-  const preview = renderCrewMessageTemplate({
+  const variables = getCompetitionMessageTemplateVariables(templateType)
+  const preview = renderCompetitionMessageTemplate({
     subject: draft.subject,
     body: draft.body,
     variables: sampleValues,
   })
 
-  function insertVariable(name: string) {
+  function insertVariable(name: CrewTemplateVariableKey) {
     const token = `{{${name}}}`
     const field = activeFieldRef.current
     const el = field === "subject" ? subjectRef.current : bodyRef.current
@@ -97,7 +98,7 @@ export function MessageTemplateEditor({
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium">Message type</legend>
         <div className="grid gap-2 sm:grid-cols-2">
-          {CREW_MESSAGE_TEMPLATE_TYPES.map((type: CrewMessageTemplateType) => {
+          {MESSAGE_TEMPLATE_TYPES.map((type: MessageTemplateType) => {
             const meta = TEMPLATE_TYPE_META[type]
             const selected = type === templateType
             return (

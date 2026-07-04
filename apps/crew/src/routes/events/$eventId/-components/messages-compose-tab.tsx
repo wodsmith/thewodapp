@@ -3,8 +3,9 @@ import { useServerFn } from "@tanstack/react-start"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import {
-  type CrewMessageTemplateType,
-  getDefaultCrewMessageTemplate,
+  type CrewTemplateVariableKey,
+  getDefaultCompetitionMessageTemplate,
+  type MessageTemplateType,
 } from "@/lib/crew/message-templates"
 import type {
   CrewMessageComposerData,
@@ -16,8 +17,8 @@ import type {
 import {
   previewCrewMessageRecipientsFn,
   queueCrewMessagesFn,
-  resetCrewMessageTemplateFn,
-  saveCrewMessageTemplateFn,
+  resetCompetitionMessageTemplateFn,
+  saveCompetitionMessageTemplateFn,
 } from "@/server-fns/crew-message-fns"
 import { formatDateTimeInTimezone } from "@/utils/timezone-utils"
 import { MessageRecipientsPanel } from "./messages-recipients-panel"
@@ -29,9 +30,7 @@ import {
 const SAMPLE_CONFIRM_URL = "https://wodsmith.com/crew/confirm/sample"
 const SAMPLE_SCHEDULE_URL = "https://wodsmith.com/crew/schedule/sample"
 
-function previewModeForType(
-  type: CrewMessageTemplateType,
-): CrewMessagePreviewMode {
+function previewModeForType(type: MessageTemplateType): CrewMessagePreviewMode {
   if (type === "assignment_confirmation") return "assignment_confirmation"
   if (type === "custom_broadcast") return "custom_broadcast"
   return "reminder"
@@ -41,8 +40,8 @@ function buildSampleValues(
   recipient: CrewMessageRecipient | undefined,
   eventName: string,
   timezone: string,
-): Record<string, string> {
-  const base: Record<string, string> = {
+): Record<CrewTemplateVariableKey, string> {
+  const base: Record<CrewTemplateVariableKey, string> = {
     volunteerName: "Alex Rivera",
     eventName,
     shiftName: "Saturday AM",
@@ -88,12 +87,12 @@ export function MessagesComposeTab({
 }) {
   const router = useRouter()
   const queueMessages = useServerFn(queueCrewMessagesFn)
-  const saveTemplate = useServerFn(saveCrewMessageTemplateFn)
-  const resetTemplate = useServerFn(resetCrewMessageTemplateFn)
+  const saveTemplate = useServerFn(saveCompetitionMessageTemplateFn)
+  const resetTemplate = useServerFn(resetCompetitionMessageTemplateFn)
 
   const templatesByType = useMemo(() => {
     const map = new Map<
-      CrewMessageTemplateType,
+      MessageTemplateType,
       { subject: string; body: string; isCustomized: boolean }
     >()
     for (const template of composer.templates) {
@@ -106,14 +105,14 @@ export function MessagesComposeTab({
     return map
   }, [composer.templates])
 
-  const [templateType, setTemplateType] = useState<CrewMessageTemplateType>(
+  const [templateType, setTemplateType] = useState<MessageTemplateType>(
     () => composer.templates[0]?.templateType ?? "assignment_confirmation",
   )
 
-  function storedFor(type: CrewMessageTemplateType) {
+  function storedFor(type: MessageTemplateType) {
     return (
       templatesByType.get(type) ?? {
-        ...getDefaultCrewMessageTemplate(type),
+        ...getDefaultCompetitionMessageTemplate(type),
         isCustomized: false,
       }
     )
@@ -169,7 +168,7 @@ export function MessagesComposeTab({
     timezone,
   )
 
-  function handleSelectType(next: CrewMessageTemplateType) {
+  function handleSelectType(next: MessageTemplateType) {
     setTemplateType(next)
     const nextStored = storedFor(next)
     setDraft({ subject: nextStored.subject, body: nextStored.body })
@@ -224,7 +223,7 @@ export function MessagesComposeTab({
     setIsResetting(true)
     try {
       await resetTemplate({ data: { eventId, templateType } })
-      const fallback = getDefaultCrewMessageTemplate(templateType)
+      const fallback = getDefaultCompetitionMessageTemplate(templateType)
       setDraft({ subject: fallback.subject, body: fallback.body })
       toast.success("Reset to default")
       await router.invalidate()

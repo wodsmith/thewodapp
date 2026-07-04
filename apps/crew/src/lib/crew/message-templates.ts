@@ -1,21 +1,21 @@
 // @lat: [[crew#Volunteer Messaging Composer#Message templates]]
 import {
-  CREW_MESSAGE_TEMPLATE_TYPE,
-  type CrewMessageTemplateType,
-} from "../../db/schemas/crew-message-templates"
+  MESSAGE_TEMPLATE_TYPE,
+  type MessageTemplateType,
+} from "../../db/schemas/message-templates"
 
-export { CREW_MESSAGE_TEMPLATE_TYPE }
-export type { CrewMessageTemplateType }
+export { MESSAGE_TEMPLATE_TYPE }
+export type { MessageTemplateType }
 
 /**
  * Ordered list of the message template types an organizer can compose.
  */
-export const CREW_MESSAGE_TEMPLATE_TYPES = [
-  CREW_MESSAGE_TEMPLATE_TYPE.ASSIGNMENT_CONFIRMATION,
-  CREW_MESSAGE_TEMPLATE_TYPE.REMINDER_48_HOUR,
-  CREW_MESSAGE_TEMPLATE_TYPE.REMINDER_24_HOUR,
-  CREW_MESSAGE_TEMPLATE_TYPE.CUSTOM_BROADCAST,
-] as const satisfies readonly CrewMessageTemplateType[]
+export const MESSAGE_TEMPLATE_TYPES = [
+  MESSAGE_TEMPLATE_TYPE.ASSIGNMENT_CONFIRMATION,
+  MESSAGE_TEMPLATE_TYPE.REMINDER_48_HOUR,
+  MESSAGE_TEMPLATE_TYPE.REMINDER_24_HOUR,
+  MESSAGE_TEMPLATE_TYPE.CUSTOM_BROADCAST,
+] as const satisfies readonly MessageTemplateType[]
 
 /**
  * The full set of substitution variable keys a template body/subject may use.
@@ -107,37 +107,33 @@ export const CREW_TEMPLATE_VARIABLES: readonly CrewTemplateVariableDefinition[] 
  * volunteer/event/schedule variables.
  */
 const TEMPLATE_VARIABLE_KEYS_BY_TYPE: Record<
-  CrewMessageTemplateType,
+  MessageTemplateType,
   readonly CrewTemplateVariableKey[]
 > = {
-  [CREW_MESSAGE_TEMPLATE_TYPE.ASSIGNMENT_CONFIRMATION]:
-    CREW_TEMPLATE_VARIABLE_KEYS,
-  [CREW_MESSAGE_TEMPLATE_TYPE.REMINDER_48_HOUR]: CREW_TEMPLATE_VARIABLE_KEYS,
-  [CREW_MESSAGE_TEMPLATE_TYPE.REMINDER_24_HOUR]: CREW_TEMPLATE_VARIABLE_KEYS,
-  [CREW_MESSAGE_TEMPLATE_TYPE.CUSTOM_BROADCAST]: [
+  [MESSAGE_TEMPLATE_TYPE.ASSIGNMENT_CONFIRMATION]: CREW_TEMPLATE_VARIABLE_KEYS,
+  [MESSAGE_TEMPLATE_TYPE.REMINDER_48_HOUR]: CREW_TEMPLATE_VARIABLE_KEYS,
+  [MESSAGE_TEMPLATE_TYPE.REMINDER_24_HOUR]: CREW_TEMPLATE_VARIABLE_KEYS,
+  [MESSAGE_TEMPLATE_TYPE.CUSTOM_BROADCAST]: [
     "volunteerName",
     "eventName",
     "scheduleUrl",
   ],
 }
 
-export function getCrewMessageTemplateVariables(
-  type: CrewMessageTemplateType,
+export function getCompetitionMessageTemplateVariables(
+  type: MessageTemplateType,
 ): CrewTemplateVariableDefinition[] {
   const allowed = new Set(TEMPLATE_VARIABLE_KEYS_BY_TYPE[type])
   return CREW_TEMPLATE_VARIABLES.filter((variable) => allowed.has(variable.key))
 }
 
-export interface CrewMessageTemplateContent {
+export interface MessageTemplateContent {
   subject: string
   body: string
 }
 
-const DEFAULT_TEMPLATES: Record<
-  CrewMessageTemplateType,
-  CrewMessageTemplateContent
-> = {
-  [CREW_MESSAGE_TEMPLATE_TYPE.ASSIGNMENT_CONFIRMATION]: {
+const DEFAULT_TEMPLATES: Record<MessageTemplateType, MessageTemplateContent> = {
+  [MESSAGE_TEMPLATE_TYPE.ASSIGNMENT_CONFIRMATION]: {
     subject: "{{eventName}}: confirm {{shiftName}}",
     body: [
       "Hi {{volunteerName}},",
@@ -146,7 +142,7 @@ const DEFAULT_TEMPLATES: Record<
       "You can also view your schedule at {{scheduleUrl}}.",
     ].join("\n\n"),
   },
-  [CREW_MESSAGE_TEMPLATE_TYPE.REMINDER_48_HOUR]: {
+  [MESSAGE_TEMPLATE_TYPE.REMINDER_48_HOUR]: {
     subject: "{{eventName}}: reminder for {{shiftName}}",
     body: [
       "Hi {{volunteerName}},",
@@ -155,7 +151,7 @@ const DEFAULT_TEMPLATES: Record<
       "Your private schedule link is {{scheduleUrl}}.",
     ].join("\n\n"),
   },
-  [CREW_MESSAGE_TEMPLATE_TYPE.REMINDER_24_HOUR]: {
+  [MESSAGE_TEMPLATE_TYPE.REMINDER_24_HOUR]: {
     subject: "{{eventName}}: reminder for {{shiftName}}",
     body: [
       "Hi {{volunteerName}},",
@@ -164,7 +160,7 @@ const DEFAULT_TEMPLATES: Record<
       "You can also review your private schedule from {{scheduleUrl}}.",
     ].join("\n\n"),
   },
-  [CREW_MESSAGE_TEMPLATE_TYPE.CUSTOM_BROADCAST]: {
+  [MESSAGE_TEMPLATE_TYPE.CUSTOM_BROADCAST]: {
     subject: "{{eventName}} update",
     body: [
       "Hi {{volunteerName}},",
@@ -178,20 +174,20 @@ const DEFAULT_TEMPLATES: Record<
  * The default (uncustomized) copy for a template type. The returned object is a
  * fresh copy so callers can't mutate the shared defaults.
  */
-export function getDefaultCrewMessageTemplate(
-  type: CrewMessageTemplateType,
-): CrewMessageTemplateContent {
+export function getDefaultCompetitionMessageTemplate(
+  type: MessageTemplateType,
+): MessageTemplateContent {
   const template = DEFAULT_TEMPLATES[type]
   return { subject: template.subject, body: template.body }
 }
 
-export interface RenderCrewMessageTemplateInput {
+export interface RenderCompetitionMessageTemplateInput {
   subject: string
   body: string
-  variables: Partial<Record<string, string>>
+  variables: Partial<Record<CrewTemplateVariableKey, string>>
 }
 
-export interface RenderedCrewMessageTemplate {
+export interface RenderedCompetitionMessageTemplate {
   subject: string
   paragraphs: string[]
 }
@@ -206,10 +202,12 @@ const TEMPLATE_TOKEN_PATTERN = /\{\{\s*(\w+)\s*\}\}/g
  */
 function substituteTemplateTokens(
   input: string,
-  variables: Partial<Record<string, string>>,
+  variables: Partial<Record<CrewTemplateVariableKey, string>>,
 ): string {
   return input.replace(TEMPLATE_TOKEN_PATTERN, (match, key: string) => {
-    const value = variables[key]
+    // Tokens are free text: an unknown key isn't in the union, so index with a
+    // cast and let the missing-value branch leave it literal.
+    const value = variables[key as CrewTemplateVariableKey]
     return value == null || value === "" ? match : value
   })
 }
@@ -218,9 +216,9 @@ function substituteTemplateTokens(
  * Render a template into a subject line plus paragraph list. The body is split
  * into paragraphs on blank lines; substitution runs on the subject and body.
  */
-export function renderCrewMessageTemplate(
-  input: RenderCrewMessageTemplateInput,
-): RenderedCrewMessageTemplate {
+export function renderCompetitionMessageTemplate(
+  input: RenderCompetitionMessageTemplateInput,
+): RenderedCompetitionMessageTemplate {
   const subject = substituteTemplateTokens(input.subject, input.variables)
   const substitutedBody = substituteTemplateTokens(input.body, input.variables)
   const paragraphs = substitutedBody

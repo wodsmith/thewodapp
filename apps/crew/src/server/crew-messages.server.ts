@@ -17,9 +17,9 @@ import {
   crewAssignmentConfirmationsTable,
 } from "../db/schemas/crew-imports"
 import {
-  type CrewMessageTemplateType,
-  crewMessageTemplatesTable,
-} from "../db/schemas/crew-message-templates"
+  competitionMessageTemplatesTable,
+  type MessageTemplateType,
+} from "../db/schemas/message-templates"
 import { teamMembershipTable } from "../db/schemas/teams"
 import { userTable } from "../db/schemas/users"
 import {
@@ -47,10 +47,11 @@ import {
   filterCrewMessageCandidates,
 } from "../lib/crew/message-recipients"
 import {
-  CREW_MESSAGE_TEMPLATE_TYPES,
-  type CrewMessageTemplateContent,
-  getDefaultCrewMessageTemplate,
-  renderCrewMessageTemplate,
+  type CrewTemplateVariableKey,
+  getDefaultCompetitionMessageTemplate,
+  MESSAGE_TEMPLATE_TYPES,
+  type MessageTemplateContent,
+  renderCompetitionMessageTemplate,
 } from "../lib/crew/message-templates"
 import {
   formatVolunteerRole,
@@ -71,14 +72,14 @@ import {
 } from "./crew-department-lead.server"
 
 export type { CrewMessageMode, CrewMessageRecipient }
-export type { CrewMessageTemplateType }
+export type { MessageTemplateType }
 
 // ============================================================================
 // Types
 // ============================================================================
 
 export interface CrewMessageComposerTemplate {
-  templateType: CrewMessageTemplateType
+  templateType: MessageTemplateType
   subject: string
   body: string
   isCustomized: boolean
@@ -157,7 +158,7 @@ export async function getCrewMessageComposer(data: {
     .limit(1)
   const [candidates, templates, history] = await Promise.all([
     loadCrewMessageAssignmentCandidates(data.eventId, access),
-    loadCrewMessageTemplates(data.eventId),
+    loadCompetitionMessageTemplates(data.eventId),
     loadCrewMessageHistory(data.eventId),
   ])
 
@@ -173,22 +174,22 @@ export async function getCrewMessageComposer(data: {
   }
 }
 
-async function loadCrewMessageTemplates(
+async function loadCompetitionMessageTemplates(
   eventId: string,
 ): Promise<CrewMessageComposerTemplate[]> {
   const db = getDb()
   const rows = await db
     .select({
-      templateType: crewMessageTemplatesTable.templateType,
-      subject: crewMessageTemplatesTable.subject,
-      body: crewMessageTemplatesTable.body,
+      templateType: competitionMessageTemplatesTable.templateType,
+      subject: competitionMessageTemplatesTable.subject,
+      body: competitionMessageTemplatesTable.body,
     })
-    .from(crewMessageTemplatesTable)
-    .where(eq(crewMessageTemplatesTable.competitionId, eventId))
+    .from(competitionMessageTemplatesTable)
+    .where(eq(competitionMessageTemplatesTable.competitionId, eventId))
 
   const saved = new Map(rows.map((row) => [row.templateType, row]))
 
-  return CREW_MESSAGE_TEMPLATE_TYPES.map((templateType) => {
+  return MESSAGE_TEMPLATE_TYPES.map((templateType) => {
     const row = saved.get(templateType)
     if (row) {
       return {
@@ -198,7 +199,7 @@ async function loadCrewMessageTemplates(
         isCustomized: true,
       }
     }
-    const fallback = getDefaultCrewMessageTemplate(templateType)
+    const fallback = getDefaultCompetitionMessageTemplate(templateType)
     return {
       templateType,
       subject: fallback.subject,
@@ -366,9 +367,9 @@ async function loadCrewConfirmationHistory(
 // Template save / reset
 // ============================================================================
 
-export async function saveCrewMessageTemplate(data: {
+export async function saveCompetitionMessageTemplate(data: {
   eventId: string
-  templateType: CrewMessageTemplateType
+  templateType: MessageTemplateType
   subject: string
   body: string
 }): Promise<{ success: true }> {
@@ -378,7 +379,7 @@ export async function saveCrewMessageTemplate(data: {
   const db = getDb()
   const now = new Date()
   await db
-    .insert(crewMessageTemplatesTable)
+    .insert(competitionMessageTemplatesTable)
     .values({
       competitionId: data.eventId,
       templateType: data.templateType,
@@ -398,20 +399,20 @@ export async function saveCrewMessageTemplate(data: {
   return { success: true }
 }
 
-export async function resetCrewMessageTemplate(data: {
+export async function resetCompetitionMessageTemplate(data: {
   eventId: string
-  templateType: CrewMessageTemplateType
+  templateType: MessageTemplateType
 }): Promise<{ success: true }> {
   const event = await requireCrewDepartmentLeadEvent(data.eventId)
   await resolveCrewDepartmentLeadAccess(event)
 
   const db = getDb()
   await db
-    .delete(crewMessageTemplatesTable)
+    .delete(competitionMessageTemplatesTable)
     .where(
       and(
-        eq(crewMessageTemplatesTable.competitionId, data.eventId),
-        eq(crewMessageTemplatesTable.templateType, data.templateType),
+        eq(competitionMessageTemplatesTable.competitionId, data.eventId),
+        eq(competitionMessageTemplatesTable.templateType, data.templateType),
       ),
     )
 
@@ -456,7 +457,7 @@ export async function queueCrewMessages(data: {
   eventId: string
   mode: CrewMessageMode
   recipientKeys: string[]
-  template: CrewMessageTemplateContent
+  template: MessageTemplateContent
 }): Promise<QueueCrewMessagesResult> {
   if (data.mode === "custom_broadcast") {
     return queueCrewCustomBroadcast(data)
@@ -468,7 +469,7 @@ async function queueCrewAssignmentMessages(data: {
   eventId: string
   mode: CrewMessageMode
   recipientKeys: string[]
-  template: CrewMessageTemplateContent
+  template: MessageTemplateContent
 }): Promise<QueueCrewMessagesResult> {
   const mode = data.mode === "reminder" ? "reminders" : "confirmations"
   const footerText =
@@ -479,7 +480,7 @@ async function queueCrewAssignmentMessages(data: {
     mode,
     recipientConfirmationIds: data.recipientKeys,
     render: async (context) => {
-      const variables = {
+      const variables: Record<CrewTemplateVariableKey, string> = {
         volunteerName: context.volunteerName,
         eventName: context.eventName,
         shiftName: context.shiftName,
@@ -498,7 +499,7 @@ async function queueCrewAssignmentMessages(data: {
         confirmUrl: context.confirmUrl,
         scheduleUrl: context.scheduleUrl,
       }
-      const rendered = renderCrewMessageTemplate({
+      const rendered = renderCompetitionMessageTemplate({
         subject: data.template.subject,
         body: data.template.body,
         variables,
@@ -527,7 +528,7 @@ async function queueCrewAssignmentMessages(data: {
 async function queueCrewCustomBroadcast(data: {
   eventId: string
   recipientKeys: string[]
-  template: CrewMessageTemplateContent
+  template: MessageTemplateContent
 }): Promise<QueueCrewMessagesResult> {
   const event = await requireCrewDepartmentLeadEvent(data.eventId)
   const access = await resolveCrewDepartmentLeadAccess(event)
@@ -579,14 +580,15 @@ async function queueCrewCustomBroadcast(data: {
 
   // Pre-render per-recipient bodies (custom broadcasts personalize the greeting).
   const prepared = eligibleRecipients.map((recipient) => {
-    const rendered = renderCrewMessageTemplate({
+    const variables: Partial<Record<CrewTemplateVariableKey, string>> = {
+      volunteerName: recipient.volunteerName,
+      eventName,
+      scheduleUrl,
+    }
+    const rendered = renderCompetitionMessageTemplate({
       subject: data.template.subject,
       body: data.template.body,
-      variables: {
-        volunteerName: recipient.volunteerName,
-        eventName,
-        scheduleUrl,
-      },
+      variables,
     })
     return {
       recipient,

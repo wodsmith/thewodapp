@@ -2,7 +2,7 @@
 // @lat: [[crew#Server Function Runtime Boundary]]
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
-import { CREW_MESSAGE_TEMPLATE_TYPE } from "../db/schemas/crew-message-templates"
+import { MESSAGE_TEMPLATE_TYPE } from "../db/schemas/message-templates"
 import type {
   CrewMessageComposerData,
   CrewMessageHistoryItem,
@@ -26,7 +26,7 @@ export type {
   CrewMessageHistoryKind,
   CrewMessageMode,
   CrewMessageRecipient,
-  CrewMessageTemplateType,
+  MessageTemplateType,
   PreviewCrewMessageRecipientsResult,
   QueueCrewMessagesResult,
 } from "../server/crew-messages.server"
@@ -55,10 +55,10 @@ const MESSAGE_MODES = [
 ] as const
 
 const templateTypeSchema = z.enum([
-  CREW_MESSAGE_TEMPLATE_TYPE.ASSIGNMENT_CONFIRMATION,
-  CREW_MESSAGE_TEMPLATE_TYPE.REMINDER_48_HOUR,
-  CREW_MESSAGE_TEMPLATE_TYPE.REMINDER_24_HOUR,
-  CREW_MESSAGE_TEMPLATE_TYPE.CUSTOM_BROADCAST,
+  MESSAGE_TEMPLATE_TYPE.ASSIGNMENT_CONFIRMATION,
+  MESSAGE_TEMPLATE_TYPE.REMINDER_48_HOUR,
+  MESSAGE_TEMPLATE_TYPE.REMINDER_24_HOUR,
+  MESSAGE_TEMPLATE_TYPE.CUSTOM_BROADCAST,
 ])
 
 const templateContentSchema = z.object({
@@ -112,22 +112,26 @@ export const getCrewMessageComposerFn = createServerFn({ method: "GET" })
     return getCrewMessageComposer(data)
   })
 
-export const saveCrewMessageTemplateFn = createServerFn({ method: "POST" })
+export const saveCompetitionMessageTemplateFn = createServerFn({
+  method: "POST",
+})
   .inputValidator((data: unknown) => saveTemplateInputSchema.parse(data))
   .handler(async ({ data }) => {
-    const { saveCrewMessageTemplate } = await import(
+    const { saveCompetitionMessageTemplate } = await import(
       "../server/crew-messages.server"
     )
-    return saveCrewMessageTemplate(data)
+    return saveCompetitionMessageTemplate(data)
   })
 
-export const resetCrewMessageTemplateFn = createServerFn({ method: "POST" })
+export const resetCompetitionMessageTemplateFn = createServerFn({
+  method: "POST",
+})
   .inputValidator((data: unknown) => resetTemplateInputSchema.parse(data))
   .handler(async ({ data }) => {
-    const { resetCrewMessageTemplate } = await import(
+    const { resetCompetitionMessageTemplate } = await import(
       "../server/crew-messages.server"
     )
-    return resetCrewMessageTemplate(data)
+    return resetCompetitionMessageTemplate(data)
   })
 
 export const previewCrewMessageRecipientsFn = createServerFn({ method: "GET" })
