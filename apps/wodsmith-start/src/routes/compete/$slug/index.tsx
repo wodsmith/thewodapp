@@ -150,6 +150,7 @@ function CompetitionOverviewPage() {
         workout: {
           name: w.workout.name,
           scheme: w.workout.scheme,
+          description: w.workout.description,
         },
       })),
     [workouts],
@@ -172,6 +173,8 @@ function CompetitionOverviewPage() {
       userDivisions={userDivisions}
       workouts={scorePanelWorkouts}
       eventDivisionMappings={eventDivisionMappings}
+      timezone={competition.timezone}
+      divisionDescriptionsMap={divisionDescriptionsMap}
     />
   ) : null
 
@@ -268,7 +271,7 @@ function CompetitionOverviewPage() {
         />
         <CompetitionLocationCard
           address={competition.address}
-          competitionType={competition.competitionType}
+          settings={competition.settings}
           organizingTeamName={competition.organizingTeam?.name}
         />
       </aside>
