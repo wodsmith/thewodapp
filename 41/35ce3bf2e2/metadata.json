@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "4135ce3bf2e2",
+  "strategy": "manual-commit",
+  "branch": "crew/volunteer-broadcast",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "apps/crew/src/routes/events/$eventId/-components/messages-compose-tab.tsx",
+    "apps/crew/src/routes/events/$eventId/-components/messages-recipients-panel.tsx",
+    "apps/crew/src/routes/events/$eventId/-components/messages-template-editor.tsx",
+    "apps/crew/src/routes/events/$eventId/messages.tsx",
+    "apps/crew/src/server/broadcast-queue-consumer.ts",
+    "apps/wodsmith-start/src/db/schemas/message-templates.ts",
+    "lat.md/crew.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/41/35ce3bf2e2/0/metadata.json",
+      "transcript": "/41/35ce3bf2e2/0/full.jsonl",
+      "context": "/41/35ce3bf2e2/0/context.md",
+      "content_hash": "/41/35ce3bf2e2/0/content_hash.txt",
+      "prompt": "/41/35ce3bf2e2/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 10199,
+    "cache_creation_tokens": 45100,
+    "cache_read_tokens": 6344310,
+    "output_tokens": 23261,
+    "api_call_count": 35
+  }
+}

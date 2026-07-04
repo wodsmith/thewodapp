@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "4135ce3bf2e2",
+  "session_id": "1d759453-9120-4a75-89a3-9a40d7432d0c",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-04T05:37:13.720449Z",
+  "branch": "crew/volunteer-broadcast",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "apps/crew/src/routes/events/$eventId/-components/messages-compose-tab.tsx",
+    "apps/crew/src/routes/events/$eventId/-components/messages-recipients-panel.tsx",
+    "apps/crew/src/routes/events/$eventId/-components/messages-template-editor.tsx",
+    "apps/crew/src/routes/events/$eventId/messages.tsx",
+    "apps/crew/src/server/broadcast-queue-consumer.ts",
+    "apps/wodsmith-start/src/db/schemas/message-templates.ts",
+    "lat.md/crew.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "5c4f789d-a5ff-4550-a4b5-713f5d85f5d7",
+  "checkpoint_transcript_start": 422,
+  "transcript_lines_at_start": 422,
+  "token_usage": {
+    "input_tokens": 10199,
+    "cache_creation_tokens": 45100,
+    "cache_read_tokens": 6344310,
+    "output_tokens": 23261,
+    "api_call_count": 35
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-07-04T05:37:13.625031Z",
+    "agent_lines": 21,
+    "human_added": 265,
+    "human_modified": 4,
+    "human_removed": 0,
+    "total_committed": 290,
+    "agent_percentage": 7.241379310344828
+  }
+}
