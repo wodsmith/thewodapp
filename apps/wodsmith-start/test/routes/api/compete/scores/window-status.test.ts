@@ -92,4 +92,29 @@ describe("score window-status API route", () => {
     })
     expect(mockLimit).toHaveBeenCalledTimes(1)
   })
+
+  // @lat: [[competition-type-capabilities#Perpetual End Date Tests#Window Status Ended Benchmark Test]]
+  it("closes benchmark submissions when an explicit end date has passed", async () => {
+    mockLimit.mockResolvedValueOnce([
+      {
+        competitionType: "benchmark",
+        startDate: "2020-01-01",
+        endDate: "2020-12-31",
+      },
+    ])
+
+    const response = await routeConfig.server.handlers.GET({
+      request: windowStatusRequest(),
+    })
+    const data = (await response.json()) as {
+      isOpen: boolean
+      reason: string
+    }
+
+    expect(response.status).toBe(200)
+    expect(data).toMatchObject({
+      isOpen: false,
+      reason: "Submissions have closed for this competition",
+    })
+  })
 })

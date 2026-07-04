@@ -46,6 +46,28 @@ The create-picker test pins that selectable competition type options are derived
 
 This test verifies the organizer create form exposes Benchmark as a selectable competition type.
 
+## Perpetual End Dates
+
+Benchmark competitions require only a start date; the end date is optional so the leaderboard can live on forever. The NOT NULL `endDate` column stores `endDate === startDate` as the "no end date set" sentinel.
+
+[[apps/wodsmith-start/src/lib/competitions/perpetual-dates.ts#isOpenEnded]] detects the sentinel and [[apps/wodsmith-start/src/lib/competitions/perpetual-dates.ts#perpetualSubmissionsClosed]] reports when an explicit end date has passed. The organizer create and edit forms hide the multi-day toggle for perpetual types and offer an optional end-date field (blank ⇒ sentinel). All perpetual submission gates — score window-status, legacy score/video API submit, `checkVideoSubmissionAllowed`, the batched event-window resolver, and athlete score windows — close submissions once a set end date passes, while the leaderboard stays visible forever. Date displays (competition card, hero, registration sections, SportsEvent JSON-LD) show "Since {start}" only for open-ended boards and a normal date range when an end date is set.
+
+## Perpetual End Date Tests
+
+Tests pinning the open-ended sentinel, submission closing after a set end date, and the window-status API behavior for ended benchmarks.
+
+### Open-Ended Sentinel Test
+
+Verifies `isOpenEnded` returns true only for perpetual types whose end date equals the start date; single-day in-person competitions are not open-ended.
+
+### Ended Benchmark Closes Submissions Test
+
+Verifies `perpetualSubmissionsClosed` is false for open-ended boards and future end dates, true once a set end date passes, and always false for non-perpetual types.
+
+### Window Status Ended Benchmark Test
+
+Verifies the score window-status API reports closed with a reason for a benchmark whose explicit end date has passed.
+
 ## Perpetual Window Status Test
 
 The window-status test pins benchmark as open without submission-window rows while online competitions still require configured rows.

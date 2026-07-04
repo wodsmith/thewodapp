@@ -36,7 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { Competition, ScalingLevel, Team, Waiver } from "@/db/schema"
-import { competitionCan } from "@/lib/competitions/capabilities"
+import { isOpenEnded } from "@/lib/competitions/perpetual-dates"
 import type { PublicCompetitionDivision } from "@/server-fns/competition-divisions-fns"
 import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
 import { cn } from "@/utils/cn"
@@ -259,7 +259,7 @@ export function CompetitionDetailsCard({
   */
   hideRegistrationWindow?: boolean
 }) {
-  const isPerpetual = competitionCan(competition.competitionType, "perpetual")
+  const isPerpetual = isOpenEnded(competition)
   const competitionDateLabel = isPerpetual
     ? "Competition start"
     : isSameDateString(competition.startDate, competition.endDate)

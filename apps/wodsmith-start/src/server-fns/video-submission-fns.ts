@@ -39,16 +39,7 @@ import { videoVotesTable } from "@/db/schemas/video-votes"
 import type { TiebreakScheme } from "@/db/schemas/workouts"
 import { workouts } from "@/db/schemas/workouts"
 import { competitionCan } from "@/lib/competitions/capabilities"
-import type { BenchmarkVariant } from "@/schemas/benchmark.schema"
-import {
-  getBenchmarkProfileVariant,
-  getBenchmarkSubmissionContext,
-  isBenchmarkVideoEvidenceRequired,
-  resetBenchmarkVideoReviewState,
-  saveBenchmarkScoreInTransaction,
-  type BenchmarkRegistration,
-  type BenchmarkSubmissionContext,
-} from "@/server/benchmark-submissions"
+import { perpetualSubmissionsClosed } from "@/lib/competitions/perpetual-dates"
 import {
   computeSortKey,
   decodeScore,
@@ -62,6 +53,16 @@ import {
   sortKeyToString,
   type WorkoutScheme,
 } from "@/lib/scoring"
+import type { BenchmarkVariant } from "@/schemas/benchmark.schema"
+import {
+  type BenchmarkRegistration,
+  type BenchmarkSubmissionContext,
+  getBenchmarkProfileVariant,
+  getBenchmarkSubmissionContext,
+  isBenchmarkVideoEvidenceRequired,
+  resetBenchmarkVideoReviewState,
+  saveBenchmarkScoreInTransaction,
+} from "@/server/benchmark-submissions"
 import { getSessionFromCookie } from "@/utils/auth"
 import { autochunk } from "@/utils/batch-query"
 import { requireSubmissionReviewAccess } from "@/utils/team-auth"
@@ -146,6 +147,8 @@ async function checkSubmissionWindow(
     dbCompetition
       .select({
         competitionType: competitionsTable.competitionType,
+        startDate: competitionsTable.startDate,
+        endDate: competitionsTable.endDate,
       })
       .from(competitionsTable)
       .where(eq(competitionsTable.id, competitionId))
@@ -182,6 +185,13 @@ async function checkSubmissionWindow(
   }
 
   if (competitionCan(competition.competitionType, "perpetual")) {
+    if (perpetualSubmissionsClosed(competition)) {
+      return {
+        allowed: false,
+        reason: "Submissions have closed for this competition",
+        competitionType: competition.competitionType,
+      }
+    }
     return { allowed: true, competitionType: competition.competitionType }
   }
 
@@ -1105,7 +1115,11 @@ export const getBatchEventVideoSubmissionsFn = createServerFn({
       ] = await Promise.all([
         getTeamSize(registration.divisionId),
         dbCompetition
-          .select({ competitionType: competitionsTable.competitionType })
+          .select({
+            competitionType: competitionsTable.competitionType,
+            startDate: competitionsTable.startDate,
+            endDate: competitionsTable.endDate,
+          })
           .from(competitionsTable)
           .where(eq(competitionsTable.id, data.competitionId))
           .limit(1),
@@ -1268,7 +1282,12 @@ export const getBatchEventVideoSubmissionsFn = createServerFn({
           allowed = false
           windowReason = "Video submissions are only for online competitions"
         } else if (competitionCan(competition.competitionType, "perpetual")) {
-          allowed = true
+          if (perpetualSubmissionsClosed(competition)) {
+            allowed = false
+            windowReason = "Submissions have closed for this competition"
+          } else {
+            allowed = true
+          }
         } else {
           const event = eventMap.get(twId)
           // No event record / no configured window → submission allowed
@@ -1614,7 +1633,7 @@ export const submitVideoFn = createServerFn({ method: "POST" })
 
     const db = getDb()
 
-    let registration = await getAthleteRegistration(
+    const registration = await getAthleteRegistration(
       data.competitionId,
       session.userId,
       data.divisionId,

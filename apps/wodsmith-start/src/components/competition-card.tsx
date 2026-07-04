@@ -2,7 +2,7 @@
 
 import { Link } from "@tanstack/react-router"
 import { CalendarIcon, GlobeIcon, MapPinIcon } from "lucide-react"
-import { competitionCan } from "@/lib/competitions/capabilities"
+import { isOpenEnded } from "@/lib/competitions/perpetual-dates"
 import type { CompetitionWithOrganizingTeam } from "@/server-fns/competition-fns"
 import { formatLocationBadge } from "@/utils/address"
 import { cn } from "@/utils/cn"
@@ -117,7 +117,7 @@ export function CompetitionCard({
     competition.organizingTeam?.name,
   )
   const cfg = STATUS_CONFIG[status]
-  const dateRange = competitionCan(competition.competitionType, "perpetual")
+  const dateRange = isOpenEnded(competition)
     ? `Since ${new Date(competition.startDate).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",

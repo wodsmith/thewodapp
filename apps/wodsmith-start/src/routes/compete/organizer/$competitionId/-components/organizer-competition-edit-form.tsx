@@ -40,6 +40,7 @@ import type { Competition, CompetitionGroup } from "@/db/schemas/competitions"
 import {
   COMPETITION_TYPE_REGISTRY,
   type CompetitionTypeId,
+  competitionCan,
   isSelectableCompetitionTypeValue,
   type RegisteredCompetitionTypeId,
   selectableCompetitionTypeOptions,
@@ -112,6 +113,8 @@ const formSchema = z
   })
   .refine(
     (data) => {
+      // Perpetual competitions never require an end date
+      if (competitionCan(data.competitionType, "perpetual")) return true
       // For single-day competitions, endDate is optional (will be set to startDate on submit)
       if (!data.isMultiDay) return true
       // For multi-day competitions, endDate is required
@@ -126,6 +129,11 @@ const formSchema = z
   .refine(
     (data) => {
       if (!data.startDate) return true
+      if (competitionCan(data.competitionType, "perpetual")) {
+        // Perpetual: end date is optional, but must be after start when set
+        if (!data.endDate) return true
+        return new Date(data.startDate) < new Date(data.endDate)
+      }
       // For single-day competitions, no endDate validation needed
       if (!data.isMultiDay) return true
       // For multi-day competitions, endDate must be after startDate
@@ -133,7 +141,7 @@ const formSchema = z
       return new Date(data.startDate) < new Date(data.endDate)
     },
     {
-      message: "End date must be after start date for multi-day competitions",
+      message: "End date must be after start date",
       path: ["endDate"],
     },
   )
@@ -193,10 +201,18 @@ export function OrganizerCompetitionEditForm({
   // Use useServerFn hook for client-side server function calls
   const updateCompetition = useServerFn(updateCompetitionFn)
 
-  // Determine if existing competition is multi-day (start and end dates differ)
-  const existingIsMultiDay =
+  const isPerpetualCompetition = competitionCan(
+    competition.competitionType,
+    "perpetual",
+  )
+  // Whether the stored dates differ. For perpetual competitions,
+  // endDate === startDate is the "no end date set" sentinel.
+  const existingHasEndDate =
     formatDateForInput(competition.startDate) !==
     formatDateForInput(competition.endDate)
+  // Determine if existing competition is multi-day (start and end dates differ).
+  // Perpetual competitions don't use the multi-day concept.
+  const existingIsMultiDay = !isPerpetualCompetition && existingHasEndDate
   const initialCompetitionType: CompetitionTypeId =
     isSelectableCompetitionTypeValue(competition.competitionType)
       ? competition.competitionType
@@ -220,7 +236,10 @@ export function OrganizerCompetitionEditForm({
       competitionType: initialCompetitionType,
       isMultiDay: existingIsMultiDay,
       startDate: formatDateForInput(competition.startDate),
-      endDate: formatDateForInput(competition.endDate),
+      endDate:
+        isPerpetualCompetition && !existingHasEndDate
+          ? ""
+          : formatDateForInput(competition.endDate),
       description: competition.description || "",
       registrationOpensAt: formatDateForInput(competition.registrationOpensAt),
       registrationClosesAt: formatDateForInput(
@@ -248,6 +267,7 @@ export function OrganizerCompetitionEditForm({
   const effectiveCompetitionType = canEditCompetitionType
     ? competitionType
     : competition.competitionType
+  const isPerpetualType = competitionCan(effectiveCompetitionType, "perpetual")
   const showLocationSection = canDisplayPhysicalVenue(effectiveCompetitionType)
 
   // Auto-generate slug from name
@@ -263,9 +283,12 @@ export function OrganizerCompetitionEditForm({
   }
 
   async function onSubmit(data: FormValues) {
-    // For single-day competitions, endDate = startDate
+    // Perpetual: optional end date, endDate = startDate means open-ended.
+    // Single-day: endDate = startDate.
     const effectiveEndDate =
-      data.isMultiDay && data.endDate ? data.endDate : data.startDate
+      (isPerpetualType || data.isMultiDay) && data.endDate
+        ? data.endDate
+        : data.startDate
 
     setIsPending(true)
     try {
@@ -515,55 +538,67 @@ export function OrganizerCompetitionEditForm({
           render={({ field }) => (
             <FormItem>
               <FormLabel>
-                {isMultiDay ? "Start date" : "Competition date"}
+                {isPerpetualType || isMultiDay
+                  ? "Start date"
+                  : "Competition date"}
               </FormLabel>
               <FormControl>
                 <Input type="date" {...field} />
               </FormControl>
               <FormDescription>
-                {isMultiDay
-                  ? "When the competition begins"
-                  : "The date of the competition"}
+                {isPerpetualType
+                  ? "When the leaderboard opens for submissions"
+                  : isMultiDay
+                    ? "When the competition begins"
+                    : "The date of the competition"}
               </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        {/* Multi-day toggle */}
-        <FormField
-          control={form.control}
-          name="isMultiDay"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-              <FormControl>
-                <Checkbox
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-              <div className="space-y-1 leading-none">
-                <FormLabel>Multi-day competition</FormLabel>
-                <FormDescription>
-                  Enable this if your competition spans multiple days
-                </FormDescription>
-              </div>
-            </FormItem>
-          )}
-        />
+        {/* Multi-day toggle (not applicable to perpetual competitions) */}
+        {!isPerpetualType && (
+          <FormField
+            control={form.control}
+            name="isMultiDay"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel>Multi-day competition</FormLabel>
+                  <FormDescription>
+                    Enable this if your competition spans multiple days
+                  </FormDescription>
+                </div>
+              </FormItem>
+            )}
+          />
+        )}
 
-        {/* End Date (only shown for multi-day) */}
-        {isMultiDay && (
+        {/* End Date (multi-day, or optional for perpetual) */}
+        {(isMultiDay || isPerpetualType) && (
           <FormField
             control={form.control}
             name="endDate"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>End Date</FormLabel>
+                <FormLabel>
+                  {isPerpetualType ? "End date (optional)" : "End Date"}
+                </FormLabel>
                 <FormControl>
                   <Input type="date" {...field} value={field.value || ""} />
                 </FormControl>
-                <FormDescription>When the competition ends</FormDescription>
+                <FormDescription>
+                  {isPerpetualType
+                    ? "Leave blank to keep the leaderboard open forever. If set, submissions close after this date but the leaderboard stays visible."
+                    : "When the competition ends"}
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}

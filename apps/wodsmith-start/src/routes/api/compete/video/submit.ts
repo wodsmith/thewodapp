@@ -40,6 +40,7 @@ import {
 import type { TiebreakScheme } from "@/db/schemas/workouts"
 import { workouts } from "@/db/schemas/workouts"
 import { competitionCan } from "@/lib/competitions/capabilities"
+import { perpetualSubmissionsClosed } from "@/lib/competitions/perpetual-dates"
 import {
   computeSortKey,
   encodeScore,
@@ -72,7 +73,11 @@ async function checkVideoSubmissionWindow(
   const db = getDb()
 
   const [competition] = await db
-    .select({ competitionType: competitionsTable.competitionType })
+    .select({
+      competitionType: competitionsTable.competitionType,
+      startDate: competitionsTable.startDate,
+      endDate: competitionsTable.endDate,
+    })
     .from(competitionsTable)
     .where(eq(competitionsTable.id, competitionId))
     .limit(1)
@@ -87,6 +92,12 @@ async function checkVideoSubmissionWindow(
   }
 
   if (competitionCan(competition.competitionType, "perpetual")) {
+    if (perpetualSubmissionsClosed(competition)) {
+      return {
+        allowed: false,
+        reason: "Submissions have closed for this competition",
+      }
+    }
     return { allowed: true }
   }
 

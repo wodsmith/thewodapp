@@ -10,7 +10,7 @@ import { z } from "zod"
 import { CompetitionHero } from "@/components/competition-hero"
 import { CouponBanner } from "@/components/coupon-banner"
 import { JsonLd } from "@/components/json-ld"
-import { competitionCan } from "@/lib/competitions/capabilities"
+import { isOpenEnded } from "@/lib/competitions/perpetual-dates"
 import { trackEvent } from "@/lib/posthog"
 import {
   getPublicCompetitionPageDataFn,
@@ -208,7 +208,7 @@ function CompetitionDetailLayout() {
   }, [couponCode, competition.slug, navigate])
 
   const appUrl = loaderData.appUrl || "https://wodsmith.com"
-  const isPerpetual = competitionCan(competition.competitionType, "perpetual")
+  const isPerpetual = isOpenEnded(competition)
 
   const sportsEventSchema = {
     "@context": "https://schema.org",

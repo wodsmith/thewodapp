@@ -15,6 +15,7 @@ import {
   competitionsTable,
 } from "@/db/schemas/competitions"
 import { competitionCan } from "@/lib/competitions/capabilities"
+import { perpetualSubmissionsClosed } from "@/lib/competitions/perpetual-dates"
 import { corsHeaders } from "@/utils/bearer-auth"
 
 async function getSubmissionWindowStatus(
@@ -24,7 +25,11 @@ async function getSubmissionWindowStatus(
   const db = getDb()
 
   const [competition] = await db
-    .select({ competitionType: competitionsTable.competitionType })
+    .select({
+      competitionType: competitionsTable.competitionType,
+      startDate: competitionsTable.startDate,
+      endDate: competitionsTable.endDate,
+    })
     .from(competitionsTable)
     .where(eq(competitionsTable.id, competitionId))
     .limit(1)
@@ -39,6 +44,14 @@ async function getSubmissionWindowStatus(
   }
 
   if (competitionCan(competition.competitionType, "perpetual")) {
+    if (perpetualSubmissionsClosed(competition)) {
+      return {
+        isOpen: false,
+        opensAt: null,
+        closesAt: null,
+        reason: "Submissions have closed for this competition",
+      }
+    }
     return {
       isOpen: true,
       opensAt: null,
