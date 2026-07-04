@@ -141,6 +141,8 @@ Publish state lives in `competitionsTable.settings.divisionResults[trackWorkoutI
 
 Defaults: when `divisionResults` is absent entirely, online competitions treat everything as hidden (opt-in publishing) while in-person competitions show everything (backwards compat for gyms that never opted into the gate). Organizers can bulk-publish all divisions for an event from `QuickActionsDivisionResults`.
 
+Benchmark (perpetual) competitions pre-publish by default: `settings.resultsAutoPublish` defaults to `true`, making [[apps/wodsmith-start/src/server/competition-leaderboard.ts#resolveLeaderboardDivisionResults]] skip the gate entirely so scores appear on the public leaderboard as they come in. The organizer overview's `QuickActionsDivisionResults` card shows a "Pre-published / Manual publishing" selector (only for perpetual types) backed by [[apps/wodsmith-start/src/server-fns/division-results-fns.ts#setResultsAutoPublishFn]], which rejects non-perpetual competition types. Flipping to manual re-enables the standard per-division gate with hidden-until-published semantics.
+
 ## Check-In Kiosk
 
 For in-person competitions only, the "Run Competition" sidebar exposes a "Check-in" link to an organizer landing page that explains the flow and opens the volunteer-facing kiosk in a new tab.

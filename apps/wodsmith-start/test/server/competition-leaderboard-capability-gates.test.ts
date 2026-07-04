@@ -60,6 +60,41 @@ describe("competition leaderboard capability gates", () => {
 			).toBeUndefined()
 		})
 
+		it("re-enables the manual publish gate when benchmark pre-publishing is turned off", () => {
+			expect(
+				resolveLeaderboardDivisionResults({
+					bypassPublicationFilter: false,
+					competitionType: "benchmark",
+					settings: { resultsAutoPublish: false },
+				}),
+			).toEqual({})
+
+			const divisionResults: NonNullable<
+				CompetitionSettings["divisionResults"]
+			> = {
+				"event-1": {
+					"division-1": { publishedAt: 1_720_000_000 },
+				},
+			}
+			expect(
+				resolveLeaderboardDivisionResults({
+					bypassPublicationFilter: false,
+					competitionType: "benchmark",
+					settings: { resultsAutoPublish: false, divisionResults },
+				}),
+			).toBe(divisionResults)
+		})
+
+		it("keeps benchmark boards pre-published when the setting is explicitly on", () => {
+			expect(
+				resolveLeaderboardDivisionResults({
+					bypassPublicationFilter: false,
+					competitionType: "benchmark",
+					settings: { resultsAutoPublish: true },
+				}),
+			).toBeUndefined()
+		})
+
 		it("bypasses result publishing when organizer preview requests it", () => {
 			expect(
 				resolveLeaderboardDivisionResults({

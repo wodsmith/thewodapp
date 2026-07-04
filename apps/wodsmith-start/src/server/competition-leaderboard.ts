@@ -60,10 +60,10 @@ import {
 } from "@/types/competitions"
 import { getAffiliate } from "@/utils/registration-metadata"
 import {
-  findBenchmarkRatingBand,
-  loadBenchmarkLeaderboardContext,
   type BenchmarkLeaderboardCategoryScore,
   type BenchmarkLeaderboardRatingBand,
+  findBenchmarkRatingBand,
+  loadBenchmarkLeaderboardContext,
 } from "./benchmark-leaderboard"
 
 // ============================================================================
@@ -231,7 +231,12 @@ export function resolveLeaderboardDivisionResults(params: {
   settings: CompetitionSettings | null | undefined
 }): CompetitionSettings["divisionResults"] | undefined {
   if (params.bypassPublicationFilter) return undefined
-  if (competitionCan(params.competitionType, "perpetual")) return undefined
+  if (competitionCan(params.competitionType, "perpetual")) {
+    // Perpetual boards pre-publish results by default; organizers can flip
+    // resultsAutoPublish off to fall back to the manual per-division gate.
+    if (params.settings?.resultsAutoPublish !== false) return undefined
+    return params.settings?.divisionResults ?? {}
+  }
 
   return (
     params.settings?.divisionResults ??

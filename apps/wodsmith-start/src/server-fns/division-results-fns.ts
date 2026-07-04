@@ -28,6 +28,7 @@ import { scoresTable } from "@/db/schemas/scores"
 import { TEAM_PERMISSIONS } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
 import { workouts as workoutsTable } from "@/db/schemas/workouts"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import { getSessionFromCookie } from "@/utils/auth"
 
 // ============================================================================
@@ -83,6 +84,10 @@ export interface AllEventsResultsStatusResponse {
   events: EventDivisionResultsStatusResponse[]
   totalPublishedCount: number
   totalCombinations: number
+  /** Whether this competition type supports pre-publishing (perpetual/benchmark) */
+  supportsAutoPublish?: boolean
+  /** Effective pre-publish state (defaults to true for perpetual competitions) */
+  resultsAutoPublish?: boolean
 }
 
 // ============================================================================
@@ -110,6 +115,12 @@ const publishAllDivisionResultsInputSchema = z.object({
   publish: z.boolean(),
 })
 
+const setResultsAutoPublishInputSchema = z.object({
+  competitionId: z.string().min(1, "Competition ID is required"),
+  organizingTeamId: z.string().min(1, "Organizing team ID is required"),
+  autoPublish: z.boolean(),
+})
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -131,6 +142,7 @@ interface DivisionResultsSchema {
 function parseCompetitionSettings(settings: string | null): {
   divisions?: { scalingGroupId?: string }
   divisionResults?: DivisionResultsSchema
+  resultsAutoPublish?: boolean
   [key: string]: unknown
 } | null {
   if (!settings) return null
@@ -148,6 +160,7 @@ function stringifyCompetitionSettings(
   settings: {
     divisions?: { scalingGroupId?: string }
     divisionResults?: DivisionResultsSchema
+    resultsAutoPublish?: boolean
     [key: string]: unknown
   } | null,
 ): string | null {
@@ -216,6 +229,13 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
       const settings = parseCompetitionSettings(competition.settings)
       const scalingGroupId = settings?.divisions?.scalingGroupId
 
+      const supportsAutoPublish = competitionCan(
+        competition.competitionType,
+        "perpetual",
+      )
+      const resultsAutoPublish =
+        supportsAutoPublish && settings?.resultsAutoPublish !== false
+
       if (!scalingGroupId) {
         if (data.eventId) {
           return {
@@ -226,7 +246,13 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
             totalCount: 0,
           }
         }
-        return { events: [], totalPublishedCount: 0, totalCombinations: 0 }
+        return {
+          events: [],
+          totalPublishedCount: 0,
+          totalCombinations: 0,
+          supportsAutoPublish,
+          resultsAutoPublish,
+        }
       }
 
       // Get all divisions for this competition
@@ -249,7 +275,13 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
             totalCount: 0,
           }
         }
-        return { events: [], totalPublishedCount: 0, totalCombinations: 0 }
+        return {
+          events: [],
+          totalPublishedCount: 0,
+          totalCombinations: 0,
+          supportsAutoPublish,
+          resultsAutoPublish,
+        }
       }
 
       // Get registrations per division
@@ -296,7 +328,13 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
             totalCount: 0,
           }
         }
-        return { events: [], totalPublishedCount: 0, totalCombinations: 0 }
+        return {
+          events: [],
+          totalPublishedCount: 0,
+          totalCombinations: 0,
+          supportsAutoPublish,
+          resultsAutoPublish,
+        }
       }
 
       // Get all events (track workouts) for this competition with workout names
@@ -330,7 +368,13 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
             totalCount: 0,
           }
         }
-        return { events: [], totalPublishedCount: 0, totalCombinations: 0 }
+        return {
+          events: [],
+          totalPublishedCount: 0,
+          totalCombinations: 0,
+          supportsAutoPublish,
+          resultsAutoPublish,
+        }
       }
 
       // Get registrations for score counting (exclude removed)
@@ -471,6 +515,8 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
         events: eventResponses,
         totalPublishedCount: totalPublished,
         totalCombinations,
+        supportsAutoPublish,
+        resultsAutoPublish,
       }
     },
   )
@@ -641,5 +687,73 @@ export const publishAllDivisionResultsFn = createServerFn({ method: "POST" })
         .where(eq(competitionsTable.id, data.competitionId))
 
       return { success: true, updatedCount: divisions.length }
+    },
+  )
+
+/**
+ * Enable or disable pre-publishing of division results.
+ *
+ * When enabled, results appear on the public leaderboard as soon as scores
+ * come in — no manual publish step. Only available for perpetual (benchmark)
+ * competitions; other types keep the per-division publish gate.
+ */
+export const setResultsAutoPublishFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    setResultsAutoPublishInputSchema.parse(data),
+  )
+  .handler(
+    async ({
+      data,
+    }): Promise<{ success: boolean; resultsAutoPublish: boolean }> => {
+      // Verify authentication
+      const session = await getSessionFromCookie()
+      if (!session?.userId) {
+        throw new Error("Not authenticated")
+      }
+
+      // Check permission (site admins bypass)
+      const isSiteAdmin = session.user?.role === ROLES_ENUM.ADMIN
+      const team = session.teams?.find((t) => t.id === data.organizingTeamId)
+      if (
+        !isSiteAdmin &&
+        !team?.permissions.includes(TEAM_PERMISSIONS.MANAGE_PROGRAMMING)
+      ) {
+        throw new Error("Missing required permission")
+      }
+
+      const db = getDb()
+
+      // Get competition with settings
+      const [competition] = await db
+        .select()
+        .from(competitionsTable)
+        .where(eq(competitionsTable.id, data.competitionId))
+
+      if (!competition) {
+        throw new Error("Competition not found")
+      }
+
+      if (competition.organizingTeamId !== data.organizingTeamId) {
+        throw new Error("Competition does not belong to this team")
+      }
+
+      if (!competitionCan(competition.competitionType, "perpetual")) {
+        throw new Error(
+          "Pre-publishing results is only available for benchmark competitions",
+        )
+      }
+
+      const settings = parseCompetitionSettings(competition.settings) ?? {}
+      const newSettings = stringifyCompetitionSettings({
+        ...settings,
+        resultsAutoPublish: data.autoPublish,
+      })
+
+      await db
+        .update(competitionsTable)
+        .set({ settings: newSettings, updatedAt: new Date() })
+        .where(eq(competitionsTable.id, data.competitionId))
+
+      return { success: true, resultsAutoPublish: data.autoPublish }
     },
   )
