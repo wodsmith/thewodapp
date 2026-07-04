@@ -492,7 +492,7 @@ The Messages page is a broadcast-style composer: operators pick a message type, 
 
 Four per-event editable templates — assignment confirmation, 48-hour reminder, 24-hour reminder, and custom broadcast — with code-defined defaults matching the original email copy and `{{variable}}` substitution.
 
-Overrides persist one row per `(competitionId, templateType)` in `competition_message_templates` ([[packages/wodsmith-db/src/schemas/message-templates.ts]]) — deliberately not crew-namespaced so Start can adopt the same record; deleting the row resets to the default. [[apps/crew/src/lib/crew/message-templates.ts]] owns template types, per-type variable lists, default copy, and the pure renderer that substitutes known variables, leaves unknown ones literal, and splits the body into paragraphs on blank lines. All templated sends render through the shared [[apps/crew/src/react-email/crew/templated-message.tsx]] layout.
+Overrides persist one row per `(competitionId, templateType)` in `competition_message_templates` ([[packages/wodsmith-db/src/schemas/message-templates.ts]]) — deliberately not crew-namespaced so Start can adopt the same record; deleting the row resets to the default. [[apps/crew/src/lib/crew/message-templates.ts]] owns template types, per-type variable lists, default copy, and the pure renderer that substitutes known variables, leaves unknown ones literal, and splits the body into paragraphs on blank lines. Render call sites and the editor's variable plumbing are typed against the `CrewTemplateVariableKey` union rather than plain strings, so mistyped variable keys fail at compile time. All templated sends render through the shared [[apps/crew/src/react-email/crew/templated-message.tsx]] layout.
 
 ### Filtered recipient selection
 
