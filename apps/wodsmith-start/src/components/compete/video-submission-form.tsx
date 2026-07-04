@@ -109,6 +109,7 @@ interface VideoSubmissionFormProps {
   registeredDivisions?: RegisteredDivision[]
   initialData?: VideoSubmissionInitialData
   initialDivisionId?: string
+  onSubmitSuccess?: () => void
 }
 
 type ExistingRoundScore = NonNullable<
@@ -281,6 +282,7 @@ export function VideoSubmissionForm({
   registeredDivisions,
   initialData,
   initialDivisionId,
+  onSubmitSuccess,
 }: VideoSubmissionFormProps) {
   const hasMultipleDivisions = (registeredDivisions?.length ?? 0) > 1
 
@@ -984,6 +986,7 @@ export function VideoSubmissionForm({
               : null,
           })
         }
+        onSubmitSuccess?.()
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to submit")

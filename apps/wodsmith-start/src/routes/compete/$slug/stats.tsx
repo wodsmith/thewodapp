@@ -1,7 +1,9 @@
 import {
   createFileRoute,
   getRouteApi,
+  redirect,
   useNavigate,
+  useRouter,
 } from "@tanstack/react-router"
 import { BarChart3 } from "lucide-react"
 import { z } from "zod"
@@ -15,6 +17,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  competitionCan,
+  publicCompetitionTabs,
+} from "@/lib/competitions/capabilities"
 import {
   type CompetitionLeaderboardEntry,
   type CompetitionLeaderboardResponse,
@@ -31,6 +37,8 @@ interface BenchmarkStatsCompetition {
   id: string
   slug: string
   settings: string | null
+  competitionType: string
+  timezone: string | null
 }
 
 interface BenchmarkStatsDivision {
@@ -67,7 +75,7 @@ export const Route = createFileRoute("/compete/$slug/stats")({
   validateSearch: statsSearchSchema,
   staleTime: 10_000,
   loaderDeps: ({ search }) => ({ division: search.division }),
-  loader: async ({ deps, parentMatchPromise }) => {
+  loader: async ({ deps, params, parentMatchPromise }) => {
     const parentMatch = await parentMatchPromise
     const parentData = parentMatch.loaderData as
       | Pick<BenchmarkStatsParentData, "competition" | "divisions">
@@ -77,6 +85,10 @@ export const Route = createFileRoute("/compete/$slug/stats")({
 
     if (!competition) {
       return { initialStats: null, loadError: null }
+    }
+
+    if (!publicCompetitionTabs(competition.competitionType).includes("stats")) {
+      throw redirect({ to: "/compete/$slug", params: { slug: params.slug } })
     }
 
     const targetDivisionId = deps.division ?? divisions[0]?.id ?? null
@@ -137,6 +149,7 @@ export function BenchmarkStatsPage() {
     Route.useLoaderData() as BenchmarkStatsLoaderData
   const search = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
+  const router = useRouter()
 
   const scoringConfig = getEffectiveScoringConfig(
     parseCompetitionSettings(competition.settings),
@@ -176,12 +189,37 @@ export function BenchmarkStatsPage() {
     })
   }
 
+  // Inline score submission: only the viewer can submit, and only for their
+  // own registration/division. When the athlete selector is on someone else's
+  // entry the test rows stay read-only.
+  const selectedDivision = divisions.find((d) => d.id === selectedDivisionId)
+  const isViewingOwnEntry =
+    !!viewerRegistration &&
+    selectedEntry?.registrationId === viewerRegistration.id
+  const submissionContext =
+    competitionCan(competition.competitionType, "videoSubmissions") &&
+    isViewingOwnEntry &&
+    selectedDivision
+      ? {
+          competitionId: competition.id,
+          slug: competition.slug,
+          divisionId: selectedDivisionId,
+          divisionLabel: selectedDivision.label,
+          timezone: competition.timezone,
+          // Re-run the loader so the overall/category cards and test rows
+          // reflect the freshly submitted score.
+          onSubmitSuccess: () => {
+            void router.invalidate()
+          },
+        }
+      : undefined
+
   return (
     <div className="space-y-4">
       <div className="sticky top-4 z-10">
         <CompetitionTabs
           slug={competition.slug}
-          settings={competition.settings}
+          competitionType={competition.competitionType}
         />
       </div>
 
@@ -253,7 +291,10 @@ export function BenchmarkStatsPage() {
               <AlertDescription>{loadError}</AlertDescription>
             </Alert>
           ) : selectedEntry ? (
-            <BenchmarkStatLine entry={selectedEntry} />
+            <BenchmarkStatLine
+              entry={selectedEntry}
+              submission={submissionContext}
+            />
           ) : (
             <Alert className="border-dashed">
               <BarChart3 className="h-4 w-4" />

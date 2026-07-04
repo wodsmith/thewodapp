@@ -1,12 +1,47 @@
 "use client"
 
-import { AlertTriangle, CheckCircle2, Clock, MinusCircle } from "lucide-react"
+import { Link } from "@tanstack/react-router"
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  Loader2,
+  MinusCircle,
+} from "lucide-react"
+import { useCallback, useState } from "react"
+import { VideoSubmissionForm } from "@/components/compete/video-submission-form"
 import { Badge } from "@/components/ui/badge"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import { cn } from "@/lib/utils"
 import type { CompetitionLeaderboardEntry } from "@/server-fns/leaderboard-fns"
+import {
+  getVideoSubmissionFn,
+  type VideoSubmissionResult,
+} from "@/server-fns/video-submission-fns"
+
+interface BenchmarkTestSubmissionContext {
+  competitionId: string
+  slug: string
+  divisionId: string
+  divisionLabel: string
+  timezone?: string | null
+  onSubmitSuccess: () => void
+}
 
 interface BenchmarkStatLineProps {
   entry: CompetitionLeaderboardEntry
+  /**
+   * When provided, each test row becomes an expandable score-submission
+   * dropdown. Only supplied for the viewer's own entry on competitions that
+   * support video submissions.
+   */
+  submission?: BenchmarkTestSubmissionContext
 }
 
 type TestState =
@@ -95,7 +130,10 @@ function StateBadge({ state }: { state: TestState }) {
   )
 }
 
-export function BenchmarkStatLine({ entry }: BenchmarkStatLineProps) {
+export function BenchmarkStatLine({
+  entry,
+  submission,
+}: BenchmarkStatLineProps) {
   const overall = entry.benchmarkOverallScore ?? entry.totalPoints
   const tests = [...entry.eventResults].sort(
     (a, b) => a.trackOrder - b.trackOrder,
@@ -159,47 +197,161 @@ export function BenchmarkStatLine({ entry }: BenchmarkStatLineProps) {
           <h2 className="text-sm font-semibold">Test Grid</h2>
         </div>
         <div className="divide-y">
-          {tests.map((result) => {
-            const state = getTestState(result)
-            return (
-              <div
-                key={result.trackWorkoutId}
-                className="grid gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_8rem_8rem_8rem]"
-              >
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-medium">
-                    {result.eventName}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {result.benchmarkCategoryLabel ?? "Benchmark"}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[10px] uppercase text-muted-foreground">
-                    Score
-                  </div>
-                  <div className="text-sm tabular-nums">
-                    {result.rawScore === null ? "-" : result.formattedScore}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[10px] uppercase text-muted-foreground">
-                    Tier
-                  </div>
-                  <div className="text-sm tabular-nums">
-                    {result.benchmarkTier === null
-                      ? "-"
-                      : formatBenchmarkNumber(result.benchmarkTier)}
-                  </div>
-                </div>
-                <div className="flex items-center sm:justify-end">
-                  <StateBadge state={state} />
-                </div>
-              </div>
-            )
-          })}
+          {tests.map((result) => (
+            <TestRow
+              key={result.trackWorkoutId}
+              result={result}
+              submission={submission}
+            />
+          ))}
         </div>
       </div>
     </div>
+  )
+}
+
+function TestRow({
+  result,
+  submission,
+}: {
+  result: CompetitionLeaderboardEntry["eventResults"][number]
+  submission?: BenchmarkTestSubmissionContext
+}) {
+  const state = getTestState(result)
+  const [open, setOpen] = useState(false)
+  const [formData, setFormData] = useState<VideoSubmissionResult | null>(null)
+  const [formLoading, setFormLoading] = useState(false)
+  const [formError, setFormError] = useState(false)
+
+  const competitionId = submission?.competitionId
+  const divisionId = submission?.divisionId
+
+  const loadFormData = useCallback(() => {
+    if (!competitionId || !divisionId) return
+    setFormLoading(true)
+    setFormError(false)
+    getVideoSubmissionFn({
+      data: {
+        trackWorkoutId: result.trackWorkoutId,
+        competitionId,
+        divisionId,
+      },
+    })
+      .then(setFormData)
+      .catch(() => setFormError(true))
+      .finally(() => setFormLoading(false))
+  }, [result.trackWorkoutId, competitionId, divisionId])
+
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next)
+    if (next && !formData && !formLoading) {
+      loadFormData()
+    }
+  }
+
+  const cells = (
+    <>
+      <div className="min-w-0">
+        <div className="truncate text-sm font-medium">{result.eventName}</div>
+        <div className="text-xs text-muted-foreground">
+          {result.benchmarkCategoryLabel ?? "Benchmark"}
+        </div>
+      </div>
+      <div>
+        <div className="text-[10px] uppercase text-muted-foreground">Score</div>
+        <div className="text-sm tabular-nums">
+          {result.rawScore === null ? "-" : result.formattedScore}
+        </div>
+      </div>
+      <div>
+        <div className="text-[10px] uppercase text-muted-foreground">Tier</div>
+        <div className="text-sm tabular-nums">
+          {result.benchmarkTier === null
+            ? "-"
+            : formatBenchmarkNumber(result.benchmarkTier)}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 sm:justify-end">
+        <StateBadge state={state} />
+        {submission ? (
+          <ChevronDown
+            className={cn(
+              "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+              open && "rotate-180",
+            )}
+          />
+        ) : null}
+      </div>
+    </>
+  )
+
+  if (!submission) {
+    return (
+      <div className="grid gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_8rem_8rem_8rem]">
+        {cells}
+      </div>
+    )
+  }
+
+  const linkEventId = result.parentEventId ?? result.trackWorkoutId
+
+  return (
+    <Collapsible open={open} onOpenChange={handleOpenChange}>
+      <CollapsibleTrigger asChild>
+        <button
+          type="button"
+          className="grid w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/50 sm:grid-cols-[minmax(0,1fr)_8rem_8rem_8rem]"
+        >
+          {cells}
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="space-y-3 border-t bg-muted/20 px-4 py-3">
+          {formLoading ? (
+            <div className="flex items-center justify-center py-6 text-muted-foreground">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <span className="text-sm">Loading submission form...</span>
+            </div>
+          ) : formError ? (
+            <div className="py-4 text-center">
+              <p className="text-sm text-destructive">
+                Failed to load the submission form.
+              </p>
+              <button
+                type="button"
+                onClick={loadFormData}
+                className="mt-1 text-xs text-primary underline underline-offset-2"
+              >
+                Try again
+              </button>
+            </div>
+          ) : formData ? (
+            <VideoSubmissionForm
+              trackWorkoutId={result.trackWorkoutId}
+              competitionId={submission.competitionId}
+              timezone={submission.timezone}
+              registeredDivisions={[
+                {
+                  divisionId: submission.divisionId,
+                  label: submission.divisionLabel,
+                },
+              ]}
+              initialData={formData}
+              initialDivisionId={submission.divisionId}
+              onSubmitSuccess={submission.onSubmitSuccess}
+            />
+          ) : null}
+          <Link
+            to="/compete/$slug/workouts/$eventId"
+            params={{ slug: submission.slug, eventId: linkEventId }}
+            search={{ division: submission.divisionId }}
+            className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+          >
+            View full workout
+            <ChevronRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   )
 }
