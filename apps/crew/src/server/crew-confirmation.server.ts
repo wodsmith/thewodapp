@@ -49,6 +49,7 @@ import {
   buildCrewAssignmentEmailIdempotencyKey,
   type CrewAssignmentConfirmationEmailCandidate,
   type CrewAssignmentConfirmationEmailOperation,
+  type CrewAssignmentConfirmationEmailOperationKind,
   type CrewAssignmentConfirmationEmailOperationMode,
   type CrewAssignmentConfirmationOrganizerState,
   type CrewAssignmentConfirmationStatusSummary,
@@ -1055,6 +1056,185 @@ export async function queueCrewAssignmentConfirmationEmails(
 
   return {
     mode: data.mode,
+    queueAvailable: Boolean(queue),
+    eligible: plan.operations.length,
+    queued,
+    previewed,
+    failed,
+    skipped: plan.skipped,
+  }
+}
+
+export interface CrewTemplatedAssignmentRenderContext {
+  kind: CrewAssignmentConfirmationEmailOperationKind
+  volunteerName: string
+  eventName: string
+  shiftName: string
+  roleLabel: string
+  startTime: Date
+  endTime: Date
+  location: string | null
+  timezone: string
+  confirmUrl: string
+  scheduleUrl: string
+}
+
+export interface QueueCrewTemplatedAssignmentEmailsResult {
+  queueAvailable: boolean
+  eligible: number
+  queued: number
+  previewed: number
+  failed: number
+  skipped: ReturnType<
+    typeof buildCrewAssignmentConfirmationEmailPlan
+  >["skipped"]
+}
+
+/**
+ * Queue confirmation/reminder emails for an explicit set of confirmation ids,
+ * rendering each recipient's message with a caller-supplied template. Reuses the
+ * same eligibility plan, token mint/hash-only storage, idempotency keys, queue
+ * send + preview fallback, and per-assignment locking as
+ * {@link queueCrewAssignmentConfirmationEmails}. Confirmation ids that are not
+ * eligible (already sent, responded, past shift, etc.) are ignored.
+ */
+export async function queueCrewTemplatedAssignmentEmails(params: {
+  eventId: string
+  mode: CrewAssignmentConfirmationEmailOperationMode
+  recipientConfirmationIds: string[]
+  render: (
+    context: CrewTemplatedAssignmentRenderContext,
+  ) => Promise<{ subject: string; bodyHtml: string }>
+}): Promise<QueueCrewTemplatedAssignmentEmailsResult> {
+  const event = await requireCrewDepartmentLeadEvent(params.eventId)
+  const access = await resolveCrewDepartmentLeadAccess(event)
+  const db = getDb()
+  const now = new Date()
+
+  const selectedIds = new Set(params.recipientConfirmationIds)
+  const candidates = filterCrewAssignmentEmailCandidates(
+    await loadCrewAssignmentEmailCandidates(params.eventId),
+    access,
+  ).filter((candidate) => selectedIds.has(candidate.confirmationId))
+
+  const plan = buildCrewAssignmentConfirmationEmailPlan({
+    mode: params.mode,
+    candidates,
+    now,
+  })
+  const candidatesByConfirmationId = new Map(
+    candidates.map((candidate) => [candidate.confirmationId, candidate]),
+  )
+  const queue = (env as unknown as Record<string, unknown>)
+    .BROADCAST_EMAIL_QUEUE as Queue<CrewAssignmentEmailQueueMessage> | undefined
+
+  let queued = 0
+  let previewed = 0
+  let failed = 0
+
+  for (const operation of plan.operations) {
+    const candidate = candidatesByConfirmationId.get(operation.confirmationId)
+    if (!candidate) {
+      failed += 1
+      continue
+    }
+
+    try {
+      const token = generateCrewAssignmentConfirmationToken()
+      const tokenHash = await hashCrewAssignmentConfirmationToken(token)
+      const expiresAt = getAssignmentConfirmationExpiry(now)
+      const urls = buildCrewAssignmentConfirmationUrls({
+        appUrl: getAppUrl(),
+        slug: candidate.event.slug,
+        token,
+      })
+      const rendered = await params.render({
+        kind: operation.kind,
+        volunteerName: candidate.volunteer.name,
+        eventName: candidate.event.name,
+        shiftName: candidate.assignment.shiftName,
+        roleLabel: candidate.assignment.roleLabel,
+        startTime: candidate.assignment.startTime,
+        endTime: candidate.assignment.endTime,
+        location: candidate.assignment.location,
+        timezone: candidate.event.timezone ?? DEFAULT_TIMEZONE,
+        confirmUrl: urls.confirmUrl,
+        scheduleUrl: urls.scheduleUrl,
+      })
+      const message: CrewAssignmentEmailQueueMessage = {
+        kind:
+          operation.kind === "confirmation"
+            ? "crew-assignment-confirmation"
+            : "crew-assignment-reminder",
+        confirmationId: operation.confirmationId,
+        assignmentId: operation.assignmentId,
+        competitionId: candidate.event.id,
+        email: operation.email,
+        subject: rendered.subject,
+        bodyHtml: rendered.bodyHtml,
+        idempotencyKey: operation.idempotencyKey,
+        reminderCount: operation.reminderCount,
+        queuedAtIso: now.toISOString(),
+      }
+
+      if (!queue) {
+        console.log(
+          `[CrewEmail Preview] To: ${message.email} | Subject: ${message.subject} | Confirmation: ${message.confirmationId}`,
+        )
+        previewed += 1
+        continue
+      }
+
+      const claimed = await withCrewAssignmentConfirmationLock(
+        db,
+        operation.assignmentId,
+        async () => {
+          const tokenClaimed = await claimCrewAssignmentEmailToken({
+            db,
+            operation,
+            previousTokenHash: candidate.tokenHash,
+            tokenHash,
+            expiresAt,
+            claimedAt: now,
+          })
+          if (!tokenClaimed) return false
+
+          await queue.send(message)
+
+          const finalized = await finalizeCrewAssignmentEmailQueued({
+            db,
+            operation,
+            tokenHash,
+            queuedAt: now,
+          })
+          if (!finalized) {
+            throw new Error("Queued assignment email could not be finalized")
+          }
+
+          return true
+        },
+      )
+      if (!claimed) {
+        if (operation.kind === "confirmation") {
+          plan.skipped.alreadySent += 1
+        } else {
+          plan.skipped.notDue += 1
+        }
+        continue
+      }
+
+      queued += 1
+    } catch (error) {
+      console.error("[CrewEmail] Failed to queue templated assignment email", {
+        error,
+        confirmationId: operation.confirmationId,
+        assignmentId: operation.assignmentId,
+      })
+      failed += 1
+    }
+  }
+
+  return {
     queueAvailable: Boolean(queue),
     eligible: plan.operations.length,
     queued,

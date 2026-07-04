@@ -482,6 +482,24 @@ Crew confirmation email operations use `crew_assignment_confirmations` as the so
 
 [[apps/crew/src/server-fns/crew-confirmation-fns.ts]] exposes the route-safe operation wrapper. [[apps/crew/src/routes/events/$eventId/shifts.tsx]] provides quiet operator actions for event-wide confirmation sends and reminder sends, then reports queued, previewed, and failed counts without sending live email during local validation.
 
+## Volunteer Messaging Composer
+
+The Messages page is a broadcast-style composer: operators pick a message type, edit its email template, filter and hand-pick recipients with live eligibility preview, and send explicitly — replacing the earlier one-click bulk send buttons.
+
+[[apps/crew/src/routes/events/$eventId/messages.tsx]] renders Compose, Responses, and History tabs driven by a `?tab=` search param. Compose pairs a template editor ([[apps/crew/src/routes/events/$eventId/-components/messages-template-editor.tsx]]) with a recipients panel ([[apps/crew/src/routes/events/$eventId/-components/messages-recipients-panel.tsx]]) orchestrated by [[apps/crew/src/routes/events/$eventId/-components/messages-compose-tab.tsx]]: debounced recipient preview on filter change, checkbox selection with select-all-eligible, dimmed ineligible rows with skip reasons, and a confirm dialog before queueing. Responses ([[apps/crew/src/routes/events/$eventId/-components/messages-responses-tab.tsx]]) preserves the prior confirmation bucket dashboard and CSV export unchanged. History ([[apps/crew/src/routes/events/$eventId/-components/messages-history-tab.tsx]]) lists confirmation, reminder, and broadcast sends with delivery counts.
+
+### Message templates
+
+Four per-event editable templates — assignment confirmation, 48-hour reminder, 24-hour reminder, and custom broadcast — with code-defined defaults matching the original email copy and `{{variable}}` substitution.
+
+Overrides persist one row per `(competitionId, templateType)` in `crew_message_templates` ([[packages/wodsmith-db/src/schemas/crew-message-templates.ts]]); deleting the row resets to the default. [[apps/crew/src/lib/crew/message-templates.ts]] owns template types, per-type variable lists, default copy, and the pure renderer that substitutes known variables, leaves unknown ones literal, and splits the body into paragraphs on blank lines. All templated sends render through the shared [[apps/crew/src/react-email/crew/templated-message.tsx]] layout.
+
+### Filtered recipient selection
+
+Recipient previews expand assignment confirmations (or unique volunteers for custom broadcasts) against state, role, shift, search, and already-sent filters, returning per-row eligibility with skip reasons instead of silent exclusion.
+
+[[apps/crew/src/server-fns/crew-message-fns.ts]] keeps route imports thin while [[apps/crew/src/server/crew-messages.server.ts]] resolves the composer payload (templates, filter options, history) and validates queue sends against an explicit recipient key list from the preview, re-checking eligibility server-side so stale selections are reported rather than sent. Confirmation and reminder sends go through [[apps/crew/src/server/crew-confirmation.server.ts#queueCrewTemplatedAssignmentEmails]], which keeps the eligibility plan, token-hash storage, and idempotency conventions from [[crew#Confirmation Emails And Reminders]] while rendering each recipient with the caller's template; custom broadcasts write `competition_broadcasts` rows so history shares delivery status with the broadcast queue consumer. [[apps/crew/src/lib/crew/message-recipients.ts]] keeps the pure filter and eligibility logic testable outside the server layer.
+
 ## Day Of Operations Board
 
 Crew day-of operations is a compact read-only board for current blocks, response queues, role gaps, no-shows, replacements, and active judge lane coverage.

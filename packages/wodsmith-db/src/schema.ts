@@ -14,6 +14,7 @@ export * from "./schemas/crew-billing-events"
 export * from "./schemas/crew-event-settings"
 // `@lat`: [[crew#Add Thin Crew Tables]]
 export * from "./schemas/crew-imports"
+export * from "./schemas/crew-message-templates"
 // @lat: [[crew#Self Serve Preset Schema]]
 export * from "./schemas/crew-self-serve-presets"
 // @lat: [[crew#Strategic Moat Privacy Model]]
