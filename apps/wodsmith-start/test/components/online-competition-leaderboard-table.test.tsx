@@ -82,6 +82,7 @@ function createBenchmarkEntry(): CompetitionLeaderboardEntry {
     teamMembers: [],
     affiliate: "WODsmith Gym",
     benchmarkOverallScore: 72.5,
+    benchmarkGender: "male",
     benchmarkRatingBand: {
       key: "regional",
       label: "Regional",
@@ -161,5 +162,69 @@ describe("OnlineCompetitionLeaderboardTable benchmark display", () => {
     expect(screen.getAllByText("Verified").length).toBeGreaterThan(0)
     expect(screen.getAllByText("Adjusted").length).toBeGreaterThan(0)
     expect(screen.queryByText(/HillerFit/i)).not.toBeInTheDocument()
+  })
+
+  // @lat: [[competition-type-capabilities#Benchmark Category Grouping#Category Group Headers]]
+  it("groups event columns under benchmark category headers", () => {
+    render(
+      <OnlineCompetitionLeaderboardTable
+        leaderboard={[createBenchmarkEntry()]}
+        events={[
+          {
+            id: "tw-1",
+            name: "Strict Press",
+            trackOrder: 1,
+            scheme: "load",
+            benchmarkCategoryKey: "strength",
+            benchmarkCategoryLabel: "Strength",
+          },
+          {
+            id: "tw-2",
+            name: "Mile Run",
+            trackOrder: 2,
+            scheme: "time",
+            benchmarkCategoryKey: "engine",
+            benchmarkCategoryLabel: "Engine",
+          },
+        ]}
+        selectedEventId={null}
+        scoringAlgorithm="online"
+      />,
+    )
+
+    const headers = screen.getAllByRole("columnheader")
+    const headerTexts = headers.map((h) => h.textContent)
+    expect(headerTexts).toContain("Strength")
+    expect(headerTexts).toContain("Engine")
+  })
+
+  // @lat: [[competition-type-capabilities#Additive Tier Context]]
+  it("renders tier context additively when the board ranks with online scoring", () => {
+    render(
+      <OnlineCompetitionLeaderboardTable
+        leaderboard={[createBenchmarkEntry()]}
+        events={[
+          {
+            id: "tw-1",
+            name: "Strict Press",
+            trackOrder: 1,
+            scheme: "load",
+          },
+          {
+            id: "tw-2",
+            name: "Mile Run",
+            trackOrder: 2,
+            scheme: "time",
+          },
+        ]}
+        selectedEventId={null}
+        scoringAlgorithm="online"
+      />,
+    )
+
+    expect(screen.getAllByText("72.5/100").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("Regional").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("Tier 8").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("Tier 6.5").length).toBeGreaterThan(0)
   })
 })

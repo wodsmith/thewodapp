@@ -136,6 +136,8 @@ export function LeaderboardPageContent({
     division?: string
     event?: string
     affiliate?: string
+    category?: string
+    gender?: string
   }
 
   // Default to first division if available
@@ -145,6 +147,8 @@ export function LeaderboardPageContent({
   const selectedDivision = searchParams.division ?? defaultDivision
   const selectedEventId = searchParams.event ?? null
   const selectedAffiliate = searchParams.affiliate ?? "all"
+  const selectedCategory = searchParams.category ?? "all"
+  const selectedGender = searchParams.gender ?? "all"
 
   const initialMatchesSelected =
     initialData != null && initialData.divisionId === selectedDivision
@@ -217,9 +221,40 @@ export function LeaderboardPageContent({
         scheme: r.scheme,
         parentEventId: r.parentEventId,
         parentEventName: r.parentEventName,
+        benchmarkCategoryKey: r.benchmarkCategoryKey,
+        benchmarkCategoryLabel: r.benchmarkCategoryLabel,
       }))
       .sort((a, b) => a.trackOrder - b.trackOrder)
   }, [leaderboard])
+
+  // Benchmark categories present on this board (empty for non-benchmark
+  // competitions or batteries without categories) — gates the category filter.
+  const benchmarkCategories = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const event of events) {
+      if (event.benchmarkCategoryKey && !seen.has(event.benchmarkCategoryKey)) {
+        seen.set(
+          event.benchmarkCategoryKey,
+          event.benchmarkCategoryLabel ?? event.benchmarkCategoryKey,
+        )
+      }
+    }
+    return Array.from(seen, ([key, label]) => ({ key, label }))
+  }, [events])
+
+  // Validate selectedCategory against known categories to prevent stale URL params
+  const effectiveCategory = useMemo(() => {
+    if (selectedCategory === "all") return "all"
+    return benchmarkCategories.some((c) => c.key === selectedCategory)
+      ? selectedCategory
+      : "all"
+  }, [selectedCategory, benchmarkCategories])
+
+  // Filter event columns by selected benchmark category
+  const filteredEvents = useMemo(() => {
+    if (effectiveCategory === "all") return events
+    return events.filter((e) => e.benchmarkCategoryKey === effectiveCategory)
+  }, [events, effectiveCategory])
 
   // Validate selectedEventId against division-filtered events to prevent stale URL params.
   // When event-division mappings exist, the server only returns events mapped to
@@ -227,8 +262,10 @@ export function LeaderboardPageContent({
   // (e.g. shared link across divisions), fall back to overall view.
   const effectiveEventId = useMemo(() => {
     if (!selectedEventId) return null
-    return events.some((e) => e.id === selectedEventId) ? selectedEventId : null
-  }, [selectedEventId, events])
+    return filteredEvents.some((e) => e.id === selectedEventId)
+      ? selectedEventId
+      : null
+  }, [selectedEventId, filteredEvents])
 
   // Close preview when effective event changes (includes division-filtered invalidation)
   // biome-ignore lint/correctness/useExhaustiveDependencies: effectiveEventId triggers reset intentionally
@@ -401,6 +438,23 @@ export function LeaderboardPageContent({
     [navigate],
   )
 
+  // Handle benchmark category change - update URL
+  const handleCategoryChange = useCallback(
+    (value: string) => {
+      navigate({
+        to: ".",
+        search: (prev: Record<string, unknown>) => ({
+          ...prev,
+          category: value === "all" ? undefined : value,
+          // Reset event when changing categories — it may not belong to the new one
+          event: undefined,
+        }),
+        replace: true,
+      })
+    },
+    [navigate],
+  )
+
   // Extract unique affiliates for filter dropdown
   const affiliates = useMemo(() => {
     const affiliateSet = new Set<string>()
@@ -418,11 +472,35 @@ export function LeaderboardPageContent({
     return affiliates.includes(selectedAffiliate) ? selectedAffiliate : "all"
   }, [selectedAffiliate, affiliates])
 
-  // Filter leaderboard by selected affiliate
+  // Gender filter is benchmark-only: the server sets benchmarkGender solely
+  // on benchmark boards, so this gates the filter off everywhere else.
+  const hasGenderData = useMemo(
+    () => leaderboard.some((entry) => entry.benchmarkGender !== null),
+    [leaderboard],
+  )
+
+  const effectiveGender = useMemo(() => {
+    if (!hasGenderData) return "all"
+    return selectedGender === "male" || selectedGender === "female"
+      ? selectedGender
+      : "all"
+  }, [selectedGender, hasGenderData])
+
+  // Filter leaderboard by selected affiliate and gender
   const filteredLeaderboard = useMemo(() => {
-    if (effectiveAffiliate === "all") return leaderboard
-    return leaderboard.filter((entry) => entry.affiliate === effectiveAffiliate)
-  }, [leaderboard, effectiveAffiliate])
+    let entries = leaderboard
+    if (effectiveAffiliate !== "all") {
+      entries = entries.filter(
+        (entry) => entry.affiliate === effectiveAffiliate,
+      )
+    }
+    if (effectiveGender !== "all") {
+      entries = entries.filter(
+        (entry) => entry.benchmarkGender === effectiveGender,
+      )
+    }
+    return entries
+  }, [leaderboard, effectiveAffiliate, effectiveGender])
 
   // Handle affiliate change - update URL
   const handleAffiliateChange = useCallback(
@@ -432,6 +510,21 @@ export function LeaderboardPageContent({
         search: (prev: Record<string, unknown>) => ({
           ...prev,
           affiliate: value === "all" ? undefined : value,
+        }),
+        replace: true,
+      })
+    },
+    [navigate],
+  )
+
+  // Handle gender change - update URL
+  const handleGenderChange = useCallback(
+    (value: string) => {
+      navigate({
+        to: ".",
+        search: (prev: Record<string, unknown>) => ({
+          ...prev,
+          gender: value === "all" ? undefined : value,
         }),
         replace: true,
       })
@@ -565,8 +658,28 @@ export function LeaderboardPageContent({
             </Select>
           )}
 
+          {/* Benchmark category filter */}
+          {benchmarkCategories.length > 0 && (
+            <Select
+              value={effectiveCategory}
+              onValueChange={handleCategoryChange}
+            >
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {benchmarkCategories.map((category) => (
+                  <SelectItem key={category.key} value={category.key}>
+                    {category.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
           {/* View selector (Overall vs individual events) */}
-          {events.length > 0 && (
+          {filteredEvents.length > 0 && (
             <Select
               value={effectiveEventId ?? "overall"}
               onValueChange={handleEventChange}
@@ -576,11 +689,25 @@ export function LeaderboardPageContent({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="overall">Overall</SelectItem>
-                {events.map((event) => (
+                {filteredEvents.map((event) => (
                   <SelectItem key={event.id} value={event.id}>
                     {event.name}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {/* Gender filter (benchmark boards only) */}
+          {hasGenderData && (
+            <Select value={effectiveGender} onValueChange={handleGenderChange}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Gender" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Genders</SelectItem>
+                <SelectItem value="male">Male</SelectItem>
+                <SelectItem value="female">Female</SelectItem>
               </SelectContent>
             </Select>
           )}
@@ -662,7 +789,7 @@ export function LeaderboardPageContent({
         {isOnlineLeaderboard ? (
           <OnlineCompetitionLeaderboardTable
             leaderboard={filteredLeaderboard}
-            events={events}
+            events={filteredEvents}
             selectedEventId={effectiveEventId}
             scoringAlgorithm={scoringAlgorithm}
             linkToSubmission={preview}
@@ -671,7 +798,7 @@ export function LeaderboardPageContent({
         ) : (
           <CompetitionLeaderboardTable
             leaderboard={filteredLeaderboard}
-            events={events}
+            events={filteredEvents}
             selectedEventId={effectiveEventId}
             scoringAlgorithm={scoringAlgorithm}
             preview={preview}

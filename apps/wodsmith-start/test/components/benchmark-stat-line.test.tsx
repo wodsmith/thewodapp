@@ -50,6 +50,7 @@ function createEntry(): CompetitionLeaderboardEntry {
     teamMembers: [],
     affiliate: "WODsmith Gym",
     benchmarkOverallScore: 72.5,
+    benchmarkGender: "male",
     benchmarkRatingBand: {
       key: "regional",
       label: "Regional",
@@ -183,6 +184,15 @@ function createEntry(): CompetitionLeaderboardEntry {
   }
 }
 
+const submissionContext = {
+  competitionId: "comp-1",
+  slug: "test-comp",
+  divisionId: "open",
+  divisionLabel: "Open",
+  timezone: null,
+  onSubmitSuccess: () => {},
+}
+
 describe("BenchmarkStatLine", () => {
   it("renders Overall/100, category scores, per-test tiers, and states", () => {
     render(<BenchmarkStatLine entry={createEntry()} />)
@@ -204,5 +214,21 @@ describe("BenchmarkStatLine", () => {
     expect(screen.getByText("Tier 0")).toBeInTheDocument()
     expect(screen.getByText("Pending")).toBeInTheDocument()
     expect(screen.getByText("Excluded")).toBeInTheDocument()
+  })
+
+  it("keeps unavailable (deferred) tests read-only even with submission context", () => {
+    render(
+      <BenchmarkStatLine entry={createEntry()} submission={submissionContext} />,
+    )
+
+    // Scorable tests expand into a submission form.
+    expect(
+      screen.getByRole("button", { name: /Strict Press/ }),
+    ).toBeInTheDocument()
+    // Deferred tests reject submissions server-side, so no trigger renders.
+    expect(
+      screen.queryByRole("button", { name: /Weighted Pull-Up/ }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByText("Weighted Pull-Up")).toBeInTheDocument()
   })
 })

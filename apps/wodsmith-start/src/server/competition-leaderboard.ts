@@ -48,6 +48,7 @@ import {
   sortKeyToString,
   type WorkoutScheme,
 } from "@/lib/scoring"
+import { calculateAbsoluteTier } from "@/lib/scoring/algorithms"
 import { aggregateBenchmarkScores } from "@/lib/scoring/category-aggregation"
 import {
   applyTiebreakers,
@@ -59,12 +60,21 @@ import {
   parseCompetitionSettings,
 } from "@/types/competitions"
 import { getAffiliate } from "@/utils/registration-metadata"
+import { benchmarkVariantSchema } from "@/schemas/benchmark.schema"
 import {
   type BenchmarkLeaderboardCategoryScore,
   type BenchmarkLeaderboardRatingBand,
   findBenchmarkRatingBand,
   loadBenchmarkLeaderboardContext,
 } from "./benchmark-leaderboard"
+
+/** Narrow a profile gender string to the benchmark variant enum, else null. */
+function parseBenchmarkGender(
+  gender: string | null,
+): "male" | "female" | null {
+  const parsed = benchmarkVariantSchema.safeParse(gender)
+  return parsed.success ? parsed.data : null
+}
 
 // ============================================================================
 // Types
@@ -97,6 +107,12 @@ export interface CompetitionLeaderboardEntry {
   benchmarkRatingBand: BenchmarkLeaderboardRatingBand | null
   /** Benchmark category score breakdown, ordered by the battery config. */
   benchmarkCategoryScores: BenchmarkLeaderboardCategoryScore[]
+  /**
+   * Athlete profile gender, exposed only on benchmark boards where it doubles
+   * as the threshold variant — powers the public gender filter. Always null
+   * for non-benchmark competitions.
+   */
+  benchmarkGender: "male" | "female" | null
   eventResults: Array<{
     trackWorkoutId: string
     trackOrder: number
@@ -539,6 +555,7 @@ export async function getCompetitionLeaderboard(params: {
           firstName: userTable.firstName,
           lastName: userTable.lastName,
           email: userTable.email,
+          gender: userTable.gender,
         },
         division: {
           id: scalingLevelsTable.id,
@@ -853,6 +870,7 @@ export async function getCompetitionLeaderboard(params: {
   )
   const benchmarkContext = await loadBenchmarkLeaderboardContext({
     competitionId: params.competitionId,
+    competitionType: competition.competitionType,
     scoringConfig,
     trackWorkouts: scorableEvents,
   })
@@ -1144,6 +1162,11 @@ export async function getCompetitionLeaderboard(params: {
       benchmarkOverallScore: null,
       benchmarkRatingBand: null,
       benchmarkCategoryScores: [],
+      // Gender is only surfaced where it's benchmark context (threshold
+      // variant); never leak profile gender on regular competition boards.
+      benchmarkGender: benchmarkContext
+        ? parseBenchmarkGender(reg.user.gender)
+        : null,
       eventResults: [],
     })
   }
@@ -1318,6 +1341,26 @@ export async function getCompetitionLeaderboard(params: {
           : undefined,
       )
 
+      // Under online ranking, tiers don't come from the points algorithm —
+      // compute them straight from the threshold table so they still render
+      // as additive context on the leaderboard and stats pages.
+      const displayTiersByUserId = new Map<string, number>()
+      const tierTable = benchmarkContext?.absoluteTier.tableByEventId.get(
+        trackWorkout.id,
+      )
+      if (tierTable && scoringConfig.algorithm !== "absolute_tier") {
+        for (const input of eventScoreInputs) {
+          try {
+            displayTiersByUserId.set(
+              input.userId,
+              calculateAbsoluteTier(input, tierTable, scheme),
+            )
+          } catch {
+            // Missing variant/thresholds for this score — skip its tier badge.
+          }
+        }
+      }
+
       // Apply points multiplier
       const multiplier = (trackWorkout.pointsMultiplier ?? 100) / 100
 
@@ -1476,7 +1519,9 @@ export async function getCompetitionLeaderboard(params: {
           totalRoundCount: roundSummary.totalRoundCount,
           verificationStatus: score.verificationStatus ?? null,
           benchmarkTier:
-            scoringConfig.algorithm === "absolute_tier" ? points : null,
+            scoringConfig.algorithm === "absolute_tier"
+              ? points
+              : (displayTiersByUserId.get(score.userId) ?? null),
           benchmarkCategoryKey: benchmarkEvent?.categoryKey ?? null,
           benchmarkCategoryLabel: benchmarkEvent?.categoryLabel ?? null,
           benchmarkIncludedInScoring: benchmarkEvent?.includedInScoring ?? null,
@@ -1650,6 +1695,7 @@ export async function getCompetitionLeaderboard(params: {
   })
 
   if (benchmarkContext) {
+    const ranksByTier = scoringConfig.algorithm === "absolute_tier"
     for (const entry of leaderboardMap.values()) {
       const eventTiers = entry.eventResults
         .filter(
@@ -1664,6 +1710,13 @@ export async function getCompetitionLeaderboard(params: {
           includedInScoring: result.benchmarkIncludedInScoring ?? true,
         }))
 
+      // Additive mode: leave the benchmark fields null for athletes with no
+      // tiered scores rather than branding them "0/100" — tiers are context,
+      // not the ranking, so an empty scorecard should simply show nothing.
+      if (!ranksByTier && eventTiers.length === 0) {
+        continue
+      }
+
       const aggregate = aggregateBenchmarkScores({
         categories: benchmarkContext.categories,
         eventTiers,
@@ -1677,7 +1730,11 @@ export async function getCompetitionLeaderboard(params: {
         aggregate.overallScore,
         benchmarkContext.ratingBands,
       )
-      entry.totalPoints = aggregate.overallScore
+      // Only a legacy absolute_tier config ranks the board by tier score;
+      // otherwise the online algorithm's points stand and tiers are context.
+      if (ranksByTier) {
+        entry.totalPoints = aggregate.overallScore
+      }
     }
   }
 

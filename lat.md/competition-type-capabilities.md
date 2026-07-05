@@ -14,6 +14,8 @@ The registry maps each competition type to named capabilities, its leaderboard v
 
 Server submission gates now consume the registry for API, server-function, route, and leaderboard paths: score-window checks use `submissionWindows`, while benchmark status checks use `perpetual` to stay open without seeded window rows. Video submission checks use `videoSubmissions`. The dedicated leaderboard refactor also routes the online table decision through `leaderboardVariant` and the hidden-until-published default through `optInResultPublishing`; [[apps/wodsmith-start/src/server/competition-leaderboard.ts#getCompetitionLeaderboard]] stayed minimal because GitNexus reports HIGH blast radius. Perpetual boards default to pre-published results (`settings.resultsAutoPublish`, default true) — organizers can flip the setting off to restore the manual per-division publish gate; see [[organizer-dashboard#Results Entry#Division Results Publish Gate]].
 
+The registry also owns the public competition-page tab set: each type declares `publicTabs` and [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#publicCompetitionTabs]] resolves them (unknown types fall back to the default in-person/online set). In-person and online show Event Details, Workouts, Schedule, Leaderboard, and Announcements; benchmark drops Schedule and is the only type that adds Stats. [[apps/wodsmith-start/src/components/competition-tabs.tsx#CompetitionTabs]] renders from the registry via a `competitionType` prop instead of sniffing scoring settings. The `/schedule` and `/stats` route loaders enforce the same tab set: direct visits to a tab the type does not declare redirect to the competition overview, so benchmark boards never serve `/schedule` and non-benchmark competitions never serve `/stats`.
+
 The `scoringAlgorithm === "online"` axis remains separate from `competitionType === "online"`. Capability checks must not replace scoring-algorithm branches.
 
 ## Capability Truth Table Test
@@ -45,6 +47,26 @@ The create-picker test pins that selectable competition type options are derived
 ### Create Form Benchmark Option
 
 This test verifies the organizer create form exposes Benchmark as a selectable competition type.
+
+## Additive Tier Context
+
+Benchmark tier data enriches the leaderboard and stats as display context; ranking comes from the configured scoring algorithm (online by default), not from a mutually exclusive tier-scoring mode.
+
+[[apps/wodsmith-start/src/server/benchmark-leaderboard.ts#loadBenchmarkLeaderboardContext]] loads the battery/threshold context for any competition granting `benchmarkScoringTiers`, returning no context on incomplete tier setup instead of failing the leaderboard; only a legacy `absolute_tier` scoringConfig makes the context load-bearing and strict. Under online ranking, [[apps/wodsmith-start/src/server/competition-leaderboard.ts#getCompetitionLeaderboard]] computes per-event display tiers straight from the threshold tables via [[apps/wodsmith-start/src/lib/scoring/algorithms/absolute-tier.ts#calculateAbsoluteTier]], aggregates category scores, Overall/100, and rating for entries that have tiered scores, and leaves `totalPoints` to the online algorithm — only legacy `absolute_tier` overrides ranking points. [[apps/wodsmith-start/src/components/online-competition-leaderboard-table.tsx#OnlineCompetitionLeaderboardTable]] shows benchmark columns whenever entries carry tier data rather than keying on the algorithm, and [[apps/wodsmith-start/src/routes/compete/$slug/stats.tsx#BenchmarkStatsPage]] gates on the `benchmarkScoringTiers` capability. The organizer tiers page has no "activate tier scoring" action; for legacy tier-ranked competitions it offers a one-way switch to online ranking via [[apps/wodsmith-start/src/server/benchmark-scoring-tiers.ts#activateBenchmarkOnlineScoring]].
+
+## Benchmark Category Grouping
+
+Benchmark leaderboards group event columns under their battery category (like parent/sub-event grouping) and add category and gender filters — all gated on benchmark data so regular boards are unchanged.
+
+[[apps/wodsmith-start/src/components/online-competition-leaderboard-table.tsx#OnlineCompetitionLeaderboardTable]] generalizes the parent-event header-group row: [[apps/wodsmith-start/src/components/online-competition-leaderboard-table.tsx#getEventGroupId]] groups by parent event first, then by `benchmarkCategoryKey`, so benchmark tests cluster under category headers on desktop and mobile. [[apps/wodsmith-start/src/components/leaderboard-page-content.tsx#LeaderboardPageContent]] derives the category list from event results, exposes a URL-backed `category` filter (shown only when categories exist) that narrows the event columns and the View selector, and a `gender` filter driven by `benchmarkGender` — a profile-gender snapshot [[apps/wodsmith-start/src/server/competition-leaderboard.ts#getCompetitionLeaderboard]] populates only when a benchmark context loads, so gender never leaks onto non-benchmark boards. All three leaderboard routes (public, organizer preview, cohost preview) accept the `category` and `gender` search params.
+
+### Category Group Headers
+
+This test verifies benchmark event columns render under category header groups on the online leaderboard table.
+
+### Category and Gender Filters
+
+This test verifies the category and gender filter selects appear only when leaderboard entries carry benchmark category and gender data.
 
 ## Perpetual End Dates
 

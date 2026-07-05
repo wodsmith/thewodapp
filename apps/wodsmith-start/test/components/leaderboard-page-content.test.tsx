@@ -179,6 +179,7 @@ const createMockEntry = (
 	benchmarkOverallScore: null,
 	benchmarkRatingBand: null,
 	benchmarkCategoryScores: [],
+	benchmarkGender: null,
 	eventResults: [
 		createMockEventResult(),
 		createMockEventResult({
@@ -799,6 +800,74 @@ describe("LeaderboardPageContent", () => {
 				expect(screen.getByText("Score Adjusted")).toBeInTheDocument()
 				expect(screen.getByText("This score was modified by an organizer.")).toBeInTheDocument()
 			})
+		})
+	})
+
+	describe("Benchmark category and gender filters", () => {
+		const createBenchmarkEntry = () =>
+			createMockEntry({
+				benchmarkOverallScore: 72.5,
+				benchmarkGender: "male",
+				eventResults: [
+					createMockEventResult({
+						benchmarkCategoryKey: "strength",
+						benchmarkCategoryLabel: "Strength",
+					}),
+					createMockEventResult({
+						trackWorkoutId: "tw-2",
+						trackOrder: 2,
+						eventName: "Event 2",
+						benchmarkCategoryKey: "engine",
+						benchmarkCategoryLabel: "Engine",
+					}),
+				],
+			})
+
+		// @lat: [[competition-type-capabilities#Benchmark Category Grouping#Category and Gender Filters]]
+		it("shows category and gender filters when benchmark categories exist", async () => {
+			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(
+				mockLeaderboardResponse([createBenchmarkEntry()], "online"),
+			)
+
+			render(
+				<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={{ ...mockCompetition, competitionType: "online" }}
+				/>,
+			)
+
+			await waitFor(() => {
+				expect(
+					screen.getByTestId("online-leaderboard-variant"),
+				).toBeInTheDocument()
+			})
+
+			// division + category + view + gender selects (affiliate hidden — no affiliates)
+			expect(screen.getAllByRole("combobox")).toHaveLength(4)
+		})
+
+		it("hides category and gender filters on non-benchmark boards", async () => {
+			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(
+				mockLeaderboardResponse([createMockEntry()], "online"),
+			)
+
+			render(
+				<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={{ ...mockCompetition, competitionType: "online" }}
+				/>,
+			)
+
+			await waitFor(() => {
+				expect(
+					screen.getByTestId("online-leaderboard-variant"),
+				).toBeInTheDocument()
+			})
+
+			// division + view selects only
+			expect(screen.getAllByRole("combobox")).toHaveLength(2)
 		})
 	})
 

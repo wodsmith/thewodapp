@@ -80,6 +80,8 @@ interface OnlineCompetitionLeaderboardTableProps {
     scheme: string
     parentEventId?: string | null
     parentEventName?: string | null
+    benchmarkCategoryKey?: string | null
+    benchmarkCategoryLabel?: string | null
   }>
   selectedEventId: string | null
   scoringAlgorithm: ScoringAlgorithm
@@ -132,6 +134,24 @@ function SubmissionLinkWrapper({
   )
 }
 
+type LeaderboardEvent = OnlineCompetitionLeaderboardTableProps["events"][number]
+
+/**
+ * Header-grouping identity for an event column. Parent events win; benchmark
+ * category is the fallback grouping so tests cluster under their category
+ * (Strength, Engine, ...) the same way sub-events cluster under a parent.
+ */
+function getEventGroupId(event: LeaderboardEvent): string | null {
+  if (event.parentEventId) return `parent:${event.parentEventId}`
+  if (event.benchmarkCategoryKey) return `category:${event.benchmarkCategoryKey}`
+  return null
+}
+
+function getEventGroupLabel(event: LeaderboardEvent): string | null {
+  if (event.parentEventId) return event.parentEventName ?? null
+  return event.benchmarkCategoryLabel ?? null
+}
+
 function getRankIcon(rank: number) {
   switch (rank) {
     case 1:
@@ -150,7 +170,12 @@ function formatBenchmarkNumber(value: number): string {
 }
 
 function formatBenchmarkOverall(entry: CompetitionLeaderboardEntry): string {
-  return `${formatBenchmarkNumber(entry.benchmarkOverallScore ?? entry.totalPoints)}/100`
+  // Under online ranking the benchmark score is additive context — an entry
+  // with no tiered scores has nothing to show, so fall back to its points.
+  if (entry.benchmarkOverallScore === null) {
+    return `${entry.totalPoints} pts`
+  }
+  return `${formatBenchmarkNumber(entry.benchmarkOverallScore)}/100`
 }
 
 function formatBenchmarkTier(tier: number | null | undefined): string {
@@ -217,55 +242,41 @@ function BenchmarkCategorySummary({
   }
 
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className="flex min-w-[9rem] flex-col gap-0.5">
       {categories.map((category) => (
-        <span
+        <div
           key={category.key}
-          className="inline-flex items-center gap-1 rounded-sm border bg-muted/30 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+          className="flex items-baseline justify-between gap-3 text-xs"
           title={category.label ?? category.key}
         >
-          <span>{category.label ?? category.key}</span>
-          <span className="tabular-nums">
+          <span className="truncate text-muted-foreground">
+            {category.label ?? category.key}
+          </span>
+          <span className="font-medium tabular-nums">
             {formatBenchmarkNumber(category.score)}
           </span>
-        </span>
+        </div>
       ))}
     </div>
   )
 }
 
+/**
+ * Verification state badge for a benchmark score cell. Tier and category are
+ * deliberately not repeated here — tier lives in the "#rank · Tier N" subtext
+ * and category in the column group header.
+ */
 function BenchmarkEventBadges({
   result,
 }: {
   result: CompetitionLeaderboardEntry["eventResults"][number]
 }) {
   const verificationLabel = getBenchmarkVerificationLabel(result)
-
-  if (
-    result.benchmarkTier === null &&
-    !result.benchmarkCategoryLabel &&
-    !verificationLabel
-  ) {
-    return null
-  }
+  if (!verificationLabel) return null
 
   return (
-    <span className="inline-flex flex-wrap items-center gap-1">
-      {result.benchmarkTier !== null && (
-        <span className="rounded-sm border bg-muted/30 px-1 py-px text-[10px] font-medium text-muted-foreground">
-          {formatBenchmarkTier(result.benchmarkTier)}
-        </span>
-      )}
-      {result.benchmarkCategoryLabel && (
-        <span className="rounded-sm border bg-muted/30 px-1 py-px text-[10px] font-medium text-muted-foreground">
-          {result.benchmarkCategoryLabel}
-        </span>
-      )}
-      {verificationLabel && (
-        <span className="rounded-sm border bg-muted/30 px-1 py-px text-[10px] font-medium text-muted-foreground">
-          {verificationLabel}
-        </span>
-      )}
+    <span className="rounded-sm border bg-muted/30 px-1 py-px text-[10px] font-medium text-muted-foreground">
+      {verificationLabel}
     </span>
   )
 }
@@ -381,23 +392,11 @@ function PenaltyIndicator({
   )
 }
 
-function TeamCell({
-  entry,
-  showBenchmarkDetails = false,
-}: {
-  entry: CompetitionLeaderboardEntry
-  showBenchmarkDetails?: boolean
-}) {
-  const ratingLabel = entry.benchmarkRatingBand?.label
+function TeamCell({ entry }: { entry: CompetitionLeaderboardEntry }) {
   if (!entry.isTeamDivision) {
     return (
       <div className="flex flex-col gap-0.5">
         <span className="font-medium">{entry.athleteName}</span>
-        {showBenchmarkDetails && ratingLabel && (
-          <span className="text-[10px] text-muted-foreground leading-tight">
-            {ratingLabel}
-          </span>
-        )}
         {entry.affiliate && (
           <span className="text-[10px] text-muted-foreground leading-tight">
             {entry.affiliate}
@@ -410,11 +409,6 @@ function TeamCell({
   return (
     <div className="flex flex-col gap-0.5">
       <span className="font-medium">{entry.teamName || "Unknown Team"}</span>
-      {showBenchmarkDetails && ratingLabel && (
-        <span className="text-[10px] text-muted-foreground leading-tight">
-          {ratingLabel}
-        </span>
-      )}
       {entry.affiliate && (
         <span className="text-[10px] text-muted-foreground leading-tight">
           {entry.affiliate}
@@ -718,6 +712,7 @@ function MobileOnlineLeaderboardRow({
   entry,
   events,
   scoringAlgorithm,
+  isBenchmarkLeaderboard,
   voteCounts,
   isLoggedIn,
   currentUserId,
@@ -725,15 +720,9 @@ function MobileOnlineLeaderboardRow({
   competitionId,
 }: {
   entry: CompetitionLeaderboardEntry
-  events: Array<{
-    id: string
-    name: string
-    trackOrder: number
-    scheme: string
-    parentEventId?: string | null
-    parentEventName?: string | null
-  }>
+  events: LeaderboardEvent[]
   scoringAlgorithm: ScoringAlgorithm
+  isBenchmarkLeaderboard: boolean
   voteCounts: VoteCounts
   isLoggedIn: boolean
   currentUserId: string | null
@@ -747,7 +736,6 @@ function MobileOnlineLeaderboardRow({
       entry.teamMembers.some((m) => m.userId === currentUserId))
   const icon = getRankIcon(entry.overallRank)
   const isPodium = entry.overallRank <= 3
-  const isBenchmarkLeaderboard = scoringAlgorithm === "absolute_tier"
 
   const sortedEvents = useMemo(
     () => [...events].sort((a, b) => a.trackOrder - b.trackOrder),
@@ -851,15 +839,17 @@ function MobileOnlineLeaderboardRow({
                 (r) => r.trackWorkoutId === event.id,
               )
               const prevEvent = index > 0 ? sortedEvents[index - 1] : null
-              const showParentHeader =
-                event.parentEventName &&
-                event.parentEventId !== prevEvent?.parentEventId
+              const groupLabel = getEventGroupLabel(event)
+              const showGroupHeader =
+                groupLabel &&
+                getEventGroupId(event) !==
+                  (prevEvent ? getEventGroupId(prevEvent) : null)
               return (
                 <Fragment key={event.id}>
-                  {showParentHeader && (
+                  {showGroupHeader && (
                     <div className="col-span-2">
                       <span className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground">
-                        {event.parentEventName}
+                        {groupLabel}
                       </span>
                     </div>
                   )}
@@ -973,7 +963,11 @@ export function OnlineCompetitionLeaderboardTable({
   const session = useSession()
   const isLoggedIn = !!session?.userId
   const currentUserId = session?.userId ?? null
-  const isBenchmarkLeaderboard = scoringAlgorithm === "absolute_tier"
+  // Benchmark context is additive: it renders whenever tier data made it onto
+  // the entries, regardless of which algorithm ranks the board.
+  const isBenchmarkLeaderboard =
+    scoringAlgorithm === "absolute_tier" ||
+    leaderboard.some((entry) => entry.benchmarkOverallScore !== null)
 
   const defaultSortColumn = selectedEventId ? "eventRank" : "overallRank"
 
@@ -1137,10 +1131,7 @@ export function OnlineCompetitionLeaderboardTable({
           header: athleteColumnLabel,
           accessorKey: isTeamLeaderboard ? "teamName" : "athleteName",
           cell: ({ row }: LeaderboardCellContext) => (
-            <TeamCell
-              entry={row.original}
-              showBenchmarkDetails={isBenchmarkLeaderboard}
-            />
+            <TeamCell entry={row.original} />
           ),
         },
         ...(hasAffiliates
@@ -1245,10 +1236,7 @@ export function OnlineCompetitionLeaderboardTable({
         ),
         accessorKey: isTeamLeaderboard ? "teamName" : "athleteName",
         cell: ({ row }: LeaderboardCellContext) => (
-          <TeamCell
-            entry={row.original}
-            showBenchmarkDetails={isBenchmarkLeaderboard}
-          />
+          <TeamCell entry={row.original} />
         ),
       },
     ]
@@ -1393,13 +1381,13 @@ export function OnlineCompetitionLeaderboardTable({
     return validSorting
   }, [sorting, columns, selectedEventId])
 
-  // Compute parent event group spans for the header row
+  // Compute event group spans (parent events or benchmark categories) for the header row
   const parentGroupSpans = useMemo(() => {
     if (selectedEventId) return []
 
     const sortedEvents = [...events].sort((a, b) => a.trackOrder - b.trackOrder)
-    const hasAnyParent = sortedEvents.some((e) => e.parentEventId)
-    if (!hasAnyParent) return []
+    const hasAnyGroup = sortedEvents.some((e) => getEventGroupId(e))
+    if (!hasAnyGroup) return []
 
     // Count leading non-event columns (rank, athlete, optional affiliate/benchmark summary)
     const leadingCols =
@@ -1412,20 +1400,20 @@ export function OnlineCompetitionLeaderboardTable({
 
     groups.push({ label: null, colSpan: leadingCols })
 
-    let currentParentId: string | null | undefined
+    let currentGroupId: string | null | undefined
     let currentSpan = 0
     let currentName: string | null = null
 
     for (const event of sortedEvents) {
-      const pid = event.parentEventId ?? null
-      if (pid === currentParentId) {
+      const groupId = getEventGroupId(event)
+      if (groupId === currentGroupId) {
         currentSpan++
       } else {
         if (currentSpan > 0) {
           groups.push({ label: currentName, colSpan: currentSpan })
         }
-        currentParentId = pid
-        currentName = event.parentEventName ?? null
+        currentGroupId = groupId
+        currentName = getEventGroupLabel(event)
         currentSpan = 1
       }
     }
@@ -1560,6 +1548,7 @@ export function OnlineCompetitionLeaderboardTable({
                 entry={entry}
                 events={events}
                 scoringAlgorithm={scoringAlgorithm}
+                isBenchmarkLeaderboard={isBenchmarkLeaderboard}
                 voteCounts={voteCounts}
                 isLoggedIn={isLoggedIn}
                 currentUserId={currentUserId}
