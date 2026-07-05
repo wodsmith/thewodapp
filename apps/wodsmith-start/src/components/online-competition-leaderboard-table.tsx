@@ -1577,7 +1577,13 @@ export function OnlineCompetitionLeaderboardTable({
                         : "border-b-0",
                     )}
                   >
-                    {group.label}
+                    {group.label && (
+                      // Sticky within the horizontal scrollport so the label
+                      // stays readable while scrolling through a wide group.
+                      <span className="sticky left-4 right-4 inline-block">
+                        {group.label}
+                      </span>
+                    )}
                   </TableHead>
                 ))}
               </TableRow>
