@@ -136,6 +136,17 @@ function SubmissionLinkWrapper({
 
 type LeaderboardEvent = OnlineCompetitionLeaderboardTableProps["events"][number]
 
+declare module "@tanstack/react-table" {
+  // biome-ignore lint/correctness/noUnusedVariables: type params required to match the library interface
+  interface ColumnMeta<TData, TValue> {
+    /** Alternating tint for event columns so adjacent header groups read apart. */
+    stripe?: boolean
+  }
+}
+
+/** Background tint applied to striped (odd) event-group columns. */
+const GROUP_STRIPE_CLASS = "bg-muted/20"
+
 /**
  * Header-grouping identity for an event column. Parent events win; benchmark
  * category is the fallback grouping so tests cluster under their category
@@ -1289,9 +1300,20 @@ export function OnlineCompetitionLeaderboardTable({
 
     const sortedEvents = [...events].sort((a, b) => a.trackOrder - b.trackOrder)
 
+    // Mirror the parity walk in `parentGroupSpans` so column tints line up
+    // with the group header row.
+    let prevGroupId: string | null = null
+    let labeledGroupIndex = -1
+
     for (const event of sortedEvents) {
+      const groupId = getEventGroupId(event)
+      if (groupId && groupId !== prevGroupId) labeledGroupIndex++
+      prevGroupId = groupId
+      const stripe = groupId ? labeledGroupIndex % 2 === 1 : false
+
       baseColumns.push({
         id: `event-${event.id}`,
+        meta: { stripe },
         header: ({ column }: LeaderboardHeaderContext) => (
           <SortableHeader column={column}>
             <span title={event.name}>{event.name}</span>
@@ -1396,13 +1418,16 @@ export function OnlineCompetitionLeaderboardTable({
     const groups: Array<{
       label: string | null
       colSpan: number
+      stripe: boolean
     }> = []
 
-    groups.push({ label: null, colSpan: leadingCols })
+    groups.push({ label: null, colSpan: leadingCols, stripe: false })
 
     let currentGroupId: string | null | undefined
     let currentSpan = 0
     let currentName: string | null = null
+    let currentStripe = false
+    let labeledGroupIndex = -1
 
     for (const event of sortedEvents) {
       const groupId = getEventGroupId(event)
@@ -1410,15 +1435,27 @@ export function OnlineCompetitionLeaderboardTable({
         currentSpan++
       } else {
         if (currentSpan > 0) {
-          groups.push({ label: currentName, colSpan: currentSpan })
+          groups.push({
+            label: currentName,
+            colSpan: currentSpan,
+            stripe: currentStripe,
+          })
         }
         currentGroupId = groupId
         currentName = getEventGroupLabel(event)
+        // Only labeled/grouped runs participate in striping; ungrouped
+        // columns keep the default background and don't advance parity.
+        if (groupId) labeledGroupIndex++
+        currentStripe = groupId ? labeledGroupIndex % 2 === 1 : false
         currentSpan = 1
       }
     }
     if (currentSpan > 0) {
-      groups.push({ label: currentName, colSpan: currentSpan })
+      groups.push({
+        label: currentName,
+        colSpan: currentSpan,
+        stripe: currentStripe,
+      })
     }
 
     return groups
@@ -1573,8 +1610,9 @@ export function OnlineCompetitionLeaderboardTable({
                     className={cn(
                       "text-center py-1 h-auto",
                       group.label
-                        ? "text-[11px] uppercase tracking-wide font-semibold text-muted-foreground bg-muted/40 border-x border-t rounded-t-sm"
+                        ? "text-[11px] uppercase tracking-wide font-semibold text-muted-foreground border-x border-t rounded-t-sm"
                         : "border-b-0",
+                      group.label && (group.stripe ? "bg-muted/70" : "bg-muted/40"),
                     )}
                   >
                     {group.label && (
@@ -1593,6 +1631,10 @@ export function OnlineCompetitionLeaderboardTable({
                 {headerGroup.headers.map((header) => (
                   <TableHead
                     key={header.id}
+                    className={cn(
+                      header.column.columnDef.meta?.stripe &&
+                        GROUP_STRIPE_CLASS,
+                    )}
                     style={
                       header.column.getSize() !== 150
                         ? { width: header.column.getSize() }
@@ -1638,7 +1680,14 @@ export function OnlineCompetitionLeaderboardTable({
                     }}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="table-cell">
+                      <TableCell
+                        key={cell.id}
+                        className={cn(
+                          "table-cell",
+                          cell.column.columnDef.meta?.stripe &&
+                            GROUP_STRIPE_CLASS,
+                        )}
+                      >
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext(),
