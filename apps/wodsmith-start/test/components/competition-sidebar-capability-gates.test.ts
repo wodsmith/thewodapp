@@ -53,7 +53,7 @@ describe("competition sidebar capability gates", () => {
     )
 		expect(inPersonLabels).not.toContain("Submission windows")
 		expect(inPersonLabels).not.toContain("Submissions")
-		expect(inPersonLabels).not.toContain("Benchmark tiers")
+		expect(inPersonLabels).not.toContain("Benchmark scoring")
 
 		expect(onlineLabels).toContain("Submissions")
 		expect(onlineLabels).toContain("Submission windows")
@@ -66,10 +66,15 @@ describe("competition sidebar capability gates", () => {
 		expect(onlineLabels).toContain("Volunteer roster")
 		expect(onlineLabels).toContain("Volunteer shifts")
 		expect(onlineLabels).not.toContain("Results")
-		expect(onlineLabels).not.toContain("Benchmark tiers")
+		expect(onlineLabels).not.toContain("Benchmark scoring")
 
 		expect(benchmarkLabels).toContain("Submissions")
-		expect(benchmarkLabels).toContain("Benchmark tiers")
+		expect(benchmarkLabels).toContain("Benchmark scoring")
+		// The most important setup surface for a benchmark board sits directly
+		// under Competition details.
+		expect(benchmarkLabels[benchmarkLabels.indexOf("Competition details") + 1]).toBe(
+			"Benchmark scoring",
+		)
 		expect(benchmarkLabels).not.toContain("Submission windows")
 		expect(benchmarkLabels).not.toContain("Results")
 	})

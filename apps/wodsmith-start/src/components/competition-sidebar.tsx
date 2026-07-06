@@ -102,6 +102,17 @@ const getNavigation = (
             href: `${basePath}/edit`,
             icon: Settings,
           },
+          // Benchmark scoring is the core setup surface for benchmark boards,
+          // so it sits directly under Competition details.
+          ...(competitionCan(type, "benchmarkScoringTiers")
+            ? [
+                {
+                  label: "Benchmark scoring",
+                  href: `${basePath}/scoring/tiers`,
+                  icon: Gauge,
+                },
+              ]
+            : []),
           {
             label: "Divisions & capacity",
             href: `${basePath}/divisions`,
@@ -140,15 +151,6 @@ const getNavigation = (
             href: `${basePath}/scoring`,
             icon: Calculator,
           },
-          ...(competitionCan(type, "benchmarkScoringTiers")
-            ? [
-                {
-                  label: "Benchmark tiers",
-                  href: `${basePath}/scoring/tiers`,
-                  icon: Gauge,
-                },
-              ]
-            : []),
         ],
       },
       {
