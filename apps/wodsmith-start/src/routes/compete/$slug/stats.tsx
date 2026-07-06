@@ -87,7 +87,10 @@ export const Route = createFileRoute("/compete/$slug/stats")({
       throw redirect({ to: "/compete/$slug", params: { slug: params.slug } })
     }
 
-    const targetDivisionId = deps.division ?? divisions[0]?.id ?? null
+    const targetDivisionId =
+      (deps.division && divisions.some((d) => d.id === deps.division)
+        ? deps.division
+        : divisions[0]?.id) ?? null
     if (!targetDivisionId) {
       return { initialStats: null, loadError: null }
     }
@@ -153,7 +156,10 @@ export function BenchmarkStatsPage() {
     competition.competitionType,
     "benchmarkScoringTiers",
   )
-  const selectedDivisionId = search.division ?? divisions[0]?.id ?? ""
+  const selectedDivisionId =
+    search.division && divisions.some((d) => d.id === search.division)
+      ? search.division
+      : (divisions[0]?.id ?? "")
   const entries = initialStats?.entries ?? []
 
   const viewerRegistration = userRegistrations.find(
@@ -231,7 +237,8 @@ export function BenchmarkStatsPage() {
               </p>
             </div>
 
-            {isBenchmarkStats && entries.length > 0 ? (
+            {isBenchmarkStats &&
+            (divisions.length > 1 || entries.length > 0) ? (
               <div className="flex flex-wrap gap-3">
                 {divisions.length > 1 && (
                   <Select
@@ -251,24 +258,26 @@ export function BenchmarkStatsPage() {
                   </Select>
                 )}
 
-                <Select
-                  value={selectedEntry?.registrationId ?? ""}
-                  onValueChange={handleAthleteChange}
-                >
-                  <SelectTrigger className="w-[220px]">
-                    <SelectValue placeholder="Athlete" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {entries.map((entry) => (
-                      <SelectItem
-                        key={entry.registrationId}
-                        value={entry.registrationId}
-                      >
-                        {entry.athleteName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {entries.length > 0 && (
+                  <Select
+                    value={selectedEntry?.registrationId ?? ""}
+                    onValueChange={handleAthleteChange}
+                  >
+                    <SelectTrigger className="w-[220px]">
+                      <SelectValue placeholder="Athlete" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {entries.map((entry) => (
+                        <SelectItem
+                          key={entry.registrationId}
+                          value={entry.registrationId}
+                        >
+                          {entry.athleteName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             ) : null}
           </div>

@@ -485,6 +485,7 @@ export function AddTestDialog({
   const hybridValid =
     scoreModel !== "hybrid" ||
     (hybridFlipTier !== null &&
+      Number.isInteger(hybridFlipTier) &&
       hybridFlipTier >= 2 &&
       hybridFlipTier <= maxTier &&
       scheme === HYBRID_SCHEME)
@@ -740,6 +741,7 @@ export function EditTestDialog({
   const hybridValid =
     scoreModel !== "hybrid" ||
     (hybridFlipTier !== null &&
+      Number.isInteger(hybridFlipTier) &&
       hybridFlipTier >= 2 &&
       hybridFlipTier <= maxTier &&
       scheme === HYBRID_SCHEME)

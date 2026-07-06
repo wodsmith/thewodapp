@@ -52,6 +52,10 @@ const VIDEO_POLICY_OPTIONS: ReadonlyArray<{
   { value: "always", label: "Always require video" },
 ]
 
+function isVideoPolicy(value: string): value is BenchmarkVideoPolicy {
+  return VIDEO_POLICY_OPTIONS.some((option) => option.value === value)
+}
+
 export function BenchmarkSettingsForm({
   settings,
   disabled = false,
@@ -89,7 +93,8 @@ export function BenchmarkSettingsForm({
     Number.isInteger(parsedScoreMax) &&
     parsedScoreMax > 0 &&
     Number.isInteger(parsedMaxTier) &&
-    parsedMaxTier > 0
+    parsedMaxTier > 0 &&
+    isVideoPolicy(videoPolicy)
 
   const isDirty =
     name !== settings.name ||
@@ -106,7 +111,7 @@ export function BenchmarkSettingsForm({
     Number.isInteger(parsedMaxTier) && parsedMaxTier > settings.maxTier
 
   const handleSave = async () => {
-    if (!canSave) return
+    if (!canSave || !isVideoPolicy(videoPolicy)) return
     setIsSaving(true)
     try {
       const trimmedDescription = description.trim()
@@ -115,7 +120,7 @@ export function BenchmarkSettingsForm({
         description: trimmedDescription.length > 0 ? trimmedDescription : null,
         scoreMax: parsedScoreMax,
         maxTier: parsedMaxTier,
-        videoPolicy: videoPolicy as BenchmarkVideoPolicy,
+        videoPolicy,
       })
     } catch (error) {
       toast.error(
@@ -198,7 +203,10 @@ export function BenchmarkSettingsForm({
             />
             <p className="text-xs text-muted-foreground">
               How many performance levels each test has. Tier 1 is the easiest
-              standard, tier {Number.isInteger(parsedMaxTier) ? parsedMaxTier : settings.maxTier}{" "}
+              standard, tier{" "}
+              {Number.isInteger(parsedMaxTier)
+                ? parsedMaxTier
+                : settings.maxTier}{" "}
               the hardest.
             </p>
           </div>

@@ -277,7 +277,8 @@ export function RatingBandsEditor({
     }
   }
 
-  const saveDisabled = disabled || isSaving || !isDirty || !validation.isValid
+  const controlsDisabled = disabled || isSaving
+  const saveDisabled = controlsDisabled || !isDirty || !validation.isValid
 
   return (
     <Card>
@@ -313,7 +314,7 @@ export function RatingBandsEditor({
                       aria-label={`Rating band ${rowNumber} label`}
                       aria-invalid={errors.label ? true : undefined}
                       value={row.label}
-                      disabled={disabled}
+                      disabled={controlsDisabled}
                       onChange={(event) =>
                         updateRow(row.rowId, { label: event.target.value })
                       }
@@ -334,7 +335,7 @@ export function RatingBandsEditor({
                         errors.min || errors.overlap ? true : undefined
                       }
                       value={row.minScore}
-                      disabled={disabled}
+                      disabled={controlsDisabled}
                       className="tabular-nums"
                       onChange={(event) =>
                         updateRow(row.rowId, { minScore: event.target.value })
@@ -356,7 +357,7 @@ export function RatingBandsEditor({
                         errors.max || errors.overlap ? true : undefined
                       }
                       value={row.maxScore}
-                      disabled={disabled}
+                      disabled={controlsDisabled}
                       className="tabular-nums"
                       onChange={(event) =>
                         updateRow(row.rowId, { maxScore: event.target.value })
@@ -368,7 +369,7 @@ export function RatingBandsEditor({
                     variant="ghost"
                     size="icon"
                     aria-label={`Remove rating band ${rowNumber}`}
-                    disabled={disabled}
+                    disabled={controlsDisabled}
                     onClick={() => handleRemoveBand(row.rowId)}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -397,7 +398,7 @@ export function RatingBandsEditor({
             type="button"
             variant="outline"
             onClick={handleAddBand}
-            disabled={disabled}
+            disabled={controlsDisabled}
           >
             <Plus className="mr-2 h-4 w-4" />
             Add band

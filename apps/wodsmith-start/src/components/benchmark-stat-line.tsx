@@ -80,10 +80,10 @@ function getTestState(
   if (result.verificationStatus === "invalid" || reviewStatus === "invalid") {
     return "excluded"
   }
-  if (result.rawScore === null) return "untested"
   if (reviewStatus === "pending" || reviewStatus === "under_review") {
     return "pending"
   }
+  if (result.rawScore === null) return "untested"
   if (result.penaltyType || reviewStatus === "penalized") return "penalized"
   if (
     result.isDirectlyModified ||
@@ -150,7 +150,9 @@ export function BenchmarkStatLine({
             <span className="text-5xl font-semibold tracking-normal tabular-nums">
               {formatBenchmarkNumber(overall)}
             </span>
-            <span className="pb-2 text-sm text-muted-foreground">/100</span>
+            <span className="pb-2 text-sm text-muted-foreground">
+              {entry.benchmarkOverallScore === null ? "pts" : "/100"}
+            </span>
           </div>
           {entry.benchmarkRatingBand ? (
             <Badge variant="secondary" className="mt-4">

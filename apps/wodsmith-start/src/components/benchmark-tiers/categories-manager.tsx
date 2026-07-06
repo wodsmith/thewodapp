@@ -97,7 +97,11 @@ function toRows(categories: CategorySummaryItem[]): CategoryRow[] {
 
 function serializeCategories(categories: CategoryDraft[]): string {
   return JSON.stringify(
-    categories.map((category) => [category.key, category.label, category.weight]),
+    categories.map((category) => [
+      category.key,
+      category.label,
+      category.weight,
+    ]),
   )
 }
 
@@ -116,6 +120,28 @@ export function CategoriesManager({
   useEffect(() => {
     setRows(toRows(categories))
   }, [categoriesSignature])
+
+  // Test counts can change without keys/labels/weights changing (e.g. a test
+  // is added or deleted elsewhere on the page). Sync counts by key so delete
+  // buttons stay accurate without clobbering unsaved label/weight edits.
+  const countsSignature = JSON.stringify(
+    categories.map((category) => [category.key, category.totalTestCount]),
+  )
+  // biome-ignore lint/correctness/useExhaustiveDependencies: sync on count change only
+  useEffect(() => {
+    const counts = new Map(
+      categories.map((category) => [category.key, category.totalTestCount]),
+    )
+    setRows((current) =>
+      current.map((row) => {
+        const totalTestCount = counts.get(row.key)
+        return totalTestCount === undefined ||
+          totalTestCount === row.totalTestCount
+          ? row
+          : { ...row, totalTestCount }
+      }),
+    )
+  }, [countsSignature])
 
   const resolvedKeys = useMemo(() => resolveKeys(rows), [rows])
 
@@ -218,9 +244,9 @@ export function CategoriesManager({
       <CardHeader className="gap-1">
         <CardTitle>Categories</CardTitle>
         <CardDescription>
-          Group your tests into categories (like Strength or Engine) and set
-          how much each one counts toward the overall score. A category with
-          weight 2 counts twice as much as one with weight 1.
+          Group your tests into categories (like Strength or Engine) and set how
+          much each one counts toward the overall score. A category with weight
+          2 counts twice as much as one with weight 1.
         </CardDescription>
       </CardHeader>
       <CardContent>

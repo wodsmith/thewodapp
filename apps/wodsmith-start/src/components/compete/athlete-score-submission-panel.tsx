@@ -12,7 +12,7 @@ import {
   Lock,
   Trophy,
 } from "lucide-react"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -193,15 +193,20 @@ export function AthleteScoreSubmissionPanel({
     return ids
   }, [filteredParents, filteredChildEventsMap])
 
+  // Monotonic token shared by the fetch effect and refreshSubmissions so a
+  // stale response (e.g. after a division switch) never overwrites newer data.
+  const fetchSeqRef = useRef(0)
+
   useEffect(() => {
     if (!registration?.id || !division?.id || trackWorkoutIds.length === 0) {
+      fetchSeqRef.current++
       setSubmissions([])
       setFetchError(false)
       setLoading(false)
       return
     }
 
-    let cancelled = false
+    const seq = ++fetchSeqRef.current
     setLoading(true)
     setFetchError(false)
 
@@ -214,20 +219,16 @@ export function AthleteScoreSubmissionPanel({
       },
     })
       .then((result) => {
-        if (!cancelled) {
+        if (seq === fetchSeqRef.current) {
           setSubmissions(result.submissions)
         }
       })
       .catch(() => {
-        if (!cancelled) setFetchError(true)
+        if (seq === fetchSeqRef.current) setFetchError(true)
       })
       .finally(() => {
-        if (!cancelled) setLoading(false)
+        if (seq === fetchSeqRef.current) setLoading(false)
       })
-
-    return () => {
-      cancelled = true
-    }
   }, [competitionId, registration?.id, division?.id, trackWorkoutIds])
 
   // Silent refresh after an inline submit — updates row score/status badges
@@ -236,6 +237,7 @@ export function AthleteScoreSubmissionPanel({
     if (!registration?.id || !division?.id || trackWorkoutIds.length === 0) {
       return
     }
+    const seq = ++fetchSeqRef.current
     getAthleteDivisionSubmissionsFn({
       data: {
         competitionId,
@@ -244,7 +246,9 @@ export function AthleteScoreSubmissionPanel({
         divisionId: division.id,
       },
     })
-      .then((result) => setSubmissions(result.submissions))
+      .then((result) => {
+        if (seq === fetchSeqRef.current) setSubmissions(result.submissions)
+      })
       .catch(() => {})
   }, [competitionId, registration?.id, division?.id, trackWorkoutIds])
 

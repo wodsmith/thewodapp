@@ -95,7 +95,7 @@ export function QuickActionsDivisionResults({
   // Pre-publishing is only offered for perpetual (benchmark) competitions
   const supportsAutoPublish = divisionResults.supportsAutoPublish === true
   const autoPublish =
-    supportsAutoPublish && divisionResults.resultsAutoPublish === true
+    supportsAutoPublish && divisionResults.resultsAutoPublish !== false
 
   const handleSetAutoPublish = async (enabled: boolean) => {
     setIsAutoPublishPending(true)

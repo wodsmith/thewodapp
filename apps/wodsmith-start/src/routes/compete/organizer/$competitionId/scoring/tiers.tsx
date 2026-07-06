@@ -253,7 +253,18 @@ function BenchmarkScoringTiersEditor({
 
   const applySummary = (next: BenchmarkScoringTierSummary) => {
     setSummary(next)
-    setDraft(buildDraft(next))
+    // Rebuild the draft from the new summary but carry over unsaved threshold
+    // edits so saving another section doesn't silently discard them.
+    setDraft((current) => {
+      const previous = buildDraft(summary)
+      const nextDraft = buildDraft(next)
+      for (const [key, value] of Object.entries(current)) {
+        if (value !== previous[key] && key in nextDraft) {
+          nextDraft[key] = value
+        }
+      }
+      return nextDraft
+    })
   }
 
   const handleSaveRatingBands = async (bands: RatingBandDraft[]) => {
