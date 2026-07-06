@@ -157,6 +157,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
             config={{
               position: "bottom-right",
             }}
+            eventBusConfig={{
+              port: Number(import.meta.env.VITE_DEVTOOLS_BUS_PORT) || 42069,
+            }}
             plugins={[
               {
                 name: "Tanstack Router",
