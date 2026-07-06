@@ -243,16 +243,16 @@ export function CrewEventSidebarShell({
       </Sidebar>
 
       <SidebarInset>
-        <header className="fixed top-0 right-0 left-0 z-40 flex h-14 items-center gap-2 border-b bg-background px-3 md:hidden">
+        <header className="fixed top-0 right-0 left-0 z-40 flex h-14 items-center gap-2 border-b bg-background px-3 md:hidden print:hidden">
           <SidebarTrigger className="-ml-1">
             <Menu className="size-5" />
           </SidebarTrigger>
           <CrewBrandLink variant={variant} compact />
         </header>
-        <div className="h-14 md:hidden" />
+        <div className="h-14 md:hidden print:hidden" />
 
-        <div className="flex flex-1 flex-col gap-4 p-4 sm:gap-6 sm:p-6">
-          <header className="flex flex-col gap-2 border-b pb-5">
+        <div className="flex flex-1 flex-col gap-4 p-4 sm:gap-6 sm:p-6 print:gap-0 print:p-0">
+          <header className="flex flex-col gap-2 border-b pb-5 print:hidden">
             <p className="text-sm font-medium uppercase text-muted-foreground">
               {eyebrow}
             </p>
