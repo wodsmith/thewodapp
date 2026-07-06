@@ -116,6 +116,35 @@ describe("RatingBandsEditor", () => {
       expect(saveButton()).toBeDisabled()
     })
 
+    it("blocks save when min is greater than max", () => {
+      renderEditor()
+
+      // Invert the "Elite" band (row 1, 80-100) by dropping its max below min.
+      fireEvent.change(screen.getByLabelText("Rating band 1 maximum score"), {
+        target: { value: "70" },
+      })
+
+      expect(screen.getByText(/max must be ≥ min/i)).toBeInTheDocument()
+      expect(saveButton()).toBeDisabled()
+    })
+
+    it("blocks save when existing bands share a key", () => {
+      renderEditor({
+        bands: [
+          { key: "elite", label: "Elite", minScore: 80, maxScore: 100 },
+          { key: "elite", label: "Elite Again", minScore: 0, maxScore: 79 },
+        ],
+      })
+
+      // Make a valid edit so only the duplicate key keeps Save disabled.
+      fireEvent.change(screen.getByLabelText("Rating band 1 label"), {
+        target: { value: "Elite Tier" },
+      })
+
+      expect(screen.getAllByText(/duplicate key "elite"/i)).toHaveLength(2)
+      expect(saveButton()).toBeDisabled()
+    })
+
     it("blocks save when ranges overlap", () => {
       renderEditor()
 

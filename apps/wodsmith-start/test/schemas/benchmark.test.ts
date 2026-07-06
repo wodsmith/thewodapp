@@ -29,9 +29,17 @@ describe("Benchmark schema", () => {
 		expect(result.success).toBe(false)
 	})
 
-	it("rejects malformed category cache values", () => {
+	it("rejects negative testCount", () => {
 		const result = benchmarkCategoriesSchema.safeParse([
-			{ key: "Upper Body", label: "Upper Body", testCount: -1 },
+			{ key: "strength", label: "Strength", testCount: -1 },
+		])
+
+		expect(result.success).toBe(false)
+	})
+
+	it("rejects keys that are not lowercase slugs", () => {
+		const result = benchmarkCategoriesSchema.safeParse([
+			{ key: "Upper Body", label: "Upper Body", testCount: 1 },
 		])
 
 		expect(result.success).toBe(false)

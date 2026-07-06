@@ -6,24 +6,30 @@ const appRoot = process.cwd().endsWith("apps/wodsmith-start")
   ? process.cwd()
   : join(process.cwd(), "apps/wodsmith-start")
 
-const CUSTOMER_FACING_DIRS = [
+const CUSTOMER_FACING_PATHS = [
   join(appRoot, "src/components"),
   join(appRoot, "src/routes/compete"),
+  join(appRoot, "src/routes/_auth"),
+  join(appRoot, "src/routes/_auth.tsx"),
+  join(appRoot, "src/routes/index.tsx"),
+  join(appRoot, "src/routes/privacy.tsx"),
+  join(appRoot, "src/routes/terms.tsx"),
+  join(appRoot, "src/routes/maintenance.tsx"),
 ]
 
-function listSourceFiles(dir: string): string[] {
-  return readdirSync(dir).flatMap((entry) => {
-    const path = join(dir, entry)
-    const stat = statSync(path)
-    if (stat.isDirectory()) return listSourceFiles(path)
-    return /\.(ts|tsx)$/.test(entry) ? [path] : []
-  })
+function listSourceFiles(path: string): string[] {
+  if (!statSync(path).isDirectory()) {
+    return /\.(ts|tsx)$/.test(path) ? [path] : []
+  }
+  return readdirSync(path).flatMap((entry) =>
+    listSourceFiles(join(path, entry)),
+  )
 }
 
 describe("benchmark customer-facing branding boundary", () => {
   it("does not add HillerFit-branded route or component copy", () => {
-    const matches = CUSTOMER_FACING_DIRS.flatMap((dir) =>
-      listSourceFiles(dir).flatMap((file) => {
+    const matches = CUSTOMER_FACING_PATHS.flatMap((path) =>
+      listSourceFiles(path).flatMap((file) => {
         const contents = readFileSync(file, "utf8")
         return /HillerFit/i.test(contents) ? [file] : []
       }),
