@@ -69,7 +69,7 @@ const updateBenchmarkBatterySettingsInputSchema =
 async function requireBenchmarkScoringAccess(competitionId: string) {
   const session = await getSessionFromCookie()
   if (!session?.userId) {
-    throw new Error("Unauthorized")
+    throw new Error("NOT_AUTHORIZED: Not authenticated")
   }
 
   const db = getDb()
@@ -85,12 +85,12 @@ async function requireBenchmarkScoringAccess(competitionId: string) {
     .limit(1)
 
   if (!competition) {
-    throw new Error("Competition not found")
+    throw new Error("NOT_FOUND: Competition not found")
   }
 
   if (!competitionCan(competition.competitionType, "benchmarkScoringTiers")) {
     throw new Error(
-      "Benchmark scoring tiers are only available for benchmark competitions",
+      "FORBIDDEN: Benchmark scoring tiers are only available for benchmark competitions",
     )
   }
 
@@ -301,4 +301,3 @@ export const updateBenchmarkBatterySettingsFn = createServerFn({
       competitionId: competition.id,
     })
   })
-

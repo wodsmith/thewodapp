@@ -1330,11 +1330,22 @@ export async function updateBenchmarkTest({
     testUpdates.hybridFlipTier = scoreModelConfig.hybridFlipTier
   }
 
+  const categoryChanged =
+    updates.categoryKey !== undefined &&
+    updates.categoryKey !== existing.categoryKey
+
   await db.transaction(async (tx) => {
     await tx
       .update(benchmarkTestsTable)
       .set(testUpdates)
       .where(eq(benchmarkTestsTable.id, testId))
+
+    if (categoryChanged) {
+      await tx
+        .update(trackWorkoutsTable)
+        .set({ benchmarkCategory: finalCategoryKey, updatedAt: new Date() })
+        .where(eq(trackWorkoutsTable.benchmarkTestId, testId))
+    }
 
     if (thresholdRows.length > 0) {
       await upsertBenchmarkTierThresholdRows(
@@ -1378,6 +1389,14 @@ export async function deleteBenchmarkTest({
   }
 
   await db.transaction(async (tx) => {
+    await tx
+      .update(trackWorkoutsTable)
+      .set({
+        benchmarkTestId: null,
+        benchmarkCategory: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(trackWorkoutsTable.benchmarkTestId, testId))
     await tx
       .delete(benchmarkTierThresholdsTable)
       .where(eq(benchmarkTierThresholdsTable.testId, testId))
