@@ -1,6 +1,7 @@
 "use client"
 
 import { Link, useLocation, useNavigate } from "@tanstack/react-router"
+import type { LucideIcon } from "lucide-react"
 import {
   BarChart3,
   Calendar,
@@ -17,39 +18,41 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
-  getEffectiveScoringConfig,
-  parseCompetitionSettings,
-} from "@/types/competitions"
+  type PublicCompetitionTabId,
+  publicCompetitionTabs,
+} from "@/lib/competitions/capabilities"
 import { cn } from "@/utils/cn"
 
 interface CompetitionTabsProps {
   slug: string
-  settings?: string | null
+  competitionType: string
 }
 
-const baseTabs = [
-  { label: "Event Details", href: "", icon: List },
-  { label: "Workouts", href: "/workouts", icon: Dumbbell },
-  { label: "Schedule", href: "/schedule", icon: Calendar },
-  { label: "Leaderboard", href: "/leaderboard", icon: Trophy },
-  { label: "Announcements", href: "/announcements", icon: Megaphone },
-]
-
-function shouldShowStatsTab(settings: string | null | undefined): boolean {
-  const scoringConfig = getEffectiveScoringConfig(
-    parseCompetitionSettings(settings ?? null),
-  )
-  return scoringConfig?.algorithm === "absolute_tier"
+const TAB_DEFS: Record<
+  PublicCompetitionTabId,
+  { label: string; href: string; icon: LucideIcon }
+> = {
+  details: { label: "Event Details", href: "", icon: List },
+  workouts: { label: "Workouts", href: "/workouts", icon: Dumbbell },
+  schedule: { label: "Schedule", href: "/schedule", icon: Calendar },
+  leaderboard: { label: "Leaderboard", href: "/leaderboard", icon: Trophy },
+  announcements: {
+    label: "Announcements",
+    href: "/announcements",
+    icon: Megaphone,
+  },
+  stats: { label: "Stats", href: "/stats", icon: BarChart3 },
 }
 
-export function CompetitionTabs({ slug, settings }: CompetitionTabsProps) {
+export function CompetitionTabs({
+  slug,
+  competitionType,
+}: CompetitionTabsProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const pathname = location.pathname
   const basePath = `/compete/${slug}`
-  const tabs = shouldShowStatsTab(settings)
-    ? [...baseTabs, { label: "Stats", href: "/stats", icon: BarChart3 }]
-    : baseTabs
+  const tabs = publicCompetitionTabs(competitionType).map((id) => TAB_DEFS[id])
 
   // Determine active tab value for select
   const getActiveTabValue = () => {

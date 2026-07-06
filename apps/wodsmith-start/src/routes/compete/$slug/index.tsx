@@ -186,7 +186,7 @@ function CompetitionOverviewPage() {
         <div className="sticky top-4 z-10">
           <CompetitionTabs
             slug={competition.slug}
-            settings={competition.settings}
+            competitionType={competition.competitionType}
           />
         </div>
 
@@ -271,7 +271,7 @@ function CompetitionOverviewPage() {
         />
         <CompetitionLocationCard
           address={competition.address}
-          settings={competition.settings}
+          competitionType={competition.competitionType}
           organizingTeamName={competition.organizingTeam?.name}
         />
       </aside>

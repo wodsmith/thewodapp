@@ -487,7 +487,7 @@ function EventDetailsPage() {
       <div className="space-y-4">
         {/* Competition Tabs */}
         <div className="sticky top-4 z-10">
-          <CompetitionTabs slug={slug} settings={competition.settings} />
+          <CompetitionTabs slug={slug} competitionType={competition.competitionType} />
         </div>
 
         {/* Back to Workouts */}

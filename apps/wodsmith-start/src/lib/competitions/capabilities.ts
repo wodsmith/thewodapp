@@ -11,6 +11,14 @@ export type CompetitionCapability =
   | "organizerEntersResults"
   | "benchmarkScoringTiers"
 
+export type PublicCompetitionTabId =
+  | "details"
+  | "workouts"
+  | "schedule"
+  | "leaderboard"
+  | "announcements"
+  | "stats"
+
 export type RegisteredCompetitionTypeId = "in-person" | "online" | "benchmark"
 export type CompetitionTypeId = RegisteredCompetitionTypeId
 export type LeaderboardVariant = "standard" | "online"
@@ -24,6 +32,7 @@ export interface CompetitionTypeDef {
   capabilities: ReadonlySet<CompetitionCapability>
   leaderboardVariant: LeaderboardVariant
   selectableOnCreate: boolean
+  publicTabs: readonly PublicCompetitionTabId[]
 }
 
 export interface CompetitionTypePickerOption {
@@ -35,6 +44,14 @@ export interface CompetitionTypePickerOption {
 
 const EMPTY_CAPABILITIES: ReadonlySet<CompetitionCapability> = new Set()
 
+const DEFAULT_PUBLIC_TABS: readonly PublicCompetitionTabId[] = [
+  "details",
+  "workouts",
+  "schedule",
+  "leaderboard",
+  "announcements",
+]
+
 export const COMPETITION_TYPE_REGISTRY: Readonly<
   Record<RegisteredCompetitionTypeId, CompetitionTypeDef>
 > = {
@@ -44,6 +61,7 @@ export const COMPETITION_TYPE_REGISTRY: Readonly<
     createPickerDescription: "Traditional venue-based competition",
     leaderboardVariant: "standard",
     selectableOnCreate: true,
+    publicTabs: DEFAULT_PUBLIC_TABS,
     capabilities: new Set([
       "heatScheduling",
       "dayOfCheckIn",
@@ -58,6 +76,7 @@ export const COMPETITION_TYPE_REGISTRY: Readonly<
     createPickerDescription: "Virtual competition with video submissions",
     leaderboardVariant: "online",
     selectableOnCreate: true,
+    publicTabs: DEFAULT_PUBLIC_TABS,
     capabilities: new Set([
       "videoSubmissions",
       "submissionWindows",
@@ -70,6 +89,13 @@ export const COMPETITION_TYPE_REGISTRY: Readonly<
     createPickerDescription: "Perpetual benchmark board with video submissions",
     leaderboardVariant: "online",
     selectableOnCreate: true,
+    publicTabs: [
+      "details",
+      "workouts",
+      "leaderboard",
+      "announcements",
+      "stats",
+    ],
     capabilities: new Set([
       "videoSubmissions",
       "perpetual",
@@ -86,6 +112,15 @@ export function competitionCan(
     COMPETITION_TYPE_REGISTRY[type as keyof typeof COMPETITION_TYPE_REGISTRY]
       ?.capabilities ?? EMPTY_CAPABILITIES
   ).has(capability)
+}
+
+export function publicCompetitionTabs(
+  type: string,
+): readonly PublicCompetitionTabId[] {
+  return (
+    COMPETITION_TYPE_REGISTRY[type as keyof typeof COMPETITION_TYPE_REGISTRY]
+      ?.publicTabs ?? DEFAULT_PUBLIC_TABS
+  )
 }
 
 export function leaderboardVariant(type: string): LeaderboardVariant {

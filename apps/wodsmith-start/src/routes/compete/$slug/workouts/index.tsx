@@ -146,7 +146,7 @@ function CompetitionWorkoutsPage() {
         <div className="sticky top-4 z-10">
           <CompetitionTabs
             slug={competition.slug}
-            settings={competition.settings}
+            competitionType={competition.competitionType}
           />
         </div>
         <div className="rounded-2xl border border-black/10 bg-black/5 p-4 sm:p-6 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
@@ -171,7 +171,7 @@ function CompetitionWorkoutsPage() {
       <div className="sticky top-4 z-10">
         <CompetitionTabs
           slug={competition.slug}
-          settings={competition.settings}
+          competitionType={competition.competitionType}
         />
       </div>
       <div className="rounded-2xl border border-black/10 bg-black/5 p-4 backdrop-blur-md dark:border-white/10 dark:bg-white/5">

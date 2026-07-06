@@ -154,7 +154,7 @@ function RegisteredPage() {
         <div className="sticky top-4 z-10">
           <CompetitionTabs
             slug={competition.slug}
-            settings={competition.settings}
+            competitionType={competition.competitionType}
           />
         </div>
         <div className="flex flex-col items-center justify-center gap-3 py-20">
@@ -175,7 +175,7 @@ function RegisteredPage() {
       <div className="sticky top-4 z-10">
         <CompetitionTabs
           slug={competition.slug}
-          settings={competition.settings}
+          competitionType={competition.competitionType}
         />
       </div>
 

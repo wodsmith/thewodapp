@@ -47,7 +47,7 @@ function AthleteBroadcastsPage() {
 			<div className="sticky top-4 z-10">
 				<CompetitionTabs
 					slug={competition.slug}
-					settings={competition.settings}
+					competitionType={competition.competitionType}
 				/>
 			</div>
 

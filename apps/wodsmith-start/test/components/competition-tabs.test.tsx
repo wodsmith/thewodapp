@@ -22,39 +22,44 @@ vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => vi.fn(),
 }))
 
-const benchmarkSettings = JSON.stringify({
-  scoringConfig: {
-    algorithm: "absolute_tier",
-    absoluteTier: { batteryId: "bbat_test" },
-    tiebreaker: { primary: "countback" },
-    statusHandling: { dnf: "zero", dns: "zero", withdrawn: "zero" },
-  },
-})
-
-const traditionalSettings = JSON.stringify({
-  scoringConfig: {
-    algorithm: "traditional",
-    traditional: { step: 5, firstPlacePoints: 100 },
-    tiebreaker: { primary: "countback" },
-    statusHandling: { dnf: "zero", dns: "zero", withdrawn: "zero" },
-  },
-})
-
-describe("CompetitionTabs benchmark stats gate", () => {
-  it("shows the generic Stats tab only for absolute-tier benchmark scoring", () => {
+describe("CompetitionTabs registry-driven tabs", () => {
+  it("shows the Stats tab only for benchmark competitions", () => {
     const { rerender } = render(
-      <CompetitionTabs slug="test-benchmark" settings={traditionalSettings} />,
+      <CompetitionTabs slug="test-benchmark" competitionType="in-person" />,
     )
 
     expect(screen.queryByRole("link", { name: /stats/i })).toBeNull()
 
     rerender(
-      <CompetitionTabs slug="test-benchmark" settings={benchmarkSettings} />,
+      <CompetitionTabs slug="test-benchmark" competitionType="online" />,
+    )
+
+    expect(screen.queryByRole("link", { name: /stats/i })).toBeNull()
+
+    rerender(
+      <CompetitionTabs slug="test-benchmark" competitionType="benchmark" />,
     )
 
     expect(screen.getByRole("link", { name: /stats/i })).toHaveAttribute(
       "href",
       "/compete/test-benchmark/stats",
+    )
+  })
+
+  it("hides the Schedule tab for benchmark competitions", () => {
+    const { rerender } = render(
+      <CompetitionTabs slug="test-benchmark" competitionType="benchmark" />,
+    )
+
+    expect(screen.queryByRole("link", { name: /schedule/i })).toBeNull()
+
+    rerender(
+      <CompetitionTabs slug="test-benchmark" competitionType="in-person" />,
+    )
+
+    expect(screen.getByRole("link", { name: /schedule/i })).toHaveAttribute(
+      "href",
+      "/compete/test-benchmark/schedule",
     )
   })
 })
