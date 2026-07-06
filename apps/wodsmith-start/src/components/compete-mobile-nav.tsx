@@ -70,10 +70,14 @@ export default function CompeteMobileNav({
   const router = useRouterState()
   const pathname = router.location.pathname
   const isCompetitionIndex = pathname === "/"
+  const isBenchmarksIndex = pathname === "/benchmarks"
   const isManageCompetitionsActive =
     pathname === "/compete/organizer" ||
     pathname.startsWith("/compete/organizer/")
   const competitionsLinkClass = isCompetitionIndex
+    ? "font-semibold text-foreground underline decoration-primary decoration-2 underline-offset-4 dark:text-dark-foreground"
+    : "hover:text-primary"
+  const benchmarksLinkClass = isBenchmarksIndex
     ? "font-semibold text-foreground underline decoration-primary decoration-2 underline-offset-4 dark:text-dark-foreground"
     : "hover:text-primary"
   const manageCompetitionsLinkClass = isManageCompetitionsActive
@@ -144,6 +148,14 @@ export default function CompeteMobileNav({
                 onClick={handleLinkClick}
               >
                 Competitions
+              </Link>
+              <Link
+                to="/benchmarks"
+                aria-current={isBenchmarksIndex ? "page" : undefined}
+                className={benchmarksLinkClass}
+                onClick={handleLinkClick}
+              >
+                Benchmarks
               </Link>
               {showManageCompetitionsLink && (
                 <a
@@ -229,6 +241,14 @@ export default function CompeteMobileNav({
                 onClick={handleLinkClick}
               >
                 Competitions
+              </Link>
+              <Link
+                to="/benchmarks"
+                aria-current={isBenchmarksIndex ? "page" : undefined}
+                className={benchmarksLinkClass}
+                onClick={handleLinkClick}
+              >
+                Benchmarks
               </Link>
               <a
                 href="/sign-in"

@@ -76,7 +76,9 @@ function RootComponent() {
     currentPath === "/" ||
     (isNavigating && targetPath === "/") ||
     currentPath.startsWith("/compete") ||
-    (isNavigating && targetPath.startsWith("/compete"))
+    (isNavigating && targetPath.startsWith("/compete")) ||
+    currentPath.startsWith("/benchmarks") ||
+    (isNavigating && targetPath.startsWith("/benchmarks"))
   const isAdminRoute =
     currentPath.startsWith("/admin") ||
     (isNavigating && targetPath.startsWith("/admin"))

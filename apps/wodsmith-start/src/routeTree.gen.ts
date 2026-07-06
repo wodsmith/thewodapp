@@ -13,6 +13,7 @@ import { Route as TermsRouteImport } from './routes/terms'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as MaintenanceRouteImport } from './routes/maintenance'
 import { Route as CompeteRouteImport } from './routes/compete'
+import { Route as BenchmarksRouteImport } from './routes/benchmarks'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ProtectedRouteImport } from './routes/_protected'
 import { Route as AuthRouteImport } from './routes/_auth'
@@ -242,6 +243,11 @@ const MaintenanceRoute = MaintenanceRouteImport.update({
 const CompeteRoute = CompeteRouteImport.update({
   id: '/compete',
   path: '/compete',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BenchmarksRoute = BenchmarksRouteImport.update({
+  id: '/benchmarks',
+  path: '/benchmarks',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -1443,6 +1449,7 @@ const ApiCompeteCompetitionsIdEventsEventIdLeaderboardRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/benchmarks': typeof BenchmarksRoute
   '/compete': typeof CompeteRouteWithChildren
   '/maintenance': typeof MaintenanceRoute
   '/privacy': typeof PrivacyRoute
@@ -1655,6 +1662,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/benchmarks': typeof BenchmarksRoute
   '/maintenance': typeof MaintenanceRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
@@ -1856,6 +1864,7 @@ export interface FileRoutesById {
   '/_auth': typeof AuthRouteWithChildren
   '/_protected': typeof ProtectedRouteWithChildren
   '/admin': typeof AdminRouteWithChildren
+  '/benchmarks': typeof BenchmarksRoute
   '/compete': typeof CompeteRouteWithChildren
   '/maintenance': typeof MaintenanceRoute
   '/privacy': typeof PrivacyRoute
@@ -2072,6 +2081,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/benchmarks'
     | '/compete'
     | '/maintenance'
     | '/privacy'
@@ -2284,6 +2294,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/benchmarks'
     | '/maintenance'
     | '/privacy'
     | '/terms'
@@ -2484,6 +2495,7 @@ export interface FileRouteTypes {
     | '/_auth'
     | '/_protected'
     | '/admin'
+    | '/benchmarks'
     | '/compete'
     | '/maintenance'
     | '/privacy'
@@ -2701,6 +2713,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   ProtectedRoute: typeof ProtectedRouteWithChildren
   AdminRoute: typeof AdminRouteWithChildren
+  BenchmarksRoute: typeof BenchmarksRoute
   CompeteRoute: typeof CompeteRouteWithChildren
   MaintenanceRoute: typeof MaintenanceRoute
   PrivacyRoute: typeof PrivacyRoute
@@ -2761,6 +2774,13 @@ declare module '@tanstack/react-router' {
       path: '/compete'
       fullPath: '/compete'
       preLoaderRoute: typeof CompeteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/benchmarks': {
+      id: '/benchmarks'
+      path: '/benchmarks'
+      fullPath: '/benchmarks'
+      preLoaderRoute: typeof BenchmarksRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -4967,6 +4987,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   ProtectedRoute: ProtectedRouteWithChildren,
   AdminRoute: AdminRouteWithChildren,
+  BenchmarksRoute: BenchmarksRoute,
   CompeteRoute: CompeteRouteWithChildren,
   MaintenanceRoute: MaintenanceRoute,
   PrivacyRoute: PrivacyRoute,

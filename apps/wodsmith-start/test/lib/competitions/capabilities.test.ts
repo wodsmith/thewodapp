@@ -66,7 +66,7 @@ const EXPECTED = {
 		organizerEntersResults: false,
 		benchmarkScoringTiers: true,
 		leaderboardVariant: "online",
-		selectableOnCreate: false,
+		selectableOnCreate: true,
 	},
 } as const
 
@@ -118,13 +118,12 @@ describe("competition type capabilities", () => {
 		expect(selectableTypes.map((type) => type.id)).toEqual([
 			"in-person",
 			"online",
+			"benchmark",
 		])
 		for (const type of selectableTypes) {
 			expect(isSelectableType(type.id)).toBe(true)
 			expect(isSelectableCompetitionTypeValue(type.id)).toBe(true)
 		}
-		expect(isSelectableType("benchmark")).toBe(false)
-		expect(isSelectableCompetitionTypeValue("benchmark")).toBe(false)
 		expect(isSelectableCompetitionTypeValue(null)).toBe(false)
 
 		expect(pickerOptions).toEqual([
@@ -139,6 +138,13 @@ describe("competition type capabilities", () => {
 				label: "Online",
 				description: "Virtual competition with video submissions",
 				displayLabel: "Online - Virtual competition with video submissions",
+			},
+			{
+				id: "benchmark",
+				label: "Benchmark",
+				description: "Perpetual benchmark board with video submissions",
+				displayLabel:
+					"Benchmark - Perpetual benchmark board with video submissions",
 			},
 		])
 	})

@@ -37,7 +37,7 @@ const emptyTemplateEvents = {}
 
 describe("OrganizerCompetitionForm", () => {
   // @lat: [[competition-type-capabilities#Create Picker Selectability Test#Create Form Benchmark Option]]
-  it("excludes benchmark from the create competition type picker", () => {
+  it("includes benchmark in the create competition type picker", () => {
     const { container } = render(
       <OrganizerCompetitionForm
         teams={[{ id: "team_gym", name: "Test Gym", type: "gym" }]}
@@ -53,7 +53,7 @@ describe("OrganizerCompetitionForm", () => {
     expect(optionLabels).toContain(
       "In-Person - Traditional venue-based competition",
     )
-    expect(optionLabels).not.toContain(
+    expect(optionLabels).toContain(
       "Benchmark - Perpetual benchmark board with video submissions",
     )
   })

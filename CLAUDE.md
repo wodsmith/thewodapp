@@ -279,7 +279,7 @@ skills:
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **thewodapp** (54752 symbols, 90180 relationships, 296 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **thewodapp** (54772 symbols, 90206 relationships, 296 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -308,8 +308,6 @@ This project is indexed by GitNexus as **thewodapp** (54752 symbols, 90180 relat
 | `gitnexus://repo/thewodapp/process/{name}` | Step-by-step execution trace |
 
 ## CLI
-
-These skill files are generated locally by `npx gitnexus analyze` (`.claude/` is gitignored, so they are not in the repo). If a path below is missing, run that command first.
 
 | Task | Read this skill file |
 |------|---------------------|

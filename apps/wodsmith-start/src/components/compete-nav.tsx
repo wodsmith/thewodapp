@@ -24,10 +24,14 @@ export default function CompeteNav({
     select: (state) => state.location.pathname,
   })
   const isCompetitionIndex = pathname === "/"
+  const isBenchmarksIndex = pathname === "/benchmarks"
   const isManageCompetitionsActive =
     pathname === "/compete/organizer" ||
     pathname.startsWith("/compete/organizer/")
   const competitionsLinkClass = isCompetitionIndex
+    ? "font-bold text-foreground uppercase underline decoration-primary decoration-2 underline-offset-4 dark:text-dark-foreground"
+    : "font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
+  const benchmarksLinkClass = isBenchmarksIndex
     ? "font-bold text-foreground uppercase underline decoration-primary decoration-2 underline-offset-4 dark:text-dark-foreground"
     : "font-bold text-foreground uppercase hover:underline dark:text-dark-foreground"
   const manageCompetitionsLinkClass = isManageCompetitionsActive
@@ -49,6 +53,13 @@ export default function CompeteNav({
                 className={competitionsLinkClass}
               >
                 Competitions
+              </Link>
+              <Link
+                to="/benchmarks"
+                aria-current={isBenchmarksIndex ? "page" : undefined}
+                className={benchmarksLinkClass}
+              >
+                Benchmarks
               </Link>
               {showManageCompetitionsLink && (
                 <>
@@ -93,6 +104,13 @@ export default function CompeteNav({
                 className={competitionsLinkClass}
               >
                 Competitions
+              </Link>
+              <Link
+                to="/benchmarks"
+                aria-current={isBenchmarksIndex ? "page" : undefined}
+                className={benchmarksLinkClass}
+              >
+                Benchmarks
               </Link>
               <Link
                 to="/sign-in"
