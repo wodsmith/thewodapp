@@ -1262,6 +1262,23 @@ export const getBatchEventVideoSubmissionsFn = createServerFn({
         }
       }
 
+      // Prefetch benchmark contexts in parallel so the batch endpoint doesn't
+      // degrade linearly with per-event sequential queries.
+      const benchmarkContextMap = new Map<
+        string,
+        BenchmarkSubmissionContext | null
+      >()
+      if (competition?.competitionType === "benchmark") {
+        const contexts = await Promise.all(
+          data.trackWorkoutIds.map((twId) =>
+            getBenchmarkSubmissionContext(data.competitionId, twId),
+          ),
+        )
+        data.trackWorkoutIds.forEach((twId, index) => {
+          benchmarkContextMap.set(twId, contexts[index])
+        })
+      }
+
       const now = new Date()
       const results: Record<string, VideoSubmissionResult> = {}
 
@@ -1313,10 +1330,7 @@ export const getBatchEventVideoSubmissionsFn = createServerFn({
 
         const workout = workoutMap.get(twId) ?? null
         const score = scoreMap.get(twId)
-        const benchmarkContext =
-          competition?.competitionType === "benchmark"
-            ? await getBenchmarkSubmissionContext(data.competitionId, twId)
-            : null
+        const benchmarkContext = benchmarkContextMap.get(twId) ?? null
 
         let existingScore: {
           scoreValue: number | null
@@ -1652,16 +1666,16 @@ export const submitVideoFn = createServerFn({ method: "POST" })
       throw new Error("Only the team captain can submit videos and scores")
     }
 
-    const windowCheck =
-      benchmarkContext === null
-        ? await checkSubmissionWindow(data.competitionId, data.trackWorkoutId)
-        : { allowed: true, competitionType: "benchmark" as const }
+    const windowCheck = await checkSubmissionWindow(
+      data.competitionId,
+      data.trackWorkoutId,
+    )
 
     if (!windowCheck.allowed) {
       throw new Error(windowCheck.reason ?? "Cannot submit video at this time")
     }
 
-    if (windowCheck.competitionType === "benchmark" && !benchmarkContext) {
+    if (windowCheck.competitionType === "benchmark") {
       benchmarkContext = await getBenchmarkSubmissionContext(
         data.competitionId,
         data.trackWorkoutId,
