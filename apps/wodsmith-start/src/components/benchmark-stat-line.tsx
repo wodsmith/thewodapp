@@ -218,13 +218,16 @@ function TestRow({
   submission?: BenchmarkTestSubmissionContext
 }) {
   const state = getTestState(result)
+  // Deferred tests (excluded from scoring) reject submissions server-side, so
+  // their rows stay read-only instead of offering a form that can only fail.
+  const submittable = state === "unavailable" ? undefined : submission
   const [open, setOpen] = useState(false)
   const [formData, setFormData] = useState<VideoSubmissionResult | null>(null)
   const [formLoading, setFormLoading] = useState(false)
   const [formError, setFormError] = useState(false)
 
-  const competitionId = submission?.competitionId
-  const divisionId = submission?.divisionId
+  const competitionId = submittable?.competitionId
+  const divisionId = submittable?.divisionId
 
   const loadFormData = useCallback(() => {
     if (!competitionId || !divisionId) return
@@ -273,7 +276,7 @@ function TestRow({
       </div>
       <div className="flex items-center gap-2 sm:justify-end">
         <StateBadge state={state} />
-        {submission ? (
+        {submittable ? (
           <ChevronDown
             className={cn(
               "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
@@ -285,7 +288,7 @@ function TestRow({
     </>
   )
 
-  if (!submission) {
+  if (!submittable) {
     return (
       <div className="grid gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_8rem_8rem_8rem]">
         {cells}
@@ -328,23 +331,23 @@ function TestRow({
           ) : formData ? (
             <VideoSubmissionForm
               trackWorkoutId={result.trackWorkoutId}
-              competitionId={submission.competitionId}
-              timezone={submission.timezone}
+              competitionId={submittable.competitionId}
+              timezone={submittable.timezone}
               registeredDivisions={[
                 {
-                  divisionId: submission.divisionId,
-                  label: submission.divisionLabel,
+                  divisionId: submittable.divisionId,
+                  label: submittable.divisionLabel,
                 },
               ]}
               initialData={formData}
-              initialDivisionId={submission.divisionId}
-              onSubmitSuccess={submission.onSubmitSuccess}
+              initialDivisionId={submittable.divisionId}
+              onSubmitSuccess={submittable.onSubmitSuccess}
             />
           ) : null}
           <Link
             to="/compete/$slug/workouts/$eventId"
-            params={{ slug: submission.slug, eventId: linkEventId }}
-            search={{ division: submission.divisionId }}
+            params={{ slug: submittable.slug, eventId: linkEventId }}
+            search={{ division: submittable.divisionId }}
             className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
           >
             View full workout
