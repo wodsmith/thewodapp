@@ -22,7 +22,7 @@ The `scoringAlgorithm === "online"` axis remains separate from `competitionType 
 
 The truth-table test pins every capability and leaderboard variant for registered competition types while unknown values fail closed.
 
-[[apps/wodsmith-start/test/lib/competitions/capabilities.test.ts]] verifies each capability for every registered type, confirms registry metadata matches type identity, and covers the unknown-type fallback. Benchmark is registered and selectable in the generic create picker.
+[[apps/wodsmith-start/test/lib/competitions/capabilities.test.ts]] verifies each capability for every registered type, confirms registry metadata matches type identity, and covers the unknown-type fallback. Benchmark is registered but not selectable in the generic create picker, because no organizer battery-setup flow exists yet — a picker-created benchmark competition would dead-end at the setup-required state.
 
 Focused PR-2 server-function tests pin that in-person score saves pass the submission-window gate, online score saves still honor closed windows, and in-person video submissions still reject before writes. PR-3 adds [[apps/wodsmith-start/test/components/leaderboard-page-content.test.tsx]] coverage for standard versus online leaderboard table selection plus [[apps/wodsmith-start/test/server/competition-leaderboard-capability-gates.test.ts]] coverage for opt-in result publishing defaults and the leaderboard video-submission fetch gate. M4 adds [[apps/wodsmith-start/test/server/benchmark-leaderboard.test.ts]], [[apps/wodsmith-start/test/components/benchmark-stat-line.test.tsx]], [[apps/wodsmith-start/test/components/online-competition-leaderboard-table.test.tsx]], [[apps/wodsmith-start/test/components/competition-tabs.test.tsx]], [[apps/wodsmith-start/test/routes/compete/benchmark-stats-route.test.tsx]], and [[apps/wodsmith-start/test/components/benchmark-branding-boundary.test.ts]] coverage for benchmark context validation, generic stats rendering, leaderboard Overall/rating/category/tier/status rendering, stats-tab gating, direct stats-route fallback states, and the rule that HillerFit stays source-data provenance rather than customer-facing route/component copy. PR-4 adds [[apps/wodsmith-start/test/lib/competitions/scheduling-check-in-gates.test.ts]] coverage for the heat scheduling and day-of check-in gates used by the public schedule, judge rotations, check-in routes, and check-in server functions. PR-5 adds [[apps/wodsmith-start/test/lib/competitions/venue-volunteer-gates.test.ts]] and [[apps/wodsmith-start/test/components/competition-location-card.test.tsx]] coverage for physical venue display and volunteer schedule-tab gates.
 
@@ -40,13 +40,13 @@ This test verifies unregistered competition types fail closed for capabilities, 
 
 ## Create Picker Selectability Test
 
-The create-picker test pins that selectable competition type options are derived from registry selectability, including benchmark.
+The create-picker test pins that selectable competition type options are derived from registry selectability, and that benchmark stays out of the picker.
 
-[[apps/wodsmith-start/test/lib/competitions/capabilities.test.ts]] verifies [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#selectableCompetitionTypes]] returns in-person, online, and benchmark type definitions, with each entry passing [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#isSelectableType]] and [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#isSelectableCompetitionTypeValue]]. [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#selectableCompetitionTypeOptions]] provides the registry-backed label and description text that the generic organizer create form renders, while the form and server schemas use the same selectable-value guard.
+[[apps/wodsmith-start/test/lib/competitions/capabilities.test.ts]] verifies [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#selectableCompetitionTypes]] returns only the in-person and online type definitions, with each entry passing [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#isSelectableType]] and [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#isSelectableCompetitionTypeValue]] while benchmark fails both guards. [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#selectableCompetitionTypeOptions]] provides the registry-backed label and description text that the generic organizer create form renders, while the form and server schemas use the same selectable-value guard.
 
 ### Create Form Benchmark Option
 
-This test verifies the organizer create form exposes Benchmark as a selectable competition type.
+This test verifies the organizer create form does not expose Benchmark as a selectable competition type.
 
 ## Additive Tier Context
 

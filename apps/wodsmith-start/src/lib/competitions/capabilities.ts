@@ -88,7 +88,7 @@ export const COMPETITION_TYPE_REGISTRY: Readonly<
     label: "Benchmark",
     createPickerDescription: "Perpetual benchmark board with video submissions",
     leaderboardVariant: "online",
-    selectableOnCreate: true,
+    selectableOnCreate: false,
     publicTabs: [
       "details",
       "workouts",

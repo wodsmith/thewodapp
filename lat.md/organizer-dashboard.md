@@ -341,7 +341,7 @@ The Compete header shows `HOST A COMP` only before one of the user's teams has a
 
 New competition form at `/compete/organizer/_dashboard/new`.
 
-Fetches organizer-eligible teams, competition groups, and series template divisions. Uses `OrganizerCompetitionForm` with registry-backed in-person, online, and benchmark type options. Optionally pre-selects a series group via `?groupId=` search param, inheriting the series' division template.
+Fetches organizer-eligible teams, competition groups, and series template divisions. Uses `OrganizerCompetitionForm` with registry-backed in-person and online type options; benchmark is not selectable on create. Optionally pre-selects a series group via `?groupId=` search param, inheriting the series' division template.
 
 ## Series Management
 
