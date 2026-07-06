@@ -169,20 +169,20 @@ export const Route = createFileRoute("/api/compete/video/submit")({
         }
 
         const data = parsed.data
-        if (await isBenchmarkCompetition(data.competitionId)) {
-          return json(
-            {
-              error:
-                "Benchmark submissions must use the benchmark submission flow",
-            },
-            { status: 422, headers },
-          )
-        }
-
         const db = getDb()
         const userId = session.userId
 
         try {
+          if (await isBenchmarkCompetition(data.competitionId)) {
+            return json(
+              {
+                error:
+                  "Benchmark submissions must use the benchmark submission flow",
+              },
+              { status: 422, headers },
+            )
+          }
+
           // Check registration — scope to the submitted division so partner +
           // individual registrations don't collide when the same workout is
           // shared across divisions.

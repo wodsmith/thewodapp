@@ -166,20 +166,20 @@ export const Route = createFileRoute("/api/compete/scores/submit")({
         }
 
         const data = parsed.data
-        if (await isBenchmarkCompetition(data.competitionId)) {
-          return json(
-            {
-              error:
-                "Benchmark scores must be submitted through the benchmark submission flow",
-            },
-            { status: 422, headers },
-          )
-        }
-
         const db = getDb()
         const userId = session.userId
 
         try {
+          if (await isBenchmarkCompetition(data.competitionId)) {
+            return json(
+              {
+                error:
+                  "Benchmark scores must be submitted through the benchmark submission flow",
+              },
+              { status: 422, headers },
+            )
+          }
+
           // Check registration — scope to specific division when provided
           const regConditions = [
             eq(competitionRegistrationsTable.eventId, data.competitionId),
