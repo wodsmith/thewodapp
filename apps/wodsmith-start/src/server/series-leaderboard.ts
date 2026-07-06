@@ -456,12 +456,7 @@ export async function getSeriesLeaderboard(params: {
 
     // Calculate points per division globally
     for (const [divId, inputs] of Array.from(divisionScores.entries())) {
-      const pointsMap = calculateEventPoints(
-        workoutId,
-        inputs,
-        scheme,
-        scoringConfig,
-      )
+      const pointsMap = calculateEventPoints(inputs, scheme, scoringConfig)
 
       for (const reg of dedupedRegistrations) {
         if (reg.seriesDivisionId !== divId) continue

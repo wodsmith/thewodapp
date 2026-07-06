@@ -14,7 +14,6 @@ import {
   benchmarkTestUpdateInputSchema,
 } from "@/schemas/benchmark.schema"
 import {
-  activateBenchmarkOnlineScoring,
   benchmarkTierThresholdInputSchema,
   createBenchmarkTest,
   deleteBenchmarkTest,
@@ -109,15 +108,12 @@ export const getBenchmarkScoringTiersFn = createServerFn({ method: "GET" })
     const { db, competition } = await requireBenchmarkScoringAccess(
       data.competitionId,
     )
-    const scoringConfig = parseScoringConfig(competition.settings)
-
     try {
       return {
         status: "ready" as const,
         summary: await loadBenchmarkScoringTierSummary({
           db,
           competitionId: competition.id,
-          scoringConfig,
         }),
       }
     } catch (error) {
@@ -170,7 +166,6 @@ export const saveBenchmarkScoringTiersFn = createServerFn({ method: "POST" })
     return loadBenchmarkScoringTierSummary({
       db,
       competitionId: competition.id,
-      scoringConfig: parseScoringConfig(competition.settings),
     })
   })
 
@@ -193,7 +188,6 @@ export const updateBenchmarkRatingBandsFn = createServerFn({ method: "POST" })
     return loadBenchmarkScoringTierSummary({
       db,
       competitionId: competition.id,
-      scoringConfig: parseScoringConfig(competition.settings),
     })
   })
 
@@ -216,7 +210,6 @@ export const updateBenchmarkCategoriesFn = createServerFn({ method: "POST" })
     return loadBenchmarkScoringTierSummary({
       db,
       competitionId: competition.id,
-      scoringConfig: parseScoringConfig(competition.settings),
     })
   })
 
@@ -240,7 +233,6 @@ export const createBenchmarkTestFn = createServerFn({ method: "POST" })
       summary: await loadBenchmarkScoringTierSummary({
         db,
         competitionId: competition.id,
-        scoringConfig: parseScoringConfig(competition.settings),
       }),
     }
   })
@@ -263,7 +255,6 @@ export const updateBenchmarkTestFn = createServerFn({ method: "POST" })
     return loadBenchmarkScoringTierSummary({
       db,
       competitionId: competition.id,
-      scoringConfig: parseScoringConfig(competition.settings),
     })
   })
 
@@ -284,7 +275,6 @@ export const deleteBenchmarkTestFn = createServerFn({ method: "POST" })
     return loadBenchmarkScoringTierSummary({
       db,
       competitionId: competition.id,
-      scoringConfig: parseScoringConfig(competition.settings),
     })
   })
 
@@ -309,43 +299,6 @@ export const updateBenchmarkBatterySettingsFn = createServerFn({
     return loadBenchmarkScoringTierSummary({
       db,
       competitionId: competition.id,
-      scoringConfig: parseScoringConfig(competition.settings),
     })
   })
 
-export const activateBenchmarkOnlineScoringFn = createServerFn({
-  method: "POST",
-})
-  .inputValidator((data: unknown) => benchmarkCompetitionIdSchema.parse(data))
-  .handler(async ({ data }) => {
-    await requireVerifiedEmail()
-    const { db, competition } = await requireBenchmarkScoringAccess(
-      data.competitionId,
-    )
-
-    await activateBenchmarkOnlineScoring({
-      db,
-      competitionId: competition.id,
-    })
-
-    const [updatedCompetition] = await db
-      .select({ settings: competitionsTable.settings })
-      .from(competitionsTable)
-      .where(eq(competitionsTable.id, competition.id))
-      .limit(1)
-
-    return loadBenchmarkScoringTierSummary({
-      db,
-      competitionId: competition.id,
-      scoringConfig: parseScoringConfig(updatedCompetition?.settings),
-    })
-  })
-
-function parseScoringConfig(settings: string | null) {
-  if (!settings) return null
-  try {
-    return JSON.parse(settings).scoringConfig ?? null
-  } catch {
-    return null
-  }
-}

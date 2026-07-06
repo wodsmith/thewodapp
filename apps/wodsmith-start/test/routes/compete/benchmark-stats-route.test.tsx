@@ -45,8 +45,7 @@ vi.mock("@/server-fns/leaderboard-fns", () => ({
 
 const benchmarkSettings = JSON.stringify({
   scoringConfig: {
-    algorithm: "absolute_tier",
-    absoluteTier: { batteryId: "bbat_test" },
+    algorithm: "online",
     tiebreaker: { primary: "countback" },
     statusHandling: { dnf: "zero", dns: "zero", withdrawn: "zero" },
   },

@@ -7,9 +7,7 @@ import {
 	DEFAULT_PSCORE_CONFIG,
 	getScoringAlgorithmName,
 	canHaveNegativeScores,
-	BenchmarkConfigError,
 	type EventScoreInput,
-	type AbsoluteTierScoringContext,
 } from "@/lib/scoring/algorithms"
 import type { ScoringConfig } from "@/types/scoring"
 
@@ -31,7 +29,7 @@ describe("Scoring Factory", () => {
 			}
 
 			it("calculates points for time-based event (ascending)", () => {
-				const results = calculateEventPoints("e1", baseScores, "time", config)
+				const results = calculateEventPoints(baseScores, "time", config)
 
 				expect(results.get("a")).toEqual({ userId: "a", points: 100, rank: 1 })
 				expect(results.get("b")).toEqual({ userId: "b", points: 95, rank: 2 })
@@ -40,7 +38,7 @@ describe("Scoring Factory", () => {
 			})
 
 			it("calculates points for reps-based event (descending)", () => {
-				const results = calculateEventPoints("e1", baseScores, "reps", config)
+				const results = calculateEventPoints(baseScores, "reps", config)
 
 				// Higher reps = better, so order is reversed
 				expect(results.get("d")).toEqual({ userId: "d", points: 100, rank: 1 })
@@ -56,7 +54,7 @@ describe("Scoring Factory", () => {
 					{ userId: "c", value: 70000, status: "scored" },
 				]
 
-				const results = calculateEventPoints("e1", tiedScores, "time", config)
+				const results = calculateEventPoints(tiedScores, "time", config)
 
 				// Tied athletes get same rank and same points
 				expect(results.get("a")).toEqual({ userId: "a", points: 100, rank: 1 })
@@ -71,7 +69,7 @@ describe("Scoring Factory", () => {
 					{ userId: "c", value: 0, status: "dnf" },
 				]
 
-				const results = calculateEventPoints("e1", scoresWithDnf, "time", config)
+				const results = calculateEventPoints(scoresWithDnf, "time", config)
 
 				expect(results.get("a")).toEqual({ userId: "a", points: 100, rank: 1 })
 				expect(results.get("b")).toEqual({ userId: "b", points: 95, rank: 2 })
@@ -85,7 +83,7 @@ describe("Scoring Factory", () => {
 					{ userId: "b", value: 0, status: "dns" },
 				]
 
-				const results = calculateEventPoints("e1", scoresWithDns, "time", config)
+				const results = calculateEventPoints(scoresWithDns, "time", config)
 
 				expect(results.get("a")).toEqual({ userId: "a", points: 100, rank: 1 })
 				expect(results.get("b")).toEqual({ userId: "b", points: 0, rank: 2 })
@@ -97,7 +95,7 @@ describe("Scoring Factory", () => {
 					{ userId: "b", value: 0, status: "withdrawn" },
 				]
 
-				const results = calculateEventPoints("e1", scoresWithWithdrawn, "time", config)
+				const results = calculateEventPoints(scoresWithWithdrawn, "time", config)
 
 				expect(results.get("a")).toEqual({ userId: "a", points: 100, rank: 1 })
 				expect(results.has("b")).toBe(false)
@@ -113,7 +111,7 @@ describe("Scoring Factory", () => {
 			}
 
 			it("calculates P-Score points for time-based event", () => {
-				const results = calculateEventPoints("e1", baseScores, "time", config)
+				const results = calculateEventPoints(baseScores, "time", config)
 
 				// First place gets 100
 				expect(results.get("a")?.points).toBe(100)
@@ -134,7 +132,7 @@ describe("Scoring Factory", () => {
 					{ userId: "d", value: 200000, status: "scored" }, // Way behind
 				]
 
-				const results = calculateEventPoints("e1", spreadScores, "time", config)
+				const results = calculateEventPoints(spreadScores, "time", config)
 
 				// Last place could have negative score
 				expect(results.get("d")?.points).toBeLessThan(50)
@@ -155,7 +153,7 @@ describe("Scoring Factory", () => {
 					{ userId: "d", value: 200000, status: "scored" },
 				]
 
-				const results = calculateEventPoints("e1", spreadScores, "time", noNegativesConfig)
+				const results = calculateEventPoints(spreadScores, "time", noNegativesConfig)
 
 				// Last place should be clamped to 0
 				expect(results.get("d")?.points).toBeGreaterThanOrEqual(0)
@@ -174,7 +172,7 @@ describe("Scoring Factory", () => {
 			}
 
 			it("applies overrides to base template", () => {
-				const results = calculateEventPoints("e1", baseScores, "time", config)
+				const results = calculateEventPoints(baseScores, "time", config)
 
 				// 1st place gets overridden 150
 				expect(results.get("a")).toEqual({ userId: "a", points: 150, rank: 1 })
@@ -194,7 +192,7 @@ describe("Scoring Factory", () => {
 					statusHandling: { dnf: "last_place", dns: "zero", withdrawn: "exclude" },
 				}
 
-				const results = calculateEventPoints("e1", baseScores, "time", traditionalCustomConfig)
+				const results = calculateEventPoints(baseScores, "time", traditionalCustomConfig)
 
 				expect(results.get("a")?.points).toBe(100) // 1st
 				expect(results.get("b")?.points).toBe(90) // Overridden
@@ -206,7 +204,7 @@ describe("Scoring Factory", () => {
 			const config = DEFAULT_SCORING_CONFIG
 
 			it("returns empty map for empty scores", () => {
-				const results = calculateEventPoints("e1", [], "time", config)
+				const results = calculateEventPoints([], "time", config)
 				expect(results.size).toBe(0)
 			})
 
@@ -215,7 +213,7 @@ describe("Scoring Factory", () => {
 					{ userId: "a", value: 60000, status: "scored" },
 				]
 
-				const results = calculateEventPoints("e1", singleScore, "time", config)
+				const results = calculateEventPoints(singleScore, "time", config)
 
 				expect(results.get("a")).toEqual({ userId: "a", points: 100, rank: 1 })
 			})
@@ -226,7 +224,7 @@ describe("Scoring Factory", () => {
 					{ userId: "b", value: 0, status: "dnf" },
 				]
 
-				const results = calculateEventPoints("e1", allDnf, "time", config)
+				const results = calculateEventPoints(allDnf, "time", config)
 
 				// Both get last_place_plus_one points
 				expect(results.get("a")?.points).toBe(100) // Rank 1 since no one scored
@@ -240,64 +238,12 @@ describe("Scoring Factory", () => {
 					{ userId: "c", value: 120000, status: "cap" }, // Hit time cap
 				]
 
-				const results = calculateEventPoints("e1", cappedScores, "time-with-cap", config)
+				const results = calculateEventPoints(cappedScores, "time-with-cap", config)
 
 				// Capped athlete ranks last among active athletes
 				expect(results.get("a")?.rank).toBe(1)
 				expect(results.get("b")?.rank).toBe(2)
 				expect(results.get("c")?.rank).toBe(3)
-			})
-		})
-
-		describe("Absolute-tier algorithm", () => {
-			const config: ScoringConfig = {
-				algorithm: "absolute_tier",
-				absoluteTier: { batteryId: "bbat_01JZ0000000000000000000000" },
-				tiebreaker: { primary: "none" },
-				statusHandling: { dnf: "zero", dns: "zero", withdrawn: "zero" },
-			}
-			const context: AbsoluteTierScoringContext = {
-				tableByEventId: new Map([
-					[
-						"e1",
-						{
-							scoreType: "max",
-							thresholdsByVariant: new Map([
-								[
-									"male",
-									[
-										{ tier: 1, value: 100 },
-										{ tier: 2, value: 200 },
-									],
-								],
-							]),
-						},
-					],
-				]),
-			}
-
-			it("dispatches through preloaded absolute-tier context", () => {
-				const results = calculateEventPoints(
-					"e1",
-					[
-						{ userId: "a", value: 50, status: "scored", variant: "male" },
-						{ userId: "b", value: 100, status: "scored", variant: "male" },
-						{ userId: "c", value: 250, status: "scored", variant: "male" },
-					],
-					"reps",
-					config,
-					{ absoluteTier: context },
-				)
-
-				expect(results.get("a")).toEqual({ userId: "a", points: 0.5, rank: 3 })
-				expect(results.get("b")).toEqual({ userId: "b", points: 1, rank: 2 })
-				expect(results.get("c")).toEqual({ userId: "c", points: 2, rank: 1 })
-			})
-
-			it("fails closed when context is missing", () => {
-				expect(() => calculateEventPoints("e1", baseScores, "time", config)).toThrow(
-					BenchmarkConfigError,
-				)
 			})
 		})
 	})
@@ -310,7 +256,6 @@ describe("Scoring Factory", () => {
 				expect(getScoringAlgorithmName("winner_takes_more")).toBe("Winner Takes More")
 				expect(getScoringAlgorithmName("online")).toBe("Online")
 				expect(getScoringAlgorithmName("custom")).toBe("Custom")
-				expect(getScoringAlgorithmName("absolute_tier")).toBe("Absolute Tier")
 			})
 		})
 
@@ -431,17 +376,6 @@ describe("Scoring Factory", () => {
 				statusHandling: { dnf: "last_place", dns: "zero", withdrawn: "exclude" },
 			}
 			expect(calculatePointsForPlace({ place: 6, config })).toBe(0)
-		})
-
-		it("returns 0 for absolute_tier missing-place points", () => {
-			const config: ScoringConfig = {
-				algorithm: "absolute_tier",
-				absoluteTier: { batteryId: "bbat_01JZ0000000000000000000000" },
-				tiebreaker: { primary: "none" },
-				statusHandling: { dnf: "zero", dns: "zero", withdrawn: "zero" },
-			}
-
-			expect(calculatePointsForPlace({ place: 1, config })).toBe(0)
 		})
 	})
 })

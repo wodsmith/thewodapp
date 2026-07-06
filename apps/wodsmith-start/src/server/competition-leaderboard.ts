@@ -869,7 +869,6 @@ export async function getCompetitionLeaderboard(params: {
   const benchmarkContext = await loadBenchmarkLeaderboardContext({
     competitionId: params.competitionId,
     competitionType: competition.competitionType,
-    scoringConfig,
     trackWorkouts: scorableEvents,
   })
 
@@ -1329,25 +1328,19 @@ export async function getCompetitionLeaderboard(params: {
       // Calculate points using the factory
       const scheme = trackWorkout.workout.scheme as WorkoutScheme
       const pointsMap = calculateEventPoints(
-        trackWorkout.id,
         eventScoreInputs,
         scheme,
         scoringConfig,
-        benchmarkContext
-          ? {
-              absoluteTier: benchmarkContext.absoluteTier,
-            }
-          : undefined,
       )
 
-      // Under online ranking, tiers don't come from the points algorithm —
-      // compute them straight from the threshold table so they still render
-      // as additive context on the leaderboard and stats pages.
+      // Tiers don't come from the points algorithm — compute them straight
+      // from the threshold table so they render as additive context on the
+      // leaderboard and stats pages.
       const displayTiersByUserId = new Map<string, number>()
       const tierTable = benchmarkContext?.absoluteTier.tableByEventId.get(
         trackWorkout.id,
       )
-      if (tierTable && scoringConfig.algorithm !== "absolute_tier") {
+      if (tierTable) {
         for (const input of eventScoreInputs) {
           try {
             displayTiersByUserId.set(
@@ -1383,10 +1376,7 @@ export async function getCompetitionLeaderboard(params: {
         const pointsResult = pointsMap.get(score.userId)
         const rank = pointsResult?.rank ?? 0
         const basePoints = pointsResult?.points ?? 0
-        const points =
-          scoringConfig.algorithm === "absolute_tier"
-            ? basePoints
-            : Math.round(basePoints * multiplier)
+        const points = Math.round(basePoints * multiplier)
 
         const roundSummary = roundCapSummariesByScoreId.get(score.id) ?? {
           cappedRoundCount: 0,
@@ -1517,10 +1507,7 @@ export async function getCompetitionLeaderboard(params: {
           cappedRoundCount: roundSummary.cappedRoundCount,
           totalRoundCount: roundSummary.totalRoundCount,
           verificationStatus: score.verificationStatus ?? null,
-          benchmarkTier:
-            scoringConfig.algorithm === "absolute_tier"
-              ? points
-              : (displayTiersByUserId.get(score.userId) ?? null),
+          benchmarkTier: displayTiersByUserId.get(score.userId) ?? null,
           benchmarkCategoryKey: benchmarkEvent?.categoryKey ?? null,
           benchmarkCategoryLabel: benchmarkEvent?.categoryLabel ?? null,
           benchmarkIncludedInScoring: benchmarkEvent?.includedInScoring ?? null,
@@ -1694,7 +1681,6 @@ export async function getCompetitionLeaderboard(params: {
   })
 
   if (benchmarkContext) {
-    const ranksByTier = scoringConfig.algorithm === "absolute_tier"
     for (const entry of leaderboardMap.values()) {
       const eventTiers = entry.eventResults
         .filter(
@@ -1709,10 +1695,10 @@ export async function getCompetitionLeaderboard(params: {
           includedInScoring: result.benchmarkIncludedInScoring ?? true,
         }))
 
-      // Additive mode: leave the benchmark fields null for athletes with no
-      // tiered scores rather than branding them "0/100" — tiers are context,
-      // not the ranking, so an empty scorecard should simply show nothing.
-      if (!ranksByTier && eventTiers.length === 0) {
+      // Leave the benchmark fields null for athletes with no tiered scores
+      // rather than branding them "0/100" — tiers are context, not the
+      // ranking, so an empty scorecard should simply show nothing.
+      if (eventTiers.length === 0) {
         continue
       }
 
@@ -1729,11 +1715,6 @@ export async function getCompetitionLeaderboard(params: {
         aggregate.overallScore,
         benchmarkContext.ratingBands,
       )
-      // Only a legacy absolute_tier config ranks the board by tier score;
-      // otherwise the online algorithm's points stand and tiers are context.
-      if (ranksByTier) {
-        entry.totalPoints = aggregate.overallScore
-      }
     }
   }
 
@@ -1760,14 +1741,6 @@ export async function getCompetitionLeaderboard(params: {
             .filter((er) => er.rank > 0)
             .map((er) => [er.trackWorkoutId, er.rank]),
         ),
-        benchmarkTiers:
-          scoringConfig.algorithm === "absolute_tier"
-            ? new Map(
-                e.eventResults
-                  .filter((er) => er.benchmarkTier !== null)
-                  .map((er) => [er.trackWorkoutId, er.benchmarkTier as number]),
-              )
-            : undefined,
       })),
       config: scoringConfig.tiebreaker,
       scoringAlgorithm: scoringConfig.algorithm,

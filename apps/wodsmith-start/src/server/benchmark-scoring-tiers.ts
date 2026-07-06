@@ -6,7 +6,6 @@ import {
   benchmarkTestsTable,
   benchmarkTierThresholdsTable,
 } from "@/db/schemas/benchmarks"
-import { competitionsTable } from "@/db/schemas/competitions"
 import {
   programmingTracksTable,
   trackWorkoutsTable,
@@ -27,7 +26,6 @@ import {
   benchmarkRatingBandsSchema,
   benchmarkVariantSchema,
 } from "@/schemas/benchmark.schema"
-import type { ScoringConfig } from "@/types/scoring"
 
 type DbTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0]
 
@@ -97,8 +95,6 @@ export interface BenchmarkScoringTierCategory extends BenchmarkCategory {
 
 export interface BenchmarkScoringTierSummary {
   competitionId: string
-  isActive: boolean
-  scoringConfig: ScoringConfig | null
   battery: {
     id: string
     name: string
@@ -238,7 +234,6 @@ export function encodeBenchmarkThresholdValue({
 
 export function buildBenchmarkScoringTierSummary({
   competitionId,
-  scoringConfig,
   battery,
   tests,
   thresholds,
@@ -246,7 +241,6 @@ export function buildBenchmarkScoringTierSummary({
   events,
 }: {
   competitionId: string
-  scoringConfig: ScoringConfig | null
   battery: BenchmarkBatteryTierRow
   tests: readonly BenchmarkTestTierRow[]
   thresholds: readonly BenchmarkThresholdTierRow[]
@@ -327,10 +321,6 @@ export function buildBenchmarkScoringTierSummary({
 
   return {
     competitionId,
-    isActive:
-      scoringConfig?.algorithm === "absolute_tier" &&
-      scoringConfig.absoluteTier?.batteryId === battery.id,
-    scoringConfig,
     battery: {
       id: battery.id,
       name: battery.name,
@@ -354,11 +344,9 @@ export function buildBenchmarkScoringTierSummary({
 export async function loadBenchmarkScoringTierSummary({
   db,
   competitionId,
-  scoringConfig,
 }: {
   db: Database
   competitionId: string
-  scoringConfig: ScoringConfig | null
 }): Promise<BenchmarkScoringTierSummary> {
   const [battery] = await db
     .select({
@@ -433,7 +421,6 @@ export async function loadBenchmarkScoringTierSummary({
 
   return buildBenchmarkScoringTierSummary({
     competitionId,
-    scoringConfig,
     battery,
     tests,
     thresholds,
@@ -612,7 +599,6 @@ export async function saveBenchmarkTierThresholds({
   const summary = await loadBenchmarkScoringTierSummary({
     db,
     competitionId,
-    scoringConfig: null,
   })
   const tests = new Map(
     summary.categories
@@ -1487,42 +1473,6 @@ export async function updateBenchmarkBatterySettings({
   })
 }
 
-export async function activateBenchmarkOnlineScoring({
-  db,
-  competitionId,
-}: {
-  db: Database
-  competitionId: string
-}): Promise<void> {
-  const [competition] = await db
-    .select({ settings: competitionsTable.settings })
-    .from(competitionsTable)
-    .where(eq(competitionsTable.id, competitionId))
-    .limit(1)
-
-  const settings = parseSettings(competition?.settings)
-  const existingConfig = settings.scoringConfig as ScoringConfig | undefined
-  settings.scoringConfig = buildBenchmarkOnlineScoringConfig(existingConfig)
-
-  await db
-    .update(competitionsTable)
-    .set({
-      settings: JSON.stringify(settings),
-      updatedAt: new Date(),
-    })
-    .where(eq(competitionsTable.id, competitionId))
-}
-
-export function buildBenchmarkOnlineScoringConfig(
-  existingConfig: ScoringConfig | undefined,
-): ScoringConfig {
-  return {
-    algorithm: "online",
-    tiebreaker: existingConfig?.tiebreaker ?? { primary: "countback" },
-    statusHandling: existingConfig?.statusHandling ?? defaultStatusHandling(),
-  }
-}
-
 function parseBenchmarkCategories(raw: string): BenchmarkCategory[] {
   try {
     return benchmarkCategoriesSchema.parse(JSON.parse(raw))
@@ -1580,25 +1530,6 @@ function validateThresholdSet({
         `Benchmark test ${testId} variant ${variant} is missing tier ${tier}`,
       )
     }
-  }
-}
-
-function parseSettings(
-  settings: string | null | undefined,
-): Record<string, unknown> {
-  if (!settings) return {}
-  try {
-    return JSON.parse(settings) as Record<string, unknown>
-  } catch {
-    return {}
-  }
-}
-
-function defaultStatusHandling(): ScoringConfig["statusHandling"] {
-  return {
-    dnf: "zero",
-    dns: "zero",
-    withdrawn: "zero",
   }
 }
 

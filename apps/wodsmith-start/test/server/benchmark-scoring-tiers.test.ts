@@ -5,7 +5,6 @@ import {
   benchmarkThresholdDimension,
   buildBenchmarkMaxTierGrowthRows,
   buildBenchmarkScoringTierSummary,
-  buildBenchmarkOnlineScoringConfig,
   encodeBenchmarkTestThresholds,
   encodeBenchmarkThresholdValue,
   prepareBenchmarkCategories,
@@ -41,12 +40,6 @@ function thresholdRows(testId: string) {
 function buildSummary(overrides = {}) {
   return buildBenchmarkScoringTierSummary({
     competitionId: "comp-benchmark",
-    scoringConfig: {
-      algorithm: "absolute_tier",
-      absoluteTier: { batteryId: "battery-1" },
-      tiebreaker: { primary: "countback" },
-      statusHandling: { dnf: "zero", dns: "zero", withdrawn: "zero" },
-    },
     battery: {
       id: "battery-1",
       name: "Benchmark Battery",
@@ -107,7 +100,6 @@ describe("benchmark scoring tier summaries", () => {
   it("groups raw threshold tables by category, test, and variant", () => {
     const summary = buildSummary()
 
-    expect(summary.isActive).toBe(true)
     expect(summary.variants).toEqual(["female", "male"])
     expect(summary.includedTestCount).toBe(2)
     expect(summary.deferredTestCount).toBe(1)
@@ -157,18 +149,6 @@ describe("benchmark scoring tier summaries", () => {
     for (const test of withoutMap.categories.flatMap((c) => c.tests)) {
       expect(test.linkedEvent).toBeNull()
     }
-  })
-
-  it("marks the table inactive when the active scoring config points elsewhere", () => {
-    const summary = buildSummary({
-      scoringConfig: {
-        algorithm: "online",
-        tiebreaker: { primary: "countback" },
-        statusHandling: { dnf: "zero", dns: "zero", withdrawn: "zero" },
-      },
-    })
-
-    expect(summary.isActive).toBe(false)
   })
 
   it("fails closed when an included test is missing a complete variant table", () => {
@@ -445,25 +425,6 @@ describe("benchmark scoring tier summaries", () => {
       }),
     )
     expect(rows).toHaveLength(2)
-  })
-
-  it("builds the online scoring config while preserving tiebreaker and status handling", () => {
-    const existingConfig = {
-      algorithm: "absolute_tier" as const,
-      absoluteTier: { batteryId: "battery-1" },
-      tiebreaker: { primary: "head_to_head" as const, headToHeadEventId: "e1" },
-      statusHandling: {
-        dnf: "last_place" as const,
-        dns: "zero" as const,
-        withdrawn: "exclude" as const,
-      },
-    }
-
-    expect(buildBenchmarkOnlineScoringConfig(existingConfig)).toEqual({
-      algorithm: "online",
-      tiebreaker: existingConfig.tiebreaker,
-      statusHandling: existingConfig.statusHandling,
-    })
   })
 
   it("maps hybrid tiers below the flip to cap-reps and at/above it to score", () => {

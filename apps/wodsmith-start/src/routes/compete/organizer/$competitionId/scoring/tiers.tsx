@@ -45,7 +45,6 @@ import type {
   BenchmarkScoringTierTest,
 } from "@/server/benchmark-scoring-tiers"
 import {
-  activateBenchmarkOnlineScoringFn,
   createBenchmarkTestFn,
   deleteBenchmarkTestFn,
   getBenchmarkScoringTiersFn,
@@ -191,9 +190,7 @@ function BenchmarkScoringTiersEditor({
     useState<BenchmarkScoringTierSummary>(initialSummary)
   const [draft, setDraft] = useState(() => buildDraft(initialSummary))
   const [isSaving, setIsSaving] = useState(false)
-  const [isSwitchingToOnline, setIsSwitchingToOnline] = useState(false)
   const saveTiers = useServerFn(saveBenchmarkScoringTiersFn)
-  const activateOnlineScoring = useServerFn(activateBenchmarkOnlineScoringFn)
   const saveRatingBands = useServerFn(updateBenchmarkRatingBandsFn)
   const saveCategories = useServerFn(updateBenchmarkCategoriesFn)
   const createTest = useServerFn(createBenchmarkTestFn)
@@ -251,26 +248,6 @@ function BenchmarkScoringTiersEditor({
       )
     } finally {
       setIsSaving(false)
-    }
-  }
-
-  const handleActivateOnline = async () => {
-    setIsSwitchingToOnline(true)
-    try {
-      const nextSummary = await activateOnlineScoring({
-        data: { competitionId: summary.competitionId },
-      })
-      setSummary(nextSummary)
-      setDraft(buildDraft(nextSummary))
-      toast.success("Online scoring activated")
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to activate online scoring",
-      )
-    } finally {
-      setIsSwitchingToOnline(false)
     }
   }
 
@@ -377,53 +354,20 @@ function BenchmarkScoringTiersEditor({
         </div>
       </div>
 
-      {summary.isActive ? (
-        <Card className="border-amber-200 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/20">
-          <CardContent className="flex flex-col gap-4 py-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex gap-3">
-              <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-600" />
-              <div>
-                <h2 className="font-semibold">
-                  Leaderboard is ranking by tier score
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  This competition still uses tier score as the ranking
-                  algorithm. Benchmark leaderboards now rank athletes with
-                  online scoring while tiers, category scores, and ratings
-                  display alongside as context.
-                </p>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              onClick={handleActivateOnline}
-              disabled={isSwitchingToOnline}
-            >
-              {isSwitchingToOnline ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-              )}
-              Switch to online scoring
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardContent className="flex gap-3 py-5">
-            <CheckCircle2 className="mt-0.5 h-5 w-5 text-primary" />
-            <div>
-              <h2 className="font-semibold">Tier context is live</h2>
-              <p className="text-sm text-muted-foreground">
-                The leaderboard ranks athletes with online scoring. These tier
-                thresholds add context on top: each result shows its tier, and
-                athletes get category scores and an overall rating on the
-                leaderboard and stats pages.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <Card>
+        <CardContent className="flex gap-3 py-5">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 text-primary" />
+          <div>
+            <h2 className="font-semibold">Tier context is live</h2>
+            <p className="text-sm text-muted-foreground">
+              The leaderboard ranks athletes with online scoring. These tier
+              thresholds add context on top: each result shows its tier, and
+              athletes get category scores and an overall rating on the
+              leaderboard and stats pages.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       <HowScoringWorksCard summary={summary} />
 

@@ -236,7 +236,6 @@ describe("benchmark seed data", () => {
 			true,
 		)
 		expect(settings.scoringConfig.algorithm).toBe("online")
-		expect(settings.scoringConfig.absoluteTier).toBeUndefined()
 		expect(rows.scalingLevels).toEqual([
 			expect.objectContaining({ label: "Open", team_size: 1 }),
 		])

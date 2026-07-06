@@ -51,7 +51,7 @@ describe("Online Scoring Algorithm", () => {
 		]
 
 		it("calculates points for time-based event (ascending)", () => {
-			const results = calculateEventPoints("e1", baseScores, "time", config)
+			const results = calculateEventPoints(baseScores, "time", config)
 
 			// Lower time = better = lower points (1st gets 1 point)
 			expect(results.get("a")).toEqual({ userId: "a", points: 1, rank: 1 })
@@ -61,7 +61,7 @@ describe("Online Scoring Algorithm", () => {
 		})
 
 		it("calculates points for reps-based event (descending)", () => {
-			const results = calculateEventPoints("e1", baseScores, "reps", config)
+			const results = calculateEventPoints(baseScores, "reps", config)
 
 			// Higher reps = better, so order is reversed
 			expect(results.get("d")).toEqual({ userId: "d", points: 1, rank: 1 })
@@ -77,7 +77,7 @@ describe("Online Scoring Algorithm", () => {
 				{ userId: "c", value: 70000, status: "scored" },
 			]
 
-			const results = calculateEventPoints("e1", tiedScores, "time", config)
+			const results = calculateEventPoints(tiedScores, "time", config)
 
 			// Tied athletes get same rank and same points
 			expect(results.get("a")).toEqual({ userId: "a", points: 1, rank: 1 })
@@ -93,7 +93,7 @@ describe("Online Scoring Algorithm", () => {
 				{ userId: "c", value: 0, status: "dnf" },
 			]
 
-			const results = calculateEventPoints("e1", scoresWithDnf, "time", config)
+			const results = calculateEventPoints(scoresWithDnf, "time", config)
 
 			expect(results.get("a")).toEqual({ userId: "a", points: 1, rank: 1 })
 			expect(results.get("b")).toEqual({ userId: "b", points: 2, rank: 2 })
@@ -107,7 +107,7 @@ describe("Online Scoring Algorithm", () => {
 				{ userId: "b", value: 0, status: "dns" },
 			]
 
-			const results = calculateEventPoints("e1", scoresWithDns, "time", config)
+			const results = calculateEventPoints(scoresWithDns, "time", config)
 
 			expect(results.get("a")).toEqual({ userId: "a", points: 1, rank: 1 })
 			// DNS gets penalty: rank = total scores (2) + 1 = 3, points = rank = 3
@@ -121,7 +121,6 @@ describe("Online Scoring Algorithm", () => {
 			]
 
 			const results = calculateEventPoints(
-				"e1",
 				scoresWithWithdrawn,
 				"time",
 				config,
@@ -132,7 +131,7 @@ describe("Online Scoring Algorithm", () => {
 		})
 
 		it("handles empty scores", () => {
-			const results = calculateEventPoints("e1", [], "time", config)
+			const results = calculateEventPoints([], "time", config)
 			expect(results.size).toBe(0)
 		})
 
@@ -141,7 +140,7 @@ describe("Online Scoring Algorithm", () => {
 				{ userId: "a", value: 60000, status: "scored" },
 			]
 
-			const results = calculateEventPoints("e1", singleScore, "time", config)
+			const results = calculateEventPoints(singleScore, "time", config)
 
 			expect(results.get("a")).toEqual({ userId: "a", points: 1, rank: 1 })
 		})
@@ -154,7 +153,6 @@ describe("Online Scoring Algorithm", () => {
 			]
 
 			const results = calculateEventPoints(
-				"e1",
 				cappedScores,
 				"time-with-cap",
 				config,
@@ -180,7 +178,7 @@ describe("Online Scoring Algorithm", () => {
 				}),
 			)
 
-			const results = calculateEventPoints("e1", largeField, "time", config)
+			const results = calculateEventPoints(largeField, "time", config)
 
 			// First place gets 1 point
 			expect(results.get("user-1")?.points).toBe(1)
@@ -218,9 +216,9 @@ describe("Online Scoring Algorithm", () => {
 				{ userId: "inconsistent", value: 90000, status: "scored" }, // 2nd (bad event)
 			]
 
-			const e1Results = calculateEventPoints("e1", event1Scores, "time", config)
-			const e2Results = calculateEventPoints("e2", event2Scores, "time", config)
-			const e3Results = calculateEventPoints("e3", event3Scores, "time", config)
+			const e1Results = calculateEventPoints(event1Scores, "time", config)
+			const e2Results = calculateEventPoints(event2Scores, "time", config)
+			const e3Results = calculateEventPoints(event3Scores, "time", config)
 
 			// Calculate totals
 			const consistentTotal =

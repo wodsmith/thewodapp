@@ -148,7 +148,7 @@ describe("OnlineCompetitionLeaderboardTable benchmark display", () => {
           },
         ]}
         selectedEventId={null}
-        scoringAlgorithm="absolute_tier"
+        scoringAlgorithm="online"
       />,
     )
 

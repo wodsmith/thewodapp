@@ -2,9 +2,7 @@ import { describe, expect, it } from "vitest"
 import {
 	BenchmarkConfigError,
 	calculateAbsoluteTier,
-	calculateAbsoluteTierEventPoints,
 	type AbsoluteTierEventTable,
-	type AbsoluteTierScoringContext,
 	type AbsoluteTierThreshold,
 	type EventScoreInput,
 } from "@/lib/scoring/algorithms"
@@ -112,43 +110,6 @@ describe("absolute-tier scoring", () => {
 				score(10),
 				{ scoreType: "max", thresholdsByVariant: new Map([["male", []]]) },
 				"reps",
-			),
-		).toThrow(BenchmarkConfigError)
-	})
-
-	it("calculates event points from preloaded threshold context", () => {
-		const context: AbsoluteTierScoringContext = {
-			tableByEventId: new Map([
-				["event-1", table("max", thresholds([10, 20, 30]))],
-			]),
-		}
-
-		const results = calculateAbsoluteTierEventPoints(
-			"event-1",
-			[
-				score(5, { userId: "below" }),
-				score(20, { userId: "tier-2" }),
-				score(35, { userId: "tier-3" }),
-			],
-			"reps",
-			context,
-		)
-
-		expect(results.get("below")).toEqual({ userId: "below", points: 0.5, rank: 3 })
-		expect(results.get("tier-2")).toEqual({ userId: "tier-2", points: 2, rank: 2 })
-		expect(results.get("tier-3")).toEqual({ userId: "tier-3", points: 3, rank: 1 })
-	})
-
-	it("fails closed when preloaded context is missing", () => {
-		expect(() =>
-			calculateAbsoluteTierEventPoints("event-1", [score(10)], "reps", undefined),
-		).toThrow(BenchmarkConfigError)
-		expect(() =>
-			calculateAbsoluteTierEventPoints(
-				"event-2",
-				[score(10)],
-				"reps",
-				{ tableByEventId: new Map([["event-1", table("max", thresholds([10]))]]) },
 			),
 		).toThrow(BenchmarkConfigError)
 	})

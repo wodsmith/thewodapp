@@ -1,6 +1,6 @@
 import { getSortDirection } from "@/lib/scoring/sort/direction"
 import type { ScoreType, WorkoutScheme } from "@/lib/scoring/types"
-import type { EventPointsResult, EventScoreInput } from "./index"
+import type { EventScoreInput } from "./index"
 
 export class BenchmarkConfigError extends Error {
   constructor(message: string) {
@@ -105,57 +105,4 @@ function meetsHybridThreshold(
   }
 
   return (score.secondaryValue ?? 0) >= threshold.value
-}
-
-export function calculateAbsoluteTierEventPoints(
-  eventId: string,
-  scores: EventScoreInput[],
-  scheme: WorkoutScheme,
-  context: AbsoluteTierScoringContext | undefined,
-): Map<string, EventPointsResult> {
-  if (!context) {
-    throw new BenchmarkConfigError(
-      "absolute_tier scoring requires preloaded threshold context",
-    )
-  }
-
-  const table = context.tableByEventId.get(eventId)
-  if (!table) {
-    throw new BenchmarkConfigError(
-      `Missing absolute-tier threshold table for event ${eventId}`,
-    )
-  }
-
-  const scored = scores.map((score, index) => ({
-    score,
-    index,
-    tier: calculateAbsoluteTier(score, table, scheme),
-  }))
-
-  scored.sort((a, b) => {
-    if (a.tier !== b.tier) {
-      return b.tier - a.tier
-    }
-    return a.index - b.index
-  })
-
-  const results = new Map<string, EventPointsResult>()
-  let currentRank = 1
-  let previousTier: number | null = null
-
-  for (let i = 0; i < scored.length; i++) {
-    const { score, tier } = scored[i]
-    if (previousTier !== null && tier !== previousTier) {
-      currentRank = i + 1
-    }
-
-    results.set(score.userId, {
-      userId: score.userId,
-      points: tier,
-      rank: currentRank,
-    })
-    previousTier = tier
-  }
-
-  return results
 }

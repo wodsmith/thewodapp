@@ -21,7 +21,6 @@ import {
   benchmarkVariantSchema,
   getBenchmarkCategoryCountIssues,
 } from "@/schemas/benchmark.schema"
-import type { ScoringConfig } from "@/types/scoring"
 
 export interface BenchmarkLeaderboardCategoryScore {
   key: string
@@ -229,33 +228,19 @@ export function buildBenchmarkLeaderboardContext({
 export async function loadBenchmarkLeaderboardContext({
   competitionId,
   competitionType,
-  scoringConfig,
   trackWorkouts,
 }: {
   competitionId: string
   competitionType: string
-  scoringConfig: ScoringConfig
   trackWorkouts: readonly Pick<
     typeof trackWorkoutsTable.$inferSelect,
     "id" | "benchmarkTestId" | "benchmarkCategory"
   >[]
 }): Promise<BenchmarkLeaderboardContext | null> {
-  // Tier context is additive display data for any benchmark competition —
-  // ranking normally comes from the online algorithm. Only a legacy
-  // absolute_tier scoringConfig makes the context load-bearing (strict).
-  const ranksByTier = scoringConfig.algorithm === "absolute_tier"
-  if (
-    !ranksByTier &&
-    !competitionCan(competitionType, "benchmarkScoringTiers")
-  ) {
+  // Tier context is additive display data for benchmark competitions —
+  // ranking comes from the online algorithm.
+  if (!competitionCan(competitionType, "benchmarkScoringTiers")) {
     return null
-  }
-
-  const configuredBatteryId = scoringConfig.absoluteTier?.batteryId
-  if (ranksByTier && !configuredBatteryId) {
-    throw new BenchmarkConfigError(
-      "absolute_tier leaderboard requires a benchmark battery id",
-    )
   }
 
   const db = getDb()
@@ -272,18 +257,7 @@ export async function loadBenchmarkLeaderboardContext({
     .limit(1)
 
   if (!battery) {
-    if (!ranksByTier) {
-      return null
-    }
-    throw new BenchmarkConfigError(
-      "absolute_tier leaderboard is missing its benchmark battery",
-    )
-  }
-
-  if (ranksByTier && battery.id !== configuredBatteryId) {
-    throw new BenchmarkConfigError(
-      `absolute_tier leaderboard battery ${configuredBatteryId} does not match competition battery ${battery.id}`,
-    )
+    return null
   }
 
   const tests = await db
@@ -326,9 +300,9 @@ export async function loadBenchmarkLeaderboardContext({
       trackWorkouts,
     })
   } catch (error) {
-    // Additive mode degrades gracefully: an incomplete tier setup means the
+    // Tier context degrades gracefully: an incomplete tier setup means the
     // leaderboard simply renders without tier context instead of failing.
-    if (!ranksByTier && error instanceof BenchmarkConfigError) {
+    if (error instanceof BenchmarkConfigError) {
       return null
     }
     throw error

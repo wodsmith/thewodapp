@@ -976,9 +976,9 @@ export function OnlineCompetitionLeaderboardTable({
   const currentUserId = session?.userId ?? null
   // Benchmark context is additive: it renders whenever tier data made it onto
   // the entries, regardless of which algorithm ranks the board.
-  const isBenchmarkLeaderboard =
-    scoringAlgorithm === "absolute_tier" ||
-    leaderboard.some((entry) => entry.benchmarkOverallScore !== null)
+  const isBenchmarkLeaderboard = leaderboard.some(
+    (entry) => entry.benchmarkOverallScore !== null,
+  )
 
   const defaultSortColumn = selectedEventId ? "eventRank" : "overallRank"
 

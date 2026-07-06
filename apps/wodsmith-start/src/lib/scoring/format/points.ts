@@ -7,11 +7,7 @@ export function formatLeaderboardPoints(
   points: number,
   algorithm: ScoringAlgorithm,
 ): string {
-  if (
-    algorithm === "online" ||
-    algorithm === "p_score" ||
-    algorithm === "absolute_tier"
-  ) {
+  if (algorithm === "online" || algorithm === "p_score") {
     return String(points)
   }
 
