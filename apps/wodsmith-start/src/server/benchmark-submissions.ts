@@ -91,6 +91,7 @@ interface ExistingBenchmarkScore {
   scoreValue: number | null
   status: string
   secondaryValue: number | null
+  tiebreakValue: number | null
   benchmarkVariant: string | null
   verificationStatus: string | null
 }
@@ -421,6 +422,7 @@ export async function saveBenchmarkScoreInTransaction({
       scoreValue: scoresTable.scoreValue,
       status: scoresTable.status,
       secondaryValue: scoresTable.secondaryValue,
+      tiebreakValue: scoresTable.tiebreakValue,
       benchmarkVariant: scoresTable.benchmarkVariant,
       verificationStatus: scoresTable.verificationStatus,
     })
@@ -450,11 +452,14 @@ export async function saveBenchmarkScoreInTransaction({
       candidateTier,
       candidateValue,
       candidateSecondaryValue: score.secondaryValue,
+      candidateTiebreakValue: score.tiebreakValue,
       existingTier,
       existingValue: existingScore.scoreValue,
       existingSecondaryValue: existingScore.secondaryValue,
+      existingTiebreakValue: existingScore.tiebreakValue,
       scheme: score.scheme,
       scoreType: score.scoreType,
+      tiebreakScheme: score.tiebreakScheme,
     })
   ) {
     return {
@@ -721,20 +726,26 @@ function doesBenchmarkScoreImprove({
   candidateTier,
   candidateValue,
   candidateSecondaryValue,
+  candidateTiebreakValue,
   existingTier,
   existingValue,
   existingSecondaryValue,
+  existingTiebreakValue,
   scheme,
   scoreType,
+  tiebreakScheme,
 }: {
   candidateTier: number
   candidateValue: number
   candidateSecondaryValue?: number | null
+  candidateTiebreakValue?: number | null
   existingTier: number
   existingValue: number | null
   existingSecondaryValue?: number | null
+  existingTiebreakValue?: number | null
   scheme: WorkoutScheme
   scoreType: ScoreType
+  tiebreakScheme?: TiebreakScheme | null
 }) {
   if (candidateTier !== existingTier) {
     return candidateTier > existingTier
@@ -751,5 +762,24 @@ function doesBenchmarkScoreImprove({
 
   // Equal primary values: for capped time-with-cap scores both sit at the
   // cap, so more reps completed is the improvement.
-  return (candidateSecondaryValue ?? 0) > (existingSecondaryValue ?? 0)
+  const candidateSecondary = candidateSecondaryValue ?? 0
+  const existingSecondary = existingSecondaryValue ?? 0
+  if (candidateSecondary !== existingSecondary) {
+    return candidateSecondary > existingSecondary
+  }
+
+  // Fully tied on tier, primary, and secondary: a better tiebreak still
+  // improves leaderboard position (time tiebreaks sort ascending, reps
+  // tiebreaks descending, matching compareScores).
+  if (
+    tiebreakScheme &&
+    candidateTiebreakValue != null &&
+    existingTiebreakValue != null
+  ) {
+    return tiebreakScheme === "time"
+      ? candidateTiebreakValue < existingTiebreakValue
+      : candidateTiebreakValue > existingTiebreakValue
+  }
+
+  return false
 }
