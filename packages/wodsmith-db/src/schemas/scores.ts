@@ -6,7 +6,7 @@
  */
 
 import { createId } from "@paralleldrive/cuid2"
-import { relations } from "drizzle-orm"
+import { relations, sql } from "drizzle-orm"
 import {
   boolean,
   datetime,
@@ -79,6 +79,14 @@ export const scoresTable = mysqlTable(
 
     // Scaling
     scalingLevelId: varchar({ length: 255 }),
+    // NULL-safe shadow of scalingLevelId for the unique index below. MySQL
+    // treats NULLs as distinct in unique keys, so keying on the nullable
+    // column directly would let division-less registrations insert a new
+    // row on every resubmission instead of upserting.
+    scalingKey: varchar({ length: 255 }).generatedAlwaysAs(
+      sql`coalesce(scaling_level_id, '')`,
+      { mode: "stored" },
+    ),
     asRx: boolean().notNull().default(false),
     // Benchmark score variant snapshot, usually the athlete profile gender at submission.
     benchmarkVariant: varchar({ length: 64 }),
@@ -121,14 +129,17 @@ export const scoresTable = mysqlTable(
     // Scheduled workout lookup
     index("idx_scores_scheduled").on(table.scheduledWorkoutInstanceId),
     // Unique constraint for competition scores: one score per user per event per division.
-    // Scoping by scalingLevelId lets an athlete registered in multiple divisions
+    // Scoping by division lets an athlete registered in multiple divisions
     // (e.g. individual + partner) hold a separate score for a workout shared
-    // across divisions — without scalingLevelId here, the upsert merges the two
-    // divisions' scores into one row and leaks across leaderboards.
+    // across divisions — without it, the upsert merges the two divisions'
+    // scores into one row and leaks across leaderboards. Uses the NULL-safe
+    // scalingKey so division-less scores still upsert; personal logs keep
+    // NULL competitionEventId, which MySQL treats as distinct, so they can
+    // hold many scores per workout.
     uniqueIndex("idx_scores_competition_user_unique").on(
       table.competitionEventId,
       table.userId,
-      table.scalingLevelId,
+      table.scalingKey,
     ),
     index("idx_scores_benchmark_variant").on(
       table.competitionEventId,

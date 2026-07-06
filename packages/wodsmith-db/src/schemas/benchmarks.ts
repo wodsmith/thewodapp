@@ -46,6 +46,8 @@ export const benchmarkBatteriesTable = mysqlTable(
       .$defaultFn(() => createBenchmarkBatteryId())
       .notNull(),
     ownerTeamId: varchar({ length: 255 }),
+    // Composite uniqueness scope written as `${ownerTeamId}:${slug}`, so one
+    // owner can hold many batteries as long as their slugs differ.
     ownerKey: varchar({ length: 255 }).notNull(),
     slug: varchar({ length: 255 }).notNull(),
     name: varchar({ length: 255 }).notNull(),
