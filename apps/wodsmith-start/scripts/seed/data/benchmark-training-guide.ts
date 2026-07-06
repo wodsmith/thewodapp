@@ -20,7 +20,7 @@ export const BENCHMARK_SEED_IDS = {
 
 export const BENCHMARK_SOURCE_RECEIPT = {
 	sourceArtifact: {
-		path: "/Users/zacjones/Downloads/HillerFit_Training_Guide.pdf",
+		path: "HillerFit_Training_Guide.pdf",
 		sha256:
 			"a80c7ab33874ff4fb8a4eea6a044df83511d164e55588a94ec455145a8f3cc38",
 		pageCount: 17,
