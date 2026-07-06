@@ -26,10 +26,6 @@ import {
   type CompetitionLeaderboardResponse,
   getCompetitionLeaderboardFn,
 } from "@/server-fns/leaderboard-fns"
-import {
-  getEffectiveScoringConfig,
-  parseCompetitionSettings,
-} from "@/types/competitions"
 
 const parentRoute = getRouteApi("/compete/$slug")
 
@@ -151,10 +147,12 @@ export function BenchmarkStatsPage() {
   const navigate = useNavigate({ from: Route.fullPath })
   const router = useRouter()
 
-  const scoringConfig = getEffectiveScoringConfig(
-    parseCompetitionSettings(competition.settings),
+  // Stats are gated by competition type, not scoring algorithm — benchmark
+  // boards rank with online scoring while tiers render as additive context.
+  const isBenchmarkStats = competitionCan(
+    competition.competitionType,
+    "benchmarkScoringTiers",
   )
-  const isBenchmarkStats = scoringConfig?.algorithm === "absolute_tier"
   const selectedDivisionId = search.division ?? divisions[0]?.id ?? ""
   const entries = initialStats?.entries ?? []
 
@@ -280,8 +278,7 @@ export function BenchmarkStatsPage() {
               <BarChart3 className="h-4 w-4" />
               <AlertTitle>Benchmark stats are not available</AlertTitle>
               <AlertDescription>
-                This view is available for benchmark boards that use absolute
-                tier scoring.
+                This view is only available for benchmark competitions.
               </AlertDescription>
             </Alert>
           ) : loadError ? (

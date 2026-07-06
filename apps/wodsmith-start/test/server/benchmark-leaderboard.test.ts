@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest"
+import { BenchmarkConfigError } from "@/lib/scoring/algorithms"
 import {
   buildBenchmarkLeaderboardContext,
   findBenchmarkRatingBand,
+  resolveHybridFlipTier,
 } from "@/server/benchmark-leaderboard"
 
 const categories = JSON.stringify([
@@ -42,6 +44,8 @@ function buildContext(overrides = {}) {
         position: 1,
         scoreType: "max",
         includedInScoring: true,
+        scoreModel: "standard",
+        hybridFlipTier: null,
       },
       {
         id: "back-squat",
@@ -50,6 +54,8 @@ function buildContext(overrides = {}) {
         position: 2,
         scoreType: "max",
         includedInScoring: true,
+        scoreModel: "standard",
+        hybridFlipTier: null,
       },
       {
         id: "mile-run",
@@ -58,6 +64,8 @@ function buildContext(overrides = {}) {
         position: 3,
         scoreType: "min",
         includedInScoring: true,
+        scoreModel: "standard",
+        hybridFlipTier: null,
       },
     ],
     thresholds: [
@@ -203,5 +211,93 @@ describe("benchmark leaderboard context", () => {
       "Regional",
     )
     expect(findBenchmarkRatingBand(101, context.ratingBands)).toBeNull()
+  })
+
+  it("resolves and validates hybrid flip tiers", () => {
+    expect(
+      resolveHybridFlipTier({
+        testId: "mile-run",
+        scoreModel: "standard",
+        hybridFlipTier: null,
+        maxTier: 10,
+      }),
+    ).toBeNull()
+    expect(
+      resolveHybridFlipTier({
+        testId: "mile-run",
+        scoreModel: "hybrid",
+        hybridFlipTier: 9,
+        maxTier: 10,
+      }),
+    ).toBe(9)
+
+    expect(() =>
+      resolveHybridFlipTier({
+        testId: "mile-run",
+        scoreModel: "hybrid",
+        hybridFlipTier: null,
+        maxTier: 10,
+      }),
+    ).toThrow(BenchmarkConfigError)
+    expect(() =>
+      resolveHybridFlipTier({
+        testId: "mile-run",
+        scoreModel: "hybrid",
+        hybridFlipTier: 1,
+        maxTier: 10,
+      }),
+    ).toThrow(/not between 2 and 10/i)
+    expect(() =>
+      resolveHybridFlipTier({
+        testId: "mile-run",
+        scoreModel: "hybrid",
+        hybridFlipTier: 11,
+        maxTier: 10,
+      }),
+    ).toThrow(/not between 2 and 10/i)
+  })
+
+  it("carries the hybrid flip tier onto the absolute-tier event table", () => {
+    const context = buildContext({
+      tests: [
+        {
+          id: "strict-press",
+          categoryKey: "strength",
+          name: "Strict Press",
+          position: 1,
+          scoreType: "max",
+          includedInScoring: true,
+          scoreModel: "standard",
+          hybridFlipTier: null,
+        },
+        {
+          id: "back-squat",
+          categoryKey: "strength",
+          name: "Back Squat",
+          position: 2,
+          scoreType: "max",
+          includedInScoring: true,
+          scoreModel: "standard",
+          hybridFlipTier: null,
+        },
+        {
+          id: "mile-run",
+          categoryKey: "engine",
+          name: "Mile Run",
+          position: 3,
+          scoreType: "min",
+          includedInScoring: true,
+          scoreModel: "hybrid",
+          hybridFlipTier: 9,
+        },
+      ],
+    })
+
+    expect(
+      context.absoluteTier.tableByEventId.get("tw-mile-run")?.hybridFlipTier,
+    ).toBe(9)
+    expect(
+      context.absoluteTier.tableByEventId.get("tw-strict-press")?.hybridFlipTier,
+    ).toBeNull()
   })
 })

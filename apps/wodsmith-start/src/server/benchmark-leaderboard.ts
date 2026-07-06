@@ -6,6 +6,7 @@ import {
   benchmarkTierThresholdsTable,
 } from "@/db/schemas/benchmarks"
 import type { trackWorkoutsTable } from "@/db/schemas/programming"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import {
   type AbsoluteTierEventTable,
   type AbsoluteTierScoringContext,
@@ -13,12 +14,12 @@ import {
 } from "@/lib/scoring/algorithms"
 import type { ScoreType } from "@/lib/scoring/types"
 import {
+  type BenchmarkCategory,
+  type BenchmarkRatingBand,
   benchmarkCategoriesSchema,
   benchmarkRatingBandsSchema,
   benchmarkVariantSchema,
   getBenchmarkCategoryCountIssues,
-  type BenchmarkCategory,
-  type BenchmarkRatingBand,
 } from "@/schemas/benchmark.schema"
 import type { ScoringConfig } from "@/types/scoring"
 
@@ -75,6 +76,8 @@ interface BenchmarkTestRow {
   position: number
   scoreType: string
   includedInScoring: boolean
+  scoreModel: string
+  hybridFlipTier: number | null
 }
 
 interface BenchmarkThresholdRow {
@@ -195,6 +198,12 @@ export function buildBenchmarkLeaderboardContext({
         maxTier: battery.maxTier,
         thresholdsByTestVariant,
       }),
+      hybridFlipTier: resolveHybridFlipTier({
+        testId: test.id,
+        scoreModel: test.scoreModel,
+        hybridFlipTier: test.hybridFlipTier,
+        maxTier: battery.maxTier,
+      }),
     })
   }
 
@@ -219,22 +228,31 @@ export function buildBenchmarkLeaderboardContext({
 
 export async function loadBenchmarkLeaderboardContext({
   competitionId,
+  competitionType,
   scoringConfig,
   trackWorkouts,
 }: {
   competitionId: string
+  competitionType: string
   scoringConfig: ScoringConfig
   trackWorkouts: readonly Pick<
     typeof trackWorkoutsTable.$inferSelect,
     "id" | "benchmarkTestId" | "benchmarkCategory"
   >[]
 }): Promise<BenchmarkLeaderboardContext | null> {
-  if (scoringConfig.algorithm !== "absolute_tier") {
+  // Tier context is additive display data for any benchmark competition —
+  // ranking normally comes from the online algorithm. Only a legacy
+  // absolute_tier scoringConfig makes the context load-bearing (strict).
+  const ranksByTier = scoringConfig.algorithm === "absolute_tier"
+  if (
+    !ranksByTier &&
+    !competitionCan(competitionType, "benchmarkScoringTiers")
+  ) {
     return null
   }
 
   const configuredBatteryId = scoringConfig.absoluteTier?.batteryId
-  if (!configuredBatteryId) {
+  if (ranksByTier && !configuredBatteryId) {
     throw new BenchmarkConfigError(
       "absolute_tier leaderboard requires a benchmark battery id",
     )
@@ -254,12 +272,15 @@ export async function loadBenchmarkLeaderboardContext({
     .limit(1)
 
   if (!battery) {
+    if (!ranksByTier) {
+      return null
+    }
     throw new BenchmarkConfigError(
       "absolute_tier leaderboard is missing its benchmark battery",
     )
   }
 
-  if (battery.id !== configuredBatteryId) {
+  if (ranksByTier && battery.id !== configuredBatteryId) {
     throw new BenchmarkConfigError(
       `absolute_tier leaderboard battery ${configuredBatteryId} does not match competition battery ${battery.id}`,
     )
@@ -273,6 +294,8 @@ export async function loadBenchmarkLeaderboardContext({
       position: benchmarkTestsTable.position,
       scoreType: benchmarkTestsTable.scoreType,
       includedInScoring: benchmarkTestsTable.includedInScoring,
+      scoreModel: benchmarkTestsTable.scoreModel,
+      hybridFlipTier: benchmarkTestsTable.hybridFlipTier,
     })
     .from(benchmarkTestsTable)
     .where(eq(benchmarkTestsTable.batteryId, battery.id))
@@ -295,12 +318,21 @@ export async function loadBenchmarkLeaderboardContext({
           .where(inArray(benchmarkTierThresholdsTable.testId, includedTestIds))
       : []
 
-  return buildBenchmarkLeaderboardContext({
-    battery,
-    tests,
-    thresholds,
-    trackWorkouts,
-  })
+  try {
+    return buildBenchmarkLeaderboardContext({
+      battery,
+      tests,
+      thresholds,
+      trackWorkouts,
+    })
+  } catch (error) {
+    // Additive mode degrades gracefully: an incomplete tier setup means the
+    // leaderboard simply renders without tier context instead of failing.
+    if (!ranksByTier && error instanceof BenchmarkConfigError) {
+      return null
+    }
+    throw error
+  }
 }
 
 function parseBenchmarkCategories(raw: string): BenchmarkCategory[] {
@@ -321,6 +353,36 @@ function parseBenchmarkRatingBands(raw: string): BenchmarkRatingBand[] {
       `Benchmark rating bands are malformed: ${formatParseError(error)}`,
     )
   }
+}
+
+/**
+ * Validate and resolve a test's hybrid flip tier. Hybrid tests must flip
+ * between tier 2 and maxTier so both dimensions have at least one threshold.
+ */
+export function resolveHybridFlipTier({
+  testId,
+  scoreModel,
+  hybridFlipTier,
+  maxTier,
+}: {
+  testId: string
+  scoreModel: string
+  hybridFlipTier: number | null
+  maxTier: number
+}): number | null {
+  if (scoreModel !== "hybrid") {
+    return null
+  }
+  if (
+    hybridFlipTier === null ||
+    hybridFlipTier < 2 ||
+    hybridFlipTier > maxTier
+  ) {
+    throw new BenchmarkConfigError(
+      `Benchmark test ${testId} uses hybrid scoring but its flip tier ${hybridFlipTier} is not between 2 and ${maxTier}`,
+    )
+  }
+  return hybridFlipTier
 }
 
 function groupThresholdsByTestVariant(

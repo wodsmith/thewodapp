@@ -54,13 +54,13 @@ import {
   applyTiebreakers,
   type TiebreakerInput,
 } from "@/lib/scoring/tiebreakers"
+import { benchmarkVariantSchema } from "@/schemas/benchmark.schema"
 import {
   type CompetitionSettings,
   getEffectiveScoringConfig,
   parseCompetitionSettings,
 } from "@/types/competitions"
 import { getAffiliate } from "@/utils/registration-metadata"
-import { benchmarkVariantSchema } from "@/schemas/benchmark.schema"
 import {
   type BenchmarkLeaderboardCategoryScore,
   type BenchmarkLeaderboardRatingBand,
@@ -69,9 +69,7 @@ import {
 } from "./benchmark-leaderboard"
 
 /** Narrow a profile gender string to the benchmark variant enum, else null. */
-function parseBenchmarkGender(
-  gender: string | null,
-): "male" | "female" | null {
+function parseBenchmarkGender(gender: string | null): "male" | "female" | null {
   const parsed = benchmarkVariantSchema.safeParse(gender)
   return parsed.success ? parsed.data : null
 }
@@ -1322,6 +1320,7 @@ export async function getCompetitionLeaderboard(params: {
           userId: s.userId,
           value: s.scoreValue ?? 0,
           status: mapScoreStatus(s.status),
+          secondaryValue: s.secondaryValue,
           sortKey: sortKeyToString(recomputedSortKey),
           variant: s.benchmarkVariant,
         }

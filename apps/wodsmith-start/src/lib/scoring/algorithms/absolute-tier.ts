@@ -17,6 +17,13 @@ export interface AbsoluteTierThreshold {
 export interface AbsoluteTierEventTable {
   scoreType: ScoreType
   thresholdsByVariant: ReadonlyMap<string, readonly AbsoluteTierThreshold[]>
+  /**
+   * Hybrid reps/time tests (scoreModel "hybrid" on a time-with-cap test):
+   * thresholds below this tier are reps completed at the cap, thresholds at
+   * or above it are finish times. Null/undefined means every threshold lives
+   * in the test's primary score dimension.
+   */
+  hybridFlipTier?: number | null
 }
 
 export interface AbsoluteTierScoringContext {
@@ -58,11 +65,13 @@ export function calculateAbsoluteTier(
   }
 
   const sortDirection = getSortDirection(scheme, table.scoreType)
+  const hybridFlipTier = table.hybridFlipTier ?? null
   let bestTier = 0
 
   for (const threshold of thresholds) {
-    const meetsThreshold =
-      sortDirection === "asc"
+    const meetsThreshold = hybridFlipTier
+      ? meetsHybridThreshold(score, threshold, hybridFlipTier)
+      : sortDirection === "asc"
         ? score.value <= threshold.value
         : score.value >= threshold.value
 
@@ -72,6 +81,30 @@ export function calculateAbsoluteTier(
   }
 
   return bestTier > 0 ? bestTier : 0.5
+}
+
+/**
+ * Hybrid reps/time thresholds: tiers below the flip are reps completed at the
+ * time cap, tiers at or above it are finish times. A finisher has completed
+ * every rep, so they clear all rep tiers outright and time tiers by
+ * comparison; a capped athlete is measured only by their reps.
+ */
+function meetsHybridThreshold(
+  score: EventScoreInput,
+  threshold: AbsoluteTierThreshold,
+  hybridFlipTier: number,
+): boolean {
+  const isTimeThreshold = threshold.tier >= hybridFlipTier
+
+  if (isTimeThreshold) {
+    return score.status === "scored" && score.value <= threshold.value
+  }
+
+  if (score.status === "scored") {
+    return true
+  }
+
+  return (score.secondaryValue ?? 0) >= threshold.value
 }
 
 export function calculateAbsoluteTierEventPoints(

@@ -56,9 +56,59 @@ export const benchmarkVideoPolicySchema = z.enum([
   "always",
 ])
 
-export const benchmarkThresholdValuesSchema = z.array(z.number().int()).length(10)
+export const benchmarkThresholdValuesSchema = z
+  .array(z.number().int())
+  .length(10)
 
 export const benchmarkVariantSchema = z.enum(["male", "female"])
+
+export const benchmarkScoreModelSchema = z.enum(["standard", "hybrid"])
+
+export const benchmarkCategoryInputSchema = benchmarkCategorySchema.omit({
+  testCount: true,
+})
+
+export const benchmarkCategoriesInputSchema = z
+  .array(benchmarkCategoryInputSchema)
+  .min(1)
+
+export const benchmarkTestThresholdInputSchema = z.object({
+  variant: benchmarkVariantSchema,
+  tier: z.number().int().positive(),
+  rawValue: z.string().min(1).max(255),
+})
+
+export const benchmarkTestCreateInputSchema = z.object({
+  name: z.string().min(1).max(255),
+  categoryKey: benchmarkKeySchema,
+  scheme: z.string().min(1).max(255),
+  scoreType: z.string().min(1).max(255),
+  inputUnit: z.string().min(1).max(64),
+  includedInScoring: z.boolean(),
+  scoreModel: benchmarkScoreModelSchema.optional(),
+  hybridFlipTier: z.number().int().min(2).nullable().optional(),
+  thresholds: z.array(benchmarkTestThresholdInputSchema).optional(),
+})
+
+export const benchmarkTestUpdateInputSchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  categoryKey: benchmarkKeySchema.optional(),
+  scheme: z.string().min(1).max(255).optional(),
+  scoreType: z.string().min(1).max(255).optional(),
+  inputUnit: z.string().min(1).max(64).optional(),
+  includedInScoring: z.boolean().optional(),
+  scoreModel: benchmarkScoreModelSchema.optional(),
+  hybridFlipTier: z.number().int().min(2).nullable().optional(),
+  thresholds: z.array(benchmarkTestThresholdInputSchema).optional(),
+})
+
+export const benchmarkBatterySettingsInputSchema = z.object({
+  name: z.string().min(1).max(255),
+  description: z.string().max(2000).nullable().optional(),
+  scoreMax: z.number().int().positive(),
+  maxTier: z.number().int().positive(),
+  videoPolicy: benchmarkVideoPolicySchema,
+})
 
 export interface BenchmarkCategoryCountTest {
   categoryKey: string
@@ -101,6 +151,22 @@ export function getBenchmarkCategoryCountIssues(
 }
 
 export type BenchmarkCategory = z.infer<typeof benchmarkCategorySchema>
+export type BenchmarkCategoryInput = z.infer<
+  typeof benchmarkCategoryInputSchema
+>
 export type BenchmarkRatingBand = z.infer<typeof benchmarkRatingBandSchema>
 export type BenchmarkVideoPolicy = z.infer<typeof benchmarkVideoPolicySchema>
 export type BenchmarkVariant = z.infer<typeof benchmarkVariantSchema>
+export type BenchmarkScoreModel = z.infer<typeof benchmarkScoreModelSchema>
+export type BenchmarkTestThresholdInput = z.infer<
+  typeof benchmarkTestThresholdInputSchema
+>
+export type BenchmarkTestCreateInput = z.infer<
+  typeof benchmarkTestCreateInputSchema
+>
+export type BenchmarkTestUpdateInput = z.infer<
+  typeof benchmarkTestUpdateInputSchema
+>
+export type BenchmarkBatterySettingsInput = z.infer<
+  typeof benchmarkBatterySettingsInputSchema
+>

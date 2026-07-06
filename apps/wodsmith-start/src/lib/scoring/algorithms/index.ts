@@ -55,6 +55,8 @@ export interface EventScoreInput {
   value: number
   /** Score status */
   status: "scored" | "cap" | "dnf" | "dns" | "withdrawn"
+  /** Reps completed at the time cap, for capped time-with-cap scores. */
+  secondaryValue?: number | null
   /**
    * Pre-computed sort key for proper ordering.
    * Encodes status + value + secondaryValue + tiebreak into a single string.

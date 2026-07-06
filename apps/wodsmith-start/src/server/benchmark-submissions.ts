@@ -30,11 +30,12 @@ import {
 import { getSortDirection } from "@/lib/scoring/sort/direction"
 import type { ScoreType, WorkoutScheme } from "@/lib/scoring/types"
 import {
-  benchmarkVariantSchema,
   type BenchmarkVariant,
   type BenchmarkVideoPolicy,
+  benchmarkVariantSchema,
 } from "@/schemas/benchmark.schema"
 import { parseCompetitionSettings } from "@/utils/competition-settings"
+import { resolveHybridFlipTier } from "./benchmark-leaderboard"
 import { checkBenchmarkOpenJoinRateLimit } from "./benchmark-open-join-rate-limit"
 
 export interface BenchmarkSubmissionContext {
@@ -89,6 +90,7 @@ interface ExistingBenchmarkScore {
   id: string
   scoreValue: number | null
   status: string
+  secondaryValue: number | null
   benchmarkVariant: string | null
   verificationStatus: string | null
 }
@@ -406,6 +408,7 @@ export async function saveBenchmarkScoreInTransaction({
       userId: score.userId,
       value: candidateValue,
       status: score.status,
+      secondaryValue: score.secondaryValue,
       variant,
     },
     table,
@@ -417,6 +420,7 @@ export async function saveBenchmarkScoreInTransaction({
       id: scoresTable.id,
       scoreValue: scoresTable.scoreValue,
       status: scoresTable.status,
+      secondaryValue: scoresTable.secondaryValue,
       benchmarkVariant: scoresTable.benchmarkVariant,
       verificationStatus: scoresTable.verificationStatus,
     })
@@ -445,8 +449,10 @@ export async function saveBenchmarkScoreInTransaction({
     !doesBenchmarkScoreImprove({
       candidateTier,
       candidateValue,
+      candidateSecondaryValue: score.secondaryValue,
       existingTier,
       existingValue: existingScore.scoreValue,
+      existingSecondaryValue: existingScore.secondaryValue,
       scheme: score.scheme,
       scoreType: score.scoreType,
     })
@@ -536,6 +542,7 @@ export async function isBenchmarkVideoEvidenceRequired({
       userId: score.userId,
       value: score.scoreValue,
       status: score.status,
+      secondaryValue: score.secondaryValue,
       variant,
     },
     table,
@@ -623,15 +630,34 @@ async function loadAbsoluteTierTable(
   scoreType: ScoreType,
 ): Promise<AbsoluteTierEventTable> {
   const db = getDb()
-  const thresholdRows = await db
-    .select({
-      variant: benchmarkTierThresholdsTable.variant,
-      tier: benchmarkTierThresholdsTable.tier,
-      value: benchmarkTierThresholdsTable.thresholdValue,
-    })
-    .from(benchmarkTierThresholdsTable)
-    .where(eq(benchmarkTierThresholdsTable.testId, testId))
-    .orderBy(asc(benchmarkTierThresholdsTable.tier))
+  const [[test], thresholdRows] = await Promise.all([
+    db
+      .select({
+        scoreModel: benchmarkTestsTable.scoreModel,
+        hybridFlipTier: benchmarkTestsTable.hybridFlipTier,
+        maxTier: benchmarkBatteriesTable.maxTier,
+      })
+      .from(benchmarkTestsTable)
+      .innerJoin(
+        benchmarkBatteriesTable,
+        eq(benchmarkTestsTable.batteryId, benchmarkBatteriesTable.id),
+      )
+      .where(eq(benchmarkTestsTable.id, testId))
+      .limit(1),
+    db
+      .select({
+        variant: benchmarkTierThresholdsTable.variant,
+        tier: benchmarkTierThresholdsTable.tier,
+        value: benchmarkTierThresholdsTable.thresholdValue,
+      })
+      .from(benchmarkTierThresholdsTable)
+      .where(eq(benchmarkTierThresholdsTable.testId, testId))
+      .orderBy(asc(benchmarkTierThresholdsTable.tier)),
+  ])
+
+  if (!test) {
+    throw new BenchmarkConfigError(`Missing benchmark test ${testId}`)
+  }
 
   if (thresholdRows.length === 0) {
     throw new BenchmarkConfigError(
@@ -652,6 +678,12 @@ async function loadAbsoluteTierTable(
   return {
     scoreType,
     thresholdsByVariant,
+    hybridFlipTier: resolveHybridFlipTier({
+      testId,
+      scoreModel: test.scoreModel,
+      hybridFlipTier: test.hybridFlipTier,
+      maxTier: test.maxTier,
+    }),
   }
 }
 
@@ -677,6 +709,7 @@ function calculateExistingTier({
       userId: "existing",
       value: existingScore.scoreValue,
       status: existingScore.status === "cap" ? "cap" : "scored",
+      secondaryValue: existingScore.secondaryValue,
       variant: existingScore.benchmarkVariant,
     },
     table,
@@ -687,15 +720,19 @@ function calculateExistingTier({
 function doesBenchmarkScoreImprove({
   candidateTier,
   candidateValue,
+  candidateSecondaryValue,
   existingTier,
   existingValue,
+  existingSecondaryValue,
   scheme,
   scoreType,
 }: {
   candidateTier: number
   candidateValue: number
+  candidateSecondaryValue?: number | null
   existingTier: number
   existingValue: number | null
+  existingSecondaryValue?: number | null
   scheme: WorkoutScheme
   scoreType: ScoreType
 }) {
@@ -706,7 +743,13 @@ function doesBenchmarkScoreImprove({
   if (existingValue === null) return true
 
   const sortDirection = getSortDirection(scheme, scoreType)
-  return sortDirection === "asc"
-    ? candidateValue < existingValue
-    : candidateValue > existingValue
+  if (candidateValue !== existingValue) {
+    return sortDirection === "asc"
+      ? candidateValue < existingValue
+      : candidateValue > existingValue
+  }
+
+  // Equal primary values: for capped time-with-cap scores both sit at the
+  // cap, so more reps completed is the improvement.
+  return (candidateSecondaryValue ?? 0) > (existingSecondaryValue ?? 0)
 }
