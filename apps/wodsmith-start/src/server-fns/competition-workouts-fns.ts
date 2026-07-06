@@ -5,9 +5,13 @@
 
 import { createId } from "@paralleldrive/cuid2"
 import { createServerFn } from "@tanstack/react-start"
-import { and, asc, eq, inArray } from "drizzle-orm"
+import { and, asc, eq, inArray, ne } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
+import {
+  benchmarkBatteriesTable,
+  benchmarkTestsTable,
+} from "@/db/schemas/benchmarks"
 import {
   createProgrammingTrackId,
   createTagId,
@@ -69,6 +73,7 @@ export interface CompetitionWorkout {
   heatStatus: TrackWorkout["heatStatus"]
   eventStatus: TrackWorkout["eventStatus"]
   sponsorId: string | null
+  benchmarkTestId?: string | null
   createdAt: Date
   updatedAt: Date
   workout: {
@@ -203,6 +208,9 @@ const saveCompetitionEventInputSchema = z.object({
   pointsMultiplier: z.number().int().min(1).optional(),
   notes: z.string().max(1000).nullable().optional(),
   sponsorId: z.string().nullable().optional(),
+  // Benchmark test link (benchmark competitions only). Omitted = unchanged,
+  // null = unlink, string = link to that test.
+  benchmarkTestId: z.string().min(1).nullable().optional(),
   // Division descriptions
   divisionDescriptions: z
     .array(
@@ -264,6 +272,81 @@ async function getCompetitionTrack(competitionId: string) {
 }
 
 /**
+ * Validate a benchmark test link for a competition event: the test must belong
+ * to the battery of the competition owning the event, and no other event in
+ * the competition may already be linked to it (the leaderboard requires a
+ * one-to-one test-event mapping).
+ */
+async function resolveBenchmarkTestLink({
+  trackWorkoutId,
+  benchmarkTestId,
+}: {
+  trackWorkoutId: string
+  benchmarkTestId: string
+}): Promise<{ id: string; categoryKey: string }> {
+  const db = getDb()
+
+  const [trackRow] = await db
+    .select({
+      trackId: trackWorkoutsTable.trackId,
+      competitionId: programmingTracksTable.competitionId,
+    })
+    .from(trackWorkoutsTable)
+    .innerJoin(
+      programmingTracksTable,
+      eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
+    )
+    .where(eq(trackWorkoutsTable.id, trackWorkoutId))
+    .limit(1)
+
+  if (!trackRow?.competitionId) {
+    throw new Error("Event is not part of a competition")
+  }
+
+  const [test] = await db
+    .select({
+      id: benchmarkTestsTable.id,
+      categoryKey: benchmarkTestsTable.categoryKey,
+    })
+    .from(benchmarkTestsTable)
+    .innerJoin(
+      benchmarkBatteriesTable,
+      eq(benchmarkTestsTable.batteryId, benchmarkBatteriesTable.id),
+    )
+    .where(
+      and(
+        eq(benchmarkTestsTable.id, benchmarkTestId),
+        eq(benchmarkBatteriesTable.competitionId, trackRow.competitionId),
+      ),
+    )
+    .limit(1)
+
+  if (!test) {
+    throw new Error("Benchmark test not found for this competition")
+  }
+
+  const [conflict] = await db
+    .select({ id: trackWorkoutsTable.id })
+    .from(trackWorkoutsTable)
+    .where(
+      and(
+        eq(trackWorkoutsTable.trackId, trackRow.trackId),
+        eq(trackWorkoutsTable.benchmarkTestId, benchmarkTestId),
+        ne(trackWorkoutsTable.id, trackWorkoutId),
+      ),
+    )
+    .limit(1)
+
+  if (conflict) {
+    throw new Error(
+      "This benchmark test is already linked to another event. Unlink it there first.",
+    )
+  }
+
+  return test
+}
+
+/**
  * Get the next available track order for a competition
  */
 async function getNextCompetitionEventOrder(
@@ -285,9 +368,7 @@ async function getNextCompetitionEventOrder(
     return 1
   }
 
-  const maxOrder = Math.max(
-    ...trackWorkouts.map((tw) => Number(tw.trackOrder)),
-  )
+  const maxOrder = Math.max(...trackWorkouts.map((tw) => Number(tw.trackOrder)))
   return Math.floor(maxOrder) + 1
 }
 
@@ -319,9 +400,7 @@ async function getNextSubEventOrder(parentEventId: string): Promise<number> {
     return parentOrder + 0.01
   }
 
-  const maxChildOrder = Math.max(
-    ...siblings.map((s) => Number(s.trackOrder)),
-  )
+  const maxChildOrder = Math.max(...siblings.map((s) => Number(s.trackOrder)))
   return Number((maxChildOrder + 0.01).toFixed(2))
 }
 
@@ -944,6 +1023,7 @@ export const getCompetitionWorkoutsFn = createServerFn({ method: "GET" })
         heatStatus: trackWorkoutsTable.heatStatus,
         eventStatus: trackWorkoutsTable.eventStatus,
         sponsorId: trackWorkoutsTable.sponsorId,
+        benchmarkTestId: trackWorkoutsTable.benchmarkTestId,
         createdAt: trackWorkoutsTable.createdAt,
         updatedAt: trackWorkoutsTable.updatedAt,
         workout: {
@@ -996,6 +1076,7 @@ export const getCompetitionEventFn = createServerFn({ method: "GET" })
         heatStatus: trackWorkoutsTable.heatStatus,
         eventStatus: trackWorkoutsTable.eventStatus,
         sponsorId: trackWorkoutsTable.sponsorId,
+        benchmarkTestId: trackWorkoutsTable.benchmarkTestId,
         createdAt: trackWorkoutsTable.createdAt,
         updatedAt: trackWorkoutsTable.updatedAt,
         workout: {
@@ -1081,7 +1162,11 @@ export const addWorkoutToCompetitionFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "add_competition_workout", workout: { competitionId: data.competitionId, workoutId: data.workoutId }, teamId: data.teamId })
+    getEvlog()?.set({
+      action: "add_competition_workout",
+      workout: { competitionId: data.competitionId, workoutId: data.workoutId },
+      teamId: data.teamId,
+    })
 
     // Get the competition's programming track
     const track = await getCompetitionTrack(data.competitionId)
@@ -1100,7 +1185,10 @@ export const addWorkoutToCompetitionFn = createServerFn({ method: "POST" })
     // Validate parentEventId if provided
     if (data.parentEventId) {
       const parentEvent = await db
-        .select({ id: trackWorkoutsTable.id, parentEventId: trackWorkoutsTable.parentEventId })
+        .select({
+          id: trackWorkoutsTable.id,
+          parentEventId: trackWorkoutsTable.parentEventId,
+        })
         .from(trackWorkoutsTable)
         .where(
           and(
@@ -1122,7 +1210,7 @@ export const addWorkoutToCompetitionFn = createServerFn({ method: "POST" })
     const trackOrder = data.parentEventId
       ? await getNextSubEventOrder(data.parentEventId)
       : (data.trackOrder ??
-          (await getNextCompetitionEventOrder(data.competitionId)))
+        (await getNextCompetitionEventOrder(data.competitionId)))
 
     // Add workout to track
     const trackWorkoutId = createTrackWorkoutId()
@@ -1161,7 +1249,11 @@ export const removeWorkoutFromCompetitionFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "delete_competition_workout", workout: { trackWorkoutId: data.trackWorkoutId }, teamId: data.teamId })
+    getEvlog()?.set({
+      action: "delete_competition_workout",
+      workout: { trackWorkoutId: data.trackWorkoutId },
+      teamId: data.teamId,
+    })
 
     await db.transaction(async (tx) => {
       // Check if this is a parent event — cascade delete children
@@ -1250,7 +1342,11 @@ export const createWorkoutAndAddToCompetitionFn = createServerFn({
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "create_competition_workout", workout: { competitionId: data.competitionId }, teamId: data.teamId })
+    getEvlog()?.set({
+      action: "create_competition_workout",
+      workout: { competitionId: data.competitionId },
+      teamId: data.teamId,
+    })
 
     // Get or create the competition track
     let track = await getCompetitionTrack(data.competitionId)
@@ -1291,7 +1387,10 @@ export const createWorkoutAndAddToCompetitionFn = createServerFn({
     // Validate parentEventId if provided
     if (data.parentEventId) {
       const parentEvent = await db
-        .select({ id: trackWorkoutsTable.id, parentEventId: trackWorkoutsTable.parentEventId })
+        .select({
+          id: trackWorkoutsTable.id,
+          parentEventId: trackWorkoutsTable.parentEventId,
+        })
         .from(trackWorkoutsTable)
         .where(
           and(
@@ -1460,7 +1559,11 @@ export const updateCompetitionWorkoutFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "update_competition_workout", workout: { trackWorkoutId: data.trackWorkoutId }, teamId: data.teamId })
+    getEvlog()?.set({
+      action: "update_competition_workout",
+      workout: { trackWorkoutId: data.trackWorkoutId },
+      teamId: data.teamId,
+    })
 
     const updateData: Record<string, unknown> = {
       updatedAt: new Date(),
@@ -1530,7 +1633,14 @@ export const saveCompetitionEventFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "save_competition_event", workout: { trackWorkoutId: data.trackWorkoutId, workoutId: data.workoutId }, teamId: data.teamId })
+    getEvlog()?.set({
+      action: "save_competition_event",
+      workout: {
+        trackWorkoutId: data.trackWorkoutId,
+        workoutId: data.workoutId,
+      },
+      teamId: data.teamId,
+    })
 
     // 1. Update workout table
     const workoutUpdateData: Record<string, unknown> = {
@@ -1594,6 +1704,19 @@ export const saveCompetitionEventFn = createServerFn({ method: "POST" })
     }
     if (data.sponsorId !== undefined) {
       trackWorkoutUpdateData.sponsorId = data.sponsorId
+    }
+    if (data.benchmarkTestId !== undefined) {
+      if (data.benchmarkTestId === null) {
+        trackWorkoutUpdateData.benchmarkTestId = null
+        trackWorkoutUpdateData.benchmarkCategory = null
+      } else {
+        const linkedTest = await resolveBenchmarkTestLink({
+          trackWorkoutId: data.trackWorkoutId,
+          benchmarkTestId: data.benchmarkTestId,
+        })
+        trackWorkoutUpdateData.benchmarkTestId = linkedTest.id
+        trackWorkoutUpdateData.benchmarkCategory = linkedTest.categoryKey
+      }
     }
 
     await db
@@ -1691,7 +1814,11 @@ export const reorderCompetitionEventsFn = createServerFn({ method: "POST" })
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "reorder_competition_events", workout: { competitionId: data.competitionId }, teamId: data.teamId })
+    getEvlog()?.set({
+      action: "reorder_competition_events",
+      workout: { competitionId: data.competitionId },
+      teamId: data.teamId,
+    })
 
     // Get the competition's programming track
     const track = await getCompetitionTrack(data.competitionId)
@@ -1799,7 +1926,11 @@ export const updateWorkoutDivisionDescriptionsFn = createServerFn({
       TEAM_PERMISSIONS.MANAGE_PROGRAMMING,
     )
 
-    getEvlog()?.set({ action: "update_division_descriptions", workout: { workoutId: data.workoutId }, teamId: data.teamId })
+    getEvlog()?.set({
+      action: "update_division_descriptions",
+      workout: { workoutId: data.workoutId },
+      teamId: data.teamId,
+    })
 
     // Verify the workout belongs to this team
     const workout = await db

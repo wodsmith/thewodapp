@@ -6,6 +6,10 @@ import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
+import {
+  AddTestDialog,
+  type TestDraft,
+} from "@/components/benchmark-tiers/test-editor-dialogs"
 import { MovementsList } from "@/components/movements-list"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -29,20 +33,24 @@ import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import type { Movement, Sponsor } from "@/db/schema"
-import type { EventDivisionMappingData } from "@/server-fns/event-division-mapping-fns"
 import type { ScoreType, WorkoutScheme } from "@/db/schemas/workouts"
 import {
   SCORE_TYPE_VALUES,
   TIEBREAK_SCHEME_VALUES,
   WORKOUT_SCHEME_VALUES,
 } from "@/db/schemas/workouts"
+import { benchmarkVariantSchema } from "@/schemas/benchmark.schema"
+import { createBenchmarkTestFn } from "@/server-fns/benchmark-scoring-tier-fns"
 import { saveCompetitionEventFn } from "@/server-fns/competition-workouts-fns"
+import type { EventDivisionMappingData } from "@/server-fns/event-division-mapping-fns"
 
 // Form ID for external submit buttons
 export const EVENT_DETAILS_FORM_ID = "event-details-form"
@@ -107,6 +115,7 @@ const competitionEventSchema = z.object({
   notes: z.string(),
   divisionDescs: z.record(z.string(), z.string()),
   sponsorId: z.string().nullable(), // "Presented by" sponsor
+  benchmarkTestId: z.string().nullable(), // Benchmark test link (benchmark competitions)
 })
 
 type CompetitionEventSchema = z.infer<typeof competitionEventSchema>
@@ -133,6 +142,7 @@ interface CompetitionWorkout {
   notes: string | null
   pointsMultiplier: number | null
   sponsorId: string | null
+  benchmarkTestId?: string | null
   workout: {
     id: string
     name: string
@@ -152,6 +162,15 @@ interface EventDetailsFormOverrides {
   saveFn?: (args: { data: any }) => ReturnType<typeof saveCompetitionEventFn>
 }
 
+export interface BenchmarkTestLinkOption {
+  id: string
+  name: string
+  categoryKey: string
+  categoryLabel: string
+  linkedTrackWorkoutId: string | null
+  linkedEventName: string | null
+}
+
 interface EventDetailsFormProps {
   event: CompetitionWorkout
   competitionId: string
@@ -167,6 +186,17 @@ interface EventDetailsFormProps {
   /** Base route prefix for navigation links (defaults to "/compete/organizer") */
   routePrefix?: string
   eventDivisionMappings?: EventDivisionMappingData
+  /**
+   * Benchmark tests available for linking (benchmark competitions only).
+   * When provided, shows the benchmark test selector and includes the link
+   * in the save payload.
+   */
+  benchmarkTests?: BenchmarkTestLinkOption[]
+  /** Battery config enabling inline "Add event tiers" creation */
+  benchmarkBattery?: {
+    maxTier: number
+    categories: { key: string; label: string }[]
+  } | null
 }
 
 export function EventDetailsForm({
@@ -182,6 +212,8 @@ export function EventDetailsForm({
   overrides,
   routePrefix = "/compete/organizer",
   eventDivisionMappings,
+  benchmarkTests,
+  benchmarkBattery,
 }: EventDetailsFormProps) {
   const router = useRouter()
   const navigate = useNavigate()
@@ -225,6 +257,7 @@ export function EventDetailsForm({
       selectedMovements: event.workout.movements?.map((m) => m.id) ?? [],
       divisionDescs: initialDivisionDescs,
       sponsorId: event.sponsorId,
+      benchmarkTestId: event.benchmarkTestId ?? null,
     },
   })
 
@@ -254,6 +287,22 @@ export function EventDetailsForm({
 
   const [isSaving, setIsSaving] = useState(false)
 
+  // Inline "Add event tiers": creates the benchmark test already linked to
+  // this event server-side, then syncs the select so a later save re-sends
+  // the same link instead of clearing it.
+  const handleCreateBenchmarkTest = async (test: TestDraft) => {
+    const { testId } = await createBenchmarkTestFn({
+      data: {
+        competitionId,
+        test,
+        linkTrackWorkoutId: event.id,
+      },
+    })
+    setValue("benchmarkTestId", testId)
+    toast.success("Event tiers created")
+    await router.invalidate()
+  }
+
   const onSubmit = async (data: CompetitionEventSchema) => {
     setIsSaving(true)
     try {
@@ -282,6 +331,11 @@ export function EventDetailsForm({
           divisionDescriptions:
             divisionDescriptions.length > 0 ? divisionDescriptions : undefined,
           sponsorId: data.sponsorId,
+          // Only send the benchmark link when the selector is rendered, so
+          // saves from non-benchmark contexts never clear an existing link
+          ...(benchmarkTests !== undefined
+            ? { benchmarkTestId: data.benchmarkTestId }
+            : {}),
         },
       })
 
@@ -444,7 +498,8 @@ export function EventDetailsForm({
                                   field.onChange(
                                     e.target.value
                                       ? Math.round(
-                                          Number.parseFloat(e.target.value) * 60,
+                                          Number.parseFloat(e.target.value) *
+                                            60,
                                         )
                                       : null,
                                   )
@@ -495,7 +550,8 @@ export function EventDetailsForm({
                               </SelectContent>
                             </Select>
                             <FormDescription>
-                              Used to break ties when athletes have the same score
+                              Used to break ties when athletes have the same
+                              score
                             </FormDescription>
                             <FormMessage />
                           </FormItem>
@@ -610,6 +666,94 @@ export function EventDetailsForm({
                   />
                 )}
 
+                {!isParentEvent && benchmarkTests !== undefined && (
+                  <FormField
+                    control={form.control}
+                    name="benchmarkTestId"
+                    render={({ field }) => {
+                      const testsByCategory = new Map<
+                        string,
+                        BenchmarkTestLinkOption[]
+                      >()
+                      for (const test of benchmarkTests) {
+                        const group =
+                          testsByCategory.get(test.categoryLabel) ?? []
+                        group.push(test)
+                        testsByCategory.set(test.categoryLabel, group)
+                      }
+                      return (
+                        <FormItem>
+                          <FormLabel>Benchmark test</FormLabel>
+                          <Select
+                            value={field.value ?? "none"}
+                            onValueChange={(v) =>
+                              field.onChange(v === "none" ? null : v)
+                            }
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a benchmark test" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="none">Not linked</SelectItem>
+                              {[...testsByCategory.entries()].map(
+                                ([categoryLabel, tests]) => (
+                                  <SelectGroup key={categoryLabel}>
+                                    <SelectLabel>{categoryLabel}</SelectLabel>
+                                    {tests.map((test) => {
+                                      const linkedElsewhere =
+                                        test.linkedTrackWorkoutId !== null &&
+                                        test.linkedTrackWorkoutId !== event.id
+                                      return (
+                                        <SelectItem
+                                          key={test.id}
+                                          value={test.id}
+                                          disabled={linkedElsewhere}
+                                        >
+                                          {test.name}
+                                          {linkedElsewhere
+                                            ? ` (linked to ${test.linkedEventName})`
+                                            : ""}
+                                        </SelectItem>
+                                      )
+                                    })}
+                                  </SelectGroup>
+                                ),
+                              )}
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            {benchmarkTests.length === 0
+                              ? "No benchmark tests yet. Add event tiers to create one for this event."
+                              : "Links this event to a benchmark test so scores get its category and tier thresholds on the leaderboard."}
+                          </FormDescription>
+                          {field.value === null &&
+                            benchmarkBattery &&
+                            benchmarkBattery.categories.length > 0 && (
+                              <AddTestDialog
+                                categories={benchmarkBattery.categories}
+                                maxTier={benchmarkBattery.maxTier}
+                                variants={[...benchmarkVariantSchema.options]}
+                                events={[
+                                  {
+                                    id: event.id,
+                                    name: event.workout.name,
+                                    linkedTestName: null,
+                                  },
+                                ]}
+                                defaultEventId={event.id}
+                                lockEvent
+                                onCreate={handleCreateBenchmarkTest}
+                              />
+                            )}
+                          <FormMessage />
+                        </FormItem>
+                      )
+                    }}
+                  />
+                )}
+
                 <FormField
                   control={form.control}
                   name="sponsorId"
@@ -669,87 +813,89 @@ export function EventDetailsForm({
             </Card>
 
             {/* Division-Specific Descriptions */}
-            {!isParentEvent && <Card>
-              <CardHeader>
-                <CardTitle>Division Variations</CardTitle>
-                <CardDescription>
-                  {variationDivisions.length > 0
-                    ? "Customize the workout description for each division. Leave empty to use the default description above."
-                    : divisions.length > 0
-                      ? "No divisions are mapped to this event. Configure event-division mappings to add variations."
-                      : "Create divisions for this competition to add division-specific workout variations."}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {variationDivisions.length > 0 ? (
-                  variationDivisions
-                    .sort((a, b) => a.position - b.position)
-                    .map((division) => (
-                      <FormField
-                        key={division.id}
-                        control={form.control}
-                        name={`divisionDescs.${division.id}`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <div className="flex items-center justify-between">
-                              <FormLabel>
-                                {division.label}
-                                {division.registrationCount > 0 && (
-                                  <span className="text-muted-foreground ml-2 font-normal">
-                                    ({division.registrationCount} athlete
-                                    {division.registrationCount !== 1
-                                      ? "s"
-                                      : ""}
-                                    )
-                                  </span>
-                                )}
-                              </FormLabel>
-                              <span className="text-xs text-muted-foreground">
-                                {field.value?.trim()
-                                  ? "Custom"
-                                  : "Using default"}
-                              </span>
-                            </div>
-                            <FormControl>
-                              <Textarea
-                                placeholder={`Custom description for ${division.label}... (leave empty to use default)`}
-                                rows={4}
-                                {...field}
-                                value={field.value || ""}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    ))
-                ) : divisions.length > 0 ? (
-                  <div className="text-center py-6">
-                    <p className="text-muted-foreground">
-                      No divisions are mapped to this event.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="text-center py-6">
-                    <p className="text-muted-foreground mb-4">
-                      No divisions have been created for this competition yet.
-                    </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() =>
-                        navigate({
-                          to: `${routePrefix}/$competitionId/divisions`,
-                          params: { competitionId },
-                        })
-                      }
-                    >
-                      Create divisions
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>}
+            {!isParentEvent && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Division Variations</CardTitle>
+                  <CardDescription>
+                    {variationDivisions.length > 0
+                      ? "Customize the workout description for each division. Leave empty to use the default description above."
+                      : divisions.length > 0
+                        ? "No divisions are mapped to this event. Configure event-division mappings to add variations."
+                        : "Create divisions for this competition to add division-specific workout variations."}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {variationDivisions.length > 0 ? (
+                    variationDivisions
+                      .sort((a, b) => a.position - b.position)
+                      .map((division) => (
+                        <FormField
+                          key={division.id}
+                          control={form.control}
+                          name={`divisionDescs.${division.id}`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <div className="flex items-center justify-between">
+                                <FormLabel>
+                                  {division.label}
+                                  {division.registrationCount > 0 && (
+                                    <span className="text-muted-foreground ml-2 font-normal">
+                                      ({division.registrationCount} athlete
+                                      {division.registrationCount !== 1
+                                        ? "s"
+                                        : ""}
+                                      )
+                                    </span>
+                                  )}
+                                </FormLabel>
+                                <span className="text-xs text-muted-foreground">
+                                  {field.value?.trim()
+                                    ? "Custom"
+                                    : "Using default"}
+                                </span>
+                              </div>
+                              <FormControl>
+                                <Textarea
+                                  placeholder={`Custom description for ${division.label}... (leave empty to use default)`}
+                                  rows={4}
+                                  {...field}
+                                  value={field.value || ""}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      ))
+                  ) : divisions.length > 0 ? (
+                    <div className="text-center py-6">
+                      <p className="text-muted-foreground">
+                        No divisions are mapped to this event.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-center py-6">
+                      <p className="text-muted-foreground mb-4">
+                        No divisions have been created for this competition yet.
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() =>
+                          navigate({
+                            to: `${routePrefix}/$competitionId/divisions`,
+                            params: { competitionId },
+                          })
+                        }
+                      >
+                        Create divisions
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
 

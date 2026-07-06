@@ -4,7 +4,6 @@ import { useRouter } from "@tanstack/react-router"
 import { ChevronDown, ChevronRight, Layers, Plus } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
-import { trackEvent } from "@/lib/posthog"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import type { Movement, Sponsor } from "@/db/schema"
@@ -13,6 +12,7 @@ import type {
   TiebreakScheme,
   WorkoutScheme,
 } from "@/db/schemas/workouts"
+import { trackEvent } from "@/lib/posthog"
 import {
   type CompetitionWorkout,
   createWorkoutAndAddToCompetitionFn,
@@ -41,10 +41,14 @@ interface DivisionDescription {
 /** Optional callback overrides for mutation server fns (used by cohost routes) */
 interface EventManagerOverrides {
   createWorkoutFn?: (args: {
-    data: NonNullable<Parameters<typeof createWorkoutAndAddToCompetitionFn>[0]>["data"]
+    data: NonNullable<
+      Parameters<typeof createWorkoutAndAddToCompetitionFn>[0]
+    >["data"]
   }) => ReturnType<typeof createWorkoutAndAddToCompetitionFn>
   removeWorkoutFn?: (args: {
-    data: NonNullable<Parameters<typeof removeWorkoutFromCompetitionFn>[0]>["data"]
+    data: NonNullable<
+      Parameters<typeof removeWorkoutFromCompetitionFn>[0]
+    >["data"]
   }) => ReturnType<typeof removeWorkoutFromCompetitionFn>
   reorderEventsFn?: (args: {
     data: NonNullable<Parameters<typeof reorderCompetitionEventsFn>[0]>["data"]
@@ -66,6 +70,8 @@ interface OrganizerEventManagerProps {
   seriesName?: string | null
   /** Map of competition event ID -> template event name (for series badges) */
   seriesEventMap?: Map<string, string>
+  /** Map of competition event ID -> benchmark category label (for category badges) */
+  benchmarkCategoryByEventId?: Record<string, string>
   /** Override mutation fns (e.g. cohost equivalents) */
   overrides?: EventManagerOverrides
   /** Base route for event detail links (defaults to organizer route) */
@@ -82,21 +88,23 @@ export function OrganizerEventManager({
   sponsors,
   seriesName,
   seriesEventMap,
+  benchmarkCategoryByEventId,
   overrides,
   eventDetailRoute,
 }: OrganizerEventManagerProps) {
   const router = useRouter()
-  const createWorkoutFn = overrides?.createWorkoutFn ?? createWorkoutAndAddToCompetitionFn
-  const removeWorkoutFn = overrides?.removeWorkoutFn ?? removeWorkoutFromCompetitionFn
-  const reorderEventsFn = overrides?.reorderEventsFn ?? reorderCompetitionEventsFn
+  const createWorkoutFn =
+    overrides?.createWorkoutFn ?? createWorkoutAndAddToCompetitionFn
+  const removeWorkoutFn =
+    overrides?.removeWorkoutFn ?? removeWorkoutFromCompetitionFn
+  const reorderEventsFn =
+    overrides?.reorderEventsFn ?? reorderCompetitionEventsFn
   const groupEventsFn = overrides?.groupEventsFn ?? groupCompetitionEventsFn
   const [events, setEvents] = useState(initialEvents)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [topLevelInstanceId] = useState(() => Symbol("competition-events"))
-  const [subEventInstanceIds] = useState(
-    () => new Map<string, symbol>(),
-  )
+  const [subEventInstanceIds] = useState(() => new Map<string, symbol>())
   const [isCreating, setIsCreating] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
   const [subEventParentId, setSubEventParentId] = useState<string | null>(null)
@@ -549,7 +557,11 @@ export function OrganizerEventManager({
                       type="button"
                       onClick={() => toggleParentCollapse(event.id)}
                       className="p-1 -ml-1 text-muted-foreground hover:text-foreground transition-colors"
-                      aria-label={isCollapsed ? "Expand sub-events" : "Collapse sub-events"}
+                      aria-label={
+                        isCollapsed
+                          ? "Expand sub-events"
+                          : "Collapse sub-events"
+                      }
                     >
                       {isCollapsed ? (
                         <ChevronRight className="h-4 w-4" />
@@ -585,6 +597,9 @@ export function OrganizerEventManager({
                       eventDetailRoute={eventDetailRoute}
                       seriesName={seriesName}
                       seriesTemplateName={seriesEventMap?.get(event.id)}
+                      benchmarkCategoryLabel={
+                        benchmarkCategoryByEventId?.[event.id]
+                      }
                     />
                   </div>
                 </div>
@@ -613,6 +628,9 @@ export function OrganizerEventManager({
                         eventDetailRoute={eventDetailRoute}
                         seriesName={seriesName}
                         seriesTemplateName={seriesEventMap?.get(child.id)}
+                        benchmarkCategoryLabel={
+                          benchmarkCategoryByEventId?.[child.id]
+                        }
                       />
                     ))}
                     <Button

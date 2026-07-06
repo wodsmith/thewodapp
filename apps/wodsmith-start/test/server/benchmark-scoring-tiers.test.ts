@@ -1,10 +1,19 @@
 import { describe, expect, it } from "vitest"
 import {
+  assertBenchmarkRatingBandsWithinScoreMax,
+  assertBenchmarkVariantThresholdsComplete,
+  benchmarkThresholdDimension,
+  buildBenchmarkMaxTierGrowthRows,
   buildBenchmarkScoringTierSummary,
   buildBenchmarkOnlineScoringConfig,
-  buildBenchmarkTierScoringConfig,
+  encodeBenchmarkTestThresholds,
   encodeBenchmarkThresholdValue,
+  prepareBenchmarkCategories,
+  prepareBenchmarkRatingBands,
   prepareBenchmarkTierThresholdUpdates,
+  recomputeCategoryTestCounts,
+  resolveBenchmarkTestScoreModel,
+  resolveBenchmarkTestThresholdRows,
 } from "@/server/benchmark-scoring-tiers"
 
 const categories = JSON.stringify([
@@ -60,6 +69,8 @@ function buildSummary(overrides = {}) {
         scoreType: "max",
         inputUnit: "lb",
         includedInScoring: true,
+        scoreModel: "standard",
+        hybridFlipTier: null,
       },
       {
         id: "mile-run",
@@ -70,6 +81,8 @@ function buildSummary(overrides = {}) {
         scoreType: "min",
         inputUnit: "time",
         includedInScoring: true,
+        scoreModel: "standard",
+        hybridFlipTier: null,
       },
       {
         id: "hybrid-deferred",
@@ -80,6 +93,8 @@ function buildSummary(overrides = {}) {
         scoreType: "max",
         inputUnit: "reps",
         includedInScoring: false,
+        scoreModel: "standard",
+        hybridFlipTier: null,
       },
     ],
     thresholds: [...thresholdRows("strict-press"), ...thresholdRows("mile-run")],
@@ -118,6 +133,30 @@ describe("benchmark scoring tier summaries", () => {
         totalTestCount: 2,
       }),
     ])
+  })
+
+  // @lat: [[organizer-dashboard#Benchmark Tier Scoring#Test-Event Linking]]
+  it("attaches linked competition events to tests and defaults to unlinked", () => {
+    const summary = buildSummary({
+      linkedEventsByTestId: new Map([
+        [
+          "strict-press",
+          { trackWorkoutId: "tw-press", eventName: "Event 1 - Strict Press" },
+        ],
+      ]),
+    })
+
+    const tests = summary.categories.flatMap((category) => category.tests)
+    expect(tests.find((test) => test.id === "strict-press")?.linkedEvent).toEqual({
+      trackWorkoutId: "tw-press",
+      eventName: "Event 1 - Strict Press",
+    })
+    expect(tests.find((test) => test.id === "mile-run")?.linkedEvent).toBeNull()
+
+    const withoutMap = buildSummary()
+    for (const test of withoutMap.categories.flatMap((c) => c.tests)) {
+      expect(test.linkedEvent).toBeNull()
+    }
   })
 
   it("marks the table inactive when the active scoring config points elsewhere", () => {
@@ -194,7 +233,221 @@ describe("benchmark scoring tier summaries", () => {
     ).toThrow(/unable to encode benchmark threshold/i)
   })
 
-  it("builds reversible benchmark scoring mode configs", () => {
+  it("sorts rating bands by minScore and rejects overlaps", () => {
+    expect(
+      prepareBenchmarkRatingBands({
+        ratingBands: [
+          { key: "regional", label: "Regional", minScore: 60, maxScore: 100 },
+          { key: "local", label: "Local", minScore: 0, maxScore: 59.9 },
+        ],
+        scoreMax: 100,
+      }).map((band) => band.key),
+    ).toEqual(["local", "regional"])
+
+    expect(() =>
+      prepareBenchmarkRatingBands({
+        ratingBands: [
+          { key: "local", label: "Local", minScore: 0, maxScore: 60 },
+          { key: "regional", label: "Regional", minScore: 50, maxScore: 100 },
+        ],
+        scoreMax: 100,
+      }),
+    ).toThrow(/overlap/i)
+  })
+
+  it("rejects rating bands outside 0..scoreMax", () => {
+    expect(() =>
+      prepareBenchmarkRatingBands({
+        ratingBands: [
+          { key: "elite", label: "Elite", minScore: 0, maxScore: 120 },
+        ],
+        scoreMax: 100,
+      }),
+    ).toThrow(/within 0 and 100/i)
+  })
+
+  it("rejects duplicate rating band keys", () => {
+    expect(() =>
+      prepareBenchmarkRatingBands({
+        ratingBands: [
+          { key: "local", label: "Local", minScore: 0, maxScore: 50 },
+          { key: "local", label: "Local 2", minScore: 51, maxScore: 100 },
+        ],
+        scoreMax: 100,
+      }),
+    ).toThrow(/duplicate/i)
+  })
+
+  it("rejects a smaller scoreMax when rating bands no longer fit", () => {
+    expect(() =>
+      assertBenchmarkRatingBandsWithinScoreMax({
+        ratingBands: [
+          { key: "regional", label: "Regional", minScore: 60, maxScore: 100 },
+        ],
+        scoreMax: 80,
+      }),
+    ).toThrow(/within 0 and 80/i)
+  })
+
+  it("recomputes category test counts from included tests only", () => {
+    const prepared = prepareBenchmarkCategories({
+      categories: [
+        { key: "strength", label: "Strength", weight: 1 },
+        { key: "engine", label: "Engine", weight: 2 },
+      ],
+      tests: [
+        { categoryKey: "strength", includedInScoring: true },
+        { categoryKey: "strength", includedInScoring: true },
+        { categoryKey: "engine", includedInScoring: false },
+      ],
+    })
+
+    expect(prepared).toEqual([
+      { key: "strength", label: "Strength", weight: 1, testCount: 2 },
+      { key: "engine", label: "Engine", weight: 2, testCount: 0 },
+    ])
+  })
+
+  it("rejects removing a category that still has tests", () => {
+    expect(() =>
+      prepareBenchmarkCategories({
+        categories: [{ key: "strength", label: "Strength", weight: 1 }],
+        tests: [{ categoryKey: "engine", includedInScoring: true }],
+      }),
+    ).toThrow(/cannot remove category engine/i)
+  })
+
+  it("rejects duplicate category keys", () => {
+    expect(() =>
+      prepareBenchmarkCategories({
+        categories: [
+          { key: "strength", label: "Strength", weight: 1 },
+          { key: "strength", label: "Again", weight: 1 },
+        ],
+        tests: [],
+      }),
+    ).toThrow(/duplicate/i)
+  })
+
+  it("recomputes counts for existing full categories", () => {
+    expect(
+      recomputeCategoryTestCounts(
+        [
+          { key: "strength", label: "Strength", weight: 1, testCount: 5 },
+          { key: "engine", label: "Engine", weight: 1, testCount: 9 },
+        ],
+        [
+          { categoryKey: "strength", includedInScoring: true },
+          { categoryKey: "engine", includedInScoring: true },
+          { categoryKey: "engine", includedInScoring: true },
+        ],
+      ),
+    ).toEqual([
+      { key: "strength", label: "Strength", weight: 1, testCount: 1 },
+      { key: "engine", label: "Engine", weight: 1, testCount: 2 },
+    ])
+  })
+
+  it("requires a complete threshold table across both variants", () => {
+    const complete = ["male", "female"].flatMap((variant) =>
+      Array.from({ length: 3 }, (_, index) => ({
+        variant,
+        tier: index + 1,
+      })),
+    )
+
+    expect(() =>
+      assertBenchmarkVariantThresholdsComplete({
+        maxTier: 3,
+        thresholds: complete,
+      }),
+    ).not.toThrow()
+
+    expect(() =>
+      assertBenchmarkVariantThresholdsComplete({
+        maxTier: 3,
+        thresholds: complete.filter((row) => row.variant !== "female"),
+      }),
+    ).toThrow(/female must have exactly 3/i)
+
+    expect(() =>
+      assertBenchmarkVariantThresholdsComplete({
+        maxTier: 3,
+        thresholds: complete.filter(
+          (row) => !(row.variant === "male" && row.tier === 2),
+        ),
+      }),
+    ).toThrow(/male must have exactly 3/i)
+  })
+
+  it("clones the highest tier when maxTier grows and no-ops when it shrinks", () => {
+    const thresholds = ["male", "female"].flatMap((variant) =>
+      Array.from({ length: 2 }, (_, index) => ({
+        testId: "strict-press",
+        variant,
+        tier: index + 1,
+        thresholdValue: (index + 1) * 100,
+        rawValue: String((index + 1) * 10),
+      })),
+    )
+
+    const grown = buildBenchmarkMaxTierGrowthRows({
+      oldMaxTier: 2,
+      newMaxTier: 4,
+      thresholds,
+    })
+
+    expect(grown).toHaveLength(4)
+    expect(grown).toContainEqual({
+      testId: "strict-press",
+      variant: "male",
+      tier: 3,
+      thresholdValue: 200,
+      rawValue: "20",
+    })
+    expect(grown).toContainEqual({
+      testId: "strict-press",
+      variant: "male",
+      tier: 4,
+      thresholdValue: 200,
+      rawValue: "20",
+    })
+
+    expect(
+      buildBenchmarkMaxTierGrowthRows({
+        oldMaxTier: 4,
+        newMaxTier: 2,
+        thresholds,
+      }),
+    ).toEqual([])
+  })
+
+  it("merges override raw values over existing rows and re-encodes", () => {
+    const rows = resolveBenchmarkTestThresholdRows({
+      scheme: "load",
+      inputUnit: "lb",
+      scoreModel: "standard",
+      hybridFlipTier: null,
+      existing: [
+        { variant: "male", tier: 1, rawValue: "135" },
+        { variant: "male", tier: 2, rawValue: "185" },
+      ],
+      overrides: [{ variant: "male", tier: 2, rawValue: "225" }],
+    })
+
+    const tier2 = rows.find((row) => row.tier === 2)
+    expect(tier2?.rawValue).toBe("225")
+    expect(tier2?.thresholdValue).toBe(
+      encodeBenchmarkThresholdValue({
+        rawValue: "225",
+        inputUnit: "lb",
+        scheme: "load",
+      }),
+    )
+    expect(rows).toHaveLength(2)
+  })
+
+  it("builds the online scoring config while preserving tiebreaker and status handling", () => {
     const existingConfig = {
       algorithm: "absolute_tier" as const,
       absoluteTier: { batteryId: "battery-1" },
@@ -206,22 +459,119 @@ describe("benchmark scoring tier summaries", () => {
       },
     }
 
-    expect(
-      buildBenchmarkTierScoringConfig({
-        batteryId: "battery-2",
-        existingConfig,
-      }),
-    ).toEqual({
-      algorithm: "absolute_tier",
-      absoluteTier: { batteryId: "battery-2" },
-      tiebreaker: existingConfig.tiebreaker,
-      statusHandling: existingConfig.statusHandling,
-    })
-
     expect(buildBenchmarkOnlineScoringConfig(existingConfig)).toEqual({
       algorithm: "online",
       tiebreaker: existingConfig.tiebreaker,
       statusHandling: existingConfig.statusHandling,
     })
+  })
+
+  it("maps hybrid tiers below the flip to cap-reps and at/above it to score", () => {
+    expect(
+      benchmarkThresholdDimension({
+        tier: 8,
+        scoreModel: "hybrid",
+        hybridFlipTier: 9,
+      }),
+    ).toBe("cap_reps")
+    expect(
+      benchmarkThresholdDimension({
+        tier: 9,
+        scoreModel: "hybrid",
+        hybridFlipTier: 9,
+      }),
+    ).toBe("score")
+    expect(
+      benchmarkThresholdDimension({
+        tier: 1,
+        scoreModel: "standard",
+        hybridFlipTier: null,
+      }),
+    ).toBe("score")
+  })
+
+  it("encodes cap-reps thresholds as plain integers and rejects time strings", () => {
+    expect(
+      encodeBenchmarkThresholdValue({
+        rawValue: "293",
+        inputUnit: "time",
+        scheme: "time-with-cap",
+        dimension: "cap_reps",
+      }),
+    ).toBe(293)
+
+    expect(() =>
+      encodeBenchmarkThresholdValue({
+        rawValue: "19:59",
+        inputUnit: "time",
+        scheme: "time-with-cap",
+        dimension: "cap_reps",
+      }),
+    ).toThrow(/whole number of reps/i)
+  })
+
+  it("resolves hybrid score models and rejects invalid configuration", () => {
+    expect(
+      resolveBenchmarkTestScoreModel({
+        scheme: "time-with-cap",
+        scoreModel: "hybrid",
+        hybridFlipTier: 9,
+        maxTier: 10,
+      }),
+    ).toEqual({ scoreModel: "hybrid", hybridFlipTier: 9 })
+
+    expect(
+      resolveBenchmarkTestScoreModel({
+        scheme: "load",
+        scoreModel: undefined,
+        hybridFlipTier: null,
+        maxTier: 10,
+      }),
+    ).toEqual({ scoreModel: "standard", hybridFlipTier: null })
+
+    // A standard model drops any stray flip tier.
+    expect(
+      resolveBenchmarkTestScoreModel({
+        scheme: "time-with-cap",
+        scoreModel: "standard",
+        hybridFlipTier: 9,
+        maxTier: 10,
+      }),
+    ).toEqual({ scoreModel: "standard", hybridFlipTier: null })
+
+    expect(() =>
+      resolveBenchmarkTestScoreModel({
+        scheme: "load",
+        scoreModel: "hybrid",
+        hybridFlipTier: 9,
+        maxTier: 10,
+      }),
+    ).toThrow(/time-with-cap/i)
+
+    expect(() =>
+      resolveBenchmarkTestScoreModel({
+        scheme: "time-with-cap",
+        scoreModel: "hybrid",
+        hybridFlipTier: 1,
+        maxTier: 10,
+      }),
+    ).toThrow(/between 2 and 10/i)
+  })
+
+  it("encodes hybrid test thresholds using each tier's dimension", () => {
+    const rows = encodeBenchmarkTestThresholds({
+      scheme: "time-with-cap",
+      inputUnit: "time",
+      scoreModel: "hybrid",
+      hybridFlipTier: 3,
+      thresholds: [
+        { variant: "male", tier: 2, rawValue: "150" },
+        { variant: "male", tier: 3, rawValue: "9:00" },
+      ],
+    })
+
+    // Tier 2 is below the flip → plain reps; tier 3 is a finish time in ms.
+    expect(rows.find((row) => row.tier === 2)?.thresholdValue).toBe(150)
+    expect(rows.find((row) => row.tier === 3)?.thresholdValue).toBe(540_000)
   })
 })

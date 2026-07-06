@@ -1,10 +1,30 @@
 "use client"
 
-import { createFileRoute, notFound } from "@tanstack/react-router"
+import { createFileRoute, Link, notFound } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import { AlertTriangle, CheckCircle2, Gauge, Loader2, Save } from "lucide-react"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
+import {
+  type BenchmarkSettingsDraft,
+  BenchmarkSettingsForm,
+} from "@/components/benchmark-tiers/benchmark-settings-form"
+import {
+  CategoriesManager,
+  type CategoryDraft,
+  type CategorySummaryItem,
+} from "@/components/benchmark-tiers/categories-manager"
+import {
+  type RatingBandDraft,
+  RatingBandsEditor,
+} from "@/components/benchmark-tiers/rating-bands-editor"
+import {
+  AddTestDialog,
+  type CategoryOption,
+  type EditableTest,
+  EditTestDialog,
+  type TestDraft,
+} from "@/components/benchmark-tiers/test-editor-dialogs"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,16 +39,24 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { competitionCan } from "@/lib/competitions/capabilities"
+import { benchmarkVariantSchema } from "@/schemas/benchmark.schema"
 import type {
   BenchmarkScoringTierSummary,
   BenchmarkScoringTierTest,
 } from "@/server/benchmark-scoring-tiers"
 import {
   activateBenchmarkOnlineScoringFn,
-  activateBenchmarkScoringFn,
+  createBenchmarkTestFn,
+  deleteBenchmarkTestFn,
   getBenchmarkScoringTiersFn,
   saveBenchmarkScoringTiersFn,
+  updateBenchmarkBatterySettingsFn,
+  updateBenchmarkCategoriesFn,
+  updateBenchmarkRatingBandsFn,
+  updateBenchmarkTestFn,
 } from "@/server-fns/benchmark-scoring-tier-fns"
+
+const VARIANTS: string[] = [...benchmarkVariantSchema.options]
 
 // @lat: [[organizer-dashboard#Organizer Dashboard#Benchmark Tier Scoring]]
 export const Route = createFileRoute(
@@ -58,8 +86,8 @@ export const Route = createFileRoute(
     meta: [
       {
         title: loaderData?.competition
-          ? `Benchmark tiers - ${loaderData.competition.name}`
-          : "Benchmark tiers",
+          ? `Benchmark scoring - ${loaderData.competition.name}`
+          : "Benchmark scoring",
       },
     ],
   }),
@@ -81,11 +109,11 @@ function BenchmarkScoringSetupRequired({ reason }: { reason: string }) {
         <div className="flex items-center gap-2">
           <Gauge className="h-5 w-5 text-primary" />
           <h1 className="text-3xl font-bold tracking-tight">
-            Benchmark Tier Scoring
+            Benchmark Scoring
           </h1>
         </div>
         <p className="max-w-3xl text-sm text-muted-foreground">
-          Configure the fixed tier thresholds used by this benchmark battery.
+          Set up how athletes are scored: tests, tiers, categories, and ratings.
         </p>
       </div>
 
@@ -93,12 +121,64 @@ function BenchmarkScoringSetupRequired({ reason }: { reason: string }) {
         <CardContent className="flex gap-3 py-5">
           <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-600" />
           <div>
-            <h2 className="font-semibold">Benchmark battery setup required</h2>
+            <h2 className="font-semibold">Benchmark setup required</h2>
             <p className="mt-1 text-sm text-muted-foreground">{reason}</p>
           </div>
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+function HowScoringWorksCard({
+  summary,
+}: {
+  summary: BenchmarkScoringTierSummary
+}) {
+  const { maxTier, scoreMax } = summary.battery
+  const sortedBands = [...summary.ratingBands].sort(
+    (a, b) => a.minScore - b.minScore,
+  )
+  const ratingList = sortedBands.map((band) => band.label).join(" → ")
+
+  const steps = [
+    {
+      title: "Each test result earns a tier",
+      body: `When an athlete logs a score, it's compared against the thresholds below and lands in a tier from 1 to ${maxTier}. Tier ${maxTier} is the hardest standard; a score below the tier 1 threshold still earns half a tier.`,
+    },
+    {
+      title: "Tiers become category scores",
+      body: `Each category averages the tiers of its tests and converts that to a score out of ${scoreMax}. Hitting tier ${maxTier} on every test in a category scores ${scoreMax}/${scoreMax}.`,
+    },
+    {
+      title: "Categories combine into the overall score",
+      body: `Category scores are averaged using the category weights you set below, giving an overall score out of ${scoreMax}${
+        ratingList ? ` and a rating (${ratingList})` : ""
+      }.`,
+    },
+  ]
+
+  return (
+    <Card>
+      <CardHeader className="gap-1">
+        <CardTitle>How the score works</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ol className="grid gap-4 md:grid-cols-3">
+          {steps.map((step, index) => (
+            <li key={step.title} className="flex gap-3">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                {index + 1}
+              </span>
+              <div className="space-y-1">
+                <p className="text-sm font-medium">{step.title}</p>
+                <p className="text-sm text-muted-foreground">{step.body}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -111,11 +191,15 @@ function BenchmarkScoringTiersEditor({
     useState<BenchmarkScoringTierSummary>(initialSummary)
   const [draft, setDraft] = useState(() => buildDraft(initialSummary))
   const [isSaving, setIsSaving] = useState(false)
-  const [isActivating, setIsActivating] = useState(false)
   const [isSwitchingToOnline, setIsSwitchingToOnline] = useState(false)
   const saveTiers = useServerFn(saveBenchmarkScoringTiersFn)
-  const activateScoring = useServerFn(activateBenchmarkScoringFn)
   const activateOnlineScoring = useServerFn(activateBenchmarkOnlineScoringFn)
+  const saveRatingBands = useServerFn(updateBenchmarkRatingBandsFn)
+  const saveCategories = useServerFn(updateBenchmarkCategoriesFn)
+  const createTest = useServerFn(createBenchmarkTestFn)
+  const updateTest = useServerFn(updateBenchmarkTestFn)
+  const removeTest = useServerFn(deleteBenchmarkTestFn)
+  const saveBenchmarkSettings = useServerFn(updateBenchmarkBatterySettingsFn)
   const variants = summary.variants.length > 0 ? summary.variants : ["male"]
   const defaultVariant = variants[0] ?? "male"
   const [selectedVariant, setSelectedVariant] = useState(defaultVariant)
@@ -158,7 +242,7 @@ function BenchmarkScoringTiersEditor({
       })
       setSummary(nextSummary)
       setDraft(buildDraft(nextSummary))
-      toast.success("Benchmark tiers saved")
+      toast.success("Tier thresholds saved")
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -167,26 +251,6 @@ function BenchmarkScoringTiersEditor({
       )
     } finally {
       setIsSaving(false)
-    }
-  }
-
-  const handleActivate = async () => {
-    setIsActivating(true)
-    try {
-      const nextSummary = await activateScoring({
-        data: { competitionId: summary.competitionId },
-      })
-      setSummary(nextSummary)
-      setDraft(buildDraft(nextSummary))
-      toast.success("Absolute-tier scoring activated")
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to activate benchmark scoring",
-      )
-    } finally {
-      setIsActivating(false)
     }
   }
 
@@ -210,6 +274,86 @@ function BenchmarkScoringTiersEditor({
     }
   }
 
+  const applySummary = (next: BenchmarkScoringTierSummary) => {
+    setSummary(next)
+    setDraft(buildDraft(next))
+  }
+
+  const handleSaveRatingBands = async (bands: RatingBandDraft[]) => {
+    const next = await saveRatingBands({
+      data: { competitionId: summary.competitionId, ratingBands: bands },
+    })
+    applySummary(next)
+    toast.success("Rating bands saved")
+  }
+
+  const handleSaveCategories = async (categories: CategoryDraft[]) => {
+    const next = await saveCategories({
+      data: {
+        competitionId: summary.competitionId,
+        categories: categories.map((category) => ({
+          key: category.key,
+          label: category.label,
+          weight: category.weight,
+        })),
+      },
+    })
+    applySummary(next)
+    toast.success("Categories saved")
+  }
+
+  const handleCreateTest = async (
+    test: TestDraft,
+    linkTrackWorkoutId: string | null,
+  ) => {
+    const { summary: next } = await createTest({
+      data: { competitionId: summary.competitionId, test, linkTrackWorkoutId },
+    })
+    applySummary(next)
+    toast.success("Event tiers created")
+  }
+
+  const handleUpdateTest = async (
+    testId: string,
+    updates: Partial<TestDraft>,
+  ) => {
+    const next = await updateTest({
+      data: { competitionId: summary.competitionId, testId, updates },
+    })
+    applySummary(next)
+    toast.success("Test updated")
+  }
+
+  const handleDeleteTest = async (testId: string) => {
+    const next = await removeTest({
+      data: { competitionId: summary.competitionId, testId },
+    })
+    applySummary(next)
+    toast.success("Test deleted")
+  }
+
+  const handleSaveBenchmarkSettings = async (
+    settings: BenchmarkSettingsDraft,
+  ) => {
+    const next = await saveBenchmarkSettings({
+      data: { competitionId: summary.competitionId, settings },
+    })
+    applySummary(next)
+    toast.success("Benchmark settings saved")
+  }
+
+  const categorySummaryItems: CategorySummaryItem[] = summary.categories.map(
+    (category) => ({
+      key: category.key,
+      label: category.label,
+      weight: category.weight,
+      totalTestCount: category.totalTestCount,
+    }),
+  )
+  const allCategoryOptions: CategoryOption[] = summary.categories.map(
+    (category) => ({ key: category.key, label: category.label }),
+  )
+
   return (
     <div className="space-y-6 pb-24">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -217,17 +361,15 @@ function BenchmarkScoringTiersEditor({
           <div className="flex items-center gap-2">
             <Gauge className="h-5 w-5 text-primary" />
             <h1 className="text-3xl font-bold tracking-tight">
-              Benchmark Tier Scoring
+              Benchmark Scoring
             </h1>
           </div>
           <p className="max-w-3xl text-sm text-muted-foreground">
-            Configure the fixed tier thresholds used by this benchmark battery.
+            Set up how athletes are scored: tests, tiers, categories, and
+            ratings.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={summary.isActive ? "default" : "secondary"}>
-            {summary.isActive ? "Active scoring" : "Not active"}
-          </Badge>
           <Badge variant="outline">{summary.battery.maxTier} tiers</Badge>
           <Badge variant="outline">
             {summary.includedTestCount} scored tests
@@ -236,16 +378,21 @@ function BenchmarkScoringTiersEditor({
       </div>
 
       {summary.isActive ? (
-        <Card>
+        <Card className="border-amber-200 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/20">
           <CardContent className="flex flex-col gap-4 py-5 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="font-semibold">
-                Benchmark tier scoring is active
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                The leaderboard is currently using these fixed benchmark tier
-                thresholds.
-              </p>
+            <div className="flex gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-600" />
+              <div>
+                <h2 className="font-semibold">
+                  Leaderboard is ranking by tier score
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  This competition still uses tier score as the ranking
+                  algorithm. Benchmark leaderboards now rank athletes with
+                  online scoring while tiers, category scores, and ratings
+                  display alongside as context.
+                </p>
+              </div>
             </div>
             <Button
               variant="outline"
@@ -262,70 +409,51 @@ function BenchmarkScoringTiersEditor({
           </CardContent>
         </Card>
       ) : (
-        <Card className="border-amber-200 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/20">
-          <CardContent className="flex flex-col gap-4 py-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex gap-3">
-              <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-600" />
-              <div>
-                <h2 className="font-semibold">
-                  Absolute-tier scoring is not active
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  This benchmark has a tier battery, but the leaderboard is not
-                  currently using it as the scoring algorithm.
-                </p>
-              </div>
+        <Card>
+          <CardContent className="flex gap-3 py-5">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 text-primary" />
+            <div>
+              <h2 className="font-semibold">Tier context is live</h2>
+              <p className="text-sm text-muted-foreground">
+                The leaderboard ranks athletes with online scoring. These tier
+                thresholds add context on top: each result shows its tier, and
+                athletes get category scores and an overall rating on the
+                leaderboard and stats pages.
+              </p>
             </div>
-            <Button onClick={handleActivate} disabled={isActivating}>
-              {isActivating ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-              )}
-              Activate tier scoring
-            </Button>
           </CardContent>
         </Card>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-4">
-        <MetricCard label="Battery" value={summary.battery.name} />
-        <MetricCard
-          label="Scoring scale"
-          value={`${summary.battery.scoreMax} points`}
-        />
-        <MetricCard
-          label="Threshold rows"
-          value={String(summary.thresholdCount)}
-        />
-        <MetricCard
-          label="Deferred tests"
-          value={String(summary.deferredTestCount)}
-        />
-      </div>
+      <HowScoringWorksCard summary={summary} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Rating Bands</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-            {summary.ratingBands.map((band) => (
-              <div
-                key={band.key}
-                className="flex items-center justify-between rounded-md border px-3 py-2"
-              >
-                <span className="text-sm font-medium">{band.label}</span>
-                <span className="text-sm tabular-nums text-muted-foreground">
-                  {band.minScore}-{band.maxScore}
-                </span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <BenchmarkSettingsForm
+        settings={summary.battery}
+        onSave={handleSaveBenchmarkSettings}
+      />
+
+      <CategoriesManager
+        categories={categorySummaryItems}
+        onSave={handleSaveCategories}
+      />
+
+      <RatingBandsEditor
+        bands={summary.ratingBands}
+        scoreMax={summary.battery.scoreMax}
+        onSave={handleSaveRatingBands}
+      />
 
       <div className="space-y-5">
+        <div className="space-y-1">
+          <h2 className="text-xl font-semibold tracking-tight">
+            Tier thresholds
+          </h2>
+          <p className="max-w-3xl text-sm text-muted-foreground">
+            For each test, enter the minimum result an athlete needs to reach
+            each tier — T1 is the easiest standard, T{summary.battery.maxTier}{" "}
+            the hardest. Thresholds are set separately per variant.
+          </p>
+        </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <Label
@@ -360,9 +488,23 @@ function BenchmarkScoringTiersEditor({
             <CardHeader className="gap-1">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <CardTitle>{category.label}</CardTitle>
-                <Badge variant="outline">
-                  {category.includedTestCount}/{category.testCount} scored
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">
+                    {category.includedTestCount}/{category.testCount} scored
+                  </Badge>
+                  <AddTestDialog
+                    categories={allCategoryOptions}
+                    defaultCategoryKey={category.key}
+                    maxTier={summary.battery.maxTier}
+                    variants={VARIANTS}
+                    events={summary.events.map((event) => ({
+                      id: event.trackWorkoutId,
+                      name: event.eventName,
+                      linkedTestName: event.linkedTestName,
+                    }))}
+                    onCreate={handleCreateTest}
+                  />
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -372,18 +514,41 @@ function BenchmarkScoringTiersEditor({
                 variant={activeVariant}
                 draft={draft}
                 onChange={handleRawValueChange}
+                categories={allCategoryOptions}
+                onUpdateTest={handleUpdateTest}
+                onDeleteTest={handleDeleteTest}
+                competitionId={summary.competitionId}
               />
               {category.tests.some((test) => !test.includedInScoring) && (
                 <div className="mt-4 rounded-md border bg-muted/30 p-3">
                   <p className="text-xs font-medium uppercase text-muted-foreground">
                     Deferred
                   </p>
-                  <p className="mt-1 text-sm">
+                  <ul className="mt-2 space-y-1">
                     {category.tests
                       .filter((test) => !test.includedInScoring)
-                      .map((test) => test.name)
-                      .join(", ")}
-                  </p>
+                      .map((test) => (
+                        <li
+                          key={test.id}
+                          className="flex items-center justify-between gap-2"
+                        >
+                          <div>
+                            <p className="text-sm font-medium">{test.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {test.inputUnit} · {test.scoreType}
+                            </p>
+                          </div>
+                          <EditTestDialog
+                            test={toEditableTest(test, summary.battery.maxTier)}
+                            categories={allCategoryOptions}
+                            maxTier={summary.battery.maxTier}
+                            variants={VARIANTS}
+                            onUpdate={handleUpdateTest}
+                            onDelete={handleDeleteTest}
+                          />
+                        </li>
+                      ))}
+                  </ul>
                 </div>
               )}
             </CardContent>
@@ -410,25 +575,16 @@ function BenchmarkScoringTiersEditor({
   )
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
-  return (
-    <Card>
-      <CardContent className="py-4">
-        <p className="text-xs font-medium uppercase text-muted-foreground">
-          {label}
-        </p>
-        <p className="mt-1 truncate text-lg font-semibold">{value}</p>
-      </CardContent>
-    </Card>
-  )
-}
-
 function ThresholdTable({
   tests,
   maxTier,
   variant,
   draft,
   onChange,
+  categories,
+  onUpdateTest,
+  onDeleteTest,
+  competitionId,
 }: {
   tests: BenchmarkScoringTierTest[]
   maxTier: number
@@ -440,6 +596,10 @@ function ThresholdTable({
     tier: number
     rawValue: string
   }) => void
+  categories: CategoryOption[]
+  onUpdateTest: (testId: string, updates: Partial<TestDraft>) => Promise<void>
+  onDeleteTest: (testId: string) => Promise<void>
+  competitionId: string
 }) {
   const tierHeaders = Array.from({ length: maxTier }, (_, index) => index + 1)
 
@@ -453,6 +613,7 @@ function ThresholdTable({
               T{tier}
             </TableHead>
           ))}
+          <TableHead className="w-12" />
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -464,6 +625,32 @@ function ThresholdTable({
                 <p className="text-xs text-muted-foreground">
                   {test.inputUnit} · {test.scoreType}
                 </p>
+                {test.scoreModel === "hybrid" && test.hybridFlipTier ? (
+                  <p className="text-xs text-muted-foreground">
+                    Reps at cap: T1–T{test.hybridFlipTier - 1} · Time: T
+                    {test.hybridFlipTier}–T{maxTier}
+                  </p>
+                ) : null}
+                {test.linkedEvent ? (
+                  <Link
+                    to="/compete/organizer/$competitionId/events/$eventId"
+                    params={{
+                      competitionId,
+                      eventId: test.linkedEvent.trackWorkoutId,
+                    }}
+                    className="block text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                  >
+                    Event: {test.linkedEvent.eventName}
+                  </Link>
+                ) : (
+                  <Link
+                    to="/compete/organizer/$competitionId/events"
+                    params={{ competitionId }}
+                    className="block text-xs font-medium text-amber-600 underline underline-offset-2 hover:text-amber-700"
+                  >
+                    No event linked
+                  </Link>
+                )}
               </div>
             </TableCell>
             {Array.from({ length: maxTier }, (_, index) => {
@@ -485,16 +672,57 @@ function ThresholdTable({
                         rawValue: event.target.value,
                       })
                     }
-                    className="h-8 w-20 text-center text-sm tabular-nums"
+                    placeholder={
+                      test.scoreModel === "hybrid" && test.hybridFlipTier
+                        ? tier < test.hybridFlipTier
+                          ? "reps"
+                          : "mm:ss"
+                        : undefined
+                    }
+                    className="h-8 w-24 px-1.5 text-center text-sm tabular-nums"
                   />
                 </TableCell>
               )
             })}
+            <TableCell className="align-top text-right">
+              <EditTestDialog
+                test={toEditableTest(test, maxTier)}
+                categories={categories}
+                maxTier={maxTier}
+                variants={VARIANTS}
+                onUpdate={onUpdateTest}
+                onDelete={onDeleteTest}
+              />
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>
     </Table>
   )
+}
+
+function toEditableTest(
+  test: BenchmarkScoringTierTest,
+  maxTier: number,
+): EditableTest {
+  const hasCompleteThresholds = benchmarkVariantSchema.options.every(
+    (variant) =>
+      (test.variants.find((entry) => entry.variant === variant)?.thresholds
+        .length ?? 0) === maxTier,
+  )
+
+  return {
+    id: test.id,
+    name: test.name,
+    categoryKey: test.categoryKey,
+    scheme: test.scheme,
+    scoreType: test.scoreType,
+    inputUnit: test.inputUnit,
+    includedInScoring: test.includedInScoring,
+    scoreModel: test.scoreModel,
+    hybridFlipTier: test.hybridFlipTier,
+    hasCompleteThresholds,
+  }
 }
 
 function buildDraft(

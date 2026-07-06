@@ -35,12 +35,6 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -49,6 +43,12 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { EVENT_STATUS, type EventStatus, type Sponsor } from "@/db/schema"
 import {
   type CompetitionWorkout,
@@ -91,6 +91,8 @@ interface CompetitionEventRowProps {
   seriesName?: string | null
   /** Template event name if this event is mapped to a series template */
   seriesTemplateName?: string
+  /** Benchmark category label of the linked benchmark test */
+  benchmarkCategoryLabel?: string | null
 }
 
 export function CompetitionEventRow({
@@ -112,6 +114,7 @@ export function CompetitionEventRow({
   eventDetailRoute = "/compete/organizer/$competitionId/events/$eventId",
   seriesName,
   seriesTemplateName,
+  benchmarkCategoryLabel,
 }: CompetitionEventRowProps) {
   const ref = useRef<HTMLDivElement>(null)
   const dragHandleRef = useRef<HTMLButtonElement>(null)
@@ -417,6 +420,11 @@ export function CompetitionEventRow({
                       </Tooltip>
                     </TooltipProvider>
                   )}
+                  {benchmarkCategoryLabel && (
+                    <span className="text-xs bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200 px-2 py-1 rounded shrink-0">
+                      {benchmarkCategoryLabel}
+                    </span>
+                  )}
                   {event.workout.scheme && (
                     <span className="text-xs bg-muted px-2 py-1 rounded shrink-0">
                       {event.workout.scheme}
@@ -550,6 +558,11 @@ export function CompetitionEventRow({
                     >
                       Series
                     </Badge>
+                  )}
+                  {benchmarkCategoryLabel && (
+                    <span className="text-xs bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200 px-2 py-1 rounded">
+                      {benchmarkCategoryLabel}
+                    </span>
                   )}
                   {event.workout.scheme && (
                     <span className="text-xs bg-muted px-2 py-1 rounded">
