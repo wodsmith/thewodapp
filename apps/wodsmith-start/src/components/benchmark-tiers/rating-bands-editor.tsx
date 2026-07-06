@@ -214,6 +214,7 @@ export function RatingBandsEditor({
   // fires when the serialized value actually changes, not on every render.
   const bandsRef = useRef(bands)
   bandsRef.current = bands
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset on server state change only
   useEffect(() => {
     setRows(toRows(bandsRef.current))
   }, [initialSerialized])
