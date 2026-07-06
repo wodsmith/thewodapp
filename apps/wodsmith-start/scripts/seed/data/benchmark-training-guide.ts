@@ -1,4 +1,9 @@
+import { STATUS_ORDER } from "../../../src/lib/scoring/constants"
 import { encodeScore } from "../../../src/lib/scoring/encode"
+import {
+	computeSortKey,
+	sortKeyToString,
+} from "../../../src/lib/scoring/sort/sort-key"
 import type { ScoreType, WorkoutScheme } from "../../../src/lib/scoring/types"
 
 export const BENCHMARK_SEED_IDS = {
@@ -28,25 +33,24 @@ export const BENCHMARK_SOURCE_RECEIPT = {
 		{ categoryKey: "scoresheet_crosswalk", pages: [17] },
 	],
 	designedTestCount: 58,
-	includedTestCount: 55,
-	deferredTestCount: 3,
+	includedTestCount: 58,
+	deferredTestCount: 0,
 	assumptions: [
 		"The PDF is source data only; seeded app-facing names and descriptions stay generic.",
-		"Weighted C2B Pull Up is deferred because v1 has no bodyweight-plus-added-load scoring contract.",
-		"Open 16.2 and Open 18.4 are deferred because v1 excludes hybrid reps/time scoring.",
-		"Deferred tests are seeded as benchmark_tests with includedInScoring=false and no tier threshold rows.",
+		"Weighted C2B Pull Up scores the added load in pounds: the BW threshold encodes as 0 lb, +N thresholds as N lb, and athletes enter 0 for a bodyweight rep.",
+		"Open 16.2 and Open 18.4 use hybrid reps/time scoring: rep tiers below hybridFlipTier are reps achieved at the time cap (encoded as plain integers), while time tiers at or above hybridFlipTier are finish times (encoded as milliseconds). A capped athlete stores the cap ms as score_value with reps completed in secondary_value.",
 		"The v1 seed uses videoPolicy \"never\" and isOpenJoin false so athletes use the normal registration flow before submitting scores.",
 	],
 } as const
 
 export const BENCHMARK_CATEGORIES = [
 	{ key: "strength", label: "Strength", testCount: 15, weight: 1 },
-	{ key: "gymnastics", label: "Gymnastics", testCount: 13, weight: 1 },
+	{ key: "gymnastics", label: "Gymnastics", testCount: 14, weight: 1 },
 	{ key: "engine", label: "Engine", testCount: 14, weight: 1 },
 	{
 		key: "benchmark_workout",
 		label: "Benchmark Workouts",
-		testCount: 13,
+		testCount: 15,
 		weight: 1,
 	},
 ] as const
@@ -97,6 +101,8 @@ interface RawBenchmarkTestRow {
 	scoreModel: BenchmarkScoreModel
 	hybridFlipTier: number | null
 	deferReason: string | null
+	/** Time cap in seconds; only set for hybrid reps/time tests. */
+	timeCapSeconds?: number
 	thresholds: Record<BenchmarkVariant, ThresholdTuple>
 }
 
@@ -798,10 +804,10 @@ const RAW_BENCHMARK_TESTS = [
     "scheme": "load",
     "scoreType": "max",
     "inputUnit": "lbs_added",
-    "includedInScoring": false,
+    "includedInScoring": true,
     "scoreModel": "standard",
     "hybridFlipTier": null,
-    "deferReason": "Requires bodyweight-plus-added-load scoring that is intentionally deferred to v2."
+    "deferReason": null
   },
   {
     "page": 10,
@@ -2280,10 +2286,11 @@ const RAW_BENCHMARK_TESTS = [
     "scheme": "time-with-cap",
     "scoreType": "min",
     "inputUnit": "hybrid_reps_time",
-    "includedInScoring": false,
+    "includedInScoring": true,
     "scoreModel": "hybrid",
     "hybridFlipTier": 9,
-    "deferReason": "Requires hybrid reps-then-time scoring that is intentionally deferred to v2."
+    "timeCapSeconds": 1200,
+    "deferReason": null
   },
   {
     "page": 15,
@@ -2358,10 +2365,11 @@ const RAW_BENCHMARK_TESTS = [
     "scheme": "time-with-cap",
     "scoreType": "min",
     "inputUnit": "hybrid_reps_time",
-    "includedInScoring": false,
+    "includedInScoring": true,
     "scoreModel": "hybrid",
     "hybridFlipTier": 7,
-    "deferReason": "Requires hybrid reps-then-time scoring that is intentionally deferred to v2."
+    "timeCapSeconds": 540,
+    "deferReason": null
   }
 ] as const satisfies ReadonlyArray<RawBenchmarkTestRow>
 
@@ -2399,7 +2407,27 @@ function commonColumns(ts: string) {
 	return { created_at: ts, updated_at: ts, update_counter: 0 }
 }
 
-function encodeThresholdValue(rawValue: string, test: BenchmarkSeedTest): number {
+function encodeThresholdValue(
+	rawValue: string,
+	test: BenchmarkSeedTest,
+	tier: number,
+): number {
+	// Hybrid reps/time tests: tiers below the flip point are reps achieved at
+	// the time cap, encoded as plain integers. Tiers at/above the flip point are
+	// finish times and fall through to the standard time encoding below.
+	if (
+		test.scoreModel === "hybrid" &&
+		test.hybridFlipTier !== null &&
+		tier < test.hybridFlipTier
+	) {
+		if (!/^\d+$/.test(rawValue)) {
+			throw new Error(
+				`Expected integer reps for hybrid rep tier ${tier} of ${test.name}, got "${rawValue}"`,
+			)
+		}
+		return Number.parseInt(rawValue, 10)
+	}
+
 	let encoded: number | null
 
 	if (test.inputUnit === "in") {
@@ -2411,6 +2439,12 @@ function encodeThresholdValue(rawValue: string, test: BenchmarkSeedTest): number
 		encoded = encodeScore(rawValue, test.scheme, { unit: "ft" })
 	} else if (test.inputUnit === "lb") {
 		encoded = encodeScore(rawValue, test.scheme, { unit: "lbs" })
+	} else if (test.inputUnit === "lbs_added") {
+		// Added-load tests score only the extra weight: the source "BW" tier
+		// encodes as 0 lb and "+N" tiers as N lb, so athletes enter 0 for a
+		// bodyweight rep and the added pounds otherwise.
+		const numeric = rawValue === "BW" ? "0" : rawValue.replace(/^\+/, "")
+		encoded = encodeScore(numeric, test.scheme, { unit: "lbs" })
 	} else {
 		encoded = encodeScore(rawValue, test.scheme)
 	}
@@ -2436,7 +2470,7 @@ export function buildBenchmarkThresholdRows(ts: string) {
 					test_id: test.id,
 					variant,
 					tier,
-					threshold_value: encodeThresholdValue(rawValue, test),
+					threshold_value: encodeThresholdValue(rawValue, test, tier),
 					raw_value: rawValue,
 					...commonColumns(ts),
 				}
@@ -2557,15 +2591,20 @@ export function buildBenchmarkSeedRows(ts: string) {
 		workouts: BENCHMARK_SEED_TESTS.map((test) => ({
 			id: test.workoutId,
 			name: test.name,
-			description: test.includedInScoring
-				? `Benchmark test using ${test.inputUnit} thresholds.`
-				: `Deferred benchmark test: ${test.deferReason}`,
+			description:
+				test.scoreModel === "hybrid"
+					? "Hybrid reps/time benchmark test. Finishers enter their time; capped athletes enter reps completed at the cap."
+					: test.inputUnit === "lbs_added"
+						? "Benchmark test scored as added weight in pounds. Enter 0 if bodyweight."
+						: test.includedInScoring
+							? `Benchmark test using ${test.inputUnit} thresholds.`
+							: `Deferred benchmark test: ${test.deferReason}`,
 			scope: "public",
 			scheme: test.scheme,
 			score_type: test.scoreType,
 			rounds_to_score: 1,
 			team_id: BENCHMARK_SEED_IDS.organizingTeamId,
-			time_cap: null,
+			time_cap: test.timeCapSeconds ?? null,
 			scaling_group_id: BENCHMARK_SEED_IDS.scalingGroupId,
 			...commonColumns(ts),
 		})),
@@ -2622,12 +2661,198 @@ export function buildBenchmarkSeedRows(ts: string) {
 			score_type: test.scoreType,
 			input_unit: test.inputUnit,
 			included_in_scoring: test.includedInScoring,
-			time_cap_ms: null,
+			time_cap_ms: test.timeCapSeconds ? test.timeCapSeconds * 1000 : null,
 			score_model: test.scoreModel,
 			hybrid_flip_tier: test.hybridFlipTier,
-			hybrid_scale: test.scoreModel === "hybrid" ? test.deferReason : null,
+			hybrid_scale: null,
 			...commonColumns(ts),
 		})),
 		benchmarkTierThresholds: buildBenchmarkThresholdRows(ts),
+	}
+}
+
+export interface BenchmarkSeedAthlete {
+	key: string
+	userId: string
+	membershipId: string
+	registrationId: string
+	variant: BenchmarkVariant
+	/** Typical tier (1-10) this athlete lands on across the battery. */
+	baseTier: number
+	/** Per-category tier adjustment to give each athlete a distinct profile. */
+	categoryBias: Partial<Record<BenchmarkCategoryKey, number>>
+}
+
+function benchmarkAthlete(
+	key: string,
+	userId: string,
+	variant: BenchmarkVariant,
+	baseTier: number,
+	categoryBias: Partial<Record<BenchmarkCategoryKey, number>> = {},
+): BenchmarkSeedAthlete {
+	return {
+		key,
+		userId,
+		membershipId: `tmem_${key}_training_guide`,
+		registrationId: `creg_${key}_training_guide`,
+		variant,
+		baseTier,
+		categoryBias,
+	}
+}
+
+/**
+ * Ten seeded athletes (users come from 03-users) spanning the rating bands.
+ * Male and female athletes score against their own variant thresholds.
+ */
+export const BENCHMARK_SEED_ATHLETES: ReadonlyArray<BenchmarkSeedAthlete> = [
+	benchmarkAthlete("tyler", "usr_athlete_tyler", "male", 9),
+	benchmarkAthlete("nathan", "usr_athlete_nathan", "male", 7, {
+		engine: 1,
+		strength: -1,
+	}),
+	benchmarkAthlete("derek", "usr_athlete_derek", "male", 6, { strength: 1 }),
+	benchmarkAthlete("marcus", "usr_athlete_marcus", "male", 5, {
+		strength: 2,
+		engine: -1,
+	}),
+	benchmarkAthlete("alex", "usr_athlete_alex", "male", 3, { engine: 2 }),
+	benchmarkAthlete("sarah", "usr_athlete_sarah", "female", 8, {
+		gymnastics: 1,
+	}),
+	benchmarkAthlete("megan", "usr_athlete_megan", "female", 6, {
+		benchmark_workout: 1,
+	}),
+	benchmarkAthlete("lauren", "usr_athlete_lauren", "female", 5, {
+		gymnastics: -1,
+		engine: 1,
+	}),
+	benchmarkAthlete("nicole", "usr_athlete_nicole", "female", 4),
+	benchmarkAthlete("ashley", "usr_athlete_ashley", "female", 2, {
+		strength: 1,
+	}),
+]
+
+/**
+ * Deterministic tier for an athlete on a test: base tier plus category bias
+ * plus a -2..+2 jitter derived from the test position, clamped to 1..10.
+ */
+function benchmarkTierFor(
+	athlete: BenchmarkSeedAthlete,
+	athleteIndex: number,
+	test: BenchmarkSeedTest,
+): number {
+	const bias = athlete.categoryBias[test.categoryKey] ?? 0
+	const jitter = ((test.position * 7 + athleteIndex * 3) % 5) - 2
+	return Math.min(10, Math.max(1, athlete.baseTier + bias + jitter))
+}
+
+/**
+ * Memberships on the competition team, registrations into the Open division,
+ * and one score per athlete per included test. Score values sit exactly on a
+ * tier threshold so the achieved tier is known by construction.
+ */
+export function buildBenchmarkAthleteSeedRows(ts: string) {
+	const scores = BENCHMARK_SEED_ATHLETES.flatMap((athlete, athleteIndex) =>
+		BENCHMARK_SEED_TESTS.filter((test) => test.includedInScoring).map(
+			(test) => {
+				const tier = benchmarkTierFor(athlete, athleteIndex, test)
+				const rawValue = test.thresholds[athlete.variant][tier - 1]
+				const capMs = test.timeCapSeconds
+					? test.timeCapSeconds * 1000
+					: null
+				const isHybridRepTier =
+					test.scoreModel === "hybrid" &&
+					test.hybridFlipTier !== null &&
+					tier < test.hybridFlipTier
+
+				// Shared columns. batchInsert derives the column list from the first
+				// row, so every score row must carry the same keys — including
+				// time_cap_ms and secondary_value even when they are null.
+				const base = {
+					id: `scr_tgb_${athlete.key}_${test.slug}`,
+					user_id: athlete.userId,
+					team_id: BENCHMARK_SEED_IDS.organizingTeamId,
+					workout_id: test.workoutId,
+					competition_event_id: test.trackWorkoutId,
+					scheme: test.scheme,
+					score_type: test.scoreType,
+					scaling_level_id: BENCHMARK_SEED_IDS.divisionId,
+					benchmark_variant: athlete.variant,
+					as_rx: 1,
+					recorded_at: ts,
+					...commonColumns(ts),
+				}
+
+				if (isHybridRepTier) {
+					// Capped athlete: stores the cap time as the primary value with
+					// reps completed in secondary_value. Hybrid tests always have a cap.
+					const cap = capMs as number
+					const reps = Number.parseInt(rawValue, 10)
+					return {
+						...base,
+						score_value: cap,
+						status: "cap",
+						status_order: STATUS_ORDER.cap,
+						time_cap_ms: cap,
+						secondary_value: reps,
+						sort_key: sortKeyToString(
+							computeSortKey({
+								value: cap,
+								status: "cap",
+								scheme: test.scheme,
+								scoreType: test.scoreType,
+								timeCap: { ms: cap, secondaryValue: reps },
+							}),
+						),
+					}
+				}
+
+				const scoreValue = encodeThresholdValue(rawValue, test, tier)
+				return {
+					...base,
+					score_value: scoreValue,
+					status: "scored",
+					status_order: 0,
+					time_cap_ms: capMs,
+					secondary_value: null,
+					sort_key: sortKeyToString(
+						computeSortKey({
+							value: scoreValue,
+							status: "scored",
+							scheme: test.scheme,
+							scoreType: test.scoreType,
+						}),
+					),
+				}
+			},
+		),
+	)
+
+	return {
+		teamMemberships: BENCHMARK_SEED_ATHLETES.map((athlete) => ({
+			id: athlete.membershipId,
+			team_id: BENCHMARK_SEED_IDS.competitionTeamId,
+			user_id: athlete.userId,
+			role_id: "member",
+			is_system_role: 1,
+			joined_at: ts,
+			is_active: 1,
+			metadata: null,
+			...commonColumns(ts),
+		})),
+		competitionRegistrations: BENCHMARK_SEED_ATHLETES.map((athlete) => ({
+			id: athlete.registrationId,
+			event_id: BENCHMARK_SEED_IDS.competitionId,
+			user_id: athlete.userId,
+			team_member_id: athlete.membershipId,
+			division_id: BENCHMARK_SEED_IDS.divisionId,
+			captain_user_id: athlete.userId,
+			registered_at: ts,
+			payment_status: "FREE",
+			paid_at: null,
+			...commonColumns(ts),
+		})),
+		scores,
 	}
 }

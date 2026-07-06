@@ -1,11 +1,16 @@
 import type { Connection } from "mysql2/promise"
-import { buildBenchmarkSeedRows } from "../data/benchmark-training-guide"
+import {
+	buildBenchmarkAthleteSeedRows,
+	buildBenchmarkSeedRows,
+} from "../data/benchmark-training-guide"
 import { batchInsert, now } from "../helpers"
 
 export async function seed(client: Connection): Promise<void> {
 	console.log("Seeding benchmark battery data...")
 
-	const rows = buildBenchmarkSeedRows(now())
+	const ts = now()
+	const rows = buildBenchmarkSeedRows(ts)
+	const athleteRows = buildBenchmarkAthleteSeedRows(ts)
 
 	await batchInsert(client, "teams", rows.teams)
 	await batchInsert(client, "team_memberships", rows.teamMemberships)
@@ -23,4 +28,14 @@ export async function seed(client: Connection): Promise<void> {
 		"benchmark_tier_thresholds",
 		rows.benchmarkTierThresholds,
 	)
+
+	// Athletes: memberships on the competition team, Open-division
+	// registrations, and tier-anchored scores for every included test.
+	await batchInsert(client, "team_memberships", athleteRows.teamMemberships)
+	await batchInsert(
+		client,
+		"competition_registrations",
+		athleteRows.competitionRegistrations,
+	)
+	await batchInsert(client, "scores", athleteRows.scores)
 }
