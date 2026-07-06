@@ -17,7 +17,7 @@ This file records what implementers should treat as settled, what still requires
 - Defer Weighted C2B, Open 16.2, and Open 18.4 from v1 scoring.
 - Use `/Users/zacjones/Downloads/HillerFit_Training_Guide.pdf` as the source artifact for the first benchmark seed.
 - Treat the PDF as source data only; do not build any HillerFit-branded page, route, tab, product navigation item, marketing surface, logo, call to action, theme treatment, or customer-facing product area.
-- The first seed sets `videoPolicy: "never"` and `isOpenJoin: true`; M3 must enforce the guarded open-join checks before athlete writes.
+- The first seed sets `videoPolicy: "never"` and `isOpenJoin: false`, so athletes register through the normal flow before scoring; the guarded open-join checks stay dormant until M3 wires the lazy-register path into the submit flow.
 - M3 uses a small mockable in-process benchmark open-join rate-limit boundary because no shared app-level limiter exists yet. A durable store-backed limiter can replace the boundary without changing the benchmark submission helper contract.
 - Until a v2 top-N setting exists, `videoPolicy: "for_top_scores"` means video evidence is required when the candidate reaches the top configured tier for that benchmark test. Non-top attempts may remain score-only.
 
