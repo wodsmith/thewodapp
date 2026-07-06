@@ -29,7 +29,10 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { WorkoutPreview } from "@/components/workout-preview"
 import { useIsMobile } from "@/hooks/use-mobile"
-import { leaderboardVariant } from "@/lib/competitions/capabilities"
+import {
+  type CompetitionTypeId,
+  leaderboardVariant,
+} from "@/lib/competitions/capabilities"
 import { cn } from "@/lib/utils"
 import {
   type DivisionDescription,
@@ -49,7 +52,7 @@ interface LeaderboardDivision {
 
 interface LeaderboardCompetitionInfo {
   slug: string
-  competitionType: string
+  competitionType: CompetitionTypeId
 }
 
 /**

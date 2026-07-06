@@ -866,10 +866,19 @@ export async function getCompetitionLeaderboard(params: {
   const scorableEvents = filteredTrackWorkouts.filter(
     (tw) => !childEventIds.has(tw.id),
   )
+  // Benchmark context is built from the full (unfiltered) event list: the
+  // battery's test↔event mapping must validate against every event, so a
+  // division-filtered view doesn't fail closed and lose tier context.
+  // Lookups stay scoped to visible events via `testsByTrackWorkoutId`.
+  const allParentEventIds = new Set(
+    trackWorkouts
+      .filter((tw) => tw.parentEventId)
+      .map((tw) => tw.parentEventId as string),
+  )
   const benchmarkContext = await loadBenchmarkLeaderboardContext({
     competitionId: params.competitionId,
     competitionType: competition.competitionType,
-    trackWorkouts: scorableEvents,
+    trackWorkouts: trackWorkouts.filter((tw) => !allParentEventIds.has(tw.id)),
   })
 
   const getBenchmarkEventMetadata = (trackWorkoutId: string) =>
@@ -1031,17 +1040,19 @@ export async function getCompetitionLeaderboard(params: {
     Array<{ id: string; videoIndex: number; reviewStatus: ReviewStatus }>
   >()
   // Sort so videoIndex 0 (captain) is the representative entry in `videoMap`.
-  const sortedVideoSubmissions = [...videoSubmissions]
-    .filter(
-      (submission) =>
-        !benchmarkContext ||
-        params.bypassPublicationFilter === true ||
-        submission.reviewStatus !== "invalid",
-    )
-    .sort((a, b) => a.videoIndex - b.videoIndex)
+  // Invalid videos are hidden from public benchmark boards (never the
+  // representative link) but stay in `videoSubmissionsByKey` so
+  // `reviewSummary` still counts every submission.
+  const hideAsRepresentative = (reviewStatus: string) =>
+    !!benchmarkContext &&
+    params.bypassPublicationFilter !== true &&
+    reviewStatus === "invalid"
+  const sortedVideoSubmissions = [...videoSubmissions].sort(
+    (a, b) => a.videoIndex - b.videoIndex,
+  )
   for (const vs of sortedVideoSubmissions) {
     const key = `${vs.registrationId}:${vs.trackWorkoutId}`
-    if (!videoMap.has(key)) {
+    if (!videoMap.has(key) && !hideAsRepresentative(vs.reviewStatus)) {
       videoMap.set(key, {
         url: vs.videoUrl,
         submissionId: vs.id,
