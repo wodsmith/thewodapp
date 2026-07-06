@@ -1,5 +1,7 @@
 import {
   DEFAULT_TIMEZONE,
+  getEndOfDayInTimezone,
+  getStartOfDayInTimezone,
   hasDateStartedInTimezone,
   isDeadlinePassedInTimezone,
 } from "@/utils/timezone-utils"
@@ -20,8 +22,15 @@ export function getRegistrationWindowStatus({
   timezone?: string | null
 }): RegistrationWindowStatus {
   const competitionTimezone = timezone || DEFAULT_TIMEZONE
-  const hasOpened = hasDateStartedInTimezone(opensAt, competitionTimezone)
-  const hasClosed = isDeadlinePassedInTimezone(closesAt, competitionTimezone)
+  // Fail closed: a malformed date must not make registration appear open
+  const opensAtInvalid =
+    !!opensAt && !getStartOfDayInTimezone(opensAt, competitionTimezone)
+  const closesAtInvalid =
+    !!closesAt && !getEndOfDayInTimezone(closesAt, competitionTimezone)
+  const hasOpened =
+    !opensAtInvalid && hasDateStartedInTimezone(opensAt, competitionTimezone)
+  const hasClosed =
+    closesAtInvalid || isDeadlinePassedInTimezone(closesAt, competitionTimezone)
 
   return {
     registrationOpen: hasOpened && !hasClosed,
