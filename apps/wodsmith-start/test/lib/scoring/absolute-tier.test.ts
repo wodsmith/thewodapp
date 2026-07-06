@@ -114,6 +114,24 @@ describe("absolute-tier scoring", () => {
 		).toThrow(BenchmarkConfigError)
 	})
 
+	it("denies finish-time tiers to capped scores in non-hybrid asc mode", () => {
+		// Non-hybrid time-with-cap test (cap 20:00): every threshold is a finish
+		// time. A capped athlete's value is the cap time, not a finish, so it
+		// must not clear the generous 25:00 tier-1 threshold.
+		const eventTable = table("min", thresholds([1_500_000, 1_200_000, 900_000]))
+
+		expect(
+			calculateAbsoluteTier(
+				score(1_200_000, { status: "cap", secondaryValue: 150 }),
+				eventTable,
+				"time-with-cap",
+			),
+		).toBe(0.5)
+		expect(
+			calculateAbsoluteTier(score(1_200_000), eventTable, "time-with-cap"),
+		).toBe(2)
+	})
+
 	function hybridTable(
 		values: readonly number[],
 		hybridFlipTier: number,

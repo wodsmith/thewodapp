@@ -72,7 +72,9 @@ export function calculateAbsoluteTier(
     const meetsThreshold = hybridFlipTier
       ? meetsHybridThreshold(score, threshold, hybridFlipTier)
       : sortDirection === "asc"
-        ? score.value <= threshold.value
+        ? // Ascending thresholds are finish times; a capped athlete's value
+          // is the cap time, not a finish, so only completed scores qualify.
+          score.status === "scored" && score.value <= threshold.value
         : score.value >= threshold.value
 
     if (meetsThreshold) {
