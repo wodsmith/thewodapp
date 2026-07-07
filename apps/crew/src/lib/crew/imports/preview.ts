@@ -12,6 +12,11 @@ import { parseCrewImportFile } from "./file"
 import { normalizeHeatScheduleRow } from "./normalize-heat-row"
 import { normalizeVolunteerRow } from "./normalize-volunteer-row"
 import {
+  planVolunteerQuestionColumns,
+  type ResolvedQuestionColumn,
+  resolveVolunteerQuestionColumns,
+} from "./question-mapping"
+import {
   type ColumnMapping,
   CREW_IMPORT_PARSER_VERSION,
   type CrewImportKind,
@@ -19,6 +24,7 @@ import {
   type CrewImportPreviewContext,
   type ImportIssue,
   type PreviewImportRow,
+  type VolunteerQuestionPreviewSummary,
 } from "./types"
 
 const MAX_PREVIEW_ROWS = 500
@@ -58,13 +64,35 @@ export function buildCrewImportPreview({
     parsed.headers,
     kind,
   )
+
+  const resolvedQuestionColumns =
+    kind === "volunteers"
+      ? resolveVolunteerQuestionColumns(
+          mapping,
+          context.volunteerQuestions ?? [],
+        )
+      : []
+  const questionPlan =
+    kind === "volunteers"
+      ? planVolunteerQuestionColumns(
+          resolvedQuestionColumns,
+          parsed.rows.map((record) => record.values),
+        )
+      : null
+
   const fileIssues = [
     ...parsed.fileIssues,
     ...validateRequiredMapping(kind, mapping),
+    ...(questionPlan?.warnings ?? []),
   ]
   const rows =
     kind === "volunteers"
-      ? buildVolunteerRows(parsed.rows, mapping, context)
+      ? buildVolunteerRows(
+          parsed.rows,
+          mapping,
+          context,
+          resolvedQuestionColumns,
+        )
       : buildHeatScheduleRows(parsed.rows, mapping, context)
   const warningCount =
     fileIssues.filter((issue) => issue.severity === "warning").length +
@@ -72,6 +100,15 @@ export function buildCrewImportPreview({
   const errorCount =
     fileIssues.filter((issue) => issue.severity === "error").length +
     rows.reduce((total, row) => total + row.errors.length, 0)
+
+  const volunteerQuestionPlan: VolunteerQuestionPreviewSummary | undefined =
+    questionPlan
+      ? {
+          columns: questionPlan.columns,
+          questionsToCreate: questionPlan.questionsToCreate,
+          totalAnswerCount: questionPlan.totalAnswerCount,
+        }
+      : undefined
 
   return {
     kind,
@@ -84,6 +121,7 @@ export function buildCrewImportPreview({
     skippedRowCount: parsed.skippedRowCount,
     warningCount,
     errorCount,
+    volunteerQuestionPlan,
   }
 }
 
@@ -91,6 +129,7 @@ function buildVolunteerRows(
   records: ReturnType<typeof parseCsv>["rows"],
   mapping: ColumnMapping,
   context: CrewImportPreviewContext,
+  resolvedQuestionColumns: ResolvedQuestionColumn[],
 ) {
   const knownRoles = new Set(
     context.roleLabels.map((role) => normalizeLookupValue(role)),
@@ -99,7 +138,11 @@ function buildVolunteerRows(
     context.divisions.map((division) => normalizeLookupValue(division.label)),
   )
   const rows: PreviewImportRow[] = records.map((record) => {
-    const normalized = normalizeVolunteerRow(record, mapping)
+    const normalized = normalizeVolunteerRow(
+      record,
+      mapping,
+      resolvedQuestionColumns,
+    )
     const warnings = [
       ...record.issues.filter((issue) => issue.severity === "warning"),
       ...normalized.issues.filter((issue) => issue.severity === "warning"),

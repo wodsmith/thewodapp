@@ -47,6 +47,35 @@ describe("parseCsv", () => {
     expect(parsed.rows[0]?.values.__extra_1).toBe("extra")
   })
 
+  it("reports singular skipped-row grammar at the preview limit", () => {
+    const parsed = parseCsv("Name\nIan\nAda", { maxRows: 1 })
+
+    expect(parsed.skippedRowCount).toBe(1)
+    expect(parsed.fileIssues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "preview_row_limit",
+          message: "1 row was skipped after the preview limit.",
+        }),
+      ]),
+    )
+  })
+
+  it("rejects blank header cells before row mapping", () => {
+    const parsed = parseCsv("Name,,Email\nIan,ignored,ian@example.com")
+
+    expect(parsed.rows).toHaveLength(0)
+    expect(parsed.fileIssues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "missing_headers",
+          severity: "error",
+          message: "CSV header cell at column 2 is blank.",
+        }),
+      ]),
+    )
+  })
+
   it("rejects duplicate non-empty headers before row mapping", () => {
     const parsed = parseCsv("Name,Email,email\nIan,first@example.com,second")
 
@@ -105,6 +134,76 @@ describe("buildCrewImportPreview", () => {
       ]),
     )
     expect(preview.rows[1]?.action).toBe("skip")
+  })
+
+  it("auto-maps Competition Corner volunteer export headers to first-class fields", () => {
+    const preview = buildCrewImportPreview({
+      kind: "volunteers",
+      context: previewContext,
+      csvText: [
+        "Id,First Name,Last Name,Email,Area Code/Country Code,Phone,Shirt Size,Create Date,Preference 1,Preference 2,Preference 3",
+        "9001,Ian,Jones,ian@example.com,1,5551234567,L,2026-06-01,Lane judges,Check-in,Media",
+      ].join("\n"),
+    })
+
+    expect(preview.columnMapping).toMatchObject({
+      sourceExternalId: "Id",
+      email: "Email",
+      phoneCountryCode: "Area Code/Country Code",
+      phone: "Phone",
+      shirtSize: "Shirt Size",
+      sourceCreatedAt: "Create Date",
+      rolePreference1: "Preference 1",
+      rolePreference2: "Preference 2",
+      rolePreference3: "Preference 3",
+    })
+    expect(preview.rows[0]?.normalizedRow).toMatchObject({
+      phoneCountryCode: "1",
+      phone: "5551234567",
+      shirtSize: "L",
+      sourceExternalId: "9001",
+      sourceCreatedAt: "2026-06-01",
+      rolePreference1: "Lane judges",
+      rolePreference2: "Check-in",
+      rolePreference3: "Media",
+    })
+  })
+
+  it("carries question answers and plans new questions for mapped columns", () => {
+    const preview = buildCrewImportPreview({
+      kind: "volunteers",
+      context: {
+        ...previewContext,
+        volunteerQuestions: [{ id: "crq_gender", label: "Gender" }],
+      },
+      columnMapping: {
+        email: "Email",
+        "question:crq_gender": "Gender",
+        "newQuestion:Shoe Size": "Shoe Size",
+        "newQuestion:Instagram": "Instagram",
+      },
+      csvText: [
+        "Name,Email,Gender,Shoe Size,Instagram",
+        "Ian Jones,ian@example.com,F,10,",
+        "Ada Lin,ada@example.com,,9,",
+      ].join("\n"),
+    })
+
+    expect(preview.volunteerQuestionPlan?.questionsToCreate).toEqual([
+      "Shoe Size",
+    ])
+    expect(preview.volunteerQuestionPlan?.totalAnswerCount).toBe(3)
+    expect(preview.rows[0]?.normalizedRow).toMatchObject({
+      questionAnswers: [
+        { questionId: "crq_gender", label: "Gender", answer: "F" },
+        { questionId: null, label: "Shoe Size", answer: "10" },
+      ],
+    })
+    expect(preview.fileIssues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "empty_question_column" }),
+      ]),
+    )
   })
 
   it("flags missing volunteer required fields", () => {

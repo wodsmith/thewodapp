@@ -6,17 +6,21 @@ import { z } from "zod"
 import { getDb } from "../db"
 import {
   createCompetitionHeatId,
+  createCompetitionRegistrationQuestionId,
   createCompetitionVenueId,
   createCrewImportId,
   createCrewImportMappingPresetId,
   createProgrammingTrackId,
   createTeamInvitationId,
   createTrackWorkoutId,
+  createVolunteerRegistrationAnswerId,
 } from "../db/schemas/common"
 import {
   competitionHeatsTable,
+  competitionRegistrationQuestionsTable,
   competitionsTable,
   competitionVenuesTable,
+  volunteerRegistrationAnswersTable,
 } from "../db/schemas/competitions"
 import { crewEventSettingsTable } from "../db/schemas/crew-event-settings"
 import {
@@ -73,6 +77,7 @@ import {
   summarizeApplyRows,
   type VolunteerApplyRowPlan,
 } from "../lib/crew/imports/apply"
+import { selectBuiltInImportMappingSuggestion } from "../lib/crew/imports/builtin-presets"
 import { isSupportedCrewImportFile } from "../lib/crew/imports/file"
 import {
   buildCrewImportMappingPresetWrite,
@@ -86,6 +91,11 @@ import {
   buildCrewImportPreview,
   defaultCrewImportRoleLabels,
 } from "../lib/crew/imports/preview"
+import {
+  buildVolunteerAnswerUpserts,
+  collectVolunteerQuestionsToCreate,
+  normalizeQuestionLabel,
+} from "../lib/crew/imports/question-mapping"
 import {
   type ColumnMapping,
   CREW_IMPORT_PARSER_VERSION,
@@ -219,6 +229,18 @@ export interface CrewImportReferenceData {
   divisions: CrewImportPreviewContext["divisions"]
   workouts: CrewImportPreviewContext["workouts"]
   heats: CrewImportPreviewContext["heats"]
+  volunteerQuestions: CrewVolunteerImportQuestion[]
+}
+
+export interface CrewVolunteerImportQuestion {
+  id: string
+  label: string
+  type: "text" | "select" | "number"
+  source: "competition" | "series"
+}
+
+export interface CrewVolunteerImportQuestionsResult {
+  questions: CrewVolunteerImportQuestion[]
 }
 
 export interface PersistedCrewImportPreview extends CrewImportPreview {
@@ -236,6 +258,9 @@ export interface CrewImportsPageData {
 
 export interface CrewImportMappingSuggestionResult {
   suggestion: CrewImportMappingSuggestion | null
+  // Code-defined built-in preset match (e.g. Competition Corner), independent
+  // of team-saved presets. Team suggestions take precedence when both exist.
+  builtInSuggestion: CrewImportMappingSuggestion | null
 }
 
 export interface CrewImportMappingPresetSaveResult {
@@ -258,6 +283,30 @@ export async function loadCrewImportsPageData(
   return { reference, history }
 }
 
+export async function getCrewVolunteerImportQuestions(input: {
+  eventId: string
+}): Promise<CrewVolunteerImportQuestionsResult> {
+  const data = z
+    .object({ eventId: z.string().min(1, "Event ID is required") })
+    .parse(input)
+  const event = await requireCrewEvent(data.eventId)
+  await requireCrewEventManagerAccess(event, "Crew import questions")
+  const questions = await listVolunteerQuestionsForEvent(
+    getDb(),
+    event.id,
+    event.groupId,
+  )
+
+  return {
+    questions: questions.map((question) => ({
+      id: question.id,
+      label: question.label,
+      type: question.type,
+      source: question.source,
+    })),
+  }
+}
+
 export async function getCrewImportMappingSuggestion(input: {
   eventId: string
   kind: CrewImportKind
@@ -273,8 +322,12 @@ export async function getCrewImportMappingSuggestion(input: {
     sourcePlatform: data.sourcePlatform,
     headers: data.headers,
   })
+  const builtInSuggestion = selectBuiltInImportMappingSuggestion({
+    kind: data.kind,
+    headers: data.headers,
+  })
 
-  return { suggestion }
+  return { suggestion, builtInSuggestion }
 }
 
 export async function saveCrewImportMappingPreset(input: {
@@ -570,10 +623,19 @@ async function applyVolunteerImport({
   previewRows: PreviewImportRow[]
 }): Promise<CrewImportApplyResult> {
   const db = getDb()
-  const [existingInvitations, existingMemberships] = await Promise.all([
-    listVolunteerInvitations(db, event.competitionTeamId),
-    listVolunteerMemberships(db, event.competitionTeamId),
-  ])
+  const [existingInvitations, existingMemberships, existingQuestions] =
+    await Promise.all([
+      listVolunteerInvitations(db, event.competitionTeamId),
+      listVolunteerMemberships(db, event.competitionTeamId),
+      listVolunteerQuestionsForEvent(db, event.id, event.groupId),
+    ])
+  const volunteerRows = previewRows.map(
+    (row) => row.normalizedRow as VolunteerImportRow,
+  )
+  const questionsToCreate = collectVolunteerQuestionsToCreate({
+    rows: volunteerRows,
+    existingQuestions,
+  })
   const invitationMetadataById = new Map(
     existingInvitations.map((invitation) => [
       invitation.id,
@@ -599,9 +661,41 @@ async function applyVolunteerImport({
   )
   const timestamp = new Date()
 
+  let createdQuestionCount = 0
+  let answerCount = 0
+
   await db.transaction(async (tx) => {
     const client = tx as unknown as DbClient
     await claimCrewImportForApply(client, importRecord, timestamp)
+
+    const questionIdByNormalizedLabel = new Map(
+      existingQuestions.map((question) => [
+        normalizeQuestionLabel(question.label),
+        question.id,
+      ]),
+    )
+    for (const question of questionsToCreate) {
+      const questionId = createCompetitionRegistrationQuestionId()
+      await client.insert(competitionRegistrationQuestionsTable).values({
+        id: questionId,
+        competitionId: event.id,
+        type: "text",
+        label: question.label,
+        required: false,
+        forTeammates: false,
+        sortOrder: question.sortOrder,
+        questionTarget: "volunteer",
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      })
+      questionIdByNormalizedLabel.set(
+        normalizeQuestionLabel(question.label),
+        questionId,
+      )
+      createdQuestionCount += 1
+    }
+
+    const invitationIdByRowNumber = new Map<number, string>()
 
     for (const row of plan.rows) {
       if (row.operation === "create_invitation") {
@@ -632,6 +726,10 @@ async function applyVolunteerImport({
           ),
           timestamp,
         )
+      }
+
+      if (row.targetType === "team_invitation" && row.targetId) {
+        invitationIdByRowNumber.set(row.rowNumber, row.targetId)
       }
 
       await updateImportRowAudit(client, importRecord.id, row, timestamp)
@@ -671,6 +769,32 @@ async function applyVolunteerImport({
       }
     }
 
+    const answerUpserts = buildVolunteerAnswerUpserts({
+      rows: previewRows.map((row) => ({
+        rowNumber: row.rowNumber,
+        questionAnswers: (row.normalizedRow as VolunteerImportRow)
+          .questionAnswers,
+      })),
+      questionIdByNormalizedLabel,
+      invitationIdByRowNumber,
+    })
+    for (const upsert of answerUpserts) {
+      await client
+        .insert(volunteerRegistrationAnswersTable)
+        .values({
+          id: createVolunteerRegistrationAnswerId(),
+          questionId: upsert.questionId,
+          invitationId: upsert.invitationId,
+          answer: upsert.answer,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        })
+        .onDuplicateKeyUpdate({
+          set: { answer: upsert.answer, updatedAt: timestamp },
+        })
+      answerCount += 1
+    }
+
     await updateImportApplySummary(
       client,
       importRecord,
@@ -679,8 +803,11 @@ async function applyVolunteerImport({
       {
         kind: CREW_IMPORT_KIND.VOLUNTEERS,
         appliedRowCount: plan.summary.createdCount + plan.summary.updatedCount,
+        createdVolunteerQuestionCount: createdQuestionCount,
+        volunteerAnswerCount: answerCount,
         knownLimitations: [
           "Pending no-account volunteers are written as team invitations and are not assignable until they accept or become approved memberships.",
+          "Question answers are attached to volunteer invitations only; rows matched to existing memberships do not receive imported answers.",
         ],
       },
     )
@@ -689,6 +816,8 @@ async function applyVolunteerImport({
   return toApplyResult(importRecord, plan.summary, {
     kind: CREW_IMPORT_KIND.VOLUNTEERS,
     appliedRowCount: plan.summary.createdCount + plan.summary.updatedCount,
+    createdVolunteerQuestionCount: createdQuestionCount,
+    volunteerAnswerCount: answerCount,
   })
 }
 
@@ -1781,25 +1910,100 @@ async function loadCrewImportReferenceData(
   const db = getDb()
   const settings = parseCompetitionSettings(competition.settings)
   const scalingGroupId = settings?.divisions?.scalingGroupId ?? null
-  const [divisions, workoutsForEvent, heats] = await Promise.all([
-    scalingGroupId ? listDivisionsForGroup(scalingGroupId) : [],
-    listWorkoutsForCompetition(eventId),
-    db
-      .select({
-        trackWorkoutId: competitionHeatsTable.trackWorkoutId,
-        heatNumber: competitionHeatsTable.heatNumber,
-        divisionId: competitionHeatsTable.divisionId,
-      })
-      .from(competitionHeatsTable)
-      .where(eq(competitionHeatsTable.competitionId, eventId)),
-  ])
+  const [divisions, workoutsForEvent, heats, volunteerQuestions] =
+    await Promise.all([
+      scalingGroupId ? listDivisionsForGroup(scalingGroupId) : [],
+      listWorkoutsForCompetition(eventId),
+      db
+        .select({
+          trackWorkoutId: competitionHeatsTable.trackWorkoutId,
+          heatNumber: competitionHeatsTable.heatNumber,
+          divisionId: competitionHeatsTable.divisionId,
+        })
+        .from(competitionHeatsTable)
+        .where(eq(competitionHeatsTable.competitionId, eventId)),
+      listVolunteerQuestionsForEvent(db, eventId, competition.groupId),
+    ])
 
   return {
     roleLabels: defaultCrewImportRoleLabels,
     divisions,
     workouts: workoutsForEvent,
     heats,
+    volunteerQuestions: volunteerQuestions.map((question) => ({
+      id: question.id,
+      label: question.label,
+      type: question.type,
+      source: question.source,
+    })),
   }
+}
+
+interface VolunteerQuestionRecord {
+  id: string
+  label: string
+  type: "text" | "select" | "number"
+  sortOrder: number
+  source: "competition" | "series"
+}
+
+// Volunteer registration questions available for import column mapping:
+// competition-specific plus any series-level questions, series first.
+async function listVolunteerQuestionsForEvent(
+  db: DbClient,
+  competitionId: string,
+  groupId: string | null,
+): Promise<VolunteerQuestionRecord[]> {
+  const competitionQuestions = await db
+    .select({
+      id: competitionRegistrationQuestionsTable.id,
+      label: competitionRegistrationQuestionsTable.label,
+      type: competitionRegistrationQuestionsTable.type,
+      sortOrder: competitionRegistrationQuestionsTable.sortOrder,
+    })
+    .from(competitionRegistrationQuestionsTable)
+    .where(
+      and(
+        eq(competitionRegistrationQuestionsTable.competitionId, competitionId),
+        eq(competitionRegistrationQuestionsTable.questionTarget, "volunteer"),
+      ),
+    )
+    .orderBy(asc(competitionRegistrationQuestionsTable.sortOrder))
+
+  let seriesQuestions: Array<{
+    id: string
+    label: string
+    type: "text" | "select" | "number"
+    sortOrder: number
+  }> = []
+  if (groupId) {
+    seriesQuestions = await db
+      .select({
+        id: competitionRegistrationQuestionsTable.id,
+        label: competitionRegistrationQuestionsTable.label,
+        type: competitionRegistrationQuestionsTable.type,
+        sortOrder: competitionRegistrationQuestionsTable.sortOrder,
+      })
+      .from(competitionRegistrationQuestionsTable)
+      .where(
+        and(
+          eq(competitionRegistrationQuestionsTable.groupId, groupId),
+          eq(competitionRegistrationQuestionsTable.questionTarget, "volunteer"),
+        ),
+      )
+      .orderBy(asc(competitionRegistrationQuestionsTable.sortOrder))
+  }
+
+  return [
+    ...seriesQuestions.map((question) => ({
+      ...question,
+      source: "series" as const,
+    })),
+    ...competitionQuestions.map((question) => ({
+      ...question,
+      source: "competition" as const,
+    })),
+  ]
 }
 
 async function requireCrewEvent(eventId: string) {

@@ -1,4 +1,8 @@
 // @lat: [[crew#Import CSV Preview#Parser Warnings]]
+import {
+  extractRowQuestionAnswers,
+  type ResolvedQuestionColumn,
+} from "./question-mapping"
 import type {
   ColumnMapping,
   CsvRecord,
@@ -9,6 +13,7 @@ import type {
 export function normalizeVolunteerRow(
   record: CsvRecord,
   mapping: ColumnMapping,
+  resolvedQuestionColumns: ResolvedQuestionColumn[] = [],
 ) {
   const firstName = getMappedValue(record, mapping, "firstName")
   const lastName = getMappedValue(record, mapping, "lastName")
@@ -20,10 +25,21 @@ export function normalizeVolunteerRow(
     name,
     email: normalizeEmail(getMappedValue(record, mapping, "email")),
     phone: getMappedValue(record, mapping, "phone"),
+    phoneCountryCode: getMappedValue(record, mapping, "phoneCountryCode"),
     role: getMappedValue(record, mapping, "role"),
+    rolePreference1: getMappedValue(record, mapping, "rolePreference1"),
+    rolePreference2: getMappedValue(record, mapping, "rolePreference2"),
+    rolePreference3: getMappedValue(record, mapping, "rolePreference3"),
     division: getMappedValue(record, mapping, "division"),
     availability: getMappedValue(record, mapping, "availability"),
+    shirtSize: getMappedValue(record, mapping, "shirtSize"),
+    sourceExternalId: getMappedValue(record, mapping, "sourceExternalId"),
+    sourceCreatedAt: getMappedValue(record, mapping, "sourceCreatedAt"),
     notes: getMappedValue(record, mapping, "notes"),
+    questionAnswers: extractRowQuestionAnswers(
+      record.values,
+      resolvedQuestionColumns,
+    ),
   }
   const issues: ImportIssue[] = []
 

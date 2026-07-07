@@ -12,13 +12,17 @@ import {
   selectCrewImportProgrammingTrack,
   summarizeApplyRows,
 } from "./apply"
-import type { HeatScheduleImportRow } from "./types"
-import type { PreviewImportRow } from "./types"
+import type {
+  HeatScheduleImportRow,
+  PreviewImportRow,
+  VolunteerImportRow,
+} from "./types"
 
 function volunteerRow(
   rowNumber: number,
   email: string,
   action: PreviewImportRow["action"] = "create",
+  overrides: Partial<VolunteerImportRow> = {},
 ): PreviewImportRow {
   return {
     rowNumber,
@@ -31,10 +35,19 @@ function volunteerRow(
       name: "Test Volunteer",
       email,
       phone: "",
+      phoneCountryCode: "",
       role: "Judge",
+      rolePreference1: "",
+      rolePreference2: "",
+      rolePreference3: "",
       division: "RX",
       availability: "all day",
+      shirtSize: "",
+      sourceExternalId: "",
+      sourceCreatedAt: "",
       notes: "Bring clipboard",
+      questionAnswers: [],
+      ...overrides,
     },
     warnings:
       action === "skip"
@@ -151,6 +164,115 @@ describe("buildVolunteerApplyPlan", () => {
       volunteerRoleTypes: ["judge"],
       crewImportId: "cimp_test",
     })
+  })
+
+  it("composes ranked role preferences into deduped ordered role types with raw notes", () => {
+    const plan = buildVolunteerApplyPlan(
+      [
+        volunteerRow(2, "ranked@example.com", "create", {
+          role: "",
+          rolePreference1: "Head Judge",
+          rolePreference2: "Media",
+          rolePreference3: "Head judge",
+          notes: "",
+          division: "",
+        }),
+      ],
+      {
+        importId: "cimp_test",
+        existingInvitations: [],
+        existingMemberships: [],
+      },
+    )
+
+    const metadata = JSON.parse(plan.rows[0]?.metadata ?? "{}")
+    expect(metadata.volunteerRoleTypes).toEqual(["head_judge", "media"])
+    expect(metadata.internalNotes).toBe(
+      "Imported role preferences: Head Judge, Media, Head judge",
+    )
+  })
+
+  it("falls back to GENERAL when no role or preference matches the taxonomy", () => {
+    const plan = buildVolunteerApplyPlan(
+      [
+        volunteerRow(2, "custom@example.com", "create", {
+          role: "",
+          rolePreference1: "Bouncy Castle Wrangler",
+        }),
+      ],
+      {
+        importId: "cimp_test",
+        existingInvitations: [],
+        existingMemberships: [],
+      },
+    )
+
+    const metadata = JSON.parse(plan.rows[0]?.metadata ?? "{}")
+    expect(metadata.volunteerRoleTypes).toEqual(["general"])
+    expect(metadata.internalNotes).toContain(
+      "Imported role preferences: Bouncy Castle Wrangler",
+    )
+  })
+
+  it("composes phone country code, shirt size, and provenance keys into metadata", () => {
+    const plan = buildVolunteerApplyPlan(
+      [
+        volunteerRow(2, "phone@example.com", "create", {
+          phone: "5551234567",
+          phoneCountryCode: "1",
+          shirtSize: "L",
+          sourceExternalId: "cc-9001",
+          sourceCreatedAt: "2026-06-01",
+        }),
+      ],
+      {
+        importId: "cimp_test",
+        existingInvitations: [],
+        existingMemberships: [],
+      },
+    )
+
+    const metadata = JSON.parse(plan.rows[0]?.metadata ?? "{}")
+    expect(metadata.signupPhone).toBe("+1 5551234567")
+    expect(metadata.shirtSize).toBe("L")
+    expect(metadata.crewImportExternalId).toBe("cc-9001")
+    expect(metadata.crewImportSourceCreatedAt).toBe("2026-06-01")
+  })
+
+  it("does not double-prefix a phone that already carries a country code", () => {
+    const withPlus = buildVolunteerApplyPlan(
+      [
+        volunteerRow(2, "plus@example.com", "create", {
+          phone: "+1 5551234567",
+          phoneCountryCode: "1",
+        }),
+      ],
+      {
+        importId: "cimp_test",
+        existingInvitations: [],
+        existingMemberships: [],
+      },
+    )
+    expect(JSON.parse(withPlus.rows[0]?.metadata ?? "{}").signupPhone).toBe(
+      "+1 5551234567",
+    )
+
+    const noCode = buildVolunteerApplyPlan(
+      [
+        volunteerRow(3, "nocode@example.com", "create", {
+          phone: "5551234567",
+          phoneCountryCode: "",
+        }),
+      ],
+      {
+        importId: "cimp_test",
+        existingInvitations: [],
+        existingMemberships: [],
+      },
+    )
+    expect(JSON.parse(noCode.rows[0]?.metadata ?? "{}").signupPhone).toBe(
+      "5551234567",
+    )
   })
 
   it("updates an existing pending invitation instead of creating a duplicate", () => {

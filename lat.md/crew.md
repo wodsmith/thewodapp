@@ -338,9 +338,21 @@ Crew import preview is a private operator workflow for volunteer and heat schedu
 
 Volunteer imports surface as a modal on [[apps/crew/src/routes/events/$eventId/volunteers.tsx|the Volunteers page]] via [[apps/crew/src/components/crew/volunteer-import-flow.tsx]]. Heat schedule imports surface as a modal on [[apps/crew/src/routes/events/$eventId/heats.tsx|the Heats page]]. The shared tab UI component lives in [[apps/crew/src/components/crew/crew-import-tabs.tsx]]. [[apps/crew/src/routes/api/crew/import.ts]] accepts private preview uploads, while [[apps/crew/src/lib/crew/imports/preview.ts]] and [[apps/crew/src/server/crew-imports.server.ts]] parse and persist previews without applying rows.
 
-CSV parsing still uses [[apps/crew/src/lib/crew/imports/csv.ts#parseCsv]]. Excel workbook parsing accepts `.xlsx` and `.xlsm` uploads, reads the first worksheet through [[apps/crew/src/lib/crew/imports/xlsx.ts#parseXlsx]], converts shared strings and styled time/date cells into text, and feeds the same tabular parser shape as CSV so column mapping, warning generation, and apply planning remain shared.
+CSV parsing still uses [[apps/crew/src/lib/crew/imports/csv.ts#parseCsv]]. Excel workbook parsing accepts `.xlsx` and `.xlsm` uploads, reads the first worksheet through [[apps/crew/src/lib/crew/imports/xlsx.ts#parseXlsx]], converts shared strings and styled time/date cells into text, and feeds the same tabular parser shape as CSV so column mapping, warning generation, and apply planning remain shared. The shared tabular parser rejects any blank header cell with a `missing_headers` error (not just fully empty header rows), since blank labels would collapse multiple columns onto one empty key and silently drop data. Both upload panels catch `parseCrewImportFile` throws (malformed workbooks), reset the mapping state, and surface an `invalid_import_file` client issue so the dialog stays usable.
 
 To bound decompression on the worker, `parseXlsx` only extracts the workbook parts it reads (workbook metadata, worksheets, shared strings, and styles) and rejects the upload with an `invalid_workbook` error when any entry exceeds 20 MB or the extracted total exceeds 50 MB. Shared-string extraction ignores phonetic furigana (`<rPh>`) runs so only base text becomes cell values.
+
+Volunteer imports carry first-class fields beyond name/email/role so Competition Corner exports auto-map: `phoneCountryCode`, `shirtSize`, ranked `rolePreference1`–`rolePreference3`, plus provenance `sourceExternalId` and `sourceCreatedAt`. [[apps/crew/src/lib/crew/imports/column-mapping.ts]] defines their header aliases and [[apps/crew/src/lib/crew/imports/normalize-volunteer-row.ts]] normalizes each to a trimmed string.
+
+### Question Mapped Columns
+
+Leftover volunteer columns (Gender, Birth Date, Shoe Size, Instagram, etc.) can be mapped to volunteer registration questions instead of being dropped, landing as structured `volunteer_registration_answers` keyed by invitation.
+
+[[apps/crew/src/lib/crew/imports/question-mapping.ts]] owns the reserved mapping-key namespaces `question:<id>` (existing) and `newQuestion:<label>` (created at apply), keeping `ColumnMapping` a plain `Record<fieldKey, header>` so preview records and mapping presets round-trip. [[apps/crew/src/lib/crew/imports/column-mapping.ts#sanitizeColumnMapping]] accepts these keys for volunteers only, and [[apps/crew/src/lib/crew/imports/normalize-volunteer-row.ts]] carries each row's non-empty answers on `questionAnswers`.
+
+Preview resolves columns against existing questions, collapses new labels onto matching existing questions, plans creation, counts answers, and warns (not errors) on empty columns via [[apps/crew/src/lib/crew/imports/preview.ts]]. Apply is the only mutation: [[apps/crew/src/server/crew-imports.server.ts]] creates missing `text` volunteer questions (deduped by normalized label, sort order after max), then upserts answers on the `(questionId, invitationId)` unique index. [[apps/crew/src/components/crew/volunteer-import-flow.tsx]] surfaces the mapping affordance backed by [[apps/crew/src/server-fns/crew-import-fns.ts#getCrewVolunteerImportQuestionsFn]].
+
+Questions are created as `text` only for now; select-type inference from column values is future polish. Answers attach to volunteer invitations only, so rows matched to existing memberships do not receive imported answers.
 
 ### Private Upload Route
 
@@ -375,6 +387,8 @@ The apply layer consumes parser output from the preview slice, plans create/upda
 The confirmed mutation is the only apply path allowed to create or update Crew roster and scheduling data from parsed import rows.
 
 It keeps the destructive boundary explicit: preview remains read-only, while confirmation can create invitations, update memberships, and attach import metadata to the resulting records.
+
+Volunteer apply composes first-class import fields into `VolunteerMembershipMetadata`: `phoneCountryCode` + `phone` become `signupPhone` (e.g. `+1 5551234567`, without double-prefixing), `shirtSize` maps through, and ranked role preferences resolve to a deduped ordered `volunteerRoleTypes` (falling back to `GENERAL`) while their raw labels are preserved in `internalNotes`. Provenance is stored under the extra keys `crewImportExternalId` and `crewImportSourceCreatedAt`.
 
 ## Add Thin Crew Tables
 
@@ -427,6 +441,16 @@ Crew import mapping memory stores confirmed CSV header mappings in `crew_import_
 [[apps/crew/src/lib/crew/imports/mapping-memory.ts]] owns pure header fingerprinting, source normalization, scoped suggestion selection, and save-payload sanitization. [[apps/crew/src/server-fns/crew-import-fns.ts]] keeps the route-facing functions thin while [[apps/crew/src/server/crew-imports.server.ts]] loads and upserts presets through the shared table.
 
 The volunteer import modal on [[apps/crew/src/routes/events/$eventId/volunteers.tsx|the Volunteers page]] surfaces saved mappings as explicit suggestions. Operators must click to use or remember a mapping; previews and applies continue to use the currently visible mapping and never rewrite historical `crew_import_rows`.
+
+### Built-in Presets
+
+Built-in presets are code-defined mappings shipped with Crew (no DB row, no migration) that recognize known third-party exports and offer a one-click full mapping alongside team-saved suggestions.
+
+[[apps/crew/src/lib/crew/imports/builtin-presets.ts]] exports the presets and a pure `selectBuiltInImportMappingSuggestion`. It reuses [[apps/crew/src/lib/crew/imports/mapping-memory.ts]] normalization/fingerprinting and matches tolerantly: a preset qualifies when its normalized headers cover the upload at or above `BUILT_IN_IMPORT_PRESET_MIN_COVERAGE` (0.8), so extra upload columns never hurt and a few missing columns are allowed; unrelated files fall below the threshold and do not match. The returned mapping is adapted to the upload's header casing and sanitized, so absent columns drop out.
+
+The Competition Corner volunteer preset maps all 20 export columns: first-class fields for identity, contact, shirt size, notes, source id/date, availability, and role preferences, plus `newQuestion:<label>` keys (Age, Birth Date, Gender, Shorts Size, Shoe Size, Instagram, WhatsApp) so no exported column is dropped.
+
+[[apps/crew/src/server/crew-imports.server.ts]] returns the built-in match beside the team suggestion (`builtInSuggestion`); [[apps/crew/src/components/crew/volunteer-import-flow.tsx]] renders the team suggestion first (precedence) then the built-in, labeled "(built-in)". Applying a built-in mapping fills the visible mapping and pre-fills the source label; it is never written to `crew_import_mapping_presets` as-is — an operator tweak saved afterward goes through the normal team preset save flow.
 
 ## Guided Setup State
 

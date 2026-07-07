@@ -28,9 +28,6 @@ export interface CsvParseResult {
   skippedRowCount: number
 }
 
-export type ImportFileRecord = CsvRecord
-export type ImportFileParseResult = CsvParseResult
-
 export interface ImportFieldDefinition {
   key: string
   label: string
@@ -40,16 +37,31 @@ export interface ImportFieldDefinition {
 
 export type ColumnMapping = Record<string, string>
 
+export interface VolunteerQuestionAnswer {
+  // Existing question id, or null when the answer will create a new question.
+  questionId: string | null
+  label: string
+  answer: string
+}
+
 export interface VolunteerImportRow {
   firstName: string
   lastName: string
   name: string
   email: string
   phone: string
+  phoneCountryCode: string
   role: string
+  rolePreference1: string
+  rolePreference2: string
+  rolePreference3: string
   division: string
   availability: string
+  shirtSize: string
+  sourceExternalId: string
+  sourceCreatedAt: string
   notes: string
+  questionAnswers: VolunteerQuestionAnswer[]
 }
 
 export interface HeatScheduleImportRow {
@@ -73,6 +85,8 @@ export interface CrewImportPreviewContext {
     heatNumber: number
     divisionId: string | null
   }>
+  // Existing volunteer registration questions the operator can map columns to.
+  volunteerQuestions?: Array<{ id: string; label: string }>
 }
 
 export interface PreviewImportRow {
@@ -83,6 +97,18 @@ export interface PreviewImportRow {
   targetType: "team_invitation" | "competition_heat"
   warnings: ImportIssue[]
   errors: ImportIssue[]
+}
+
+export interface VolunteerQuestionPreviewSummary {
+  columns: Array<{
+    columnKey: string
+    header: string
+    label: string
+    willCreate: boolean
+    answerCount: number
+  }>
+  questionsToCreate: string[]
+  totalAnswerCount: number
 }
 
 export interface CrewImportPreview {
@@ -96,4 +122,6 @@ export interface CrewImportPreview {
   skippedRowCount: number
   warningCount: number
   errorCount: number
+  // Volunteer-only: planned question creation + answer counts for the UI.
+  volunteerQuestionPlan?: VolunteerQuestionPreviewSummary
 }

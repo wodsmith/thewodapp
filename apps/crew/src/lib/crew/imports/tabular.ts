@@ -42,6 +42,31 @@ export function buildTabularParseResult({
     }
   }
 
+  const blankHeaderColumnNumbers = normalizedHeaders
+    .map((header, index) => (header.length === 0 ? index + 1 : null))
+    .filter((columnNumber): columnNumber is number => columnNumber !== null)
+
+  if (blankHeaderColumnNumbers.length > 0) {
+    const blankHeaderCount = blankHeaderColumnNumbers.length
+    const headerCellLabel = `header cell${blankHeaderCount === 1 ? "" : "s"}`
+    const columnLabel = `column${blankHeaderCount === 1 ? "" : "s"}`
+    const verb = blankHeaderCount === 1 ? "is" : "are"
+
+    return {
+      headers: normalizedHeaders,
+      rows: [],
+      fileIssues: [
+        ...fileIssues,
+        {
+          code: "missing_headers",
+          severity: "error",
+          message: `${sourceLabel} ${headerCellLabel} at ${columnLabel} ${blankHeaderColumnNumbers.join(", ")} ${verb} blank.`,
+        },
+      ],
+      skippedRowCount: 0,
+    }
+  }
+
   const duplicateHeaderGroups = findDuplicateHeaderGroups(normalizedHeaders)
   if (duplicateHeaderGroups.length > 0) {
     return {
@@ -92,7 +117,7 @@ export function buildTabularParseResult({
     fileIssues.push({
       code: "preview_row_limit",
       severity: "warning",
-      message: `${skippedRowCount} row${skippedRowCount === 1 ? "" : "s"} were skipped after the preview limit.`,
+      message: `${skippedRowCount} row${skippedRowCount === 1 ? " was" : "s were"} skipped after the preview limit.`,
     })
   }
 

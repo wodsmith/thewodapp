@@ -788,14 +788,24 @@ function HeatImportUploadPanel({
       return
     }
 
-    const parsed = parseCrewImportFile(
-      {
-        filename: selectedFile.name,
-        mimeType: selectedFile.type,
-        data: await selectedFile.arrayBuffer(),
-      },
-      { maxRows: 20 },
-    )
+    let parsed: ReturnType<typeof parseCrewImportFile>
+    try {
+      parsed = parseCrewImportFile(
+        {
+          filename: selectedFile.name,
+          mimeType: selectedFile.type,
+          data: await selectedFile.arrayBuffer(),
+        },
+        { maxRows: 20 },
+      )
+    } catch {
+      setHeaders([])
+      setMapping({})
+      setMappingSuggestion(null)
+      setClientIssues([buildClientFileParseIssue()])
+      return
+    }
+
     setHeaders(parsed.headers)
     setMapping(inferColumnMapping(parsed.headers, "heat_schedule"))
     setClientIssues(parsed.fileIssues)
@@ -1283,6 +1293,15 @@ function IssueList({
       </div>
     </div>
   )
+}
+
+function buildClientFileParseIssue(): ImportIssue {
+  return {
+    code: "invalid_import_file",
+    severity: "error",
+    message:
+      "The selected file could not be read. Choose a valid CSV or Excel workbook.",
+  }
 }
 
 function SummaryMetric({ label, value }: { label: string; value: number }) {
