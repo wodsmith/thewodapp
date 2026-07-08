@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "2a35186cc852",
+  "session_id": "a92dbd1a-62f9-464f-8a50-03007fa8c2c9",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-08T05:08:04.499808Z",
+  "branch": "crew-import-wizard",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/crew/src/components/crew/volunteer-import-flow.tsx",
+    "lat.md/crew.md"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 23943,
+    "cache_creation_tokens": 260686,
+    "cache_read_tokens": 6227809,
+    "output_tokens": 23965,
+    "api_call_count": 62
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-07-08T05:08:04.402434Z",
+    "agent_lines": 4,
+    "human_added": 951,
+    "human_modified": 2,
+    "human_removed": 0,
+    "total_committed": 957,
+    "agent_percentage": 0.41797283176593525
+  }
+}
