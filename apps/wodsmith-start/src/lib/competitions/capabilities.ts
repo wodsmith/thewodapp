@@ -10,6 +10,9 @@ export type CompetitionCapability =
   | "volunteerScheduling"
   | "organizerEntersResults"
   | "benchmarkScoringTiers"
+  | "cohosts"
+  | "volunteerShifts"
+  | "publicVolunteerSignup"
 
 export type PublicCompetitionTabId =
   | "details"
@@ -68,6 +71,9 @@ export const COMPETITION_TYPE_REGISTRY: Readonly<
       "physicalVenue",
       "volunteerScheduling",
       "organizerEntersResults",
+      "cohosts",
+      "volunteerShifts",
+      "publicVolunteerSignup",
     ]),
   },
   online: {
@@ -81,6 +87,9 @@ export const COMPETITION_TYPE_REGISTRY: Readonly<
       "videoSubmissions",
       "submissionWindows",
       "optInResultPublishing",
+      "cohosts",
+      "volunteerShifts",
+      "publicVolunteerSignup",
     ]),
   },
   benchmark: {

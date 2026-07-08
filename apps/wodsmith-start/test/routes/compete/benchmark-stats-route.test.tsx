@@ -60,6 +60,72 @@ const traditionalSettings = JSON.stringify({
   },
 })
 
+type LeaderboardEntry =
+  import("@/server-fns/leaderboard-fns").CompetitionLeaderboardEntry
+
+function createStatsEntry(): LeaderboardEntry {
+  return {
+    registrationId: "reg-1",
+    userId: "user-1",
+    athleteName: "Alex Athlete",
+    divisionId: "div-open",
+    divisionLabel: "Open",
+    totalPoints: 72.5,
+    overallRank: 1,
+    isTeamDivision: false,
+    teamName: null,
+    teamMembers: [],
+    affiliate: "WODsmith Gym",
+    benchmarkOverallScore: 72.5,
+    benchmarkGender: "male",
+    benchmarkRatingBand: {
+      key: "regional",
+      label: "Regional",
+      minScore: 60,
+      maxScore: 79.9,
+    },
+    benchmarkCategoryScores: [
+      {
+        key: "strength",
+        label: "Strength",
+        score: 80,
+        tierSum: 8,
+        testCount: 1,
+        weight: 1,
+      },
+    ],
+    eventResults: [
+      {
+        trackWorkoutId: "tw-1",
+        trackOrder: 1,
+        eventName: "Strict Press",
+        scheme: "load",
+        rank: 1,
+        points: 8,
+        rawScore: "90000",
+        formattedScore: "198 lb",
+        formattedTiebreak: null,
+        penaltyType: null,
+        penaltyPercentage: null,
+        isDirectlyModified: false,
+        videoUrl: null,
+        videoSubmissionId: null,
+        parentEventId: null,
+        parentEventName: null,
+        isParentEvent: false,
+        cappedRoundCount: 0,
+        totalRoundCount: 0,
+        verificationStatus: "verified",
+        benchmarkTier: 8,
+        benchmarkCategoryKey: "strength",
+        benchmarkCategoryLabel: "Strength",
+        benchmarkIncludedInScoring: true,
+        reviewSummary: null,
+      },
+    ],
+  }
+}
+
 function setRouteData(
   settings: string,
   loadError: string | null,
@@ -118,5 +184,36 @@ describe("benchmark stats route states", () => {
     expect(
       screen.getByText(/only available for benchmark competitions/i),
     ).toBeInTheDocument()
+  })
+
+  it("labels the division and athlete selects", async () => {
+    routerMocks.parentUseLoaderData.mockReturnValue({
+      competition: {
+        id: "comp-1",
+        slug: "test-benchmark",
+        settings: benchmarkSettings,
+        competitionType: "benchmark",
+        timezone: null,
+      },
+      divisions: [
+        { id: "div-open", label: "Open" },
+        { id: "div-masters", label: "Masters" },
+      ],
+      userRegistrations: [],
+    })
+    routerMocks.routeUseLoaderData.mockReturnValue({
+      initialStats: {
+        entries: [createStatsEntry()],
+        scoringAlgorithm: "online",
+        divisionId: "div-open",
+      },
+      loadError: null,
+    })
+    routerMocks.routeUseSearch.mockReturnValue({})
+
+    render(<BenchmarkStatsPage />)
+
+    expect(screen.getByLabelText("Division")).toBeInTheDocument()
+    expect(screen.getByLabelText("Athlete")).toBeInTheDocument()
   })
 })

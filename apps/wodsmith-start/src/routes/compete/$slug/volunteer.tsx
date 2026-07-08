@@ -1,16 +1,22 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, redirect } from "@tanstack/react-router"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import { getVolunteerQuestionsFn } from "@/server-fns/registration-questions-fns"
 import { getCompetitionWaiversFn } from "@/server-fns/waiver-fns"
 import { VolunteerSignupForm } from "./-components/volunteer-signup-form"
 
 export const Route = createFileRoute("/compete/$slug/volunteer")({
-  loader: async ({ parentMatchPromise }) => {
+  loader: async ({ params, parentMatchPromise }) => {
     const parentMatch = await parentMatchPromise
     const competition = parentMatch.loaderData?.competition
     const session = parentMatch.loaderData?.session ?? null
 
     if (!competition) {
       throw new Error("Competition not found")
+    }
+
+    // Public volunteer signup is capability-gated (benchmark boards exclude it)
+    if (!competitionCan(competition.competitionType, "publicVolunteerSignup")) {
+      throw redirect({ to: "/compete/$slug", params: { slug: params.slug } })
     }
 
     const [volunteerQuestionsResult, waiversResult] = await Promise.all([

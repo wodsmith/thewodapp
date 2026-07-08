@@ -178,11 +178,15 @@ const getNavigation = (
             href: `${basePath}/volunteers`,
             icon: UserCheck,
           },
-          {
-            label: "Volunteer shifts",
-            href: `${basePath}/volunteers/shifts`,
-            icon: Calendar,
-          },
+          ...(competitionCan(type, "volunteerShifts")
+            ? [
+                {
+                  label: "Volunteer shifts",
+                  href: `${basePath}/volunteers/shifts`,
+                  icon: Calendar,
+                },
+              ]
+            : []),
           ...(canUseHeatScheduling(type)
             ? [
                 {
@@ -235,11 +239,15 @@ const getNavigation = (
           { label: "Revenue", href: `${basePath}/revenue`, icon: DollarSign },
           { label: "Coupons", href: `${basePath}/coupons`, icon: Tag },
           { label: "Sponsors", href: `${basePath}/sponsors`, icon: Sparkles },
-          {
-            label: "Co-Hosts",
-            href: `${basePath}/co-hosts`,
-            icon: Handshake,
-          },
+          ...(competitionCan(type, "cohosts")
+            ? [
+                {
+                  label: "Co-Hosts",
+                  href: `${basePath}/co-hosts`,
+                  icon: Handshake,
+                },
+              ]
+            : []),
         ],
       },
       {

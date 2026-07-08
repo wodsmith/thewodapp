@@ -352,6 +352,70 @@ describe("ScoringConfigForm", () => {
 		})
 	})
 
+	describe("Locked Online Algorithm (benchmark boards)", () => {
+		it("hides the algorithm radio group and explains the fixed online ranking", () => {
+			const config = createDefaultConfig({ algorithm: "online" })
+
+			render(
+				<ScoringConfigForm
+					value={config}
+					onChange={onChange}
+					lockAlgorithmOnline
+				/>,
+			)
+
+			expect(
+				screen.queryByLabelText(/^traditional$/i),
+			).not.toBeInTheDocument()
+			expect(
+				screen.queryByLabelText(/winner takes more/i),
+			).not.toBeInTheDocument()
+			expect(screen.queryByLabelText(/p-score/i)).not.toBeInTheDocument()
+			expect(screen.queryByLabelText(/^online$/i)).not.toBeInTheDocument()
+			expect(
+				screen.getByText(/always use online scoring/i),
+			).toBeInTheDocument()
+		})
+
+		it("keeps tiebreaker and status handling editable while locked", () => {
+			const config = createDefaultConfig({ algorithm: "online" })
+
+			render(
+				<ScoringConfigForm
+					value={config}
+					onChange={onChange}
+					lockAlgorithmOnline
+				/>,
+			)
+
+			expect(screen.getByText("Tiebreakers")).toBeInTheDocument()
+			fireEvent.click(screen.getByLabelText(/head-to-head/i))
+			expect(onChange).toHaveBeenCalledWith(
+				expect.objectContaining({
+					tiebreaker: expect.objectContaining({ secondary: "head_to_head" }),
+				}),
+			)
+			expect(screen.getByLabelText(/dnf/i)).toBeInTheDocument()
+		})
+
+		it("shows the online points preview while locked", () => {
+			const config = createDefaultConfig({ algorithm: "online" })
+
+			render(
+				<ScoringConfigForm
+					value={config}
+					onChange={onChange}
+					lockAlgorithmOnline
+				/>,
+			)
+
+			expect(screen.getByText("Points Preview")).toBeInTheDocument()
+			expect(
+				screen.getByText(/pattern continues: 21st = 21 pts/i),
+			).toBeInTheDocument()
+		})
+	})
+
 	describe("Controlled Component Behavior", () => {
 		it("reflects external value changes", () => {
 			const { rerender } = render(

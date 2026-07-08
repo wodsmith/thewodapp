@@ -131,6 +131,114 @@ describe("AddTestDialog", () => {
     expect(onCreate.mock.calls[0][1]).toBeNull()
   })
 
+  it("auto-selects the time input unit when a time scheme is picked", () => {
+    renderAddDialog()
+    openAddDialog()
+
+    fireEvent.click(screen.getByLabelText(/scheme/i))
+    fireEvent.click(screen.getByRole("option", { name: "time" }))
+    expect(screen.getByLabelText(/input unit/i)).toHaveTextContent("Time")
+
+    // Leaving the time scheme drops the auto-picked unit again.
+    fireEvent.click(screen.getByLabelText(/scheme/i))
+    fireEvent.click(screen.getByRole("option", { name: "load" }))
+    expect(screen.getByLabelText(/input unit/i)).toHaveTextContent("Reps")
+  })
+
+  it("prefills name, scheme, score type, and input unit from the selected event", () => {
+    renderAddDialog({
+      events: [
+        {
+          id: "tw-1",
+          name: "Event 1 - Mile Run",
+          linkedTestName: null,
+          scheme: "time",
+          scoreType: "min",
+        },
+        {
+          id: "tw-2",
+          name: "Event 2 - Max Snatch",
+          linkedTestName: null,
+          scheme: "load",
+          scoreType: "max",
+        },
+      ],
+    })
+    openAddDialog()
+
+    fireEvent.click(screen.getByLabelText(/linked event/i))
+    fireEvent.click(screen.getByRole("option", { name: "Event 1 - Mile Run" }))
+
+    expect(screen.getByLabelText(/test name/i)).toHaveValue("Event 1 - Mile Run")
+    expect(screen.getByLabelText(/scheme/i)).toHaveTextContent("time")
+    expect(screen.getByLabelText(/score type/i)).toHaveTextContent("min")
+    expect(screen.getByLabelText(/input unit/i)).toHaveTextContent("Time")
+  })
+
+  it("swaps event-derived names but never clobbers a manually typed name", () => {
+    renderAddDialog({
+      events: [
+        {
+          id: "tw-1",
+          name: "Event 1 - Mile Run",
+          linkedTestName: null,
+          scheme: "time",
+          scoreType: "min",
+        },
+        {
+          id: "tw-2",
+          name: "Event 2 - Max Snatch",
+          linkedTestName: null,
+          scheme: "load",
+          scoreType: "max",
+        },
+      ],
+    })
+    openAddDialog()
+
+    // Switching events replaces a name that came from the previous event.
+    fireEvent.click(screen.getByLabelText(/linked event/i))
+    fireEvent.click(screen.getByRole("option", { name: "Event 1 - Mile Run" }))
+    fireEvent.click(screen.getByLabelText(/linked event/i))
+    fireEvent.click(screen.getByRole("option", { name: "Event 2 - Max Snatch" }))
+    expect(screen.getByLabelText(/test name/i)).toHaveValue(
+      "Event 2 - Max Snatch",
+    )
+
+    // A manual edit sticks even when picking another event afterwards.
+    fireEvent.change(screen.getByLabelText(/test name/i), {
+      target: { value: "My custom test" },
+    })
+    fireEvent.click(screen.getByLabelText(/linked event/i))
+    fireEvent.click(screen.getByRole("option", { name: "Event 1 - Mile Run" }))
+    expect(screen.getByLabelText(/test name/i)).toHaveValue("My custom test")
+    expect(screen.getByLabelText(/scheme/i)).toHaveTextContent("time")
+  })
+
+  it("prefills fields from the locked event when opened from an event page", () => {
+    renderAddDialog({
+      events: [
+        {
+          id: "tw-1",
+          name: "Event 1 - Row Sprint",
+          linkedTestName: null,
+          scheme: "time-with-cap",
+          scoreType: "min",
+        },
+      ],
+      defaultEventId: "tw-1",
+      lockEvent: true,
+    })
+    openAddDialog()
+
+    expect(screen.getByLabelText(/test name/i)).toHaveValue(
+      "Event 1 - Row Sprint",
+    )
+    expect(screen.getByLabelText(/scheme/i)).toHaveTextContent("time-with-cap")
+    expect(screen.getByLabelText(/score type/i)).toHaveTextContent("min")
+    expect(screen.getByLabelText(/input unit/i)).toHaveTextContent("Time")
+  })
+
   // @lat: [[organizer-dashboard#Organizer Dashboard#Benchmark Tier Scoring#Test-Event Linking#Inline Event Tiers Creation]]
   it("locks the linked event and passes it to onCreate when opened from an event page", async () => {
     const { onCreate } = renderAddDialog({
@@ -226,6 +334,30 @@ describe("EditTestDialog", () => {
 
     await waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(1))
     expect(onUpdate).toHaveBeenCalledWith("test-1", { name: "Renamed test" })
+  })
+
+  it("auto-selects the time input unit when the scheme becomes time-based", async () => {
+    const { onUpdate } = renderEditDialog()
+    openEditDialog()
+
+    fireEvent.click(screen.getByLabelText(/scheme/i))
+    fireEvent.click(screen.getByRole("option", { name: "time-with-cap" }))
+    expect(screen.getByLabelText(/input unit/i)).toHaveTextContent("Time")
+
+    // Leaving the time scheme falls back to the test's original unit.
+    fireEvent.click(screen.getByLabelText(/scheme/i))
+    fireEvent.click(screen.getByRole("option", { name: "load" }))
+    expect(screen.getByLabelText(/input unit/i)).toHaveTextContent("Reps")
+
+    fireEvent.click(screen.getByLabelText(/scheme/i))
+    fireEvent.click(screen.getByRole("option", { name: "time" }))
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+
+    await waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(1))
+    expect(onUpdate).toHaveBeenCalledWith("test-1", {
+      scheme: "time",
+      inputUnit: "time",
+    })
   })
 
   it("requires a threshold grid when re-including a test without complete thresholds", async () => {

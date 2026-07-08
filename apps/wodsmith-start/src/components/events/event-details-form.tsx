@@ -740,6 +740,8 @@ export function EventDetailsForm({
                                     id: event.id,
                                     name: event.workout.name,
                                     linkedTestName: null,
+                                    scheme,
+                                    scoreType,
                                   },
                                 ]}
                                 defaultEventId={event.id}

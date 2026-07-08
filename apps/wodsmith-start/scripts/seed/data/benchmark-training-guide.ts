@@ -40,6 +40,8 @@ export const BENCHMARK_SOURCE_RECEIPT = {
 		"Weighted C2B Pull Up scores the added load in pounds: the BW threshold encodes as 0 lb, +N thresholds as N lb, and athletes enter 0 for a bodyweight rep.",
 		"Open 16.2 and Open 18.4 use hybrid reps/time scoring: rep tiers below hybridFlipTier are reps achieved at the time cap (encoded as plain integers), while time tiers at or above hybridFlipTier are finish times (encoded as milliseconds). A capped athlete stores the cap ms as score_value with reps completed in secondary_value.",
 		"The v1 seed uses videoPolicy \"never\" and isOpenJoin false so athletes use the normal registration flow before submitting scores.",
+		"Vertical Jump is scored as whole inches via the points scheme (like BikeErg watts): the athlete score input derives its unit from the workout scheme, and the only distance schemes collect meters or feet, so integer-inch thresholds and athlete entries share the same plain-number space.",
+		"L Sit Hold's tier-10 standard is a 03:00 hold (the three-minute L-sit standard) rather than the source PDF's 01:30; tiers 1-9 keep the source progression.",
 	],
 } as const
 
@@ -1020,7 +1022,7 @@ const RAW_BENCHMARK_TESTS = [
         "00:01:03",
         "00:01:12",
         "00:01:21",
-        "00:01:30"
+        "00:03:00"
       ],
       "female": [
         "00:00:10",
@@ -1032,7 +1034,7 @@ const RAW_BENCHMARK_TESTS = [
         "00:00:57",
         "00:01:08",
         "00:01:19",
-        "00:01:30"
+        "00:03:00"
       ]
     },
     "scheme": "time",
@@ -1113,9 +1115,9 @@ const RAW_BENCHMARK_TESTS = [
         "30"
       ]
     },
-    "scheme": "feet",
+    "scheme": "points",
     "scoreType": "max",
-    "inputUnit": "in",
+    "inputUnit": "inches",
     "includedInScoring": true,
     "scoreModel": "standard",
     "hybridFlipTier": null,

@@ -242,6 +242,11 @@ interface ScoringConfigFormProps {
   events?: Array<{ id: string; name: string }>
   /** Whether the form is disabled */
   disabled?: boolean
+  /**
+   * Hard-codes the ranking algorithm to "online" (benchmark boards): hides
+   * the algorithm picker while keeping tiebreaker and DNF/DNS settings.
+   */
+  lockAlgorithmOnline?: boolean
 }
 
 /**
@@ -291,6 +296,7 @@ export function ScoringConfigForm({
   onChange,
   events,
   disabled = false,
+  lockAlgorithmOnline = false,
 }: ScoringConfigFormProps) {
   // Get the base algorithm (not "custom" - that's derived)
   const displayAlgorithm =
@@ -493,189 +499,204 @@ export function ScoringConfigForm({
           <CardTitle>Scoring Configuration</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Scoring Algorithm Section */}
-          <div className="space-y-4">
+          {/* Scoring Algorithm Section — hidden when the algorithm is
+              hard-coded to online (benchmark boards) */}
+          {lockAlgorithmOnline ? (
             <div className="space-y-1">
               <Label className="text-base font-medium">Scoring Algorithm</Label>
               <p className="text-xs text-muted-foreground">
-                Determines how points are awarded for each event finish
+                Benchmark boards always use Online scoring — points equal
+                finishing position and the lowest total wins.
               </p>
             </div>
-            <RadioGroup
-              value={displayAlgorithm}
-              onValueChange={(val) =>
-                handleAlgorithmChange(val as ScoringAlgorithm)
-              }
-              disabled={disabled}
-            >
-              {/* Traditional Option */}
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="traditional" id="algo-traditional" />
-                  <Label htmlFor="algo-traditional">Traditional</Label>
-                </div>
-                {displayAlgorithm === "traditional" && (
-                  <div className="ml-6 space-y-3">
-                    <p className="text-xs text-muted-foreground">
-                      Points based on finish position. 1st gets most points,
-                      each subsequent place gets fewer by the step amount.
-                    </p>
-                    <div className="flex items-center space-x-2">
-                      <Label htmlFor="step">Step:</Label>
-                      <Input
-                        id="step"
-                        type="number"
-                        className="w-20"
-                        value={value.traditional?.step ?? 5}
-                        onChange={(e) =>
-                          handleTraditionalStepChange(Number(e.target.value))
-                        }
-                        disabled={disabled}
-                        min={1}
-                      />
-                      <span className="text-sm text-muted-foreground">
-                        points between places
-                      </span>
-                    </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <Label className="text-base font-medium">
+                  Scoring Algorithm
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Determines how points are awarded for each event finish
+                </p>
+              </div>
+              <RadioGroup
+                value={displayAlgorithm}
+                onValueChange={(val) =>
+                  handleAlgorithmChange(val as ScoringAlgorithm)
+                }
+                disabled={disabled}
+              >
+                {/* Traditional Option */}
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="traditional" id="algo-traditional" />
+                    <Label htmlFor="algo-traditional">Traditional</Label>
                   </div>
-                )}
-              </div>
-
-              {/* Winner Takes More Option */}
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem
-                    value="winner_takes_more"
-                    id="algo-winner_takes_more"
-                  />
-                  <Label htmlFor="algo-winner_takes_more">
-                    Winner Takes More
-                  </Label>
-                </div>
-                {displayAlgorithm === "winner_takes_more" && (
-                  <p className="ml-6 text-xs text-muted-foreground">
-                    Top positions get disproportionately more points. Similar to
-                    Functional Fitness Games scoring where 1st place is worth
-                    significantly more than 2nd.
-                  </p>
-                )}
-              </div>
-
-              {/* P-Score Option */}
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="p_score" id="algo-p_score" />
-                  <Label htmlFor="algo-p_score">P-Score</Label>
-                </div>
-                {displayAlgorithm === "p_score" && (
-                  <div className="ml-6 space-y-3">
-                    <p className="text-xs text-muted-foreground">
-                      Points based on how far above or below the median
-                      performance. Rewards dominant performances more than
-                      narrow wins.
-                    </p>
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="allow-negatives"
-                          checked={value.pScore?.allowNegatives ?? true}
-                          onCheckedChange={(checked) =>
-                            handlePScoreChange(
-                              "allowNegatives",
-                              checked === true,
-                            )
-                          }
-                          disabled={disabled}
-                        />
-                        <Label htmlFor="allow-negatives">
-                          Allow negative scores
-                        </Label>
-                      </div>
-                      <p className="text-xs text-muted-foreground ml-6">
-                        {value.pScore?.allowNegatives
-                          ? "Athletes below median get negative points (more competitive)"
-                          : "Athletes below median get zero points (more forgiving)"}
-                      </p>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-2">
-                        <Label htmlFor="median-field">
-                          Median calculated from:
-                        </Label>
-                        <Select
-                          value={value.pScore?.medianField ?? "top_half"}
-                          onValueChange={(val) =>
-                            handlePScoreChange(
-                              "medianField",
-                              val as "top_half" | "all",
-                            )
-                          }
-                          disabled={disabled}
-                        >
-                          <SelectTrigger
-                            id="median-field"
-                            className="w-[180px]"
-                          >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="top_half">
-                              Top half of field
-                            </SelectItem>
-                            <SelectItem value="all">All competitors</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                  {displayAlgorithm === "traditional" && (
+                    <div className="ml-6 space-y-3">
                       <p className="text-xs text-muted-foreground">
-                        {value.pScore?.medianField === "top_half"
-                          ? "Median uses top 50% only - harder to get positive scores"
-                          : "Median uses all athletes - easier to get positive scores"}
+                        Points based on finish position. 1st gets most points,
+                        each subsequent place gets fewer by the step amount.
                       </p>
+                      <div className="flex items-center space-x-2">
+                        <Label htmlFor="step">Step:</Label>
+                        <Input
+                          id="step"
+                          type="number"
+                          className="w-20"
+                          value={value.traditional?.step ?? 5}
+                          onChange={(e) =>
+                            handleTraditionalStepChange(Number(e.target.value))
+                          }
+                          disabled={disabled}
+                          min={1}
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          points between places
+                        </span>
+                      </div>
                     </div>
-                    <div className="rounded bg-muted/50 p-3 text-xs text-muted-foreground">
-                      <p className="font-medium">How P-Score works:</p>
-                      <p className="mt-1">
-                        Points are calculated dynamically based on actual
-                        performances. Median performer scores 50, athletes above
-                        median get more points proportional to their margin,
-                        athletes below get fewer points (or negative if
-                        enabled).
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Online Option */}
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="online" id="algo-online" />
-                  <Label htmlFor="algo-online">Online</Label>
+                  )}
                 </div>
-                {/* scoringAlgorithm axis, not competitionType. */}
-                {displayAlgorithm === "online" && (
-                  <div className="ml-6 space-y-3">
-                    <p className="text-xs text-muted-foreground">
-                      Points equal finishing position (1st = 1 pt, 2nd = 2 pts,
-                      etc.). Ideal for online competitions where the total
-                      number of participants is unknown. Lowest total score
-                      wins, similar to golf scoring.
-                    </p>
-                    <div className="rounded bg-muted/50 p-3 text-xs text-muted-foreground">
-                      <p className="font-medium">How Online scoring works:</p>
-                      <p className="mt-1">
-                        Each event awards points equal to the athlete's
-                        finishing position. Athletes aim for the lowest total
-                        across all events. This system works well for any field
-                        size since points are determined by relative
-                        performance, not a fixed table.
-                      </p>
-                    </div>
+
+                {/* Winner Takes More Option */}
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem
+                      value="winner_takes_more"
+                      id="algo-winner_takes_more"
+                    />
+                    <Label htmlFor="algo-winner_takes_more">
+                      Winner Takes More
+                    </Label>
                   </div>
-                )}
-              </div>
-            </RadioGroup>
-          </div>
+                  {displayAlgorithm === "winner_takes_more" && (
+                    <p className="ml-6 text-xs text-muted-foreground">
+                      Top positions get disproportionately more points. Similar
+                      to Functional Fitness Games scoring where 1st place is
+                      worth significantly more than 2nd.
+                    </p>
+                  )}
+                </div>
+
+                {/* P-Score Option */}
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="p_score" id="algo-p_score" />
+                    <Label htmlFor="algo-p_score">P-Score</Label>
+                  </div>
+                  {displayAlgorithm === "p_score" && (
+                    <div className="ml-6 space-y-3">
+                      <p className="text-xs text-muted-foreground">
+                        Points based on how far above or below the median
+                        performance. Rewards dominant performances more than
+                        narrow wins.
+                      </p>
+                      <div className="space-y-1">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="allow-negatives"
+                            checked={value.pScore?.allowNegatives ?? true}
+                            onCheckedChange={(checked) =>
+                              handlePScoreChange(
+                                "allowNegatives",
+                                checked === true,
+                              )
+                            }
+                            disabled={disabled}
+                          />
+                          <Label htmlFor="allow-negatives">
+                            Allow negative scores
+                          </Label>
+                        </div>
+                        <p className="text-xs text-muted-foreground ml-6">
+                          {value.pScore?.allowNegatives
+                            ? "Athletes below median get negative points (more competitive)"
+                            : "Athletes below median get zero points (more forgiving)"}
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center space-x-2">
+                          <Label htmlFor="median-field">
+                            Median calculated from:
+                          </Label>
+                          <Select
+                            value={value.pScore?.medianField ?? "top_half"}
+                            onValueChange={(val) =>
+                              handlePScoreChange(
+                                "medianField",
+                                val as "top_half" | "all",
+                              )
+                            }
+                            disabled={disabled}
+                          >
+                            <SelectTrigger
+                              id="median-field"
+                              className="w-[180px]"
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="top_half">
+                                Top half of field
+                              </SelectItem>
+                              <SelectItem value="all">
+                                All competitors
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {value.pScore?.medianField === "top_half"
+                            ? "Median uses top 50% only - harder to get positive scores"
+                            : "Median uses all athletes - easier to get positive scores"}
+                        </p>
+                      </div>
+                      <div className="rounded bg-muted/50 p-3 text-xs text-muted-foreground">
+                        <p className="font-medium">How P-Score works:</p>
+                        <p className="mt-1">
+                          Points are calculated dynamically based on actual
+                          performances. Median performer scores 50, athletes
+                          above median get more points proportional to their
+                          margin, athletes below get fewer points (or negative
+                          if enabled).
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Online Option */}
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="online" id="algo-online" />
+                    <Label htmlFor="algo-online">Online</Label>
+                  </div>
+                  {/* scoringAlgorithm axis, not competitionType. */}
+                  {displayAlgorithm === "online" && (
+                    <div className="ml-6 space-y-3">
+                      <p className="text-xs text-muted-foreground">
+                        Points equal finishing position (1st = 1 pt, 2nd = 2
+                        pts, etc.). Ideal for online competitions where the
+                        total number of participants is unknown. Lowest total
+                        score wins, similar to golf scoring.
+                      </p>
+                      <div className="rounded bg-muted/50 p-3 text-xs text-muted-foreground">
+                        <p className="font-medium">How Online scoring works:</p>
+                        <p className="mt-1">
+                          Each event awards points equal to the athlete's
+                          finishing position. Athletes aim for the lowest total
+                          across all events. This system works well for any
+                          field size since points are determined by relative
+                          performance, not a fixed table.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </RadioGroup>
+            </div>
+          )}
 
           {/* Tiebreaker Section */}
           <div className="space-y-4 border-t pt-4">

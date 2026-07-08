@@ -154,7 +154,8 @@ const GROUP_STRIPE_CLASS = "bg-muted/20"
  */
 function getEventGroupId(event: LeaderboardEvent): string | null {
   if (event.parentEventId) return `parent:${event.parentEventId}`
-  if (event.benchmarkCategoryKey) return `category:${event.benchmarkCategoryKey}`
+  if (event.benchmarkCategoryKey)
+    return `category:${event.benchmarkCategoryKey}`
   return null
 }
 
@@ -1068,15 +1069,9 @@ export function OnlineCompetitionLeaderboardTable({
     [leaderboard],
   )
 
-  // Preview (organizer/cohost) suppresses the dedicated affiliate column —
-  // affiliate renders as subtext under the athlete name via `TeamCell`, freeing
-  // horizontal space for event columns. `linkToSubmission` is only true on the
-  // preview route.
-  const hasAffiliates = useMemo(
-    () => !linkToSubmission && leaderboard.some((entry) => entry.affiliate),
-    [leaderboard, linkToSubmission],
-  )
-
+  // Affiliate renders as subtext under the athlete/team name via `TeamCell`
+  // (and in the mobile rows) — there is no dedicated affiliate column, freeing
+  // horizontal space for event columns.
   const columns = useMemo<ColumnDef<CompetitionLeaderboardEntry>[]>(() => {
     const athleteColumnLabel = isTeamLeaderboard ? "Team" : "Athlete"
 
@@ -1145,20 +1140,6 @@ export function OnlineCompetitionLeaderboardTable({
             <TeamCell entry={row.original} />
           ),
         },
-        ...(hasAffiliates
-          ? [
-              {
-                id: "affiliate",
-                header: "Affiliate",
-                accessorKey: "affiliate" as const,
-                cell: ({ row }: LeaderboardCellContext) => (
-                  <span className="text-sm text-muted-foreground">
-                    {row.original.affiliate ?? "—"}
-                  </span>
-                ),
-              } satisfies ColumnDef<CompetitionLeaderboardEntry>,
-            ]
-          : []),
         {
           id: "score",
           header: "Score",
@@ -1283,21 +1264,6 @@ export function OnlineCompetitionLeaderboardTable({
       )
     }
 
-    if (hasAffiliates) {
-      baseColumns.push({
-        id: "affiliate",
-        header: ({ column }: LeaderboardHeaderContext) => (
-          <SortableHeader column={column}>Affiliate</SortableHeader>
-        ),
-        accessorKey: "affiliate",
-        cell: ({ row }: LeaderboardCellContext) => (
-          <span className="text-sm text-muted-foreground">
-            {row.original.affiliate ?? "—"}
-          </span>
-        ),
-      })
-    }
-
     const sortedEvents = [...events].sort((a, b) => a.trackOrder - b.trackOrder)
 
     // Mirror the parity walk in `parentGroupSpans` so column tints line up
@@ -1382,7 +1348,6 @@ export function OnlineCompetitionLeaderboardTable({
     events,
     selectedEventId,
     isTeamLeaderboard,
-    hasAffiliates,
     isBenchmarkLeaderboard,
     scoringAlgorithm,
     linkToSubmission,
@@ -1411,9 +1376,8 @@ export function OnlineCompetitionLeaderboardTable({
     const hasAnyGroup = sortedEvents.some((e) => getEventGroupId(e))
     if (!hasAnyGroup) return []
 
-    // Count leading non-event columns (rank, athlete, optional affiliate/benchmark summary)
-    const leadingCols =
-      2 + (hasAffiliates ? 1 : 0) + (isBenchmarkLeaderboard ? 2 : 0)
+    // Count leading non-event columns (rank, athlete, optional benchmark summary)
+    const leadingCols = 2 + (isBenchmarkLeaderboard ? 2 : 0)
 
     const groups: Array<{
       label: string | null
@@ -1459,7 +1423,7 @@ export function OnlineCompetitionLeaderboardTable({
     }
 
     return groups
-  }, [events, selectedEventId, hasAffiliates, isBenchmarkLeaderboard])
+  }, [events, selectedEventId, isBenchmarkLeaderboard])
 
   const table = useReactTable({
     data: tableData,
@@ -1612,7 +1576,8 @@ export function OnlineCompetitionLeaderboardTable({
                       group.label
                         ? "text-[11px] uppercase tracking-wide font-semibold text-muted-foreground border-x border-t rounded-t-sm"
                         : "border-b-0",
-                      group.label && (group.stripe ? "bg-muted/70" : "bg-muted/40"),
+                      group.label &&
+                        (group.stripe ? "bg-muted/70" : "bg-muted/40"),
                     )}
                   >
                     {group.label && (

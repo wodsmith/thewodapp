@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import type { Competition, CompetitionGroup } from "@/db/schemas/competitions"
 import type { Team } from "@/db/schemas/teams"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import type { PublicCompetitionDivision } from "@/server-fns/competition-divisions-fns"
 import { formatDateStringFull, isSameDateString } from "@/utils/date-utils"
 import {
@@ -309,96 +310,104 @@ export function RegistrationSidebar({
         !hasPendingCompetitionInvites &&
         !isRegistered &&
         registrationOpen && (
-        <Card
-          className={`backdrop-blur-md ${
-            urgency?.urgencyLevel === "critical"
-              ? "border-2 border-red-500/50 bg-red-500/10"
-              : urgency?.urgencyLevel === "urgent"
-                ? "border-2 border-amber-500/50 bg-amber-500/10"
-                : "border-2 border-orange-500/20 bg-white/5"
-          }`}
-        >
-          <CardContent className="p-4 space-y-3">
-            {/* Urgency Message */}
-            {urgency && urgency.urgencyLevel !== "none" && (
-              <div
-                className={`flex items-center gap-2 ${
-                  urgency.urgencyLevel === "critical"
-                    ? "text-red-600"
-                    : urgency.urgencyLevel === "urgent"
-                      ? "text-amber-600"
-                      : "text-muted-foreground"
-                }`}
-              >
-                {urgency.urgencyLevel === "critical" ? (
-                  <AlertTriangle className="h-4 w-4" />
-                ) : (
-                  <Clock className="h-4 w-4" />
-                )}
-                <span className="text-sm font-semibold">{urgency.message}</span>
-              </div>
-            )}
-
-            {/* Competition-wide capacity */}
-            {competitionCapacity?.isFull && (
-              <div className="flex items-center gap-2 text-amber-600">
-                <AlertTriangle className="h-4 w-4" />
-                <span className="text-sm font-semibold">
-                  Competition is full
-                </span>
-              </div>
-            )}
-            {competitionCapacity &&
-              !competitionCapacity.isFull &&
-              competitionCapacity.spotsAvailable !== null &&
-              competitionCapacity.spotsAvailable <= 5 && (
-                <div className="flex items-center gap-2 text-amber-600">
-                  <Users className="h-4 w-4" />
+          <Card
+            className={`backdrop-blur-md ${
+              urgency?.urgencyLevel === "critical"
+                ? "border-2 border-red-500/50 bg-red-500/10"
+                : urgency?.urgencyLevel === "urgent"
+                  ? "border-2 border-amber-500/50 bg-amber-500/10"
+                  : "border-2 border-orange-500/20 bg-white/5"
+            }`}
+          >
+            <CardContent className="p-4 space-y-3">
+              {/* Urgency Message */}
+              {urgency && urgency.urgencyLevel !== "none" && (
+                <div
+                  className={`flex items-center gap-2 ${
+                    urgency.urgencyLevel === "critical"
+                      ? "text-red-600"
+                      : urgency.urgencyLevel === "urgent"
+                        ? "text-amber-600"
+                        : "text-muted-foreground"
+                  }`}
+                >
+                  {urgency.urgencyLevel === "critical" ? (
+                    <AlertTriangle className="h-4 w-4" />
+                  ) : (
+                    <Clock className="h-4 w-4" />
+                  )}
                   <span className="text-sm font-semibold">
-                    Only {competitionCapacity.spotsAvailable} spot
-                    {competitionCapacity.spotsAvailable === 1 ? "" : "s"} left!
+                    {urgency.message}
                   </span>
                 </div>
               )}
 
-            {/* Register Button */}
-            {!competitionCapacity?.isFull && (
-              <Button asChild size="lg" className="w-full">
+              {/* Competition-wide capacity */}
+              {competitionCapacity?.isFull && (
+                <div className="flex items-center gap-2 text-amber-600">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span className="text-sm font-semibold">
+                    Competition is full
+                  </span>
+                </div>
+              )}
+              {competitionCapacity &&
+                !competitionCapacity.isFull &&
+                competitionCapacity.spotsAvailable !== null &&
+                competitionCapacity.spotsAvailable <= 5 && (
+                  <div className="flex items-center gap-2 text-amber-600">
+                    <Users className="h-4 w-4" />
+                    <span className="text-sm font-semibold">
+                      Only {competitionCapacity.spotsAvailable} spot
+                      {competitionCapacity.spotsAvailable === 1 ? "" : "s"}{" "}
+                      left!
+                    </span>
+                  </div>
+                )}
+
+              {/* Register Button */}
+              {!competitionCapacity?.isFull && (
+                <Button asChild size="lg" className="w-full">
+                  <Link
+                    to="/compete/$slug/register"
+                    params={{ slug: competition.slug }}
+                  >
+                    Register now
+                  </Link>
+                </Button>
+              )}
+
+              {/* Deadline info (if not already shown in urgency) */}
+              {regClosesAt && urgency?.urgencyLevel === "none" && (
+                <p className="text-xs text-muted-foreground text-center">
+                  Registration closes {formatDeadlineDate(regClosesAt)}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+      {/* Volunteer Sign-Up Card — secondary action for non-volunteers.
+          Hidden for types without public volunteer signup (e.g. benchmark). */}
+      {!isVolunteer &&
+        competitionCan(
+          competition.competitionType,
+          "publicVolunteerSignup",
+        ) && (
+          <Card className="border-white/10 bg-white/5 backdrop-blur-md">
+            <CardContent className="p-4">
+              <Button asChild variant="outline" size="sm" className="w-full">
                 <Link
-                  to="/compete/$slug/register"
+                  to="/compete/$slug/volunteer"
                   params={{ slug: competition.slug }}
                 >
-                  Register now
+                  <HandHeart className="mr-2 h-4 w-4" />
+                  Sign up to volunteer
                 </Link>
               </Button>
-            )}
-
-            {/* Deadline info (if not already shown in urgency) */}
-            {regClosesAt && urgency?.urgencyLevel === "none" && (
-              <p className="text-xs text-muted-foreground text-center">
-                Registration closes {formatDeadlineDate(regClosesAt)}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Volunteer Sign-Up Card — secondary action for non-volunteers */}
-      {!isVolunteer && (
-        <Card className="border-white/10 bg-white/5 backdrop-blur-md">
-          <CardContent className="p-4">
-            <Button asChild variant="outline" size="sm" className="w-full">
-              <Link
-                to="/compete/$slug/volunteer"
-                params={{ slug: competition.slug }}
-              >
-                <HandHeart className="mr-2 h-4 w-4" />
-                Sign up to volunteer
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
+        )}
 
       {/* Registration Not Yet Open */}
       {isPublished &&

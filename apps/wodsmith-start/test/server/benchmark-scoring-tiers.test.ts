@@ -151,6 +151,34 @@ describe("benchmark scoring tier summaries", () => {
     }
   })
 
+  it("passes event options through with workout-derived prefill fields", () => {
+    const events = [
+      {
+        trackWorkoutId: "tw-press",
+        eventName: "Event 1 - Strict Press",
+        linkedTestId: "strict-press",
+        linkedTestName: "Strict Press",
+        scheme: "load" as const,
+        scoreType: "max",
+        timeCapSeconds: null,
+      },
+      {
+        trackWorkoutId: "tw-amrap",
+        eventName: "Event 2 - Capped AMRAP",
+        linkedTestId: null,
+        linkedTestName: null,
+        scheme: "time-with-cap" as const,
+        scoreType: "min",
+        timeCapSeconds: 720,
+      },
+    ]
+
+    const summary = buildSummary({ events })
+
+    expect(summary.events).toEqual(events)
+    expect(buildSummary().events).toEqual([])
+  })
+
   it("fails closed when an included test is missing a complete variant table", () => {
     expect(() =>
       buildSummary({

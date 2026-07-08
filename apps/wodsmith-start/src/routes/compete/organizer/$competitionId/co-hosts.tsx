@@ -1,4 +1,4 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router"
+import { createFileRoute, redirect, useRouter } from "@tanstack/react-router"
 import {
   ChevronDown,
   Copy,
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/collapsible"
 import { FEATURES } from "@/config/features"
 import type { CohostMembershipMetadata } from "@/db/schemas/cohost"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import { getCohostsFn } from "@/server-fns/cohost-fns"
 import { checkTeamHasFeatureFn } from "@/server-fns/entitlements"
 import { EditCohostPermissionsDialog } from "./-components/edit-cohost-permissions-dialog"
@@ -28,9 +29,17 @@ export const Route = createFileRoute(
   "/compete/organizer/$competitionId/co-hosts",
 )({
   staleTime: 10_000,
-  loader: async ({ parentMatchPromise }) => {
+  loader: async ({ params, parentMatchPromise }) => {
     const parentMatch = await parentMatchPromise
     const { competition } = parentMatch.loaderData!
+
+    // Co-host management is capability-gated (benchmark boards exclude it)
+    if (!competitionCan(competition.competitionType, "cohosts")) {
+      throw redirect({
+        to: "/compete/organizer/$competitionId",
+        params: { competitionId: params.competitionId },
+      })
+    }
 
     if (!competition.competitionTeamId) {
       throw new Error("Competition team not found")

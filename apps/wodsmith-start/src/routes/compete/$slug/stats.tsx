@@ -241,42 +241,58 @@ export function BenchmarkStatsPage() {
             (divisions.length > 1 || entries.length > 0) ? (
               <div className="flex flex-wrap gap-3">
                 {divisions.length > 1 && (
-                  <Select
-                    value={selectedDivisionId}
-                    onValueChange={handleDivisionChange}
-                  >
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Division" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {divisions.map((division) => (
-                        <SelectItem key={division.id} value={division.id}>
-                          {division.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex flex-col gap-1.5">
+                    <label
+                      htmlFor="stats-division"
+                      className="text-xs font-medium text-muted-foreground"
+                    >
+                      Division
+                    </label>
+                    <Select
+                      value={selectedDivisionId}
+                      onValueChange={handleDivisionChange}
+                    >
+                      <SelectTrigger id="stats-division" className="w-[180px]">
+                        <SelectValue placeholder="Division" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {divisions.map((division) => (
+                          <SelectItem key={division.id} value={division.id}>
+                            {division.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 )}
 
                 {entries.length > 0 && (
-                  <Select
-                    value={selectedEntry?.registrationId ?? ""}
-                    onValueChange={handleAthleteChange}
-                  >
-                    <SelectTrigger className="w-[220px]">
-                      <SelectValue placeholder="Athlete" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {entries.map((entry) => (
-                        <SelectItem
-                          key={entry.registrationId}
-                          value={entry.registrationId}
-                        >
-                          {entry.athleteName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex flex-col gap-1.5">
+                    <label
+                      htmlFor="stats-athlete"
+                      className="text-xs font-medium text-muted-foreground"
+                    >
+                      Athlete
+                    </label>
+                    <Select
+                      value={selectedEntry?.registrationId ?? ""}
+                      onValueChange={handleAthleteChange}
+                    >
+                      <SelectTrigger id="stats-athlete" className="w-[220px]">
+                        <SelectValue placeholder="Athlete" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {entries.map((entry) => (
+                          <SelectItem
+                            key={entry.registrationId}
+                            value={entry.registrationId}
+                          >
+                            {entry.athleteName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 )}
               </div>
             ) : null}

@@ -1,7 +1,7 @@
 "use client"
 
 import { Loader2, Pencil, Plus, Trash2 } from "lucide-react"
-import { useEffect, useState } from "react"
+import { type ReactNode, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import {
   AlertDialog,
@@ -56,6 +56,11 @@ export interface TestDraft {
 
 const HYBRID_SCHEME = "time-with-cap"
 
+/** Schemes whose results are entered as times, so the input unit must be "time". */
+function isTimeScheme(scheme: string): boolean {
+  return scheme === "time" || scheme === HYBRID_SCHEME
+}
+
 /**
  * Hybrid tests store reps completed at the cap for tiers below the flip and
  * finish times for tiers at/above it, so cells need different placeholders.
@@ -78,6 +83,10 @@ export interface EventLinkOption {
   name: string
   /** Name of the test this event is already linked to, null if unlinked */
   linkedTestName: string | null
+  /** Event workout scheme, used to prefill the test editor when known */
+  scheme?: string | null
+  /** Event workout score type, used to prefill the test editor when known */
+  scoreType?: string | null
 }
 
 export interface AddTestDialogProps {
@@ -91,6 +100,8 @@ export interface AddTestDialogProps {
   defaultEventId?: string
   /** Fix the linked event (inline creation from an event's edit page) */
   lockEvent?: boolean
+  /** Custom dialog trigger; defaults to an "Add event tiers" button */
+  trigger?: ReactNode
   onCreate: (
     test: TestDraft,
     linkTrackWorkoutId: string | null,
@@ -424,6 +435,7 @@ export function AddTestDialog({
   events,
   defaultEventId,
   lockEvent,
+  trigger,
   onCreate,
 }: AddTestDialogProps) {
   const initialCategory = defaultCategoryKey ?? categories[0]?.key ?? ""
@@ -439,6 +451,9 @@ export function AddTestDialog({
   const [thresholds, setThresholds] = useState<Record<string, string>>({})
   const [eventId, setEventId] = useState(defaultEventId ?? "")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  // Last name we auto-filled from an event, so switching events replaces it
+  // without ever clobbering a name the organizer typed themselves.
+  const eventDerivedName = useRef<string | null>(null)
 
   // Unlinked events first so connecting a fresh event is the default path
   const sortedEvents = events
@@ -462,10 +477,49 @@ export function AddTestDialog({
     setHybridFlipTier(null)
     setThresholds({})
     setEventId(defaultEventId ?? "")
+    eventDerivedName.current = null
+  }
+
+  // Time-based schemes are always entered as times, so pick the unit for the
+  // organizer; leaving a time scheme drops the auto-picked unit again.
+  const handleSchemeChange = (value: string) => {
+    setScheme(value)
+    if (isTimeScheme(value)) {
+      setInputUnit("time")
+    } else {
+      setInputUnit((current) =>
+        current === "time" ? DEFAULT_INPUT_UNIT : current,
+      )
+    }
+  }
+
+  // Derive test config from the linked event; everything stays editable and
+  // category, score model, and thresholds remain the organizer's call.
+  const applyEventPrefill = (event: EventLinkOption) => {
+    if (name.trim().length === 0 || name === eventDerivedName.current) {
+      setName(event.name)
+    }
+    eventDerivedName.current = event.name
+    if (event.scheme) handleSchemeChange(event.scheme)
+    if (event.scoreType) setScoreType(event.scoreType)
+  }
+
+  const handleEventChange = (value: string) => {
+    if (value === "none") {
+      setEventId("")
+      return
+    }
+    setEventId(value)
+    const selected = events?.find((event) => event.id === value)
+    if (selected) applyEventPrefill(selected)
   }
 
   const handleOpenChange = (next: boolean) => {
-    if (!next) resetForm()
+    if (!next) {
+      resetForm()
+    } else if (lockedEvent) {
+      applyEventPrefill(lockedEvent)
+    }
     setOpen(next)
   }
 
@@ -494,7 +548,7 @@ export function AddTestDialog({
   // stays valid without the organizer hunting for the right scheme.
   const handleScoreModelChange = (value: string) => {
     setScoreModel(value)
-    if (value === "hybrid") setScheme(HYBRID_SCHEME)
+    if (value === "hybrid") handleSchemeChange(HYBRID_SCHEME)
   }
 
   const thresholdsComplete = includedInScoring
@@ -539,10 +593,12 @@ export function AddTestDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button disabled={disabled} size="sm">
-          <Plus className="mr-2 h-4 w-4" />
-          Add event tiers
-        </Button>
+        {trigger ?? (
+          <Button disabled={disabled} size="sm">
+            <Plus className="mr-2 h-4 w-4" />
+            Add event tiers
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
@@ -566,15 +622,14 @@ export function AddTestDialog({
               <Label htmlFor="add-test-event">Linked event</Label>
               <Select
                 value={eventId || "none"}
-                onValueChange={(value) =>
-                  setEventId(value === "none" ? "" : value)
-                }
+                onValueChange={handleEventChange}
                 disabled={isSubmitting}
               >
                 <SelectTrigger id="add-test-event">
                   <SelectValue placeholder="Select an event" />
                 </SelectTrigger>
-                <SelectContent>
+                {/* Bounded so long event lists scroll instead of filling the screen */}
+                <SelectContent className="max-h-80">
                   <SelectItem value="none">No event yet</SelectItem>
                   {sortedEvents.map((event) => (
                     <SelectItem
@@ -605,7 +660,7 @@ export function AddTestDialog({
           categoryKey={categoryKey}
           onCategoryChange={setCategoryKey}
           scheme={scheme}
-          onSchemeChange={setScheme}
+          onSchemeChange={handleSchemeChange}
           scoreType={scoreType}
           onScoreTypeChange={setScoreType}
           inputUnit={inputUnit}
@@ -693,11 +748,28 @@ export function EditTestDialog({
     setThresholds({})
   }, [open, test])
 
+  // Time-based schemes are always entered as times, so pick the unit for the
+  // organizer; leaving a time scheme falls back to the test's original unit.
+  const handleSchemeChange = (value: string) => {
+    setScheme(value)
+    if (isTimeScheme(value)) {
+      setInputUnit("time")
+    } else {
+      setInputUnit((current) =>
+        current === "time"
+          ? test.inputUnit !== "time"
+            ? test.inputUnit
+            : DEFAULT_INPUT_UNIT
+          : current,
+      )
+    }
+  }
+
   // Force the compatible scheme when hybrid is selected so the flip encoding
   // stays valid without hunting for the right scheme.
   const handleScoreModelChange = (value: string) => {
     setScoreModel(value)
-    if (value === "hybrid") setScheme(HYBRID_SCHEME)
+    if (value === "hybrid") handleSchemeChange(HYBRID_SCHEME)
   }
 
   const handleThresholdChange = (
@@ -810,7 +882,7 @@ export function EditTestDialog({
           categoryKey={categoryKey}
           onCategoryChange={setCategoryKey}
           scheme={scheme}
-          onSchemeChange={setScheme}
+          onSchemeChange={handleSchemeChange}
           scoreType={scoreType}
           onScoreTypeChange={setScoreType}
           inputUnit={inputUnit}

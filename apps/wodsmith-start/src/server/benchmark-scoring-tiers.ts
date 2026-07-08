@@ -69,6 +69,11 @@ export interface BenchmarkScoringTierEventOption {
   eventName: string
   linkedTestId: string | null
   linkedTestName: string | null
+  /** Event workout config used to prefill a new benchmark test */
+  scheme: WorkoutScheme
+  scoreType: string | null
+  /** Time cap in seconds for time-with-cap events, null otherwise */
+  timeCapSeconds: number | null
 }
 
 export interface BenchmarkScoringTierTest {
@@ -410,14 +415,9 @@ export async function loadBenchmarkScoringTierSummary({
     competitionId,
   })
   const testNameById = new Map(tests.map((test) => [test.id, test.name]))
-  const events: BenchmarkScoringTierEventOption[] = eventRows.map((row) => ({
-    trackWorkoutId: row.trackWorkoutId,
-    eventName: row.eventName,
-    linkedTestId: row.benchmarkTestId,
-    linkedTestName: row.benchmarkTestId
-      ? (testNameById.get(row.benchmarkTestId) ?? null)
-      : null,
-  }))
+  const events: BenchmarkScoringTierEventOption[] = eventRows.map((row) =>
+    toBenchmarkEventOption(row, testNameById),
+  )
 
   return buildBenchmarkScoringTierSummary({
     competitionId,
@@ -514,14 +514,7 @@ export async function loadBenchmarkEventTestOptions({
         linkedEventName: linkedEvent?.eventName ?? null,
       }
     }),
-    events: eventRows.map((row) => ({
-      trackWorkoutId: row.trackWorkoutId,
-      eventName: row.eventName,
-      linkedTestId: row.benchmarkTestId,
-      linkedTestName: row.benchmarkTestId
-        ? (testNameById.get(row.benchmarkTestId) ?? null)
-        : null,
-    })),
+    events: eventRows.map((row) => toBenchmarkEventOption(row, testNameById)),
   }
 }
 
@@ -529,6 +522,27 @@ interface BenchmarkCompetitionEventRow {
   trackWorkoutId: string
   eventName: string
   benchmarkTestId: string | null
+  scheme: WorkoutScheme
+  scoreType: string | null
+  /** Time cap in seconds from the event workout */
+  timeCap: number | null
+}
+
+function toBenchmarkEventOption(
+  row: BenchmarkCompetitionEventRow,
+  testNameById: ReadonlyMap<string, string>,
+): BenchmarkScoringTierEventOption {
+  return {
+    trackWorkoutId: row.trackWorkoutId,
+    eventName: row.eventName,
+    linkedTestId: row.benchmarkTestId,
+    linkedTestName: row.benchmarkTestId
+      ? (testNameById.get(row.benchmarkTestId) ?? null)
+      : null,
+    scheme: row.scheme,
+    scoreType: row.scoreType,
+    timeCapSeconds: row.timeCap,
+  }
 }
 
 /**
@@ -548,6 +562,9 @@ async function loadBenchmarkCompetitionEventRows({
       parentEventId: trackWorkoutsTable.parentEventId,
       eventName: workouts.name,
       benchmarkTestId: trackWorkoutsTable.benchmarkTestId,
+      scheme: workouts.scheme,
+      scoreType: workouts.scoreType,
+      timeCap: workouts.timeCap,
     })
     .from(trackWorkoutsTable)
     .innerJoin(
@@ -563,11 +580,7 @@ async function loadBenchmarkCompetitionEventRows({
   )
   return rows
     .filter((row) => !parentIds.has(row.trackWorkoutId))
-    .map(({ trackWorkoutId, eventName, benchmarkTestId }) => ({
-      trackWorkoutId,
-      eventName,
-      benchmarkTestId,
-    }))
+    .map(({ parentEventId: _parentEventId, ...row }) => row)
 }
 
 function buildLinkedEventsByTestId(

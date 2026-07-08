@@ -27,6 +27,20 @@ interface Props {
     competitionId: string
     scoringConfig: ScoringConfig
   }) => Promise<unknown>
+  /**
+   * Hard-codes the ranking algorithm to "online" (benchmark boards): hides
+   * the algorithm picker and forces the saved config to online while keeping
+   * tiebreaker and DNF/DNS settings editable.
+   */
+  lockAlgorithmOnline?: boolean
+}
+
+/**
+ * Force a scoring config onto the online ranking algorithm (benchmark boards)
+ */
+function forceOnlineAlgorithm(config: ScoringConfig): ScoringConfig {
+  if (config.algorithm === "online") return config
+  return { ...config, algorithm: "online", customTable: undefined }
 }
 
 /**
@@ -55,27 +69,34 @@ export function ScoringSettingsForm({
   competition,
   events,
   onSaveScoringConfig,
+  lockAlgorithmOnline = false,
 }: Props) {
   const router = useRouter()
   const updateScoringConfig = useServerFn(updateCompetitionScoringConfigFn)
   const [isSaving, setIsSaving] = useState(false)
-  const [config, setConfig] = useState<ScoringConfig>(() =>
-    parseScoringConfig(competition.settings),
-  )
+  const [config, setConfig] = useState<ScoringConfig>(() => {
+    const parsed = parseScoringConfig(competition.settings)
+    return lockAlgorithmOnline ? forceOnlineAlgorithm(parsed) : parsed
+  })
 
   const handleSave = async () => {
     setIsSaving(true)
     try {
+      // Re-force on submit so a locked competition can never save a
+      // non-online algorithm even if local state drifted.
+      const scoringConfig = lockAlgorithmOnline
+        ? forceOnlineAlgorithm(config)
+        : config
       if (onSaveScoringConfig) {
         await onSaveScoringConfig({
           competitionId: competition.id,
-          scoringConfig: config,
+          scoringConfig,
         })
       } else {
         await updateScoringConfig({
           data: {
             competitionId: competition.id,
-            scoringConfig: config,
+            scoringConfig,
           },
         })
       }
@@ -100,6 +121,7 @@ export function ScoringSettingsForm({
         onChange={setConfig}
         events={events}
         disabled={isSaving}
+        lockAlgorithmOnline={lockAlgorithmOnline}
       />
 
       <div className="sticky bottom-0 z-10 -mx-4 border-t bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:-mx-6 sm:px-6">
