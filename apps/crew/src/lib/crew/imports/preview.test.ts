@@ -321,7 +321,7 @@ describe("buildCrewImportPreview", () => {
           '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">',
           '<cellXfs count="2">',
           '<xf numFmtId="0" applyNumberFormat="0"/>',
-          '<xf numFmtId="20" applyNumberFormat="1"/>',
+          '<xf numFmtId="18" applyNumberFormat="1"/>',
           "</cellXfs>",
           "</styleSheet>",
         ].join(""),
@@ -404,6 +404,86 @@ describe("parseXlsx edge cases", () => {
     )
   })
 
+  it("uses worksheet relationships before non-worksheet sheet relationships", () => {
+    const workbook = createXlsxWorkbook([], {
+      workbookXml: [
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">',
+        "<sheets>",
+        '<sheet name="Chart" sheetId="1" r:id="rId1"/>',
+        '<sheet name="Data" sheetId="2" r:id="rId2"/>',
+        "</sheets>",
+        "</workbook>",
+      ].join(""),
+      workbookRelsXml: [
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">',
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chartsheet" Target="chartsheets/sheet1.xml"/>',
+        '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>',
+        "</Relationships>",
+      ].join(""),
+      extraFiles: {
+        "xl/worksheets/sheet2.xml": strToU8(
+          createWorksheetXml([["Full Name"], ["Ian Jones"]]),
+        ),
+      },
+    })
+
+    const parsed = parseCrewImportFile(xlsxFile(workbook))
+
+    expect(parsed.headers).toEqual(["Full Name"])
+    expect(parsed.rows[0]?.values["Full Name"]).toBe("Ian Jones")
+  })
+
+  it("preserves nonzero seconds in styled time and date-time cells", () => {
+    const workbook = createXlsxWorkbook(
+      [
+        ["Start Time", "Started At"],
+        [
+          { value: 0.6046875, style: 1 },
+          { value: 46023.6046875, style: 2 },
+        ],
+      ],
+      {
+        stylesXml: [
+          '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+          '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">',
+          '<cellXfs count="3">',
+          '<xf numFmtId="0" applyNumberFormat="0"/>',
+          '<xf numFmtId="18" applyNumberFormat="1"/>',
+          '<xf numFmtId="22" applyNumberFormat="1"/>',
+          "</cellXfs>",
+          "</styleSheet>",
+        ].join(""),
+      },
+    )
+
+    const parsed = parseCrewImportFile(xlsxFile(workbook))
+
+    expect(parsed.rows[0]?.values["Start Time"]).toBe("2:30:45 PM")
+    expect(parsed.rows[0]?.values["Started At"]).toBe(
+      "2026-01-01 14:30:45",
+    )
+  })
+
+  it("keeps invalid numeric XML entities as text", () => {
+    const workbook = createXlsxWorkbook([], {
+      worksheetXml: [
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">',
+        "<sheetData>",
+        '<row r="1"><c r="A1" t="inlineStr"><is><t>&#x110000;</t></is></c></row>',
+        '<row r="2"><c r="A2" t="inlineStr"><is><t>Ian</t></is></c></row>',
+        "</sheetData>",
+        "</worksheet>",
+      ].join(""),
+    })
+
+    const parsed = parseCrewImportFile(xlsxFile(workbook))
+
+    expect(parsed.headers).toEqual(["&#x110000;"])
+  })
+
   it("ignores phonetic furigana runs in shared strings", () => {
     const workbook = createXlsxWorkbook([], {
       worksheetXml: [
@@ -435,8 +515,11 @@ function createXlsxWorkbook(
   rows: XlsxCell[][],
   options: {
     stylesXml?: string
+    workbookXml?: string
+    workbookRelsXml?: string
     worksheetXml?: string
     sharedStringsXml?: string
+    extraFiles?: Record<string, Uint8Array>
   } = {},
 ) {
   const files: Record<string, Uint8Array> = {
@@ -461,22 +544,24 @@ function createXlsxWorkbook(
       ].join(""),
     ),
     "xl/workbook.xml": strToU8(
-      [
-        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
-        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">',
-        "<sheets>",
-        '<sheet name="Sheet1" sheetId="1" r:id="rId1"/>',
-        "</sheets>",
-        "</workbook>",
-      ].join(""),
+      options.workbookXml ??
+        [
+          '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+          '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">',
+          "<sheets>",
+          '<sheet name="Sheet1" sheetId="1" r:id="rId1"/>',
+          "</sheets>",
+          "</workbook>",
+        ].join(""),
     ),
     "xl/_rels/workbook.xml.rels": strToU8(
-      [
-        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
-        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">',
-        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>',
-        "</Relationships>",
-      ].join(""),
+      options.workbookRelsXml ??
+        [
+          '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+          '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">',
+          '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>',
+          "</Relationships>",
+        ].join(""),
     ),
     "xl/worksheets/sheet1.xml": strToU8(
       options.worksheetXml ?? createWorksheetXml(rows),
@@ -495,6 +580,7 @@ function createXlsxWorkbook(
   if (options.sharedStringsXml) {
     files["xl/sharedStrings.xml"] = strToU8(options.sharedStringsXml)
   }
+  Object.assign(files, options.extraFiles)
 
   return zipSync(files)
 }

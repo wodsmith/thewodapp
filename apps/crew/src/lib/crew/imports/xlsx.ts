@@ -49,6 +49,19 @@ export function parseXlsx(
     return emptyWorkbookError("Excel workbook could not be opened.")
   }
 
+  // ZIP entry headers declare originalSize; verify actual inflated bytes too.
+  let actualTotalBytes = 0
+  for (const file of Object.values(files)) {
+    actualTotalBytes += file.byteLength
+    if (
+      file.byteLength > MAX_ENTRY_BYTES ||
+      actualTotalBytes > MAX_TOTAL_BYTES
+    ) {
+      exceededSizeCap = true
+      break
+    }
+  }
+
   if (exceededSizeCap) {
     return emptyWorkbookError("Excel workbook is too large to import.")
   }
@@ -133,33 +146,45 @@ function getFirstWorksheetPath(
   files: Record<string, Uint8Array>,
   workbookXml: string,
 ) {
-  const sheetTag = workbookXml.match(/<sheet\b[^>]*>/)?.[0]
-  const relationshipId = sheetTag
-    ? getAttribute(sheetTag, "r:id") || getAttribute(sheetTag, "id")
-    : null
+  const sheetTags = workbookXml.match(/<sheet\b[^>]*>/g) ?? []
+  const firstRelationshipId = sheetTags
+    .map((tag) => getAttribute(tag, "r:id") || getAttribute(tag, "id"))
+    .find((id) => id.length > 0)
   const workbookRelsXml = readZipText(files, "xl/_rels/workbook.xml.rels")
 
-  if (relationshipId && workbookRelsXml) {
-    const relationship = findRelationship(workbookRelsXml, relationshipId)
-    if (relationship?.target) return resolveWorkbookTarget(relationship.target)
+  if (workbookRelsXml) {
+    const relationships = parseRelationships(workbookRelsXml)
+    const worksheet = relationships.find(
+      (relationship) =>
+        relationship.target && relationship.type.endsWith("/worksheet"),
+    )
+    if (worksheet?.target) return resolveWorkbookTarget(worksheet.target)
+
+    const fallback = relationships.find(
+      (relationship) => relationship.id === firstRelationshipId,
+    )
+    if (fallback?.target) return resolveWorkbookTarget(fallback.target)
   }
 
   return files["xl/worksheets/sheet1.xml"] ? "xl/worksheets/sheet1.xml" : null
 }
 
-function findRelationship(relsXml: string, relationshipId: string) {
+function parseRelationships(relsXml: string) {
+  const relationships: Array<{ id: string; target: string; type: string }> = []
   const relationshipPattern = /<Relationship\b[^>]*>/g
   let match = relationshipPattern.exec(relsXml)
 
   while (match) {
     const tag = match[0] ?? ""
-    if (getAttribute(tag, "Id") === relationshipId) {
-      return { target: getAttribute(tag, "Target") }
-    }
+    relationships.push({
+      id: getAttribute(tag, "Id"),
+      target: getAttribute(tag, "Target"),
+      type: getAttribute(tag, "Type"),
+    })
     match = relationshipPattern.exec(relsXml)
   }
 
-  return null
+  return relationships
 }
 
 function resolveWorkbookTarget(target: string) {
@@ -340,8 +365,9 @@ function formatExcelDateNumber(value: string, styleKind: DateStyleKind) {
   const date = new Date(Date.UTC(1899, 11, 30 + wholeDays))
   const hours = Math.floor(secondsIntoDay / 3600)
   const minutes = Math.floor((secondsIntoDay % 3600) / 60)
+  const seconds = secondsIntoDay % 60
 
-  if (styleKind === "time") return formatClockTime(hours, minutes)
+  if (styleKind === "time") return formatClockTime(hours, minutes, seconds)
 
   const datePart = [
     date.getUTCFullYear(),
@@ -350,13 +376,17 @@ function formatExcelDateNumber(value: string, styleKind: DateStyleKind) {
   ].join("-")
 
   if (styleKind === "date") return datePart
-  return `${datePart} ${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`
+  const timePart = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`
+  return seconds > 0
+    ? `${datePart} ${timePart}:${String(seconds).padStart(2, "0")}`
+    : `${datePart} ${timePart}`
 }
 
-function formatClockTime(hours: number, minutes: number) {
+function formatClockTime(hours: number, minutes: number, seconds: number) {
   const meridiem = hours >= 12 ? "PM" : "AM"
   const displayHour = hours % 12 || 12
-  return `${displayHour}:${String(minutes).padStart(2, "0")} ${meridiem}`
+  const secondsPart = seconds > 0 ? `:${String(seconds).padStart(2, "0")}` : ""
+  return `${displayHour}:${String(minutes).padStart(2, "0")}${secondsPart} ${meridiem}`
 }
 
 function formatPlainCellValue(value: string) {
@@ -414,15 +444,28 @@ function getAttribute(tag: string, name: string) {
 
 function decodeXml(value: string) {
   return value
-    .replace(/&#x([0-9a-f]+);/gi, (_, code: string) =>
-      String.fromCodePoint(Number.parseInt(code, 16)),
+    .replace(/&#x([0-9a-f]+);/gi, (entity, code: string) =>
+      decodeCodePoint(entity, Number.parseInt(code, 16)),
     )
-    .replace(/&#(\d+);/g, (_, code: string) =>
-      String.fromCodePoint(Number.parseInt(code, 10)),
+    .replace(/&#(\d+);/g, (entity, code: string) =>
+      decodeCodePoint(entity, Number.parseInt(code, 10)),
     )
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&amp;/g, "&")
+}
+
+function decodeCodePoint(entity: string, codePoint: number) {
+  // String.fromCodePoint throws past 0x10FFFF; keep malformed entities as text.
+  if (
+    !Number.isInteger(codePoint) ||
+    codePoint < 0 ||
+    codePoint > 0x10ffff ||
+    (codePoint >= 0xd800 && codePoint <= 0xdfff)
+  ) {
+    return entity
+  }
+  return String.fromCodePoint(codePoint)
 }
