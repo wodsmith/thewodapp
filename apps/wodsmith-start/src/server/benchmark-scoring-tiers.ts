@@ -72,8 +72,6 @@ export interface BenchmarkScoringTierEventOption {
   /** Event workout config used to prefill a new benchmark test */
   scheme: WorkoutScheme
   scoreType: string | null
-  /** Time cap in seconds for time-with-cap events, null otherwise */
-  timeCapSeconds: number | null
 }
 
 export interface BenchmarkScoringTierTest {
@@ -524,8 +522,6 @@ interface BenchmarkCompetitionEventRow {
   benchmarkTestId: string | null
   scheme: WorkoutScheme
   scoreType: string | null
-  /** Time cap in seconds from the event workout */
-  timeCap: number | null
 }
 
 function toBenchmarkEventOption(
@@ -541,7 +537,6 @@ function toBenchmarkEventOption(
       : null,
     scheme: row.scheme,
     scoreType: row.scoreType,
-    timeCapSeconds: row.timeCap,
   }
 }
 
@@ -564,7 +559,6 @@ async function loadBenchmarkCompetitionEventRows({
       benchmarkTestId: trackWorkoutsTable.benchmarkTestId,
       scheme: workouts.scheme,
       scoreType: workouts.scoreType,
-      timeCap: workouts.timeCap,
     })
     .from(trackWorkoutsTable)
     .innerJoin(

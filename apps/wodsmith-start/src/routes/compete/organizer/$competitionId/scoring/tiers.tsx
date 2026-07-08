@@ -376,24 +376,6 @@ function BenchmarkScoringTiersEditor({
         </div>
       </div>
 
-      <HowScoringWorksCard summary={summary} />
-
-      <BenchmarkSettingsForm
-        settings={summary.battery}
-        onSave={handleSaveBenchmarkSettings}
-      />
-
-      <CategoriesManager
-        categories={categorySummaryItems}
-        onSave={handleSaveCategories}
-      />
-
-      <RatingBandsEditor
-        bands={summary.ratingBands}
-        scoreMax={summary.battery.scoreMax}
-        onSave={handleSaveRatingBands}
-      />
-
       {unlinkedEvents.length > 0 && (
         <Card>
           <CardHeader className="gap-1">
@@ -427,6 +409,24 @@ function BenchmarkScoringTiersEditor({
           </CardContent>
         </Card>
       )}
+
+      <HowScoringWorksCard summary={summary} />
+
+      <BenchmarkSettingsForm
+        settings={summary.battery}
+        onSave={handleSaveBenchmarkSettings}
+      />
+
+      <CategoriesManager
+        categories={categorySummaryItems}
+        onSave={handleSaveCategories}
+      />
+
+      <RatingBandsEditor
+        bands={summary.ratingBands}
+        scoreMax={summary.battery.scoreMax}
+        onSave={handleSaveRatingBands}
+      />
 
       <div className="space-y-5">
         <div className="space-y-1">

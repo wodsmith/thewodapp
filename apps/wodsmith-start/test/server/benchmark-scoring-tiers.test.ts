@@ -160,7 +160,6 @@ describe("benchmark scoring tier summaries", () => {
         linkedTestName: "Strict Press",
         scheme: "load" as const,
         scoreType: "max",
-        timeCapSeconds: null,
       },
       {
         trackWorkoutId: "tw-amrap",
@@ -169,7 +168,6 @@ describe("benchmark scoring tier summaries", () => {
         linkedTestName: null,
         scheme: "time-with-cap" as const,
         scoreType: "min",
-        timeCapSeconds: 720,
       },
     ]
 

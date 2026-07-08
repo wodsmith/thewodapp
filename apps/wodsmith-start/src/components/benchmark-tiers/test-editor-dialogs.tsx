@@ -58,7 +58,7 @@ const HYBRID_SCHEME = "time-with-cap"
 
 /** Schemes whose results are entered as times, so the input unit must be "time". */
 function isTimeScheme(scheme: string): boolean {
-  return scheme === "time" || scheme === HYBRID_SCHEME
+  return scheme === "time" || scheme === "emom" || scheme === HYBRID_SCHEME
 }
 
 /**

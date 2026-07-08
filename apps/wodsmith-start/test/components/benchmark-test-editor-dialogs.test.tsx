@@ -139,6 +139,11 @@ describe("AddTestDialog", () => {
     fireEvent.click(screen.getByRole("option", { name: "time" }))
     expect(screen.getByLabelText(/input unit/i)).toHaveTextContent("Time")
 
+    // EMOM results are entered as times too.
+    fireEvent.click(screen.getByLabelText(/scheme/i))
+    fireEvent.click(screen.getByRole("option", { name: "emom" }))
+    expect(screen.getByLabelText(/input unit/i)).toHaveTextContent("Time")
+
     // Leaving the time scheme drops the auto-picked unit again.
     fireEvent.click(screen.getByLabelText(/scheme/i))
     fireEvent.click(screen.getByRole("option", { name: "load" }))
