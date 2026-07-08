@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "d7e664b4d4c4",
+  "strategy": "manual-commit",
+  "branch": "crew-import-excel",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/crew/src/lib/crew/imports/xlsx.ts",
+    "lat.md/crew.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/d7/e664b4d4c4/0/metadata.json",
+      "transcript": "/d7/e664b4d4c4/0/full.jsonl",
+      "context": "/d7/e664b4d4c4/0/context.md",
+      "content_hash": "/d7/e664b4d4c4/0/content_hash.txt",
+      "prompt": "/d7/e664b4d4c4/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 9408,
+    "cache_creation_tokens": 135396,
+    "cache_read_tokens": 2655432,
+    "output_tokens": 11893,
+    "api_call_count": 28
+  }
+}
