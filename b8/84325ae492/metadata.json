@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "b884325ae492",
+  "strategy": "manual-commit",
+  "branch": "crew/volunteer-broadcast",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "lat.md/crew.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b8/84325ae492/0/metadata.json",
+      "transcript": "/b8/84325ae492/0/full.jsonl",
+      "context": "/b8/84325ae492/0/context.md",
+      "content_hash": "/b8/84325ae492/0/content_hash.txt",
+      "prompt": "/b8/84325ae492/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 139,
+    "cache_creation_tokens": 3954,
+    "cache_read_tokens": 1007287,
+    "output_tokens": 2066,
+    "api_call_count": 5
+  }
+}

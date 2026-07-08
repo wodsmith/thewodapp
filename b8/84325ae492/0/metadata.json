@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "b884325ae492",
+  "session_id": "1d759453-9120-4a75-89a3-9a40d7432d0c",
+  "strategy": "manual-commit",
+  "created_at": "2026-07-08T03:39:45.258939Z",
+  "branch": "crew/volunteer-broadcast",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "lat.md/crew.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "6515a3f4-353f-4d2c-b5aa-9519573e93b9",
+  "checkpoint_transcript_start": 591,
+  "transcript_lines_at_start": 591,
+  "token_usage": {
+    "input_tokens": 139,
+    "cache_creation_tokens": 3954,
+    "cache_read_tokens": 1007287,
+    "output_tokens": 2066,
+    "api_call_count": 5
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-07-08T03:39:45.140485Z",
+    "agent_lines": 4,
+    "human_added": 128,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 132,
+    "agent_percentage": 3.0303030303030303
+  }
+}
