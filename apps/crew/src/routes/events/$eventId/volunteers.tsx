@@ -1,5 +1,5 @@
 // @lat: [[crew#Roster Volunteer Editing]]
-import type { FormEvent, ReactNode } from "react"
+
 import {
   createFileRoute,
   getRouteApi,
@@ -7,7 +7,15 @@ import {
   useRouter,
 } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { ClipboardPaste, FileUp, History, Loader2, Pencil, UserPlus } from "lucide-react"
+import {
+  ClipboardPaste,
+  FileUp,
+  History,
+  Loader2,
+  Pencil,
+  UserPlus,
+} from "lucide-react"
+import type { FormEvent, ReactNode } from "react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -18,7 +26,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { VolunteerImportFlow } from "@/components/crew/volunteer-import-flow"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -36,7 +43,6 @@ import {
   VOLUNTEER_AVAILABILITY,
   VOLUNTEER_ROLE_OPTIONS,
 } from "@/db/schemas/volunteers"
-import { formatCrewValue } from "@/lib/crew-event-display"
 import type { CrewReturningVolunteerSuggestion } from "@/lib/crew/returning-volunteers"
 import type {
   CrewRosterStatus,
@@ -46,6 +52,7 @@ import {
   formatVolunteerAvailability,
   formatVolunteerRole,
 } from "@/lib/crew/roster-shifts"
+import { formatCrewValue } from "@/lib/crew-event-display"
 import type { ManualCrewVolunteerMutationResult } from "@/server-fns/crew-roster-shift-fns"
 import {
   createManualCrewVolunteerFn,
@@ -65,12 +72,16 @@ const parentRoute = getRouteApi("/events/$eventId")
 
 function VolunteersPage() {
   const { eventId } = parentRoute.useParams()
-  const { event, roster, summary, shiftSummary, returningVolunteerSuggestions } =
-    Route.useLoaderData()
+  const {
+    event,
+    roster,
+    summary,
+    shiftSummary,
+    returningVolunteerSuggestions,
+  } = Route.useLoaderData()
   const router = useRouter()
   const [addOpen, setAddOpen] = useState(false)
   const [pasteOpen, setPasteOpen] = useState(false)
-  const [importOpen, setImportOpen] = useState(false)
   const [editingVolunteer, setEditingVolunteer] =
     useState<CrewRosterVolunteer | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -84,7 +95,8 @@ function VolunteersPage() {
 
   const allIds = roster.map((v) => v.sourceId)
   const selectedCount = selectedIds.size
-  const allSelected = allIds.length > 0 && allIds.every((id) => selectedIds.has(id))
+  const allSelected =
+    allIds.length > 0 && allIds.every((id) => selectedIds.has(id))
   const someSelected = selectedCount > 0 && !allSelected
 
   function handleSelectAll(checked: boolean) {
@@ -146,9 +158,11 @@ function VolunteersPage() {
             <ClipboardPaste />
             Paste emails
           </Button>
-          <Button variant="outline" onClick={() => setImportOpen(true)}>
-            <FileUp />
-            Import volunteers
+          <Button asChild variant="outline">
+            <Link to="/events/$eventId/volunteers/import" params={{ eventId }}>
+              <FileUp />
+              Import volunteers
+            </Link>
           </Button>
           <Button onClick={() => setAddOpen(true)}>
             <UserPlus />
@@ -189,7 +203,9 @@ function VolunteersPage() {
           <select
             id="bulk-role-select"
             value={bulkRole}
-            onChange={(e) => setBulkRole(e.target.value as VolunteerRoleType | "")}
+            onChange={(e) =>
+              setBulkRole(e.target.value as VolunteerRoleType | "")
+            }
             className="h-9 rounded-md border bg-background px-3 text-sm"
             disabled={isBulkSubmitting}
           >
@@ -284,12 +300,6 @@ function VolunteersPage() {
         eventId={eventId}
         onOpenChange={setPasteOpen}
         onCreated={reloadRoster}
-      />
-      <ImportVolunteersDialog
-        open={importOpen}
-        eventId={eventId}
-        onOpenChange={setImportOpen}
-        onImported={reloadRoster}
       />
       <EditRosterVolunteerDialog
         volunteer={editingVolunteer}
@@ -701,37 +711,6 @@ function PasteVolunteerEmailsDialog({
             </Button>
           </DialogFooter>
         </div>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-function ImportVolunteersDialog({
-  open,
-  eventId,
-  onOpenChange,
-  onImported,
-}: {
-  open: boolean
-  eventId: string
-  onOpenChange: (open: boolean) => void
-  onImported: () => Promise<void>
-}) {
-  async function handleApplyComplete() {
-    onOpenChange(false)
-    await onImported()
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Import volunteers</DialogTitle>
-        </DialogHeader>
-        <VolunteerImportFlow
-          eventId={eventId}
-          onApplyComplete={handleApplyComplete}
-        />
       </DialogContent>
     </Dialog>
   )

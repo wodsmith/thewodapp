@@ -272,7 +272,7 @@ Draft `competition_judge_rotations` stay editable after publishing — saves are
 
 Manual volunteer intake lets Crew operators build the roster from [[apps/crew/src/routes/events/$eventId/volunteers.tsx|the event volunteer page]] without leaving the existing volunteer primitives.
 
-Single-add, paste, and CSV import flows are all available as dialogs on the volunteers page. Single-add and paste flows call [[apps/crew/src/server-fns/crew-roster-shift-fns.ts|route-safe server functions]] backed by [[apps/crew/src/server/crew-roster-shift.server.ts|server-only roster mutations]] to create pending volunteer `team_invitations` with `SYSTEM_ROLES_ENUM.VOLUNTEER`, normalize email casing and whitespace, skip existing volunteer invitations or memberships, and use the same volunteer membership metadata shape consumed by [[crew#Roster Shifts Assignments]], public signup, import, roster display, shifts, and assignment validation.
+Single-add and paste flows are dialogs on the volunteers page; the CSV import lives on a dedicated wizard page (see [[crew#Manual Volunteer Intake#Volunteer Import Wizard]]). Single-add and paste flows call [[apps/crew/src/server-fns/crew-roster-shift-fns.ts|route-safe server functions]] backed by [[apps/crew/src/server/crew-roster-shift.server.ts|server-only roster mutations]] to create pending volunteer `team_invitations` with `SYSTEM_ROLES_ENUM.VOLUNTEER`, normalize email casing and whitespace, skip existing volunteer invitations or memberships, and use the same volunteer membership metadata shape consumed by [[crew#Roster Shifts Assignments]], public signup, import, roster display, shifts, and assignment validation.
 
 [[apps/crew/src/lib/crew/manual-volunteer-intake.ts|Manual intake helpers]] parse pasted email batches and default missing role selections through `getCrewRosterRoleTypes()` so manually entered volunteers display as General and stay compatible with shift assignment behavior.
 
@@ -282,7 +282,11 @@ The single-add form makes email optional so operators can roster a volunteer wit
 
 Email-less volunteers store an empty-string `team_invitations.email` (the column stays `notNull`) and omit `signupEmail` from metadata, so dedup, identity matching, and the roster never treat them as sharing a blank email anchor. The schema requires a name or an email, no invite email is sent (the manual path never sends one), and roster, shift, and assignment surfaces render a "No email" placeholder. Bulk role assignment and scheduling already key off the membership-or-invitation id, so email-less volunteers are fully selectable and assignable. The paste flow stays email-only.
 
-The CSV import modal uses [[apps/crew/src/components/crew/volunteer-import-flow.tsx]] to render the upload, column-mapping, preview, and apply steps inside a Dialog, scoped to the volunteer kind only. On a successful apply the modal closes and the router invalidates so newly imported volunteers appear without a page navigation.
+### Volunteer Import Wizard
+
+CSV import is a dedicated three-step wizard page at `/events/$eventId/volunteers/import` instead of a dialog, reached from the volunteers page "Import volunteers" button.
+
+The route [[apps/crew/src/routes/events/$eventId/volunteers_.import.tsx]] (the `volunteers_` prefix keeps it out of the volunteers page component tree while staying inside the event layout) renders [[apps/crew/src/components/crew/volunteer-import-wizard.tsx]], a sequential stepper — 1. Upload CSV (drag-and-drop or file picker, optional CSV label, expected-columns helper), 2. Map fields (column mapping with saved-mapping suggestions and presets), 3. Review (summary metrics, preview table, confirm-and-apply). It reuses the same server contract as before: client-side `parseCsv`/`inferColumnMapping`, the `/api/crew/import` preview endpoint, mapping suggestion/preset server functions, and `applyCrewImportFn`, scoped to the volunteer kind only. On a successful apply the wizard invalidates the router and navigates back to the volunteers page.
 
 ## Staffing Page Gap Report
 
@@ -336,7 +340,7 @@ Operator-facing durations render in compact hour/minute labels so workout block 
 
 Crew import preview is a private operator workflow for CSV-only volunteer and heat schedule uploads.
 
-Volunteer imports surface as a modal on [[apps/crew/src/routes/events/$eventId/volunteers.tsx|the Volunteers page]] via [[apps/crew/src/components/crew/volunteer-import-flow.tsx]]. Heat schedule imports surface as a modal on [[apps/crew/src/routes/events/$eventId/heats.tsx|the Heats page]]. The shared tab UI component lives in [[apps/crew/src/components/crew/crew-import-tabs.tsx]]. [[apps/crew/src/routes/api/crew/import.ts]] accepts private preview uploads, while [[apps/crew/src/lib/crew/imports/preview.ts]] and [[apps/crew/src/server/crew-imports.server.ts]] parse and persist previews without applying rows.
+Volunteer imports surface as a dedicated wizard page linked from [[apps/crew/src/routes/events/$eventId/volunteers.tsx|the Volunteers page]] via [[apps/crew/src/components/crew/volunteer-import-wizard.tsx]] (see [[crew#Manual Volunteer Intake#Volunteer Import Wizard]]). Heat schedule imports surface as a modal on [[apps/crew/src/routes/events/$eventId/heats.tsx|the Heats page]]. The shared tab UI component lives in [[apps/crew/src/components/crew/crew-import-tabs.tsx]]. [[apps/crew/src/routes/api/crew/import.ts]] accepts private preview uploads, while [[apps/crew/src/lib/crew/imports/preview.ts]] and [[apps/crew/src/server/crew-imports.server.ts]] parse and persist previews without applying rows.
 
 ### Private Upload Route
 
@@ -420,7 +424,7 @@ Crew import mapping memory stores confirmed CSV header mappings in `crew_import_
 
 [[apps/crew/src/lib/crew/imports/mapping-memory.ts]] owns pure header fingerprinting, source normalization, scoped suggestion selection, and save-payload sanitization. [[apps/crew/src/server-fns/crew-import-fns.ts]] keeps the route-facing functions thin while [[apps/crew/src/server/crew-imports.server.ts]] loads and upserts presets through the shared table.
 
-The volunteer import modal on [[apps/crew/src/routes/events/$eventId/volunteers.tsx|the Volunteers page]] surfaces saved mappings as explicit suggestions. Operators must click to use or remember a mapping; previews and applies continue to use the currently visible mapping and never rewrite historical `crew_import_rows`.
+The volunteer import wizard's Map fields step ([[apps/crew/src/components/crew/volunteer-import-wizard.tsx]]) surfaces saved mappings as explicit suggestions. Operators must click to use or remember a mapping; previews and applies continue to use the currently visible mapping and never rewrite historical `crew_import_rows`.
 
 ## Guided Setup State
 
