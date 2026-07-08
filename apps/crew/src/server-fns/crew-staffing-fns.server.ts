@@ -33,9 +33,12 @@ import {
   buildCrewStaffingMatrix,
   buildCrewStaffingReport,
   type CrewStaffingConfirmationInput,
+  type CrewStaffingCoverageRow,
   type CrewStaffingMatrix,
   type CrewStaffingMatrixInput,
   type CrewStaffingReport,
+  type CrewStaffingRoleSummary,
+  type CrewStaffingTimeBlock,
 } from "../lib/crew/staffing"
 import { filterCrewStaffingInputForDepartmentLead } from "../lib/crew/staffing/department-lead-scope"
 import { resolveCrewDepartmentLeadAccess } from "../server/crew-department-lead.server"
@@ -60,16 +63,23 @@ export interface CrewStaffingReportEvent {
 
 export interface CrewStaffingReportPageData {
   event: CrewStaffingReportEvent
+  timeBlocks: CrewStaffingTimeBlock[]
+  summary: Pick<
+    CrewStaffingMatrix["summary"],
+    "totalNeeded" | "totalFilled" | "openCapacity"
+  >
+  roleSummaries: CrewStaffingRoleSummary[]
+  underfilledRows: CrewStaffingCoverageRow[]
+}
+
+export interface CrewStaffingReportForDayOfData {
+  event: CrewStaffingReportEvent
+  matrixInput: CrewStaffingMatrixInput
   matrix: CrewStaffingMatrix
   report: CrewStaffingReport
   sources: CrewStaffingReport["sourceCounts"] & {
     activeJudgeVersions: number
   }
-}
-
-export interface CrewStaffingReportForDayOfData
-  extends CrewStaffingReportPageData {
-  matrixInput: CrewStaffingMatrixInput
 }
 
 export async function getCrewStaffingReportPage(
@@ -79,9 +89,14 @@ export async function getCrewStaffingReportPage(
 
   return {
     event: staffing.event,
-    matrix: staffing.matrix,
-    report: staffing.report,
-    sources: staffing.sources,
+    timeBlocks: staffing.matrix.timeBlocks,
+    summary: {
+      totalNeeded: staffing.matrix.summary.totalNeeded,
+      totalFilled: staffing.matrix.summary.totalFilled,
+      openCapacity: staffing.matrix.summary.openCapacity,
+    },
+    roleSummaries: staffing.report.roleSummaries,
+    underfilledRows: staffing.report.underfilledRows,
   }
 }
 
