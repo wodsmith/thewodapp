@@ -1,7 +1,6 @@
 import type { InferSelectModel } from "drizzle-orm"
 import { relations } from "drizzle-orm"
 import {
-  index,
   mysqlTable,
   text,
   uniqueIndex,
@@ -51,7 +50,6 @@ export const competitionMessageTemplatesTable = mysqlTable(
       table.competitionId,
       table.templateType,
     ),
-    index("competition_message_templates_competition_idx").on(table.competitionId),
   ],
 )
 

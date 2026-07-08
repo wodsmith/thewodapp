@@ -57,9 +57,11 @@ const RESPONSE_BUCKETS = [
 export function MessagesResponsesTab({
   eventId,
   dashboard,
+  timezone,
 }: {
   eventId: string
   dashboard: CrewAssignmentCommunicationDashboard
+  timezone: string
 }) {
   const router = useRouter()
   const queueAssignmentEmails = useServerFn(
@@ -70,8 +72,6 @@ export function MessagesResponsesTab({
   const noResponseRows = rowsByBucket.get("no_response") ?? []
   const declineRows = rowsByBucket.get("declined") ?? []
   const changeRows = rowsByBucket.get("change_requested") ?? []
-
-  const timezone = dashboard.event.timezone ?? "America/Denver"
 
   async function handleQueue(mode: QueueMode) {
     setQueueingMode(mode)
@@ -539,7 +539,9 @@ function downloadNoResponseCsv(
   const link = document.createElement("a")
   link.href = url
   link.download = `${slugifyFileName(eventName)}-no-response.csv`
+  document.body.appendChild(link)
   link.click()
+  link.remove()
   URL.revokeObjectURL(url)
 }
 

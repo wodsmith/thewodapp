@@ -195,10 +195,10 @@ export interface RenderedCompetitionMessageTemplate {
 const TEMPLATE_TOKEN_PATTERN = /\{\{\s*(\w+)\s*\}\}/g
 
 /**
- * Substitute `{{variable}}` tokens with their values. Unknown variables (no
- * matching key in `variables`) are left literal. Empty-string values are
- * treated as absent and left literal so an unset optional (e.g. a missing
- * location) doesn't collapse into a blank.
+ * Substitute `{{variable}}` tokens with their values. Unknown/missing variables
+ * (no matching key in `variables`) are left literal. A provided value is
+ * substituted even when it is an empty string, so an unset optional (e.g. a
+ * missing location) renders blank rather than leaking the raw `{{token}}`.
  */
 function substituteTemplateTokens(
   input: string,
@@ -208,7 +208,7 @@ function substituteTemplateTokens(
     // Tokens are free text: an unknown key isn't in the union, so index with a
     // cast and let the missing-value branch leave it literal.
     const value = variables[key as CrewTemplateVariableKey]
-    return value == null || value === "" ? match : value
+    return value == null ? match : value
   })
 }
 

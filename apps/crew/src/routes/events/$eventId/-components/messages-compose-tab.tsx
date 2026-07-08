@@ -1,6 +1,6 @@
 import { useRouter } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 import {
   type CrewTemplateVariableKey,
@@ -108,6 +108,9 @@ export function MessagesComposeTab({
   const [templateType, setTemplateType] = useState<MessageTemplateType>(
     () => composer.templates[0]?.templateType ?? "assignment_confirmation",
   )
+  // Tracks the currently selected type so async handlers can detect a switch
+  // that happened while they were awaiting, avoiding a stale closure value.
+  const templateTypeRef = useRef(templateType)
 
   function storedFor(type: MessageTemplateType) {
     return (
@@ -127,6 +130,7 @@ export function MessagesComposeTab({
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set())
   const [recipients, setRecipients] = useState<CrewMessageRecipient[]>([])
   const [isPreviewLoading, setIsPreviewLoading] = useState(false)
+  const [previewError, setPreviewError] = useState<string | null>(null)
   const [reloadNonce, setReloadNonce] = useState(0)
 
   const [isSaving, setIsSaving] = useState(false)
@@ -142,13 +146,21 @@ export function MessagesComposeTab({
   useEffect(() => {
     let cancelled = false
     setIsPreviewLoading(true)
+    setPreviewError(null)
     const timer = setTimeout(() => {
       previewCrewMessageRecipientsFn({ data: { eventId, mode, filters } })
         .then((result) => {
           if (!cancelled) setRecipients(result.recipients)
         })
-        .catch(() => {
-          if (!cancelled) setRecipients([])
+        .catch((error) => {
+          if (!cancelled) {
+            setRecipients([])
+            setPreviewError(
+              error instanceof Error
+                ? error.message
+                : "Could not load recipients",
+            )
+          }
         })
         .finally(() => {
           if (!cancelled) setIsPreviewLoading(false)
@@ -170,6 +182,7 @@ export function MessagesComposeTab({
 
   function handleSelectType(next: MessageTemplateType) {
     setTemplateType(next)
+    templateTypeRef.current = next
     const nextStored = storedFor(next)
     setDraft({ subject: nextStored.subject, body: nextStored.body })
     setSelectedKeys(new Set())
@@ -220,12 +233,16 @@ export function MessagesComposeTab({
   }
 
   async function handleReset() {
+    const typeAtReset = templateType
     setIsResetting(true)
     try {
-      await resetTemplate({ data: { eventId, templateType } })
-      const fallback = getDefaultCompetitionMessageTemplate(templateType)
-      setDraft({ subject: fallback.subject, body: fallback.body })
-      toast.success("Reset to default")
+      await resetTemplate({ data: { eventId, templateType: typeAtReset } })
+      // Skip stomping the draft/toast if the user switched types mid-await.
+      if (templateTypeRef.current === typeAtReset) {
+        const fallback = getDefaultCompetitionMessageTemplate(typeAtReset)
+        setDraft({ subject: fallback.subject, body: fallback.body })
+        toast.success("Reset to default")
+      }
       await router.invalidate()
     } catch (error) {
       toast.error(
@@ -285,6 +302,7 @@ export function MessagesComposeTab({
         filterOptions={composer.filterOptions}
         recipients={recipients}
         isLoading={isPreviewLoading}
+        previewError={previewError}
         selectedKeys={selectedKeys}
         timezone={timezone}
         subject={draft.subject}

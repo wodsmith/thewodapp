@@ -5,8 +5,7 @@ import {
 } from "../../db/schemas/crew-imports"
 import type { VolunteerRoleType } from "../../db/schemas/volunteers"
 import {
-  CREW_ASSIGNMENT_CONFIRMATION_REMINDER_24_HOURS,
-  CREW_ASSIGNMENT_CONFIRMATION_REMINDER_48_HOURS,
+  getCrewAssignmentReminderOperationKind,
   normalizeConfirmationEmailForSend,
 } from "./assignment-confirmations"
 
@@ -24,16 +23,20 @@ export type CrewMessageMode =
  * Operational state of a volunteer's assignment. Mirrors the communication
  * dashboard states — `not_ready` stands in for a missing confirmation row.
  */
+export const CREW_MESSAGE_RECIPIENT_STATES = [
+  "not_ready",
+  "pending",
+  "sent",
+  "confirmed",
+  "checked_in",
+  "declined",
+  "change_requested",
+  "no_show",
+  "replaced",
+] as const
+
 export type CrewMessageRecipientState =
-  | "not_ready"
-  | "pending"
-  | "sent"
-  | "confirmed"
-  | "checked_in"
-  | "declined"
-  | "change_requested"
-  | "no_show"
-  | "replaced"
+  (typeof CREW_MESSAGE_RECIPIENT_STATES)[number]
 
 export type CrewMessageRecipientSkipReason =
   | "missing_email"
@@ -101,35 +104,6 @@ export interface CrewMessageRecipientClassification {
 }
 
 /**
- * Determine whether a reminder is due for a candidate, mirroring the crew
- * confirmation reminder windows (24h then 48h) and the recorded reminder count.
- */
-function getReminderDue(params: {
-  startsAt: Date
-  reminderCount: number
-  now: Date
-}): { reminderCount: number } | null {
-  const hoursUntilShift =
-    (params.startsAt.getTime() - params.now.getTime()) / (60 * 60 * 1000)
-
-  if (
-    hoursUntilShift <= CREW_ASSIGNMENT_CONFIRMATION_REMINDER_24_HOURS &&
-    params.reminderCount < 2
-  ) {
-    return { reminderCount: 2 }
-  }
-
-  if (
-    hoursUntilShift <= CREW_ASSIGNMENT_CONFIRMATION_REMINDER_48_HOURS &&
-    params.reminderCount < 1
-  ) {
-    return { reminderCount: 1 }
-  }
-
-  return null
-}
-
-/**
  * Classify a candidate for a confirmation or reminder send. The ordering of
  * checks matches `buildCrewAssignmentConfirmationEmailPlan` so preview and send
  * agree on eligibility.
@@ -165,8 +139,8 @@ export function classifyCrewMessageRecipient(params: {
     return { eligible: false, skipReason: "not_due", reminderCount: 0 }
   }
 
-  const reminder = getReminderDue({
-    startsAt: candidate.startsAt,
+  const reminder = getCrewAssignmentReminderOperationKind({
+    shiftStartTime: candidate.startsAt,
     reminderCount: candidate.reminderCount,
     now,
   })
@@ -226,20 +200,14 @@ export function buildCrewAssignmentMessageRecipients(params: {
   recipients: CrewMessageRecipient[]
   skipped: CrewMessageRecipientSkipSummary
 } {
-  const recipients: CrewMessageRecipient[] = []
+  const classified: CrewMessageRecipient[] = []
   for (const candidate of params.candidates) {
     const classification = classifyCrewMessageRecipient({
       candidate,
       mode: params.mode,
       now: params.now,
     })
-    if (
-      classification.skipReason === "already_sent" &&
-      !params.includeAlreadySent
-    ) {
-      continue
-    }
-    recipients.push({
+    classified.push({
       key: candidate.confirmationId,
       volunteerName: candidate.volunteerName,
       volunteerEmail: candidate.volunteerEmail,
@@ -251,9 +219,14 @@ export function buildCrewAssignmentMessageRecipients(params: {
       skipReason: classification.skipReason,
     })
   }
+  // Already-sent rows are hidden from the list unless requested, but still
+  // counted in the skip summary so the totals reflect every candidate.
+  const recipients = params.includeAlreadySent
+    ? classified
+    : classified.filter((recipient) => recipient.skipReason !== "already_sent")
   return {
     recipients,
-    skipped: summarizeCrewMessageSkips(recipients),
+    skipped: summarizeCrewMessageSkips(classified),
   }
 }
 

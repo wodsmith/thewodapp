@@ -53,6 +53,7 @@ export function MessageRecipientsPanel({
   filterOptions,
   recipients,
   isLoading,
+  previewError,
   selectedKeys,
   timezone,
   subject,
@@ -68,6 +69,7 @@ export function MessageRecipientsPanel({
   filterOptions: CrewMessageComposerData["filterOptions"]
   recipients: CrewMessageRecipient[]
   isLoading: boolean
+  previewError: string | null
   selectedKeys: Set<string>
   timezone: string
   subject: string
@@ -266,6 +268,10 @@ export function MessageRecipientsPanel({
         {isLoading && recipients.length === 0 ? (
           <p className="p-4 text-sm text-muted-foreground">
             Loading recipients...
+          </p>
+        ) : previewError ? (
+          <p className="p-4 text-sm text-destructive">
+            Could not load recipients. {previewError}
           </p>
         ) : recipients.length === 0 ? (
           <p className="p-4 text-sm text-muted-foreground">

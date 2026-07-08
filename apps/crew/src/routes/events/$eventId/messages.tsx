@@ -83,7 +83,9 @@ function CrewMessagesPage() {
             key={tab.id}
             type="button"
             role="tab"
+            id={`messages-tab-${tab.id}`}
             aria-selected={activeTab === tab.id}
+            aria-controls={`messages-panel-${tab.id}`}
             onClick={() => handleTabChange(tab.id)}
             className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${
               activeTab === tab.id
@@ -97,17 +99,39 @@ function CrewMessagesPage() {
       </div>
 
       {activeTab === "compose" ? (
-        <MessagesComposeTab
-          eventId={eventId}
-          composer={composer}
-          timezone={timezone}
-        />
+        <div
+          role="tabpanel"
+          id="messages-panel-compose"
+          aria-labelledby="messages-tab-compose"
+        >
+          <MessagesComposeTab
+            eventId={eventId}
+            composer={composer}
+            timezone={timezone}
+          />
+        </div>
       ) : null}
       {activeTab === "responses" ? (
-        <MessagesResponsesTab eventId={eventId} dashboard={dashboard} />
+        <div
+          role="tabpanel"
+          id="messages-panel-responses"
+          aria-labelledby="messages-tab-responses"
+        >
+          <MessagesResponsesTab
+            eventId={eventId}
+            dashboard={dashboard}
+            timezone={timezone}
+          />
+        </div>
       ) : null}
       {activeTab === "history" ? (
-        <MessagesHistoryTab history={composer.history} timezone={timezone} />
+        <div
+          role="tabpanel"
+          id="messages-panel-history"
+          aria-labelledby="messages-tab-history"
+        >
+          <MessagesHistoryTab history={composer.history} timezone={timezone} />
+        </div>
       ) : null}
     </section>
   )

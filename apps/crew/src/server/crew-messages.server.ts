@@ -598,7 +598,6 @@ async function queueCrewCustomBroadcast(data: {
     }
   })
 
-  const now = new Date()
   const { broadcastId } = await db.transaction(async (tx) => {
     const [broadcast] = await tx
       .insert(competitionBroadcastsTable)
@@ -609,8 +608,7 @@ async function queueCrewCustomBroadcast(data: {
         body: data.template.body,
         audienceFilter: JSON.stringify({ type: "crew_custom_broadcast" }),
         recipientCount: prepared.length,
-        status: BROADCAST_STATUS.SENT,
-        sentAt: now,
+        status: BROADCAST_STATUS.DRAFT,
         createdById: session.userId,
       })
       .$returningId()
@@ -642,7 +640,7 @@ async function queueCrewCustomBroadcast(data: {
       )
     for (const entry of prepared) {
       console.log(
-        `[CrewBroadcast Preview] To: ${entry.recipient.volunteerEmail} | Subject: ${entry.subject} | Broadcast: ${broadcastId}`,
+        `[CrewBroadcast Preview] Recipient: ${entry.recipientId} | Broadcast: ${broadcastId}`,
       )
     }
     return {
@@ -694,6 +692,15 @@ async function queueCrewCustomBroadcast(data: {
       failed += 1
     }
   }
+
+  await db
+    .update(competitionBroadcastsTable)
+    .set(
+      queued > 0
+        ? { status: BROADCAST_STATUS.SENT, sentAt: new Date() }
+        : { status: BROADCAST_STATUS.FAILED },
+    )
+    .where(eq(competitionBroadcastsTable.id, broadcastId))
 
   return {
     queued,

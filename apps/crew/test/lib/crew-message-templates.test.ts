@@ -37,14 +37,14 @@ describe("renderCompetitionMessageTemplate", () => {
     expect(result.paragraphs).toEqual(["Body {{alsoUnknown}} text"])
   })
 
-  it("leaves empty-valued variables literal so blanks don't collapse", () => {
+  it("substitutes empty-valued variables instead of leaking the raw token", () => {
     const result = renderCompetitionMessageTemplate({
       subject: "s",
       body: "Location: {{location}}",
       variables: { location: "" },
     })
 
-    expect(result.paragraphs).toEqual(["Location: {{location}}"])
+    expect(result.paragraphs).toEqual(["Location:"])
   })
 
   it("splits the body into paragraphs on blank lines", () => {

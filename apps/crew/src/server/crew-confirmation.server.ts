@@ -999,7 +999,7 @@ export async function queueCrewAssignmentConfirmationEmails(
 
       if (!queue) {
         console.log(
-          `[CrewEmail Preview] To: ${message.email} | Subject: ${message.subject} | Confirmation: ${message.confirmationId}`,
+          `[CrewEmail Preview] Confirmation: ${message.confirmationId} | Assignment: ${message.assignmentId}`,
         )
         previewed += 1
         continue
@@ -1179,7 +1179,7 @@ export async function queueCrewTemplatedAssignmentEmails(params: {
 
       if (!queue) {
         console.log(
-          `[CrewEmail Preview] To: ${message.email} | Subject: ${message.subject} | Confirmation: ${message.confirmationId}`,
+          `[CrewEmail Preview] Confirmation: ${message.confirmationId} | Assignment: ${message.assignmentId}`,
         )
         previewed += 1
         continue

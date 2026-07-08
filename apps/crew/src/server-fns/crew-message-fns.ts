@@ -3,6 +3,7 @@
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
 import { MESSAGE_TEMPLATE_TYPE } from "../db/schemas/message-templates"
+import { CREW_MESSAGE_RECIPIENT_STATES } from "../lib/crew/message-recipients"
 import type {
   CrewMessageComposerData,
   CrewMessageHistoryItem,
@@ -35,18 +36,6 @@ export type {
 export type CrewMessageHistoryEntry = CrewMessageHistoryItem
 /** Alias for the recipient preview / send mode. */
 export type CrewMessagePreviewMode = CrewMessageMode
-
-const RECIPIENT_STATES = [
-  "not_ready",
-  "pending",
-  "sent",
-  "confirmed",
-  "checked_in",
-  "declined",
-  "change_requested",
-  "no_show",
-  "replaced",
-] as const
 
 const MESSAGE_MODES = [
   "assignment_confirmation",
@@ -83,7 +72,7 @@ const resetTemplateInputSchema = z.object({
 })
 
 const messageFiltersSchema = z.object({
-  states: z.array(z.enum(RECIPIENT_STATES)).optional(),
+  states: z.array(z.enum(CREW_MESSAGE_RECIPIENT_STATES)).optional(),
   roles: z.array(z.string()).optional(),
   shiftIds: z.array(z.string()).optional(),
   includeAlreadySent: z.boolean().optional(),

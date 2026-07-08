@@ -130,6 +130,20 @@ describe("classifyCrewMessageRecipient — reminder mode", () => {
     expect(result.reminderCount).toBe(2)
   })
 
+  it("jumps straight to reminderCount 2 inside the 24-hour window", () => {
+    const result = classifyCrewMessageRecipient({
+      candidate: candidate({
+        sentAt: new Date(NOW.getTime() - 24 * HOUR),
+        reminderCount: 0,
+        startsAt: new Date(NOW.getTime() + 12 * HOUR),
+      }),
+      mode: "reminder",
+      now: NOW,
+    })
+    expect(result.eligible).toBe(true)
+    expect(result.reminderCount).toBe(2)
+  })
+
   it("is not due when the shift is too far out", () => {
     const result = classifyCrewMessageRecipient({
       candidate: candidate({
@@ -202,7 +216,7 @@ describe("buildCrewAssignmentMessageRecipients", () => {
       now: NOW,
     })
     expect(hidden.recipients.map((r) => r.key)).toEqual(["c1"])
-    expect(hidden.skipped.alreadySent).toBe(0)
+    expect(hidden.skipped.alreadySent).toBe(1)
 
     const shown = buildCrewAssignmentMessageRecipients({
       candidates,
