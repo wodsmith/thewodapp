@@ -11,6 +11,8 @@ export type {
   CrewImportMappingSuggestionResult,
   CrewImportReferenceData,
   CrewImportsPageData,
+  CrewVolunteerImportQuestion,
+  CrewVolunteerImportQuestionsResult,
   PersistedCrewImportPreview,
 } from "../server/crew-imports.server"
 
@@ -25,6 +27,10 @@ const applyCrewImportInputSchema = z.object({
 })
 
 const crewImportKindSchema = z.enum(["volunteers", "heat_schedule"])
+
+const getCrewVolunteerImportQuestionsInputSchema = z.object({
+  eventId: z.string().min(1, "Event ID is required"),
+})
 
 const getCrewImportMappingSuggestionInputSchema = z.object({
   eventId: z.string().min(1, "Event ID is required"),
@@ -57,6 +63,19 @@ export const applyCrewImportFn = createServerFn({ method: "POST" })
       "../server/crew-imports.server"
     )
     return applyCrewImportRecord(data)
+  })
+
+export const getCrewVolunteerImportQuestionsFn = createServerFn({
+  method: "GET",
+})
+  .inputValidator((data: unknown) =>
+    getCrewVolunteerImportQuestionsInputSchema.parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { getCrewVolunteerImportQuestions } = await import(
+      "../server/crew-imports.server"
+    )
+    return getCrewVolunteerImportQuestions(data)
   })
 
 export const getCrewImportMappingSuggestionFn = createServerFn({

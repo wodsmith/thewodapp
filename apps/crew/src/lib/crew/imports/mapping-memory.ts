@@ -1,7 +1,7 @@
 // @lat: [[crew#Remember Import Mappings]]
 import { normalizeHeader, sanitizeColumnMapping } from "./column-mapping"
-import { CREW_IMPORT_PARSER_VERSION } from "./types"
 import type { ColumnMapping, CrewImportKind } from "./types"
+import { CREW_IMPORT_PARSER_VERSION } from "./types"
 
 export interface CrewImportMappingPresetCandidate {
   id: string
@@ -30,6 +30,10 @@ export interface CrewImportMappingSuggestion {
   parserVersion: string | null
   lastUsedAt: Date | string | null
   updatedAt: Date | string | null
+  // Set for code-defined built-in presets (see builtin-presets.ts) so the UI
+  // can label them and rank team-saved presets ahead of them. Absent/false for
+  // presets loaded from crew_import_mapping_presets.
+  isBuiltIn?: boolean
 }
 
 export interface CrewImportMappingPresetWrite {

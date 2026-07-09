@@ -23,24 +23,35 @@ import {
   getImportFields,
   inferColumnMapping,
 } from "@/lib/crew/imports/column-mapping"
-import { parseCsv } from "@/lib/crew/imports/csv"
+import {
+  CREW_IMPORT_ACCEPTED_FILE_TYPES,
+  parseCrewImportFile,
+} from "@/lib/crew/imports/file"
 import type { CrewImportMappingSuggestion } from "@/lib/crew/imports/mapping-memory"
+import {
+  buildExistingQuestionMappingKey,
+  buildNewQuestionMappingKey,
+  isQuestionMappingKey,
+} from "@/lib/crew/imports/question-mapping"
 import type {
   ColumnMapping,
   ImportIssue,
   PreviewImportRow,
   VolunteerImportRow,
+  VolunteerQuestionPreviewSummary,
 } from "@/lib/crew/imports/types"
 import {
   applyCrewImportFn,
   type CrewImportApplyResult,
-  type PersistedCrewImportPreview,
+  type CrewVolunteerImportQuestion,
   getCrewImportMappingSuggestionFn,
+  getCrewVolunteerImportQuestionsFn,
+  type PersistedCrewImportPreview,
   saveCrewImportMappingPresetFn,
 } from "@/server-fns/crew-import-fns"
 
 /**
- * Self-contained volunteer CSV import flow: upload → column mapping → preview → apply.
+ * Self-contained volunteer import flow: upload → column mapping → preview → apply.
  * Scoped to volunteer imports only (kind = "volunteers").
  * Call onApplyComplete when an import is successfully applied.
  */
@@ -91,11 +102,15 @@ function VolunteerUploadPanel({
 }) {
   const getMappingSuggestion = useServerFn(getCrewImportMappingSuggestionFn)
   const saveMappingPreset = useServerFn(saveCrewImportMappingPresetFn)
+  const getVolunteerQuestions = useServerFn(getCrewVolunteerImportQuestionsFn)
   const kind = "volunteers" as const
   const [file, setFile] = useState<File | null>(null)
   const [headers, setHeaders] = useState<string[]>([])
   const [mapping, setMapping] = useState<ColumnMapping>({})
+  const [questions, setQuestions] = useState<CrewVolunteerImportQuestion[]>([])
   const [mappingSuggestion, setMappingSuggestion] =
+    useState<CrewImportMappingSuggestion | null>(null)
+  const [builtInSuggestion, setBuiltInSuggestion] =
     useState<CrewImportMappingSuggestion | null>(null)
   const [sourcePlatform, setSourcePlatform] = useState("")
   const [clientIssues, setClientIssues] = useState<ImportIssue[]>([])
@@ -106,16 +121,44 @@ function VolunteerUploadPanel({
   const fields = useMemo(() => getImportFields(kind), [kind])
   const mappedFieldCount = Object.keys(mapping).length
 
+  // Headers not claimed by a first-class field can be mapped to a volunteer
+  // registration question (existing or created from the column header).
+  const questionMappableHeaders = useMemo(() => {
+    const fieldUsedHeaders = new Set(
+      Object.entries(mapping)
+        .filter(([key]) => !isQuestionMappingKey(key))
+        .map(([, header]) => header),
+    )
+    return headers.filter((header) => !fieldUsedHeaders.has(header))
+  }, [headers, mapping])
+
+  useEffect(() => {
+    let ignore = false
+    void getVolunteerQuestions({ data: { eventId } })
+      .then((result) => {
+        if (!ignore) setQuestions(result.questions)
+      })
+      .catch(() => {
+        if (!ignore) setQuestions([])
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [eventId, getVolunteerQuestions])
+
   useEffect(() => {
     let ignore = false
 
     if (headers.length === 0) {
       setMappingSuggestion(null)
+      setBuiltInSuggestion(null)
       setIsLoadingMappingSuggestion(false)
       return
     }
 
     setMappingSuggestion(null)
+    setBuiltInSuggestion(null)
     setIsLoadingMappingSuggestion(true)
     void getMappingSuggestion({
       data: {
@@ -126,10 +169,16 @@ function VolunteerUploadPanel({
       },
     })
       .then((result) => {
-        if (!ignore) setMappingSuggestion(result.suggestion)
+        if (!ignore) {
+          setMappingSuggestion(result.suggestion)
+          setBuiltInSuggestion(result.builtInSuggestion)
+        }
       })
       .catch(() => {
-        if (!ignore) setMappingSuggestion(null)
+        if (!ignore) {
+          setMappingSuggestion(null)
+          setBuiltInSuggestion(null)
+        }
       })
       .finally(() => {
         if (!ignore) setIsLoadingMappingSuggestion(false)
@@ -152,23 +201,81 @@ function VolunteerUploadPanel({
       return
     }
 
-    const csv = parseCsv(await selectedFile.text(), { maxRows: 20 })
-    setHeaders(csv.headers)
-    setMapping(inferColumnMapping(csv.headers, kind))
-    setClientIssues(csv.fileIssues)
+    let parsed: ReturnType<typeof parseCrewImportFile>
+    try {
+      parsed = parseCrewImportFile(
+        {
+          filename: selectedFile.name,
+          mimeType: selectedFile.type,
+          data: await selectedFile.arrayBuffer(),
+        },
+        { maxRows: 20 },
+      )
+    } catch {
+      setHeaders([])
+      setMapping({})
+      setMappingSuggestion(null)
+      setBuiltInSuggestion(null)
+      setClientIssues([buildClientFileParseIssue()])
+      return
+    }
+
+    setHeaders(parsed.headers)
+    setMapping(inferColumnMapping(parsed.headers, kind))
+    setClientIssues(parsed.fileIssues)
   }
 
   function updateMapping(field: string, header: string) {
     setMapping((current) => {
       const next = { ...current }
-      if (header) next[field] = header
-      else delete next[field]
+      if (header) {
+        // A first-class field claims the header, so drop any question column
+        // that was pointing at the same header.
+        for (const key of Object.keys(next)) {
+          if (isQuestionMappingKey(key) && next[key] === header) {
+            delete next[key]
+          }
+        }
+        next[field] = header
+      } else {
+        delete next[field]
+      }
+      return next
+    })
+  }
+
+  function currentQuestionKeyForHeader(header: string) {
+    return (
+      Object.keys(mapping).find(
+        (key) => isQuestionMappingKey(key) && mapping[key] === header,
+      ) ?? ""
+    )
+  }
+
+  function updateQuestionMapping(header: string, questionKey: string) {
+    setMapping((current) => {
+      const next = { ...current }
+      for (const key of Object.keys(next)) {
+        if (isQuestionMappingKey(key) && next[key] === header) {
+          delete next[key]
+        }
+      }
+      if (questionKey) next[questionKey] = header
       return next
     })
   }
 
   function handleUseSuggestedMapping(suggestion: CrewImportMappingSuggestion) {
     setMapping(suggestion.columnMapping)
+    if (suggestion.isBuiltIn) {
+      // Pre-fill the source label so a subsequent save records this as the
+      // named platform, and so the preview carries the source through.
+      if (!sourcePlatform.trim() && suggestion.name) {
+        setSourcePlatform(suggestion.name)
+      }
+      toast.success(`${suggestion.name ?? "Built-in"} mapping applied`)
+      return
+    }
     toast.success("Saved column choices loaded")
   }
 
@@ -206,7 +313,7 @@ function VolunteerUploadPanel({
     event.preventDefault()
 
     if (!file) {
-      toast.error("Choose a CSV file first")
+      toast.error("Choose a CSV or Excel file first")
       return
     }
 
@@ -254,27 +361,27 @@ function VolunteerUploadPanel({
           <FileSpreadsheet className="size-5 text-muted-foreground" />
         </div>
         <div>
-          <h3 className="font-semibold">Volunteer list CSV</h3>
+          <h3 className="font-semibold">Volunteer list file</h3>
           <p className="text-sm text-muted-foreground">
             {headers.length > 0
               ? `${headers.length} columns detected`
-              : "Choose a volunteer list CSV to preview."}
+              : "Choose a volunteer list CSV or Excel file to preview."}
           </p>
         </div>
       </div>
 
       <div className="mt-5 space-y-4">
-        <ImportField label="CSV file" htmlFor="volunteer-import-file">
+        <ImportField label="CSV or Excel file" htmlFor="volunteer-import-file">
           <input
             id="volunteer-import-file"
             type="file"
-            accept=".csv,text/csv"
+            accept={CREW_IMPORT_ACCEPTED_FILE_TYPES}
             onChange={handleFileChange}
             className="block w-full rounded-md border bg-background px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-sm file:font-medium"
           />
         </ImportField>
         <ImportField
-          label="CSV label (optional)"
+          label="Source label (optional)"
           htmlFor="volunteer-import-source"
         >
           <input
@@ -334,6 +441,29 @@ function VolunteerUploadPanel({
               Checking saved column choices...
             </p>
           ) : null}
+          {builtInSuggestion ? (
+            <div className="rounded-md border border-dashed bg-muted/50 p-3 text-sm">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium">
+                    {builtInSuggestion.name} (built-in)
+                  </p>
+                  <p className="text-muted-foreground">
+                    Recognized this export — maps{" "}
+                    {builtInSuggestion.matchedFieldCount} columns in one click.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleUseSuggestedMapping(builtInSuggestion)}
+                  className="inline-flex h-9 w-fit items-center gap-2 rounded-md border bg-background px-3 text-sm font-medium hover:bg-muted"
+                >
+                  <CheckCircle2 className="size-4" />
+                  Use {builtInSuggestion.name} mapping
+                </button>
+              </div>
+            </div>
+          ) : null}
           <div className="space-y-3">
             {fields.map((field) => (
               <label
@@ -361,6 +491,58 @@ function VolunteerUploadPanel({
               </label>
             ))}
           </div>
+
+          {questionMappableHeaders.length > 0 ? (
+            <div className="space-y-3 border-t pt-4">
+              <div>
+                <h4 className="text-sm font-semibold">
+                  Extra columns as questions
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Keep leftover columns by saving them as volunteer registration
+                  questions instead of dropping them.
+                </p>
+              </div>
+              <div className="space-y-3">
+                {questionMappableHeaders.map((header) => (
+                  <label
+                    key={header}
+                    className="grid gap-1 text-sm sm:grid-cols-[12rem_1fr] sm:items-center"
+                  >
+                    <span className="truncate text-muted-foreground">
+                      {header}
+                    </span>
+                    <select
+                      value={currentQuestionKeyForHeader(header)}
+                      onChange={(event) =>
+                        updateQuestionMapping(header, event.target.value)
+                      }
+                      className="h-10 rounded-md border bg-background px-3 text-sm"
+                    >
+                      <option value="">Not mapped</option>
+                      {questions.length > 0 ? (
+                        <optgroup label="Existing questions">
+                          {questions.map((question) => (
+                            <option
+                              key={question.id}
+                              value={buildExistingQuestionMappingKey(
+                                question.id,
+                              )}
+                            >
+                              {question.label}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : null}
+                      <option value={buildNewQuestionMappingKey(header)}>
+                        Create new question "{header}"
+                      </option>
+                    </select>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -433,7 +615,9 @@ function VolunteerPreviewPanel({
       toast.success("Volunteer list applied")
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to apply volunteer list",
+        error instanceof Error
+          ? error.message
+          : "Failed to apply volunteer list",
       )
     } finally {
       setIsApplying(false)
@@ -496,6 +680,11 @@ function VolunteerPreviewPanel({
         </ul>
       </div>
 
+      {preview.volunteerQuestionPlan &&
+      preview.volunteerQuestionPlan.columns.length > 0 ? (
+        <QuestionPlanPanel plan={preview.volunteerQuestionPlan} />
+      ) : null}
+
       {preview.fileIssues.length > 0 ? (
         <IssueList issues={preview.fileIssues} />
       ) : null}
@@ -512,8 +701,8 @@ function VolunteerPreviewPanel({
           </DialogHeader>
           <div className="space-y-3 text-sm">
             <p>
-              Crew will use ready rows to add volunteers or match existing people
-              on this event.
+              Crew will use ready rows to add volunteers or match existing
+              people on this event.
             </p>
             <div className="grid gap-3 sm:grid-cols-3">
               <SummaryMetric label="Ready" value={impact.readyCount} />
@@ -633,6 +822,34 @@ function RowIssues({ row }: { row: PreviewImportRow }) {
   )
 }
 
+function QuestionPlanPanel({
+  plan,
+}: {
+  plan: VolunteerQuestionPreviewSummary
+}) {
+  return (
+    <div className="rounded-md border bg-background p-4 text-sm">
+      <p className="font-medium">Volunteer questions</p>
+      <p className="mt-1 text-muted-foreground">
+        {plan.totalAnswerCount} answers will be recorded across{" "}
+        {plan.columns.length} {plan.columns.length === 1 ? "column" : "columns"}
+        .
+      </p>
+      <ul className="mt-3 space-y-1 text-muted-foreground">
+        {plan.columns.map((column) => (
+          <li key={column.columnKey}>
+            {column.willCreate
+              ? `Will create volunteer question "${column.label}"`
+              : `"${column.label}"`}{" "}
+            from column "{column.header}" — {column.answerCount}{" "}
+            {column.answerCount === 1 ? "answer" : "answers"}.
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 function SummaryMetric({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-md border bg-background p-3">
@@ -686,6 +903,15 @@ function IssueList({
       </div>
     </div>
   )
+}
+
+function buildClientFileParseIssue(): ImportIssue {
+  return {
+    code: "invalid_import_file",
+    severity: "error",
+    message:
+      "The selected file could not be read. Choose a valid CSV or Excel workbook.",
+  }
 }
 
 function getPreviewImpact(preview: PersistedCrewImportPreview) {
