@@ -1,5 +1,10 @@
 // @lat: [[crew#Import CSV Preview#Preview Records]]
-import { Link, useNavigate, useRouter } from "@tanstack/react-router"
+import {
+  Link,
+  useBlocker,
+  useNavigate,
+  useRouter,
+} from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
 import {
   AlertTriangle,
@@ -14,7 +19,7 @@ import {
   UploadCloud,
 } from "lucide-react"
 import type { DragEvent } from "react"
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
@@ -30,6 +35,7 @@ import {
   inferColumnMapping,
 } from "@/lib/crew/imports/column-mapping"
 import { parseCsv } from "@/lib/crew/imports/csv"
+import { getCrewImportFileIssue } from "@/lib/crew/imports/file-validation"
 import type { CrewImportMappingSuggestion } from "@/lib/crew/imports/mapping-memory"
 import type {
   ColumnMapping,
@@ -46,6 +52,7 @@ import {
 } from "@/server-fns/crew-import-fns"
 
 const KIND = "volunteers" as const
+const VOLUNTEER_IMPORT_FIELDS = getImportFields(KIND)
 
 type WizardStep = "upload" | "map" | "review"
 
@@ -88,10 +95,25 @@ export function VolunteerImportWizard({ eventId }: { eventId: string }) {
     null,
   )
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+  const allowNavigationRef = useRef(false)
 
-  const fields = useMemo(() => getImportFields(KIND), [])
-  const mappedFieldCount = Object.keys(mapping).length
+  const fields = VOLUNTEER_IMPORT_FIELDS
+  const mappedFieldCount = Object.values(mapping).filter(Boolean).length
+  const hasRequiredMappings = fields.every(
+    (field) => !field.required || Boolean(mapping[field.key]),
+  )
   const currentStepIndex = WIZARD_STEPS.findIndex((entry) => entry.id === step)
+  const hasUnsavedChanges =
+    !applyResult && (file !== null || sourcePlatform.trim().length > 0)
+  const shouldBlockNavigation = useCallback(
+    () => hasUnsavedChanges && !allowNavigationRef.current && !isApplying,
+    [hasUnsavedChanges, isApplying],
+  )
+  const navigationBlocker = useBlocker({
+    shouldBlockFn: shouldBlockNavigation,
+    enableBeforeUnload: hasUnsavedChanges,
+    withResolver: true,
+  })
 
   useEffect(() => {
     let ignore = false
@@ -123,11 +145,11 @@ export function VolunteerImportWizard({ eventId }: { eventId: string }) {
   }, [eventId, getMappingSuggestion, headers, sourcePlatform])
 
   async function ingestFile(selectedFile: File | null) {
-    setFile(selectedFile)
     setPreview(null)
     setApplyResult(null)
 
     if (!selectedFile) {
+      setFile(null)
       setHeaders([])
       setMapping({})
       setMappingSuggestion(null)
@@ -135,10 +157,35 @@ export function VolunteerImportWizard({ eventId }: { eventId: string }) {
       return
     }
 
-    const csv = parseCsv(await selectedFile.text(), { maxRows: 20 })
-    setHeaders(csv.headers)
-    setMapping(inferColumnMapping(csv.headers, KIND))
-    setClientIssues(csv.fileIssues)
+    const fileIssue = getCrewImportFileIssue(selectedFile)
+    if (fileIssue) {
+      setFile(null)
+      setHeaders([])
+      setMapping({})
+      setMappingSuggestion(null)
+      setClientIssues([fileIssue])
+      return
+    }
+
+    setFile(selectedFile)
+    try {
+      const csv = parseCsv(await selectedFile.text(), { maxRows: 20 })
+      setHeaders(csv.headers)
+      setMapping(inferColumnMapping(csv.headers, KIND))
+      setClientIssues(csv.fileIssues)
+    } catch {
+      setFile(null)
+      setHeaders([])
+      setMapping({})
+      setMappingSuggestion(null)
+      setClientIssues([
+        {
+          code: "file_read_failed",
+          severity: "error",
+          message: "Crew could not read that file. Choose the CSV again.",
+        },
+      ])
+    }
   }
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
@@ -150,10 +197,9 @@ export function VolunteerImportWizard({ eventId }: { eventId: string }) {
 
   function updateMapping(field: string, header: string) {
     setMapping((current) => {
-      const next = { ...current }
-      if (header) next[field] = header
-      else delete next[field]
-      return next
+      // Keep an explicit empty value so the server does not re-infer a column
+      // that the operator deliberately chose to leave unmapped.
+      return { ...current, [field]: header }
     })
   }
 
@@ -198,6 +244,11 @@ export function VolunteerImportWizard({ eventId }: { eventId: string }) {
       return
     }
 
+    if (!hasRequiredMappings) {
+      toast.error("Map every required field before continuing")
+      return
+    }
+
     setIsSubmittingPreview(true)
     const formData = new FormData()
     formData.append("eventId", eventId)
@@ -238,22 +289,10 @@ export function VolunteerImportWizard({ eventId }: { eventId: string }) {
     if (!preview) return
 
     setIsApplying(true)
+    let result: CrewImportApplyResult
     try {
-      const result = await applyImport({
+      result = await applyImport({
         data: { eventId, importId: preview.importId, confirmed: true },
-      })
-      setApplyResult(result)
-      setPreview((current) =>
-        current && current.importId === result.importId
-          ? { ...current, status: result.status }
-          : current,
-      )
-      setIsConfirmOpen(false)
-      toast.success("Volunteer list applied")
-      await router.invalidate()
-      await navigate({
-        to: "/events/$eventId/volunteers",
-        params: { eventId },
       })
     } catch (error) {
       toast.error(
@@ -262,12 +301,35 @@ export function VolunteerImportWizard({ eventId }: { eventId: string }) {
           : "Failed to apply volunteer list",
       )
       setIsApplying(false)
+      return
     }
+
+    setApplyResult(result)
+    setPreview((current) =>
+      current && current.importId === result.importId
+        ? { ...current, status: result.status }
+        : current,
+    )
+    setIsConfirmOpen(false)
+    toast.success("Volunteer list applied")
+    allowNavigationRef.current = true
+
+    await router.invalidate().catch(() => undefined)
+    await navigate({
+      to: "/events/$eventId/volunteers",
+      params: { eventId },
+    }).catch(() => {
+      setIsApplying(false)
+      toast.warning(
+        "Volunteers were imported. Return to the roster to see the changes.",
+      )
+    })
   }
 
   const canLeaveUpload = headers.length > 0
-  const canApply = preview?.status === "previewed"
   const impact = preview ? getPreviewImpact(preview) : null
+  const canApply =
+    preview?.status === "previewed" && Boolean(impact && impact.readyCount > 0)
 
   return (
     <section className="space-y-6">
@@ -306,6 +368,7 @@ export function VolunteerImportWizard({ eventId }: { eventId: string }) {
           mappingSuggestion={mappingSuggestion}
           isLoadingMappingSuggestion={isLoadingMappingSuggestion}
           isSavingMapping={isSavingMapping}
+          hasRequiredMappings={hasRequiredMappings}
           onUpdateMapping={updateMapping}
           onUseSuggestedMapping={handleUseSuggestedMapping}
           onSaveMapping={handleSaveMapping}
@@ -349,7 +412,7 @@ export function VolunteerImportWizard({ eventId }: { eventId: string }) {
           {step === "map" ? (
             <Button
               onClick={() => void handleSubmitMapping()}
-              disabled={isSubmittingPreview}
+              disabled={isSubmittingPreview || !hasRequiredMappings}
             >
               {isSubmittingPreview ? (
                 <Loader2 className="animate-spin" />
@@ -423,6 +486,46 @@ export function VolunteerImportWizard({ eventId }: { eventId: string }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog
+        open={navigationBlocker.status === "blocked"}
+        onOpenChange={(open) => {
+          if (!open && navigationBlocker.status === "blocked") {
+            navigationBlocker.reset()
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Discard this import?</DialogTitle>
+            <DialogDescription>
+              Your selected file and column choices will be lost.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (navigationBlocker.status === "blocked") {
+                  navigationBlocker.reset()
+                }
+              }}
+            >
+              Keep working
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (navigationBlocker.status === "blocked") {
+                  navigationBlocker.proceed()
+                }
+              }}
+            >
+              Discard import
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   )
 }
@@ -435,13 +538,17 @@ function WizardStepper({ currentIndex }: { currentIndex: number }) {
         const isCurrent = index === currentIndex
 
         return (
-          <li key={entry.id} className="flex flex-1 items-center gap-3">
+          <li
+            key={entry.id}
+            className="flex flex-1 items-center gap-3"
+            aria-current={isCurrent ? "step" : undefined}
+          >
             <span
               className={`flex size-8 shrink-0 items-center justify-center rounded-full border text-sm font-semibold ${
                 isCurrent
                   ? "border-primary bg-primary text-primary-foreground"
                   : isComplete
-                    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700"
+                    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
                     : "border-muted bg-muted text-muted-foreground"
               }`}
             >
@@ -513,17 +620,18 @@ function UploadStep({
           </div>
           <div>
             <p className="font-semibold">Drag and drop your CSV</p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground" aria-live="polite">
               {fileName
                 ? `${fileName}${headers.length > 0 ? ` · ${headers.length} columns detected` : ""}`
                 : "or choose a file from your computer"}
             </p>
           </div>
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border bg-background px-4 py-2 text-sm font-medium hover:bg-muted">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border bg-background px-4 py-2 text-sm font-medium hover:bg-muted focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
             <FileSpreadsheet className="size-4" />
             Choose file
             <input
               type="file"
+              name="volunteerCsv"
               accept=".csv,text/csv"
               className="sr-only"
               onChange={(event) =>
@@ -537,9 +645,11 @@ function UploadStep({
           <span className="font-medium">CSV label (optional)</span>
           <input
             id="volunteer-import-source"
+            name="sourcePlatform"
             value={sourcePlatform}
             onChange={(event) => onSourcePlatformChange(event.target.value)}
-            placeholder="Competition Corner export"
+            placeholder="e.g. Competition Corner export…"
+            autoComplete="off"
             className="mt-1 h-10 w-full rounded-md border bg-background px-3 text-sm"
           />
           <span className="mt-1 block text-xs text-muted-foreground">
@@ -582,6 +692,7 @@ function MapStep({
   mappingSuggestion,
   isLoadingMappingSuggestion,
   isSavingMapping,
+  hasRequiredMappings,
   onUpdateMapping,
   onUseSuggestedMapping,
   onSaveMapping,
@@ -593,6 +704,7 @@ function MapStep({
   mappingSuggestion: CrewImportMappingSuggestion | null
   isLoadingMappingSuggestion: boolean
   isSavingMapping: boolean
+  hasRequiredMappings: boolean
   onUpdateMapping: (field: string, header: string) => void
   onUseSuggestedMapping: (suggestion: CrewImportMappingSuggestion) => void
   onSaveMapping: () => void
@@ -637,38 +749,61 @@ function MapStep({
           </div>
         </div>
       ) : isLoadingMappingSuggestion ? (
-        <p className="text-sm text-muted-foreground">
-          Checking saved column choices...
+        <p className="text-sm text-muted-foreground" aria-live="polite">
+          Checking saved column choices…
         </p>
       ) : null}
 
       <div className="space-y-3">
-        {fields.map((field) => (
-          <label
-            key={field.key}
-            className="grid gap-1 text-sm sm:grid-cols-[10rem_1fr] sm:items-center"
-          >
-            <span className="text-muted-foreground">
-              {field.label}
-              {field.required ? " *" : ""}
-            </span>
-            <select
-              value={mapping[field.key] ?? ""}
-              onChange={(event) =>
-                onUpdateMapping(field.key, event.target.value)
-              }
-              className="h-10 rounded-md border bg-background px-3 text-sm"
+        {fields.map((field) => {
+          const selectId = `volunteer-import-map-${field.key}`
+          const errorId = `${selectId}-error`
+          const missing = field.required && !mapping[field.key]
+
+          return (
+            <div
+              key={field.key}
+              className="grid gap-1 text-sm sm:grid-cols-[10rem_1fr] sm:items-start"
             >
-              <option value="">Not mapped</option>
-              {headers.map((header) => (
-                <option key={header} value={header}>
-                  {header}
-                </option>
-              ))}
-            </select>
-          </label>
-        ))}
+              <label htmlFor={selectId} className="pt-2 text-muted-foreground">
+                {field.label}
+                {field.required ? " *" : ""}
+              </label>
+              <div>
+                <select
+                  id={selectId}
+                  name={`mapping.${field.key}`}
+                  value={mapping[field.key] ?? ""}
+                  onChange={(event) =>
+                    onUpdateMapping(field.key, event.target.value)
+                  }
+                  aria-invalid={missing || undefined}
+                  aria-describedby={missing ? errorId : undefined}
+                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                >
+                  <option value="">Not mapped</option>
+                  {headers.map((header) => (
+                    <option key={header} value={header}>
+                      {header}
+                    </option>
+                  ))}
+                </select>
+                {missing ? (
+                  <p id={errorId} className="mt-1 text-xs text-destructive">
+                    Map this required field to continue.
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          )
+        })}
       </div>
+
+      {!hasRequiredMappings ? (
+        <output className="block text-sm text-destructive">
+          Map every required field before continuing.
+        </output>
+      ) : null}
     </div>
   )
 }
@@ -822,7 +957,7 @@ function SummaryMetric({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-md border bg-background p-3">
       <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-semibold">{value}</p>
+      <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
     </div>
   )
 }
@@ -843,8 +978,8 @@ function IssueList({
   className?: string
 }) {
   return (
-    <div className={className}>
-      <div className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+    <div className={className} aria-live="polite">
+      <div className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
         {issues.map((issue, index) => (
           <div key={`${issue.code}-${index}`} className="flex gap-2">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" />

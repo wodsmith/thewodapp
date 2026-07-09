@@ -74,6 +74,10 @@ import {
   type VolunteerApplyRowPlan,
 } from "../lib/crew/imports/apply"
 import {
+  isCrewImportCsvUpload,
+  MAX_CREW_IMPORT_BYTES,
+} from "../lib/crew/imports/file-validation"
+import {
   buildCrewImportMappingPresetWrite,
   type CrewImportMappingPresetCandidate,
   type CrewImportMappingSuggestion,
@@ -100,8 +104,6 @@ import { parseCompetitionSettings } from "../utils/competition-settings"
 import { DEFAULT_TIMEZONE } from "../utils/timezone-utils"
 import { requireCrewEventManagerAccess } from "./crew-auth.server"
 import { recordCrewVolunteerHistoryEvent } from "./crew-volunteer-history.server"
-
-export const MAX_CREW_IMPORT_BYTES = 1_000_000
 
 type DbClient = ReturnType<typeof getDb>
 type CrewEventRecord = Awaited<ReturnType<typeof requireCrewEvent>>
@@ -382,7 +384,7 @@ export async function createCrewImportPreviewRecord(input: {
     )
   }
 
-  if (!isCsvUpload(data.originalFilename, data.mimeType)) {
+  if (!isCrewImportCsvUpload(data.originalFilename, data.mimeType)) {
     throw new CrewImportError(
       "INVALID_FILE_TYPE",
       "Crew import preview accepts CSV files only.",
@@ -1834,25 +1836,6 @@ async function listWorkoutsForCompetition(eventId: string) {
 
 function getCsvByteLength(csvText: string) {
   return new TextEncoder().encode(csvText).byteLength
-}
-
-function isCsvUpload(filename: string, mimeType?: string | null) {
-  return isCsvFilename(filename) || isCsvMimeType(mimeType)
-}
-
-function isCsvMimeType(mimeType?: string | null) {
-  if (!mimeType) return false
-
-  const normalizedMimeType = mimeType.split(";")[0]?.trim().toLowerCase()
-  return (
-    normalizedMimeType === "text/csv" ||
-    normalizedMimeType === "application/csv" ||
-    normalizedMimeType === "application/vnd.ms-excel"
-  )
-}
-
-function isCsvFilename(filename: string) {
-  return filename.toLowerCase().endsWith(".csv")
 }
 
 function toIssueList(issues: PreviewImportRow["warnings"]) {

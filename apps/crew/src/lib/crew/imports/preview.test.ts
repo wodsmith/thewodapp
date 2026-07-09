@@ -111,6 +111,26 @@ describe("buildCrewImportPreview", () => {
     )
   })
 
+  it("keeps an explicitly unmapped inferred column unmapped", () => {
+    const preview = buildCrewImportPreview({
+      kind: "volunteers",
+      context: previewContext,
+      csvText: "Name,Email\nIan Jones,ian@example.com",
+      columnMapping: { email: "" },
+    })
+
+    expect(preview.columnMapping.email).toBeUndefined()
+    expect(preview.fileIssues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "missing_required_mapping",
+          field: "email",
+        }),
+      ]),
+    )
+    expect(preview.rows[0]?.normalizedRow).toMatchObject({ email: "" })
+  })
+
   it("previews heat schedule rows with unknown workout, division, and heat warnings", () => {
     const preview = buildCrewImportPreview({
       kind: "heat_schedule",

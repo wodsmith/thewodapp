@@ -2,6 +2,7 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
 import { ZodError } from "zod"
+import { MAX_CREW_IMPORT_BYTES } from "../../../lib/crew/imports/file-validation"
 import type {
   ColumnMapping,
   CrewImportKind,
@@ -9,7 +10,6 @@ import type {
 import {
   CrewImportError,
   createCrewImportPreviewRecord,
-  MAX_CREW_IMPORT_BYTES,
 } from "../../../server/crew-imports.server"
 
 export const Route = createFileRoute("/api/crew/import")({

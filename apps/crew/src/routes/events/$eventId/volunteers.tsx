@@ -153,26 +153,36 @@ function VolunteersPage() {
             {summary.total} volunteers, {summary.assignable} assignable
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => setPasteOpen(true)}>
-            <ClipboardPaste />
-            Paste emails
-          </Button>
-          <Button asChild variant="outline">
-            <Link to="/events/$eventId/volunteers/import" params={{ eventId }}>
-              <FileUp />
-              Import volunteers
-            </Link>
-          </Button>
-          <Button onClick={() => setAddOpen(true)}>
-            <UserPlus />
-            Add volunteer
-          </Button>
-          <Button asChild variant="outline">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="ghost">
             <Link to="/events/$eventId/shifts" params={{ eventId }}>
               Manage shifts
             </Link>
           </Button>
+          <span
+            className="hidden h-6 w-px bg-border sm:block"
+            aria-hidden="true"
+          />
+          <fieldset className="flex flex-wrap gap-2">
+            <legend className="sr-only">Add volunteers</legend>
+            <Button variant="outline" onClick={() => setPasteOpen(true)}>
+              <ClipboardPaste />
+              Paste emails
+            </Button>
+            <Button asChild variant="outline">
+              <Link
+                to="/events/$eventId/volunteers/import"
+                params={{ eventId }}
+              >
+                <FileUp />
+                Import volunteers
+              </Link>
+            </Button>
+            <Button onClick={() => setAddOpen(true)}>
+              <UserPlus />
+              Add volunteer
+            </Button>
+          </fieldset>
         </div>
       </div>
 
@@ -285,6 +295,26 @@ function VolunteersPage() {
               Add volunteers one at a time, paste a list of emails, share the
               public signup link, or import a file to build the roster.
             </p>
+            <fieldset className="mt-4 flex flex-wrap justify-center gap-2">
+              <legend className="sr-only">Build the volunteer roster</legend>
+              <Button onClick={() => setAddOpen(true)}>
+                <UserPlus />
+                Add volunteer
+              </Button>
+              <Button variant="outline" onClick={() => setPasteOpen(true)}>
+                <ClipboardPaste />
+                Paste emails
+              </Button>
+              <Button asChild variant="outline">
+                <Link
+                  to="/events/$eventId/volunteers/import"
+                  params={{ eventId }}
+                >
+                  <FileUp />
+                  Import CSV
+                </Link>
+              </Button>
+            </fieldset>
           </div>
         )}
       </section>

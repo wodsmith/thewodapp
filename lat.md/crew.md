@@ -274,6 +274,8 @@ Manual volunteer intake lets Crew operators build the roster from [[apps/crew/sr
 
 Single-add and paste flows are dialogs on the volunteers page; the CSV import lives on a dedicated wizard page (see [[crew#Manual Volunteer Intake#Volunteer Import Wizard]]). Single-add and paste flows call [[apps/crew/src/server-fns/crew-roster-shift-fns.ts|route-safe server functions]] backed by [[apps/crew/src/server/crew-roster-shift.server.ts|server-only roster mutations]] to create pending volunteer `team_invitations` with `SYSTEM_ROLES_ENUM.VOLUNTEER`, normalize email casing and whitespace, skip existing volunteer invitations or memberships, and use the same volunteer membership metadata shape consumed by [[crew#Roster Shifts Assignments]], public signup, import, roster display, shifts, and assignment validation.
 
+Roster intake actions are grouped separately from shift management, and the empty roster repeats direct Add, Paste, and Import calls to action so operators can start the appropriate intake flow in context.
+
 [[apps/crew/src/lib/crew/manual-volunteer-intake.ts|Manual intake helpers]] parse pasted email batches and default missing role selections through `getCrewRosterRoleTypes()` so manually entered volunteers display as General and stay compatible with shift assignment behavior.
 
 ### Email-less Volunteers
@@ -287,6 +289,12 @@ Email-less volunteers store an empty-string `team_invitations.email` (the column
 CSV import is a dedicated three-step wizard page at `/events/$eventId/volunteers/import` instead of a dialog, reached from the volunteers page "Import volunteers" button.
 
 The route [[apps/crew/src/routes/events/$eventId/volunteers_.import.tsx]] (the `volunteers_` prefix keeps it out of the volunteers page component tree while staying inside the event layout) renders [[apps/crew/src/components/crew/volunteer-import-wizard.tsx]], a sequential stepper — 1. Upload CSV (drag-and-drop or file picker, optional CSV label, expected-columns helper), 2. Map fields (column mapping with saved-mapping suggestions and presets), 3. Review (summary metrics, preview table, confirm-and-apply). It reuses the same server contract as before: client-side `parseCsv`/`inferColumnMapping`, the `/api/crew/import` preview endpoint, mapping suggestion/preset server functions, and `applyCrewImportFn`, scoped to the volunteer kind only. On a successful apply the wizard invalidates the router and navigates back to the volunteers page.
+
+The wizard validates CSV type and size before reading, requires every required mapping before preview, preserves explicit “Not mapped” choices, disables zero-ready-row applies, and confirms before abandoning in-progress work. A committed apply remains successful even if roster refresh or navigation subsequently fails.
+
+#### Wizard Interaction Regression Tests
+
+Wizard interaction tests verify required mapping gates, explicit unmapping, early file rejection, zero-ready-row apply protection, navigation blocking, and post-commit navigation failure handling.
 
 ## Staffing Page Gap Report
 
