@@ -1,4 +1,5 @@
 // @lat: [[crew#Assignment Confirmations]]
+// @lat: [[crew#Volunteer Messaging Composer]]
 // @lat: [[crew#Day Of Operations Board]]
 import { expect, test, type Page } from "@playwright/test"
 import { loginAsTestUser, waitForHydration } from "./fixtures/auth"
@@ -14,7 +15,7 @@ test.describe("Crew organizer demo flow", () => {
 	test("shows seeded confirmation and day-of workflow data", async ({
 		page,
 	}) => {
-		await page.goto(`/events/${demo.eventId}/messages`)
+		await page.goto(`/events/${demo.eventId}/messages?tab=responses`)
 		await waitForHydration(page)
 
 		await expect(

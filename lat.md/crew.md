@@ -374,7 +374,7 @@ This slice is preview and history only. Applying volunteer invitations, voluntee
 
 ## Import Tabs Duplicate Panel Regression
 
-The import tab regression test verifies the organizer upload panel is mounted once while switching between volunteer-list and heat-schedule imports.
+The import tab regression test verifies one CSV-or-Excel upload panel is mounted while switching between volunteer-list and heat-schedule imports.
 
 ## Import Apply
 
@@ -516,7 +516,7 @@ Crew confirmation email operations use `crew_assignment_confirmations` as the so
 
 The Messages page is a broadcast-style composer: operators pick a message type, edit its email template, filter and hand-pick recipients with live eligibility preview, and send explicitly — replacing the earlier one-click bulk send buttons.
 
-[[apps/crew/src/routes/events/$eventId/messages.tsx]] renders Compose, Responses, and History tabs driven by a `?tab=` search param. Compose pairs a template editor ([[apps/crew/src/routes/events/$eventId/-components/messages-template-editor.tsx]]) with a recipients panel ([[apps/crew/src/routes/events/$eventId/-components/messages-recipients-panel.tsx]]) orchestrated by [[apps/crew/src/routes/events/$eventId/-components/messages-compose-tab.tsx]]: debounced recipient preview on filter change, checkbox selection with select-all-eligible, dimmed ineligible rows with skip reasons, and a confirm dialog before queueing. Responses ([[apps/crew/src/routes/events/$eventId/-components/messages-responses-tab.tsx]]) preserves the prior confirmation bucket dashboard and CSV export unchanged. History ([[apps/crew/src/routes/events/$eventId/-components/messages-history-tab.tsx]]) lists confirmation, reminder, and broadcast sends with delivery counts.
+[[apps/crew/src/routes/events/$eventId/messages.tsx]] renders Compose, Responses, and History tabs driven by a `?tab=` search param. Compose pairs a template editor ([[apps/crew/src/routes/events/$eventId/-components/messages-template-editor.tsx]]) with a recipients panel ([[apps/crew/src/routes/events/$eventId/-components/messages-recipients-panel.tsx]]) orchestrated by [[apps/crew/src/routes/events/$eventId/-components/messages-compose-tab.tsx]]: debounced recipient preview on filter change, checkbox selection with select-all-eligible, dimmed ineligible rows with skip reasons, and a confirm dialog before queueing. Responses ([[apps/crew/src/routes/events/$eventId/-components/messages-responses-tab.tsx]]) preserves the prior confirmation bucket dashboard and CSV export unchanged; the seeded organizer E2E opens `?tab=responses` before asserting confirmation counts. History ([[apps/crew/src/routes/events/$eventId/-components/messages-history-tab.tsx]]) lists confirmation, reminder, and broadcast sends with delivery counts.
 
 ### Message templates
 
