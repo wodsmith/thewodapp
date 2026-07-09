@@ -214,6 +214,7 @@ export async function loadCrewStaffingMatrixInput(
         availability: volunteer.availability,
         credentials: volunteer.credentials,
         isActive: isCrewRosterVolunteerStaffable(volunteer),
+        isAccountless: !volunteer.membershipId,
       }
     }),
   }
