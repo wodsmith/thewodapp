@@ -1,6 +1,8 @@
 // @lat: [[crew#Import CSV Preview#Parser Warnings]]
+import { strToU8, zipSync } from "fflate"
 import { describe, expect, it } from "vitest"
 import { parseCsv } from "./csv"
+import { parseCrewImportFile } from "./file"
 import { buildCrewImportPreview } from "./preview"
 import type { CrewImportPreviewContext } from "./types"
 
@@ -45,6 +47,35 @@ describe("parseCsv", () => {
     expect(parsed.rows[0]?.values.__extra_1).toBe("extra")
   })
 
+  it("reports singular skipped-row grammar at the preview limit", () => {
+    const parsed = parseCsv("Name\nIan\nAda", { maxRows: 1 })
+
+    expect(parsed.skippedRowCount).toBe(1)
+    expect(parsed.fileIssues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "preview_row_limit",
+          message: "1 row was skipped after the preview limit.",
+        }),
+      ]),
+    )
+  })
+
+  it("rejects blank header cells before row mapping", () => {
+    const parsed = parseCsv("Name,,Email\nIan,ignored,ian@example.com")
+
+    expect(parsed.rows).toHaveLength(0)
+    expect(parsed.fileIssues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "missing_headers",
+          severity: "error",
+          message: "CSV header cell at column 2 is blank.",
+        }),
+      ]),
+    )
+  })
+
   it("rejects duplicate non-empty headers before row mapping", () => {
     const parsed = parseCsv("Name,Email,email\nIan,first@example.com,second")
 
@@ -59,6 +90,20 @@ describe("parseCsv", () => {
     )
     expect(parsed.fileIssues[0]?.message).toContain(
       "Email (column 2) / email (column 3)",
+    )
+  })
+
+  it("rejects legacy Excel files instead of treating them as CSV", () => {
+    const parsed = parseCrewImportFile({
+      filename: "volunteers.xls",
+      mimeType: "application/vnd.ms-excel",
+      data: new Uint8Array([1, 2, 3]),
+    })
+
+    expect(parsed.fileIssues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "unsupported_file_type" }),
+      ]),
     )
   })
 })
@@ -89,6 +134,76 @@ describe("buildCrewImportPreview", () => {
       ]),
     )
     expect(preview.rows[1]?.action).toBe("skip")
+  })
+
+  it("auto-maps Competition Corner volunteer export headers to first-class fields", () => {
+    const preview = buildCrewImportPreview({
+      kind: "volunteers",
+      context: previewContext,
+      csvText: [
+        "Id,First Name,Last Name,Email,Area Code/Country Code,Phone,Shirt Size,Create Date,Preference 1,Preference 2,Preference 3",
+        "9001,Ian,Jones,ian@example.com,1,5551234567,L,2026-06-01,Lane judges,Check-in,Media",
+      ].join("\n"),
+    })
+
+    expect(preview.columnMapping).toMatchObject({
+      sourceExternalId: "Id",
+      email: "Email",
+      phoneCountryCode: "Area Code/Country Code",
+      phone: "Phone",
+      shirtSize: "Shirt Size",
+      sourceCreatedAt: "Create Date",
+      rolePreference1: "Preference 1",
+      rolePreference2: "Preference 2",
+      rolePreference3: "Preference 3",
+    })
+    expect(preview.rows[0]?.normalizedRow).toMatchObject({
+      phoneCountryCode: "1",
+      phone: "5551234567",
+      shirtSize: "L",
+      sourceExternalId: "9001",
+      sourceCreatedAt: "2026-06-01",
+      rolePreference1: "Lane judges",
+      rolePreference2: "Check-in",
+      rolePreference3: "Media",
+    })
+  })
+
+  it("carries question answers and plans new questions for mapped columns", () => {
+    const preview = buildCrewImportPreview({
+      kind: "volunteers",
+      context: {
+        ...previewContext,
+        volunteerQuestions: [{ id: "crq_gender", label: "Gender" }],
+      },
+      columnMapping: {
+        email: "Email",
+        "question:crq_gender": "Gender",
+        "newQuestion:Shoe Size": "Shoe Size",
+        "newQuestion:Instagram": "Instagram",
+      },
+      csvText: [
+        "Name,Email,Gender,Shoe Size,Instagram",
+        "Ian Jones,ian@example.com,F,10,",
+        "Ada Lin,ada@example.com,,9,",
+      ].join("\n"),
+    })
+
+    expect(preview.volunteerQuestionPlan?.questionsToCreate).toEqual([
+      "Shoe Size",
+    ])
+    expect(preview.volunteerQuestionPlan?.totalAnswerCount).toBe(3)
+    expect(preview.rows[0]?.normalizedRow).toMatchObject({
+      questionAnswers: [
+        { questionId: "crq_gender", label: "Gender", answer: "F" },
+        { questionId: null, label: "Shoe Size", answer: "10" },
+      ],
+    })
+    expect(preview.fileIssues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "empty_question_column" }),
+      ]),
+    )
   })
 
   it("flags missing volunteer required fields", () => {
@@ -166,4 +281,361 @@ describe("buildCrewImportPreview", () => {
       ]),
     )
   })
+
+  it("previews volunteer rows from an Excel workbook", () => {
+    const workbook = createXlsxWorkbook([
+      ["Full Name", "Email", "Role", "Division"],
+      ["Ian Jones", "IAN@example.com", "Lane judges", "RX"],
+    ])
+
+    const preview = buildCrewImportPreview({
+      kind: "volunteers",
+      context: previewContext,
+      file: {
+        filename: "volunteers.xlsx",
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        data: workbook,
+      },
+    })
+
+    expect(preview.headers).toEqual(["Full Name", "Email", "Role", "Division"])
+    expect(preview.rows[0]?.normalizedRow).toMatchObject({
+      name: "Ian Jones",
+      email: "ian@example.com",
+      role: "Lane judges",
+      division: "RX",
+    })
+    expect(preview.errorCount).toBe(0)
+  })
+
+  it("formats Excel time cells before heat schedule preview", () => {
+    const workbook = createXlsxWorkbook(
+      [
+        ["Workout", "Heat", "Start Time"],
+        ["Event 1", "Heat 1", { value: 0.375, style: 1 }],
+      ],
+      {
+        stylesXml: [
+          '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+          '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">',
+          '<cellXfs count="2">',
+          '<xf numFmtId="0" applyNumberFormat="0"/>',
+          '<xf numFmtId="18" applyNumberFormat="1"/>',
+          "</cellXfs>",
+          "</styleSheet>",
+        ].join(""),
+      },
+    )
+
+    const parsed = parseCrewImportFile(
+      {
+        filename: "heat-schedule.xlsx",
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        data: workbook,
+      },
+      { maxRows: 20 },
+    )
+    const preview = buildCrewImportPreview({
+      kind: "heat_schedule",
+      context: previewContext,
+      file: {
+        filename: "heat-schedule.xlsx",
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        data: workbook,
+      },
+    })
+
+    expect(parsed.rows[0]?.values["Start Time"]).toBe("9:00 AM")
+    expect(preview.rows[0]?.normalizedRow).toMatchObject({
+      workout: "Event 1",
+      heatNumber: 1,
+      scheduledTime: "9:00 AM",
+    })
+    expect(preview.errorCount).toBe(0)
+  })
 })
+
+describe("parseXlsx edge cases", () => {
+  const xlsxFile = (data: Uint8Array) => ({
+    filename: "workbook.xlsx",
+    mimeType:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    data,
+  })
+
+  it("fills omitted leading cells in short rows", () => {
+    const workbook = createXlsxWorkbook([], {
+      worksheetXml: [
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">',
+        "<sheetData>",
+        '<row r="1"><c r="A1" t="inlineStr"><is><t>Full Name</t></is></c><c r="B1" t="inlineStr"><is><t>Email</t></is></c><c r="C1" t="inlineStr"><is><t>Role</t></is></c></row>',
+        '<row r="2"><c r="B2" t="inlineStr"><is><t>ian@example.com</t></is></c></row>',
+        "</sheetData>",
+        "</worksheet>",
+      ].join(""),
+    })
+
+    const parsed = parseCrewImportFile(xlsxFile(workbook))
+
+    expect(parsed.headers).toEqual(["Full Name", "Email", "Role"])
+    expect(parsed.rows[0]?.values).toMatchObject({
+      "Full Name": "",
+      Email: "ian@example.com",
+      Role: "",
+    })
+    expect(parsed.rows[0]?.issues).toEqual([])
+  })
+
+  it("rejects workbooks whose entries exceed the decompression cap", () => {
+    const workbook = createXlsxWorkbook([["Name"], ["Ian"]], {
+      sharedStringsXml: "a".repeat(21 * 1024 * 1024),
+    })
+
+    const parsed = parseCrewImportFile(xlsxFile(workbook))
+
+    expect(parsed.fileIssues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "invalid_workbook" }),
+      ]),
+    )
+  })
+
+  it("uses worksheet relationships before non-worksheet sheet relationships", () => {
+    const workbook = createXlsxWorkbook([], {
+      workbookXml: [
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">',
+        "<sheets>",
+        '<sheet name="Chart" sheetId="1" r:id="rId1"/>',
+        '<sheet name="Data" sheetId="2" r:id="rId2"/>',
+        "</sheets>",
+        "</workbook>",
+      ].join(""),
+      workbookRelsXml: [
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">',
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chartsheet" Target="chartsheets/sheet1.xml"/>',
+        '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>',
+        "</Relationships>",
+      ].join(""),
+      extraFiles: {
+        "xl/worksheets/sheet2.xml": strToU8(
+          createWorksheetXml([["Full Name"], ["Ian Jones"]]),
+        ),
+      },
+    })
+
+    const parsed = parseCrewImportFile(xlsxFile(workbook))
+
+    expect(parsed.headers).toEqual(["Full Name"])
+    expect(parsed.rows[0]?.values["Full Name"]).toBe("Ian Jones")
+  })
+
+  it("preserves nonzero seconds in styled time and date-time cells", () => {
+    const workbook = createXlsxWorkbook(
+      [
+        ["Start Time", "Started At"],
+        [
+          { value: 0.6046875, style: 1 },
+          { value: 46023.6046875, style: 2 },
+        ],
+      ],
+      {
+        stylesXml: [
+          '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+          '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">',
+          '<cellXfs count="3">',
+          '<xf numFmtId="0" applyNumberFormat="0"/>',
+          '<xf numFmtId="18" applyNumberFormat="1"/>',
+          '<xf numFmtId="22" applyNumberFormat="1"/>',
+          "</cellXfs>",
+          "</styleSheet>",
+        ].join(""),
+      },
+    )
+
+    const parsed = parseCrewImportFile(xlsxFile(workbook))
+
+    expect(parsed.rows[0]?.values["Start Time"]).toBe("2:30:45 PM")
+    expect(parsed.rows[0]?.values["Started At"]).toBe(
+      "2026-01-01 14:30:45",
+    )
+  })
+
+  it("keeps invalid numeric XML entities as text", () => {
+    const workbook = createXlsxWorkbook([], {
+      worksheetXml: [
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">',
+        "<sheetData>",
+        '<row r="1"><c r="A1" t="inlineStr"><is><t>&#x110000;</t></is></c></row>',
+        '<row r="2"><c r="A2" t="inlineStr"><is><t>Ian</t></is></c></row>',
+        "</sheetData>",
+        "</worksheet>",
+      ].join(""),
+    })
+
+    const parsed = parseCrewImportFile(xlsxFile(workbook))
+
+    expect(parsed.headers).toEqual(["&#x110000;"])
+  })
+
+  it("ignores phonetic furigana runs in shared strings", () => {
+    const workbook = createXlsxWorkbook([], {
+      worksheetXml: [
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">',
+        "<sheetData>",
+        '<row r="1"><c r="A1" t="s"><v>0</v></c></row>',
+        '<row r="2"><c r="A2" t="inlineStr"><is><t>Ian</t></is></c></row>',
+        "</sheetData>",
+        "</worksheet>",
+      ].join(""),
+      sharedStringsXml: [
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+        '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="1" uniqueCount="1">',
+        '<si><r><t>漢字</t></r><rPh sb="0" eb="2"><t>かんじ</t></rPh></si>',
+        "</sst>",
+      ].join(""),
+    })
+
+    const parsed = parseCrewImportFile(xlsxFile(workbook))
+
+    expect(parsed.headers).toEqual(["漢字"])
+  })
+})
+
+type XlsxCell = string | number | { value: string | number; style?: number }
+
+function createXlsxWorkbook(
+  rows: XlsxCell[][],
+  options: {
+    stylesXml?: string
+    workbookXml?: string
+    workbookRelsXml?: string
+    worksheetXml?: string
+    sharedStringsXml?: string
+    extraFiles?: Record<string, Uint8Array>
+  } = {},
+) {
+  const files: Record<string, Uint8Array> = {
+    "[Content_Types].xml": strToU8(
+      [
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">',
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>',
+        '<Default Extension="xml" ContentType="application/xml"/>',
+        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>',
+        '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>',
+        '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>',
+        "</Types>",
+      ].join(""),
+    ),
+    "_rels/.rels": strToU8(
+      [
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">',
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>',
+        "</Relationships>",
+      ].join(""),
+    ),
+    "xl/workbook.xml": strToU8(
+      options.workbookXml ??
+        [
+          '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+          '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">',
+          "<sheets>",
+          '<sheet name="Sheet1" sheetId="1" r:id="rId1"/>',
+          "</sheets>",
+          "</workbook>",
+        ].join(""),
+    ),
+    "xl/_rels/workbook.xml.rels": strToU8(
+      options.workbookRelsXml ??
+        [
+          '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+          '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">',
+          '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>',
+          "</Relationships>",
+        ].join(""),
+    ),
+    "xl/worksheets/sheet1.xml": strToU8(
+      options.worksheetXml ?? createWorksheetXml(rows),
+    ),
+    "xl/styles.xml": strToU8(
+      options.stylesXml ??
+        [
+          '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+          '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">',
+          '<cellXfs count="1"><xf numFmtId="0" applyNumberFormat="0"/></cellXfs>',
+          "</styleSheet>",
+        ].join(""),
+    ),
+  }
+
+  if (options.sharedStringsXml) {
+    files["xl/sharedStrings.xml"] = strToU8(options.sharedStringsXml)
+  }
+  Object.assign(files, options.extraFiles)
+
+  return zipSync(files)
+}
+
+function createWorksheetXml(rows: XlsxCell[][]) {
+  return [
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">',
+    "<sheetData>",
+    rows
+      .map(
+        (row, rowIndex) =>
+          `<row r="${rowIndex + 1}">${row
+            .map((cell, columnIndex) =>
+              createCellXml(cell, rowIndex + 1, columnIndex),
+            )
+            .join("")}</row>`,
+      )
+      .join(""),
+    "</sheetData>",
+    "</worksheet>",
+  ].join("")
+}
+
+function createCellXml(cell: XlsxCell, rowNumber: number, columnIndex: number) {
+  const normalizedCell =
+    typeof cell === "object" && cell !== null ? cell : { value: cell }
+  const ref = `${columnName(columnIndex)}${rowNumber}`
+  const style = normalizedCell.style ? ` s="${normalizedCell.style}"` : ""
+
+  if (typeof normalizedCell.value === "number") {
+    return `<c r="${ref}"${style}><v>${normalizedCell.value}</v></c>`
+  }
+
+  return `<c r="${ref}" t="inlineStr"${style}><is><t>${escapeXml(normalizedCell.value)}</t></is></c>`
+}
+
+function columnName(columnIndex: number) {
+  let column = columnIndex + 1
+  let name = ""
+
+  while (column > 0) {
+    const remainder = (column - 1) % 26
+    name = String.fromCharCode(65 + remainder) + name
+    column = Math.floor((column - 1) / 26)
+  }
+
+  return name
+}
+
+function escapeXml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;")
+}

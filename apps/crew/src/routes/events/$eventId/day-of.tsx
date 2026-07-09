@@ -226,6 +226,14 @@ function EventDayOfOperationsPage() {
                     timezone={timezone}
                     pendingAction={pendingAction}
                     onCheckIn={async () => {
+                      if (
+                        assignment.isAccountless &&
+                        !window.confirm(
+                          "This volunteer does not have an account. Record organizer-entered attendance for this assignment?",
+                        )
+                      ) {
+                        return
+                      }
                       const actionKey = `${assignment.assignmentType}:${assignment.assignmentId}:checked_in`
                       setPendingAction(actionKey)
                       try {
@@ -236,7 +244,11 @@ function EventDayOfOperationsPage() {
                             assignmentId: assignment.assignmentId,
                           },
                         })
-                        toast.success("Check-in saved")
+                        toast.success(
+                          assignment.isAccountless
+                            ? "Override check-in saved"
+                            : "Check-in saved",
+                        )
                         await router.invalidate()
                       } catch (error) {
                         toast.error(getErrorMessage(error, "Check-in failed"))
@@ -245,6 +257,14 @@ function EventDayOfOperationsPage() {
                       }
                     }}
                     onNoShow={async () => {
+                      if (
+                        assignment.isAccountless &&
+                        !window.confirm(
+                          "This volunteer does not have an account. Record an organizer-entered no-show for this assignment?",
+                        )
+                      ) {
+                        return
+                      }
                       const actionKey = `${assignment.assignmentType}:${assignment.assignmentId}:no_show`
                       setPendingAction(actionKey)
                       try {
@@ -255,7 +275,11 @@ function EventDayOfOperationsPage() {
                             assignmentId: assignment.assignmentId,
                           },
                         })
-                        toast.success("No-show saved")
+                        toast.success(
+                          assignment.isAccountless
+                            ? "Override no-show saved"
+                            : "No-show saved",
+                        )
                         await router.invalidate()
                       } catch (error) {
                         toast.error(getErrorMessage(error, "No-show failed"))
@@ -433,7 +457,7 @@ function AssignmentActionRow({
   const rowPending = pendingAction?.startsWith(rowActionPrefix) ?? false
   const compatibleReplacements = replacementOptions.filter(
     (option) =>
-      option.membershipId !== assignment.membershipId &&
+      option.membershipId !== assignment.assigneeId &&
       option.roleTypes.includes(assignment.roleType),
   )
 
@@ -466,11 +490,19 @@ function AssignmentActionRow({
           >
             {getCrewAssignmentConfirmationStatusLabel(assignment.state)}
           </StatusPill>
+          {assignment.isAccountless ? (
+            <StatusPill tone="attention">Organizer-entered</StatusPill>
+          ) : null}
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
           {assignment.roleLabel} / {assignment.blockLabel} /{" "}
           {formatTimeWindow(assignment, timezone)}
         </p>
+        {assignment.isAccountless ? (
+          <p className="mt-1 text-xs text-muted-foreground">
+            No account is attached; attendance is recorded by the organizer.
+          </p>
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -485,7 +517,7 @@ function AssignmentActionRow({
           ) : (
             <UserCheck className="size-4" />
           )}
-          Check in
+          {assignment.isAccountless ? "Override check-in" : "Check in"}
         </button>
         <button
           type="button"
@@ -498,7 +530,7 @@ function AssignmentActionRow({
           ) : (
             <UserX className="size-4" />
           )}
-          No-show
+          {assignment.isAccountless ? "Override no-show" : "No-show"}
         </button>
         <form onSubmit={handleReplace} className="flex items-center gap-2">
           <label
@@ -510,11 +542,17 @@ function AssignmentActionRow({
           <select
             id={`replacement-${assignment.assignmentId}`}
             name="replacementMembershipId"
-            disabled={rowPending || compatibleReplacements.length === 0}
+            disabled={
+              rowPending ||
+              assignment.isAccountless ||
+              compatibleReplacements.length === 0
+            }
             className="h-9 min-w-40 rounded-md border bg-card px-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
             defaultValue=""
           >
-            <option value="">Replacement</option>
+            <option value="">
+              {assignment.isAccountless ? "Account required" : "Replacement"}
+            </option>
             {compatibleReplacements.map((option) => (
               <option key={option.membershipId} value={option.membershipId}>
                 {option.volunteerName}
@@ -523,7 +561,11 @@ function AssignmentActionRow({
           </select>
           <button
             type="submit"
-            disabled={rowPending || compatibleReplacements.length === 0}
+            disabled={
+              rowPending ||
+              assignment.isAccountless ||
+              compatibleReplacements.length === 0
+            }
             className="inline-flex h-9 w-fit items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
           >
             {replacePending ? (

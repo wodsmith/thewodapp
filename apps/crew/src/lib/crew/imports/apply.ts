@@ -653,28 +653,77 @@ function buildVolunteerImportMetadata(
 ) {
   const displayName =
     row.name || [row.firstName, row.lastName].filter(Boolean).join(" ")
-  const roleType = parseVolunteerRoleType(row.role)
   const availability = parseVolunteerAvailability(row.availability)
   const metadata: VolunteerMembershipMetadata & Record<string, unknown> = {
-    volunteerRoleTypes: [roleType ?? VOLUNTEER_ROLE_TYPES.GENERAL],
+    volunteerRoleTypes: resolveVolunteerRoleTypes(row),
     status: "pending",
     inviteSource: VOLUNTEER_INVITE_SOURCE.DIRECT,
     signupEmail: row.email,
     signupName: displayName || undefined,
-    signupPhone: row.phone || undefined,
+    signupPhone: composeSignupPhone(row.phoneCountryCode, row.phone),
     availability,
     availabilityNotes: availability ? undefined : row.availability || undefined,
+    shirtSize: row.shirtSize || undefined,
     internalNotes: buildVolunteerNotes(row),
     crewImportId: importId,
+    crewImportExternalId: row.sourceExternalId || undefined,
+    crewImportSourceCreatedAt: row.sourceCreatedAt || undefined,
   }
 
   return JSON.stringify(removeUndefined(metadata))
 }
 
+// Ranked role preferences: parse the explicit role first, then preferences
+// 1→3, keeping the deduped order of matched taxonomy roles. Organizer-defined
+// labels that do not match fall back to GENERAL when nothing resolves.
+function resolveVolunteerRoleTypes(
+  row: VolunteerImportRow,
+): VolunteerRoleType[] {
+  const rankedValues = [
+    row.role,
+    row.rolePreference1,
+    row.rolePreference2,
+    row.rolePreference3,
+  ]
+  const roleTypes: VolunteerRoleType[] = []
+  for (const value of rankedValues) {
+    const roleType = parseVolunteerRoleType(value)
+    if (roleType && !roleTypes.includes(roleType)) {
+      roleTypes.push(roleType)
+    }
+  }
+
+  return roleTypes.length > 0 ? roleTypes : [VOLUNTEER_ROLE_TYPES.GENERAL]
+}
+
+// Prefix the volunteer phone with its country/area code, e.g. "+1 5551234567".
+// Skips prefixing when there is no code, or the number already carries one.
+function composeSignupPhone(countryCode: string, phone: string) {
+  const number = phone.trim()
+  if (!number) return undefined
+
+  const code = countryCode.trim()
+  if (!code) return number
+  if (number.startsWith("+")) return number
+
+  const codeDigits = code.replace(/^\+/, "")
+  if (number.startsWith(codeDigits)) return number
+
+  return `+${codeDigits} ${number}`
+}
+
 function buildVolunteerNotes(row: VolunteerImportRow) {
+  const preferences = [
+    row.rolePreference1,
+    row.rolePreference2,
+    row.rolePreference3,
+  ].filter(Boolean)
   const parts = [
     row.notes,
     row.role ? `Imported role: ${row.role}` : "",
+    preferences.length > 0
+      ? `Imported role preferences: ${preferences.join(", ")}`
+      : "",
     row.division ? `Imported division: ${row.division}` : "",
   ].filter(Boolean)
 
