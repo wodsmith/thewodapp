@@ -6,9 +6,9 @@ This audit records exact-revision browser evidence for a bounded authenticated W
 
 The slice assigns 35 scenarios to 15 visual records: three dashboard scenarios, 14 workout scenarios, four log scenarios, four programming scenarios, and ten settings scenarios. Thirty-three are verified and two are blocked.
 
-All verified observations were captured on 2026-07-10 from commit `6df6cfbae0fcab6eb30bb3a5f698f7c1d11dad19` with `agent-browser 0.26.0`. The application ran locally under Node 24 with `VITE_E2E=true`, local KV/R2 bindings, and a newly created disposable MySQL database bound only to `127.0.0.1:33317/wodsmith_e2e`.
+The original 31 non-athlete-settings observations were captured on 2026-07-10 from commit `6df6cfbae0fcab6eb30bb3a5f698f7c1d11dad19`. The two athlete-settings scenarios were recaptured after the form-context fix at commit `5f91a983afa459acd20eb11f893ff601616d9c4b`. Both runs used `agent-browser 0.26.0`, Node 24, `VITE_E2E=true`, local KV/R2 bindings, and a newly created disposable MySQL database bound only to `127.0.0.1:33317/wodsmith_e2e`.
 
-The manifest contains 33 captures and 145 hash-pinned artifacts: accessibility and scrubbed DOM snapshots plus console and network logs for every verified scenario, one permission redirect trace, and 12 representative screenshots. Form values, authentication cookies, request headers, credentials, and URL query values from network requests are not serialized.
+The manifest contains 33 captures and 147 hash-pinned artifacts: accessibility and scrubbed DOM snapshots plus console and network logs for every verified scenario, one permission redirect trace, and 14 representative screenshots. Form values, authentication cookies, request headers, credentials, and URL query values from network requests are not serialized.
 
 ## Dashboard and permission behavior
 
@@ -36,7 +36,9 @@ Programming subscriptions truthfully rendered the global empty-subscription stat
 
 Overview, appearance, and sessions rendered in both responsive theme variants and remain library candidates for a presentation-only settings header, section composition, and responsive settings navigation.
 
-Profile and athlete settings both rendered the root `Something went wrong` boundary. Console evidence identifies `useFormField should be used within <FormField>` from `FormLabel`; both records are verified error states and remain unassessed for extraction. The other captured routes had no console errors, and no captured network request returned status 400 or higher.
+Profile settings still renders the root `Something went wrong` boundary, with console evidence identifying `useFormField should be used within <FormField>` from `FormLabel`.
+
+Athlete settings now renders its populated form in desktop/light and mobile/dark. The desktop capture verifies the default imperial height and weight controls; the mobile capture switches locally to metric without submitting and verifies the metric controls. Both variants expose labels and descriptions, match their requested themes, avoid horizontal overflow, report no console errors, and make no network request with status 400 or higher. The domain form remains route-specific.
 
 ## Cross-page candidates
 
@@ -46,4 +48,4 @@ Filtered collection controls, explicit not-found presentation, and settings sect
 
 ## Coverage result
 
-After this slice, the plan contains 327 scenarios: 142 verified, 26 blocked, and 159 pending. The evidence is local exact-revision output and does not claim equivalence with the deployed production application.
+After this slice, the plan contains 327 scenarios: 142 verified, 26 blocked, and 159 pending. The evidence is local, revision-pinned output and does not claim equivalence with the deployed production application.

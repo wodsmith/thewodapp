@@ -181,7 +181,7 @@ The 239 visual records plus 17 redirect-only records reconcile to 256 browser-ad
 | `tanstack:wodsmith-start:/_protected/settings` | wodsmith-start | layout | layout-only | `/settings` | 0 |
 | `tanstack:wodsmith-start:/_protected/settings/_index` | wodsmith-start | redirect | redirect-only | `/settings` | 0 |
 | `tanstack:wodsmith-start:/_protected/settings/appearance/_index` | wodsmith-start | page | library-candidate | `/settings/appearance` | 2 |
-| `tanstack:wodsmith-start:/_protected/settings/athlete/_index` | wodsmith-start | page | unassessed | `/settings/athlete` | 2 |
+| `tanstack:wodsmith-start:/_protected/settings/athlete/_index` | wodsmith-start | page | route-specific | `/settings/athlete` | 2 |
 | `tanstack:wodsmith-start:/_protected/settings/billing/_index` | wodsmith-start | page | unassessed | `/settings/billing` | 1 |
 | `tanstack:wodsmith-start:/_protected/settings/billing/$purchaseId` | wodsmith-start | page | unassessed | `/settings/billing/:purchaseId` | 1 |
 | `tanstack:wodsmith-start:/_protected/settings/overview/_index` | wodsmith-start | page | library-candidate | `/settings/overview` | 2 |

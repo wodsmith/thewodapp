@@ -6855,7 +6855,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "dashboard-authenticated-desktop-light"
             }
           ],
@@ -6900,7 +6900,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "dashboard-authenticated-mobile-dark"
             }
           ],
@@ -6945,7 +6945,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "dashboard-no-workout-tracking-desktop-light"
             }
           ],
@@ -7010,7 +7010,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "log-authenticated-desktop-light"
             }
           ],
@@ -7055,7 +7055,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "log-authenticated-mobile-dark"
             }
           ],
@@ -7160,7 +7160,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "log-new-authenticated-desktop-light"
             }
           ],
@@ -7202,7 +7202,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "log-new-authenticated-mobile-dark"
             }
           ],
@@ -7481,7 +7481,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "programming-subscriptions-authenticated-desktop-light"
             }
           ],
@@ -7521,7 +7521,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "programming-subscriptions-authenticated-mobile-dark"
             }
           ],
@@ -7615,7 +7615,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "settings-appearance-authenticated-desktop-light"
             }
           ],
@@ -7660,7 +7660,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "settings-appearance-authenticated-mobile-dark"
             }
           ],
@@ -7670,7 +7670,7 @@
     },
     {
       "routeId": "tanstack:wodsmith-start:/_protected/settings/athlete/_index",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
           "authenticated"
@@ -7679,7 +7679,7 @@
           "populated"
         ],
         "dataStates": [
-          "error"
+          "default"
         ],
         "themes": [
           "light",
@@ -7698,34 +7698,39 @@
           "fixture": "populated",
           "params": {},
           "query": {},
-          "dataState": "error",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
           "evidence": [
             {
               "kind": "accessibility-snapshot",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-athlete-authenticated-desktop-light.a11y.txt",
-              "sha256": "77f392f192daab99d4f3ed1ff48401fd2ff2420e6c87e158aecbde91e4af4766"
+              "sha256": "bbd9bb291abb4326a367d5f41a4a80c2aded0ceb2ef58f6815dd84169ac0145b"
             },
             {
               "kind": "dom-snapshot",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-athlete-authenticated-desktop-light.dom.json",
-              "sha256": "89741773c0019db026bb955800b7bd7f660f545e26ab8832463ea8477f0377d5"
+              "sha256": "988e51f1ae241f7946a2c89320c0acfcf8f05acb1ee329b367545e26951bcbad"
             },
             {
               "kind": "console-log",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-athlete-authenticated-desktop-light.console.json",
-              "sha256": "cdfb3fc1ee280a09b4c350ccfc32a2fc1bdce9d27d13c471acf3739561c05b3e"
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
             },
             {
               "kind": "network-log",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-athlete-authenticated-desktop-light.network.json",
-              "sha256": "ed7ea9d3f7e3b41693cb8ccd1afa3d2832912ebf39186d37f90a31060a207394"
+              "sha256": "027c51c3c2a72048aecc2a2bf28f74151256c1de2b14f4524218d0466577ada0"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-athlete-authenticated-desktop-light.png",
+              "sha256": "13c87baa7adaa32714a4bf8d7c9cdb8ca2543f4272b1bd64ee90b7ec1f649ed1"
             },
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "settings-athlete-authenticated-desktop-light"
             }
           ],
@@ -7738,34 +7743,39 @@
           "fixture": "populated",
           "params": {},
           "query": {},
-          "dataState": "error",
+          "dataState": "default",
           "theme": "dark",
           "viewport": "mobile",
           "evidence": [
             {
               "kind": "accessibility-snapshot",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-athlete-authenticated-mobile-dark.a11y.txt",
-              "sha256": "cf9aae391359d704faf62c4bb51ab5c75233c9fa58abdc16ffd523f8acbe1934"
+              "sha256": "912875e980ab8eaf3563fa49b0772543a6925dcd8af689118da8d6c55e4fb791"
             },
             {
               "kind": "dom-snapshot",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-athlete-authenticated-mobile-dark.dom.json",
-              "sha256": "19fac4d48de7b4752a71988b223b283f4160b005a4686a94b3dd3996cb871284"
+              "sha256": "4a7d2527eb9f486065b9e50dac6867ac4b9135b1bbe787d97ea4b03fcedc3e4e"
             },
             {
               "kind": "console-log",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-athlete-authenticated-mobile-dark.console.json",
-              "sha256": "cdfb3fc1ee280a09b4c350ccfc32a2fc1bdce9d27d13c471acf3739561c05b3e"
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
             },
             {
               "kind": "network-log",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-athlete-authenticated-mobile-dark.network.json",
-              "sha256": "b073319c467346b0c3bb68be95a3a611c73902a1864362a7eb44e5920f6ff8e9"
+              "sha256": "933a348af48d7772e8e1bf1f6945b37baa38a2499571914d7ad41531c5b35caf"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-athlete-authenticated-mobile-dark.png",
+              "sha256": "277bd9b34b6be843cdc955e013cdd29d552881a47eecc6fbba940a0d7222c7d2"
             },
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "settings-athlete-authenticated-mobile-dark"
             }
           ],
@@ -7909,7 +7919,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "settings-overview-authenticated-desktop-light"
             }
           ],
@@ -7949,7 +7959,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "settings-overview-authenticated-mobile-dark"
             }
           ],
@@ -8014,7 +8024,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "settings-profile-authenticated-desktop-light"
             }
           ],
@@ -8054,7 +8064,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "settings-profile-authenticated-mobile-dark"
             }
           ],
@@ -8193,7 +8203,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "settings-sessions-authenticated-desktop-light"
             }
           ],
@@ -8233,7 +8243,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "settings-sessions-authenticated-mobile-dark"
             }
           ],
@@ -8489,7 +8499,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "workouts-authenticated-desktop-light"
             }
           ],
@@ -8537,7 +8547,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "workouts-authenticated-mobile-dark"
             }
           ],
@@ -8580,7 +8590,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "workouts-search-empty-desktop-dark"
             }
           ],
@@ -8654,7 +8664,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "workout-detail-authenticated-desktop-light"
             }
           ],
@@ -8696,7 +8706,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "workout-detail-authenticated-mobile-dark"
             }
           ],
@@ -8743,7 +8753,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "workout-detail-not-found-desktop-dark"
             }
           ],
@@ -8812,7 +8822,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "workout-edit-authenticated-desktop-light"
             }
           ],
@@ -8859,7 +8869,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "workout-edit-authenticated-mobile-dark"
             }
           ],
@@ -8901,7 +8911,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "workout-edit-not-found-desktop-dark"
             }
           ],
@@ -8970,7 +8980,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "workout-schedule-authenticated-desktop-light"
             }
           ],
@@ -9012,7 +9022,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "workout-schedule-authenticated-mobile-dark"
             }
           ],
@@ -9054,7 +9064,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "workout-schedule-not-found-desktop-dark"
             }
           ],
@@ -9124,7 +9134,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "workout-new-authenticated-desktop-light"
             }
           ],
@@ -9164,7 +9174,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
-              "sha256": "9a2dbda7e7a71f38b31d2cf27fead7617c0c9e99572b59f0285d0090bd997c40",
+              "sha256": "4d4d93ddb8017b2d8644024a04c3cd170509031de2b1aafaabde989bc62b9f19",
               "captureId": "workout-new-authenticated-mobile-dark"
             }
           ],

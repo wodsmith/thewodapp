@@ -16,7 +16,7 @@
   {
     "method": "GET",
     "path": "/src/styles.css",
-    "status": 304,
+    "status": 200,
     "resourceType": "Stylesheet",
     "mimeType": "text/css"
   },
@@ -96,6 +96,13 @@
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/favicon.ico",
+    "status": 200,
+    "resourceType": "Other",
+    "mimeType": "image/x-icon"
   },
   {
     "method": "GET",
@@ -771,6 +778,13 @@
   },
   {
     "method": "GET",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/getStartOptions.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
     "path": "/src/lib/posthog/utils.ts",
     "status": 200,
     "resourceType": "Script",
@@ -792,7 +806,7 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/getStartOptions.js",
+    "path": "/node_modules/.vite/deps/@sentry_react.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -806,21 +820,7 @@
   },
   {
     "method": "GET",
-    "path": "/node_modules/.vite/deps/@sentry_react.js",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
     "path": "/node_modules/.vite/deps/chunk-3VUEZFAQ.js",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/node_modules/.vite/deps/posthog-js.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -2164,6 +2164,13 @@
   },
   {
     "method": "GET",
+    "path": "/node_modules/.vite/deps/posthog-js.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
     "path": "/node_modules/.vite/deps/@tanstack_react-devtools.js",
     "status": 200,
     "resourceType": "Script",
@@ -2213,20 +2220,6 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-start@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3_vite@7.3.0_@types+n_2hiqire2lwtoygp7i5vgrwr7xu/node_modules/@tanstack/react-start/dist/esm/client-rpc.js",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-start@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3_vite@7.3.0_@types+n_2hiqire2lwtoygp7i5vgrwr7xu/node_modules/@tanstack/react-start/dist/esm/index.js",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
     "path": "/node_modules/.vite/deps/chunk-JM6SRYIN.js",
     "status": 200,
     "resourceType": "Script",
@@ -2248,6 +2241,41 @@
   },
   {
     "method": "GET",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-devtools-core@1.144.0_@tanstack+router-core@1.168.4_csstype@3.2.3_solid-js@1.9.10/node_modules/@tanstack/router-devtools-core/dist/esm/index.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-start@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3_vite@7.3.0_@types+n_2hiqire2lwtoygp7i5vgrwr7xu/node_modules/@tanstack/react-start/dist/esm/client-rpc.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-start@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3_vite@7.3.0_@types+n_2hiqire2lwtoygp7i5vgrwr7xu/node_modules/@tanstack/react-start/dist/esm/index.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/middleware/auth.ts",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-devtools-core@1.144.0_@tanstack+router-core@1.168.4_csstype@3.2.3_solid-js@1.9.10/node_modules/@tanstack/router-devtools-core/dist/index-Bjd63dIw.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
     "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/client-rpc/index.js",
     "status": 200,
     "resourceType": "Script",
@@ -2263,13 +2291,6 @@
   {
     "method": "GET",
     "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/index.js",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-devtools-core@1.144.0_@tanstack+router-core@1.168.4_csstype@3.2.3_solid-js@1.9.10/node_modules/@tanstack/router-devtools-core/dist/esm/index.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -2325,20 +2346,6 @@
   },
   {
     "method": "GET",
-    "path": "/src/server-fns/middleware/auth.ts",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-devtools-core@1.144.0_@tanstack+router-core@1.168.4_csstype@3.2.3_solid-js@1.9.10/node_modules/@tanstack/router-devtools-core/dist/index-Bjd63dIw.js",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
     "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-fn-stubs@1.143.8/node_modules/@tanstack/start-fn-stubs/dist/esm/createIsomorphicFn.js",
     "status": 200,
     "resourceType": "Script",
@@ -2354,6 +2361,27 @@
   {
     "method": "GET",
     "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/getStartContextServerOnly.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/purchase-transfer-accept-fns.ts",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/registration-questions-fns.ts",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/waiver-fns.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -2402,34 +2430,6 @@
   },
   {
     "method": "GET",
-    "path": "/node_modules/.vite/deps/chunk-G3R4YCNP.js",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/src/server-fns/purchase-transfer-accept-fns.ts",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/src/server-fns/registration-questions-fns.ts",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/src/server-fns/waiver-fns.ts",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
     "path": "/node_modules/.vite/deps/date-fns.js",
     "status": 200,
     "resourceType": "Script",
@@ -2438,6 +2438,20 @@
   {
     "method": "GET",
     "path": "/src/server-fns/workout-fns.ts",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-G3R4YCNP.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-SYMW35FC.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -2458,7 +2472,7 @@
   },
   {
     "method": "GET",
-    "path": "/node_modules/.vite/deps/chunk-SYMW35FC.js",
+    "path": "/src/server-fns/cohost-fns.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -2507,7 +2521,49 @@
   },
   {
     "method": "GET",
-    "path": "/src/server-fns/cohost-fns.ts",
+    "path": "/src/server-fns/competition-score-fns.ts",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/volunteer-fns.ts",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/lib/competitions/scheduling-check-in-gates.ts",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/competition-event-fns.ts",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/competition-heats-fns.ts",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/competition-workouts-fns.ts",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/competition-workouts-page-fns.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -2535,63 +2591,14 @@
   },
   {
     "method": "GET",
-    "path": "/src/server-fns/competition-score-fns.ts",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/src/server-fns/volunteer-fns.ts",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/src/server-fns/competition-heats-fns.ts",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/src/server-fns/competition-workouts-page-fns.ts",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/src/lib/competitions/scheduling-check-in-gates.ts",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/src/server-fns/competition-event-fns.ts",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/src/server-fns/competition-workouts-fns.ts",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/src/server-fns/video-submission-fns.ts",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
     "path": "/src/server-fns/registration-fns.ts",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/volunteer-schedule-fns.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -2612,7 +2619,7 @@
   },
   {
     "method": "GET",
-    "path": "/src/server-fns/volunteer-schedule-fns.ts",
+    "path": "/src/server-fns/video-submission-fns.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -2647,6 +2654,20 @@
   },
   {
     "method": "GET",
+    "path": "/src/server-fns/organizer-admin-fns.ts",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/admin-entitlement-fns.ts",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
     "path": "/src/server-fns/route-docs-fns.ts",
     "status": 200,
     "resourceType": "Script",
@@ -2654,14 +2675,14 @@
   },
   {
     "method": "GET",
-    "path": "/src/server-fns/demo-competition-fns.ts",
+    "path": "/src/server-fns/admin-fns.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/src/server-fns/admin-fns.ts",
+    "path": "/src/server-fns/demo-competition-fns.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -2676,6 +2697,13 @@
   {
     "method": "GET",
     "path": "/src/server-fns/programming-fns.ts",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/movement-fns.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -2710,20 +2738,6 @@
   },
   {
     "method": "GET",
-    "path": "/src/server-fns/organizer-admin-fns.ts",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/src/server-fns/admin-entitlement-fns.ts",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
     "path": "/src/server-fns/series-division-mapping-fns.ts",
     "status": 200,
     "resourceType": "Script",
@@ -2732,13 +2746,6 @@
   {
     "method": "GET",
     "path": "/src/server-fns/series-event-template-fns.ts",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/src/server-fns/movement-fns.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -2766,14 +2773,14 @@
   },
   {
     "method": "GET",
-    "path": "/src/server-fns/stripe-connect-fns.ts",
+    "path": "/src/server-fns/judge-scheduler-ai-fns.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/src/server-fns/judge-scheduler-ai-fns.ts",
+    "path": "/src/server-fns/stripe-connect-fns.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -2850,13 +2857,6 @@
   },
   {
     "method": "GET",
-    "path": "/src/server-fns/cohost/cohost-sponsor-fns.ts",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
     "path": "/src/server-fns/cohost/cohost-division-fns.ts",
     "status": 200,
     "resourceType": "Script",
@@ -2885,28 +2885,14 @@
   },
   {
     "method": "GET",
+    "path": "/src/server-fns/cohost/cohost-sponsor-fns.ts",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
     "path": "/src/server-fns/cohost/cohost-coupon-fns.ts",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/src/server-fns/cohost/cohost-registration-fns.ts",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/src/server-fns/purchase-transfer-fns.ts",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/src/server-fns/competition-event-page-fns.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -2927,6 +2913,27 @@
   },
   {
     "method": "GET",
+    "path": "/src/server-fns/competition-event-page-fns.ts",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/cohost/cohost-registration-fns.ts",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/purchase-transfer-fns.ts",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
     "path": "/src/server-fns/athlete-profile-fns.ts",
     "status": 200,
     "resourceType": "Script",
@@ -2941,14 +2948,14 @@
   },
   {
     "method": "GET",
-    "path": "/src/components/ui/skeleton.tsx",
+    "path": "/src/server-fns/profile-fns.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/src/server-fns/profile-fns.ts",
+    "path": "/src/components/ui/skeleton.tsx",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -2962,7 +2969,21 @@
   },
   {
     "method": "GET",
+    "path": "/src/components/organizer/invites/sent-invites-by-division.tsx",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
     "path": "/src/server-fns/event-division-mapping-fns.ts",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/volunteer-shift-fns.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -2977,20 +2998,6 @@
   {
     "method": "GET",
     "path": "/src/server-fns/judging-sheet-fns.ts",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/src/components/organizer/invites/sent-invites-by-division.tsx",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/src/server-fns/volunteer-shift-fns.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3032,13 +3039,6 @@
   },
   {
     "method": "GET",
-    "path": "/src/server-fns/admin-gym-setup-fns.ts",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
     "path": "/src/server-fns/submission-verification-fns.ts",
     "status": 200,
     "resourceType": "Script",
@@ -3054,6 +3054,13 @@
   {
     "method": "GET",
     "path": "/src/server-fns/video-vote-fns.ts",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/src/server-fns/admin-gym-setup-fns.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3137,7 +3144,7 @@
   },
   {
     "method": "GET",
-    "path": "/src/components/ui/breadcrumb.tsx",
+    "path": "/src/utils/cn.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3158,7 +3165,7 @@
   },
   {
     "method": "GET",
-    "path": "/src/utils/cn.ts",
+    "path": "/src/components/ui/breadcrumb.tsx",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3270,7 +3277,7 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/<repo>/packages/ui/src/components/breadcrumb.tsx",
+    "path": "/@fs/<repo>/packages/ui/src/utils/cn.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3312,7 +3319,14 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/<repo>/packages/ui/src/utils/cn.ts",
+    "path": "/@fs/<repo>/packages/ui/src/components/breadcrumb.tsx",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs/<repo>/packages/wodsmith-db/src/schemas/volunteers.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3333,7 +3347,14 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/<repo>/packages/wodsmith-db/src/schemas/volunteers.ts",
+    "path": "/@fs/<repo>/packages/wodsmith-db/src/schemas/programming.ts",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs/<repo>/packages/wodsmith-db/src/schemas/users.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3355,20 +3376,6 @@
   {
     "method": "GET",
     "path": "/@fs/<repo>/packages/wodsmith-db/src/schemas/teams.ts",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/@fs/<repo>/packages/wodsmith-db/src/schemas/users.ts",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/@fs/<repo>/packages/wodsmith-db/src/schemas/programming.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3424,20 +3431,6 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/<repo>/packages/ui/src/components/separator.tsx",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/@fs/<repo>/packages/ui/src/components/tooltip.tsx",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
     "path": "/node_modules/.vite/deps/clsx.js",
     "status": 200,
     "resourceType": "Script",
@@ -3452,14 +3445,21 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/<repo>/packages/wodsmith-db/src/schemas/competitions.ts",
+    "path": "/@fs/<repo>/packages/ui/src/components/separator.tsx",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/node_modules/.vite/deps/ulid.js",
+    "path": "/@fs/<repo>/packages/ui/src/components/tooltip.tsx",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs/<repo>/packages/wodsmith-db/src/schemas/competitions.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3473,6 +3473,27 @@
   },
   {
     "method": "GET",
+    "path": "/node_modules/.vite/deps/ulid.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/@radix-ui_react-separator.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-UOC3YUFK.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
     "path": "/node_modules/.vite/deps/@radix-ui_react-dialog.js",
     "status": 200,
     "resourceType": "Script",
@@ -3480,21 +3501,21 @@
   },
   {
     "method": "GET",
-    "path": "/node_modules/.vite/deps/chunk-JQJ2TTON.js",
+    "path": "/node_modules/.vite/deps/@radix-ui_react-tooltip.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/node_modules/.vite/deps/chunk-SRR5NVGO.js",
+    "path": "/node_modules/.vite/deps/@radix-ui_react-dropdown-menu.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/node_modules/.vite/deps/chunk-ALRV46YX.js",
+    "path": "/node_modules/.vite/deps/chunk-KAW4DGTZ.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3508,42 +3529,21 @@
   },
   {
     "method": "GET",
-    "path": "/node_modules/.vite/deps/chunk-B2T3A5EZ.js",
+    "path": "/node_modules/.vite/deps/chunk-THVSU5G4.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/node_modules/.vite/deps/chunk-HRGJVYIY.js",
+    "path": "/node_modules/.vite/deps/chunk-ALRV46YX.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/node_modules/.vite/deps/chunk-DLTBYMZY.js",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/node_modules/.vite/deps/chunk-RMHUKLGK.js",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/node_modules/.vite/deps/chunk-MCE6LYZ5.js",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/node_modules/.vite/deps/chunk-UOC3YUFK.js",
+    "path": "/node_modules/.vite/deps/chunk-NNKKMRJ2.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3564,14 +3564,77 @@
   },
   {
     "method": "GET",
-    "path": "/node_modules/.vite/deps/chunk-NNKKMRJ2.js",
+    "path": "/node_modules/.vite/deps/chunk-B2T3A5EZ.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/node_modules/.vite/deps/@radix-ui_react-dropdown-menu.js",
+    "path": "/node_modules/.vite/deps/chunk-DLTBYMZY.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-HRGJVYIY.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-RMHUKLGK.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-MCE6LYZ5.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-H5PFKWBW.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-UUAZWNMH.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-2VL6GAXZ.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-NSZD7KEK.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-WBNRJ5UY.js",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/node_modules/.vite/deps/chunk-ZE6RQ5HS.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3592,28 +3655,14 @@
   },
   {
     "method": "GET",
-    "path": "/node_modules/.vite/deps/@radix-ui_react-separator.js",
+    "path": "/node_modules/.vite/deps/chunk-AGL5TFQ4.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/node_modules/.vite/deps/chunk-4AAM6DEZ.js",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/node_modules/.vite/deps/chunk-WBNRJ5UY.js",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/node_modules/.vite/deps/chunk-4DVZMS24.js",
+    "path": "/node_modules/.vite/deps/chunk-E7QHEJ7S.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3628,48 +3677,6 @@
   {
     "method": "GET",
     "path": "/node_modules/.vite/deps/chunk-QRGXNZWU.js",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/node_modules/.vite/deps/chunk-ZE6RQ5HS.js",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/node_modules/.vite/deps/@radix-ui_react-tooltip.js",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/node_modules/.vite/deps/chunk-H5PFKWBW.js",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/node_modules/.vite/deps/chunk-USXPFET6.js",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/node_modules/.vite/deps/chunk-2VL6GAXZ.js",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/node_modules/.vite/deps/chunk-NSZD7KEK.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3732,6 +3739,13 @@
   },
   {
     "method": "GET",
+    "path": "/src/components/ui/label.tsx",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
     "path": "/src/components/ui/select.tsx",
     "status": 200,
     "resourceType": "Script",
@@ -3760,13 +3774,6 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/<repo>/packages/ui/src/components/select.tsx",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
     "path": "/src/components/ui/dialog.tsx",
     "status": 200,
     "resourceType": "Script",
@@ -3788,6 +3795,13 @@
   },
   {
     "method": "GET",
+    "path": "/@fs/<repo>/packages/ui/src/components/label.tsx",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
     "path": "/@fs/<repo>/packages/ui/src/components/form.tsx",
     "status": 200,
     "resourceType": "Script",
@@ -3795,7 +3809,7 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/<repo>/packages/ui/src/components/dialog.tsx",
+    "path": "/@fs/<repo>/packages/ui/src/components/select.tsx",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3803,6 +3817,13 @@
   {
     "method": "GET",
     "path": "/@fs/<repo>/packages/ui/src/components/popover.tsx",
+    "status": 200,
+    "resourceType": "Script",
+    "mimeType": "text/javascript"
+  },
+  {
+    "method": "GET",
+    "path": "/@fs/<repo>/packages/ui/src/components/dialog.tsx",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3830,7 +3851,7 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/<repo>/packages/ui/src/components/label.tsx",
+    "path": "/node_modules/.vite/deps/@radix-ui_react-label.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3838,13 +3859,6 @@
   {
     "method": "GET",
     "path": "/node_modules/.vite/deps/@radix-ui_react-popover.js",
-    "status": 200,
-    "resourceType": "Script",
-    "mimeType": "text/javascript"
-  },
-  {
-    "method": "GET",
-    "path": "/node_modules/.vite/deps/@radix-ui_react-label.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"

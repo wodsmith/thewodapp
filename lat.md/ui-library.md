@@ -164,6 +164,6 @@ The third evidence slice covers a bounded authenticated Start workflow across th
 
 The owner fixture verifies responsive light/dark output for scheduled-workout emptiness, populated workouts, filtered emptiness, workout detail and forms, missing-workout states, empty logs, a preselected log form, empty subscriptions, and representative settings pages. A separate seeded athlete verifies the dashboard workout-tracking redirect.
 
-Programming browse remains blocked because the required base seed exposes a public track instead of the audited empty state. Profile and athlete settings are verified error states because their shared form label usage reaches the root error boundary.
+Programming browse remains blocked because the required base seed exposes a public track instead of the audited empty state. Profile settings remains a verified error state. Athlete settings now verifies its route-specific imperial and metric form output after the form-context fix.
 
 Observed repetition supports a children-driven shared empty state and presentation-only settings header or section composition. Workout forms, calendars, scoring, navigation state, authentication, and route controllers remain app-owned.

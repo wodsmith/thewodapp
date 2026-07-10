@@ -1,19 +1,436 @@
-- banner
-  - generic
-    - link "wodsmith WODsmith" [ref=e4]
-      - heading "WODsmith" [level=1, ref=e6]
-    - button "Toggle navigation menu" [expanded=false, ref=e5]
-- main
-  - complementary
-    - navigation
-      - link "Overview" [ref=e7]
-      - link "Profile" [ref=e8]
-      - link "Appearance" [ref=e9]
-      - link "Athlete profile" [ref=e10]
-      - link "Teams" [ref=e11]
-      - link "Sessions" [ref=e12]
-      - link "Billing" [ref=e13]
-      - button "Sign out" [expanded=false, ref=e14]
-  - heading "Something went wrong" [level=1, ref=e2]
-  - button "Try Again" [ref=e3]
-- region "Notifications alt+T" [ref=e1]
+- generic
+  - banner
+    - generic
+      - link "wodsmith WODsmith" [ref=e3]
+        - image "wodsmith"
+        - heading "WODsmith" [level=1, ref=e40]
+          - StaticText "WODsmith"
+      - button "Toggle navigation menu" [expanded=false, ref=e4]
+        - StaticText "Toggle navigation menu"
+  - main
+    - complementary
+      - navigation
+        - StaticText "GENERAL"
+        - link "Overview" [ref=e67]
+        - link "Profile" [ref=e68]
+        - link "Appearance" [ref=e69]
+        - StaticText "ATHLETE"
+        - link "Athlete profile" [ref=e70]
+        - link "Teams" [ref=e71]
+        - StaticText "ACCOUNT"
+        - link "Sessions" [ref=e72]
+        - link "Billing" [ref=e73]
+        - button "Sign out" [expanded=false, ref=e74]
+    - StaticText "ATHLETE PROFILE"
+    - heading "Athlete profile" [level=1, ref=e2]
+    - paragraph
+      - StaticText "Required for competition registration and division placement."
+    - generic
+      - StaticText "Unit Preference"
+      - StaticText "Choose your preferred unit system for displaying measurements"
+      - LabelText
+        - StaticText "Measurement System"
+      - combobox "Measurement System" [expanded=false, ref=e5]: Metric (kg, cm)
+        - generic [ref=e41] clickable [onclick]
+          - StaticText "Metric (kg, cm)"
+      - paragraph
+        - StaticText "This affects how weights and heights are displayed throughout your profile"
+      - StaticText "Basic Info"
+      - StaticText "Required for competition registration and division placement"
+      - LabelText
+        - StaticText "Gender"
+      - combobox "Gender" [expanded=false, ref=e6]: Select gender
+        - StaticText "Select gender"
+      - paragraph
+        - StaticText "Used for competition division placement"
+      - LabelText
+        - StaticText "Date of Birth"
+      - Date "Date of Birth"
+        - generic
+          - spinbutton "Month Month" [ref=e75]: 0
+            - StaticText "mm"
+          - StaticText "/"
+          - spinbutton "Day Day" [ref=e76]: 0
+            - StaticText "dd"
+          - StaticText "/"
+          - spinbutton "Year Year" [ref=e77]: 0
+            - StaticText "yyyy"
+        - button "Show date picker" [ref=e42]
+      - paragraph
+        - StaticText "Used for age division placement"
+      - LabelText
+        - StaticText "Default Affiliate"
+      - combobox [expanded=false, ref=e7]: Select your gym or affiliate...
+        - StaticText "Select your gym or affiliate..."
+      - paragraph
+        - StaticText "Your default gym/affiliate for competition registrations"
+      - StaticText "Physical Stats"
+      - StaticText "Your height and weight for competition records"
+      - LabelText
+        - StaticText "Height (cm)"
+      - spinbutton "Height (cm)" [ref=e8]
+      - paragraph
+        - StaticText "Centimeters"
+      - LabelText
+        - StaticText "Weight (kg)"
+      - spinbutton "Weight (kg)" [ref=e9]
+      - paragraph
+        - StaticText "Kilograms"
+      - StaticText "Cover Image"
+      - StaticText "Add a cover image URL for your profile (optional)"
+      - LabelText
+        - StaticText "Cover Image URL"
+      - textbox "Cover Image URL" [ref=e10]
+      - paragraph
+        - StaticText "Paste a URL to an image (e.g., from Imgur)"
+      - StaticText "Notable Metcons"
+      - StaticText "Record your personal bests for benchmark workouts"
+      - LabelText
+        - StaticText "Fran"
+      - textbox "Fran" [ref=e11]
+      - paragraph
+        - StaticText "Format: MM:SS"
+      - LabelText
+        - StaticText "Date"
+      - Date "Date"
+        - generic
+          - spinbutton "Month Month" [ref=e78]: 0
+            - StaticText "mm"
+          - StaticText "/"
+          - spinbutton "Day Day" [ref=e79]: 0
+            - StaticText "dd"
+          - StaticText "/"
+          - spinbutton "Year Year" [ref=e80]: 0
+            - StaticText "yyyy"
+        - button "Show date picker" [ref=e43]
+      - LabelText
+        - StaticText "Grace"
+      - textbox "Grace" [ref=e12]
+      - paragraph
+        - StaticText "Format: MM:SS"
+      - LabelText
+        - StaticText "Date"
+      - Date "Date"
+        - generic
+          - spinbutton "Month Month" [ref=e81]: 0
+            - StaticText "mm"
+          - StaticText "/"
+          - spinbutton "Day Day" [ref=e82]: 0
+            - StaticText "dd"
+          - StaticText "/"
+          - spinbutton "Year Year" [ref=e83]: 0
+            - StaticText "yyyy"
+        - button "Show date picker" [ref=e44]
+      - LabelText
+        - StaticText "Helen"
+      - textbox "Helen" [ref=e13]
+      - paragraph
+        - StaticText "Format: MM:SS"
+      - LabelText
+        - StaticText "Date"
+      - Date "Date"
+        - generic
+          - spinbutton "Month Month" [ref=e84]: 0
+            - StaticText "mm"
+          - StaticText "/"
+          - spinbutton "Day Day" [ref=e85]: 0
+            - StaticText "dd"
+          - StaticText "/"
+          - spinbutton "Year Year" [ref=e86]: 0
+            - StaticText "yyyy"
+        - button "Show date picker" [ref=e45]
+      - LabelText
+        - StaticText "Diane"
+      - textbox "Diane" [ref=e14]
+      - paragraph
+        - StaticText "Format: MM:SS"
+      - LabelText
+        - StaticText "Date"
+      - Date "Date"
+        - generic
+          - spinbutton "Month Month" [ref=e87]: 0
+            - StaticText "mm"
+          - StaticText "/"
+          - spinbutton "Day Day" [ref=e88]: 0
+            - StaticText "dd"
+          - StaticText "/"
+          - spinbutton "Year Year" [ref=e89]: 0
+            - StaticText "yyyy"
+        - button "Show date picker" [ref=e46]
+      - LabelText
+        - StaticText "Murph"
+      - textbox "Murph" [ref=e15]
+      - paragraph
+        - StaticText "Format: MM:SS or HH:MM:SS"
+      - LabelText
+        - StaticText "Date"
+      - Date "Date"
+        - generic
+          - spinbutton "Month Month" [ref=e90]: 0
+            - StaticText "mm"
+          - StaticText "/"
+          - spinbutton "Day Day" [ref=e91]: 0
+            - StaticText "dd"
+          - StaticText "/"
+          - spinbutton "Year Year" [ref=e92]: 0
+            - StaticText "yyyy"
+        - button "Show date picker" [ref=e47]
+      - LabelText
+        - StaticText "Cindy"
+      - textbox "Cindy" [ref=e16]
+      - paragraph
+        - StaticText "Rounds in 20 minutes"
+      - LabelText
+        - StaticText "Date"
+      - Date "Date"
+        - generic
+          - spinbutton "Month Month" [ref=e93]: 0
+            - StaticText "mm"
+          - StaticText "/"
+          - spinbutton "Day Day" [ref=e94]: 0
+            - StaticText "dd"
+          - StaticText "/"
+          - spinbutton "Year Year" [ref=e95]: 0
+            - StaticText "yyyy"
+        - button "Show date picker" [ref=e48]
+      - StaticText "Conditioning Metcons"
+      - StaticText "Record your personal bests for benchmark workouts"
+      - LabelText
+        - StaticText "2K Row Time"
+      - textbox "2K Row Time" [ref=e17]
+      - paragraph
+        - StaticText "Format: MM:SS"
+      - LabelText
+        - StaticText "Date"
+      - Date "Date"
+        - generic
+          - spinbutton "Month Month" [ref=e96]: 0
+            - StaticText "mm"
+          - StaticText "/"
+          - spinbutton "Day Day" [ref=e97]: 0
+            - StaticText "dd"
+          - StaticText "/"
+          - spinbutton "Year Year" [ref=e98]: 0
+            - StaticText "yyyy"
+        - button "Show date picker" [ref=e49]
+      - LabelText
+        - StaticText "1 Mile Run Time"
+      - textbox "1 Mile Run Time" [ref=e18]
+      - paragraph
+        - StaticText "Format: MM:SS"
+      - LabelText
+        - StaticText "Date"
+      - Date "Date"
+        - generic
+          - spinbutton "Month Month" [ref=e99]: 0
+            - StaticText "mm"
+          - StaticText "/"
+          - spinbutton "Day Day" [ref=e100]: 0
+            - StaticText "dd"
+          - StaticText "/"
+          - spinbutton "Year Year" [ref=e101]: 0
+            - StaticText "yyyy"
+        - button "Show date picker" [ref=e50]
+      - LabelText
+        - StaticText "5K Run Time"
+      - textbox "5K Run Time" [ref=e19]
+      - paragraph
+        - StaticText "Format: MM:SS"
+      - LabelText
+        - StaticText "Date"
+      - Date "Date"
+        - generic
+          - spinbutton "Month Month" [ref=e102]: 0
+            - StaticText "mm"
+          - StaticText "/"
+          - spinbutton "Day Day" [ref=e103]: 0
+            - StaticText "dd"
+          - StaticText "/"
+          - spinbutton "Year Year" [ref=e104]: 0
+            - StaticText "yyyy"
+        - button "Show date picker" [ref=e51]
+      - LabelText
+        - StaticText "500m Row Time"
+      - textbox "500m Row Time" [ref=e20]
+      - paragraph
+        - StaticText "Format: MM:SS"
+      - LabelText
+        - StaticText "Date"
+      - Date "Date"
+        - generic
+          - spinbutton "Month Month" [ref=e105]: 0
+            - StaticText "mm"
+          - StaticText "/"
+          - spinbutton "Day Day" [ref=e106]: 0
+            - StaticText "dd"
+          - StaticText "/"
+          - spinbutton "Year Year" [ref=e107]: 0
+            - StaticText "yyyy"
+        - button "Show date picker" [ref=e52]
+      - LabelText
+        - StaticText "Max Pull-ups"
+      - textbox "Max Pull-ups" [ref=e21]
+      - paragraph
+        - StaticText "Unbroken reps"
+      - LabelText
+        - StaticText "Date"
+      - Date "Date"
+        - generic
+          - spinbutton "Month Month" [ref=e108]: 0
+            - StaticText "mm"
+          - StaticText "/"
+          - spinbutton "Day Day" [ref=e109]: 0
+            - StaticText "dd"
+          - StaticText "/"
+          - spinbutton "Year Year" [ref=e110]: 0
+            - StaticText "yyyy"
+        - button "Show date picker" [ref=e53]
+      - StaticText "Strength Lifts (1RM)"
+      - StaticText "Record your one-rep max personal records"
+      - LabelText
+        - StaticText "Back Squat"
+      - spinbutton "Back Squat" [ref=e22]
+      - LabelText
+        - StaticText "Unit"
+      - combobox "Unit" [expanded=false, ref=e23]: LBS
+        - generic [ref=e54] clickable [onclick]
+          - StaticText "LBS"
+      - LabelText
+        - StaticText "Date"
+      - Date "Date"
+        - generic
+          - spinbutton "Month Month" [ref=e111]: 0
+            - StaticText "mm"
+          - StaticText "/"
+          - spinbutton "Day Day" [ref=e112]: 0
+            - StaticText "dd"
+          - StaticText "/"
+          - spinbutton "Year Year" [ref=e113]: 0
+            - StaticText "yyyy"
+        - button "Show date picker" [ref=e55]
+      - LabelText
+        - StaticText "Deadlift"
+      - spinbutton "Deadlift" [ref=e24]
+      - LabelText
+        - StaticText "Unit"
+      - combobox "Unit" [expanded=false, ref=e25]: LBS
+        - generic [ref=e56] clickable [onclick]
+          - StaticText "LBS"
+      - LabelText
+        - StaticText "Date"
+      - Date "Date"
+        - generic
+          - spinbutton "Month Month" [ref=e114]: 0
+            - StaticText "mm"
+          - StaticText "/"
+          - spinbutton "Day Day" [ref=e115]: 0
+            - StaticText "dd"
+          - StaticText "/"
+          - spinbutton "Year Year" [ref=e116]: 0
+            - StaticText "yyyy"
+        - button "Show date picker" [ref=e57]
+      - LabelText
+        - StaticText "Bench Press"
+      - spinbutton "Bench Press" [ref=e26]
+      - LabelText
+        - StaticText "Unit"
+      - combobox "Unit" [expanded=false, ref=e27]: LBS
+        - generic [ref=e58] clickable [onclick]
+          - StaticText "LBS"
+      - LabelText
+        - StaticText "Date"
+      - Date "Date"
+        - generic
+          - spinbutton "Month Month" [ref=e117]: 0
+            - StaticText "mm"
+          - StaticText "/"
+          - spinbutton "Day Day" [ref=e118]: 0
+            - StaticText "dd"
+          - StaticText "/"
+          - spinbutton "Year Year" [ref=e119]: 0
+            - StaticText "yyyy"
+        - button "Show date picker" [ref=e59]
+      - LabelText
+        - StaticText "Press"
+      - spinbutton "Press" [ref=e28]
+      - LabelText
+        - StaticText "Unit"
+      - combobox "Unit" [expanded=false, ref=e29]: LBS
+        - generic [ref=e60] clickable [onclick]
+          - StaticText "LBS"
+      - LabelText
+        - StaticText "Date"
+      - Date "Date"
+        - generic
+          - spinbutton "Month Month" [ref=e120]: 0
+            - StaticText "mm"
+          - StaticText "/"
+          - spinbutton "Day Day" [ref=e121]: 0
+            - StaticText "dd"
+          - StaticText "/"
+          - spinbutton "Year Year" [ref=e122]: 0
+            - StaticText "yyyy"
+        - button "Show date picker" [ref=e61]
+      - LabelText
+        - StaticText "Snatch"
+      - spinbutton "Snatch" [ref=e30]
+      - LabelText
+        - StaticText "Unit"
+      - combobox "Unit" [expanded=false, ref=e31]: LBS
+        - generic [ref=e62] clickable [onclick]
+          - StaticText "LBS"
+      - LabelText
+        - StaticText "Date"
+      - Date "Date"
+        - generic
+          - spinbutton "Month Month" [ref=e123]: 0
+            - StaticText "mm"
+          - StaticText "/"
+          - spinbutton "Day Day" [ref=e124]: 0
+            - StaticText "dd"
+          - StaticText "/"
+          - spinbutton "Year Year" [ref=e125]: 0
+            - StaticText "yyyy"
+        - button "Show date picker" [ref=e63]
+      - LabelText
+        - StaticText "Clean And Jerk"
+      - spinbutton "Clean And Jerk" [ref=e32]
+      - LabelText
+        - StaticText "Unit"
+      - combobox "Unit" [expanded=false, ref=e33]: LBS
+        - generic [ref=e64] clickable [onclick]
+          - StaticText "LBS"
+      - LabelText
+        - StaticText "Date"
+      - Date "Date"
+        - generic
+          - spinbutton "Month Month" [ref=e126]: 0
+            - StaticText "mm"
+          - StaticText "/"
+          - spinbutton "Day Day" [ref=e127]: 0
+            - StaticText "dd"
+          - StaticText "/"
+          - spinbutton "Year Year" [ref=e128]: 0
+            - StaticText "yyyy"
+        - button "Show date picker" [ref=e65]
+      - StaticText "Social Networks"
+      - StaticText "Connect your social media profiles"
+      - LabelText
+        - StaticText "Instagram"
+      - textbox "Instagram" [ref=e34]
+      - LabelText
+        - StaticText "Facebook"
+      - textbox "Facebook" [ref=e35]
+      - LabelText
+        - StaticText "Twitter/X"
+      - textbox "Twitter/X" [ref=e36]
+      - LabelText
+        - StaticText "TikTok"
+      - textbox "TikTok" [ref=e37]
+      - paragraph
+        - StaticText "Manage sponsors on the"
+        - link "Sponsors page" [ref=e66]
+        - StaticText "."
+      - button "Cancel" [ref=e38]
+      - button "Save profile" [ref=e39]
+  - region "Notifications alt+T" [ref=e1]
