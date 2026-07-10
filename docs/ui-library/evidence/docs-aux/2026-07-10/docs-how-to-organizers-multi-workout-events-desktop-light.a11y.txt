@@ -1,0 +1,402 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+    - link "Documentation"
+    - link "App (opens in new tab)"
+      - StaticText "App"
+      - image "(opens in new tab)"
+    - link "GitHub (opens in new tab)"
+      - StaticText "GitHub"
+      - image "(opens in new tab)"
+    - button "Switch between dark and light mode (currently system mode)"
+  - complementary
+    - navigation "Docs sidebar"
+      - list
+        - listitem [level=1]
+          - link "Welcome to WODsmith"
+            - StaticText "Welcome to WODsmith"
+        - listitem [level=1]
+          - generic
+            - link "Tutorials"
+              - StaticText "Tutorials"
+            - button "Expand sidebar category 'Tutorials'" [expanded=false, ref=e60]
+        - listitem [level=1]
+          - generic
+            - link "How-to Guides"
+              - StaticText "How-to Guides"
+            - button "Collapse sidebar category 'How-to Guides'" [expanded=true, ref=e62]
+          - list
+            - listitem [level=2]
+              - button "For Athletes" [expanded=false, ref=e67]
+                - StaticText "For Athletes"
+            - listitem [level=2]
+              - button "For Judges & Volunteers" [expanded=false, ref=e68]
+                - StaticText "For Judges & Volunteers"
+            - listitem [level=2]
+              - button "For Organizers" [expanded=true, ref=e69]
+                - StaticText "For Organizers"
+              - list
+                - listitem [level=3]
+                  - link "How to Manage Registrations"
+                    - StaticText "How to Manage Registrations"
+                - listitem [level=3]
+                  - link "How to Create Registration Questions"
+                    - StaticText "How to Create Registration Questions"
+                - listitem [level=3]
+                  - link "How to Schedule Heats"
+                    - StaticText "How to Schedule Heats"
+                - listitem [level=3]
+                  - link "How to Run Event Day"
+                    - StaticText "How to Run Event Day"
+                - listitem [level=3]
+                  - link "How to Edit Competition Settings"
+                    - StaticText "How to Edit Competition Settings"
+                - listitem [level=3]
+                  - link "How to Create Multi-Workout Events"
+                    - StaticText "How to Create Multi-Workout Events"
+                - listitem [level=3]
+                  - link "How to Send Broadcasts"
+                    - StaticText "How to Send Broadcasts"
+        - listitem [level=1]
+          - generic
+            - link "Reference"
+              - StaticText "Reference"
+            - button "Expand sidebar category 'Reference'" [expanded=false, ref=e64]
+        - listitem [level=1]
+          - generic
+            - link "Concepts"
+              - StaticText "Concepts"
+            - button "Expand sidebar category 'Concepts'" [expanded=false, ref=e66]
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "How-to Guides"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "For Organizers"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "How to Create Multi-Workout Events"
+      - sectionheader
+        - heading "How to Create Multi-Workout Events" [level=1, ref=e30]
+      - paragraph
+        - StaticText "Group several sub-events under one parent event. Athletes complete all sub-events within the same heat, and points from each sub-event contribute to the overall leaderboard."
+      - paragraph
+        - StaticText "Common examples:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Rowing Triathlon"
+          - StaticText " — 2K Row, 500m Sprint, Max Cal Row"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Snatch Ladder + Lifting"
+          - StaticText " — Timed snatch ladder, then a three-lift total"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Sprint Series"
+          - StaticText " — A fast couplet followed by a max effort deadlift"
+      - heading "Prerequisites Direct link to Prerequisites" [level=2, ref=e12]
+        - StaticText "Prerequisites"
+        - link "Direct link to Prerequisites"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Competition created with at least one division"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Familiarity with adding standalone events"
+      - heading "Create the parent event Direct link to Create the parent event" [level=2, ref=e13]
+        - StaticText "Create the parent event"
+        - link "Direct link to Create the parent event"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Open your competition from "
+          - strong
+            - StaticText "ORGANIZE"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Events"
+          - StaticText " in the sidebar"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Add Event"
+          - StaticText " and select "
+          - strong
+            - StaticText "Create New"
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Give the parent event a name that describes the overall challenge (e.g., \"Rowing Triathlon\")"
+        - listitem [level=1]
+          - ListMarker "5. "
+          - StaticText "Add a description explaining what athletes will face across all sub-events"
+        - listitem [level=1]
+          - ListMarker "6. "
+          - StaticText "Save the event"
+      - paragraph
+        - StaticText "The scoring scheme on the parent doesn't matter — scoring is configured per sub-event."
+      - heading "Add sub-events Direct link to Add sub-events" [level=2, ref=e14]
+        - StaticText "Add sub-events"
+        - link "Direct link to Add sub-events"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "On the events list, find your parent event and click the "
+          - strong
+            - StaticText "+ Sub-Event"
+          - StaticText " button"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Create or select the workout for the first sub-event"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Configure its scoring scheme, score type, and tiebreaker independently"
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Repeat for each sub-event under this parent"
+      - paragraph
+        - StaticText "Sub-events appear indented beneath their parent in the events list. Each sub-event has its own:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Scoring scheme (for time, max reps, max load, etc.)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Score type (min, max, sum, average)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Tiebreaker rules"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Points multiplier"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Division-specific scaling descriptions"
+      - heading "Configure points multipliers Direct link to Configure points multipliers" [level=2, ref=e15]
+        - StaticText "Configure points multipliers"
+        - link "Direct link to Configure points multipliers"
+          - StaticText "#"
+      - paragraph
+        - StaticText "By default, every sub-event is worth 1x points (multiplier = 100). To weight a sub-event differently:"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Click the edit icon on the sub-event row"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Set the "
+          - strong
+            - StaticText "Points Multiplier"
+          - StaticText " — e.g., 200 for 2x points on a finals-style lift"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Save"
+      - paragraph
+        - StaticText "Athletes earn separate placement points for each sub-event. The leaderboard aggregates points across all sub-events of a parent."
+      - heading "Schedule heats Direct link to Schedule heats" [level=2, ref=e16]
+        - StaticText "Schedule heats"
+        - link "Direct link to Schedule heats"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Heats are scheduled on the "
+        - strong
+          - StaticText "parent event"
+        - StaticText ", not on individual sub-events. Athletes complete all sub-events within their assigned heat."
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Go to the "
+          - strong
+            - StaticText "Schedule"
+          - StaticText " tab"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Find the parent event in the event list (sub-events are not shown here)"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Create heats and assign athletes to lanes as you would for a standalone event"
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Each heat covers the full parent event — athletes move through all sub-events in sequence"
+      - paragraph
+        - StaticText "For detailed heat scheduling steps, see "
+        - link "How to Schedule Heats"
+        - StaticText "."
+      - heading "Enter results Direct link to Enter results" [level=2, ref=e17]
+        - StaticText "Enter results"
+        - link "Direct link to Enter results"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Results are entered "
+        - strong
+          - StaticText "per sub-event"
+        - StaticText ", but athletes are grouped by the parent event's heats."
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Go to the "
+          - strong
+            - StaticText "Results"
+          - StaticText " tab"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Select the parent event from the dropdown"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "You'll see tabs for each sub-event"
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Switch between sub-event tabs to enter scores — each tab shows the same athletes (from the parent's heats) with the sub-event's scoring scheme"
+        - listitem [level=1]
+          - ListMarker "5. "
+          - StaticText "The leaderboard automatically aggregates points across all sub-events"
+      - paragraph
+        - StaticText "For detailed score entry steps, see "
+        - link "How to Run Event Day"
+        - StaticText "."
+      - heading "Edit a parent event Direct link to Edit a parent event" [level=2, ref=e18]
+        - StaticText "Edit a parent event"
+        - link "Direct link to Edit a parent event"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Click the edit icon on the parent event row in the events list"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "The edit page shows the "
+          - strong
+            - StaticText "Parent Event Settings"
+          - StaticText " card at the top and tabbed sub-events below"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Switch between sub-event tabs to edit each one — the "
+          - strong
+            - StaticText "Save Changes"
+          - StaticText " button saves whichever tab is active"
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "To edit the parent name or description, scroll to the Parent Event Settings card"
+      - heading "Reorder sub-events Direct link to Reorder sub-events" [level=2, ref=e19]
+        - StaticText "Reorder sub-events"
+        - link "Direct link to Reorder sub-events"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Drag sub-events within their parent group to reorder them. The order determines how they appear in the results tabs and on the athlete-facing leaderboard."
+      - paragraph
+        - StaticText "Sub-events cannot be dragged outside their parent group or reordered across parent boundaries."
+      - heading "Remove a sub-event or parent Direct link to Remove a sub-event or parent" [level=2, ref=e20]
+        - StaticText "Remove a sub-event or parent"
+        - link "Direct link to Remove a sub-event or parent"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Removing a sub-event"
+          - StaticText " deletes it and reorders the remaining siblings automatically"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Removing a parent event"
+          - StaticText " deletes the parent and all its sub-events"
+      - heading "Limitations Direct link to Limitations" [level=2, ref=e21]
+        - StaticText "Limitations"
+        - link "Direct link to Limitations"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Sub-events can only be one level deep — you cannot nest a sub-event under another sub-event"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "A sub-event must belong to a parent within the same competition"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Parent events do not have scores of their own — only sub-events are scored"
+      - separator
+      - paragraph
+        - emphasis
+          - StaticText "See also: "
+          - link "How to Schedule Heats"
+          - StaticText " · "
+          - link "How to Run Event Day"
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « How to Edit Competition Settings"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "How to Edit Competition Settings"
+      - link "Next How to Send Broadcasts »"
+        - StaticText "Next"
+        - generic
+          - StaticText "How to Send Broadcasts"
+          - StaticText " »"
+    - list
+      - listitem [level=1]
+        - link "Prerequisites"
+      - listitem [level=1]
+        - link "Create the parent event"
+      - listitem [level=1]
+        - link "Add sub-events"
+      - listitem [level=1]
+        - link "Configure points multipliers"
+      - listitem [level=1]
+        - link "Schedule heats"
+      - listitem [level=1]
+        - link "Enter results"
+      - listitem [level=1]
+        - link "Edit a parent event"
+      - listitem [level=1]
+        - link "Reorder sub-events"
+      - listitem [level=1]
+        - link "Remove a sub-event or parent"
+      - listitem [level=1]
+        - link "Limitations"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

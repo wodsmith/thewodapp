@@ -1,0 +1,123 @@
+{
+  "effectiveTheme": "dark",
+  "finalUrl": "https://docs.wodsmith.com/how-to/organizers/edit-competition/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "How to Edit Competition Settings"
+    },
+    {
+      "level": 2,
+      "text": "Prerequisites​"
+    },
+    {
+      "level": 2,
+      "text": "Accessing Competition Management​"
+    },
+    {
+      "level": 2,
+      "text": "Editing Basic Information​"
+    },
+    {
+      "level": 2,
+      "text": "Modifying Divisions​"
+    },
+    {
+      "level": 3,
+      "text": "Adding a Division​"
+    },
+    {
+      "level": 3,
+      "text": "Editing a Division​"
+    },
+    {
+      "level": 2,
+      "text": "Updating Events​"
+    },
+    {
+      "level": 3,
+      "text": "Adding Events​"
+    },
+    {
+      "level": 3,
+      "text": "Editing Events​"
+    },
+    {
+      "level": 2,
+      "text": "Registration Settings​"
+    },
+    {
+      "level": 3,
+      "text": "Registration Dates​"
+    },
+    {
+      "level": 3,
+      "text": "Entry Fees (Pricing)​"
+    },
+    {
+      "level": 3,
+      "text": "Waiver Requirements​"
+    },
+    {
+      "level": 3,
+      "text": "Registration Questions​"
+    },
+    {
+      "level": 2,
+      "text": "Changing Competition Status​"
+    },
+    {
+      "level": 2,
+      "text": "Competition Settings​"
+    },
+    {
+      "level": 2,
+      "text": "Danger Zone​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [],
+  "title": "How to Edit Competition Settings | WODsmith Docs",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 9140,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

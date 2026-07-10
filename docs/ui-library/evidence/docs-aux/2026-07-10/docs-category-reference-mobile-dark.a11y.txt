@@ -1,0 +1,95 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - button "Toggle navigation bar" [expanded=false, ref=e4]
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+  - main
+    - navigation "Breadcrumbs"
+      - list
+        - listitem [level=1]
+          - link "Home page"
+            - image
+          - StaticText "  "
+        - listitem [level=1]
+          - StaticText "Reference"
+    - sectionheader
+      - heading "Reference" [level=1, ref=e7]
+      - paragraph
+        - StaticText "Technical specifications and detailed information about WODsmith features. Consult this while working."
+    - article
+      - generic
+        - article
+          - link "📄️Workout Types Reference Technical specifications for all workout schemes supported in WODsmith."
+            - heading "📄️Workout Types Reference" [level=2, ref=e24]
+              - StaticText "📄️Workout Types Reference"
+            - paragraph
+              - StaticText "Technical specifications for all workout schemes supported in WODsmith."
+        - article
+          - link "📄️Scoring Rules Reference Technical specifications for scoring, ranking, and tiebreaker calculations."
+            - heading "📄️Scoring Rules Reference" [level=2, ref=e25]
+              - StaticText "📄️Scoring Rules Reference"
+            - paragraph
+              - StaticText "Technical specifications for scoring, ranking, and tiebreaker calculations."
+        - article
+          - link "📄️Team Roles Reference Permissions and capabilities for each team role in WODsmith."
+            - heading "📄️Team Roles Reference" [level=2, ref=e26]
+              - StaticText "📄️Team Roles Reference"
+            - paragraph
+              - StaticText "Permissions and capabilities for each team role in WODsmith."
+        - article
+          - link "📄️Divisions Reference Competition division configuration and requirements."
+            - heading "📄️Divisions Reference" [level=2, ref=e27]
+              - StaticText "📄️Divisions Reference"
+            - paragraph
+              - StaticText "Competition division configuration and requirements."
+        - article
+          - link "📄️Competition Settings Reference All configurable options for WODsmith competitions."
+            - heading "📄️Competition Settings Reference" [level=2, ref=e28]
+              - StaticText "📄️Competition Settings Reference"
+            - paragraph
+              - StaticText "All configurable options for WODsmith competitions."
+        - article
+          - link "📄️Broadcasts Technical reference for the broadcast messaging system."
+            - heading "📄️Broadcasts" [level=2, ref=e29]
+              - StaticText "📄️Broadcasts"
+            - paragraph
+              - StaticText "Technical reference for the broadcast messaging system."
+    - sectionfooter
+      - navigation "Docs pages"
+        - link "Previous « How to Send Broadcasts"
+          - StaticText "Previous"
+          - generic
+            - StaticText "« "
+            - StaticText "How to Send Broadcasts"
+        - link "Next Workout Types Reference »"
+          - StaticText "Next"
+          - generic
+            - StaticText "Workout Types Reference"
+            - StaticText " »"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

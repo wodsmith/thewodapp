@@ -1,0 +1,160 @@
+{
+  "effectiveTheme": "light",
+  "finalUrl": "https://docs.wodsmith.com/concepts/division-system/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "The Division System"
+    },
+    {
+      "level": 2,
+      "text": "The Fairness Problem​"
+    },
+    {
+      "level": 2,
+      "text": "Division Types​"
+    },
+    {
+      "level": 3,
+      "text": "Ability-Based Divisions​"
+    },
+    {
+      "level": 3,
+      "text": "Age-Based Divisions​"
+    },
+    {
+      "level": 3,
+      "text": "Gender Divisions​"
+    },
+    {
+      "level": 3,
+      "text": "Team Divisions​"
+    },
+    {
+      "level": 2,
+      "text": "How Divisions Interact with Events​"
+    },
+    {
+      "level": 3,
+      "text": "Division-Specific Standards​"
+    },
+    {
+      "level": 3,
+      "text": "Shared vs Separate Events​"
+    },
+    {
+      "level": 2,
+      "text": "Division Capacity Management​"
+    },
+    {
+      "level": 3,
+      "text": "Setting Limits​"
+    },
+    {
+      "level": 3,
+      "text": "Waitlists​"
+    },
+    {
+      "level": 3,
+      "text": "Division Transfers​"
+    },
+    {
+      "level": 2,
+      "text": "The Registration Flow​"
+    },
+    {
+      "level": 2,
+      "text": "Division Strategy for Organizers​"
+    },
+    {
+      "level": 3,
+      "text": "How Many Divisions?​"
+    },
+    {
+      "level": 3,
+      "text": "Pricing by Division​"
+    },
+    {
+      "level": 3,
+      "text": "Combining Divisions​"
+    },
+    {
+      "level": 2,
+      "text": "Fairness Enforcement​"
+    },
+    {
+      "level": 3,
+      "text": "Standards Enforcement​"
+    },
+    {
+      "level": 3,
+      "text": "Verification​"
+    },
+    {
+      "level": 3,
+      "text": "Disputes and Penalties​"
+    },
+    {
+      "level": 2,
+      "text": "The Future of Divisions​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "Docs sidebar",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [
+    {
+      "headers": [
+        "Division",
+        "Thrusters",
+        "Pull-ups"
+      ],
+      "rowCount": 4
+    }
+  ],
+  "title": "The Division System | WODsmith Docs",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 6344,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

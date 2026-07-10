@@ -1,0 +1,5 @@
+{
+  "sourceGate": "anonymous authenticated-layout guard",
+  "requestedUrl": "https://crm.wodsmith.com/campaigns/__fixture_required_campaignId__",
+  "finalUrl": "https://crm.wodsmith.com/"
+}

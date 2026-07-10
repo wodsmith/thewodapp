@@ -1,0 +1,5 @@
+{
+  "sourceGate": "anonymous authenticated-layout guard",
+  "requestedUrl": "https://crm.wodsmith.com/gyms/__fixture_required_gymId__",
+  "finalUrl": "https://crm.wodsmith.com/"
+}

@@ -1,0 +1,303 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - button "Toggle navigation bar" [expanded=false, ref=e4]
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "How-to Guides"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "For Organizers"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "How to Create Registration Questions"
+      - button "On this page"
+      - sectionheader
+        - heading "How to Create Registration Questions" [level=1, ref=e32]
+      - paragraph
+        - StaticText "Add custom questions to collect additional information from athletes during registration."
+      - heading "Prerequisites Direct link to Prerequisites" [level=2, ref=e9]
+        - StaticText "Prerequisites"
+        - link "Direct link to Prerequisites"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Competition organizer permissions"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Competition with registration enabled"
+      - heading "Adding a Question Direct link to Adding a Question" [level=2, ref=e10]
+        - StaticText "Adding a Question"
+        - link "Direct link to Adding a Question"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Open your competition from the "
+          - strong
+            - StaticText "Organizer"
+          - StaticText " dashboard"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Registrations"
+          - StaticText " in the sidebar"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Add Question"
+          - StaticText " in the Registration Questions section"
+      - paragraph
+        - image "Registration questions section"
+      - list
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Enter the question text"
+        - listitem [level=1]
+          - ListMarker "5. "
+          - StaticText "Select a question type:"
+          - list
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - strong
+                - StaticText "Text"
+              - StaticText " - Free-form text response"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - strong
+                - StaticText "Select"
+              - StaticText " - Dropdown with predefined options"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - strong
+                - StaticText "Number"
+              - StaticText " - Numeric input only"
+        - listitem [level=1]
+          - ListMarker "6. "
+          - StaticText "Configure question options (see below)"
+        - listitem [level=1]
+          - ListMarker "7. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Save"
+      - paragraph
+        - image "Add question modal"
+      - heading "Question Types Direct link to Question Types" [level=2, ref=e11]
+        - StaticText "Question Types"
+        - link "Direct link to Question Types"
+          - StaticText "#"
+      - heading "Text Questions Direct link to Text Questions" [level=3, ref=e12]
+        - StaticText "Text Questions"
+        - link "Direct link to Text Questions"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Use for open-ended responses like emergency contact info or dietary restrictions."
+      - heading "Select Questions Direct link to Select Questions" [level=3, ref=e13]
+        - StaticText "Select Questions"
+        - link "Direct link to Select Questions"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Use for predefined choices. After selecting this type:"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Add each option (e.g., \"S\", \"M\", \"L\", \"XL\" for t-shirt sizes)"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Athletes will see a dropdown during registration"
+      - paragraph
+        - StaticText "Common uses:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "T-shirt sizes"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Opt-in/opt-out choices (Yes/No)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Skill level selection"
+      - heading "Number Questions Direct link to Number Questions" [level=3, ref=e14]
+        - StaticText "Number Questions"
+        - link "Direct link to Number Questions"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Use when you need numeric data like age or years of experience."
+      - heading "Question Options Direct link to Question Options" [level=2, ref=e15]
+        - StaticText "Question Options"
+        - link "Direct link to Question Options"
+          - StaticText "#"
+      - heading "Required Direct link to Required" [level=3, ref=e16]
+        - StaticText "Required"
+        - link "Direct link to Required"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Check "
+        - strong
+          - StaticText "Required"
+        - StaticText " to make the question mandatory. Athletes cannot complete registration without answering required questions."
+      - heading "Ask Teammate Separately Direct link to Ask Teammate Separately" [level=3, ref=e17]
+        - StaticText "Ask Teammate Separately"
+        - link "Direct link to Ask Teammate Separately"
+          - StaticText "#"
+      - paragraph
+        - StaticText "For team divisions, this option controls who answers the question:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Unchecked"
+          - StaticText " - Team captain answers for all teammates during registration"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Checked"
+          - StaticText " - Each teammate answers individually when accepting their team invite"
+      - paragraph
+        - StaticText "Use this for personal information like t-shirt size where each teammate needs to provide their own answer."
+      - heading "Reordering Questions Direct link to Reordering Questions" [level=2, ref=e18]
+        - StaticText "Reordering Questions"
+        - link "Direct link to Reordering Questions"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Drag questions using the handle on the left to change display order. Questions appear to athletes in this order during registration."
+      - heading "Editing and Deleting Questions Direct link to Editing and Deleting Questions" [level=2, ref=e19]
+        - StaticText "Editing and Deleting Questions"
+        - link "Direct link to Editing and Deleting Questions"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Click the "
+          - strong
+            - StaticText "pencil icon"
+          - StaticText " to edit a question"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Click the "
+          - strong
+            - StaticText "trash icon"
+          - StaticText " to delete a question"
+      - paragraph
+        - StaticText "Caution:"
+      - paragraph
+        - StaticText "Deleting a question removes all collected answers. Consider whether you need to export the data first."
+      - heading "Viewing Registration Answers Direct link to Viewing Registration Answers" [level=2, ref=e20]
+        - StaticText "Viewing Registration Answers"
+        - link "Direct link to Viewing Registration Answers"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Answers appear as columns in the Registered Athletes table:"
+      - paragraph
+        - image "Registrations table with question columns"
+      - paragraph
+        - StaticText "Each registration question becomes a filterable column showing athlete responses."
+      - heading "Filtering by Answers Direct link to Filtering by Answers" [level=2, ref=e21]
+        - StaticText "Filtering by Answers"
+        - link "Direct link to Filtering by Answers"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Filter registrations by question answers:"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Click the dropdown for any question column (e.g., \"What is your T-shirt size?\")"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Select a value to filter by"
+      - paragraph
+        - StaticText "This helps segment registrations—for example, filter to \"Large\" to see all athletes needing large t-shirts."
+      - heading "Exporting Registrations Direct link to Exporting Registrations" [level=2, ref=e22]
+        - StaticText "Exporting Registrations"
+        - link "Direct link to Exporting Registrations"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Export all registration data including question answers:"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Export CSV"
+          - StaticText " in the Registered Athletes section"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "The downloaded file includes all standard fields plus a column for each question"
+      - paragraph
+        - StaticText "Use exports to:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Share sponsor opt-in lists with partners"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Generate merchandise orders by size"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Create check-in sheets with custom data"
+      - heading "How Athletes See Questions Direct link to How Athletes See Questions" [level=2, ref=e23]
+        - StaticText "How Athletes See Questions"
+        - link "Direct link to How Athletes See Questions"
+          - StaticText "#"
+      - paragraph
+        - StaticText "During registration, athletes see your questions after selecting their division:"
+      - paragraph
+        - image "Registration form with questions"
+      - paragraph
+        - StaticText "Required questions show a red asterisk. Select questions display as dropdowns with your predefined options."
+      - separator
+      - paragraph
+        - emphasis
+          - StaticText "See also: "
+          - link "How to Manage Registrations"
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « How to Manage Registrations"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "How to Manage Registrations"
+      - link "Next How to Schedule Heats »"
+        - StaticText "Next"
+        - generic
+          - StaticText "How to Schedule Heats"
+          - StaticText " »"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

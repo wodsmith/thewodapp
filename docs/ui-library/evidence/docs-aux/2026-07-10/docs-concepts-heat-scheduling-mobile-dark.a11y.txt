@@ -1,0 +1,477 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - button "Toggle navigation bar" [expanded=false, ref=e4]
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "Concepts"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "Heat Scheduling Strategy"
+      - button "On this page"
+      - sectionheader
+        - heading "Heat Scheduling Strategy" [level=1, ref=e39]
+      - paragraph
+        - StaticText "The art and logic of organizing athletes into heats for competition events."
+      - heading "Why Heats Exist Direct link to Why Heats Exist" [level=2, ref=e9]
+        - StaticText "Why Heats Exist"
+        - link "Direct link to Why Heats Exist"
+          - StaticText "#"
+      - paragraph
+        - StaticText "A competition with 100 athletes can't run everyone at once. Physical constraints drive the need for heats:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Space"
+          - StaticText ": Limited lanes or stations"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Equipment"
+          - StaticText ": Finite barbells, rowers, boxes"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Judging"
+          - StaticText ": Each athlete needs a dedicated judge"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Visibility"
+          - StaticText ": Spectators and cameras can only focus on so many athletes"
+      - paragraph
+        - StaticText "Heats solve these constraints by cycling groups through the competition floor."
+      - heading "The Math of Heat Scheduling Direct link to The Math of Heat Scheduling" [level=2, ref=e10]
+        - StaticText "The Math of Heat Scheduling"
+        - link "Direct link to The Math of Heat Scheduling"
+          - StaticText "#"
+      - heading "Basic Calculations Direct link to Basic Calculations" [level=3, ref=e11]
+        - StaticText "Basic Calculations"
+        - link "Direct link to Basic Calculations"
+          - StaticText "#"
+      - generic
+        - generic focusable [tabindex]
+          - code
+            - StaticText "Total athletes ÷ Athletes per heat = Number of heats"
+            - LineBreak "\n"
+            - StaticText "Number of heats × (Heat duration + Transition time) = Event duration"
+            - LineBreak "\n"
+        - generic
+          - button "Toggle word wrap"
+          - button "Copy code to clipboard"
+      - paragraph
+        - strong
+          - StaticText "Example"
+        - StaticText ": 60 athletes, 10 per heat, 12-minute workout, 8-minute transition:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "6 heats"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "20 minutes per cycle"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "2 hours for the event"
+      - heading "Compound Complexity Direct link to Compound Complexity" [level=3, ref=e12]
+        - StaticText "Compound Complexity"
+        - link "Direct link to Compound Complexity"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Multiple events multiply the problem:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "3 events × 6 heats each = 18 heat cycles"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Athletes must be scheduled across all events"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "No athlete should have back-to-back heats (insufficient recovery)"
+      - paragraph
+        - StaticText "This is why heat scheduling is genuinely hard."
+      - heading "Athlete Experience Considerations Direct link to Athlete Experience Considerations" [level=2, ref=e13]
+        - StaticText "Athlete Experience Considerations"
+        - link "Direct link to Athlete Experience Considerations"
+          - StaticText "#"
+      - heading "Wait Time Direct link to Wait Time" [level=3, ref=e14]
+        - StaticText "Wait Time"
+        - link "Direct link to Wait Time"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Long waits between heats frustrate athletes. They arrive early, warm up, cool down, warm up again..."
+      - paragraph
+        - strong
+          - StaticText "Ideal"
+        - StaticText ": Athletes compete in events with 30-60 minutes between."
+      - paragraph
+        - strong
+          - StaticText "Reality"
+        - StaticText ": With many athletes and limited lanes, longer waits may be unavoidable."
+      - paragraph
+        - strong
+          - StaticText "Mitigation"
+        - StaticText ": Publish schedules early so athletes can plan their day."
+      - heading "Heat Placement Direct link to Heat Placement" [level=3, ref=e15]
+        - StaticText "Heat Placement"
+        - link "Direct link to Heat Placement"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Which heat should an athlete compete in? Different philosophies exist:"
+      - paragraph
+        - strong
+          - StaticText "Random assignment"
+        - StaticText ": Fair but ignores other factors."
+      - paragraph
+        - strong
+          - StaticText "Ranked seeding"
+        - StaticText ": Put top athletes in final heats. Creates drama, builds excitement, gives spectators a climax."
+      - paragraph
+        - strong
+          - StaticText "Self-selection"
+        - StaticText ": Athletes choose their heat. Reduces organizer burden but can create imbalanced heats."
+      - paragraph
+        - StaticText "WODsmith supports all approaches. Organizers choose based on competition culture."
+      - heading "Division Interactions Direct link to Division Interactions" [level=2, ref=e16]
+        - StaticText "Division Interactions"
+        - link "Direct link to Division Interactions"
+          - StaticText "#"
+      - paragraph
+        - StaticText "When multiple divisions compete in the same event, scheduling gets interesting."
+      - heading "Separate Heats Direct link to Separate Heats" [level=3, ref=e17]
+        - StaticText "Separate Heats"
+        - link "Direct link to Separate Heats"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Each division runs independently:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "RX Male heats"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "RX Female heats"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Scaled Male heats"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Scaled Female heats"
+      - paragraph
+        - strong
+          - StaticText "Advantage"
+        - StaticText ": Clear separation, easy judging (same standards per heat)."
+      - paragraph
+        - strong
+          - StaticText "Disadvantage"
+        - StaticText ": Longer total event time."
+      - heading "Mixed Heats Direct link to Mixed Heats" [level=3, ref=e18]
+        - StaticText "Mixed Heats"
+        - link "Direct link to Mixed Heats"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Combine divisions with same workout standards:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "All males together"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "All females together"
+      - paragraph
+        - strong
+          - StaticText "Advantage"
+        - StaticText ": Faster overall event."
+      - paragraph
+        - strong
+          - StaticText "Disadvantage"
+        - StaticText ": Judges must track individual athlete standards."
+      - heading "Interleaved Heats Direct link to Interleaved Heats" [level=3, ref=e19]
+        - StaticText "Interleaved Heats"
+        - link "Direct link to Interleaved Heats"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Alternate between divisions:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Heat 1: RX Male"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Heat 2: RX Female"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Heat 3: RX Male"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Heat 4: RX Female"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "..."
+      - paragraph
+        - strong
+          - StaticText "Advantage"
+        - StaticText ": Neither division waits too long between heats."
+      - paragraph
+        - strong
+          - StaticText "Disadvantage"
+        - StaticText ": More complex schedule to communicate."
+      - heading "Judge Assignments Direct link to Judge Assignments" [level=2, ref=e20]
+        - StaticText "Judge Assignments"
+        - link "Direct link to Judge Assignments"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Each athlete typically needs a dedicated judge. This creates scheduling dependencies:"
+      - heading "Fixed Lane Judging Direct link to Fixed Lane Judging" [level=3, ref=e21]
+        - StaticText "Fixed Lane Judging"
+        - link "Direct link to Fixed Lane Judging"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Judges stay at one lane all day:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Simpler logistics"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Judges become fatigued"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Less expertise matching"
+      - heading "Rotating Judge Assignments Direct link to Rotating Judge Assignments" [level=3, ref=e22]
+        - StaticText "Rotating Judge Assignments"
+        - link "Direct link to Rotating Judge Assignments"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Judges move between heats or lanes:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Can match judge expertise to athlete level"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "More complex scheduling"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Potential for confusion"
+      - heading "Volunteer Considerations Direct link to Volunteer Considerations" [level=3, ref=e23]
+        - StaticText "Volunteer Considerations"
+        - link "Direct link to Volunteer Considerations"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Most competition judges are volunteers. Schedule design should respect their experience:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "New volunteers on early, lower-stakes heats"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Experienced judges for late, high-stakes heats"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Reasonable breaks built in"
+      - heading "Transition Time Reality Direct link to Transition Time Reality" [level=2, ref=e24]
+        - StaticText "Transition Time Reality"
+        - link "Direct link to Transition Time Reality"
+          - StaticText "#"
+      - paragraph
+        - StaticText "The time between heats looks straightforward on paper. Reality includes:"
+      - heading "Floor Reset Direct link to Floor Reset" [level=3, ref=e25]
+        - StaticText "Floor Reset"
+        - link "Direct link to Floor Reset"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Barbells stripped and reloaded"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Equipment positioned"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Lane markers checked"
+      - heading "Athlete Movement Direct link to Athlete Movement" [level=3, ref=e26]
+        - StaticText "Athlete Movement"
+        - link "Direct link to Athlete Movement"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Previous heat clears the floor"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Next heat stages"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Emergency bathroom breaks"
+      - heading "Standards Brief Direct link to Standards Brief" [level=3, ref=e27]
+        - StaticText "Standards Brief"
+        - link "Direct link to Standards Brief"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Judge reviews movement standards"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Athletes ask questions"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Any equipment adjustments"
+      - paragraph
+        - strong
+          - StaticText "Recommendation"
+        - StaticText ": Build 2-3 minutes more transition time than you think necessary. Running ahead of schedule is better than behind."
+      - heading "WODsmith's Auto-Generation Direct link to WODsmith's Auto-Generation" [level=2, ref=e28]
+        - StaticText "WODsmith's Auto-Generation"
+        - link "Direct link to WODsmith's Auto-Generation"
+          - StaticText "#"
+      - paragraph
+        - StaticText "WODsmith can automatically generate heat schedules. The algorithm considers:"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - strong
+            - StaticText "Athlete count per division"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - strong
+            - StaticText "Lane capacity"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - strong
+            - StaticText "Target heat duration"
+        - listitem [level=1]
+          - ListMarker "4. "
+          - strong
+            - StaticText "Transition time setting"
+        - listitem [level=1]
+          - ListMarker "5. "
+          - strong
+            - StaticText "Start time"
+      - paragraph
+        - StaticText "The result provides a starting point. Organizers almost always make adjustments based on local knowledge:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Athlete carpool groups"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Judge availability"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Venue-specific constraints"
+      - heading "Common Scheduling Problems Direct link to Common Scheduling Problems" [level=2, ref=e29]
+        - StaticText "Common Scheduling Problems"
+        - link "Direct link to Common Scheduling Problems"
+          - StaticText "#"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Problem"
+            - columnheader "Cause"
+            - columnheader "Solution"
+        - row
+          - cell "Athlete double-booked"
+          - cell "Schedule overlap"
+          - cell "Reschedule to different heat"
+        - row
+          - cell "Heat too small"
+          - cell "Division size"
+          - cell "Combine with another heat"
+        - row
+          - cell "Heat too large"
+          - cell "Aggressive capacity"
+          - cell "Split into two heats"
+        - row
+          - cell "Long gaps"
+          - cell "Uneven distribution"
+          - cell "Rebalance heat assignments"
+        - row
+          - cell "No judge available"
+          - cell "Resource constraint"
+          - cell "Recruit additional judge or reduce heat size"
+      - heading "The Day-Of Shuffle Direct link to The Day-Of Shuffle" [level=2, ref=e30]
+        - StaticText "The Day-Of Shuffle"
+        - link "Direct link to The Day-Of Shuffle"
+          - StaticText "#"
+      - paragraph
+        - StaticText "No schedule survives contact with reality. Expect adjustments:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "No-shows"
+          - StaticText ": Lanes sit empty (acceptable)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Late arrivals"
+          - StaticText ": Move to later heat if possible"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Injuries"
+          - StaticText ": Athlete withdraws mid-event"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Equipment failure"
+          - StaticText ": Heat delays while fixing"
+      - paragraph
+        - StaticText "Build flexibility into the schedule. A 5-minute buffer per hour accumulates into real breathing room."
+      - separator
+      - paragraph
+        - emphasis
+          - StaticText "Continue learning: "
+          - link "The Division System"
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « The Competition Day Flow"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "The Competition Day Flow"
+      - link "Next The Division System »"
+        - StaticText "Next"
+        - generic
+          - StaticText "The Division System"
+          - StaticText " »"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

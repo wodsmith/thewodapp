@@ -1,0 +1,454 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+    - link "Documentation"
+    - link "App (opens in new tab)"
+      - StaticText "App"
+      - image "(opens in new tab)"
+    - link "GitHub (opens in new tab)"
+      - StaticText "GitHub"
+      - image "(opens in new tab)"
+    - button "Switch between dark and light mode (currently system mode)"
+  - complementary
+    - navigation "Docs sidebar"
+      - list
+        - listitem [level=1]
+          - link "Welcome to WODsmith"
+            - StaticText "Welcome to WODsmith"
+        - listitem [level=1]
+          - generic
+            - link "Tutorials"
+              - StaticText "Tutorials"
+            - button "Expand sidebar category 'Tutorials'" [expanded=false, ref=e165]
+        - listitem [level=1]
+          - generic
+            - link "How-to Guides"
+              - StaticText "How-to Guides"
+            - button "Expand sidebar category 'How-to Guides'" [expanded=false, ref=e167]
+        - listitem [level=1]
+          - generic
+            - link "Reference"
+              - StaticText "Reference"
+            - button "Collapse sidebar category 'Reference'" [expanded=true, ref=e169]
+          - list
+            - listitem [level=2]
+              - link "Workout Types Reference"
+                - StaticText "Workout Types Reference"
+            - listitem [level=2]
+              - link "Scoring Rules Reference"
+                - StaticText "Scoring Rules Reference"
+            - listitem [level=2]
+              - link "Team Roles Reference"
+                - StaticText "Team Roles Reference"
+            - listitem [level=2]
+              - link "Divisions Reference"
+                - StaticText "Divisions Reference"
+            - listitem [level=2]
+              - link "Competition Settings Reference"
+                - StaticText "Competition Settings Reference"
+            - listitem [level=2]
+              - link "Broadcasts"
+                - StaticText "Broadcasts"
+        - listitem [level=1]
+          - generic
+            - link "Concepts"
+              - StaticText "Concepts"
+            - button "Expand sidebar category 'Concepts'" [expanded=false, ref=e171]
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "Reference"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "Competition Settings Reference"
+      - sectionheader
+        - heading "Competition Settings Reference" [level=1, ref=e27]
+      - paragraph
+        - StaticText "All configurable options for WODsmith competitions."
+      - heading "General Settings Direct link to General Settings" [level=2, ref=e12]
+        - StaticText "General Settings"
+        - link "Direct link to General Settings"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Found on the "
+        - strong
+          - StaticText "Edit Competition"
+        - StaticText " page:"
+      - paragraph
+        - image "Edit competition form"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Setting"
+            - columnheader "Type"
+            - columnheader "Description"
+        - row
+          - cell "Name"
+            - strong
+              - StaticText "Name"
+          - cell "String"
+          - cell "Competition display name"
+        - row
+          - cell "Slug"
+            - strong
+              - StaticText "Slug"
+          - cell "String"
+          - cell "URL identifier (globally unique, lowercase, hyphens only)"
+        - row
+          - cell "Profile Image"
+            - strong
+              - StaticText "Profile Image"
+          - cell "Image"
+          - cell "Competition logo (recommended 400x400px)"
+        - row
+          - cell "Banner Image"
+            - strong
+              - StaticText "Banner Image"
+          - cell "Image"
+          - cell "Hero banner (recommended 1200x400px)"
+        - row
+          - cell "Series"
+            - strong
+              - StaticText "Series"
+          - cell "Dropdown"
+          - cell "Optional series assignment"
+        - row
+          - cell "Start Date"
+            - strong
+              - StaticText "Start Date"
+          - cell "Date"
+          - cell "Competition start date"
+        - row
+          - cell "End Date"
+            - strong
+              - StaticText "End Date"
+          - cell "Date"
+          - cell "Competition end date"
+        - row
+          - cell "Registration Opens"
+            - strong
+              - StaticText "Registration Opens"
+          - cell "Date"
+          - cell "When registration opens (optional)"
+        - row
+          - cell "Registration Closes"
+            - strong
+              - StaticText "Registration Closes"
+          - cell "Date"
+          - cell "When registration closes (optional)"
+        - row
+          - cell "Description"
+            - strong
+              - StaticText "Description"
+          - cell "Text"
+          - cell "Competition details"
+        - row
+          - cell "Status"
+            - strong
+              - StaticText "Status"
+          - cell "Dropdown"
+          - cell "Draft (organizers only) or Published (visible to athletes)"
+        - row
+          - cell "Visibility"
+            - strong
+              - StaticText "Visibility"
+          - cell "Dropdown"
+          - cell "Public (listed) or Private (direct URL only)"
+      - heading "Rotation Settings Direct link to Rotation Settings" [level=2, ref=e13]
+        - StaticText "Rotation Settings"
+        - link "Direct link to Rotation Settings"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Found on the "
+        - strong
+          - StaticText "Settings"
+        - StaticText " page:"
+      - paragraph
+        - image "Rotation settings"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Setting"
+            - columnheader "Type"
+            - columnheader "Description"
+        - row
+          - cell "Default Heats Per Rotation"
+            - strong
+              - StaticText "Default Heats Per Rotation"
+          - cell "Number (1-10)"
+          - cell "How many heats judges work before rotating"
+        - row
+          - cell "Default Lane Shift Pattern"
+            - strong
+              - StaticText "Default Lane Shift Pattern"
+          - cell "Dropdown"
+          - cell "How judges rotate between lanes"
+      - heading "Waiver Settings Direct link to Waiver Settings" [level=2, ref=e14]
+        - StaticText "Waiver Settings"
+        - link "Direct link to Waiver Settings"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Found on the "
+        - strong
+          - StaticText "Waivers"
+        - StaticText " page:"
+      - paragraph
+        - image "Waiver creation dialog"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Setting"
+            - columnheader "Type"
+            - columnheader "Description"
+        - row
+          - cell "Title"
+            - strong
+              - StaticText "Title"
+          - cell "String"
+          - cell "Waiver name"
+        - row
+          - cell "Content"
+            - strong
+              - StaticText "Content"
+          - cell "Rich Text"
+          - cell "Legal waiver content with formatting"
+        - row
+          - cell "Required"
+            - strong
+              - StaticText "Required"
+          - cell "Checkbox"
+          - cell "Athletes must sign to register"
+      - generic
+        - image
+        - StaticText "NOTE"
+      - paragraph
+        - StaticText "Multiple waivers can be created per competition. Athletes sign waivers during registration."
+      - heading "Event Settings Direct link to Event Settings" [level=2, ref=e15]
+        - StaticText "Event Settings"
+        - link "Direct link to Event Settings"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Found when editing an individual event:"
+      - paragraph
+        - image "Event edit form"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Setting"
+            - columnheader "Type"
+            - columnheader "Description"
+        - row
+          - cell "Event Name"
+            - strong
+              - StaticText "Event Name"
+          - cell "String"
+          - cell "Display name"
+        - row
+          - cell "Scheme"
+            - strong
+              - StaticText "Scheme"
+          - cell "Dropdown"
+          - cell "For Time, AMRAP, etc."
+        - row
+          - cell "Score Type"
+            - strong
+              - StaticText "Score Type"
+          - cell "Dropdown"
+          - cell "Min, Max, etc."
+        - row
+          - cell "Tiebreak Scheme"
+            - strong
+              - StaticText "Tiebreak Scheme"
+          - cell "Dropdown"
+          - cell "Optional tiebreaker method"
+        - row
+          - cell "Description"
+            - strong
+              - StaticText "Description"
+          - cell "Text"
+          - cell "Workout details (supports formatting)"
+        - row
+          - cell "Movements"
+            - strong
+              - StaticText "Movements"
+          - cell "Tags"
+          - cell "Track which movements are used"
+        - row
+          - cell "Points Multiplier"
+            - strong
+              - StaticText "Points Multiplier"
+          - cell "Number (1-1000%)"
+          - cell "Scoring weight (100 = normal)"
+        - row
+          - cell "Presented by"
+            - strong
+              - StaticText "Presented by"
+          - cell "Dropdown"
+          - cell "Sponsor assignment"
+        - row
+          - cell "Organizer Notes"
+            - strong
+              - StaticText "Organizer Notes"
+          - cell "Text"
+          - cell "Internal notes (not visible to athletes)"
+        - row
+          - cell "Division Variations"
+            - strong
+              - StaticText "Division Variations"
+          - cell "Text per division"
+          - cell "Customize workout for each division"
+      - heading "Venue & Schedule Settings Direct link to Venue & Schedule Settings" [level=2, ref=e16]
+        - StaticText "Venue & Schedule Settings"
+        - link "Direct link to Venue & Schedule Settings"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Found on the "
+        - strong
+          - StaticText "Schedule"
+        - StaticText " page:"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Setting"
+            - columnheader "Type"
+            - columnheader "Description"
+        - row
+          - cell "Venue Name"
+            - strong
+              - StaticText "Venue Name"
+          - cell "String"
+          - cell "Location identifier"
+        - row
+          - cell "Lanes"
+            - strong
+              - StaticText "Lanes"
+          - cell "Number"
+          - cell "Athletes per heat"
+        - row
+          - cell "Duration"
+            - strong
+              - StaticText "Duration"
+          - cell "Number"
+          - cell "Minutes per heat"
+        - row
+          - cell "Heat Assignments"
+            - strong
+              - StaticText "Heat Assignments"
+          - cell "Dropdown"
+          - cell "Draft or Published"
+        - row
+          - cell "Time Cap"
+            - strong
+              - StaticText "Time Cap"
+          - cell "Number"
+          - cell "Minutes"
+      - heading "Pricing Settings Direct link to Pricing Settings" [level=2, ref=e17]
+        - StaticText "Pricing Settings"
+        - link "Direct link to Pricing Settings"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Found on the "
+        - strong
+          - StaticText "Pricing"
+        - StaticText " page (requires Stripe connection):"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Setting"
+            - columnheader "Type"
+            - columnheader "Description"
+        - row
+          - cell "Entry Fee"
+            - strong
+              - StaticText "Entry Fee"
+          - cell "Decimal"
+          - cell "Registration fee per athlete"
+      - generic
+        - image
+        - StaticText "NOTE"
+      - paragraph
+        - StaticText "Stripe connection is required to charge registration fees. Free registrations work without Stripe."
+      - heading "Access Control Direct link to Access Control" [level=2, ref=e18]
+        - StaticText "Access Control"
+        - link "Direct link to Access Control"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Competition-level access is managed through:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Organizers"
+          - StaticText ": Users who can manage the competition"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Volunteers"
+          - StaticText ": Users who can check in athletes and enter scores"
+      - separator
+      - paragraph
+        - emphasis
+          - StaticText "See also: "
+          - link "Divisions Reference"
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « Divisions Reference"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "Divisions Reference"
+      - link "Next Broadcasts »"
+        - StaticText "Next"
+        - generic
+          - StaticText "Broadcasts"
+          - StaticText " »"
+    - list
+      - listitem [level=1]
+        - link "General Settings"
+      - listitem [level=1]
+        - link "Rotation Settings"
+      - listitem [level=1]
+        - link "Waiver Settings"
+      - listitem [level=1]
+        - link "Event Settings"
+      - listitem [level=1]
+        - link "Venue & Schedule Settings"
+      - listitem [level=1]
+        - link "Pricing Settings"
+      - listitem [level=1]
+        - link "Access Control"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

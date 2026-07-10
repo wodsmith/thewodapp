@@ -135,3 +135,17 @@ Start verified responsive light/dark behavior for competition discovery, legal, 
 Crew verified desktop and mobile light output, but all four requested-dark scenarios remained light and are blocked with `THEME_NOT_IMPLEMENTED`. At 390 px, Crew home expands to 600 px and calculator to 759 px; these verified overflow observations require responsive follow-up. Valid token paths remain blocked until disposable fixtures exist.
 
 Observed repetition makes auth-entry composition, long-form legal documents, and centered status pages shared-library candidates. Competition discovery and the Crew staffing calculator remain route-specific; the team-invite UI stays unassessed because only its source gate was observed.
+
+### Docs and auxiliary app evidence
+
+The second deployed evidence slice covers all public Docs pages plus anonymous CRM and Ledger entry and redirect behavior, while preserving explicit blockers for authenticated content and Gameday.
+
+[The Docs and auxiliary app coverage audit](../docs/ui-library/docs-aux-coverage-audit.md) records 101 scenarios across 51 visual records: 84 verified and 17 blocked. The complete plan now has 109 verified, 24 blocked, and 174 pending scenarios.
+
+All 34 Docs records have desktop/light and mobile/dark accessibility and DOM evidence. Representative screenshots cover six distinct shells in both variants; every captured Docs route honored the requested theme and reported no horizontal overflow.
+
+CRM and Ledger password roots verified dark desktop and mobile output without overflow. Their hard-coded dark state blocks requested-light scenarios, while anonymous probes verify redirects for all 12 protected visual routes without claiming authenticated page output.
+
+Gameday remains blocked because no deployed DNS target or exact-revision local Vite/API runtime was available. Its browser output and component disposition are not inferred from source inspection.
+
+The duplicated CRM and Ledger password experience supports a shared authentication-entry composition. Docs stays Docusaurus-owned and route-specific; authenticated auxiliary-app patterns remain unassessed until reproducible credentials and seeded data exist.

@@ -1,0 +1,103 @@
+{
+  "effectiveTheme": "light",
+  "finalUrl": "https://docs.wodsmith.com/tutorials/athletes/first-competition/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "Register for Your First Competition"
+    },
+    {
+      "level": 2,
+      "text": "What We'll Accomplish​"
+    },
+    {
+      "level": 2,
+      "text": "Step 1: Find the Competition​"
+    },
+    {
+      "level": 2,
+      "text": "Step 2: Start Registration​"
+    },
+    {
+      "level": 3,
+      "text": "Creating an Account​"
+    },
+    {
+      "level": 2,
+      "text": "Step 3: Select Your Division​"
+    },
+    {
+      "level": 2,
+      "text": "Step 4: Complete Your Information​"
+    },
+    {
+      "level": 2,
+      "text": "Step 5: Sign the Waiver​"
+    },
+    {
+      "level": 2,
+      "text": "Step 6: Pay (or Skip Payment)​"
+    },
+    {
+      "level": 2,
+      "text": "Step 7: Confirm and Explore​"
+    },
+    {
+      "level": 2,
+      "text": "You've Done It!​"
+    },
+    {
+      "level": 2,
+      "text": "What's Next​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "Docs sidebar",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [],
+  "title": "Register for Your First Competition | WODsmith Docs",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 6187,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

@@ -1,0 +1,152 @@
+{
+  "effectiveTheme": "light",
+  "finalUrl": "https://docs.wodsmith.com/concepts/competition-flow/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "The Competition Day Flow"
+    },
+    {
+      "level": 2,
+      "text": "The Competition Lifecycle​"
+    },
+    {
+      "level": 2,
+      "text": "Phase 1: Setup​"
+    },
+    {
+      "level": 3,
+      "text": "Creating the Foundation​"
+    },
+    {
+      "level": 3,
+      "text": "Why Divisions Come First​"
+    },
+    {
+      "level": 2,
+      "text": "Phase 2: Registration​"
+    },
+    {
+      "level": 3,
+      "text": "Opening the Gates​"
+    },
+    {
+      "level": 3,
+      "text": "The Registration Experience​"
+    },
+    {
+      "level": 3,
+      "text": "Why Waivers Matter​"
+    },
+    {
+      "level": 2,
+      "text": "Phase 3: Preparation​"
+    },
+    {
+      "level": 3,
+      "text": "From Registrations to Heats​"
+    },
+    {
+      "level": 3,
+      "text": "Workout Reveals​"
+    },
+    {
+      "level": 2,
+      "text": "Phase 4: Event Day​"
+    },
+    {
+      "level": 3,
+      "text": "Check-In: The Starting Line​"
+    },
+    {
+      "level": 3,
+      "text": "The Heat Cycle​"
+    },
+    {
+      "level": 3,
+      "text": "Scoring Under Pressure​"
+    },
+    {
+      "level": 3,
+      "text": "The Leaderboard as Storytelling​"
+    },
+    {
+      "level": 2,
+      "text": "Phase 5: Results​"
+    },
+    {
+      "level": 3,
+      "text": "Finalization​"
+    },
+    {
+      "level": 3,
+      "text": "After the Event​"
+    },
+    {
+      "level": 2,
+      "text": "What Can Go Wrong​"
+    },
+    {
+      "level": 2,
+      "text": "The Athlete Experience​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "Docs sidebar",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [
+    {
+      "headers": [
+        "Phase",
+        "Common Issues",
+        "Prevention"
+      ],
+      "rowCount": 5
+    }
+  ],
+  "title": "The Competition Day Flow | WODsmith Docs",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 5453,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

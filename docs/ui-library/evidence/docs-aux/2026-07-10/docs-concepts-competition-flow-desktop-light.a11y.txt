@@ -1,0 +1,508 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+    - link "Documentation"
+    - link "App (opens in new tab)"
+      - StaticText "App"
+      - image "(opens in new tab)"
+    - link "GitHub (opens in new tab)"
+      - StaticText "GitHub"
+      - image "(opens in new tab)"
+    - button "Switch between dark and light mode (currently system mode)"
+  - complementary
+    - navigation "Docs sidebar"
+      - list
+        - listitem [level=1]
+          - link "Welcome to WODsmith"
+            - StaticText "Welcome to WODsmith"
+        - listitem [level=1]
+          - generic
+            - link "Tutorials"
+              - StaticText "Tutorials"
+            - button "Expand sidebar category 'Tutorials'" [expanded=false, ref=e98]
+        - listitem [level=1]
+          - generic
+            - link "How-to Guides"
+              - StaticText "How-to Guides"
+            - button "Expand sidebar category 'How-to Guides'" [expanded=false, ref=e100]
+        - listitem [level=1]
+          - generic
+            - link "Reference"
+              - StaticText "Reference"
+            - button "Expand sidebar category 'Reference'" [expanded=false, ref=e102]
+        - listitem [level=1]
+          - generic
+            - link "Concepts"
+              - StaticText "Concepts"
+            - button "Collapse sidebar category 'Concepts'" [expanded=true, ref=e104]
+          - list
+            - listitem [level=2]
+              - link "WODsmith Core Concepts"
+                - StaticText "WODsmith Core Concepts"
+            - listitem [level=2]
+              - link "The Competition Day Flow"
+                - StaticText "The Competition Day Flow"
+            - listitem [level=2]
+              - link "Heat Scheduling Strategy"
+                - StaticText "Heat Scheduling Strategy"
+            - listitem [level=2]
+              - link "The Division System"
+                - StaticText "The Division System"
+            - listitem [level=2]
+              - link "Three Perspectives: Athlete, Organizer, Judge"
+                - StaticText "Three Perspectives: Athlete, Organizer, Judge"
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "Concepts"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "The Competition Day Flow"
+      - sectionheader
+        - heading "The Competition Day Flow" [level=1, ref=e42]
+      - paragraph
+        - StaticText "Understanding how a WODsmith competition unfolds from setup through final results."
+      - heading "The Competition Lifecycle Direct link to The Competition Lifecycle" [level=2, ref=e12]
+        - StaticText "The Competition Lifecycle"
+        - link "Direct link to The Competition Lifecycle"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Every competition follows a predictable lifecycle:"
+      - generic
+        - generic focusable [tabindex]
+          - code
+            - StaticText "Setup → Registration → Preparation → Event Day → Results"
+            - LineBreak "\n"
+        - button "Copy code to clipboard"
+      - paragraph
+        - StaticText "Each phase has distinct activities and transitions. Understanding this flow helps organizers plan effectively and athletes know what to expect."
+      - heading "Phase 1: Setup Direct link to Phase 1: Setup" [level=2, ref=e13]
+        - StaticText "Phase 1: Setup"
+        - link "Direct link to Phase 1: Setup"
+          - StaticText "#"
+      - heading "Creating the Foundation Direct link to Creating the Foundation" [level=3, ref=e14]
+        - StaticText "Creating the Foundation"
+        - link "Direct link to Creating the Foundation"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Before athletes can register, organizers must define the competition structure:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "What"
+          - StaticText ": Events and workouts"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Who"
+          - StaticText ": Divisions and capacity"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "When"
+          - StaticText ": Dates and schedule"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Where"
+          - StaticText ": Location details"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "How much"
+          - StaticText ": Entry fees"
+      - paragraph
+        - StaticText "This phase feels administrative, but decisions here cascade through everything that follows. A well-planned setup prevents problems on event day."
+      - heading "Why Divisions Come First Direct link to Why Divisions Come First" [level=3, ref=e15]
+        - StaticText "Why Divisions Come First"
+        - link "Direct link to Why Divisions Come First"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Experienced organizers configure divisions before events. The reason: events often have division-specific standards."
+      - paragraph
+        - StaticText "Consider \"Fran\": RX athletes might do 95/65 lb thrusters, while Scaled does 65/45. Defining divisions first allows event configuration to reference them."
+      - heading "Phase 2: Registration Direct link to Phase 2: Registration" [level=2, ref=e16]
+        - StaticText "Phase 2: Registration"
+        - link "Direct link to Phase 2: Registration"
+          - StaticText "#"
+      - heading "Opening the Gates Direct link to Opening the Gates" [level=3, ref=e17]
+        - StaticText "Opening the Gates"
+        - link "Direct link to Opening the Gates"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Registration transforms a plan into a real event. Athletes discover the competition, evaluate whether to participate, and commit."
+      - heading "The Registration Experience Direct link to The Registration Experience" [level=3, ref=e18]
+        - StaticText "The Registration Experience"
+        - link "Direct link to The Registration Experience"
+          - StaticText "#"
+      - paragraph
+        - StaticText "From an athlete's perspective, registration should feel:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Informative"
+          - StaticText ": Clear about what they're signing up for"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Simple"
+          - StaticText ": Minimal friction to complete"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Confirming"
+          - StaticText ": Immediate acknowledgment of success"
+      - paragraph
+        - StaticText "WODsmith's registration flow prioritizes these qualities while collecting necessary information."
+      - heading "Why Waivers Matter Direct link to Why Waivers Matter" [level=3, ref=e19]
+        - StaticText "Why Waivers Matter"
+        - link "Direct link to Why Waivers Matter"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Digital waivers protect both organizers and athletes. By integrating waivers into registration:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "No paper shuffling on event day"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Legal documentation captured with timestamps"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Athletes review terms when attention is high"
+      - heading "Phase 3: Preparation Direct link to Phase 3: Preparation" [level=2, ref=e20]
+        - StaticText "Phase 3: Preparation"
+        - link "Direct link to Phase 3: Preparation"
+          - StaticText "#"
+      - heading "From Registrations to Heats Direct link to From Registrations to Heats" [level=3, ref=e21]
+        - StaticText "From Registrations to Heats"
+        - link "Direct link to From Registrations to Heats"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Once registration closes, preparation begins. The central task: organizing athletes into heats."
+      - heading "Heat Scheduling Logic Direct link to Heat Scheduling Logic" [level=4, ref=e22]
+        - StaticText "Heat Scheduling Logic"
+        - link "Direct link to Heat Scheduling Logic"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Heat scheduling balances multiple constraints:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Equipment"
+          - StaticText ": Available lanes or stations"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Time"
+          - StaticText ": Total event duration"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Experience"
+          - StaticText ": Don't make athletes wait hours between events"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Fairness"
+          - StaticText ": Comparable conditions across heats"
+      - paragraph
+        - StaticText "WODsmith's auto-generation considers these factors, though organizers can (and should) make manual adjustments."
+      - heading "Workout Reveals Direct link to Workout Reveals" [level=3, ref=e23]
+        - StaticText "Workout Reveals"
+        - link "Direct link to Workout Reveals"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Many competitions keep workouts secret until close to event day. This builds excitement and prevents over-specialization in training."
+      - paragraph
+        - StaticText "WODsmith supports timed reveals: workouts become visible to athletes at a scheduled moment. Organizers see them earlier for planning."
+      - heading "Phase 4: Event Day Direct link to Phase 4: Event Day" [level=2, ref=e24]
+        - StaticText "Phase 4: Event Day"
+        - link "Direct link to Phase 4: Event Day"
+          - StaticText "#"
+      - heading "Check-In: The Starting Line Direct link to Check-In: The Starting Line" [level=3, ref=e25]
+        - StaticText "Check-In: The Starting Line"
+        - link "Direct link to Check-In: The Starting Line"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Event day begins with check-in. Athletes confirm their presence, receive any physical materials (bibs, heat sheets), and understand the day's flow."
+      - paragraph
+        - StaticText "Check-in serves several purposes:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Verification"
+          - StaticText ": Athlete is present and ready"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Updates"
+          - StaticText ": Last-minute schedule changes communicated"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Atmosphere"
+          - StaticText ": Transition from arrival to competition mindset"
+      - heading "The Heat Cycle Direct link to The Heat Cycle" [level=3, ref=e26]
+        - StaticText "The Heat Cycle"
+        - link "Direct link to The Heat Cycle"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Each event follows a heat cycle:"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - strong
+            - StaticText "Warm-up"
+          - StaticText ": Athletes prepare in designated areas"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - strong
+            - StaticText "Staging"
+          - StaticText ": Athletes move to competition floor"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - strong
+            - StaticText "Briefing"
+          - StaticText ": Standards and timing reviewed"
+        - listitem [level=1]
+          - ListMarker "4. "
+          - strong
+            - StaticText "Execution"
+          - StaticText ": The actual workout"
+        - listitem [level=1]
+          - ListMarker "5. "
+          - strong
+            - StaticText "Scoring"
+          - StaticText ": Judges record results"
+        - listitem [level=1]
+          - ListMarker "6. "
+          - strong
+            - StaticText "Transition"
+          - StaticText ": Floor reset for next heat"
+      - paragraph
+        - StaticText "This cycle repeats throughout the day. Good organizers maintain rhythm—athletes know what comes next."
+      - heading "Scoring Under Pressure Direct link to Scoring Under Pressure" [level=3, ref=e27]
+        - StaticText "Scoring Under Pressure"
+        - link "Direct link to Scoring Under Pressure"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Event day scoring must be fast and accurate. Delays frustrate athletes and spectators. Errors undermine trust."
+      - paragraph
+        - StaticText "WODsmith's real-time scoring addresses both concerns:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Judges enter scores immediately after each heat"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Leaderboard updates automatically"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Athletes can verify their own scores"
+      - heading "The Leaderboard as Storytelling Direct link to The Leaderboard as Storytelling" [level=3, ref=e28]
+        - StaticText "The Leaderboard as Storytelling"
+        - link "Direct link to The Leaderboard as Storytelling"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Live leaderboards aren't just rankings—they tell the competition's story. Close battles emerge. Underdogs rise. Favorites stumble."
+      - paragraph
+        - StaticText "This narrative drives engagement. Athletes and spectators follow along, discuss standings, and anticipate upcoming drama."
+      - heading "Phase 5: Results Direct link to Phase 5: Results" [level=2, ref=e29]
+        - StaticText "Phase 5: Results"
+        - link "Direct link to Phase 5: Results"
+          - StaticText "#"
+      - heading "Finalization Direct link to Finalization" [level=3, ref=e30]
+        - StaticText "Finalization"
+        - link "Direct link to Finalization"
+          - StaticText "#"
+      - paragraph
+        - StaticText "When the last event completes, results transition from live to official. This moment matters:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Rankings become permanent"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Awards are determined"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Athletes share their placement"
+      - paragraph
+        - StaticText "WODsmith's finalization process locks scores and enables official exports."
+      - heading "After the Event Direct link to After the Event" [level=3, ref=e31]
+        - StaticText "After the Event"
+        - link "Direct link to After the Event"
+          - StaticText "#"
+      - paragraph
+        - StaticText "The competition's impact extends beyond event day:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Athletes reference their finishes in training motivation"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Organizers analyze data for future improvements"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "The community shares results and memories"
+      - heading "What Can Go Wrong Direct link to What Can Go Wrong" [level=2, ref=e32]
+        - StaticText "What Can Go Wrong"
+        - link "Direct link to What Can Go Wrong"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Understanding the flow helps anticipate problems:"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Phase"
+            - columnheader "Common Issues"
+            - columnheader "Prevention"
+        - row
+          - cell "Setup"
+          - cell "Incomplete configuration"
+          - cell "Checklist review"
+        - row
+          - cell "Registration"
+          - cell "Capacity exceeded"
+          - cell "Waitlist enabled"
+        - row
+          - cell "Preparation"
+          - cell "Schedule conflicts"
+          - cell "Buffer time built in"
+        - row
+          - cell "Event Day"
+          - cell "Scoring delays"
+          - cell "Judge training"
+        - row
+          - cell "Results"
+          - cell "Disputed scores"
+          - cell "Clear standards"
+      - heading "The Athlete Experience Direct link to The Athlete Experience" [level=2, ref=e33]
+        - StaticText "The Athlete Experience"
+        - link "Direct link to The Athlete Experience"
+          - StaticText "#"
+      - paragraph
+        - StaticText "From an athlete's perspective, a well-run competition feels:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Organized"
+          - StaticText ": Knowing where to be and when"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Fair"
+          - StaticText ": Same standards applied equally"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Exciting"
+          - StaticText ": Competition energy and atmosphere"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Respected"
+          - StaticText ": Their effort acknowledged"
+      - paragraph
+        - StaticText "WODsmith's features support each of these feelings through thoughtful design."
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « WODsmith Core Concepts"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "WODsmith Core Concepts"
+      - link "Next Heat Scheduling Strategy »"
+        - StaticText "Next"
+        - generic
+          - StaticText "Heat Scheduling Strategy"
+          - StaticText " »"
+    - list
+      - listitem [level=1]
+        - link "The Competition Lifecycle"
+      - listitem [level=1]
+        - link "Phase 1: Setup"
+        - list
+          - listitem [level=2]
+            - link "Creating the Foundation"
+          - listitem [level=2]
+            - link "Why Divisions Come First"
+      - listitem [level=1]
+        - link "Phase 2: Registration"
+        - list
+          - listitem [level=2]
+            - link "Opening the Gates"
+          - listitem [level=2]
+            - link "The Registration Experience"
+          - listitem [level=2]
+            - link "Why Waivers Matter"
+      - listitem [level=1]
+        - link "Phase 3: Preparation"
+        - list
+          - listitem [level=2]
+            - link "From Registrations to Heats"
+          - listitem [level=2]
+            - link "Workout Reveals"
+      - listitem [level=1]
+        - link "Phase 4: Event Day"
+        - list
+          - listitem [level=2]
+            - link "Check-In: The Starting Line"
+          - listitem [level=2]
+            - link "The Heat Cycle"
+          - listitem [level=2]
+            - link "Scoring Under Pressure"
+          - listitem [level=2]
+            - link "The Leaderboard as Storytelling"
+      - listitem [level=1]
+        - link "Phase 5: Results"
+        - list
+          - listitem [level=2]
+            - link "Finalization"
+          - listitem [level=2]
+            - link "After the Event"
+      - listitem [level=1]
+        - link "What Can Go Wrong"
+      - listitem [level=1]
+        - link "The Athlete Experience"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

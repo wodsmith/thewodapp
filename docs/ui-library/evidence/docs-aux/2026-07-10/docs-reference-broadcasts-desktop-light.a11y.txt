@@ -1,0 +1,271 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+    - link "Documentation"
+    - link "App (opens in new tab)"
+      - StaticText "App"
+      - image "(opens in new tab)"
+    - link "GitHub (opens in new tab)"
+      - StaticText "GitHub"
+      - image "(opens in new tab)"
+    - button "Switch between dark and light mode (currently system mode)"
+  - complementary
+    - navigation "Docs sidebar"
+      - list
+        - listitem [level=1]
+          - link "Welcome to WODsmith"
+            - StaticText "Welcome to WODsmith"
+        - listitem [level=1]
+          - generic
+            - link "Tutorials"
+              - StaticText "Tutorials"
+            - button "Expand sidebar category 'Tutorials'" [expanded=false, ref=e67]
+        - listitem [level=1]
+          - generic
+            - link "How-to Guides"
+              - StaticText "How-to Guides"
+            - button "Expand sidebar category 'How-to Guides'" [expanded=false, ref=e69]
+        - listitem [level=1]
+          - generic
+            - link "Reference"
+              - StaticText "Reference"
+            - button "Collapse sidebar category 'Reference'" [expanded=true, ref=e71]
+          - list
+            - listitem [level=2]
+              - link "Workout Types Reference"
+                - StaticText "Workout Types Reference"
+            - listitem [level=2]
+              - link "Scoring Rules Reference"
+                - StaticText "Scoring Rules Reference"
+            - listitem [level=2]
+              - link "Team Roles Reference"
+                - StaticText "Team Roles Reference"
+            - listitem [level=2]
+              - link "Divisions Reference"
+                - StaticText "Divisions Reference"
+            - listitem [level=2]
+              - link "Competition Settings Reference"
+                - StaticText "Competition Settings Reference"
+            - listitem [level=2]
+              - link "Broadcasts"
+                - StaticText "Broadcasts"
+        - listitem [level=1]
+          - generic
+            - link "Concepts"
+              - StaticText "Concepts"
+            - button "Expand sidebar category 'Concepts'" [expanded=false, ref=e73]
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "Reference"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "Broadcasts"
+      - sectionheader
+        - heading "Broadcasts" [level=1, ref=e25]
+      - paragraph
+        - StaticText "Technical reference for the broadcast messaging system."
+      - heading "Audience Filters Direct link to Audience Filters" [level=2, ref=e12]
+        - StaticText "Audience Filters"
+        - link "Direct link to Audience Filters"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Each broadcast targets a specific audience using a filter:"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Filter Type"
+            - columnheader "Description"
+            - columnheader "Additional Parameter"
+        - row
+          - cell "public"
+            - code
+              - StaticText "public"
+          - cell "All athletes and volunteers"
+          - cell "None"
+        - row
+          - cell "all"
+            - code
+              - StaticText "all"
+          - cell "All registered athletes"
+          - cell "None"
+        - row
+          - cell "division"
+            - code
+              - StaticText "division"
+          - cell "Athletes in a specific division"
+          - cell "Division ID"
+        - row
+          - cell "volunteers"
+            - code
+              - StaticText "volunteers"
+          - cell "All registered volunteers"
+          - cell "None"
+        - row
+          - cell "volunteer_role"
+            - code
+              - StaticText "volunteer_role"
+          - cell "Volunteers with a specific role"
+          - cell "Role name"
+      - heading "Volunteer Roles Direct link to Volunteer Roles" [level=3, ref=e13]
+        - StaticText "Volunteer Roles"
+        - link "Direct link to Volunteer Roles"
+          - StaticText "#"
+      - paragraph
+        - StaticText "The following volunteer roles can be targeted:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Judge"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Head Judge"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Scorekeeper"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Check-In"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Medical"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Emcee"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Floor Manager"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Equipment"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Equipment Team"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Media"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Athlete Control"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Staff"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "General"
+      - heading "Delivery Direct link to Delivery" [level=2, ref=e14]
+        - StaticText "Delivery"
+        - link "Direct link to Delivery"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Broadcasts are delivered through two channels:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "In-app"
+          - StaticText " — appears on the competition's Announcements tab for athletes"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Email"
+          - StaticText " — sent asynchronously via a background queue (optional, enabled by default)"
+      - heading "Email Delivery Statuses Direct link to Email Delivery Statuses" [level=3, ref=e15]
+        - StaticText "Email Delivery Statuses"
+        - link "Direct link to Email Delivery Statuses"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Each recipient's email delivery is tracked individually:"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Status"
+            - columnheader "Meaning"
+        - row
+          - cell "queued"
+            - code
+              - StaticText "queued"
+          - cell "Waiting to be sent"
+        - row
+          - cell "sent"
+            - code
+              - StaticText "sent"
+          - cell "Successfully delivered"
+        - row
+          - cell "failed"
+            - code
+              - StaticText "failed"
+          - cell "Delivery failed"
+        - row
+          - cell "skipped"
+            - code
+              - StaticText "skipped"
+          - cell "Email disabled or no API key configured"
+      - paragraph
+        - StaticText "Emails use per-recipient idempotency keys to prevent duplicate delivery on retries. Messages are batched in groups of up to 100 recipients per queue message."
+      - heading "Permissions Direct link to Permissions" [level=2, ref=e16]
+        - StaticText "Permissions"
+        - link "Direct link to Permissions"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Only competition organizers (team members with organizer permissions) can create and send broadcasts. Public broadcasts are viewable by anyone, while non-public broadcasts are only visible to authenticated recipients targeted by the broadcast."
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « Competition Settings Reference"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "Competition Settings Reference"
+      - link "Next Concepts »"
+        - StaticText "Next"
+        - generic
+          - StaticText "Concepts"
+          - StaticText " »"
+    - list
+      - listitem [level=1]
+        - link "Audience Filters"
+        - list
+          - listitem [level=2]
+            - link "Volunteer Roles"
+      - listitem [level=1]
+        - link "Delivery"
+        - list
+          - listitem [level=2]
+            - link "Email Delivery Statuses"
+      - listitem [level=1]
+        - link "Permissions"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

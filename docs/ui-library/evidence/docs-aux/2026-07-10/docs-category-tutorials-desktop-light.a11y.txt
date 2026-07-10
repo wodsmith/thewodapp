@@ -1,0 +1,120 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+    - link "Documentation"
+    - link "App (opens in new tab)"
+      - StaticText "App"
+      - image "(opens in new tab)"
+    - link "GitHub (opens in new tab)"
+      - StaticText "GitHub"
+      - image "(opens in new tab)"
+    - button "Switch between dark and light mode (currently system mode)"
+  - complementary
+    - navigation "Docs sidebar"
+      - list
+        - listitem [level=1]
+          - link "Welcome to WODsmith"
+            - StaticText "Welcome to WODsmith"
+        - listitem [level=1]
+          - generic
+            - link "Tutorials"
+              - StaticText "Tutorials"
+            - button "Collapse sidebar category 'Tutorials'" [expanded=true, ref=e30]
+          - list
+            - listitem [level=2]
+              - button "For Athletes" [expanded=false, ref=e37]
+                - StaticText "For Athletes"
+            - listitem [level=2]
+              - button "For Judges & Volunteers" [expanded=false, ref=e38]
+                - StaticText "For Judges & Volunteers"
+            - listitem [level=2]
+              - button "For Organizers" [expanded=false, ref=e39]
+                - StaticText "For Organizers"
+        - listitem [level=1]
+          - generic
+            - link "How-to Guides"
+              - StaticText "How-to Guides"
+            - button "Expand sidebar category 'How-to Guides'" [expanded=false, ref=e32]
+        - listitem [level=1]
+          - generic
+            - link "Reference"
+              - StaticText "Reference"
+            - button "Expand sidebar category 'Reference'" [expanded=false, ref=e34]
+        - listitem [level=1]
+          - generic
+            - link "Concepts"
+              - StaticText "Concepts"
+            - button "Expand sidebar category 'Concepts'" [expanded=false, ref=e36]
+  - main
+    - navigation "Breadcrumbs"
+      - list
+        - listitem [level=1]
+          - link "Home page"
+            - image
+          - StaticText "  "
+        - listitem [level=1]
+          - StaticText "Tutorials"
+    - sectionheader
+      - heading "Tutorials" [level=1, ref=e11]
+      - paragraph
+        - StaticText "Learning-oriented guides that walk you through hands-on experiences. Start here if you're new to WODsmith."
+    - article
+      - generic
+        - article
+          - link "🗃️For Athletes 1 item"
+            - heading "🗃️For Athletes" [level=2, ref=e26]
+              - StaticText "🗃️For Athletes"
+            - paragraph
+              - StaticText "1 item"
+        - article
+          - link "🗃️For Judges & Volunteers 1 item"
+            - heading "🗃️For Judges & Volunteers" [level=2, ref=e27]
+              - StaticText "🗃️For Judges & Volunteers"
+            - paragraph
+              - StaticText "1 item"
+        - article
+          - link "🗃️For Organizers 1 item"
+            - heading "🗃️For Organizers" [level=2, ref=e28]
+              - StaticText "🗃️For Organizers"
+            - paragraph
+              - StaticText "1 item"
+    - sectionfooter
+      - navigation "Docs pages"
+        - link "Previous « Welcome to WODsmith"
+          - StaticText "Previous"
+          - generic
+            - StaticText "« "
+            - StaticText "Welcome to WODsmith"
+        - link "Next Register for Your First Competition »"
+          - StaticText "Next"
+          - generic
+            - StaticText "Register for Your First Competition"
+            - StaticText " »"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

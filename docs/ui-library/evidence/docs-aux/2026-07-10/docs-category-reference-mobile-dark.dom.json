@@ -1,0 +1,79 @@
+{
+  "effectiveTheme": "dark",
+  "finalUrl": "https://docs.wodsmith.com/category/reference/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "Reference"
+    },
+    {
+      "level": 2,
+      "text": "📄️ Workout Types Reference"
+    },
+    {
+      "level": 2,
+      "text": "📄️ Scoring Rules Reference"
+    },
+    {
+      "level": 2,
+      "text": "📄️ Team Roles Reference"
+    },
+    {
+      "level": 2,
+      "text": "📄️ Divisions Reference"
+    },
+    {
+      "level": 2,
+      "text": "📄️ Competition Settings Reference"
+    },
+    {
+      "level": 2,
+      "text": "📄️ Broadcasts"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [],
+  "title": "Reference | WODsmith Docs",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 1991,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

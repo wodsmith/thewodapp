@@ -1,0 +1,579 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+    - link "Documentation"
+    - link "App (opens in new tab)"
+      - StaticText "App"
+      - image "(opens in new tab)"
+    - link "GitHub (opens in new tab)"
+      - StaticText "GitHub"
+      - image "(opens in new tab)"
+    - button "Switch between dark and light mode (currently system mode)"
+  - complementary
+    - navigation "Docs sidebar"
+      - list
+        - listitem [level=1]
+          - link "Welcome to WODsmith"
+            - StaticText "Welcome to WODsmith"
+        - listitem [level=1]
+          - generic
+            - link "Tutorials"
+              - StaticText "Tutorials"
+            - button "Expand sidebar category 'Tutorials'" [expanded=false, ref=e85]
+        - listitem [level=1]
+          - generic
+            - link "How-to Guides"
+              - StaticText "How-to Guides"
+            - button "Collapse sidebar category 'How-to Guides'" [expanded=true, ref=e87]
+          - list
+            - listitem [level=2]
+              - button "For Athletes" [expanded=false, ref=e100]
+                - StaticText "For Athletes"
+            - listitem [level=2]
+              - button "For Judges & Volunteers" [expanded=false, ref=e101]
+                - StaticText "For Judges & Volunteers"
+            - listitem [level=2]
+              - button "For Organizers" [expanded=true, ref=e102]
+                - StaticText "For Organizers"
+              - list
+                - listitem [level=3]
+                  - link "How to Manage Registrations"
+                    - StaticText "How to Manage Registrations"
+                - listitem [level=3]
+                  - link "How to Create Registration Questions"
+                    - StaticText "How to Create Registration Questions"
+                - listitem [level=3]
+                  - link "How to Schedule Heats"
+                    - StaticText "How to Schedule Heats"
+                - listitem [level=3]
+                  - link "How to Run Event Day"
+                    - StaticText "How to Run Event Day"
+                - listitem [level=3]
+                  - link "How to Edit Competition Settings"
+                    - StaticText "How to Edit Competition Settings"
+                - listitem [level=3]
+                  - link "How to Create Multi-Workout Events"
+                    - StaticText "How to Create Multi-Workout Events"
+                - listitem [level=3]
+                  - link "How to Send Broadcasts"
+                    - StaticText "How to Send Broadcasts"
+        - listitem [level=1]
+          - generic
+            - link "Reference"
+              - StaticText "Reference"
+            - button "Expand sidebar category 'Reference'" [expanded=false, ref=e89]
+        - listitem [level=1]
+          - generic
+            - link "Concepts"
+              - StaticText "Concepts"
+            - button "Expand sidebar category 'Concepts'" [expanded=false, ref=e91]
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "How-to Guides"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "For Organizers"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "How to Run Event Day"
+      - sectionheader
+        - heading "How to Run Event Day" [level=1, ref=e36]
+      - paragraph
+        - StaticText "Manage scoring, leaderboards, judges, and broadcasts during your competition."
+      - heading "Prerequisites Direct link to Prerequisites" [level=2, ref=e12]
+        - StaticText "Prerequisites"
+        - link "Direct link to Prerequisites"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Competition with events created and divisions configured"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Heats scheduled (in-person) or submission windows open (online)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Volunteers approved with the appropriate roles"
+      - heading "In-Person Score Entry Direct link to In-Person Score Entry" [level=2, ref=e13]
+        - StaticText "In-Person Score Entry"
+        - link "Direct link to In-Person Score Entry"
+          - StaticText "#"
+      - heading "Accessing Score Entry Direct link to Accessing Score Entry" [level=3, ref=e14]
+        - StaticText "Accessing Score Entry"
+        - link "Direct link to Accessing Score Entry"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Open your competition from "
+          - strong
+            - StaticText "ORGANIZE"
+          - StaticText "."
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Results"
+          - StaticText " in the sidebar (under \"Run Competition\")."
+      - paragraph
+        - image "Results page for an in-person competition"
+      - paragraph
+        - StaticText "The Results page is the per-event grid where you (and any judges with score-input access) enter live scores."
+      - heading "Score Entry Interface Direct link to Score Entry Interface" [level=3, ref=e15]
+        - StaticText "Score Entry Interface"
+        - link "Direct link to Score Entry Interface"
+          - StaticText "#"
+      - paragraph
+        - StaticText "The grid shows:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Event selector"
+          - StaticText " — pick which event to score"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Division filter"
+          - StaticText " — narrow to RX, Scaled, etc."
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Score format hint"
+          - StaticText " — reminder of the expected input (Time, Reps, etc.)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Heat sections"
+          - StaticText " — athletes grouped by their heat assignment"
+      - heading "Entering Scores Direct link to Entering Scores" [level=3, ref=e16]
+        - StaticText "Entering Scores"
+        - link "Direct link to Entering Scores"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Pick the event from the dropdown."
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Find the athlete in their heat row."
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Type the score in the input field."
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Scores "
+          - strong
+            - StaticText "auto-save"
+          - StaticText " as you type — the live \"Parsed as: X\" preview confirms how WODsmith reads your input (green = valid, red = error)."
+      - heading "Score Entry Formats Direct link to Score Entry Formats" [level=3, ref=e17]
+        - StaticText "Score Entry Formats"
+        - link "Direct link to Score Entry Formats"
+          - StaticText "#"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Workout Type"
+            - columnheader "Input"
+            - columnheader "Examples"
+        - row
+          - cell "For Time"
+          - cell "mm:ss"
+            - StaticText "mm:ss"
+          - cell "3:45, 12:30, 1:02:34.567"
+            - code
+              - StaticText "3:45"
+            - StaticText ", "
+            - code
+              - StaticText "12:30"
+            - StaticText ", "
+            - code
+              - StaticText "1:02:34.567"
+        - row
+          - cell "AMRAP"
+          - cell "rounds+reps"
+          - cell "8+15, 12+0"
+            - code
+              - StaticText "8+15"
+            - StaticText ", "
+            - code
+              - StaticText "12+0"
+        - row
+          - cell "Max Weight"
+          - cell "number"
+          - cell "225, 185.5"
+            - code
+              - StaticText "225"
+            - StaticText ", "
+            - code
+              - StaticText "185.5"
+        - row
+          - cell "For Time (capped)"
+          - cell "mm:ss or cap"
+            - StaticText "mm:ss or "
+            - code
+              - StaticText "cap"
+          - cell "4:32, cap (then enter reps completed)"
+            - code
+              - StaticText "4:32"
+            - StaticText ", "
+            - code
+              - StaticText "cap"
+            - StaticText " (then enter reps completed)"
+      - heading "Status Overrides Direct link to Status Overrides" [level=3, ref=e18]
+        - StaticText "Status Overrides"
+        - link "Direct link to Status Overrides"
+          - StaticText "#"
+      - paragraph
+        - StaticText "When an athlete didn't finish or was DQ'd, change the status dropdown next to the score:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - code
+            - StaticText "dnf"
+          - StaticText " — did not finish"
+        - listitem [level=1]
+          - ListMarker "• "
+          - code
+            - StaticText "dns"
+          - StaticText " — did not start"
+        - listitem [level=1]
+          - ListMarker "• "
+          - code
+            - StaticText "dq"
+          - StaticText " — disqualified"
+        - listitem [level=1]
+          - ListMarker "• "
+          - code
+            - StaticText "withdrawn"
+          - StaticText " — pulled out"
+        - listitem [level=1]
+          - ListMarker "• "
+          - code
+            - StaticText "cap"
+          - StaticText " — auto-set when input ≥ time cap"
+      - paragraph
+        - StaticText "Terminal statuses collapse the score input — leave it blank."
+      - heading "Online Submission Review Direct link to Online Submission Review" [level=2, ref=e19]
+        - StaticText "Online Submission Review"
+        - link "Direct link to Online Submission Review"
+          - StaticText "#"
+      - paragraph
+        - StaticText "For "
+        - strong
+          - StaticText "online competitions"
+        - StaticText ", the Results sidebar item changes to "
+        - strong
+          - StaticText "Submissions"
+        - StaticText " and surfaces every video submission grouped by event:"
+      - paragraph
+        - image "Submissions overview for an online competition"
+      - paragraph
+        - StaticText "Each event row shows pending / reviewed / total counts and a progress bar. Click any event to see its submissions and open individual videos in the verification flow at "
+        - code
+          - StaticText "/compete/organizer/{competitionId}/events/{eventId}/submissions/{submissionId}"
+        - StaticText "."
+      - paragraph
+        - StaticText "Sub-events nest under their parent event. The parent itself doesn't carry scores — scoring happens at the leaf level — but the parent card aggregates the child counts for at-a-glance progress."
+      - paragraph
+        - StaticText "You can delegate this work to volunteers — see "
+        - link "Managing Judges"
+        - StaticText " below."
+      - heading "The Public Leaderboard Direct link to The Public Leaderboard" [level=2, ref=e20]
+        - StaticText "The Public Leaderboard"
+        - link "Direct link to The Public Leaderboard"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Athletes and spectators see a live leaderboard on the public competition page:"
+      - paragraph
+        - image "Public leaderboard with per-event scores"
+      - paragraph
+        - StaticText "It updates in real time as judges submit or verify scores. Rankings recompute automatically."
+      - paragraph
+        - StaticText "For online competitions, scores "
+        - strong
+          - StaticText "only appear once you publish the division"
+        - StaticText " for that event. From the "
+        - strong
+          - StaticText "Results"
+        - StaticText " page, toggle each (event, division) pair from "
+        - strong
+          - StaticText "Draft"
+        - StaticText " to "
+        - strong
+          - StaticText "Published"
+        - StaticText " to release results progressively — for example, publish RX once all RX videos are reviewed without waiting on Scaled."
+      - heading "Leaderboard Preview (organizer-only) Direct link to Leaderboard Preview (organizer-only)" [level=2, ref=e21]
+        - StaticText "Leaderboard Preview (organizer-only)"
+        - link "Direct link to Leaderboard Preview (organizer-only)"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Before publishing, use the "
+        - strong
+          - StaticText "Leaderboard Preview"
+        - StaticText " sidebar link to see the full leaderboard "
+        - emphasis
+          - StaticText "as if every score were published"
+        - StaticText ". This includes:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Scores on draft events"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Unpublished division results"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Every event as a column (no division filtering)"
+      - paragraph
+        - StaticText "Use this to sanity-check the standings before flipping the public leaderboard. Cohosts with "
+        - code
+          - StaticText "leaderboardPreview"
+        - StaticText " permission can see the preview too."
+      - heading "Managing Judges and Volunteers Direct link to Managing Judges and Volunteers" [level=2, ref=e22]
+        - StaticText "Managing Judges and Volunteers"
+        - link "Direct link to Managing Judges and Volunteers"
+          - StaticText "#"
+      - heading "The Volunteers Tab Direct link to The Volunteers Tab" [level=3, ref=e23]
+        - StaticText "The Volunteers Tab"
+        - link "Direct link to The Volunteers Tab"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Volunteers"
+          - StaticText " in the sidebar."
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "The page splits into four tabs: "
+          - strong
+            - StaticText "Roster"
+          - StaticText ", "
+          - strong
+            - StaticText "Shifts"
+          - StaticText ", "
+          - strong
+            - StaticText "Judge Schedule"
+          - StaticText ", "
+          - strong
+            - StaticText "Registration Rules"
+          - StaticText "."
+      - paragraph
+        - image "Volunteers page with the four tabs"
+      - heading "Roster Direct link to Roster" [level=3, ref=e24]
+        - StaticText "Roster"
+        - link "Direct link to Roster"
+          - StaticText "#"
+      - paragraph
+        - StaticText "The roster lists confirmed volunteers with their roles. From here you can:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Invite Volunteer"
+          - StaticText " — send a direct invite via email"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Copy Signup Link"
+          - StaticText " — share a public signup URL"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Approve / activate"
+          - StaticText " applications"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Grant score-input access"
+          - StaticText " — the entitlement that unlocks the "
+          - strong
+            - StaticText "Review"
+          - StaticText " queue (online) or score-entry views (in-person) for that volunteer"
+      - paragraph
+        - StaticText "A volunteer needs score-input access on the competition team to act as a judge."
+      - heading "Judge Scheduling Direct link to Judge Scheduling" [level=3, ref=e25]
+        - StaticText "Judge Scheduling"
+        - link "Direct link to Judge Scheduling"
+          - StaticText "#"
+      - paragraph
+        - StaticText "The "
+        - strong
+          - StaticText "Judge Schedule"
+        - StaticText " tab is the rotation grid. You set:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Default Heats per Rotation"
+          - StaticText " — how many heats before judges shift lanes"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Lane Shift Pattern"
+          - StaticText " — Stay, Shift Right, Random"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Heat Buffer"
+          - StaticText " — minimum heats between a judge's rotations"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Per-judge overrides"
+          - StaticText " — drag judges onto specific lane/heat cells"
+      - paragraph
+        - StaticText "Click "
+        - strong
+          - StaticText "Publish Rotations"
+        - StaticText " when ready. Judges see their assignments on their "
+        - strong
+          - StaticText "Schedule"
+        - StaticText " view; they can't see them until you publish."
+      - heading "Broadcasts During the Event Direct link to Broadcasts During the Event" [level=2, ref=e26]
+        - StaticText "Broadcasts During the Event"
+        - link "Direct link to Broadcasts During the Event"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Broadcasts are the fastest way to reach all athletes, all volunteers, or just one division."
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Broadcasts"
+          - StaticText " in the sidebar."
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Compose: title, body, audience (all athletes / by division / volunteers / public), optional question filters."
+        - listitem [level=1]
+          - ListMarker "3. "
+          - strong
+            - StaticText "Preview recipient count"
+          - StaticText " before sending."
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Send Broadcast"
+          - StaticText "."
+      - paragraph
+        - StaticText "Athletes see broadcasts on their "
+        - strong
+          - StaticText "Announcements"
+        - StaticText " tab and (if email is enabled) in their inbox. Use these for floor-briefing reminders, schedule changes, score corrections, weather updates, and post-event awards announcements."
+      - heading "Handling Ties Direct link to Handling Ties" [level=2, ref=e27]
+        - StaticText "Handling Ties"
+        - link "Direct link to Handling Ties"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Default tiebreakers, in order:"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Total points across events"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Tiebreaker scores (per-event tiebreak field)"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "For multi-round capped workouts: fewer capped rounds wins"
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Earlier registration time (last resort)"
+      - paragraph
+        - StaticText "Configure the per-event tiebreak field from the event detail page. Set it before scoring starts — backfilling tiebreakers across already-entered scores is messy."
+      - separator
+      - paragraph
+        - emphasis
+          - StaticText "See also: "
+          - link "How to Manage Registrations"
+          - StaticText " | "
+          - link "How to Schedule Heats"
+          - StaticText " | "
+          - link "How to Send Broadcasts"
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « How to Schedule Heats"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "How to Schedule Heats"
+      - link "Next How to Edit Competition Settings »"
+        - StaticText "Next"
+        - generic
+          - StaticText "How to Edit Competition Settings"
+          - StaticText " »"
+    - list
+      - listitem [level=1]
+        - link "Prerequisites"
+      - listitem [level=1]
+        - link "In-Person Score Entry"
+        - list
+          - listitem [level=2]
+            - link "Accessing Score Entry"
+          - listitem [level=2]
+            - link "Score Entry Interface"
+          - listitem [level=2]
+            - link "Entering Scores"
+          - listitem [level=2]
+            - link "Score Entry Formats"
+          - listitem [level=2]
+            - link "Status Overrides"
+      - listitem [level=1]
+        - link "Online Submission Review"
+      - listitem [level=1]
+        - link "The Public Leaderboard"
+      - listitem [level=1]
+        - link "Leaderboard Preview (organizer-only)"
+      - listitem [level=1]
+        - link "Managing Judges and Volunteers"
+        - list
+          - listitem [level=2]
+            - link "The Volunteers Tab"
+          - listitem [level=2]
+            - link "Roster"
+          - listitem [level=2]
+            - link "Judge Scheduling"
+      - listitem [level=1]
+        - link "Broadcasts During the Event"
+      - listitem [level=1]
+        - link "Handling Ties"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

@@ -1,0 +1,464 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+    - link "Documentation"
+    - link "App (opens in new tab)"
+      - StaticText "App"
+      - image "(opens in new tab)"
+    - link "GitHub (opens in new tab)"
+      - StaticText "GitHub"
+      - image "(opens in new tab)"
+    - button "Switch between dark and light mode (currently system mode)"
+  - complementary
+    - navigation "Docs sidebar"
+      - list
+        - listitem [level=1]
+          - link "Welcome to WODsmith"
+            - StaticText "Welcome to WODsmith"
+        - listitem [level=1]
+          - generic
+            - link "Tutorials"
+              - StaticText "Tutorials"
+            - button "Collapse sidebar category 'Tutorials'" [expanded=true, ref=e80]
+          - list
+            - listitem [level=2]
+              - button "For Athletes" [expanded=false, ref=e88]
+                - StaticText "For Athletes"
+            - listitem [level=2]
+              - button "For Judges & Volunteers" [expanded=true, ref=e89]
+                - StaticText "For Judges & Volunteers"
+              - list
+                - listitem [level=3]
+                  - link "Sign Up and Complete Your First Judging Shift"
+                    - StaticText "Sign Up and Complete Your First Judging Shift"
+            - listitem [level=2]
+              - button "For Organizers" [expanded=false, ref=e90]
+                - StaticText "For Organizers"
+        - listitem [level=1]
+          - generic
+            - link "How-to Guides"
+              - StaticText "How-to Guides"
+            - button "Expand sidebar category 'How-to Guides'" [expanded=false, ref=e82]
+        - listitem [level=1]
+          - generic
+            - link "Reference"
+              - StaticText "Reference"
+            - button "Expand sidebar category 'Reference'" [expanded=false, ref=e84]
+        - listitem [level=1]
+          - generic
+            - link "Concepts"
+              - StaticText "Concepts"
+            - button "Expand sidebar category 'Concepts'" [expanded=false, ref=e86]
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "Tutorials"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "For Judges & Volunteers"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "Sign Up and Complete Your First Judging Shift"
+      - sectionheader
+        - heading "Sign Up and Complete Your First Judging Shift" [level=1, ref=e28]
+      - paragraph
+        - StaticText "In this tutorial, we'll walk through everything a judge or volunteer does on WODsmith — from accepting an invite, to reviewing your first video submission or entering your first in-person score. By the end, you'll know how to find your work queue and submit a verified result."
+      - heading "What We'll Accomplish Direct link to What We'll Accomplish" [level=2, ref=e12]
+        - StaticText "What We'll Accomplish"
+        - link "Direct link to What We'll Accomplish"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Accept your volunteer invite (or sign up via the public link)"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Find the competition's review or score-entry queue"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Review one online video submission end-to-end"
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Enter one in-person score on event day"
+      - paragraph
+        - StaticText "This tutorial assumes the organizer has already granted you score-input access. If they haven't, you'll only see read-only views and the "
+        - strong
+          - StaticText "Review"
+        - StaticText " / "
+        - strong
+          - StaticText "Score"
+        - StaticText " menu items will be missing."
+      - heading "Step 1: Accept the Volunteer Invite Direct link to Step 1: Accept the Volunteer Invite" [level=2, ref=e13]
+        - StaticText "Step 1: Accept the Volunteer Invite"
+        - link "Direct link to Step 1: Accept the Volunteer Invite"
+          - StaticText "#"
+      - paragraph
+        - StaticText "If the organizer invited you directly, you'll receive an email with a link like "
+        - code
+          - StaticText "https://demo.wodsmith.com/compete/{slug}/volunteer"
+        - StaticText " (or an invite acceptance URL)."
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Click the link from your email."
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Sign in (or create an account) with the email the organizer used to invite you."
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Review the prefilled application — name, email, certifications, availability."
+      - paragraph
+        - image "Volunteer signup form"
+      - paragraph
+        - strong
+          - StaticText "Notice"
+        - StaticText " that the \"Certifications / Credentials\" field is freeform — list any relevant credentials (CrossFit L1 Judge, L2, EMT, First Aid/CPR). Organizers use this when assigning roles."
+      - list
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Submit Application"
+          - StaticText "."
+      - paragraph
+        - StaticText "The organizer will see your application on their "
+        - strong
+          - StaticText "Volunteers → Roster"
+        - StaticText " tab and can approve and assign roles."
+      - heading "What if I wasn't invited directly? Direct link to What if I wasn't invited directly?" [level=3, ref=e14]
+        - StaticText "What if I wasn't invited directly?"
+        - link "Direct link to What if I wasn't invited directly?"
+          - StaticText "#"
+      - paragraph
+        - StaticText "If the competition has open volunteer signup, the public page shows a "
+        - strong
+          - StaticText "Sign Up to Volunteer"
+        - StaticText " button. Click it and you'll land on the same form."
+      - heading "Step 2: Open the Competition Direct link to Step 2: Open the Competition" [level=2, ref=e15]
+        - StaticText "Step 2: Open the Competition"
+        - link "Direct link to Step 2: Open the Competition"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Once approved, you'll see new menu items on that competition's page that other athletes don't have access to."
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Sign in at "
+          - code
+            - StaticText "https://demo.wodsmith.com/sign-in"
+          - StaticText "."
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Navigate to the competition page (the link is in your invite email, or browse from "
+          - strong
+            - StaticText "Events"
+          - StaticText ")."
+      - paragraph
+        - image "Competition page seen by a judge"
+      - paragraph
+        - strong
+          - StaticText "You should see"
+        - StaticText " the standard event tabs — Event Details, Workouts, Schedule, Leaderboard, Announcements — plus, depending on competition type and your assignments, a "
+        - strong
+          - StaticText "Review"
+        - StaticText " link (online) or score-entry surfaces (in-person)."
+      - heading "Step 3: Review Your First Video Submission Direct link to Step 3: Review Your First Video Submission" [level=2, ref=e16]
+        - StaticText "Step 3: Review Your First Video Submission"
+        - link "Direct link to Step 3: Review Your First Video Submission"
+          - StaticText "#"
+      - paragraph
+        - StaticText "For "
+        - strong
+          - StaticText "online competitions"
+        - StaticText ", judges review videos and verify athlete-submitted scores."
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Review"
+          - StaticText " in the competition nav (or visit "
+          - code
+            - StaticText "/compete/{slug}/review"
+          - StaticText ")."
+      - paragraph
+        - image "Review queue showing pending events"
+      - paragraph
+        - StaticText "The review queue shows:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Events"
+          - StaticText " — total events in the competition"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Pending"
+          - StaticText " — submissions awaiting review across all events"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Reviewed"
+          - StaticText " — submissions with a final status (verified, adjusted, penalized, invalid)"
+      - paragraph
+        - StaticText "Each event card shows its own progress bar — orange = pending, green = reviewed."
+      - list
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Click an event with pending submissions."
+      - paragraph
+        - image "Per-event review list"
+      - paragraph
+        - strong
+          - StaticText "Notice"
+        - StaticText " the columns:"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Column"
+            - columnheader "Meaning"
+        - row
+          - cell "Athlete"
+          - cell "Name and division of the submitter"
+        - row
+          - cell "Claimed Score"
+          - cell "What the athlete reported"
+        - row
+          - cell "Submitted"
+          - cell "When the video was submitted"
+        - row
+          - cell "Votes"
+          - cell "Reviewer 👍 / 👎 votes (used in panel review)"
+        - row
+          - cell "Video"
+          - cell "Link to watch the embedded video"
+        - row
+          - cell "Status"
+          - cell "Pending, Under Review, Verified, etc."
+        - row
+          - cell "Action"
+          - cell "Review button to open the submission"
+      - list
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Review"
+          - StaticText " on a row with status "
+          - strong
+            - StaticText "Pending"
+          - StaticText "."
+      - paragraph
+        - image "Submission detail page with embedded video"
+      - paragraph
+        - StaticText "This is the heart of online judging. You can:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Watch the embedded video (YouTube, Vimeo, WodProof, or WeTime — all play inline)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Compare the athlete's claimed score with what you see"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Add timestamped notes by clicking the seek-to-note button"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Vote 👍 or 👎 (if the competition uses panel review)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Apply a penalty (e.g., scale the score by a percentage for a no-rep)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Adjust the score directly"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Mark the submission as "
+          - strong
+            - StaticText "Verified"
+          - StaticText ", "
+          - strong
+            - StaticText "Adjusted"
+          - StaticText ", "
+          - strong
+            - StaticText "Penalized"
+          - StaticText ", or "
+          - strong
+            - StaticText "Invalid"
+      - list
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Once you've made your call, click "
+          - strong
+            - StaticText "Mark as Reviewed"
+          - StaticText " (top right)."
+      - paragraph
+        - StaticText "The athlete sees their score update in real time, and the leaderboard reflects the verified result once the organizer publishes the division."
+      - heading "Step 4: Enter an In-Person Score Direct link to Step 4: Enter an In-Person Score" [level=2, ref=e17]
+        - StaticText "Step 4: Enter an In-Person Score"
+        - link "Direct link to Step 4: Enter an In-Person Score"
+          - StaticText "#"
+      - paragraph
+        - StaticText "For "
+        - strong
+          - StaticText "in-person competitions"
+        - StaticText ", judges with score-input access can submit results from their phone or tablet between heats."
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Open the competition page on the floor device."
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Tap "
+          - strong
+            - StaticText "Schedule"
+          - StaticText " to find the active heat."
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Use the score-entry interface assigned to your lane (URL provided by the organizer — usually "
+          - code
+            - StaticText "/compete/{slug}/scoring"
+          - StaticText " or an organizer-shared deep link)."
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Enter the result in the format the workout expects:"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Workout Type"
+            - columnheader "Format"
+            - columnheader "Example"
+        - row
+          - cell "For Time"
+          - cell "mm:ss"
+            - StaticText "mm:ss"
+          - cell "3:45"
+            - code
+              - StaticText "3:45"
+        - row
+          - cell "AMRAP"
+          - cell "Rounds + Reps"
+          - cell "8+15"
+            - code
+              - StaticText "8+15"
+        - row
+          - cell "Max Weight"
+          - cell "Number"
+          - cell "225"
+            - code
+              - StaticText "225"
+      - list
+        - listitem [level=1]
+          - ListMarker "5. "
+          - StaticText "Submit. The score auto-saves and appears on the public leaderboard within seconds."
+      - paragraph
+        - StaticText "If you make a mistake, organizers can reopen and correct any score from the "
+        - strong
+          - StaticText "Results"
+        - StaticText " page — flag the issue rather than trying to overwrite a submitted score."
+      - heading "You've Done It! Direct link to You've Done It!" [level=2, ref=e18]
+        - StaticText "You've Done It!"
+        - link "Direct link to You've Done It!"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Congratulations — you've completed your first WODsmith judging shift. You now know how to:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Sign up as a volunteer"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Find your review or score queue"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Verify a video submission"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Enter an in-person score"
+      - heading "What's Next Direct link to What's Next" [level=2, ref=e19]
+        - StaticText "What's Next"
+        - link "Direct link to What's Next"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - link "How to review video submissions"
+          - StaticText " — deep dive on the verification flow"
+        - listitem [level=1]
+          - ListMarker "• "
+          - link "How to score in-person events"
+          - StaticText " — keyboard tips, common formats"
+        - listitem [level=1]
+          - ListMarker "• "
+          - link "How to apply a penalty"
+          - StaticText " — when and how to adjust a score"
+      - separator
+      - paragraph
+        - emphasis
+          - StaticText "Need help? Contact the competition organizer — they can re-issue your invite, change your role, or grant you score-input access."
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « Register for Your First Competition"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "Register for Your First Competition"
+      - link "Next Create Your First Competition »"
+        - StaticText "Next"
+        - generic
+          - StaticText "Create Your First Competition"
+          - StaticText " »"
+    - list
+      - listitem [level=1]
+        - link "What We'll Accomplish"
+      - listitem [level=1]
+        - link "Step 1: Accept the Volunteer Invite"
+        - list
+          - listitem [level=2]
+            - link "What if I wasn't invited directly?"
+      - listitem [level=1]
+        - link "Step 2: Open the Competition"
+      - listitem [level=1]
+        - link "Step 3: Review Your First Video Submission"
+      - listitem [level=1]
+        - link "Step 4: Enter an In-Person Score"
+      - listitem [level=1]
+        - link "You've Done It!"
+      - listitem [level=1]
+        - link "What's Next"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

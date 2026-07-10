@@ -1,0 +1,310 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - button "Toggle navigation bar" [expanded=false, ref=e4]
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "How-to Guides"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "For Organizers"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "How to Manage Registrations"
+      - button "On this page"
+      - sectionheader
+        - heading "How to Manage Registrations" [level=1, ref=e25]
+      - paragraph
+        - StaticText "View, filter, and edit athlete registrations for your competition."
+      - heading "Prerequisites Direct link to Prerequisites" [level=2, ref=e9]
+        - StaticText "Prerequisites"
+        - link "Direct link to Prerequisites"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Competition organizer permissions on the organizing team (or admin role)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Competition with at least one division configured"
+      - heading "Viewing Registrations Direct link to Viewing Registrations" [level=2, ref=e10]
+        - StaticText "Viewing Registrations"
+        - link "Direct link to Viewing Registrations"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Open your competition from the "
+          - strong
+            - StaticText "Organize"
+          - StaticText " dashboard."
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Registrations"
+          - StaticText " in the sidebar."
+      - paragraph
+        - image "Registrations table with division filter"
+      - paragraph
+        - StaticText "The table shows every registered athlete with sortable columns:"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Column"
+            - columnheader "What's there"
+        - row
+          - cell "#"
+            - strong
+              - StaticText "#"
+          - cell "Row number"
+        - row
+          - cell "Status"
+            - strong
+              - StaticText "Status"
+          - cell "Registration status (e.g., Active, Removed)"
+        - row
+          - cell "Athlete"
+            - strong
+              - StaticText "Athlete"
+          - cell "Name and email — captain only for team registrations"
+        - row
+          - cell "Division"
+            - strong
+              - StaticText "Division"
+          - cell "The division they registered for"
+        - row
+          - cell "Team Name"
+            - strong
+              - StaticText "Team Name"
+          - cell "Team registration name (— for solos)"
+        - row
+          - cell "Affiliate"
+            - strong
+              - StaticText "Affiliate"
+          - cell "Their gym; appears as subtext on the public leaderboard"
+        - row
+          - cell "Registered"
+            - strong
+              - StaticText "Registered"
+          - cell "Registration date"
+        - row
+          - cell "Joined"
+            - strong
+              - StaticText "Joined"
+          - cell "When they accepted (different from Registered for invited teammates)"
+      - paragraph
+        - StaticText "The "
+        - strong
+          - code
+            - StaticText "..."
+        - StaticText " menu on each row opens captain-scoped actions: "
+        - strong
+          - StaticText "View Details"
+        - StaticText ", "
+        - strong
+          - StaticText "Change Division"
+        - StaticText ", "
+        - strong
+          - StaticText "Transfer Registration"
+        - StaticText ", "
+        - strong
+          - StaticText "Remove"
+        - StaticText "."
+      - heading "Filtering by Division Direct link to Filtering by Division" [level=2, ref=e11]
+        - StaticText "Filtering by Division"
+        - link "Direct link to Filtering by Division"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Use the "
+        - strong
+          - StaticText "All Divisions"
+        - StaticText " dropdown to scope the table to a specific division. The dropdown labels include counts (e.g., "
+        - code
+          - StaticText "RX (10)"
+        - StaticText ")."
+      - heading "Athlete Detail Page Direct link to Athlete Detail Page" [level=2, ref=e12]
+        - StaticText "Athlete Detail Page"
+        - link "Direct link to Athlete Detail Page"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Click "
+        - strong
+          - StaticText "View Details"
+        - StaticText " on any row to open the per-athlete page at "
+        - code
+          - StaticText "/compete/organizer/{competitionId}/athletes/{registrationId}"
+        - StaticText ". This is the surface for any per-registration edit:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Inline edit of team name, affiliate (per-member for team registrations)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Roster management — invite teammates, resend invites, remove non-captain members"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Per-question answer edit for active members and pending invites"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Read-only waiver list with signature status (waivers are legal records and never editable)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Per-event score entry with the same rounds + tiebreak + status controls athletes use"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Video submission management (online competitions)"
+      - paragraph
+        - StaticText "For pending teammate invites, you can also pre-fill answers and affiliate before they accept — those values transfer onto their registration on acceptance."
+      - heading "Adding a Manual Registration Direct link to Adding a Manual Registration" [level=2, ref=e13]
+        - StaticText "Adding a Manual Registration"
+        - link "Direct link to Adding a Manual Registration"
+          - StaticText "#"
+      - paragraph
+        - StaticText "The "
+        - strong
+          - StaticText "Add Registration"
+        - StaticText " button opens the manual registration dialog. Use this when:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "An athlete pays you directly (cash, check, comp ticket) and you want to add them to the system"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "You're testing the flow before going public"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "An athlete loses access to their email and can't accept an invite"
+      - paragraph
+        - StaticText "The dialog accepts an email — if a user with that email already exists, they're added as a normal registration. If not, WODsmith creates a placeholder user and emails a claim link so the athlete can finish setting up their account."
+      - heading "Transferring a Registration Direct link to Transferring a Registration" [level=2, ref=e14]
+        - StaticText "Transferring a Registration"
+        - link "Direct link to Transferring a Registration"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Two transfer types:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Change Division"
+          - StaticText " — same person, new division. Use "
+          - strong
+            - StaticText "Change Division"
+          - StaticText " in the row menu."
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Transfer Registration (Purchase Transfer)"
+          - StaticText " — different person inheriting the slot (and waiver, answers, payment). Use "
+          - strong
+            - StaticText "Transfer Registration"
+          - StaticText ". The recipient gets an email with a claim link; until they accept, the transfer shows as "
+          - strong
+            - StaticText "Pending"
+          - StaticText "."
+      - paragraph
+        - StaticText "Both actions preserve the slot count — the transfer doesn't open a new spot for waitlist purposes."
+      - heading "Removing a Registration Direct link to Removing a Registration" [level=2, ref=e15]
+        - StaticText "Removing a Registration"
+        - link "Direct link to Removing a Registration"
+          - StaticText "#"
+      - paragraph
+        - StaticText "The "
+        - strong
+          - StaticText "Remove"
+        - StaticText " action soft-deletes the registration. Removing cascades:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Drops the athlete from heat assignments"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Removes their pending teammate invites"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Voids any per-event scores in that division"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Emails the captain (and Stripe-refunds the purchase if the organizer chose that option)"
+      - paragraph
+        - StaticText "Removed registrations are still visible in the list with status "
+        - strong
+          - StaticText "Removed"
+        - StaticText " for audit purposes."
+      - heading "Exporting Direct link to Exporting" [level=2, ref=e16]
+        - StaticText "Exporting"
+        - link "Direct link to Exporting"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Click "
+        - strong
+          - StaticText "Export CSV"
+        - StaticText " to download all registrations including custom question answers. Useful for:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Heat assignment spreadsheets"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "T-shirt size tallies"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Insurance / waiver audit trails"
+      - separator
+      - paragraph
+        - emphasis
+          - StaticText "See also: "
+          - link "How to Create Registration Questions"
+          - StaticText " | "
+          - link "How to Schedule Heats"
+          - StaticText " | "
+          - link "How to Run Event Day"
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « How to Apply a Penalty"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "How to Apply a Penalty"
+      - link "Next How to Create Registration Questions »"
+        - StaticText "Next"
+        - generic
+          - StaticText "How to Create Registration Questions"
+          - StaticText " »"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

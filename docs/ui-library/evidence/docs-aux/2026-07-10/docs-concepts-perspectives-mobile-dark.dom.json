@@ -1,0 +1,96 @@
+{
+  "effectiveTheme": "dark",
+  "finalUrl": "https://docs.wodsmith.com/concepts/perspectives/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "Three Perspectives: Athlete, Organizer, Judge"
+    },
+    {
+      "level": 2,
+      "text": "The Three Perspectives​"
+    },
+    {
+      "level": 2,
+      "text": "What Each Sees​"
+    },
+    {
+      "level": 3,
+      "text": "Athlete View​"
+    },
+    {
+      "level": 3,
+      "text": "Organizer View​"
+    },
+    {
+      "level": 3,
+      "text": "Judge / Volunteer View​"
+    },
+    {
+      "level": 2,
+      "text": "Why the Same Page Renders Differently​"
+    },
+    {
+      "level": 2,
+      "text": "Crossing Perspectives​"
+    },
+    {
+      "level": 2,
+      "text": "What This Means for Documentation​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [
+    {
+      "headers": [
+        "Perspective",
+        "Primary surface",
+        "Goal"
+      ],
+      "rowCount": 3
+    }
+  ],
+  "title": "Three Perspectives: Athlete, Organizer, Judge | WODsmith Docs",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 6139,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

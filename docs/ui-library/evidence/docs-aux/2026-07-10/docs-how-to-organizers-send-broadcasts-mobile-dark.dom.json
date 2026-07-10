@@ -1,0 +1,95 @@
+{
+  "effectiveTheme": "dark",
+  "finalUrl": "https://docs.wodsmith.com/how-to/organizers/send-broadcasts/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "How to Send Broadcasts"
+    },
+    {
+      "level": 2,
+      "text": "Prerequisites​"
+    },
+    {
+      "level": 2,
+      "text": "Accessing Broadcasts​"
+    },
+    {
+      "level": 2,
+      "text": "Composing a Broadcast​"
+    },
+    {
+      "level": 3,
+      "text": "Choosing an Audience​"
+    },
+    {
+      "level": 3,
+      "text": "Email Notifications​"
+    },
+    {
+      "level": 2,
+      "text": "Sending the Broadcast​"
+    },
+    {
+      "level": 2,
+      "text": "Viewing Past Broadcasts​"
+    },
+    {
+      "level": 2,
+      "text": "Delivery and Retries​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [
+    {
+      "headers": [
+        "Audience",
+        "Who receives it"
+      ],
+      "rowCount": 5
+    }
+  ],
+  "title": "How to Send Broadcasts | WODsmith Docs",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 3651,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

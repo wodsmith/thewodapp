@@ -1,0 +1,214 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - button "Toggle navigation bar" [expanded=false, ref=e4]
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "How-to Guides"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "For Athletes"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "How to Check Your Division Standings"
+      - button "On this page"
+      - sectionheader
+        - heading "How to Check Your Division Standings" [level=1, ref=e23]
+      - paragraph
+        - StaticText "View your ranking and per-event scores during a competition."
+      - heading "Steps Direct link to Steps" [level=2, ref=e9]
+        - StaticText "Steps"
+        - link "Direct link to Steps"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Open the competition page."
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Click the "
+          - strong
+            - StaticText "Leaderboard"
+          - StaticText " tab."
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Pick your division from the dropdown."
+      - paragraph
+        - image "Leaderboard with per-event scores and points"
+      - heading "Reading the Leaderboard Direct link to Reading the Leaderboard" [level=2, ref=e10]
+        - StaticText "Reading the Leaderboard"
+        - link "Direct link to Reading the Leaderboard"
+          - StaticText "#"
+      - paragraph
+        - StaticText "The leaderboard shows one row per athlete, sorted by total points (descending). Each event is a column, and each cell shows that event's score plus the place / point award for that event in that division."
+      - table
+        - rowgroup
+          - row
+            - columnheader "Column"
+            - columnheader "Meaning"
+        - row
+          - cell "Rank"
+            - strong
+              - StaticText "Rank"
+          - cell "Your overall position in the division (with medal icons for the top 3)"
+        - row
+          - cell "Athlete"
+            - strong
+              - StaticText "Athlete"
+          - cell "Competitor name; affiliate appears as subtext"
+        - row
+          - cell "Points"
+            - strong
+              - StaticText "Points"
+          - cell "Cumulative ranking points across all scored events"
+        - row
+          - cell "Per-event columns"
+            - strong
+              - StaticText "Per-event columns"
+          - cell "Score (e.g., 3:23), and below it #place · +points for that event"
+            - StaticText "Score (e.g., "
+            - code
+              - StaticText "3:23"
+            - StaticText "), and below it "
+            - code
+              - StaticText "#place · +points"
+            - StaticText " for that event"
+      - heading "Filtering and Sorting Direct link to Filtering and Sorting" [level=2, ref=e11]
+        - StaticText "Filtering and Sorting"
+        - link "Direct link to Filtering and Sorting"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Above the table:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Division dropdown"
+          - StaticText " — switch between RX, Scaled, Masters, etc."
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Event filter"
+          - StaticText " — select a single event to drill in and sort by that event's place"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Overall"
+          - StaticText " — return to the cumulative ranking"
+      - paragraph
+        - StaticText "Click any column header to re-sort by that column."
+      - heading "Real-Time Updates Direct link to Real-Time Updates" [level=2, ref=e12]
+        - StaticText "Real-Time Updates"
+        - link "Direct link to Real-Time Updates"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Scores update as judges submit them. The leaderboard recomputes ranks automatically — no need to refresh the page, though hard-reloading guarantees you have the freshest data."
+      - paragraph
+        - StaticText "For online competitions, an event's column populates only after the organizer "
+        - strong
+          - StaticText "publishes"
+        - StaticText " the division results for that event. Until publication, your own score is visible on your registration page but not on the public leaderboard. This lets organizers wait until all submissions are reviewed before opening the results."
+      - heading "Tiebreakers Direct link to Tiebreakers" [level=2, ref=e13]
+        - StaticText "Tiebreakers"
+        - link "Direct link to Tiebreakers"
+          - StaticText "#"
+      - paragraph
+        - StaticText "When two athletes have identical points:"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "The cumulative tiebreaker (typically: more event wins) wins"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "If still tied, an organizer-selected head-to-head event breaks the tie"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "As a last resort, earlier registration time wins"
+      - paragraph
+        - StaticText "For multi-round capped workouts, a hidden tiebreaker — "
+        - strong
+          - StaticText "fewer capped rounds wins"
+        - StaticText " — applies first inside the event itself."
+      - heading "Status Icons Direct link to Status Icons" [level=2, ref=e14]
+        - StaticText "Status Icons"
+        - link "Direct link to Status Icons"
+          - StaticText "#"
+      - paragraph
+        - StaticText "For online competitions, each cell can show a small icon next to the score:"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Icon"
+            - columnheader "Meaning"
+        - row
+          - cell "⏳ Clock"
+          - cell "Submission pending review"
+        - row
+          - cell "✅ Check"
+          - cell "Verified by a judge"
+        - row
+          - cell "✏️ Pencil"
+          - cell "Score was adjusted"
+        - row
+          - cell "⚠️ Alert"
+          - cell "Penalty applied"
+        - row
+          - cell "✕ Red X"
+          - cell "Submission marked invalid"
+      - paragraph
+        - StaticText "The icon links directly to the submission detail page (organizer/cohost view); athletes see it as a status indicator only."
+      - separator
+      - paragraph
+        - emphasis
+          - StaticText "See also: "
+          - link "How to View Workout Standards"
+          - StaticText " | "
+          - link "How to View Your Heat Schedule"
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « How to View Your Heat Schedule"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "How to View Your Heat Schedule"
+      - link "Next How to View Workout Standards »"
+        - StaticText "Next"
+        - generic
+          - StaticText "How to View Workout Standards"
+          - StaticText " »"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

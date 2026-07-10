@@ -1,0 +1,228 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - button "Toggle navigation bar" [expanded=false, ref=e4]
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "How-to Guides"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "For Organizers"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "How to Send Broadcasts"
+      - button "On this page"
+      - sectionheader
+        - heading "How to Send Broadcasts" [level=1, ref=e25]
+      - paragraph
+        - StaticText "Send one-way announcements to athletes and volunteers via in-app notifications and email."
+      - heading "Prerequisites Direct link to Prerequisites" [level=2, ref=e9]
+        - StaticText "Prerequisites"
+        - link "Direct link to Prerequisites"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Competition organizer permissions"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Competition with registrations (athletes or volunteers)"
+      - heading "Accessing Broadcasts Direct link to Accessing Broadcasts" [level=2, ref=e10]
+        - StaticText "Accessing Broadcasts"
+        - link "Direct link to Accessing Broadcasts"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Open your competition from "
+          - strong
+            - StaticText "ORGANIZE"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Broadcasts"
+          - StaticText " in the sidebar"
+      - paragraph
+        - StaticText "If you haven't sent any broadcasts yet, you'll see an empty state with a prompt to create your first one."
+      - heading "Composing a Broadcast Direct link to Composing a Broadcast" [level=2, ref=e11]
+        - StaticText "Composing a Broadcast"
+        - link "Direct link to Composing a Broadcast"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Click "
+          - strong
+            - StaticText "New Broadcast"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Fill in the broadcast details:"
+          - list
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - strong
+                - StaticText "Title"
+              - StaticText " — a short subject line (e.g., \"Schedule Change for Saturday\")"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - strong
+                - StaticText "Message"
+              - StaticText " — the full announcement text"
+      - heading "Choosing an Audience Direct link to Choosing an Audience" [level=3, ref=e12]
+        - StaticText "Choosing an Audience"
+        - link "Direct link to Choosing an Audience"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Use the "
+        - strong
+          - StaticText "Audience"
+        - StaticText " dropdown to target your message:"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Audience"
+            - columnheader "Who receives it"
+        - row
+          - cell "Everyone (Public)"
+            - strong
+              - StaticText "Everyone (Public)"
+          - cell "All athletes and volunteers"
+        - row
+          - cell "All Athletes"
+            - strong
+              - StaticText "All Athletes"
+          - cell "Every registered athlete"
+        - row
+          - cell "Athletes by Division"
+            - strong
+              - StaticText "Athletes by Division"
+          - cell "Athletes in a specific division (a second dropdown appears)"
+        - row
+          - cell "All Volunteers"
+            - strong
+              - StaticText "All Volunteers"
+          - cell "Every registered volunteer"
+        - row
+          - cell "Volunteers by Role"
+            - strong
+              - StaticText "Volunteers by Role"
+          - cell "Volunteers with a specific role (e.g., Judge, Scorekeeper)"
+      - paragraph
+        - StaticText "After selecting an audience, the recipient count updates automatically so you can verify who will receive the message."
+      - heading "Email Notifications Direct link to Email Notifications" [level=3, ref=e13]
+        - StaticText "Email Notifications"
+        - link "Direct link to Email Notifications"
+          - StaticText "#"
+      - paragraph
+        - StaticText "The "
+        - strong
+          - StaticText "Send email notification to recipients"
+        - StaticText " checkbox is enabled by default. Uncheck it if you only want the broadcast to appear in-app without sending emails."
+      - heading "Sending the Broadcast Direct link to Sending the Broadcast" [level=2, ref=e14]
+        - StaticText "Sending the Broadcast"
+        - link "Direct link to Sending the Broadcast"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Review your title, message, and audience"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Send Broadcast"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "A confirmation toast shows how many recipients received the message"
+      - paragraph
+        - StaticText "Broadcasts are sent immediately and cannot be edited after sending."
+      - heading "Viewing Past Broadcasts Direct link to Viewing Past Broadcasts" [level=2, ref=e15]
+        - StaticText "Viewing Past Broadcasts"
+        - link "Direct link to Viewing Past Broadcasts"
+          - StaticText "#"
+      - paragraph
+        - StaticText "All sent broadcasts appear on the Broadcasts page in reverse chronological order. Each broadcast card shows:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Title"
+          - StaticText " and "
+          - strong
+            - StaticText "message body"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Date sent"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Recipient count"
+          - StaticText " — total recipients"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Delivery status"
+          - StaticText " — number delivered or failed"
+      - heading "Delivery and Retries Direct link to Delivery and Retries" [level=2, ref=e16]
+        - StaticText "Delivery and Retries"
+        - link "Direct link to Delivery and Retries"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Emails are delivered asynchronously. If delivery fails for some recipients, a red badge shows the failure count. The system uses per-recipient idempotency to prevent duplicate emails on retry."
+      - separator
+      - paragraph
+        - emphasis
+          - StaticText "See also: "
+          - link "How to Manage Registrations"
+          - StaticText " | "
+          - link "How Athletes View Broadcasts"
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « How to Create Multi-Workout Events"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "How to Create Multi-Workout Events"
+      - link "Next Reference »"
+        - StaticText "Next"
+        - generic
+          - StaticText "Reference"
+          - StaticText " »"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

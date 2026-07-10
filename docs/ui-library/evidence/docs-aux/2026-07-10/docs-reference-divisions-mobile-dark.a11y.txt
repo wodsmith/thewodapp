@@ -1,0 +1,270 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - button "Toggle navigation bar" [expanded=false, ref=e4]
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "Reference"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "Divisions Reference"
+      - button "On this page"
+      - sectionheader
+        - heading "Divisions Reference" [level=1, ref=e27]
+      - paragraph
+        - StaticText "Competition division configuration and requirements."
+      - paragraph
+        - image "Division list in competition setup"
+      - heading "Creating Divisions Direct link to Creating Divisions" [level=2, ref=e9]
+        - StaticText "Creating Divisions"
+        - link "Direct link to Creating Divisions"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Divisions are created per-competition and allow athletes to select their category during registration."
+      - heading "Division Fields Direct link to Division Fields" [level=3, ref=e10]
+        - StaticText "Division Fields"
+        - link "Direct link to Division Fields"
+          - StaticText "#"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Field"
+            - columnheader "Type"
+            - columnheader "Required"
+            - columnheader "Description"
+        - row
+          - cell "Name"
+            - strong
+              - StaticText "Name"
+          - cell "String"
+          - cell "Yes"
+          - cell "Display name (e.g., \"RX\", \"Scaled\", \"Masters 40+\")"
+        - row
+          - cell "Description"
+            - strong
+              - StaticText "Description"
+          - cell "Text"
+          - cell "No"
+          - cell "Requirements or eligibility criteria"
+      - paragraph
+        - image "Expanded division showing description field"
+      - generic
+        - image
+        - StaticText "NOTE"
+      - paragraph
+        - StaticText "Divisions in WODsmith are simple name + description pairs. Age restrictions, gender requirements, and capacity limits are not currently enforced through the division configuration."
+      - heading "Common Division Patterns Direct link to Common Division Patterns" [level=2, ref=e11]
+        - StaticText "Common Division Patterns"
+        - link "Direct link to Common Division Patterns"
+          - StaticText "#"
+      - heading "Ability-Based Divisions Direct link to Ability-Based Divisions" [level=3, ref=e12]
+        - StaticText "Ability-Based Divisions"
+        - link "Direct link to Ability-Based Divisions"
+          - StaticText "#"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Division"
+            - columnheader "Typical Description"
+        - row
+          - cell "RX"
+            - strong
+              - StaticText "RX"
+          - cell "Prescribed standards - full range of motion, prescribed weights"
+        - row
+          - cell "Scaled"
+            - strong
+              - StaticText "Scaled"
+          - cell "Modified standards - reduced weights, movement substitutions"
+        - row
+          - cell "Intermediate"
+            - strong
+              - StaticText "Intermediate"
+          - cell "Between RX and Scaled - moderate modifications"
+        - row
+          - cell "Foundations"
+            - strong
+              - StaticText "Foundations"
+          - cell "Entry level - significant modifications"
+      - heading "Age Group Divisions Direct link to Age Group Divisions" [level=3, ref=e13]
+        - StaticText "Age Group Divisions"
+        - link "Direct link to Age Group Divisions"
+          - StaticText "#"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Division"
+            - columnheader "Typical Age Range"
+        - row
+          - cell "Teen (14-17)"
+            - strong
+              - StaticText "Teen (14-17)"
+          - cell "14-17 years"
+        - row
+          - cell "Masters 35+"
+            - strong
+              - StaticText "Masters 35+"
+          - cell "35-39 years"
+        - row
+          - cell "Masters 40+"
+            - strong
+              - StaticText "Masters 40+"
+          - cell "40-44 years"
+        - row
+          - cell "Masters 45+"
+            - strong
+              - StaticText "Masters 45+"
+          - cell "45-49 years"
+        - row
+          - cell "Masters 50+"
+            - strong
+              - StaticText "Masters 50+"
+          - cell "50-54 years"
+        - row
+          - cell "Masters 55+"
+            - strong
+              - StaticText "Masters 55+"
+          - cell "55-59 years"
+        - row
+          - cell "Masters 60+"
+            - strong
+              - StaticText "Masters 60+"
+          - cell "60+ years"
+      - heading "Team Divisions Direct link to Team Divisions" [level=3, ref=e14]
+        - StaticText "Team Divisions"
+        - link "Direct link to Team Divisions"
+          - StaticText "#"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Division"
+            - columnheader "Typical Configuration"
+        - row
+          - cell "Pairs (Mixed)"
+            - strong
+              - StaticText "Pairs (Mixed)"
+          - cell "1 male, 1 female"
+        - row
+          - cell "Pairs (Same)"
+            - strong
+              - StaticText "Pairs (Same)"
+          - cell "2 same gender"
+        - row
+          - cell "Team of 4"
+            - strong
+              - StaticText "Team of 4"
+          - cell "2 male, 2 female"
+        - row
+          - cell "Team of 3"
+            - strong
+              - StaticText "Team of 3"
+          - cell "Any combination"
+      - heading "Division Management Direct link to Division Management" [level=2, ref=e15]
+        - StaticText "Division Management"
+        - link "Direct link to Division Management"
+          - StaticText "#"
+      - heading "Reordering Direct link to Reordering" [level=3, ref=e16]
+        - StaticText "Reordering"
+        - link "Direct link to Reordering"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Drag divisions to reorder them. The order determines:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Display priority in registration dropdowns"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Order shown on leaderboards and schedules"
+      - heading "Deleting Divisions Direct link to Deleting Divisions" [level=3, ref=e17]
+        - StaticText "Deleting Divisions"
+        - link "Direct link to Deleting Divisions"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Divisions with registered athletes cannot be deleted"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "You can still rename divisions with athletes"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Empty divisions can be deleted with the trash icon"
+      - heading "Best Practices Direct link to Best Practices" [level=3, ref=e18]
+        - StaticText "Best Practices"
+        - link "Direct link to Best Practices"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - strong
+            - StaticText "Create divisions early"
+          - StaticText " - Before opening registration"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - strong
+            - StaticText "Use clear names"
+          - StaticText " - Athletes should immediately understand which division to select"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - strong
+            - StaticText "Add descriptions"
+          - StaticText " - Include weight standards, age requirements, or other criteria"
+        - listitem [level=1]
+          - ListMarker "4. "
+          - strong
+            - StaticText "Order logically"
+          - StaticText " - Most common divisions first (e.g., RX before Scaled)"
+      - separator
+      - paragraph
+        - emphasis
+          - StaticText "See also: "
+          - link "How to Configure Divisions"
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « Team Roles Reference"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "Team Roles Reference"
+      - link "Next Competition Settings Reference »"
+        - StaticText "Next"
+        - generic
+          - StaticText "Competition Settings Reference"
+          - StaticText " »"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

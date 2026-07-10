@@ -1,0 +1,587 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+    - link "Documentation"
+    - link "App (opens in new tab)"
+      - StaticText "App"
+      - image "(opens in new tab)"
+    - link "GitHub (opens in new tab)"
+      - StaticText "GitHub"
+      - image "(opens in new tab)"
+    - button "Switch between dark and light mode (currently system mode)"
+  - complementary
+    - navigation "Docs sidebar"
+      - list
+        - listitem [level=1]
+          - link "Welcome to WODsmith"
+            - StaticText "Welcome to WODsmith"
+        - listitem [level=1]
+          - generic
+            - link "Tutorials"
+              - StaticText "Tutorials"
+            - button "Expand sidebar category 'Tutorials'" [expanded=false, ref=e71]
+        - listitem [level=1]
+          - generic
+            - link "How-to Guides"
+              - StaticText "How-to Guides"
+            - button "Collapse sidebar category 'How-to Guides'" [expanded=true, ref=e73]
+          - list
+            - listitem [level=2]
+              - button "For Athletes" [expanded=false, ref=e86]
+                - StaticText "For Athletes"
+            - listitem [level=2]
+              - button "For Judges & Volunteers" [expanded=false, ref=e87]
+                - StaticText "For Judges & Volunteers"
+            - listitem [level=2]
+              - button "For Organizers" [expanded=true, ref=e88]
+                - StaticText "For Organizers"
+              - list
+                - listitem [level=3]
+                  - link "How to Manage Registrations"
+                    - StaticText "How to Manage Registrations"
+                - listitem [level=3]
+                  - link "How to Create Registration Questions"
+                    - StaticText "How to Create Registration Questions"
+                - listitem [level=3]
+                  - link "How to Schedule Heats"
+                    - StaticText "How to Schedule Heats"
+                - listitem [level=3]
+                  - link "How to Run Event Day"
+                    - StaticText "How to Run Event Day"
+                - listitem [level=3]
+                  - link "How to Edit Competition Settings"
+                    - StaticText "How to Edit Competition Settings"
+                - listitem [level=3]
+                  - link "How to Create Multi-Workout Events"
+                    - StaticText "How to Create Multi-Workout Events"
+                - listitem [level=3]
+                  - link "How to Send Broadcasts"
+                    - StaticText "How to Send Broadcasts"
+        - listitem [level=1]
+          - generic
+            - link "Reference"
+              - StaticText "Reference"
+            - button "Expand sidebar category 'Reference'" [expanded=false, ref=e75]
+        - listitem [level=1]
+          - generic
+            - link "Concepts"
+              - StaticText "Concepts"
+            - button "Expand sidebar category 'Concepts'" [expanded=false, ref=e77]
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "How-to Guides"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "For Organizers"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "How to Edit Competition Settings"
+      - sectionheader
+        - heading "How to Edit Competition Settings" [level=1, ref=e37]
+      - paragraph
+        - StaticText "Modify competition details, divisions, and configuration after creation."
+      - heading "Prerequisites Direct link to Prerequisites" [level=2, ref=e12]
+        - StaticText "Prerequisites"
+        - link "Direct link to Prerequisites"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Competition organizer permissions for the team hosting the competition"
+      - heading "Accessing Competition Management Direct link to Accessing Competition Management" [level=2, ref=e13]
+        - StaticText "Accessing Competition Management"
+        - link "Direct link to Accessing Competition Management"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Navigate to "
+          - strong
+            - StaticText "COMPETE"
+          - StaticText " → "
+          - strong
+            - StaticText "ORGANIZE"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Find your competition and click "
+          - strong
+            - StaticText "Manage"
+      - paragraph
+        - image "Competition list with Manage button"
+      - list
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "You'll see the competition overview dashboard"
+      - paragraph
+        - image "Competition overview dashboard"
+      - heading "Editing Basic Information Direct link to Editing Basic Information" [level=2, ref=e14]
+        - StaticText "Editing Basic Information"
+        - link "Direct link to Editing Basic Information"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "From the competition overview, click the "
+          - strong
+            - StaticText "Edit"
+          - StaticText " button"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Update any of these fields:"
+          - list
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Competition name"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Slug (URL identifier)"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Profile image and banner image"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Series assignment"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Start and end dates"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Registration open/close dates"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Description"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Status (Draft or Published)"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Visibility (Public or Private)"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Save Changes"
+      - paragraph
+        - image "Edit competition form"
+      - heading "Modifying Divisions Direct link to Modifying Divisions" [level=2, ref=e15]
+        - StaticText "Modifying Divisions"
+        - link "Direct link to Modifying Divisions"
+          - StaticText "#"
+      - heading "Adding a Division Direct link to Adding a Division" [level=3, ref=e16]
+        - StaticText "Adding a Division"
+        - link "Direct link to Adding a Division"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Go to "
+          - strong
+            - StaticText "Divisions"
+          - StaticText " in the sidebar"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Add Division"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Enter the division name"
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Optionally expand the row to add a description"
+      - paragraph
+        - image "Divisions management"
+      - heading "Editing a Division Direct link to Editing a Division" [level=3, ref=e17]
+        - StaticText "Editing a Division"
+        - link "Direct link to Editing a Division"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Click directly on the division name to edit inline"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Click the expand arrow to edit the description"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Changes save automatically"
+      - paragraph
+        - image "Division details expanded"
+      - generic
+        - image
+        - StaticText "TIP"
+      - paragraph
+        - StaticText "You can drag divisions to reorder them. The order determines how they appear in registration dropdowns."
+      - generic
+        - image
+        - StaticText "CAUTION"
+      - paragraph
+        - StaticText "Divisions with registered athletes cannot be deleted. You can still rename them or update their descriptions."
+      - heading "Updating Events Direct link to Updating Events" [level=2, ref=e18]
+        - StaticText "Updating Events"
+        - link "Direct link to Updating Events"
+          - StaticText "#"
+      - heading "Adding Events Direct link to Adding Events" [level=3, ref=e19]
+        - StaticText "Adding Events"
+        - link "Direct link to Adding Events"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Go to "
+          - strong
+            - StaticText "Events"
+          - StaticText " in the sidebar"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Create Event"
+          - StaticText " for a new workout, or "
+          - strong
+            - StaticText "Add Existing"
+          - StaticText " to link an existing workout"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Configure the event details"
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Save Changes"
+      - paragraph
+        - image "Events list"
+      - heading "Editing Events Direct link to Editing Events" [level=3, ref=e20]
+        - StaticText "Editing Events"
+        - link "Direct link to Editing Events"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Click the link icon next to an event to open the edit page"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Modify:"
+          - list
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Event name"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Scheme (For Time, AMRAP, etc.)"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Score type"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Tiebreak scheme"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Description"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Movements used"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Points multiplier"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Sponsor assignment"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Organizer notes"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - StaticText "Division-specific variations"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Save Changes"
+      - paragraph
+        - image "Event edit form"
+      - heading "Registration Settings Direct link to Registration Settings" [level=2, ref=e21]
+        - StaticText "Registration Settings"
+        - link "Direct link to Registration Settings"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Registration settings are managed across multiple pages:"
+      - heading "Registration Dates Direct link to Registration Dates" [level=3, ref=e22]
+        - StaticText "Registration Dates"
+        - link "Direct link to Registration Dates"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Edit"
+          - StaticText " from the competition overview"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Update "
+          - strong
+            - StaticText "Registration Opens"
+          - StaticText " and "
+          - strong
+            - StaticText "Registration Closes"
+          - StaticText " dates"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Save Changes"
+      - heading "Entry Fees (Pricing) Direct link to Entry Fees (Pricing)" [level=3, ref=e23]
+        - StaticText "Entry Fees (Pricing)"
+        - link "Direct link to Entry Fees (Pricing)"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Go to "
+          - strong
+            - StaticText "Pricing"
+          - StaticText " in the sidebar under Business"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Connect your Stripe account if not already connected"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Set registration fees per division"
+      - paragraph
+        - image "Pricing page"
+      - generic
+        - image
+        - StaticText "NOTE"
+      - paragraph
+        - StaticText "Free registrations ($0) work without a Stripe connection. Paid registrations require Stripe setup."
+      - heading "Waiver Requirements Direct link to Waiver Requirements" [level=3, ref=e24]
+        - StaticText "Waiver Requirements"
+        - link "Direct link to Waiver Requirements"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Go to "
+          - strong
+            - StaticText "Waivers"
+          - StaticText " in the sidebar under Competition Setup"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Add Waiver"
+          - StaticText " to create liability agreements"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Athletes must accept waivers during registration"
+      - paragraph
+        - image "Waivers page"
+      - heading "Registration Questions Direct link to Registration Questions" [level=3, ref=e25]
+        - StaticText "Registration Questions"
+        - link "Direct link to Registration Questions"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Go to "
+          - strong
+            - StaticText "Registrations"
+          - StaticText " in the sidebar"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Add Question"
+          - StaticText " to create custom questions"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "See "
+          - link "How to Create Registration Questions"
+          - StaticText " for full details"
+      - heading "Changing Competition Status Direct link to Changing Competition Status" [level=2, ref=e26]
+        - StaticText "Changing Competition Status"
+        - link "Direct link to Changing Competition Status"
+          - StaticText "#"
+      - paragraph
+        - StaticText "To control whether athletes can see your competition:"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Edit"
+          - StaticText " from the competition overview"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Change the "
+          - strong
+            - StaticText "Status"
+          - StaticText " dropdown:"
+          - list
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - strong
+                - StaticText "Draft"
+              - StaticText " - Only visible to organizers"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - strong
+                - StaticText "Published"
+              - StaticText " - Visible to athletes"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Change the "
+          - strong
+            - StaticText "Visibility"
+          - StaticText " dropdown:"
+          - list
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - strong
+                - StaticText "Public"
+              - StaticText " - Listed on the /compete page"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - strong
+                - StaticText "Private"
+              - StaticText " - Accessible only via direct URL"
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Save Changes"
+      - generic
+        - image
+        - StaticText "TIP"
+      - paragraph
+        - StaticText "Use Draft status while setting up your competition. Switch to Published when ready for registrations."
+      - heading "Competition Settings Direct link to Competition Settings" [level=2, ref=e27]
+        - StaticText "Competition Settings"
+        - link "Direct link to Competition Settings"
+          - StaticText "#"
+      - paragraph
+        - StaticText "The "
+        - strong
+          - StaticText "Settings"
+        - StaticText " page in the sidebar contains operational settings:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Default Heats Per Rotation"
+          - StaticText " - How many heats judges work before rotating"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Default Lane Shift Pattern"
+          - StaticText " - How judges move between lanes"
+      - paragraph
+        - image "Settings page"
+      - heading "Danger Zone Direct link to Danger Zone" [level=2, ref=e28]
+        - StaticText "Danger Zone"
+        - link "Direct link to Danger Zone"
+          - StaticText "#"
+      - paragraph
+        - StaticText "The "
+        - strong
+          - StaticText "Danger Zone"
+        - StaticText " page allows permanent deletion of a competition."
+      - paragraph
+        - image "Danger Zone"
+      - generic
+        - image
+        - StaticText "DANGER"
+      - paragraph
+        - StaticText "Deleting a competition permanently removes all data including registrations and payment records. This action cannot be undone."
+      - separator
+      - paragraph
+        - emphasis
+          - StaticText "See also: "
+          - link "Competition Settings Reference"
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « How to Run Event Day"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "How to Run Event Day"
+      - link "Next How to Create Multi-Workout Events »"
+        - StaticText "Next"
+        - generic
+          - StaticText "How to Create Multi-Workout Events"
+          - StaticText " »"
+    - list
+      - listitem [level=1]
+        - link "Prerequisites"
+      - listitem [level=1]
+        - link "Accessing Competition Management"
+      - listitem [level=1]
+        - link "Editing Basic Information"
+      - listitem [level=1]
+        - link "Modifying Divisions"
+        - list
+          - listitem [level=2]
+            - link "Adding a Division"
+          - listitem [level=2]
+            - link "Editing a Division"
+      - listitem [level=1]
+        - link "Updating Events"
+        - list
+          - listitem [level=2]
+            - link "Adding Events"
+          - listitem [level=2]
+            - link "Editing Events"
+      - listitem [level=1]
+        - link "Registration Settings"
+        - list
+          - listitem [level=2]
+            - link "Registration Dates"
+          - listitem [level=2]
+            - link "Entry Fees (Pricing)"
+          - listitem [level=2]
+            - link "Waiver Requirements"
+          - listitem [level=2]
+            - link "Registration Questions"
+      - listitem [level=1]
+        - link "Changing Competition Status"
+      - listitem [level=1]
+        - link "Competition Settings"
+      - listitem [level=1]
+        - link "Danger Zone"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

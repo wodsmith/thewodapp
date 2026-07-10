@@ -1,0 +1,39 @@
+{
+  "effectiveTheme": "dark",
+  "finalUrl": "https://crm.wodsmith.com/",
+  "forms": [
+    {
+      "inputs": [
+        {
+          "name": "",
+          "placeholder": "Enter password",
+          "tag": "input",
+          "type": "password"
+        },
+        {
+          "name": "",
+          "placeholder": "",
+          "tag": "button",
+          "type": "submit"
+        }
+      ]
+    }
+  ],
+  "headings": [
+    {
+      "level": 1,
+      "text": "WODsmith CRM"
+    }
+  ],
+  "landmarks": [],
+  "language": "en",
+  "tables": [],
+  "title": "WODsmith CRM",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 900,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

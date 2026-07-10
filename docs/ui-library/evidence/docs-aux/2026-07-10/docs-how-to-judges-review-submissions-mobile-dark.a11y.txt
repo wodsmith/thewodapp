@@ -1,0 +1,335 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - button "Toggle navigation bar" [expanded=false, ref=e4]
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "How-to Guides"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "For Judges & Volunteers"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "How to Review Video Submissions"
+      - button "On this page"
+      - sectionheader
+        - heading "How to Review Video Submissions" [level=1, ref=e25]
+      - paragraph
+        - StaticText "Verify athlete-submitted scores for online competitions."
+      - heading "Prerequisites Direct link to Prerequisites" [level=2, ref=e9]
+        - StaticText "Prerequisites"
+        - link "Direct link to Prerequisites"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Approved volunteer with score-input access on the competition (organizers grant this from "
+          - strong
+            - StaticText "Volunteers → Roster"
+          - StaticText ")"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "The competition is "
+          - strong
+            - StaticText "online"
+          - StaticText " type (in-person competitions use the score-entry surface instead — see "
+          - link "How to Score In-Person Events"
+          - StaticText ")"
+      - heading "Find Your Review Queue Direct link to Find Your Review Queue" [level=2, ref=e10]
+        - StaticText "Find Your Review Queue"
+        - link "Direct link to Find Your Review Queue"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Sign in and navigate to the competition page."
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Review"
+          - StaticText " in the competition nav, or visit "
+          - code
+            - StaticText "/compete/{slug}/review"
+          - StaticText " directly."
+      - paragraph
+        - image "Review queue showing pending events"
+      - paragraph
+        - StaticText "The summary cards show the work remaining across the whole competition:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Events"
+          - StaticText " — total events configured"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Pending"
+          - StaticText " — submissions awaiting review"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Reviewed"
+          - StaticText " — submissions with a final status"
+      - paragraph
+        - StaticText "Each event card has its own progress bar: orange = pending, green = reviewed. Click any event card to drill into its submission list."
+      - heading "The Per-Event Submission List Direct link to The Per-Event Submission List" [level=2, ref=e11]
+        - StaticText "The Per-Event Submission List"
+        - link "Direct link to The Per-Event Submission List"
+          - StaticText "#"
+      - paragraph
+        - image "Per-event review list"
+      - paragraph
+        - StaticText "The columns:"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Column"
+            - columnheader "Meaning"
+        - row
+          - cell "#"
+            - strong
+              - StaticText "#"
+          - cell "Submission order in this event"
+        - row
+          - cell "Athlete"
+            - strong
+              - StaticText "Athlete"
+          - cell "Name and division of the submitter"
+        - row
+          - cell "Division"
+            - strong
+              - StaticText "Division"
+          - cell "The athlete's registered division (e.g., RX, Scaled, Masters)"
+        - row
+          - cell "Claimed Score"
+            - strong
+              - StaticText "Claimed Score"
+          - cell "What the athlete reported when uploading"
+        - row
+          - cell "Submitted"
+            - strong
+              - StaticText "Submitted"
+          - cell "Timestamp the video was submitted"
+        - row
+          - cell "Votes"
+            - strong
+              - StaticText "Votes"
+          - cell "👍 / 👎 reviewer votes (used by panel review)"
+        - row
+          - cell "Video"
+            - strong
+              - StaticText "Video"
+          - cell "Direct link to the embedded video"
+        - row
+          - cell "Status"
+            - strong
+              - StaticText "Status"
+          - cell "Pending / Under Review / Verified / Adjusted / Penalized / Invalid"
+        - row
+          - cell "Action"
+            - strong
+              - StaticText "Action"
+          - cell "Review button to open the submission"
+            - strong
+              - StaticText "Review"
+            - StaticText " button to open the submission"
+      - heading "Filters Direct link to Filters" [level=3, ref=e12]
+        - StaticText "Filters"
+        - link "Direct link to Filters"
+          - StaticText "#"
+      - paragraph
+        - StaticText "The dropdowns let you narrow the list:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "All Divisions"
+          - StaticText " — limit to a specific division (RX, Scaled, etc.)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "All Status"
+          - StaticText " — show only Pending, only Verified, etc."
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Newest First"
+          - StaticText " — sort order (Newest First, Oldest First, By Athlete, By Status)"
+      - paragraph
+        - StaticText "Use these to focus your review session — for example, \"RX, Pending, Oldest First\" to clear the longest-waiting RX backlog first."
+      - heading "Reviewing a Single Submission Direct link to Reviewing a Single Submission" [level=2, ref=e13]
+        - StaticText "Reviewing a Single Submission"
+        - link "Direct link to Reviewing a Single Submission"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Click "
+        - strong
+          - StaticText "Review"
+        - StaticText " on any row to open the submission detail page."
+      - paragraph
+        - image "Submission detail with embedded video"
+      - paragraph
+        - StaticText "The page splits into two columns:"
+      - paragraph
+        - strong
+          - StaticText "Left column — Video"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "The video plays inline using the appropriate player (YouTube, Vimeo, WodProof native, WeTime resolved)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "For interactive players (everything except external preview links), you can seek and capture timestamps"
+      - paragraph
+        - strong
+          - StaticText "Right column — Athlete details and score"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Athlete"
+          - StaticText " — name, email, division"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Claimed Score"
+          - StaticText " — what the athlete self-reported"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Notes"
+          - StaticText " — reviewer notes, with optional timestamps that seek the video when clicked"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Vote"
+          - StaticText " — 👍 / 👎 if your competition uses panel review"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Penalty / Adjust"
+          - StaticText " — change the score"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Status"
+          - StaticText " — Verified, Adjusted, Penalized, Invalid"
+      - heading "Marking a Submission Reviewed Direct link to Marking a Submission Reviewed" [level=2, ref=e14]
+        - StaticText "Marking a Submission Reviewed"
+        - link "Direct link to Marking a Submission Reviewed"
+          - StaticText "#"
+      - paragraph
+        - StaticText "When you're satisfied, click "
+        - strong
+          - StaticText "Mark as Reviewed"
+        - StaticText " in the page header. WODsmith will:"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Lock in the chosen status (Verified by default)"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Update the leaderboard cell to show your review status icon"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Transition the submission out of the "
+          - strong
+            - StaticText "Pending"
+          - StaticText " queue"
+      - paragraph
+        - StaticText "The submission stays editable — you or another reviewer can revisit it and change the status if needed."
+      - heading "Multi-Round Submissions Direct link to Multi-Round Submissions" [level=2, ref=e15]
+        - StaticText "Multi-Round Submissions"
+        - link "Direct link to Multi-Round Submissions"
+          - StaticText "#"
+      - paragraph
+        - StaticText "For multi-round workouts (e.g., a chipper with 5 rounds), the score editor renders one input per round. Each round shows its own cap status. The total score and tiebreaker are derived server-side; you don't need to do the math."
+      - heading "What Athletes See Direct link to What Athletes See" [level=2, ref=e16]
+        - StaticText "What Athletes See"
+        - link "Direct link to What Athletes See"
+          - StaticText "#"
+      - paragraph
+        - StaticText "The athlete's view of their own submission updates in real time:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Pending"
+          - StaticText " → grey clock icon"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Verified"
+          - StaticText " → green checkmark"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Adjusted"
+          - StaticText " / "
+          - strong
+            - StaticText "Penalized"
+          - StaticText " → orange/yellow badge with the new score"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Invalid"
+          - StaticText " → red X"
+      - paragraph
+        - StaticText "Their leaderboard cell shows the same icon once the organizer publishes the division results."
+      - separator
+      - paragraph
+        - emphasis
+          - StaticText "See also: "
+          - link "How to Apply a Penalty"
+          - StaticText " | "
+          - link "How to Score In-Person Events"
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « How to Sign Up as a Volunteer"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "How to Sign Up as a Volunteer"
+      - link "Next How to Score In-Person Events »"
+        - StaticText "Next"
+        - generic
+          - StaticText "How to Score In-Person Events"
+          - StaticText " »"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

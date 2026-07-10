@@ -1,0 +1,359 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - button "Toggle navigation bar" [expanded=false, ref=e4]
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "Tutorials"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "For Athletes"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "Register for Your First Competition"
+      - button "On this page"
+      - sectionheader
+        - heading "Register for Your First Competition" [level=1, ref=e28]
+      - paragraph
+        - StaticText "In this tutorial, we will register for a CrossFit competition on WODsmith. By the end, you will have an account, a confirmed registration, a chosen division, and a clear path to event day."
+      - heading "What We'll Accomplish Direct link to What We'll Accomplish" [level=2, ref=e9]
+        - StaticText "What We'll Accomplish"
+        - link "Direct link to What We'll Accomplish"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Find a competition"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Create an account (if needed)"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Select a division"
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Complete registration and waivers"
+        - listitem [level=1]
+          - ListMarker "5. "
+          - StaticText "Confirm and orient yourself for event day"
+      - heading "Step 1: Find the Competition Direct link to Step 1: Find the Competition" [level=2, ref=e10]
+        - StaticText "Step 1: Find the Competition"
+        - link "Direct link to Step 1: Find the Competition"
+          - StaticText "#"
+      - paragraph
+        - StaticText "First, locate the competition."
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Open the link the organizer shared, or visit the gym's WODsmith page."
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "The public landing page shows the event name, dates, location, sponsors, and registration status."
+      - paragraph
+        - image "Competition landing page"
+      - paragraph
+        - strong
+          - StaticText "Notice"
+        - StaticText " the right-hand panel — when you're not yet registered, it shows a "
+        - strong
+          - StaticText "Register"
+        - StaticText " button. After you register, the same panel turns green with "
+        - strong
+          - StaticText "You're Registered!"
+        - StaticText " and shows your division."
+      - heading "Step 2: Start Registration Direct link to Step 2: Start Registration" [level=2, ref=e11]
+        - StaticText "Step 2: Start Registration"
+        - link "Direct link to Step 2: Start Registration"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Register"
+          - StaticText " on the landing page."
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "If you're not signed in, you'll be sent to the sign-in page first."
+      - heading "Creating an Account Direct link to Creating an Account" [level=3, ref=e12]
+        - StaticText "Creating an Account"
+        - link "Direct link to Creating an Account"
+          - StaticText "#"
+      - paragraph
+        - StaticText "If you don't have an account yet:"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Sign Up"
+          - StaticText " on the sign-in page."
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Enter your email and create a password."
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Verify your email when the verification link arrives."
+      - paragraph
+        - StaticText "Your WODsmith account works across every gym and competition on the platform — you only ever need one."
+      - heading "Step 3: Select Your Division Direct link to Step 3: Select Your Division" [level=2, ref=e13]
+        - StaticText "Step 3: Select Your Division"
+        - link "Direct link to Step 3: Select Your Division"
+          - StaticText "#"
+      - paragraph
+        - StaticText "The registration form lists every division the organizer configured."
+      - paragraph
+        - image "Registration form with division picker"
+      - paragraph
+        - StaticText "Each division card shows:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Name"
+          - StaticText " (e.g., RX, Scaled, Masters 40+)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Team size"
+          - StaticText " — solo, pairs, or team"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Capacity remaining"
+          - StaticText ", if a cap is set"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Fee"
+          - StaticText " — registration price for that division"
+      - paragraph
+        - strong
+          - StaticText "Notice"
+        - StaticText " that team divisions (size > 1) ask for a captain — the captain registers first, then invites teammates by email. Teammates accept their invite from their own inbox and complete the form independently."
+      - paragraph
+        - StaticText "Common divisions:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "RX"
+          - StaticText " — prescribed weights and full movement standards"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Scaled"
+          - StaticText " — modified weights and substituted movements"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Masters 40+ / 50+"
+          - StaticText " — age-grouped fields"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Teens"
+          - StaticText " — age-grouped, often with reduced weights"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Partner / Team"
+          - StaticText " — team divisions (size 2 or 4)"
+      - heading "Step 4: Complete Your Information Direct link to Step 4: Complete Your Information" [level=2, ref=e14]
+        - StaticText "Step 4: Complete Your Information"
+        - link "Direct link to Step 4: Complete Your Information"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Fill in your registration details:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Personal info"
+          - StaticText " — name, date of birth, gender (used for division eligibility)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Affiliate"
+          - StaticText " — the gym you train at (used in leaderboard team columns)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Emergency contact"
+          - StaticText " — most organizers require this"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Custom questions"
+          - StaticText " — set by the organizer (T-shirt size, dietary restrictions, etc.)"
+      - paragraph
+        - StaticText "Required fields are marked with "
+        - code
+          - StaticText "*"
+        - StaticText ". The form won't submit until they're all complete."
+      - heading "Step 5: Sign the Waiver Direct link to Step 5: Sign the Waiver" [level=2, ref=e15]
+        - StaticText "Step 5: Sign the Waiver"
+        - link "Direct link to Step 5: Sign the Waiver"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Most competitions require an electronic waiver before paying."
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Read the waiver text — it's a real legal document."
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Check the acknowledgment box."
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Type your full legal name as the signature."
+      - paragraph
+        - StaticText "The signature is timestamped and stored as part of your registration. The organizer sees signed status in their athlete list and can re-send waivers if any are missing."
+      - heading "Step 6: Pay (or Skip Payment) Direct link to Step 6: Pay (or Skip Payment)" [level=2, ref=e16]
+        - StaticText "Step 6: Pay (or Skip Payment)"
+        - link "Direct link to Step 6: Pay (or Skip Payment)"
+          - StaticText "#"
+      - paragraph
+        - StaticText "If the division has a registration fee, you'll be redirected to Stripe Checkout. Free competitions skip this step entirely."
+      - paragraph
+        - StaticText "After payment, you land on the confirmation screen and receive a confirmation email."
+      - heading "Step 7: Confirm and Explore Direct link to Step 7: Confirm and Explore" [level=2, ref=e17]
+        - StaticText "Step 7: Confirm and Explore"
+        - link "Direct link to Step 7: Confirm and Explore"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Once registered, the competition page changes for you:"
+      - paragraph
+        - image "Athlete view of a registered competition"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "The right rail shows "
+          - strong
+            - StaticText "You're Registered!"
+          - StaticText " with your division"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "A "
+          - strong
+            - StaticText "View Registration"
+          - StaticText " button opens your registration details (where you can edit answers, manage teammates, sign waivers, etc.)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "The tabs — "
+          - strong
+            - StaticText "Workouts"
+          - StaticText ", "
+          - strong
+            - StaticText "Schedule"
+          - StaticText ", "
+          - strong
+            - StaticText "Leaderboard"
+          - StaticText ", "
+          - strong
+            - StaticText "Announcements"
+          - StaticText " — populate with your event's content"
+      - paragraph
+        - StaticText "You can also see all your competitions at once on "
+        - code
+          - StaticText "/compete/athlete"
+        - StaticText ":"
+      - paragraph
+        - image "Personal athlete dashboard"
+      - paragraph
+        - StaticText "This page lists every competition you've registered for, your competitive history, your invoices, and your editable profile."
+      - heading "You've Done It! Direct link to You've Done It!" [level=2, ref=e18]
+        - StaticText "You've Done It!"
+        - link "Direct link to You've Done It!"
+          - StaticText "#"
+      - paragraph
+        - StaticText "You're registered. Your confirmation includes:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Confirmation number"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Division assignment"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Receipt (if you paid)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Reminders about upcoming dates"
+      - heading "What's Next Direct link to What's Next" [level=2, ref=e19]
+        - StaticText "What's Next"
+        - link "Direct link to What's Next"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - link "View your heat schedule"
+          - StaticText " once heats are published"
+        - listitem [level=1]
+          - ListMarker "• "
+          - link "Review the workout standards"
+          - StaticText " so you can prepare"
+        - listitem [level=1]
+          - ListMarker "• "
+          - link "Track standings on the leaderboard"
+          - StaticText " during the event"
+        - listitem [level=1]
+          - ListMarker "• "
+          - link "Read announcements"
+          - StaticText " the organizer posts before and during the competition"
+      - separator
+      - paragraph
+        - emphasis
+          - StaticText "Need to make changes? Open the competition, click "
+          - strong
+            - StaticText "View Registration"
+          - StaticText ", and most fields can be edited up to the registration deadline. Beyond that, contact the organizer."
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « Tutorials"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "Tutorials"
+      - link "Next Sign Up and Complete Your First Judging Shift »"
+        - StaticText "Next"
+        - generic
+          - StaticText "Sign Up and Complete Your First Judging Shift"
+          - StaticText " »"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

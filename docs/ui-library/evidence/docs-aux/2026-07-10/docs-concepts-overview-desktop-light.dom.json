@@ -1,0 +1,131 @@
+{
+  "effectiveTheme": "light",
+  "finalUrl": "https://docs.wodsmith.com/concepts/overview/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "WODsmith Core Concepts"
+    },
+    {
+      "level": 2,
+      "text": "The WODsmith Model​"
+    },
+    {
+      "level": 2,
+      "text": "Teams: The Foundation​"
+    },
+    {
+      "level": 3,
+      "text": "Why Multi-Tenancy Matters​"
+    },
+    {
+      "level": 2,
+      "text": "Workouts: Structured Flexibility​"
+    },
+    {
+      "level": 3,
+      "text": "The Workout Type System​"
+    },
+    {
+      "level": 3,
+      "text": "Movements and the Library​"
+    },
+    {
+      "level": 2,
+      "text": "Programming: Structure Over Time​"
+    },
+    {
+      "level": 3,
+      "text": "Tracks and Purpose​"
+    },
+    {
+      "level": 3,
+      "text": "The Calendar as Interface​"
+    },
+    {
+      "level": 2,
+      "text": "Competitions: Events at Scale​"
+    },
+    {
+      "level": 3,
+      "text": "Divisions: Organized Fairness​"
+    },
+    {
+      "level": 3,
+      "text": "Heats: Managing Time and Space​"
+    },
+    {
+      "level": 3,
+      "text": "Scoring: Truth Under Pressure​"
+    },
+    {
+      "level": 2,
+      "text": "The WODsmith Philosophy​"
+    },
+    {
+      "level": 3,
+      "text": "Gym-First Thinking​"
+    },
+    {
+      "level": 3,
+      "text": "Progressive Complexity​"
+    },
+    {
+      "level": 3,
+      "text": "Data Belongs to Users​"
+    },
+    {
+      "level": 3,
+      "text": "Built for Scale​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "Docs sidebar",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [],
+  "title": "WODsmith Core Concepts | WODsmith Docs",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 4588,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

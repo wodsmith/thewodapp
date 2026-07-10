@@ -1,0 +1,79 @@
+{
+  "effectiveTheme": "light",
+  "finalUrl": "https://docs.wodsmith.com/category/concepts/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "Concepts"
+    },
+    {
+      "level": 2,
+      "text": "📄️ WODsmith Core Concepts"
+    },
+    {
+      "level": 2,
+      "text": "📄️ The Competition Day Flow"
+    },
+    {
+      "level": 2,
+      "text": "📄️ Heat Scheduling Strategy"
+    },
+    {
+      "level": 2,
+      "text": "📄️ The Division System"
+    },
+    {
+      "level": 2,
+      "text": "📄️ Three Perspectives: Athlete, Organizer, Judge"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "Docs sidebar",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [],
+  "title": "Concepts | WODsmith Docs",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 1097,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

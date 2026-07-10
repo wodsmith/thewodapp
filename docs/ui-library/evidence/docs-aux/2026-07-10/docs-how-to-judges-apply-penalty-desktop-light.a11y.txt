@@ -1,0 +1,393 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+    - link "Documentation"
+    - link "App (opens in new tab)"
+      - StaticText "App"
+      - image "(opens in new tab)"
+    - link "GitHub (opens in new tab)"
+      - StaticText "GitHub"
+      - image "(opens in new tab)"
+    - button "Switch between dark and light mode (currently system mode)"
+  - complementary
+    - navigation "Docs sidebar"
+      - list
+        - listitem [level=1]
+          - link "Welcome to WODsmith"
+            - StaticText "Welcome to WODsmith"
+        - listitem [level=1]
+          - generic
+            - link "Tutorials"
+              - StaticText "Tutorials"
+            - button "Expand sidebar category 'Tutorials'" [expanded=false, ref=e64]
+        - listitem [level=1]
+          - generic
+            - link "How-to Guides"
+              - StaticText "How-to Guides"
+            - button "Collapse sidebar category 'How-to Guides'" [expanded=true, ref=e66]
+          - list
+            - listitem [level=2]
+              - button "For Athletes" [expanded=false, ref=e71]
+                - StaticText "For Athletes"
+            - listitem [level=2]
+              - button "For Judges & Volunteers" [expanded=true, ref=e72]
+                - StaticText "For Judges & Volunteers"
+              - list
+                - listitem [level=3]
+                  - link "How to Sign Up as a Volunteer"
+                    - StaticText "How to Sign Up as a Volunteer"
+                - listitem [level=3]
+                  - link "How to Review Video Submissions"
+                    - StaticText "How to Review Video Submissions"
+                - listitem [level=3]
+                  - link "How to Score In-Person Events"
+                    - StaticText "How to Score In-Person Events"
+                - listitem [level=3]
+                  - link "How to Apply a Penalty"
+                    - StaticText "How to Apply a Penalty"
+            - listitem [level=2]
+              - button "For Organizers" [expanded=false, ref=e73]
+                - StaticText "For Organizers"
+        - listitem [level=1]
+          - generic
+            - link "Reference"
+              - StaticText "Reference"
+            - button "Expand sidebar category 'Reference'" [expanded=false, ref=e68]
+        - listitem [level=1]
+          - generic
+            - link "Concepts"
+              - StaticText "Concepts"
+            - button "Expand sidebar category 'Concepts'" [expanded=false, ref=e70]
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "How-to Guides"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "For Judges & Volunteers"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "How to Apply a Penalty"
+      - sectionheader
+        - heading "How to Apply a Penalty" [level=1, ref=e28]
+      - paragraph
+        - StaticText "Adjust an athlete's score for a no-rep, missed standard, or other infraction caught during video review."
+      - heading "Prerequisites Direct link to Prerequisites" [level=2, ref=e12]
+        - StaticText "Prerequisites"
+        - link "Direct link to Prerequisites"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Score-input access on the competition"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "An open submission with status "
+          - strong
+            - StaticText "Pending"
+          - StaticText " or "
+          - strong
+            - StaticText "Under Review"
+      - heading "When to Penalize vs Adjust vs Invalidate Direct link to When to Penalize vs Adjust vs Invalidate" [level=2, ref=e13]
+        - StaticText "When to Penalize vs Adjust vs Invalidate"
+        - link "Direct link to When to Penalize vs Adjust vs Invalidate"
+          - StaticText "#"
+      - paragraph
+        - StaticText "WODsmith gives reviewers three ways to change a score:"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Action"
+            - columnheader "Use when"
+            - columnheader "Effect"
+        - row
+          - cell "Adjust"
+            - strong
+              - StaticText "Adjust"
+          - cell "You want to overwrite the score with a specific value"
+          - cell "Sets scoreValue directly (status: Adjusted)"
+            - StaticText "Sets "
+            - code
+              - StaticText "scoreValue"
+            - StaticText " directly (status: Adjusted)"
+        - row
+          - cell "Penalize"
+            - strong
+              - StaticText "Penalize"
+          - cell "You want to apply a percentage hit (e.g., −5% per no-rep)"
+          - cell "Scales the score; status: Penalized"
+        - row
+          - cell "Invalid"
+            - strong
+              - StaticText "Invalid"
+          - cell "The submission can't be scored at all (wrong workout, can't see the athlete, etc.)"
+          - cell "Removes the score from rankings; status: Invalid"
+      - paragraph
+        - StaticText "Pick the lightest tool that fits the infraction. Most no-reps are best handled with a percentage penalty rather than a manual override — it's auditable and reversible."
+      - heading "Applying a Percentage Penalty Direct link to Applying a Percentage Penalty" [level=2, ref=e14]
+        - StaticText "Applying a Percentage Penalty"
+        - link "Direct link to Applying a Percentage Penalty"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Open the submission's review page (see "
+          - link "Review Video Submissions"
+          - StaticText ")."
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "In the score section, click "
+          - strong
+            - StaticText "Apply Penalty"
+          - StaticText "."
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Pick "
+          - strong
+            - StaticText "Penalty Type"
+          - StaticText " — typically "
+          - code
+            - StaticText "percentage"
+          - StaticText "."
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Enter the "
+          - strong
+            - StaticText "Penalty %"
+          - StaticText " (e.g., "
+          - code
+            - StaticText "5"
+          - StaticText " for a 5% time addition or rep deduction)."
+        - listitem [level=1]
+          - ListMarker "5. "
+          - StaticText "For multi-round submissions, the form shows one checkbox per round (all checked by default). Uncheck rounds the penalty "
+          - emphasis
+            - StaticText "shouldn't"
+          - StaticText " apply to."
+        - listitem [level=1]
+          - ListMarker "6. "
+          - StaticText "Review the "
+          - strong
+            - StaticText "Before / After"
+          - StaticText " preview line for each round."
+        - listitem [level=1]
+          - ListMarker "7. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Verify with Penalty"
+          - StaticText "."
+      - paragraph
+        - StaticText "The server re-derives:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Per-round status (a previously-uncapped round may flip to "
+          - code
+            - StaticText "cap"
+          - StaticText " after the time penalty)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Parent aggregate (total time, total reps)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Capped round count (used as the leaderboard tiebreaker)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Sort key"
+      - paragraph
+        - StaticText "The athlete's leaderboard entry updates to show the new value with a \"Penalized\" badge."
+      - heading "Adjusting a Single Round Direct link to Adjusting a Single Round" [level=2, ref=e15]
+        - StaticText "Adjusting a Single Round"
+        - link "Direct link to Adjusting a Single Round"
+          - StaticText "#"
+      - paragraph
+        - StaticText "For multi-round submissions where only one round had an issue:"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Click the "
+          - strong
+            - StaticText "Edit"
+          - StaticText " action on that round's input."
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Override the round's time or reps directly."
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Save."
+      - paragraph
+        - StaticText "WODsmith treats this as an "
+        - strong
+          - StaticText "Adjust"
+        - StaticText " (not a penalty) and re-aggregates the parent score."
+      - heading "Direct Score Override Direct link to Direct Score Override" [level=2, ref=e16]
+        - StaticText "Direct Score Override"
+        - link "Direct link to Direct Score Override"
+          - StaticText "#"
+      - paragraph
+        - StaticText "For single-round submissions where you want to set the final score outright:"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Edit the "
+          - strong
+            - StaticText "Final Score"
+          - StaticText " field."
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Save with status "
+          - strong
+            - StaticText "Adjusted"
+          - StaticText "."
+      - paragraph
+        - StaticText "Use this sparingly — penalties are easier to audit because they record both the original and the percentage applied."
+      - heading "Invalidating a Submission Direct link to Invalidating a Submission" [level=2, ref=e17]
+        - StaticText "Invalidating a Submission"
+        - link "Direct link to Invalidating a Submission"
+          - StaticText "#"
+      - paragraph
+        - StaticText "When the video doesn't show the workout (wrong event, athlete not visible, hopelessly broken video link):"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Open the submission's review page."
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Set "
+          - strong
+            - StaticText "Status"
+          - StaticText " to "
+          - strong
+            - StaticText "Invalid"
+          - StaticText "."
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Add a note explaining why (this is shown to the athlete)."
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Mark as Reviewed"
+          - StaticText "."
+      - paragraph
+        - StaticText "The score is dropped from rankings. The athlete can re-upload a corrected video if the submission window is still open — invalid submissions don't permanently lock them out."
+      - heading "Reversing a Penalty Direct link to Reversing a Penalty" [level=2, ref=e18]
+        - StaticText "Reversing a Penalty"
+        - link "Direct link to Reversing a Penalty"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Penalties and adjustments are reversible:"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Reopen the submission."
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Reset to Submitted Score"
+          - StaticText " (or change the status back to "
+          - strong
+            - StaticText "Pending"
+          - StaticText ")."
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Save."
+      - paragraph
+        - StaticText "The original athlete-submitted score is restored. The audit trail records both the penalty and the reversal."
+      - heading "Penalty Audit Trail Direct link to Penalty Audit Trail" [level=2, ref=e19]
+        - StaticText "Penalty Audit Trail"
+        - link "Direct link to Penalty Audit Trail"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Every penalty captures:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Reviewer identity (who applied it)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Original score"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Penalty type and percentage"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Affected rounds (for multi-round)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Resulting score"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Timestamp"
+      - paragraph
+        - StaticText "This is visible to organizers from the submission page and to athletes via the score's status badge. The trail makes it easy to defend a contested score in writing."
+      - separator
+      - paragraph
+        - emphasis
+          - StaticText "See also: "
+          - link "How to Review Video Submissions"
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « How to Score In-Person Events"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "How to Score In-Person Events"
+      - link "Next How to Manage Registrations »"
+        - StaticText "Next"
+        - generic
+          - StaticText "How to Manage Registrations"
+          - StaticText " »"
+    - list
+      - listitem [level=1]
+        - link "Prerequisites"
+      - listitem [level=1]
+        - link "When to Penalize vs Adjust vs Invalidate"
+      - listitem [level=1]
+        - link "Applying a Percentage Penalty"
+      - listitem [level=1]
+        - link "Adjusting a Single Round"
+      - listitem [level=1]
+        - link "Direct Score Override"
+      - listitem [level=1]
+        - link "Invalidating a Submission"
+      - listitem [level=1]
+        - link "Reversing a Penalty"
+      - listitem [level=1]
+        - link "Penalty Audit Trail"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

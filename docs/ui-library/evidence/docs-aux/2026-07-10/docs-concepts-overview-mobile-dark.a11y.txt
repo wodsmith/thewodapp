@@ -1,0 +1,330 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - button "Toggle navigation bar" [expanded=false, ref=e4]
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "Concepts"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "WODsmith Core Concepts"
+      - button "On this page"
+      - sectionheader
+        - heading "WODsmith Core Concepts" [level=1, ref=e35]
+      - paragraph
+        - StaticText "This page explains the fundamental ideas behind WODsmith and how its components work together."
+      - heading "The WODsmith Model Direct link to The WODsmith Model" [level=2, ref=e9]
+        - StaticText "The WODsmith Model"
+        - link "Direct link to The WODsmith Model"
+          - StaticText "#"
+      - paragraph
+        - StaticText "WODsmith is built around a simple hierarchy:"
+      - generic
+        - generic focusable [tabindex]
+          - code
+            - StaticText "Teams → Members → Workouts → Scores"
+            - LineBreak "\n"
+            - StaticText "        ↓"
+            - LineBreak "\n"
+            - StaticText "   Competitions → Divisions → Events → Results"
+            - LineBreak "\n"
+        - generic
+          - button "Toggle word wrap"
+          - button "Copy code to clipboard"
+      - paragraph
+        - StaticText "Understanding this model helps you navigate the platform and make sense of how features connect."
+      - heading "Teams: The Foundation Direct link to Teams: The Foundation" [level=2, ref=e10]
+        - StaticText "Teams: The Foundation"
+        - link "Direct link to Teams: The Foundation"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Every organization in WODsmith operates as a "
+        - strong
+          - StaticText "team"
+        - StaticText ". This design emerged from a key insight: CrossFit gyms, coaches, and athletes often work across multiple organizations."
+      - paragraph
+        - StaticText "A coach might program for two affiliate gyms. An athlete might train at their home gym but compete for another. Competition organizers work with athletes from dozens of gyms."
+      - paragraph
+        - StaticText "The team model accommodates this reality. Rather than forcing users into a single organization, WODsmith allows membership in multiple teams with different roles in each."
+      - heading "Why Multi-Tenancy Matters Direct link to Why Multi-Tenancy Matters" [level=3, ref=e11]
+        - StaticText "Why Multi-Tenancy Matters"
+        - link "Direct link to Why Multi-Tenancy Matters"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Traditional gym software assumes one user belongs to one gym. This creates friction:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Coaches can't share programming between gyms"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Athletes need multiple accounts"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Competition data stays siloed"
+      - paragraph
+        - StaticText "WODsmith's multi-tenant architecture eliminates these problems while maintaining proper data isolation between organizations."
+      - heading "Workouts: Structured Flexibility Direct link to Workouts: Structured Flexibility" [level=2, ref=e12]
+        - StaticText "Workouts: Structured Flexibility"
+        - link "Direct link to Workouts: Structured Flexibility"
+          - StaticText "#"
+      - paragraph
+        - StaticText "CrossFit workouts follow predictable patterns, but each gym expresses them differently. WODsmith balances structure with flexibility."
+      - heading "The Workout Type System Direct link to The Workout Type System" [level=3, ref=e13]
+        - StaticText "The Workout Type System"
+        - link "Direct link to The Workout Type System"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Every workout fits into a type: AMRAP, For Time, EMOM, Strength, and others. This isn't just categorization—it determines:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Scoring logic"
+          - StaticText ": How results are recorded and compared"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Tiebreaker rules"
+          - StaticText ": How equal scores resolve"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Display format"
+          - StaticText ": How the workout appears to athletes"
+      - paragraph
+        - StaticText "By understanding the type, WODsmith automatically handles scoring complexity that would otherwise require manual calculation."
+      - heading "Movements and the Library Direct link to Movements and the Library" [level=3, ref=e14]
+        - StaticText "Movements and the Library"
+        - link "Direct link to Movements and the Library"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Workouts contain movements from a shared library. This approach provides several benefits:"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - strong
+            - StaticText "Consistency"
+          - StaticText ": \"Pull-up\" means the same thing everywhere"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - strong
+            - StaticText "Tracking"
+          - StaticText ": Athletes can see all their pull-up work across workouts"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - strong
+            - StaticText "Standards"
+          - StaticText ": Movement standards link to video demonstrations"
+        - listitem [level=1]
+          - ListMarker "4. "
+          - strong
+            - StaticText "Scaling"
+          - StaticText ": Each movement knows its common substitutions"
+      - heading "Programming: Structure Over Time Direct link to Programming: Structure Over Time" [level=2, ref=e15]
+        - StaticText "Programming: Structure Over Time"
+        - link "Direct link to Programming: Structure Over Time"
+          - StaticText "#"
+      - paragraph
+        - StaticText "While individual workouts are points in time, "
+        - strong
+          - StaticText "programming"
+        - StaticText " provides structure across time."
+      - heading "Tracks and Purpose Direct link to Tracks and Purpose" [level=3, ref=e16]
+        - StaticText "Tracks and Purpose"
+        - link "Direct link to Tracks and Purpose"
+          - StaticText "#"
+      - paragraph
+        - StaticText "A programming track represents a distinct training purpose: the daily WOD, competition preparation, foundations classes. Separating tracks allows:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Different audiences to see relevant programming"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Coaches to plan specialized training cycles"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Historical analysis of training patterns"
+      - heading "The Calendar as Interface Direct link to The Calendar as Interface" [level=3, ref=e17]
+        - StaticText "The Calendar as Interface"
+        - link "Direct link to The Calendar as Interface"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Most gym members think in calendar terms: \"What's the workout tomorrow?\" WODsmith's programming interface mirrors this mental model."
+      - paragraph
+        - StaticText "Rather than navigating complex menus, coaches drop workouts onto dates. Athletes see their training laid out like any other calendar."
+      - heading "Competitions: Events at Scale Direct link to Competitions: Events at Scale" [level=2, ref=e18]
+        - StaticText "Competitions: Events at Scale"
+        - link "Direct link to Competitions: Events at Scale"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Competitions amplify normal gym operations: more athletes, more structure, higher stakes. WODsmith's competition features address these differences."
+      - heading "Divisions: Organized Fairness Direct link to Divisions: Organized Fairness" [level=3, ref=e19]
+        - StaticText "Divisions: Organized Fairness"
+        - link "Direct link to Divisions: Organized Fairness"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Not every athlete competes under the same standards. Divisions create fair competition by grouping athletes appropriately."
+      - paragraph
+        - StaticText "The division system handles:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Ability levels"
+          - StaticText ": RX, Scaled, Intermediate"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Age groups"
+          - StaticText ": Masters, Teens"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Team formats"
+          - StaticText ": Pairs, Teams of 4"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Custom combinations"
+          - StaticText ": Any criteria organizers need"
+      - heading "Heats: Managing Time and Space Direct link to Heats: Managing Time and Space" [level=3, ref=e20]
+        - StaticText "Heats: Managing Time and Space"
+        - link "Direct link to Heats: Managing Time and Space"
+          - StaticText "#"
+      - paragraph
+        - StaticText "A competition with 100 athletes can't run everyone simultaneously. Heats solve the logistics problem by scheduling small groups."
+      - paragraph
+        - StaticText "Heat management considers:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Lane availability"
+          - StaticText ": Physical space constraints"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Judge capacity"
+          - StaticText ": Scoring resources"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Transition time"
+          - StaticText ": Realistic turnaround between groups"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Athlete experience"
+          - StaticText ": Reasonable wait times"
+      - heading "Scoring: Truth Under Pressure Direct link to Scoring: Truth Under Pressure" [level=3, ref=e21]
+        - StaticText "Scoring: Truth Under Pressure"
+        - link "Direct link to Scoring: Truth Under Pressure"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Competition scoring must be fast, accurate, and auditable. WODsmith's scoring system prioritizes:"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - strong
+            - StaticText "Real-time entry"
+          - StaticText ": Judges input scores immediately"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - strong
+            - StaticText "Automatic ranking"
+          - StaticText ": No manual calculations"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - strong
+            - StaticText "Tiebreaker application"
+          - StaticText ": Consistent rule enforcement"
+        - listitem [level=1]
+          - ListMarker "4. "
+          - strong
+            - StaticText "Audit trail"
+          - StaticText ": Every change tracked"
+      - heading "The WODsmith Philosophy Direct link to The WODsmith Philosophy" [level=2, ref=e22]
+        - StaticText "The WODsmith Philosophy"
+        - link "Direct link to The WODsmith Philosophy"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Several principles guide WODsmith's design:"
+      - heading "Gym-First Thinking Direct link to Gym-First Thinking" [level=3, ref=e23]
+        - StaticText "Gym-First Thinking"
+        - link "Direct link to Gym-First Thinking"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Features emerge from real gym needs, not abstract software patterns. Every decision asks: \"Does this help a gym owner, coach, or athlete?\""
+      - heading "Progressive Complexity Direct link to Progressive Complexity" [level=3, ref=e24]
+        - StaticText "Progressive Complexity"
+        - link "Direct link to Progressive Complexity"
+          - StaticText "#"
+      - paragraph
+        - StaticText "New users start with simple features. Advanced capabilities reveal themselves as needed. A first-time user shouldn't feel overwhelmed by competition management tools."
+      - heading "Data Belongs to Users Direct link to Data Belongs to Users" [level=3, ref=e25]
+        - StaticText "Data Belongs to Users"
+        - link "Direct link to Data Belongs to Users"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Athletes own their scores. Gyms own their programming. Competitions own their results. WODsmith facilitates access and analysis without claiming ownership."
+      - heading "Built for Scale Direct link to Built for Scale" [level=3, ref=e26]
+        - StaticText "Built for Scale"
+        - link "Direct link to Built for Scale"
+          - StaticText "#"
+      - paragraph
+        - StaticText "From a small garage gym to a multi-location affiliate, from an in-house throwdown to a national competition—the same platform handles both extremes."
+      - separator
+      - paragraph
+        - emphasis
+          - StaticText "Continue learning: "
+          - link "The Competition Day Flow"
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « Concepts"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "Concepts"
+      - link "Next The Competition Day Flow »"
+        - StaticText "Next"
+        - generic
+          - StaticText "The Competition Day Flow"
+          - StaticText " »"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

@@ -1,0 +1,448 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - button "Toggle navigation bar" [expanded=false, ref=e4]
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "Concepts"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "The Division System"
+      - button "On this page"
+      - sectionheader
+        - heading "The Division System" [level=1, ref=e40]
+      - paragraph
+        - StaticText "How WODsmith organizes athletes into fair competitive groups."
+      - heading "The Fairness Problem Direct link to The Fairness Problem" [level=2, ref=e9]
+        - StaticText "The Fairness Problem"
+        - link "Direct link to The Fairness Problem"
+          - StaticText "#"
+      - paragraph
+        - StaticText "CrossFit competitions attract diverse athletes: elite competitors and weekend warriors, 25-year-olds and 55-year-olds, men and women. Putting everyone in a single ranking wouldn't be fair or interesting."
+      - paragraph
+        - StaticText "Divisions solve this by creating groups where athletes compete against similar peers."
+      - heading "Division Types Direct link to Division Types" [level=2, ref=e10]
+        - StaticText "Division Types"
+        - link "Direct link to Division Types"
+          - StaticText "#"
+      - heading "Ability-Based Divisions Direct link to Ability-Based Divisions" [level=3, ref=e11]
+        - StaticText "Ability-Based Divisions"
+        - link "Direct link to Ability-Based Divisions"
+          - StaticText "#"
+      - paragraph
+        - StaticText "The most common split: RX vs Scaled."
+      - paragraph
+        - strong
+          - StaticText "RX (Prescribed)"
+        - StaticText ": Athletes perform movements as written with prescribed weights. Standards match competitive CrossFit."
+      - paragraph
+        - strong
+          - StaticText "Scaled"
+        - StaticText ": Modified movements and reduced weights make workouts accessible while maintaining intensity."
+      - paragraph
+        - StaticText "This split emerged from CrossFit's core philosophy: workouts should challenge everyone. A 315lb deadlift challenges an elite athlete; 185lb challenges someone newer to the sport. Both can compete meaningfully within their division."
+      - paragraph
+        - strong
+          - StaticText "Intermediate divisions"
+        - StaticText " fill the gap for athletes too advanced for Scaled but not ready for RX competition."
+      - heading "Age-Based Divisions Direct link to Age-Based Divisions" [level=3, ref=e12]
+        - StaticText "Age-Based Divisions"
+        - link "Direct link to Age-Based Divisions"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Physical capacity changes with age. Age divisions acknowledge this reality:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Teen (14-17)"
+          - StaticText ": Still developing athletes"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Masters (35+)"
+          - StaticText ": Age-grouped in 5-year brackets"
+      - paragraph
+        - StaticText "Age divisions often combine with ability levels: Masters 40+ RX, Masters 40+ Scaled, etc."
+      - heading "Gender Divisions Direct link to Gender Divisions" [level=3, ref=e13]
+        - StaticText "Gender Divisions"
+        - link "Direct link to Gender Divisions"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Men's and women's divisions recognize physiological differences in strength and power output. Prescribed weights differ accordingly."
+      - paragraph
+        - StaticText "The competitive CrossFit community continues evolving on gender inclusion. WODsmith supports configurable gender options to match competition policies."
+      - heading "Team Divisions Direct link to Team Divisions" [level=3, ref=e14]
+        - StaticText "Team Divisions"
+        - link "Direct link to Team Divisions"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Team competitions add coordination to physical challenge:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Pairs"
+          - StaticText ": Two athletes share work"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Teams of 4"
+          - StaticText ": Larger groups with more strategic options"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Mixed vs Same-Gender"
+          - StaticText ": Different dynamics and requirements"
+      - paragraph
+        - StaticText "Team divisions create unique experiences. Athletes succeed or fail together. Strategy matters alongside fitness."
+      - heading "How Divisions Interact with Events Direct link to How Divisions Interact with Events" [level=2, ref=e15]
+        - StaticText "How Divisions Interact with Events"
+        - link "Direct link to How Divisions Interact with Events"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Divisions aren't just about rankings—they affect the workouts themselves."
+      - heading "Division-Specific Standards Direct link to Division-Specific Standards" [level=3, ref=e16]
+        - StaticText "Division-Specific Standards"
+        - link "Direct link to Division-Specific Standards"
+          - StaticText "#"
+      - paragraph
+        - StaticText "The same workout often has different requirements per division:"
+      - paragraph
+        - strong
+          - StaticText "Event: \"Fran\""
+      - table
+        - rowgroup
+          - row
+            - columnheader "Division"
+            - columnheader "Thrusters"
+            - columnheader "Pull-ups"
+        - row
+          - cell "RX Male"
+          - cell "95 lb"
+          - cell "Chest-to-bar"
+        - row
+          - cell "RX Female"
+          - cell "65 lb"
+          - cell "Chest-to-bar"
+        - row
+          - cell "Scaled Male"
+          - cell "65 lb"
+          - cell "Jumping"
+        - row
+          - cell "Scaled Female"
+          - cell "45 lb"
+          - cell "Jumping"
+      - paragraph
+        - StaticText "WODsmith tracks these variations automatically. Athletes see their division's standards; judges know what to enforce."
+      - heading "Shared vs Separate Events Direct link to Shared vs Separate Events" [level=3, ref=e17]
+        - StaticText "Shared vs Separate Events"
+        - link "Direct link to Shared vs Separate Events"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Some competitions run identical workouts across divisions (varying only weights and standards). Others create entirely different workouts per division."
+      - paragraph
+        - strong
+          - StaticText "Shared workout approach"
+        - StaticText ":"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Simpler programming"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Easier comparison across divisions"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Constraints on movement selection"
+      - paragraph
+        - strong
+          - StaticText "Division-specific workouts"
+        - StaticText ":"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Tailored to each group's capabilities"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "More complex to manage"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Freedom in programming"
+      - heading "Division Capacity Management Direct link to Division Capacity Management" [level=2, ref=e18]
+        - StaticText "Division Capacity Management"
+        - link "Direct link to Division Capacity Management"
+          - StaticText "#"
+      - heading "Setting Limits Direct link to Setting Limits" [level=3, ref=e19]
+        - StaticText "Setting Limits"
+        - link "Direct link to Setting Limits"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Each division has a capacity: maximum athletes who can compete. This constraint comes from:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Space/time"
+          - StaticText ": More athletes = longer event"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Competitiveness"
+          - StaticText ": Very large divisions dilute competition quality"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Economics"
+          - StaticText ": Registration fees, prize pools, etc."
+      - heading "Waitlists Direct link to Waitlists" [level=3, ref=e20]
+        - StaticText "Waitlists"
+        - link "Direct link to Waitlists"
+          - StaticText "#"
+      - paragraph
+        - StaticText "When a division fills, athletes join a waitlist. This creates:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Prioritized backup if spots open"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Data on unmet demand (useful for future events)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Clear communication about status"
+      - heading "Division Transfers Direct link to Division Transfers" [level=3, ref=e21]
+        - StaticText "Division Transfers"
+        - link "Direct link to Division Transfers"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Athletes sometimes need to change divisions:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Injury prevents RX standards"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Miscalculated ability level"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Category change (age, team composition)"
+      - paragraph
+        - StaticText "WODsmith supports transfers with organizer approval. The audit trail tracks all changes."
+      - heading "The Registration Flow Direct link to The Registration Flow" [level=2, ref=e22]
+        - StaticText "The Registration Flow"
+        - link "Direct link to The Registration Flow"
+          - StaticText "#"
+      - paragraph
+        - StaticText "From an athlete's perspective, division selection happens during registration:"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "View available divisions"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Read requirements/standards"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Select appropriate division"
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Complete registration"
+      - paragraph
+        - strong
+          - StaticText "Design consideration"
+        - StaticText ": Make requirements crystal clear. Athletes who register for the wrong division create problems for everyone."
+      - heading "Division Strategy for Organizers Direct link to Division Strategy for Organizers" [level=2, ref=e23]
+        - StaticText "Division Strategy for Organizers"
+        - link "Direct link to Division Strategy for Organizers"
+          - StaticText "#"
+      - heading "How Many Divisions? Direct link to How Many Divisions?" [level=3, ref=e24]
+        - StaticText "How Many Divisions?"
+        - link "Direct link to How Many Divisions?"
+          - StaticText "#"
+      - paragraph
+        - StaticText "More divisions = More athletes accommodated + More complexity"
+      - paragraph
+        - StaticText "The right answer depends on:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Expected athlete count"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Competition format (single day vs weekend)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Venue capacity"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Volunteer/judge availability"
+      - paragraph
+        - strong
+          - StaticText "Rule of thumb"
+        - StaticText ": Start with fewer divisions. Expand only when demand clearly justifies complexity."
+      - heading "Pricing by Division Direct link to Pricing by Division" [level=3, ref=e25]
+        - StaticText "Pricing by Division"
+        - link "Direct link to Pricing by Division"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Different divisions can have different entry fees:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "RX often costs more (implies more competitive, longer events)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Team divisions cost more per person (larger prize pools)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Age divisions sometimes discounted (community building)"
+      - paragraph
+        - StaticText "WODsmith supports per-division pricing."
+      - heading "Combining Divisions Direct link to Combining Divisions" [level=3, ref=e26]
+        - StaticText "Combining Divisions"
+        - link "Direct link to Combining Divisions"
+          - StaticText "#"
+      - paragraph
+        - StaticText "When division registration is unexpectedly low, organizers might combine:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Scaled Male + Scaled Female → Scaled Open"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Masters 50+ → Combined Masters (45+)"
+      - paragraph
+        - StaticText "This maintains competitive fields while reducing scheduling complexity."
+      - heading "Fairness Enforcement Direct link to Fairness Enforcement" [level=2, ref=e27]
+        - StaticText "Fairness Enforcement"
+        - link "Direct link to Fairness Enforcement"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Divisions only work when athletes compete within their declared capabilities."
+      - heading "Standards Enforcement Direct link to Standards Enforcement" [level=3, ref=e28]
+        - StaticText "Standards Enforcement"
+        - link "Direct link to Standards Enforcement"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Judges enforce movement standards per division. An athlete in Scaled who attempts RX movements receives no advantage."
+      - heading "Verification Direct link to Verification" [level=3, ref=e29]
+        - StaticText "Verification"
+        - link "Direct link to Verification"
+          - StaticText "#"
+      - paragraph
+        - StaticText "For age divisions, organizers may require:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Birth date verification"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Government ID check"
+      - paragraph
+        - StaticText "For ability divisions, some competitions use:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Qualification standards"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Previous competition results"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Video submissions"
+      - heading "Disputes and Penalties Direct link to Disputes and Penalties" [level=3, ref=e30]
+        - StaticText "Disputes and Penalties"
+        - link "Direct link to Disputes and Penalties"
+          - StaticText "#"
+      - paragraph
+        - StaticText "When athletes compete outside their division's standards:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Penalties (time or rep additions)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Score invalidation"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Disqualification"
+      - paragraph
+        - StaticText "WODsmith tracks score adjustments and their reasons."
+      - heading "The Future of Divisions Direct link to The Future of Divisions" [level=2, ref=e31]
+        - StaticText "The Future of Divisions"
+        - link "Direct link to The Future of Divisions"
+          - StaticText "#"
+      - paragraph
+        - StaticText "CrossFit competition continues evolving. Emerging patterns include:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Adaptive athlete divisions"
+          - StaticText ": Athletes with physical disabilities"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Algorithm-based handicapping"
+          - StaticText ": Individual adjustments rather than broad categories"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Open divisions"
+          - StaticText ": Self-selected standards with normalized scoring"
+      - paragraph
+        - StaticText "WODsmith's flexible division system accommodates experimentation while maintaining the fundamentals that make competition fair and engaging."
+      - separator
+      - paragraph
+        - emphasis
+          - StaticText "Return to: "
+          - link "Core Concepts Overview"
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « Heat Scheduling Strategy"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "Heat Scheduling Strategy"
+      - link "Next Three Perspectives: Athlete, Organizer, Judge»"
+        - StaticText "Next"
+        - generic
+          - StaticText "Three Perspectives: Athlete, Organizer, Judge"
+          - StaticText "»"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

@@ -1,0 +1,190 @@
+{
+  "effectiveTheme": "light",
+  "finalUrl": "https://docs.wodsmith.com/reference/scoring/",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "Scoring Rules Reference"
+    },
+    {
+      "level": 2,
+      "text": "Score Types​"
+    },
+    {
+      "level": 3,
+      "text": "When to Use Each Type​"
+    },
+    {
+      "level": 2,
+      "text": "Tiebreak Schemes​"
+    },
+    {
+      "level": 3,
+      "text": "Common Tiebreak Scenarios​"
+    },
+    {
+      "level": 2,
+      "text": "Score Entry Formats​"
+    },
+    {
+      "level": 3,
+      "text": "Time Format​"
+    },
+    {
+      "level": 3,
+      "text": "Rounds + Reps Format​"
+    },
+    {
+      "level": 3,
+      "text": "Weight Format​"
+    },
+    {
+      "level": 3,
+      "text": "Integer Scores​"
+    },
+    {
+      "level": 2,
+      "text": "Competition Ranking​"
+    },
+    {
+      "level": 3,
+      "text": "Points-Based Ranking​"
+    },
+    {
+      "level": 3,
+      "text": "Place-Based Ranking​"
+    },
+    {
+      "level": 3,
+      "text": "Points Multiplier​"
+    },
+    {
+      "level": 2,
+      "text": "Cap Scoring​"
+    },
+    {
+      "level": 3,
+      "text": "Ranking Logic​"
+    },
+    {
+      "level": 2,
+      "text": "Division Scoring​"
+    },
+    {
+      "level": 2,
+      "text": "DNS/DNF/WD Status​"
+    },
+    {
+      "level": 2,
+      "text": "Score Validation​"
+    },
+    {
+      "level": 2,
+      "text": "Auto-Save Behavior​"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "Main",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "Docs sidebar",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "Breadcrumbs",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    },
+    {
+      "label": "Docs pages",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "footer"
+    }
+  ],
+  "language": "en",
+  "tables": [
+    {
+      "headers": [
+        "Score Type",
+        "Display Name",
+        "Description"
+      ],
+      "rowCount": 5
+    },
+    {
+      "headers": [
+        "Scheme",
+        "Description"
+      ],
+      "rowCount": 3
+    },
+    {
+      "headers": [
+        "Workout Type",
+        "Primary Score",
+        "Tiebreak",
+        "Example"
+      ],
+      "rowCount": 3
+    },
+    {
+      "headers": [
+        "Position",
+        "Points"
+      ],
+      "rowCount": 6
+    },
+    {
+      "headers": [
+        "Position",
+        "Points"
+      ],
+      "rowCount": 4
+    },
+    {
+      "headers": [
+        "Status",
+        "Meaning",
+        "Ranking"
+      ],
+      "rowCount": 3
+    },
+    {
+      "headers": [
+        "Scheme",
+        "Valid Format",
+        "Invalid"
+      ],
+      "rowCount": 4
+    }
+  ],
+  "title": "Scoring Rules Reference | WODsmith Docs",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 8091,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

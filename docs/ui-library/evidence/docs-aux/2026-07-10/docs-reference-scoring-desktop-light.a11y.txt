@@ -1,0 +1,556 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+    - link "Documentation"
+    - link "App (opens in new tab)"
+      - StaticText "App"
+      - image "(opens in new tab)"
+    - link "GitHub (opens in new tab)"
+      - StaticText "GitHub"
+      - image "(opens in new tab)"
+    - button "Switch between dark and light mode (currently system mode)"
+  - complementary
+    - navigation "Docs sidebar"
+      - list
+        - listitem [level=1]
+          - link "Welcome to WODsmith"
+            - StaticText "Welcome to WODsmith"
+        - listitem [level=1]
+          - generic
+            - link "Tutorials"
+              - StaticText "Tutorials"
+            - button "Expand sidebar category 'Tutorials'" [expanded=false, ref=e177]
+        - listitem [level=1]
+          - generic
+            - link "How-to Guides"
+              - StaticText "How-to Guides"
+            - button "Expand sidebar category 'How-to Guides'" [expanded=false, ref=e179]
+        - listitem [level=1]
+          - generic
+            - link "Reference"
+              - StaticText "Reference"
+            - button "Collapse sidebar category 'Reference'" [expanded=true, ref=e181]
+          - list
+            - listitem [level=2]
+              - link "Workout Types Reference"
+                - StaticText "Workout Types Reference"
+            - listitem [level=2]
+              - link "Scoring Rules Reference"
+                - StaticText "Scoring Rules Reference"
+            - listitem [level=2]
+              - link "Team Roles Reference"
+                - StaticText "Team Roles Reference"
+            - listitem [level=2]
+              - link "Divisions Reference"
+                - StaticText "Divisions Reference"
+            - listitem [level=2]
+              - link "Competition Settings Reference"
+                - StaticText "Competition Settings Reference"
+            - listitem [level=2]
+              - link "Broadcasts"
+                - StaticText "Broadcasts"
+        - listitem [level=1]
+          - generic
+            - link "Concepts"
+              - StaticText "Concepts"
+            - button "Expand sidebar category 'Concepts'" [expanded=false, ref=e183]
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "Reference"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "Scoring Rules Reference"
+      - sectionheader
+        - heading "Scoring Rules Reference" [level=1, ref=e39]
+      - paragraph
+        - StaticText "Technical specifications for scoring, ranking, and tiebreaker calculations."
+      - heading "Score Types Direct link to Score Types" [level=2, ref=e12]
+        - StaticText "Score Types"
+        - link "Direct link to Score Types"
+          - StaticText "#"
+      - paragraph
+        - StaticText "When configuring a competition event, you can specify how multiple sets/rounds are aggregated into a final score."
+      - paragraph
+        - image "Score Type Dropdown"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Score Type"
+            - columnheader "Display Name"
+            - columnheader "Description"
+        - row
+          - cell "none"
+            - code
+              - StaticText "none"
+          - cell "None"
+          - cell "No aggregation, raw score used"
+        - row
+          - cell "min"
+            - code
+              - StaticText "min"
+          - cell "Min (lowest single set wins)"
+          - cell "Best (lowest) score across rounds"
+        - row
+          - cell "max"
+            - code
+              - StaticText "max"
+          - cell "Max (highest single set wins)"
+          - cell "Best (highest) score across rounds"
+        - row
+          - cell "sum"
+            - code
+              - StaticText "sum"
+          - cell "Sum (total across rounds)"
+          - cell "Total of all round scores"
+        - row
+          - cell "average"
+            - code
+              - StaticText "average"
+          - cell "Average (mean across rounds)"
+          - cell "Mean of all round scores"
+      - heading "When to Use Each Type Direct link to When to Use Each Type" [level=3, ref=e13]
+        - StaticText "When to Use Each Type"
+        - link "Direct link to When to Use Each Type"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Min"
+          - StaticText ": For Time workouts where lowest time wins"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Max"
+          - StaticText ": AMRAP, Max Reps, Max Load where highest wins"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Sum"
+          - StaticText ": Multi-round workouts where total matters"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Average"
+          - StaticText ": Normalized scoring across different round counts"
+      - heading "Tiebreak Schemes Direct link to Tiebreak Schemes" [level=2, ref=e14]
+        - StaticText "Tiebreak Schemes"
+        - link "Direct link to Tiebreak Schemes"
+          - StaticText "#"
+      - paragraph
+        - StaticText "When athletes have equal primary scores, the tiebreak scheme determines the winner."
+      - paragraph
+        - image "Tiebreak Dropdown"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Scheme"
+            - columnheader "Description"
+        - row
+          - cell "none"
+            - code
+              - StaticText "none"
+          - cell "No tiebreaker (tied athletes share placement)"
+        - row
+          - cell "time"
+            - code
+              - StaticText "time"
+          - cell "Time to reach a specific rep count or round"
+        - row
+          - cell "reps"
+            - code
+              - StaticText "reps"
+          - cell "Reps completed at a specific time checkpoint"
+      - heading "Common Tiebreak Scenarios Direct link to Common Tiebreak Scenarios" [level=3, ref=e15]
+        - StaticText "Common Tiebreak Scenarios"
+        - link "Direct link to Common Tiebreak Scenarios"
+          - StaticText "#"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Workout Type"
+            - columnheader "Primary Score"
+            - columnheader "Tiebreak"
+            - columnheader "Example"
+        - row
+          - cell "AMRAP"
+          - cell "Rounds+Reps"
+          - cell "Time"
+          - cell "Time to complete last full round"
+        - row
+          - cell "For Time"
+          - cell "Time"
+          - cell "-"
+          - cell "N/A (time is already precise)"
+        - row
+          - cell "Max Load"
+          - cell "Weight"
+          - cell "Fewer attempts"
+          - cell "Athlete with fewer attempts at max weight wins"
+      - heading "Score Entry Formats Direct link to Score Entry Formats" [level=2, ref=e16]
+        - StaticText "Score Entry Formats"
+        - link "Direct link to Score Entry Formats"
+          - StaticText "#"
+      - paragraph
+        - image "Score Entry for Time"
+      - heading "Time Format Direct link to Time Format" [level=3, ref=e17]
+        - StaticText "Time Format"
+        - link "Direct link to Time Format"
+          - StaticText "#"
+      - generic
+        - generic focusable [tabindex]
+          - code
+            - StaticText "MM:SS       # Minutes:Seconds (e.g., 3:45)"
+            - LineBreak "\n"
+            - StaticText "M:SS        # Single digit minutes (e.g., 8:42)"
+            - LineBreak "\n"
+            - StaticText "H:MM:SS     # Hours:Minutes:Seconds (e.g., 1:05:30)"
+            - LineBreak "\n"
+            - StaticText "SS          # Seconds only (e.g., 90 = 1:30)"
+            - LineBreak "\n"
+        - button "Copy code to clipboard"
+      - paragraph
+        - StaticText "Valid examples: "
+        - code
+          - StaticText "8:42"
+        - StaticText ", "
+        - code
+          - StaticText "12:05"
+        - StaticText ", "
+        - code
+          - StaticText "0:59"
+        - StaticText ", "
+        - code
+          - StaticText "3:45.000"
+      - heading "Rounds + Reps Format Direct link to Rounds + Reps Format" [level=3, ref=e18]
+        - StaticText "Rounds + Reps Format"
+        - link "Direct link to Rounds + Reps Format"
+          - StaticText "#"
+      - generic
+        - generic focusable [tabindex]
+          - code
+            - StaticText "R+r         # Rounds + Reps (e.g., 5+12)"
+            - LineBreak "\n"
+            - StaticText "R.r         # Alternative format (e.g., 5.12)"
+            - LineBreak "\n"
+        - button "Copy code to clipboard"
+      - paragraph
+        - StaticText "Valid examples: "
+        - code
+          - StaticText "5+12"
+        - StaticText ", "
+        - code
+          - StaticText "10+0"
+        - StaticText ", "
+        - code
+          - StaticText "7+15"
+      - heading "Weight Format Direct link to Weight Format" [level=3, ref=e19]
+        - StaticText "Weight Format"
+        - link "Direct link to Weight Format"
+          - StaticText "#"
+      - generic
+        - generic focusable [tabindex]
+          - code
+            - StaticText "NNN         # Whole number (e.g., 225)"
+            - LineBreak "\n"
+            - StaticText "NNN.N       # Decimal allowed (e.g., 102.5)"
+            - LineBreak "\n"
+        - button "Copy code to clipboard"
+      - paragraph
+        - StaticText "Note: Units (lbs/kg) are not entered with the score."
+      - heading "Integer Scores Direct link to Integer Scores" [level=3, ref=e20]
+        - StaticText "Integer Scores"
+        - link "Direct link to Integer Scores"
+          - StaticText "#"
+      - paragraph
+        - StaticText "For reps, calories, points, meters, and feet:"
+      - generic
+        - generic focusable [tabindex]
+          - code
+            - StaticText "NNN         # Whole number only (e.g., 150)"
+            - LineBreak "\n"
+        - button "Copy code to clipboard"
+      - heading "Competition Ranking Direct link to Competition Ranking" [level=2, ref=e21]
+        - StaticText "Competition Ranking"
+        - link "Direct link to Competition Ranking"
+          - StaticText "#"
+      - heading "Points-Based Ranking Direct link to Points-Based Ranking" [level=3, ref=e22]
+        - StaticText "Points-Based Ranking"
+        - link "Direct link to Points-Based Ranking"
+          - StaticText "#"
+      - paragraph
+        - StaticText "In competition mode, athletes receive placement points based on finish position per event. The overall ranking is determined by total points."
+      - table
+        - rowgroup
+          - row
+            - columnheader "Position"
+            - columnheader "Points"
+        - row
+          - cell "1st"
+          - cell "100"
+        - row
+          - cell "2nd"
+          - cell "95"
+        - row
+          - cell "3rd"
+          - cell "90"
+        - row
+          - cell "4th"
+          - cell "86"
+        - row
+          - cell "5th"
+          - cell "83"
+        - row
+          - cell "6th+"
+          - cell "83 - (position - 5)"
+      - paragraph
+        - StaticText "Overall ranking = Sum of event points (highest total wins)."
+      - heading "Place-Based Ranking Direct link to Place-Based Ranking" [level=3, ref=e23]
+        - StaticText "Place-Based Ranking"
+        - link "Direct link to Place-Based Ranking"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Alternative system using simple placement points:"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Position"
+            - columnheader "Points"
+        - row
+          - cell "1st"
+          - cell "1"
+        - row
+          - cell "2nd"
+          - cell "2"
+        - row
+          - cell "3rd"
+          - cell "3"
+        - row
+          - cell "nth"
+          - cell "n"
+      - paragraph
+        - StaticText "Overall ranking = Sum of placements (lowest total wins)."
+      - heading "Points Multiplier Direct link to Points Multiplier" [level=3, ref=e24]
+        - StaticText "Points Multiplier"
+        - link "Direct link to Points Multiplier"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Competition events can have a "
+        - strong
+          - StaticText "Points Multiplier"
+        - StaticText " (100% = normal, 200% = 2x points) to weight certain events more heavily in overall standings."
+      - paragraph
+        - image "Event Edit with Points Multiplier"
+      - heading "Cap Scoring Direct link to Cap Scoring" [level=2, ref=e25]
+        - StaticText "Cap Scoring"
+        - link "Direct link to Cap Scoring"
+          - StaticText "#"
+      - paragraph
+        - StaticText "When athletes don't complete a For Time workout within the time cap:"
+      - generic
+        - generic focusable [tabindex]
+          - code
+            - StaticText "CAP + (remaining reps)"
+            - LineBreak "\n"
+        - button "Copy code to clipboard"
+      - heading "Ranking Logic Direct link to Ranking Logic" [level=3, ref=e26]
+        - StaticText "Ranking Logic"
+        - link "Direct link to Ranking Logic"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Athletes who finish beat all capped athletes"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Among capped athletes, fewer remaining reps = better finish"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Athletes with same remaining reps are tied"
+      - heading "Division Scoring Direct link to Division Scoring" [level=2, ref=e27]
+        - StaticText "Division Scoring"
+        - link "Direct link to Division Scoring"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Each division maintains its own:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Leaderboard"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Rankings"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Score comparisons"
+      - paragraph
+        - StaticText "Athletes in different divisions (RX, Scaled, Masters, etc.) do not compete against each other for placement points."
+      - heading "DNS/DNF/WD Status Direct link to DNS/DNF/WD Status" [level=2, ref=e28]
+        - StaticText "DNS/DNF/WD Status"
+        - link "Direct link to DNS/DNF/WD Status"
+          - StaticText "#"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Status"
+            - columnheader "Meaning"
+            - columnheader "Ranking"
+        - row
+          - cell "DNS"
+            - strong
+              - StaticText "DNS"
+          - cell "Did Not Start"
+          - cell "Last in event (receives lowest possible points)"
+        - row
+          - cell "DNF"
+            - strong
+              - StaticText "DNF"
+          - cell "Did Not Finish"
+          - cell "Below all finishers, above DNS"
+        - row
+          - cell "WD"
+            - strong
+              - StaticText "WD"
+          - cell "Withdrawn"
+          - cell "Removed from rankings entirely"
+      - heading "Score Validation Direct link to Score Validation" [level=2, ref=e29]
+        - StaticText "Score Validation"
+        - link "Direct link to Score Validation"
+          - StaticText "#"
+      - paragraph
+        - StaticText "The app validates scores based on the event's scheme:"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Scheme"
+            - columnheader "Valid Format"
+            - columnheader "Invalid"
+        - row
+          - cell "Time"
+          - cell "8:42, 12:05, 0:59, 90"
+          - cell "8.42, 8-42"
+        - row
+          - cell "Rounds+Reps"
+          - cell "5+12, 10+0, 5.12"
+          - cell "5/12, 5:12"
+        - row
+          - cell "Load"
+          - cell "225, 102.5"
+          - cell "225lbs, 102.5kg"
+        - row
+          - cell "Reps/Points/etc."
+          - cell "150, 50"
+          - cell "150.5, -10"
+      - heading "Auto-Save Behavior Direct link to Auto-Save Behavior" [level=2, ref=e30]
+        - StaticText "Auto-Save Behavior"
+        - link "Direct link to Auto-Save Behavior"
+          - StaticText "#"
+      - paragraph
+        - StaticText "When entering results in the competition results screen:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Scores auto-save as you type (after brief debounce)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "A \"Saved\" indicator appears next to each score"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Preview shows formatted score before saving"
+      - separator
+      - paragraph
+        - emphasis
+          - StaticText "See also: "
+          - link "Workout Types Reference"
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « Workout Types Reference"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "Workout Types Reference"
+      - link "Next Team Roles Reference »"
+        - StaticText "Next"
+        - generic
+          - StaticText "Team Roles Reference"
+          - StaticText " »"
+    - list
+      - listitem [level=1]
+        - link "Score Types"
+        - list
+          - listitem [level=2]
+            - link "When to Use Each Type"
+      - listitem [level=1]
+        - link "Tiebreak Schemes"
+        - list
+          - listitem [level=2]
+            - link "Common Tiebreak Scenarios"
+      - listitem [level=1]
+        - link "Score Entry Formats"
+        - list
+          - listitem [level=2]
+            - link "Time Format"
+          - listitem [level=2]
+            - link "Rounds + Reps Format"
+          - listitem [level=2]
+            - link "Weight Format"
+          - listitem [level=2]
+            - link "Integer Scores"
+      - listitem [level=1]
+        - link "Competition Ranking"
+        - list
+          - listitem [level=2]
+            - link "Points-Based Ranking"
+          - listitem [level=2]
+            - link "Place-Based Ranking"
+          - listitem [level=2]
+            - link "Points Multiplier"
+      - listitem [level=1]
+        - link "Cap Scoring"
+        - list
+          - listitem [level=2]
+            - link "Ranking Logic"
+      - listitem [level=1]
+        - link "Division Scoring"
+      - listitem [level=1]
+        - link "DNS/DNF/WD Status"
+      - listitem [level=1]
+        - link "Score Validation"
+      - listitem [level=1]
+        - link "Auto-Save Behavior"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."

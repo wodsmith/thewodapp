@@ -1,0 +1,323 @@
+- generic
+  - region "Skip to main content"
+    - link "Skip to main content"
+  - navigation "Main"
+    - button "Toggle navigation bar" [expanded=false, ref=e4]
+    - link "WODsmith Logo WODsmith"
+      - image "WODsmith Logo"
+      - StaticText "WODsmith"
+  - main
+    - article
+      - navigation "Breadcrumbs"
+        - list
+          - listitem [level=1]
+            - link "Home page"
+              - image
+            - StaticText "  "
+          - listitem [level=1]
+            - link "How-to Guides"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "For Organizers"
+            - StaticText "  "
+          - listitem [level=1]
+            - StaticText "How to Schedule Heats"
+      - button "On this page"
+      - sectionheader
+        - heading "How to Schedule Heats" [level=1, ref=e26]
+      - paragraph
+        - StaticText "Organize athletes into heats and create your event day schedule."
+      - heading "Prerequisites Direct link to Prerequisites" [level=2, ref=e9]
+        - StaticText "Prerequisites"
+        - link "Direct link to Prerequisites"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Competition with registrations"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Events configured"
+      - heading "Accessing the Schedule Direct link to Accessing the Schedule" [level=2, ref=e10]
+        - StaticText "Accessing the Schedule"
+        - link "Direct link to Accessing the Schedule"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Open your competition from "
+          - strong
+            - StaticText "ORGANIZE"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Schedule"
+          - StaticText " in the sidebar under \"Run Competition\""
+      - paragraph
+        - image "Schedule page overview"
+      - heading "Creating Venues Direct link to Creating Venues" [level=2, ref=e11]
+        - StaticText "Creating Venues"
+        - link "Direct link to Creating Venues"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Before creating heats, set up your venues (workout stations):"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Add Venue"
+          - StaticText " in the Venues section"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Enter venue details:"
+          - list
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - strong
+                - StaticText "Name"
+              - StaticText " - e.g., \"Main Floor\", \"Outside Rig\""
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - strong
+                - StaticText "Number of Lanes"
+              - StaticText " - Maximum athletes per heat"
+            - listitem [level=2]
+              - ListMarker "◦ "
+              - strong
+                - StaticText "Transition Time"
+              - StaticText " - Minutes between heats for setup"
+      - paragraph
+        - image "Create venue dialog"
+      - list
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Create"
+      - paragraph
+        - StaticText "Your venue now appears with lane count and transition time:"
+      - paragraph
+        - image "Schedule with venue created"
+      - heading "Creating Heats Direct link to Creating Heats" [level=2, ref=e12]
+        - StaticText "Creating Heats"
+        - link "Direct link to Creating Heats"
+          - StaticText "#"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Select an "
+          - strong
+            - StaticText "Event"
+          - StaticText " from the dropdown"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Select a "
+          - strong
+            - StaticText "Venue"
+          - StaticText " (optional but recommended)"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "Set the "
+          - strong
+            - StaticText "Cap"
+          - StaticText " time for the event"
+        - listitem [level=1]
+          - ListMarker "4. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Add Heat"
+      - paragraph
+        - image "Create heat dialog"
+      - paragraph
+        - StaticText "Configure the heat:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Scheduled Time"
+          - StaticText " - When this heat starts"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Venue"
+          - StaticText " - Which venue/station"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Duration"
+          - StaticText " - Workout cap + transition time"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Division Filter"
+          - StaticText " - Limit to specific division (optional)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - strong
+            - StaticText "Notes"
+          - StaticText " - Any additional info for judges"
+      - list
+        - listitem [level=1]
+          - ListMarker "5. "
+          - StaticText "Click "
+          - strong
+            - StaticText "Create Heat"
+      - heading "Assigning Athletes to Heats Direct link to Assigning Athletes to Heats" [level=2, ref=e13]
+        - StaticText "Assigning Athletes to Heats"
+        - link "Direct link to Assigning Athletes to Heats"
+          - StaticText "#"
+      - paragraph
+        - StaticText "To manually assign athletes:"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Click an athlete in the "
+          - strong
+            - StaticText "Unassigned Athletes"
+          - StaticText " list (they become selected)"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Click on an empty lane slot (L1, L2, L3, etc.) in a heat"
+        - listitem [level=1]
+          - ListMarker "3. "
+          - StaticText "The athlete is assigned to that lane"
+      - paragraph
+        - image "Athlete assigned to lane"
+      - paragraph
+        - StaticText "The heat card shows:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Lane number and athlete name"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Division badge (RX, Scaled, etc.)"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Assigned/Unassigned count"
+      - heading "Filtering Athletes Direct link to Filtering Athletes" [level=3, ref=e14]
+        - StaticText "Filtering Athletes"
+        - link "Direct link to Filtering Athletes"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Use the division dropdown in the Unassigned Athletes section to filter by division."
+      - heading "Heat Configuration Direct link to Heat Configuration" [level=2, ref=e15]
+        - StaticText "Heat Configuration"
+        - link "Direct link to Heat Configuration"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Each heat displays:"
+      - table
+        - rowgroup
+          - row
+            - columnheader "Element"
+            - columnheader "Description"
+        - row
+          - cell "Heat Number"
+            - strong
+              - StaticText "Heat Number"
+          - cell "Sequential heat order"
+        - row
+          - cell "Assigned Count"
+            - strong
+              - StaticText "Assigned Count"
+          - cell "Athletes assigned vs. venue capacity"
+        - row
+          - cell "Scheduled Time"
+            - strong
+              - StaticText "Scheduled Time"
+          - cell "Start time"
+        - row
+          - cell "Venue"
+            - strong
+              - StaticText "Venue"
+          - cell "Assigned location"
+        - row
+          - cell "Lane Slots"
+            - strong
+              - StaticText "Lane Slots"
+          - cell "Individual lane assignments"
+      - heading "Publishing the Schedule Direct link to Publishing the Schedule" [level=2, ref=e16]
+        - StaticText "Publishing the Schedule"
+        - link "Direct link to Publishing the Schedule"
+          - StaticText "#"
+      - paragraph
+        - StaticText "Control when athletes can see their heat assignments:"
+      - list
+        - listitem [level=1]
+          - ListMarker "1. "
+          - StaticText "Use the "
+          - strong
+            - StaticText "Heat Assignments"
+          - StaticText " dropdown"
+        - listitem [level=1]
+          - ListMarker "2. "
+          - StaticText "Select "
+          - strong
+            - StaticText "Draft"
+          - StaticText " (hidden) or "
+          - strong
+            - StaticText "Published"
+          - StaticText " (visible)"
+      - paragraph
+        - StaticText "When set to Draft, athletes cannot see heat assignments on the public schedule."
+      - heading "Schedule Overview Direct link to Schedule Overview" [level=2, ref=e17]
+        - StaticText "Schedule Overview"
+        - link "Direct link to Schedule Overview"
+          - StaticText "#"
+      - paragraph
+        - StaticText "The Schedule Overview section shows a timeline view:"
+      - list
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Events grouped by date"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Heat count per event"
+        - listitem [level=1]
+          - ListMarker "• "
+          - StaticText "Unscheduled events listed separately"
+      - separator
+      - paragraph
+        - emphasis
+          - StaticText "See also: "
+          - link "How to Run Event Day"
+      - sectionfooter
+        - link "Edit this page"
+    - navigation "Docs pages"
+      - link "Previous « How to Create Registration Questions"
+        - StaticText "Previous"
+        - generic
+          - StaticText "« "
+          - StaticText "How to Create Registration Questions"
+      - link "Next How to Run Event Day »"
+        - StaticText "Next"
+        - generic
+          - StaticText "How to Run Event Day"
+          - StaticText " »"
+  - contentinfo
+    - StaticText "Learn"
+    - list
+      - listitem [level=1]
+        - link "Tutorials"
+      - listitem [level=1]
+        - link "How-to Guides"
+    - StaticText "Understand"
+    - list
+      - listitem [level=1]
+        - link "Concepts"
+      - listitem [level=1]
+        - link "Reference"
+    - StaticText "Product"
+    - list
+      - listitem [level=1]
+        - link "WODsmith App (opens in new tab)"
+          - StaticText "WODsmith App"
+          - image "(opens in new tab)"
+      - listitem [level=1]
+        - link "GitHub (opens in new tab)"
+          - StaticText "GitHub"
+          - image "(opens in new tab)"
+    - StaticText "Copyright © 2026 WODsmith. Built with Docusaurus."
