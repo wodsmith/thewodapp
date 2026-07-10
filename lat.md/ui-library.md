@@ -100,7 +100,7 @@ Docs discovery records Markdown and MDX with YAML frontmatter plus category meta
 
 Team Memory contributes seven HTTP endpoints and one scheduled surface, OG Worker contributes three wildcard-aware HTTP decisions, and the PostHog proxy contributes one wildcard decision. Protocol and method remain part of every service ID.
 
-Team Memory mounts and methods plus OG Worker path branches are discovered from source and reconciled against the decision registry, so additions fail until planned. PostHog remains one exhaustive wildcard because its fetch handler delegates every method and path through the proxy.
+Service discovery walks TypeScript syntax rather than matching source text. Team Memory chained methods and mounts, OG Worker equality, regex, prefix, and switch branches, and PostHog returned proxy calls reconcile against the registry; unknown path predicates fail closed.
 
 ### Validation invariants
 

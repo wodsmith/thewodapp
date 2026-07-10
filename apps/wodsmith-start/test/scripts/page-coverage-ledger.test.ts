@@ -484,6 +484,186 @@ describe("page coverage discovery", () => {
       ]),
     ).rejects.toThrow("Unregistered service surface")
   })
+
+  it("rejects chained Hono routes missing from the registry", async () => {
+    const root = await makeTempRepo()
+    await write(
+      resolve(root, "apps/team-memory/src/index.ts"),
+      "const app = new Hono(); app.get('/health', health).post('/new', added)",
+    )
+    await expect(
+      discoverServices(root, [
+        {
+          app: "team-memory",
+          source: "apps/team-memory/src/index.ts",
+          sourceRouteId: "/health",
+          protocol: "http",
+          method: "GET",
+          urlPattern: "/health",
+        },
+      ]),
+    ).rejects.toThrow("Unregistered service surface")
+  })
+
+  it("rejects Worker startsWith branches missing from the registry", async () => {
+    const root = await makeTempRepo()
+    await write(
+      resolve(root, "apps/og-worker/src/index.ts"),
+      `export default { async fetch(request) {
+        const path = new URL(request.url).pathname
+        if (path === "/health") return health()
+        if (path.startsWith("/assets/")) return asset()
+        return fallback()
+      } }`,
+    )
+    await expect(
+      discoverServices(root, [
+        {
+          app: "og-worker",
+          source: "apps/og-worker/src/index.ts",
+          sourceRouteId: "/health",
+          protocol: "http",
+          method: "ANY",
+          urlPattern: "/health",
+        },
+        {
+          app: "og-worker",
+          source: "apps/og-worker/src/index.ts",
+          sourceRouteId: "/*",
+          protocol: "http",
+          method: "ANY",
+          urlPattern: "/*",
+        },
+      ]),
+    ).rejects.toThrow("Unregistered service surface")
+
+    await write(
+      resolve(root, "apps/og-worker/src/index.ts"),
+      `export default { async fetch(request) {
+        const path = new URL(request.url).pathname
+        if (path.includes("/assets/")) return asset()
+        return fallback()
+      } }`,
+    )
+    await expect(
+      discoverServices(root, [
+        {
+          app: "og-worker",
+          source: "apps/og-worker/src/index.ts",
+          sourceRouteId: "/*",
+          protocol: "http",
+          method: "ANY",
+          urlPattern: "/*",
+        },
+      ]),
+    ).rejects.toThrow("Unsupported OG Worker path predicate")
+  })
+
+  it("rejects comment-only PostHog delegation", async () => {
+    const root = await makeTempRepo()
+    for (const ignored of [
+      "/* proxyRequest(request) */",
+      'const note = "proxyRequest(request)"',
+    ]) {
+      await write(
+        resolve(root, "apps/posthog-proxy/src/index.ts"),
+        `export default { async fetch(request) {
+          ${ignored}
+          return new Response("not proxied")
+        } }`,
+      )
+      await expect(
+        discoverServices(root, [
+          {
+            app: "posthog-proxy",
+            source: "apps/posthog-proxy/src/index.ts",
+            sourceRouteId: "/*",
+            protocol: "http",
+            method: "ANY",
+            urlPattern: "/*",
+          },
+        ]),
+      ).rejects.toThrow("PostHog proxy wildcard fetch delegation is missing")
+    }
+  })
+
+  it("supports registered service syntax variants", async () => {
+    const honoRoot = await makeTempRepo()
+    await write(
+      resolve(honoRoot, "apps/team-memory/src/index.ts"),
+      "const app = new Hono(); app.get('/health', health).post('/new', added)",
+    )
+    await expect(
+      discoverServices(honoRoot, [
+        {
+          app: "team-memory",
+          source: "apps/team-memory/src/index.ts",
+          sourceRouteId: "/health",
+          protocol: "http",
+          method: "GET",
+          urlPattern: "/health",
+        },
+        {
+          app: "team-memory",
+          source: "apps/team-memory/src/index.ts",
+          sourceRouteId: "/new",
+          protocol: "http",
+          method: "POST",
+          urlPattern: "/new",
+        },
+      ]),
+    ).resolves.toHaveLength(2)
+
+    const workerRoot = await makeTempRepo()
+    await write(
+      resolve(workerRoot, "apps/og-worker/src/index.ts"),
+      `export default { async fetch(request) {
+        const path = new URL(request.url).pathname
+        if (path.startsWith("/assets/")) return asset()
+        return fallback()
+      } }`,
+    )
+    await expect(
+      discoverServices(workerRoot, [
+        {
+          app: "og-worker",
+          source: "apps/og-worker/src/index.ts",
+          sourceRouteId: "/assets/*",
+          protocol: "http",
+          method: "ANY",
+          urlPattern: "/assets/*",
+        },
+        {
+          app: "og-worker",
+          source: "apps/og-worker/src/index.ts",
+          sourceRouteId: "/*",
+          protocol: "http",
+          method: "ANY",
+          urlPattern: "/*",
+        },
+      ]),
+    ).resolves.toHaveLength(2)
+
+    for (const source of [
+      "export default { async fetch(request) { return proxyRequest(request) } }",
+      "export default { async fetch(request) { const response = await proxyRequest(request); return response } }",
+    ]) {
+      const proxyRoot = await makeTempRepo()
+      await write(resolve(proxyRoot, "apps/posthog-proxy/src/index.ts"), source)
+      await expect(
+        discoverServices(proxyRoot, [
+          {
+            app: "posthog-proxy",
+            source: "apps/posthog-proxy/src/index.ts",
+            sourceRouteId: "/*",
+            protocol: "http",
+            method: "ANY",
+            urlPattern: "/*",
+          },
+        ]),
+      ).resolves.toHaveLength(1)
+    }
+  })
 })
 
 describe("page coverage validation and rendering", () => {

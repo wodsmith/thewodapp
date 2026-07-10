@@ -421,15 +421,68 @@ export async function discoverDocs(repoRoot, docsConfig = DOCS_APP) {
   return records
 }
 
-function sourceRoutes(source, receiver) {
-  const routes = []
-  const pattern = new RegExp(
-    `\\b${receiver}\\.(get|post|put|patch|delete|options|all)\\(\\s*["']([^"']+)["']`,
-    "g",
+const HTTP_ROUTE_METHODS = new Set([
+  "get",
+  "post",
+  "put",
+  "patch",
+  "delete",
+  "options",
+  "all",
+])
+
+function parseTypescript(source, fileName = "source.ts") {
+  return ts.createSourceFile(
+    fileName,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    fileName.endsWith("x") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
   )
-  for (const match of source.matchAll(pattern)) {
-    routes.push({ method: match[1] === "all" ? "ANY" : match[1].toUpperCase(), path: match[2] })
+}
+
+function staticString(node) {
+  const value = node ? unwrapExpression(node) : null
+  return value &&
+    (ts.isStringLiteralLike(value) || ts.isNoSubstitutionTemplateLiteral(value))
+    ? value.text
+    : null
+}
+
+function callReceiverRoot(node) {
+  const value = unwrapExpression(node)
+  if (ts.isIdentifier(value)) return value.text
+  if (ts.isCallExpression(value)) return callReceiverRoot(value.expression)
+  if (ts.isPropertyAccessExpression(value)) {
+    return callReceiverRoot(value.expression)
   }
+  return null
+}
+
+function sourceRoutes(sourceFile, receiver) {
+  const routes = []
+  function visit(node) {
+    if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
+      const method = node.expression.name.text
+      if (
+        HTTP_ROUTE_METHODS.has(method) &&
+        callReceiverRoot(node.expression.expression) === receiver
+      ) {
+        const path = staticString(node.arguments[0])
+        if (path === null) {
+          throw new Error(
+            `Team Memory ${receiver}.${method} route must use a static path`,
+          )
+        }
+        routes.push({
+          method: method === "all" ? "ANY" : method.toUpperCase(),
+          path,
+        })
+      }
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sourceFile)
   return routes
 }
 
@@ -438,12 +491,23 @@ function joinServicePath(prefix, child) {
   return joined.length > 1 ? joined.replace(/\/$/, "") : "/"
 }
 
-function sourceImports(source) {
-  return new Map(
-    [...source.matchAll(/import\s+\{\s*(\w+)\s*\}\s+from\s+["']([^"']+)["']/g)].map(
-      (match) => [match[1], match[2]],
-    ),
-  )
+function sourceImports(sourceFile) {
+  const imports = new Map()
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement)) continue
+    const specifier = staticString(statement.moduleSpecifier)
+    if (!specifier || !statement.importClause) continue
+    if (statement.importClause.name) {
+      imports.set(statement.importClause.name.text, specifier)
+    }
+    const bindings = statement.importClause.namedBindings
+    if (bindings && ts.isNamedImports(bindings)) {
+      for (const element of bindings.elements) {
+        imports.set(element.name.text, specifier)
+      }
+    }
+  }
+  return imports
 }
 
 async function resolveSourceModule(sourcePath, specifier) {
@@ -460,8 +524,9 @@ async function resolveSourceModule(sourcePath, specifier) {
 async function discoverTeamMemorySurfaces(repoRoot) {
   const indexPath = resolve(repoRoot, "apps/team-memory/src/index.ts")
   const indexSource = await readFile(indexPath, "utf8")
-  const imports = sourceImports(indexSource)
-  const surfaces = sourceRoutes(indexSource, "app").map((route) => ({
+  const indexFile = parseTypescript(indexSource, indexPath)
+  const imports = sourceImports(indexFile)
+  const surfaces = sourceRoutes(indexFile, "app").map((route) => ({
     app: "team-memory",
     protocol: "http",
     method: route.method,
@@ -470,15 +535,34 @@ async function discoverTeamMemorySurfaces(repoRoot) {
     source: normalizeSourcePath(relative(repoRoot, indexPath)),
   }))
 
-  for (const match of indexSource.matchAll(
-    /\bapp\.route\(\s*["']([^"']+)["']\s*,\s*(\w+)\s*\)/g,
-  )) {
-    const [prefix, receiver] = [match[1], match[2]]
+  const mounts = []
+  function visitMounts(node) {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === "route" &&
+      callReceiverRoot(node.expression.expression) === "app"
+    ) {
+      const prefix = staticString(node.arguments[0])
+      const mounted = node.arguments[1]
+        ? unwrapExpression(node.arguments[1])
+        : null
+      if (prefix === null || !mounted || !ts.isIdentifier(mounted)) {
+        throw new Error("Team Memory app.route must use a static path and imported router")
+      }
+      mounts.push({ prefix, receiver: mounted.text })
+    }
+    ts.forEachChild(node, visitMounts)
+  }
+  visitMounts(indexFile)
+
+  for (const { prefix, receiver } of mounts) {
     const specifier = imports.get(receiver)
     if (!specifier) throw new Error(`Missing Team Memory import for ${receiver}`)
     const modulePath = await resolveSourceModule(indexPath, specifier)
     const moduleSource = await readFile(modulePath, "utf8")
-    for (const route of sourceRoutes(moduleSource, receiver)) {
+    const moduleFile = parseTypescript(moduleSource, modulePath)
+    for (const route of sourceRoutes(moduleFile, receiver)) {
       const path = joinServicePath(prefix, route.path)
       surfaces.push({
         app: "team-memory",
@@ -491,17 +575,50 @@ async function discoverTeamMemorySurfaces(repoRoot) {
     }
   }
 
-  const scheduled = /\bscheduled:\s*(\w+)/.exec(indexSource)?.[1]
+  let scheduled = null
+  function visitScheduled(node) {
+    if (
+      ts.isPropertyAssignment(node) &&
+      propertyName(node) === "scheduled" &&
+      ts.isIdentifier(unwrapExpression(node.initializer))
+    ) {
+      scheduled = unwrapExpression(node.initializer).text
+      return
+    }
+    ts.forEachChild(node, visitScheduled)
+  }
+  visitScheduled(indexFile)
   if (scheduled) {
     const specifier = imports.get(scheduled)
     if (!specifier) throw new Error(`Missing Team Memory import for ${scheduled}`)
     const modulePath = await resolveSourceModule(indexPath, specifier)
     const moduleSource = await readFile(modulePath, "utf8")
-    const triggers = [
-      ...moduleSource.matchAll(/event\.cron\s*===\s*["']([^"']+)["']/g),
-    ]
-      .map((match) => match[1])
-      .sort()
+    const moduleFile = parseTypescript(moduleSource, modulePath)
+    const triggers = []
+    function visitCron(node) {
+      if (
+        ts.isBinaryExpression(node) &&
+        [ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.EqualsEqualsEqualsToken].includes(
+          node.operatorToken.kind,
+        )
+      ) {
+        const leftCron =
+          ts.isPropertyAccessExpression(unwrapExpression(node.left)) &&
+          unwrapExpression(node.left).name.text === "cron"
+        const rightCron =
+          ts.isPropertyAccessExpression(unwrapExpression(node.right)) &&
+          unwrapExpression(node.right).name.text === "cron"
+        const trigger = leftCron
+          ? staticString(node.right)
+          : rightCron
+            ? staticString(node.left)
+            : null
+        if (trigger !== null) triggers.push(trigger)
+      }
+      ts.forEachChild(node, visitCron)
+    }
+    visitCron(moduleFile)
+    triggers.sort()
     if (!triggers.length) throw new Error("Team Memory scheduled handler has no cron triggers")
     surfaces.push({
       app: "team-memory",
@@ -523,51 +640,182 @@ function normalizeWorkerRegex(literal) {
     .replace(/\(\.\*\??\)/g, ":param")
 }
 
-function hasWorkerFallback(source) {
-  const sourceFile = ts.createSourceFile(
-    "worker.ts",
-    source,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TS,
-  )
-  let fallback = false
+function findFetchMethod(sourceFile) {
+  let fetchMethod = null
   function visit(node) {
     if (
+      !fetchMethod &&
       ts.isMethodDeclaration(node) &&
       propertyName(node) === "fetch" &&
       node.body
     ) {
-      fallback = ts.isReturnStatement(node.body.statements.at(-1))
+      fetchMethod = node
       return
     }
     ts.forEachChild(node, visit)
   }
   visit(sourceFile)
-  return fallback
+  return fetchMethod
+}
+
+function containsIdentifier(node, names) {
+  let found = false
+  function visit(current) {
+    if (ts.isIdentifier(current) && names.has(current.text)) {
+      found = true
+      return
+    }
+    ts.forEachChild(current, visit)
+  }
+  visit(node)
+  return found
+}
+
+function workerPredicatePatterns(node, pathNames) {
+  const expression = unwrapExpression(node)
+  if (
+    ts.isPrefixUnaryExpression(expression) &&
+    expression.operator === ts.SyntaxKind.ExclamationToken
+  ) {
+    return workerPredicatePatterns(expression.operand, pathNames)
+  }
+  if (ts.isBinaryExpression(expression)) {
+    if (
+      [ts.SyntaxKind.AmpersandAmpersandToken, ts.SyntaxKind.BarBarToken].includes(
+        expression.operatorToken.kind,
+      )
+    ) {
+      return [
+        ...workerPredicatePatterns(expression.left, pathNames),
+        ...workerPredicatePatterns(expression.right, pathNames),
+      ]
+    }
+    if (
+      [ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.EqualsEqualsEqualsToken].includes(
+        expression.operatorToken.kind,
+      )
+    ) {
+      const left = unwrapExpression(expression.left)
+      const right = unwrapExpression(expression.right)
+      if (ts.isIdentifier(left) && pathNames.has(left.text)) {
+        const path = staticString(right)
+        if (path !== null) return [path]
+      }
+      if (ts.isIdentifier(right) && pathNames.has(right.text)) {
+        const path = staticString(left)
+        if (path !== null) return [path]
+      }
+    }
+  }
+  if (
+    ts.isCallExpression(expression) &&
+    ts.isPropertyAccessExpression(expression.expression)
+  ) {
+    const receiver = unwrapExpression(expression.expression.expression)
+    const method = expression.expression.name.text
+    if (ts.isIdentifier(receiver) && pathNames.has(receiver.text)) {
+      if (method === "startsWith") {
+        const prefix = staticString(expression.arguments[0])
+        if (prefix !== null) return [`${prefix}*`]
+      }
+      if (method === "match") {
+        const pattern = expression.arguments[0]
+        if (pattern?.kind === ts.SyntaxKind.RegularExpressionLiteral) {
+          return [normalizeWorkerRegex(pattern.getText())]
+        }
+      }
+    }
+    if (
+      method === "test" &&
+      expression.expression.expression.kind ===
+        ts.SyntaxKind.RegularExpressionLiteral
+    ) {
+      const argument = expression.arguments[0]
+      if (
+        argument &&
+        ts.isIdentifier(unwrapExpression(argument)) &&
+        pathNames.has(unwrapExpression(argument).text)
+      ) {
+        return [
+          normalizeWorkerRegex(expression.expression.expression.getText()),
+        ]
+      }
+    }
+  }
+  if (containsIdentifier(expression, pathNames)) {
+    throw new Error(`Unsupported OG Worker path predicate: ${expression.getText()}`)
+  }
+  return []
+}
+
+function discoverWorkerPatterns(fetchMethod) {
+  const pathNames = new Set()
+  function findPathNames(node) {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.initializer &&
+      ts.isPropertyAccessExpression(unwrapExpression(node.initializer)) &&
+      unwrapExpression(node.initializer).name.text === "pathname"
+    ) {
+      pathNames.add(node.name.text)
+    }
+    ts.forEachChild(node, findPathNames)
+  }
+  findPathNames(fetchMethod.body)
+
+  const patterns = new Set()
+  function visit(node) {
+    if (ts.isIfStatement(node)) {
+      for (const pattern of workerPredicatePatterns(node.expression, pathNames)) {
+        patterns.add(pattern)
+      }
+    } else if (ts.isConditionalExpression(node)) {
+      for (const pattern of workerPredicatePatterns(node.condition, pathNames)) {
+        patterns.add(pattern)
+      }
+    } else if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === "match" &&
+      containsIdentifier(node.expression.expression, pathNames)
+    ) {
+      for (const pattern of workerPredicatePatterns(node, pathNames)) {
+        patterns.add(pattern)
+      }
+    } else if (
+      ts.isSwitchStatement(node) &&
+      ts.isIdentifier(unwrapExpression(node.expression)) &&
+      pathNames.has(unwrapExpression(node.expression).text)
+    ) {
+      for (const clause of node.caseBlock.clauses) {
+        if (ts.isDefaultClause(clause)) continue
+        const path = staticString(clause.expression)
+        if (path === null) {
+          throw new Error("OG Worker path switch cases must use static strings")
+        }
+        patterns.add(path)
+      }
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(fetchMethod.body)
+  if (ts.isReturnStatement(fetchMethod.body.statements.at(-1))) {
+    patterns.add("/*")
+  }
+  return [...patterns]
 }
 
 async function discoverOgWorkerSurfaces(repoRoot) {
   const sourcePath = resolve(repoRoot, "apps/og-worker/src/index.ts")
   const source = await readFile(sourcePath, "utf8")
-  if (!/async\s+fetch\s*\(/.test(source)) {
+  const sourceFile = parseTypescript(source, sourcePath)
+  const fetchMethod = findFetchMethod(sourceFile)
+  if (!fetchMethod) {
     throw new Error("OG Worker has no fetch handler")
   }
   const sourceName = normalizeSourcePath(relative(repoRoot, sourcePath))
-  const patterns = [
-    ...[...source.matchAll(/\bpath\s*===\s*["']([^"']+)["']/g)].map(
-      (match) => match[1],
-    ),
-    ...source
-      .split("\n")
-      .filter((line) => line.includes("path.match("))
-      .map((line) => {
-        const start = line.indexOf("path.match(") + "path.match(".length
-        const end = line.lastIndexOf(")")
-        return normalizeWorkerRegex(line.slice(start, end).trim())
-      }),
-  ]
-  if (hasWorkerFallback(source)) patterns.push("/*")
+  const patterns = discoverWorkerPatterns(fetchMethod)
   return patterns.map((path) => ({
     app: "og-worker",
     protocol: "http",
@@ -578,10 +826,63 @@ async function discoverOgWorkerSurfaces(repoRoot) {
   }))
 }
 
+function unwrapAwait(node) {
+  let value = unwrapExpression(node)
+  while (ts.isAwaitExpression(value)) value = unwrapExpression(value.expression)
+  return value
+}
+
+function isNamedCall(node, name) {
+  const value = unwrapAwait(node)
+  return (
+    ts.isCallExpression(value) &&
+    ts.isIdentifier(unwrapExpression(value.expression)) &&
+    unwrapExpression(value.expression).text === name
+  )
+}
+
+function fetchReturnsDelegation(fetchMethod, name) {
+  const delegated = new Set()
+  let returned = false
+  function visit(node) {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.initializer &&
+      isNamedCall(node.initializer, name)
+    ) {
+      delegated.add(node.name.text)
+    }
+    if (ts.isReturnStatement(node) && node.expression) {
+      const expression = unwrapAwait(node.expression)
+      if (
+        isNamedCall(expression, name) ||
+        (ts.isIdentifier(expression) && delegated.has(expression.text))
+      ) {
+        returned = true
+      }
+    }
+    if (
+      node !== fetchMethod.body &&
+      (ts.isFunctionDeclaration(node) ||
+        ts.isFunctionExpression(node) ||
+        ts.isArrowFunction(node) ||
+        ts.isMethodDeclaration(node))
+    ) {
+      return
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(fetchMethod.body)
+  return returned
+}
+
 async function discoverPosthogProxySurfaces(repoRoot) {
   const sourcePath = resolve(repoRoot, "apps/posthog-proxy/src/index.ts")
   const source = await readFile(sourcePath, "utf8")
-  if (!/async\s+fetch\s*\(/.test(source) || !/proxyRequest\s*\(/.test(source)) {
+  const sourceFile = parseTypescript(source, sourcePath)
+  const fetchMethod = findFetchMethod(sourceFile)
+  if (!fetchMethod || !fetchReturnsDelegation(fetchMethod, "proxyRequest")) {
     throw new Error("PostHog proxy wildcard fetch delegation is missing")
   }
   return [
