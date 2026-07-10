@@ -183,9 +183,9 @@ Counts are unique importing files. Route-owned components under \`src/routes\` c
 | --- | --- | --- | ---: | ---: | ---: | --- |
 ${rows.join("\n")}
 
-## PR-2 migration constraint
+## PR-3 migration constraint
 
-This package-foundation PR keeps Start and Crew runtime imports stable through thin app-local re-exports. Storybook imports \`@repo/ui\` directly; stateful, overlay, form, and domain components stay app-owned for later reviewed slices.
+This form-and-overlay PR keeps Start and Crew runtime imports stable through thin app-local re-exports. Storybook imports \`@repo/ui\` directly; divergent adapters and domain components stay app-owned for later reviewed slices.
 `
 }
 

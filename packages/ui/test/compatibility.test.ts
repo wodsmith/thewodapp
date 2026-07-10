@@ -5,36 +5,66 @@ import { describe, expect, it } from "vitest"
 import * as crewBadge from "../../../apps/crew/src/components/ui/badge"
 import * as crewButton from "../../../apps/crew/src/components/ui/button"
 import * as crewCard from "../../../apps/crew/src/components/ui/card"
+import * as crewCheckbox from "../../../apps/crew/src/components/ui/checkbox"
 import * as crewCn from "../../../apps/crew/src/utils/cn"
+import * as crewDialog from "../../../apps/crew/src/components/ui/dialog"
+import * as crewDropdownMenu from "../../../apps/crew/src/components/ui/dropdown-menu"
+import * as crewForm from "../../../apps/crew/src/components/ui/form"
 import * as crewInput from "../../../apps/crew/src/components/ui/input"
 import * as crewLabel from "../../../apps/crew/src/components/ui/label"
+import * as crewPopover from "../../../apps/crew/src/components/ui/popover"
+import * as crewRadioGroup from "../../../apps/crew/src/components/ui/radio-group"
+import * as crewSelect from "../../../apps/crew/src/components/ui/select"
 import * as crewSeparator from "../../../apps/crew/src/components/ui/separator"
+import * as crewSheet from "../../../apps/crew/src/components/ui/sheet"
 import * as crewSkeleton from "../../../apps/crew/src/components/ui/skeleton"
 import * as crewSpinner from "../../../apps/crew/src/components/ui/spinner"
 import * as crewTable from "../../../apps/crew/src/components/ui/table"
+import * as crewTabs from "../../../apps/crew/src/components/ui/tabs"
 import * as crewTextarea from "../../../apps/crew/src/components/ui/textarea"
-import * as sharedBadge from "../src/components/badge"
-import * as sharedButton from "../src/components/button"
-import * as sharedCard from "../src/components/card"
-import * as sharedCn from "../src/utils/cn"
-import * as sharedInput from "../src/components/input"
-import * as sharedLabel from "../src/components/label"
-import * as sharedSeparator from "../src/components/separator"
-import * as sharedSkeleton from "../src/components/skeleton"
-import * as sharedSpinner from "../src/components/spinner"
-import * as sharedTable from "../src/components/table"
-import * as sharedTextarea from "../src/components/textarea"
+import * as crewTooltip from "../../../apps/crew/src/components/ui/tooltip"
+import * as sharedBadge from "@repo/ui/badge"
+import * as sharedButton from "@repo/ui/button"
+import * as sharedCard from "@repo/ui/card"
+import * as sharedCheckbox from "@repo/ui/checkbox"
+import * as sharedCn from "@repo/ui/cn"
+import * as sharedDialog from "@repo/ui/dialog"
+import * as sharedDropdownMenu from "@repo/ui/dropdown-menu"
+import * as sharedForm from "@repo/ui/form"
+import * as sharedInput from "@repo/ui/input"
+import * as sharedLabel from "@repo/ui/label"
+import * as sharedPopover from "@repo/ui/popover"
+import * as sharedRadioGroup from "@repo/ui/radio-group"
+import * as sharedSelect from "@repo/ui/select"
+import * as sharedSeparator from "@repo/ui/separator"
+import * as sharedSheet from "@repo/ui/sheet"
+import * as sharedSkeleton from "@repo/ui/skeleton"
+import * as sharedSpinner from "@repo/ui/spinner"
+import * as sharedTable from "@repo/ui/table"
+import * as sharedTabs from "@repo/ui/tabs"
+import * as sharedTextarea from "@repo/ui/textarea"
+import * as sharedTooltip from "@repo/ui/tooltip"
 import * as startBadge from "../../../apps/wodsmith-start/src/components/ui/badge"
 import * as startButton from "../../../apps/wodsmith-start/src/components/ui/button"
 import * as startCard from "../../../apps/wodsmith-start/src/components/ui/card"
+import * as startCheckbox from "../../../apps/wodsmith-start/src/components/ui/checkbox"
 import * as startCn from "../../../apps/wodsmith-start/src/utils/cn"
+import * as startDialog from "../../../apps/wodsmith-start/src/components/ui/dialog"
+import * as startDropdownMenu from "../../../apps/wodsmith-start/src/components/ui/dropdown-menu"
+import * as startForm from "../../../apps/wodsmith-start/src/components/ui/form"
 import * as startInput from "../../../apps/wodsmith-start/src/components/ui/input"
 import * as startLabel from "../../../apps/wodsmith-start/src/components/ui/label"
+import * as startPopover from "../../../apps/wodsmith-start/src/components/ui/popover"
+import * as startRadioGroup from "../../../apps/wodsmith-start/src/components/ui/radio-group"
+import * as startSelect from "../../../apps/wodsmith-start/src/components/ui/select"
 import * as startSeparator from "../../../apps/wodsmith-start/src/components/ui/separator"
+import * as startSheet from "../../../apps/wodsmith-start/src/components/ui/sheet"
 import * as startSkeleton from "../../../apps/wodsmith-start/src/components/ui/skeleton"
 import * as startSpinner from "../../../apps/wodsmith-start/src/components/ui/spinner"
 import * as startTable from "../../../apps/wodsmith-start/src/components/ui/table"
+import * as startTabs from "../../../apps/wodsmith-start/src/components/ui/tabs"
 import * as startTextarea from "../../../apps/wodsmith-start/src/components/ui/textarea"
+import * as startTooltip from "../../../apps/wodsmith-start/src/components/ui/tooltip"
 
 type ModuleExports = Record<string, unknown>
 
@@ -44,14 +74,24 @@ const compatibilityModules: Array<
   ["badge", sharedBadge, startBadge, crewBadge],
   ["button", sharedButton, startButton, crewButton],
   ["card", sharedCard, startCard, crewCard],
+  ["checkbox", sharedCheckbox, startCheckbox, crewCheckbox],
   ["cn", sharedCn, startCn, crewCn],
+  ["dialog", sharedDialog, startDialog, crewDialog],
+  ["dropdown-menu", sharedDropdownMenu, startDropdownMenu, crewDropdownMenu],
+  ["form", sharedForm, startForm, crewForm],
   ["input", sharedInput, startInput, crewInput],
   ["label", sharedLabel, startLabel, crewLabel],
+  ["popover", sharedPopover, startPopover, crewPopover],
+  ["radio-group", sharedRadioGroup, startRadioGroup, crewRadioGroup],
+  ["select", sharedSelect, startSelect, crewSelect],
   ["separator", sharedSeparator, startSeparator, crewSeparator],
+  ["sheet", sharedSheet, startSheet, crewSheet],
   ["skeleton", sharedSkeleton, startSkeleton, crewSkeleton],
   ["spinner", sharedSpinner, startSpinner, crewSpinner],
   ["table", sharedTable, startTable, crewTable],
+  ["tabs", sharedTabs, startTabs, crewTabs],
   ["textarea", sharedTextarea, startTextarea, crewTextarea],
+  ["tooltip", sharedTooltip, startTooltip, crewTooltip],
 ]
 
 describe("Start and Crew compatibility adapters", () => {
