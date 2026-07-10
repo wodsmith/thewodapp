@@ -7,6 +7,7 @@ const appRoot = resolve(scriptDirectory, "..")
 const sourceRoot = resolve(appRoot, "src")
 const uiRoot = resolve(sourceRoot, "components/ui")
 const crewUiRoot = resolve(appRoot, "../crew/src/components/ui")
+const packageUiRoot = resolve(appRoot, "../../packages/ui/src/components")
 const outputPath = resolve(appRoot, "docs/ui-library-inventory.md")
 
 const foundationModules = new Set([
@@ -22,6 +23,7 @@ const foundationModules = new Set([
   "separator",
   "skeleton",
   "spinner",
+  "table",
   "textarea",
 ])
 
@@ -124,6 +126,7 @@ async function compareCrewCopies(modules) {
 
 async function renderInventory() {
   const modules = await listPrimitiveModules(uiRoot)
+  const packageModules = new Set(await listPrimitiveModules(packageUiRoot))
   const stories = new Set(
     (await readdir(uiRoot))
       .filter((name) => name.endsWith(".stories.tsx"))
@@ -141,7 +144,7 @@ async function renderInventory() {
 
   const rows = modules.map((moduleName) => {
     const moduleConsumers = consumers.get(moduleName)
-    return `| \`${moduleName}\` | ${classifyModule(moduleName)} | ${moduleConsumers.route.size} | ${moduleConsumers.component.size} | ${moduleConsumers.ui.size} | ${stories.has(moduleName) ? "yes" : "—"} |`
+    return `| \`${moduleName}\` | ${classifyModule(moduleName)} | ${packageModules.has(moduleName) ? "yes" : "—"} | ${moduleConsumers.route.size} | ${moduleConsumers.component.size} | ${moduleConsumers.ui.size} | ${stories.has(moduleName) ? "yes" : "—"} |`
   })
 
   const divergentSummary = crewComparison.divergentModules.length
@@ -150,18 +153,19 @@ async function renderInventory() {
 
   return `# WODsmith UI Library Inventory
 
-This generated inventory measures the current app-local UI boundary and its consumers so later migration PRs can stay narrow and observable.
+This generated inventory measures the shared package, compatibility adapters, and their consumers so later migration PRs can stay narrow and observable.
 
 Regenerate with \`pnpm --filter wodsmith-start ui:inventory\` and verify it with \`pnpm --filter wodsmith-start check:ui-inventory\`.
 
 ## Scope summary
 
-The Start app owns ${modules.length} primitive modules in \`src/components/ui\`. They are consumed directly by ${routeConsumerFiles.size} route-owned files and ${componentConsumerFiles.size} shared component files.
+The Start app exposes ${modules.length} primitive import paths in \`src/components/ui\`. They are consumed directly by ${routeConsumerFiles.size} route-owned files and ${componentConsumerFiles.size} shared component files.
 
+- \`@repo/ui\` owns ${packageModules.size} extracted primitive implementations under \`packages/ui/src/components\`.
 - ${stories.size} primitive modules have representative Storybook stories.
 - Direct barrel consumers: ${barrelConsumers.route.size + barrelConsumers.component.size + barrelConsumers.ui.size}.
-- Crew has ${crewComparison.crewModuleCount} primitive modules; ${crewComparison.sharedModuleCount} filenames overlap with Start and ${crewComparison.identicalModuleCount} of those are byte-identical.
-- Divergent Start/Crew copies: ${divergentSummary}.
+- Crew exposes ${crewComparison.crewModuleCount} primitive import paths; ${crewComparison.sharedModuleCount} filenames overlap with Start and ${crewComparison.identicalModuleCount} of those adapters or app-local implementations are byte-identical.
+- Divergent Start/Crew paths: ${divergentSummary}.
 
 ## Boundary classification
 
@@ -175,13 +179,13 @@ The classification is migration guidance, not a claim that every candidate is re
 
 Counts are unique importing files. Route-owned components under \`src/routes\` count as routes; reusable components outside \`components/ui\` count as components.
 
-| Primitive module | Classification | Route files | Component files | UI dependencies | Story |
-| --- | --- | ---: | ---: | ---: | --- |
+| Primitive module | Classification | Shared package | Route files | Component files | UI dependencies | Story |
+| --- | --- | --- | ---: | ---: | ---: | --- |
 ${rows.join("\n")}
 
-## PR-1 migration constraint
+## PR-2 migration constraint
 
-This foundation PR does not rewrite runtime imports. Storybook renders the canonical Start copies, while future stack layers can extract reviewed candidates into \`@repo/ui\` and migrate consumers in measured slices.
+This package-foundation PR keeps Start and Crew runtime imports stable through thin app-local re-exports. Storybook imports \`@repo/ui\` directly; stateful, overlay, form, and domain components stay app-owned for later reviewed slices.
 `
 }
 

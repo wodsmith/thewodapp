@@ -1,6 +1,6 @@
+import { Button } from "@repo/ui/button"
 import type { Meta, StoryObj } from "@storybook/react-vite"
 import { Plus } from "lucide-react"
-import { Button } from "./button"
 
 const meta = {
   title: "Foundations/Button",

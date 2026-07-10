@@ -1,5 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/react-vite"
-import { Button } from "./button"
+import { Button } from "@repo/ui/button"
 import {
   Card,
   CardContent,
@@ -7,7 +6,8 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "./card"
+} from "@repo/ui/card"
+import type { Meta, StoryObj } from "@storybook/react-vite"
 
 const meta = {
   title: "Foundations/Card",

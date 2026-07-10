@@ -1,0 +1,53 @@
+{
+  "name": "@repo/ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "./src/styles.css"
+  ],
+  "exports": {
+    "./badge": "./src/components/badge.tsx",
+    "./button": "./src/components/button.tsx",
+    "./card": "./src/components/card.tsx",
+    "./cn": "./src/utils/cn.ts",
+    "./input": "./src/components/input.tsx",
+    "./label": "./src/components/label.tsx",
+    "./separator": "./src/components/separator.tsx",
+    "./skeleton": "./src/components/skeleton.tsx",
+    "./spinner": "./src/components/spinner.tsx",
+    "./styles.css": "./src/styles.css",
+    "./table": "./src/components/table.tsx",
+    "./textarea": "./src/components/textarea.tsx"
+  },
+  "scripts": {
+    "build": "tsgo -p tsconfig.build.json",
+    "check": "biome check .",
+    "lint": "biome lint .",
+    "test": "vitest run",
+    "type-check": "tsgo --noEmit"
+  },
+  "dependencies": {
+    "@radix-ui/react-label": "^2.1.7",
+    "@radix-ui/react-separator": "^1.1.7",
+    "@radix-ui/react-slot": "^1.2.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.544.0",
+    "tailwind-merge": "^2.6.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.0.6",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "^22.19.3",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@typescript/native-preview": "catalog:",
+    "react": "catalog:",
+    "typescript": "^5.7.2",
+    "vitest": "catalog:"
+  }
+}

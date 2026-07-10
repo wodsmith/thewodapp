@@ -1,7 +1,7 @@
+import { Input } from "@repo/ui/input"
+import { Label } from "@repo/ui/label"
+import { Textarea } from "@repo/ui/textarea"
 import type { Meta, StoryObj } from "@storybook/react-vite"
-import { Input } from "./input"
-import { Label } from "./label"
-import { Textarea } from "./textarea"
 
 const meta = {
   title: "Foundations/Form controls",

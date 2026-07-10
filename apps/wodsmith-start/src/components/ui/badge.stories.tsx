@@ -1,5 +1,5 @@
+import { Badge } from "@repo/ui/badge"
 import type { Meta, StoryObj } from "@storybook/react-vite"
-import { Badge } from "./badge"
 
 const meta = {
   title: "Foundations/Badge",
