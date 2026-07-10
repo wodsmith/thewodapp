@@ -22,6 +22,12 @@ Multiple calls within the same request lifecycle (e.g. handler + nested `require
 
 Custom Worker handlers that run before TanStack Start installs its request context must not call `getSessionFromCookie()`. They validate the raw `Cookie` header with [[apps/wodsmith-start/src/utils/auth.ts#getSessionFromRequestCookie]] instead, which uses the same session token validation without depending on Start's `AsyncLocalStorage`.
 
+## Profile Settings
+
+Authenticated users can update their name and avatar while their account email remains an immutable, accessible display value.
+
+[[apps/wodsmith-start/src/routes/_protected/settings/profile/index.tsx#ProfileSettingsPage]] keeps email outside React Hook Form registration and the [[apps/wodsmith-start/src/server-fns/profile-fns.ts#updateUserProfileFn|profile update payload]]. Its disabled input has an explicit label and description association. [[apps/wodsmith-start/test/routes/settings/profile.test.tsx]] covers loaded and skeleton rendering, controlled editable fields, email accessibility, and payload exclusion.
+
 ## Authorization
 
 Route-level auth is enforced by the `_protected` layout route. Server function auth uses middleware that validates the session and injects the current user.

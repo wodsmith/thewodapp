@@ -24,6 +24,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getUserProfileFn, updateUserProfileFn } from "@/server-fns/profile-fns"
 
@@ -145,16 +146,22 @@ function ProfileSettingsPage() {
               />
             </div>
 
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input type="email" disabled value={user.email ?? ""} />
-              </FormControl>
-              <FormDescription>
+            <div className="space-y-2">
+              <Label htmlFor="profile-email">Email</Label>
+              <Input
+                id="profile-email"
+                type="email"
+                disabled
+                value={user.email ?? ""}
+                aria-describedby="profile-email-description"
+              />
+              <p
+                id="profile-email-description"
+                className="text-sm text-muted-foreground"
+              >
                 This is the email you use to sign in.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
+              </p>
+            </div>
 
             <FormField
               control={form.control}

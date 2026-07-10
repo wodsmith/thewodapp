@@ -45,7 +45,7 @@ Counts are unique importing files. Route-owned components under `src/routes` cou
 | `hover-card` | composition | yes | 0 | 1 | 0 | yes |
 | `image-upload` | app adapter | — | 1 | 1 | 0 | — |
 | `input` | foundation | yes | 66 | 43 | 3 | yes |
-| `label` | foundation | yes | 38 | 25 | 0 | — |
+| `label` | foundation | yes | 39 | 25 | 0 | — |
 | `list-item` | app adapter | — | 0 | 4 | 0 | — |
 | `popover` | composition | yes | 7 | 6 | 1 | — |
 | `progress` | foundation | yes | 5 | 0 | 0 | yes |
