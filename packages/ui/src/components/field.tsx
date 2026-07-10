@@ -7,6 +7,7 @@ import {
   cloneElement,
   createContext,
   Fragment,
+  isValidElement,
   type ReactElement,
   type ReactNode,
   use,
@@ -57,10 +58,17 @@ function describedBy(...values: Array<string | undefined>) {
   return uniqueTokens.length > 0 ? uniqueTokens.join(" ") : undefined
 }
 
-function hasRenderableContent(value: ReactNode) {
-  return Children.toArray(value).some(
-    (node) => typeof node !== "string" || node.trim().length > 0,
-  )
+function hasRenderableContent(value: ReactNode): boolean {
+  return Children.toArray(value).some((node) => {
+    if (typeof node === "string") return node.trim().length > 0
+    if (
+      isValidElement<{ children?: ReactNode }>(node) &&
+      node.type === Fragment
+    ) {
+      return hasRenderableContent(node.props.children)
+    }
+    return true
+  })
 }
 
 type FieldRootProps = ComponentPropsWithRef<"div"> & {

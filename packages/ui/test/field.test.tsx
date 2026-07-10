@@ -70,8 +70,8 @@ describe("Field composition", () => {
         id="division"
         aria-label="Division field"
         className="gap-4"
-        description={false}
-        error={false}
+        description={<>{false}</>}
+        error={<></>}
       >
         <Field.Label>Division</Field.Label>
         <Field.Control>
@@ -241,7 +241,11 @@ describe("FieldGroup composition", () => {
   // @lat: [[lat.md/ui-library#UI Library#Current boundary#Field composition#Absent group metadata]]
   it("omits absent group metadata and rejects blank ids", () => {
     render(
-      <FieldGroup.Root id="heat" description={false} error={false}>
+      <FieldGroup.Root
+        id="heat"
+        description={<></>}
+        error={<>{false}</>}
+      >
         <FieldGroup.Legend>Heat</FieldGroup.Legend>
         <FieldGroup.Description data-testid="group-description" />
         <FieldGroup.Error data-testid="group-error" />
