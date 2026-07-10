@@ -4,13 +4,13 @@ This audit records fresh, anonymous browser evidence for WODsmith Docs, CRM, and
 
 ## Scope and provenance
 
-The slice assigns 101 scenarios to 51 visual records: 34 public Docs records, 12 CRM records, two Ledger records, and three Gameday records. Eighty-four scenarios are verified and 17 are blocked. Together with the prior public-entry slice, the plan now contains 109 verified, 24 blocked, and 174 pending scenarios.
+The slice assigns 101 scenarios to 51 visual records: 34 public Docs records, 11 CRM records, three Ledger records, and three Gameday records. Eighty-four scenarios are verified and 17 are blocked. Together with the prior public-entry slice, the plan now contains 109 verified, 24 blocked, and 174 pending scenarios.
 
 All verified observations were captured on 2026-07-10 with `agent-browser 0.26.0`. The deployed Git revision was not exposed and is recorded as `unknown`; this evidence describes the deployed output at capture time, not PR-head equivalence. The capture manifest contains 86 browser runs and hash-pins every accessibility snapshot, DOM summary, screenshot, console log, and redirect trace.
 
 ## WODsmith Docs
 
-All 34 public Docusaurus category and content routes were exercised in desktop/light at 1440 by 900 and mobile/dark at 390 by 844. Every route produced an accessibility snapshot and deterministic DOM summary. Twelve screenshots cover six representative shells in both variants rather than duplicating screenshots for content-only differences.
+All 34 public Docusaurus category and content routes were exercised in desktop/light at 1440 by 900 and mobile/dark at 390 by 844. Every route produced an accessibility snapshot and deterministic DOM summary. Twelve screenshots cover six representative routes in both variants rather than duplicating screenshots for content-only differences.
 
 The 68 Docs scenarios rendered the requested effective theme. None of the captured DOM summaries reported horizontal overflow, and no route-level blocker was observed. These pages remain `route-specific`: their shared navigation, prose, table, and code presentation comes from the Docusaurus site rather than the React product-app primitive boundary.
 

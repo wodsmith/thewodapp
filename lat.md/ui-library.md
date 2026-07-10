@@ -142,7 +142,7 @@ The second deployed evidence slice covers all public Docs pages plus anonymous C
 
 [The Docs and auxiliary app coverage audit](../docs/ui-library/docs-aux-coverage-audit.md) records 101 scenarios across 51 visual records: 84 verified and 17 blocked. The complete plan now has 109 verified, 24 blocked, and 174 pending scenarios.
 
-All 34 Docs records have desktop/light and mobile/dark accessibility and DOM evidence. Representative screenshots cover six distinct shells in both variants; every captured Docs route honored the requested theme and reported no horizontal overflow.
+All 34 Docs records have desktop/light and mobile/dark accessibility and DOM evidence. Representative screenshots cover six representative routes in both variants; every captured Docs route honored the requested theme and reported no horizontal overflow.
 
 CRM and Ledger password roots verified dark desktop and mobile output without overflow. Their hard-coded dark state blocks requested-light scenarios, while anonymous probes verify redirects for all 12 protected visual routes without claiming authenticated page output.
 
