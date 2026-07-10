@@ -122,7 +122,7 @@ describe("series template event editor", () => {
     render(<SeriesTemplateEventEditPage />)
 
     expect(
-      screen.getByRole("heading", { name: "Movements", level: 3 }),
+      screen.getByRole("heading", { name: "Movements", level: 2 }),
     ).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Thruster/ })).toHaveAttribute(
       "aria-pressed",
