@@ -30,6 +30,10 @@ Template events support the same editing experience as competition events:
 
 The event list uses `SeriesTemplateEventEditor` with `SeriesEventRow` components matching `CompetitionEventRow`. The full edit page at `/series/{groupId}/events/{eventId}` mirrors the competition event edit page, including a `ParentEventEditPage` variant with tabbed sub-event forms.
 
+### Sub-event movement editing
+
+Sub-event movement selection renders as a semantic collection independent of React Hook Form field context while preserving selected movement IDs in the update payload.
+
 ## Syncing to Competitions
 
 `syncTemplateEventsToCompetitionsFn` pushes template event data to mapped competitions. For each template event:
