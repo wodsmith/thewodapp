@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto"
 import { readFile } from "node:fs/promises"
-import { resolve } from "node:path"
+import { isAbsolute, relative, resolve, sep } from "node:path"
 import {
   AXES,
   DISPOSITIONS,
@@ -119,6 +119,24 @@ function requireKnown(value, allowed, label, routeId) {
   }
 }
 
+export function isRepositoryRelativeRef(
+  repoRoot,
+  ref,
+  pathApi = { isAbsolute, relative, resolve, sep },
+) {
+  if (typeof ref !== "string" || !ref.trim() || pathApi.isAbsolute(ref)) {
+    return false
+  }
+  const root = pathApi.resolve(repoRoot)
+  const absolutePath = pathApi.resolve(root, ref)
+  const relativePath = pathApi.relative(root, absolutePath)
+  return (
+    relativePath !== ".." &&
+    !relativePath.startsWith(`..${pathApi.sep}`) &&
+    !pathApi.isAbsolute(relativePath)
+  )
+}
+
 async function validateEvidence(repoRoot, routeId, scenario) {
   for (const evidence of scenario.evidence) {
     if (
@@ -130,10 +148,10 @@ async function validateEvidence(repoRoot, routeId, scenario) {
         `${routeId}/${scenario.id} evidence requires a known kind, repository-relative ref, and SHA-256`,
       )
     }
-    const absolutePath = resolve(repoRoot, evidence.ref)
-    if (!absolutePath.startsWith(`${resolve(repoRoot)}/`)) {
+    if (!isRepositoryRelativeRef(repoRoot, evidence.ref)) {
       throw new Error(`${routeId}/${scenario.id} evidence escapes the repository`)
     }
+    const absolutePath = resolve(repoRoot, evidence.ref)
     let contents
     try {
       contents = await readFile(absolutePath)
@@ -240,6 +258,13 @@ export async function validatePlan(repoRoot, discovered, plan) {
       for (const value of requiredValues) requireKnown(value, allowed, axis, record.routeId)
     }
 
+    if (
+      entry.scenarios.some(
+        (scenario) => typeof scenario?.id !== "string" || !scenario.id.trim(),
+      )
+    ) {
+      throw new Error(`${record.routeId} scenario IDs must be non-empty strings`)
+    }
     const scenarioIds = entry.scenarios.map((scenario) => scenario.id)
     if (new Set(scenarioIds).size !== scenarioIds.length) {
       throw new Error(`${record.routeId} has duplicate scenario IDs`)
@@ -268,6 +293,9 @@ export async function validatePlan(repoRoot, discovered, plan) {
       }
       if (scenario.status === "verified" && scenario.blockers.length > 0) {
         throw new Error(`${record.routeId}/${scenario.id} verified scenario cannot have blockers`)
+      }
+      if (scenario.status === "pending" && scenario.blockers.length > 0) {
+        throw new Error(`${record.routeId}/${scenario.id} pending scenario cannot have blockers`)
       }
       if (
         scenario.status === "blocked" &&

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto"
 import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { dirname, resolve } from "node:path"
+import { dirname, resolve, win32 } from "node:path"
 import { describe, expect, it } from "vitest"
 // @ts-expect-error The production generator intentionally remains plain ESM.
 import { AXES } from "../../scripts/page-coverage/config.mjs"
@@ -23,7 +23,12 @@ const {
   tanstackUrlPattern,
 } = discovery
 const { renderLedgerJson, renderLedgerMarkdown, summarizeLedger } = rendering
-const { joinLedger, scaffoldPlan, validatePlan } = validation
+const {
+  isRepositoryRelativeRef,
+  joinLedger,
+  scaffoldPlan,
+  validatePlan,
+} = validation
 
 const repoRoot = resolve(import.meta.dirname, "../../../..")
 
@@ -131,6 +136,30 @@ describe("page coverage discovery", () => {
       classifyTanstackRoute({
         sourceRouteId: "/legacy",
         options: "{ beforeLoad: () => redirect({ to: '/' }) }",
+        descendantIds: [],
+      }).kind,
+    ).toBe("redirect")
+    expect(
+      classifyTanstackRoute({
+        sourceRouteId: "/retired-block",
+        options:
+          "{ /* } component: RetiredPage { */ beforeLoad: () => redirect({ to: '/' }) }",
+        descendantIds: [],
+      }).kind,
+    ).toBe("redirect")
+    expect(
+      classifyTanstackRoute({
+        sourceRouteId: "/retired-regex",
+        options:
+          "{ loader: () => /component: RetiredPage/.test('component: nope'), beforeLoad: () => redirect({ to: '/' }) }",
+        descendantIds: [],
+      }).kind,
+    ).toBe("redirect")
+    expect(
+      classifyTanstackRoute({
+        sourceRouteId: "/retired",
+        options:
+          "{ // component: RetiredPage\n beforeLoad: () => redirect({ to: '/' }) }",
         descendantIds: [],
       }).kind,
     ).toBe("redirect")
@@ -282,6 +311,10 @@ describe("page coverage discovery", () => {
       "---\ndraft: true\n---\n# Draft\n",
     )
     await write(
+      resolve(root, "docs/guides/setup.mdx"),
+      '---\nslug: "/setup"\ntags:\n  - setup\nmetadata:\n  audience: organizer\n---\n# Setup\n',
+    )
+    await write(
       resolve(root, "docs/how-to/_category_.json"),
       JSON.stringify({
         label: "How-to Guides",
@@ -307,6 +340,11 @@ describe("page coverage discovery", () => {
           routeId: "docusaurus:docs:draft",
           urlPattern: "/guide/draft",
           kind: "draft",
+        }),
+        expect.objectContaining({
+          routeId: "docusaurus:docs:guides/setup",
+          urlPattern: "/guide/setup",
+          kind: "page",
         }),
         expect.objectContaining({
           routeId: "docusaurus:docs:category/how-to",
@@ -349,41 +387,102 @@ describe("page coverage discovery", () => {
 
   it("keeps Hono, worker wildcard, and cron decisions as full service records", async () => {
     const root = await makeTempRepo()
-    await write(resolve(root, "service.ts"), "app.get('/health'); async fetch(); cron-a; cron-b")
+    await write(
+      resolve(root, "apps/team-memory/src/index.ts"),
+      "import { handleScheduled } from './routes/cron'; app.get('/health', health); export default { fetch: app.fetch, scheduled: handleScheduled }",
+    )
+    await write(
+      resolve(root, "apps/team-memory/src/routes/cron.ts"),
+      "if (event.cron === 'cron-a') runA(); if (event.cron === 'cron-b') runB()",
+    )
+    await write(
+      resolve(root, "apps/og-worker/src/index.ts"),
+      "export default { async fetch(request) { return fallback(request) } }",
+    )
     const records = await discoverServices(root, [
       {
-        app: "hono",
-        source: "service.ts",
+        app: "team-memory",
+        source: "apps/team-memory/src/index.ts",
         sourceRouteId: "/health",
         protocol: "http",
         method: "GET",
         urlPattern: "/health",
-        marker: "app.get('/health'",
       },
       {
-        app: "worker",
-        source: "service.ts",
+        app: "og-worker",
+        source: "apps/og-worker/src/index.ts",
         sourceRouteId: "/*",
         protocol: "http",
         method: "ANY",
         urlPattern: "/*",
-        marker: "async fetch(",
       },
       {
-        app: "worker",
-        source: "service.ts",
+        app: "team-memory",
+        source: "apps/team-memory/src/routes/cron.ts",
         sourceRouteId: "*",
         protocol: "cron",
         method: "SCHEDULED",
         urlPattern: "cron-a | cron-b",
-        markers: ["cron-a", "cron-b"],
       },
     ])
     expect(records.map((record: { routeId: string }) => record.routeId)).toEqual([
-      "service:hono:http:GET:/health",
-      "service:worker:http:ANY:/*",
-      "service:worker:cron:SCHEDULED:*",
+      "service:team-memory:http:GET:/health",
+      "service:og-worker:http:ANY:/*",
+      "service:team-memory:cron:SCHEDULED:*",
     ])
+  })
+
+  it("rejects source-derived service surfaces missing from the registry", async () => {
+    const root = await makeTempRepo()
+    await write(
+      resolve(root, "apps/team-memory/src/index.ts"),
+      "const app = new Hono(); app.get('/health', health); app.get('/new', added)",
+    )
+    await expect(
+      discoverServices(root, [
+        {
+          app: "team-memory",
+          source: "apps/team-memory/src/index.ts",
+          sourceRouteId: "/health",
+          protocol: "http",
+          method: "GET",
+          urlPattern: "/health",
+          marker: "app.get('/health'",
+        },
+      ]),
+    ).rejects.toThrow("Unregistered service surface")
+
+    await write(
+      resolve(root, "apps/og-worker/src/index.ts"),
+      `export default { async fetch(request) {
+        const path = new URL(request.url).pathname
+        if (path === "/health") return health()
+        if (path === "/new-worker-path") return added()
+        return fallback()
+      } }`,
+    )
+    await expect(
+      discoverServices(root, [
+        {
+          app: "og-worker",
+          source: "apps/og-worker/src/index.ts",
+          sourceRouteId: "/health",
+          protocol: "http",
+          method: "ANY",
+          urlPattern: "/health",
+          marker: 'path === "/health"',
+        },
+        {
+          app: "og-worker",
+          source: "apps/og-worker/src/index.ts",
+          sourceRouteId: "/*",
+          protocol: "http",
+          method: "ANY",
+          urlPattern: "/*",
+          marker: "async fetch(",
+        },
+      ]),
+    ).rejects.toThrow("Unregistered service surface")
   })
 })
 
@@ -420,6 +519,11 @@ describe("page coverage validation and rendering", () => {
     scenario.persona = "ghost"
     await expect(validatePlan(root, [page], plan)).rejects.toThrow("unknown persona")
     scenario.persona = "unassessed"
+    scenario.blockers = [{ code: "NOT_BLOCKED", detail: "pending must be clear" }]
+    await expect(validatePlan(root, [page], plan)).rejects.toThrow(
+      "pending scenario cannot have blockers",
+    )
+    scenario.blockers = []
     scenario.status = "blocked"
     await expect(validatePlan(root, [page], plan)).rejects.toThrow(
       "blocked scenario requires code/detail",
@@ -444,6 +548,59 @@ describe("page coverage validation and rendering", () => {
     await expect(validatePlan(root, [page], plan)).rejects.toThrow(
       "evidence hash mismatch",
     )
+  })
+
+  it("rejects blank scenario IDs before duplicate validation", async () => {
+    const root = await makeTempRepo()
+    const plan = scaffoldPlan([page])
+    plan.entries[0].scenarios[0].id = "   "
+    await expect(validatePlan(root, [page], plan)).rejects.toThrow(
+      "scenario IDs must be non-empty strings",
+    )
+    plan.entries[0].scenarios[0].id = 42
+    await expect(validatePlan(root, [page], plan)).rejects.toThrow(
+      "scenario IDs must be non-empty strings",
+    )
+  })
+
+  it("requires portable repository-relative evidence refs", async () => {
+    const root = await makeTempRepo()
+    const plan = scaffoldPlan([page])
+    const scenario = plan.entries[0].scenarios[0]
+    await write(resolve(root, "evidence/page.png"), "evidence")
+    scenario.status = "verified"
+    scenario.evidence = [
+      {
+        kind: "browser-screenshot",
+        ref: resolve(root, "evidence/page.png"),
+        sha256: createHash("sha256").update("evidence").digest("hex"),
+      },
+    ]
+    await expect(validatePlan(root, [page], plan)).rejects.toThrow(
+      "evidence escapes the repository",
+    )
+    scenario.evidence[0].ref = "../outside.png"
+    await expect(validatePlan(root, [page], plan)).rejects.toThrow(
+      "evidence escapes the repository",
+    )
+
+    expect(
+      isRepositoryRelativeRef(
+        "C:\\repo",
+        "evidence\\page.png",
+        win32,
+      ),
+    ).toBe(true)
+    expect(
+      isRepositoryRelativeRef(
+        "C:\\repo",
+        "C:\\repo\\evidence\\page.png",
+        win32,
+      ),
+    ).toBe(false)
+    expect(
+      isRepositoryRelativeRef("C:\\repo", "..\\outside.png", win32),
+    ).toBe(false)
   })
 
   it("rejects dispositions that are incompatible with discovered kinds", async () => {

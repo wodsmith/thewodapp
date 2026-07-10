@@ -1,5 +1,7 @@
 import { readdir, readFile } from "node:fs/promises"
 import { dirname, extname, relative, resolve, sep } from "node:path"
+import ts from "typescript"
+import { parse as parseYaml } from "yaml"
 import {
   DOCS_APP,
   SERVICE_DECISIONS,
@@ -23,45 +25,117 @@ async function walk(directory) {
   return nested.flat()
 }
 
-function extractLiteralCall(source, name) {
-  const match = new RegExp(
-    `${name}\\s*\\(\\s*[\"']([^\"']+)[\"']\\s*,?\\s*\\)`,
-    "s",
-  ).exec(source)
-  return match?.[1] ?? null
+function unwrapExpression(node) {
+  let current = node
+  while (
+    ts.isParenthesizedExpression(current) ||
+    ts.isAsExpression(current) ||
+    ts.isSatisfiesExpression(current) ||
+    ts.isNonNullExpression(current)
+  ) {
+    current = current.expression
+  }
+  return current
 }
 
-function extractRouteOptions(source) {
-  const call =
-    /createFileRoute\s*\(\s*["'][^"']+["']\s*,?\s*\)\s*\(\s*\{/.exec(
-      source,
-    ) ?? /createRootRoute\s*\(\s*\{/.exec(source)
-  if (!call) return ""
-  const open = source.indexOf("{", call.index + call[0].lastIndexOf("{"))
-  if (open === -1) return ""
+function parseRouteDefinition(source) {
+  const sourceFile = ts.createSourceFile(
+    "route.tsx",
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  )
+  let definition = null
 
-  let depth = 0
-  let quote = null
-  let escaped = false
-  for (let index = open; index < source.length; index += 1) {
-    const character = source[index]
-    if (quote) {
-      if (escaped) escaped = false
-      else if (character === "\\") escaped = true
-      else if (character === quote) quote = null
-      continue
+  function visit(node) {
+    if (definition || !ts.isCallExpression(node)) {
+      ts.forEachChild(node, visit)
+      return
     }
-    if (character === '"' || character === "'" || character === "`") {
-      quote = character
-      continue
+    const expression = unwrapExpression(node.expression)
+    if (
+      ts.isCallExpression(expression) &&
+      ts.isIdentifier(expression.expression) &&
+      expression.expression.text === "createFileRoute"
+    ) {
+      const id = expression.arguments[0]
+      const options = node.arguments[0]
+      if (ts.isStringLiteralLike(id) && options) {
+        definition = { id: id.text, options: options.getText(sourceFile) }
+        return
+      }
     }
-    if (character === "{") depth += 1
-    if (character === "}") {
-      depth -= 1
-      if (depth === 0) return source.slice(open, index + 1)
+    if (
+      ts.isIdentifier(expression) &&
+      expression.text === "createRootRoute" &&
+      node.arguments[0]
+    ) {
+      definition = { id: "__root__", options: node.arguments[0].getText(sourceFile) }
+      return
     }
+    ts.forEachChild(node, visit)
   }
-  return source.slice(open)
+
+  visit(sourceFile)
+  return definition
+}
+
+function propertyName(property) {
+  const name = property.name
+  return name && (ts.isIdentifier(name) || ts.isStringLiteralLike(name))
+    ? name.text
+    : null
+}
+
+function analyzeRouteOptions(options) {
+  const sourceFile = ts.createSourceFile(
+    "route-options.tsx",
+    `const routeOptions = (${options})`,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  )
+  const statement = sourceFile.statements.find(ts.isVariableStatement)
+  const declaration = statement?.declarationList.declarations[0]
+  const initializer = declaration?.initializer
+    ? unwrapExpression(declaration.initializer)
+    : null
+  if (!initializer || !ts.isObjectLiteralExpression(initializer)) {
+    return { hasComponent: false, hasServerHandlers: false, hasRedirect: false }
+  }
+
+  const hasComponent = initializer.properties.some(
+    (property) => propertyName(property) === "component",
+  )
+  const serverProperty = initializer.properties.find(
+    (property) => propertyName(property) === "server",
+  )
+  const serverInitializer =
+    serverProperty && ts.isPropertyAssignment(serverProperty)
+      ? unwrapExpression(serverProperty.initializer)
+      : null
+  const hasServerHandlers = Boolean(
+    serverInitializer &&
+      ts.isObjectLiteralExpression(serverInitializer) &&
+      serverInitializer.properties.some(
+        (property) => propertyName(property) === "handlers",
+      ),
+  )
+  let hasRedirect = false
+  function findRedirect(node) {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === "redirect"
+    ) {
+      hasRedirect = true
+      return
+    }
+    ts.forEachChild(node, findRedirect)
+  }
+  findRedirect(initializer)
+  return { hasComponent, hasServerHandlers, hasRedirect }
 }
 
 export function canonicalTanstackPath(sourceRouteId) {
@@ -95,11 +169,10 @@ export function classifyTanstackRoute({
   options,
   descendantIds,
 }) {
-  const hasComponent = /\bcomponent\s*:/.test(options)
-  const hasServerHandlers = /\bserver\s*:\s*\{[\s\S]*?\bhandlers\s*:/.test(options)
+  const { hasComponent, hasServerHandlers, hasRedirect } =
+    analyzeRouteOptions(options)
   const urlPattern = tanstackUrlPattern(sourceRouteId)
   const isApi = urlPattern === "/api" || urlPattern.startsWith("/api/")
-  const hasRedirect = /\bredirect\s*\(/.test(options)
   const hasDescendants = descendantIds.length > 0
   const indexId = sourceRouteId === "__root__" ? "/" : `${sourceRouteId}/`
   const hasIndex = descendantIds.includes(indexId)
@@ -182,12 +255,8 @@ export async function discoverTanstackApp(repoRoot, appConfig) {
     }
     const sourcePath = await resolveRouteSource(dirname(treePath), importPath)
     const source = await readFile(sourcePath, "utf8")
-    const declaredId =
-      treeRoute.sourceRouteId === "__root__"
-        ? /createRootRoute\s*\(/.test(source)
-          ? "__root__"
-          : null
-        : extractLiteralCall(source, "createFileRoute")
+    const definition = parseRouteDefinition(source)
+    const declaredId = definition?.id ?? null
     if (declaredId !== treeRoute.sourceRouteId) {
       throw new Error(
         `Source/tree mismatch for ${normalizeSourcePath(relative(repoRoot, sourcePath))}: expected ${treeRoute.sourceRouteId}, found ${declaredId ?? "none"}`,
@@ -202,7 +271,7 @@ export async function discoverTanstackApp(repoRoot, appConfig) {
       })
     const classification = classifyTanstackRoute({
       sourceRouteId: treeRoute.sourceRouteId,
-      options: extractRouteOptions(source),
+      options: definition?.options ?? "",
       descendantIds,
     })
     discovered.push({
@@ -225,9 +294,8 @@ export async function discoverTanstackApp(repoRoot, appConfig) {
   const declarations = []
   for (const path of routeFiles) {
     const source = await readFile(path, "utf8")
-    const fileId = extractLiteralCall(source, "createFileRoute")
-    const rootId = /createRootRoute\s*\(/.test(source) ? "__root__" : null
-    if (fileId || rootId) declarations.push({ id: fileId ?? rootId, path })
+    const definition = parseRouteDefinition(source)
+    if (definition) declarations.push({ id: definition.id, path })
   }
 
   const treeSources = new Set(discovered.map((route) => resolve(repoRoot, route.source)))
@@ -248,20 +316,16 @@ export async function discoverTanstackApp(repoRoot, appConfig) {
 }
 
 function parseFrontmatter(source) {
-  if (!source.startsWith("---\n")) return {}
-  const end = source.indexOf("\n---", 4)
-  if (end === -1) return {}
-  return Object.fromEntries(
-    source
-      .slice(4, end)
-      .split("\n")
-      .map((line) => /^([\w-]+):\s*(.*?)\s*$/.exec(line))
-      .filter(Boolean)
-      .map((match) => {
-        const value = match[2]
-        return [match[1], value === "true" ? true : value === "false" ? false : value]
-      }),
-  )
+  const match = /^(?:\uFEFF)?---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(source)
+  if (!match) return {}
+  try {
+    const parsed = parseYaml(match[1])
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed
+      : {}
+  } catch {
+    return {}
+  }
 }
 
 function slugify(value) {
@@ -307,15 +371,15 @@ export async function discoverDocs(repoRoot, docsConfig = DOCS_APP) {
   }
   const docsRoot = resolve(repoRoot, docsConfig.docsPath)
   const files = (await walk(docsRoot)).filter(
-    (path) => path.endsWith(".md") || path.endsWith("_category_.json"),
+    (path) => /\.mdx?$/.test(path) || path.endsWith("_category_.json"),
   )
   const records = []
   for (const path of files) {
     const sourcePath = normalizeSourcePath(relative(repoRoot, path))
     const relativePath = normalizeSourcePath(relative(docsRoot, path))
-    if (path.endsWith(".md")) {
+    if (/\.mdx?$/.test(path)) {
       const frontmatter = parseFrontmatter(await readFile(path, "utf8"))
-      const docId = String(frontmatter.id || relativePath.replace(/\.md$/, ""))
+      const docId = String(frontmatter.id || relativePath.replace(/\.mdx?$/, ""))
       const slug = String(frontmatter.slug || `/${docId}`)
       const draft = frontmatter.draft === true
       records.push({
@@ -357,28 +421,235 @@ export async function discoverDocs(repoRoot, docsConfig = DOCS_APP) {
   return records
 }
 
-export async function discoverServices(repoRoot, decisions = SERVICE_DECISIONS) {
-  const records = []
-  for (const decision of decisions) {
-    const source = await readFile(resolve(repoRoot, decision.source), "utf8")
-    const markers = decision.markers ?? [decision.marker]
-    for (const marker of markers) {
-      if (!source.includes(marker)) {
-        throw new Error(`Service decision marker missing in ${decision.source}: ${marker}`)
-      }
+function sourceRoutes(source, receiver) {
+  const routes = []
+  const pattern = new RegExp(
+    `\\b${receiver}\\.(get|post|put|patch|delete|options|all)\\(\\s*["']([^"']+)["']`,
+    "g",
+  )
+  for (const match of source.matchAll(pattern)) {
+    routes.push({ method: match[1] === "all" ? "ANY" : match[1].toUpperCase(), path: match[2] })
+  }
+  return routes
+}
+
+function joinServicePath(prefix, child) {
+  const joined = `${prefix.replace(/\/$/, "")}/${child.replace(/^\//, "")}`
+  return joined.length > 1 ? joined.replace(/\/$/, "") : "/"
+}
+
+function sourceImports(source) {
+  return new Map(
+    [...source.matchAll(/import\s+\{\s*(\w+)\s*\}\s+from\s+["']([^"']+)["']/g)].map(
+      (match) => [match[1], match[2]],
+    ),
+  )
+}
+
+async function resolveSourceModule(sourcePath, specifier) {
+  const base = resolve(dirname(sourcePath), specifier)
+  for (const candidate of [base, `${base}.ts`, `${base}.tsx`]) {
+    try {
+      await readFile(candidate)
+      return candidate
+    } catch {}
+  }
+  throw new Error(`Service source import does not exist: ${specifier}`)
+}
+
+async function discoverTeamMemorySurfaces(repoRoot) {
+  const indexPath = resolve(repoRoot, "apps/team-memory/src/index.ts")
+  const indexSource = await readFile(indexPath, "utf8")
+  const imports = sourceImports(indexSource)
+  const surfaces = sourceRoutes(indexSource, "app").map((route) => ({
+    app: "team-memory",
+    protocol: "http",
+    method: route.method,
+    sourceRouteId: route.path,
+    urlPattern: route.path,
+    source: normalizeSourcePath(relative(repoRoot, indexPath)),
+  }))
+
+  for (const match of indexSource.matchAll(
+    /\bapp\.route\(\s*["']([^"']+)["']\s*,\s*(\w+)\s*\)/g,
+  )) {
+    const [prefix, receiver] = [match[1], match[2]]
+    const specifier = imports.get(receiver)
+    if (!specifier) throw new Error(`Missing Team Memory import for ${receiver}`)
+    const modulePath = await resolveSourceModule(indexPath, specifier)
+    const moduleSource = await readFile(modulePath, "utf8")
+    for (const route of sourceRoutes(moduleSource, receiver)) {
+      const path = joinServicePath(prefix, route.path)
+      surfaces.push({
+        app: "team-memory",
+        protocol: "http",
+        method: route.method,
+        sourceRouteId: path,
+        urlPattern: path,
+        source: normalizeSourcePath(relative(repoRoot, modulePath)),
+      })
     }
-    records.push({
+  }
+
+  const scheduled = /\bscheduled:\s*(\w+)/.exec(indexSource)?.[1]
+  if (scheduled) {
+    const specifier = imports.get(scheduled)
+    if (!specifier) throw new Error(`Missing Team Memory import for ${scheduled}`)
+    const modulePath = await resolveSourceModule(indexPath, specifier)
+    const moduleSource = await readFile(modulePath, "utf8")
+    const triggers = [
+      ...moduleSource.matchAll(/event\.cron\s*===\s*["']([^"']+)["']/g),
+    ]
+      .map((match) => match[1])
+      .sort()
+    if (!triggers.length) throw new Error("Team Memory scheduled handler has no cron triggers")
+    surfaces.push({
+      app: "team-memory",
+      protocol: "cron",
+      method: "SCHEDULED",
+      sourceRouteId: "*",
+      urlPattern: triggers.join(" | "),
+      source: normalizeSourcePath(relative(repoRoot, modulePath)),
+    })
+  }
+  return surfaces
+}
+
+function normalizeWorkerRegex(literal) {
+  const body = literal.replace(/^\/\^/, "").replace(/\$\/[a-z]*$/, "")
+  return body
+    .replaceAll("\\/", "/")
+    .replace(/\(\[\^\/?\]\+\)/g, ":param")
+    .replace(/\(\.\*\??\)/g, ":param")
+}
+
+function hasWorkerFallback(source) {
+  const sourceFile = ts.createSourceFile(
+    "worker.ts",
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  )
+  let fallback = false
+  function visit(node) {
+    if (
+      ts.isMethodDeclaration(node) &&
+      propertyName(node) === "fetch" &&
+      node.body
+    ) {
+      fallback = ts.isReturnStatement(node.body.statements.at(-1))
+      return
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sourceFile)
+  return fallback
+}
+
+async function discoverOgWorkerSurfaces(repoRoot) {
+  const sourcePath = resolve(repoRoot, "apps/og-worker/src/index.ts")
+  const source = await readFile(sourcePath, "utf8")
+  if (!/async\s+fetch\s*\(/.test(source)) {
+    throw new Error("OG Worker has no fetch handler")
+  }
+  const sourceName = normalizeSourcePath(relative(repoRoot, sourcePath))
+  const patterns = [
+    ...[...source.matchAll(/\bpath\s*===\s*["']([^"']+)["']/g)].map(
+      (match) => match[1],
+    ),
+    ...source
+      .split("\n")
+      .filter((line) => line.includes("path.match("))
+      .map((line) => {
+        const start = line.indexOf("path.match(") + "path.match(".length
+        const end = line.lastIndexOf(")")
+        return normalizeWorkerRegex(line.slice(start, end).trim())
+      }),
+  ]
+  if (hasWorkerFallback(source)) patterns.push("/*")
+  return patterns.map((path) => ({
+    app: "og-worker",
+    protocol: "http",
+    method: "ANY",
+    sourceRouteId: path,
+    urlPattern: path,
+    source: sourceName,
+  }))
+}
+
+async function discoverPosthogProxySurfaces(repoRoot) {
+  const sourcePath = resolve(repoRoot, "apps/posthog-proxy/src/index.ts")
+  const source = await readFile(sourcePath, "utf8")
+  if (!/async\s+fetch\s*\(/.test(source) || !/proxyRequest\s*\(/.test(source)) {
+    throw new Error("PostHog proxy wildcard fetch delegation is missing")
+  }
+  return [
+    {
+      app: "posthog-proxy",
+      protocol: "http",
+      method: "ANY",
+      sourceRouteId: "/*",
+      urlPattern: "/*",
+      source: normalizeSourcePath(relative(repoRoot, sourcePath)),
+    },
+  ]
+}
+
+function serviceMatchKey(surface) {
+  const pattern = surface.sourceRouteId.replace(/(?:\$|:)[A-Za-z0-9_]+/g, ":param")
+  return `${surface.app}:${surface.protocol}:${surface.method}:${pattern}`
+}
+
+export async function discoverServices(repoRoot, decisions = SERVICE_DECISIONS) {
+  const apps = new Set(decisions.map((decision) => decision.app))
+  const actual = []
+  if (apps.has("team-memory")) actual.push(...(await discoverTeamMemorySurfaces(repoRoot)))
+  if (apps.has("og-worker")) actual.push(...(await discoverOgWorkerSurfaces(repoRoot)))
+  if (apps.has("posthog-proxy")) {
+    actual.push(...(await discoverPosthogProxySurfaces(repoRoot)))
+  }
+  const unsupported = [...apps].filter(
+    (app) => !["team-memory", "og-worker", "posthog-proxy"].includes(app),
+  )
+  if (unsupported.length) {
+    throw new Error(`Unsupported service discovery app: ${unsupported.join(", ")}`)
+  }
+
+  const configuredByKey = new Map(
+    decisions.map((decision) => [serviceMatchKey(decision), decision]),
+  )
+  const actualByKey = new Map(actual.map((surface) => [serviceMatchKey(surface), surface]))
+  const unregistered = actual.filter(
+    (surface) => !configuredByKey.has(serviceMatchKey(surface)),
+  )
+  const missing = decisions.filter(
+    (decision) => !actualByKey.has(serviceMatchKey(decision)),
+  )
+  if (unregistered.length || missing.length) {
+    throw new Error(
+      `Service surface mismatch. Unregistered service surface: ${unregistered.map(serviceMatchKey).join(", ") || "none"}. Missing source surface: ${missing.map(serviceMatchKey).join(", ") || "none"}.`,
+    )
+  }
+
+  return decisions.map((decision) => {
+    const surface = actualByKey.get(serviceMatchKey(decision))
+    if (decision.protocol === "cron" && surface.urlPattern !== decision.urlPattern) {
+      throw new Error(
+        `Service cron trigger mismatch for ${serviceRouteId(decision)}: ${surface.urlPattern}`,
+      )
+    }
+    return {
       routeId: serviceRouteId(decision),
       app: decision.app,
-      source: decision.source,
+      source: surface.source,
       sourceRouteId: decision.sourceRouteId,
       urlPattern: decision.urlPattern,
       kind: "service",
       defaultDisposition: "non-visual",
       descendantRouteIds: [],
-    })
-  }
-  return records
+    }
+  })
 }
 
 export async function discoverRepository(repoRoot, options = {}) {

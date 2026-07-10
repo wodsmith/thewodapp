@@ -142,10 +142,10 @@
     "zustand": "^5.0.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.1",
     "@biomejs/biome": "2.0.6",
     "@cloudflare/workers-types": "^4.20250508.0",
     "@playwright/test": "^1.60.0",
-    "@axe-core/playwright": "^4.11.1",
     "@repo/test-utils": "workspace:*",
     "@storybook/addon-a11y": "^10.5.0",
     "@storybook/addon-docs": "^10.5.0",
@@ -172,6 +172,7 @@
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.0.5",
     "web-vitals": "^5.1.0",
-    "wrangler": "^4.56.0"
+    "wrangler": "^4.56.0",
+    "yaml": "^2.8.2"
   }
 }

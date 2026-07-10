@@ -72,6 +72,8 @@ Route identity preserves framework semantics while URL patterns represent the br
 
 TanStack discovery starts from each registered `routeTree.gen.ts`, joins every generated alias to its source `createFileRoute` or `createRootRoute` declaration, and then scans declarations only to reject orphans. Route filenames alone are never inventory inputs.
 
+TypeScript syntax trees identify route option properties and calls, so comments, strings, regex literals, and braces inside comments cannot create false component, handler, or redirect classifications.
+
 Canonical TanStack IDs preserve pathless and index identity. For example, source ID `/compete/$slug/` becomes `tanstack:wodsmith-start:/compete/$slug/_index`, while its URL pattern is `/compete/:slug`.
 
 ### Tree and source reconciliation
@@ -94,9 +96,11 @@ The reconciled baseline is 328 records: 239 page/page-layout records and 89 expl
 
 Docusaurus and service-only surfaces remain full records even when they do not produce browser evidence scenarios.
 
-Docs discovery records 31 source docs and 10 categories: 30 published pages, one draft-only doc, four generated category pages, and six navigation-only categories. The configured route base is validated against Docusaurus and applied to every URL; `intro` keeps its ID while its slug maps to `/` today.
+Docs discovery records Markdown and MDX with YAML frontmatter plus category metadata. The configured route base is validated against Docusaurus and applied to every URL; `intro` keeps its ID while its slug maps to `/` today.
 
 Team Memory contributes seven HTTP endpoints and one scheduled surface, OG Worker contributes three wildcard-aware HTTP decisions, and the PostHog proxy contributes one wildcard decision. Protocol and method remain part of every service ID.
+
+Team Memory mounts and methods plus OG Worker path branches are discovered from source and reconciled against the decision registry, so additions fail until planned. PostHog remains one exhaustive wildcard because its fetch handler delegates every method and path through the proxy.
 
 ### Validation invariants
 
@@ -104,9 +108,9 @@ The plan validator requires explicit placeholders for every page and page-layout
 
 Each scenario names persona, fixture, params, query, data state, theme, viewport, evidence, blockers, and status. Required axis values need coverage but not a Cartesian product; dynamic parameters must have values even while a scenario is pending.
 
-Verified scenarios require hash-matched evidence and no blockers. Each evidence item names a known kind, repository-relative `ref`, and SHA-256; supported kinds cover screenshots, accessibility and DOM snapshots, console and network logs, and redirect traces.
+Verified scenarios require hash-matched evidence and no blockers. Each evidence item names a known kind, portable repository-relative `ref`, and SHA-256; absolute and escaping refs are rejected on POSIX and Windows.
 
-Blocked scenarios require a code and detail. Layout-only records must name a visual descendant in `coveredBy`, and all other exclusions require a reason. Kind and disposition must remain compatible so exclusions cannot silently become visual claims or vice versa.
+Scenario IDs must be nonblank strings. Blocked scenarios require a code and detail; pending and verified scenarios cannot retain blockers. Layout-only records must name a visual descendant, and other exclusions require a reason.
 
 ### Checked-in ledger gate
 

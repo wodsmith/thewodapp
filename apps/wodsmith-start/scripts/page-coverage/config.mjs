@@ -71,7 +71,6 @@ export const SERVICE_DECISIONS = [
     protocol: "http",
     method: "GET",
     urlPattern: "/health",
-    marker: "app.get('/health'",
   },
   {
     app: "team-memory",
@@ -80,7 +79,6 @@ export const SERVICE_DECISIONS = [
     protocol: "http",
     method: "POST",
     urlPattern: "/observations",
-    marker: "observationRoutes.post('/'",
   },
   {
     app: "team-memory",
@@ -89,7 +87,6 @@ export const SERVICE_DECISIONS = [
     protocol: "http",
     method: "GET",
     urlPattern: "/search",
-    marker: "searchRoutes.get(\"/\"",
   },
   {
     app: "team-memory",
@@ -98,7 +95,6 @@ export const SERVICE_DECISIONS = [
     protocol: "http",
     method: "GET",
     urlPattern: "/context",
-    marker: "contextRoutes.get(\"/\"",
   },
   {
     app: "team-memory",
@@ -107,7 +103,6 @@ export const SERVICE_DECISIONS = [
     protocol: "http",
     method: "POST",
     urlPattern: "/feedback",
-    marker: "feedbackRoutes.post('/'",
   },
   {
     app: "team-memory",
@@ -116,7 +111,6 @@ export const SERVICE_DECISIONS = [
     protocol: "http",
     method: "POST",
     urlPattern: "/sessions",
-    marker: "sessionRoutes.post('/'",
   },
   {
     app: "team-memory",
@@ -125,7 +119,6 @@ export const SERVICE_DECISIONS = [
     protocol: "http",
     method: "GET",
     urlPattern: "/export",
-    marker: "exportRoutes.get(\"/\"",
   },
   {
     app: "team-memory",
@@ -134,7 +127,6 @@ export const SERVICE_DECISIONS = [
     protocol: "cron",
     method: "SCHEDULED",
     urlPattern: "0 6 * * * | 0 7 * * *",
-    markers: ["event.cron === '0 6 * * *'", "event.cron === '0 7 * * *'"],
   },
   {
     app: "og-worker",
@@ -143,7 +135,6 @@ export const SERVICE_DECISIONS = [
     protocol: "http",
     method: "ANY",
     urlPattern: "/health",
-    marker: 'path === "/health"',
   },
   {
     app: "og-worker",
@@ -152,7 +143,6 @@ export const SERVICE_DECISIONS = [
     protocol: "http",
     method: "ANY",
     urlPattern: "/competition/:slug",
-    marker: "^\\/competition\\/([^/]+)$",
   },
   {
     app: "og-worker",
@@ -161,7 +151,6 @@ export const SERVICE_DECISIONS = [
     protocol: "http",
     method: "ANY",
     urlPattern: "/*",
-    marker: "return generateDefaultOG()",
   },
   {
     app: "posthog-proxy",
@@ -170,7 +159,6 @@ export const SERVICE_DECISIONS = [
     protocol: "http",
     method: "ANY",
     urlPattern: "/*",
-    marker: "async fetch(",
   },
 ]
 
