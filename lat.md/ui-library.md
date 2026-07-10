@@ -110,7 +110,7 @@ Each scenario names persona, fixture, params, query, data state, theme, viewport
 
 Verified scenarios require hash-matched evidence and no blockers. Each evidence item names a known kind, portable repository-relative `ref`, and SHA-256; absolute and escaping refs are rejected on POSIX and Windows. Supported kinds include capture manifests alongside browser artifacts.
 
-Live browser evidence requires a capture manifest entry tied to the route and scenario. Provenance records requested and final URLs, host, environment, capture time, viewport, requested and effective theme, tool version, deployed revision or `unknown`, and the exact artifact kind, path, and hash set.
+Live browser evidence requires a capture manifest entry tied to the route and scenario. The requested path, params, query, viewport profile and dimensions, themes, environment, revision, tool, and exact artifact set must match; duplicate, unreferenced, missing, or on-disk orphan evidence fails validation.
 
 Scenario IDs must be nonblank strings. Blocked scenarios require a code and detail; pending and verified scenarios cannot retain blockers. Layout-only records must name a visual descendant, and other exclusions require a reason.
 
@@ -128,6 +128,6 @@ The first deployed evidence slice covers anonymous Start and Crew public/auth-en
 
 Start verified responsive light/dark behavior for competition discovery, legal, maintenance, and basic auth-entry pages. Missing-token reset and verification error states were observed separately from their blocked token-backed happy paths.
 
-Crew verified desktop and mobile light output, but all four requested-dark scenarios remained light and are blocked with `THEME_NOT_IMPLEMENTED`. Valid reset, verification, and authenticated invite paths remain blocked until disposable tokens exist.
+Crew verified desktop and mobile light output, but all four requested-dark scenarios remained light and are blocked with `THEME_NOT_IMPLEMENTED`. At 390 px, Crew home expands to 600 px and calculator to 759 px; these verified overflow observations require responsive follow-up. Valid token paths remain blocked until disposable fixtures exist.
 
 Observed repetition makes auth-entry composition, long-form legal documents, and centered status pages shared-library candidates. Competition discovery and the Crew staffing calculator remain route-specific; the team-invite UI stays unassessed because only its source gate was observed.

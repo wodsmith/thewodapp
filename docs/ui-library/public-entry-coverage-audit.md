@@ -29,6 +29,8 @@ The strongest next composite is an auth-entry shell that composes the existing s
 
 Crew did not activate dark styling when Chromium reported `prefers-color-scheme: dark`. All four dark attempts rendered with an empty `html.className`, `effectiveDark: false`, and no console messages, so those scenarios are `blocked` with `THEME_NOT_IMPLEMENTED` rather than verified.
 
+Crew also overflows horizontally at the recorded 390 px mobile viewport. Home captures expand to 600 px and calculator captures to 759 px in light and requested-dark attempts, while both Crew auth pages remain 390 px wide. The mobile observations stay verified as faithful captures, but the landing navigation and calculator table require responsive follow-up before those layouts are treated as clean abstraction evidence.
+
 Valid password-reset, email-verification, and authenticated team-invite paths are blocked with `FIXTURE_TOKEN_UNAVAILABLE`. Missing-token error and redirect behavior was verified separately and does not stand in for the token-backed happy paths.
 
 The remaining 225 pending scenarios are intentionally untouched by this slice.

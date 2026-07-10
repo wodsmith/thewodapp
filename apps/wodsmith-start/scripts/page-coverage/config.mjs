@@ -54,6 +54,11 @@ export const DISPOSITIONS = [
 
 export const SCENARIO_STATUSES = ["pending", "blocked", "verified"]
 
+export const CAPTURE_VIEWPORTS = {
+  desktop: { width: 1440, height: 900 },
+  mobile: { width: 390, height: 844 },
+}
+
 export const EVIDENCE_KINDS = [
   "browser-screenshot",
   "accessibility-snapshot",

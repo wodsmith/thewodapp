@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto"
-import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises"
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, resolve, win32 } from "node:path"
 import { describe, expect, it } from "vitest"
@@ -883,7 +883,7 @@ describe("page coverage validation and rendering", () => {
       "verified browser scenario requires capture provenance",
     )
 
-    const manifest = JSON.stringify({
+    const manifest = {
       version: 1,
       captures: [
         {
@@ -891,11 +891,11 @@ describe("page coverage validation and rendering", () => {
           routeId: page.routeId,
           scenarioId: scenario.id,
           environment: "production",
-          requestedUrl: "https://example.com/items/fixture-item",
-          finalUrl: "https://example.com/items/fixture-item",
+          requestedUrl: "https://example.com/items/__unassessed_itemId__",
+          finalUrl: "https://example.com/items/__unassessed_itemId__",
           host: "example.com",
           capturedAt: "2026-07-10T19:00:00.000Z",
-          viewport: { width: 1440, height: 900 },
+          viewport: { profile: "desktop", width: 1440, height: 900 },
           requestedColorScheme: "light",
           effectiveColorScheme: "light",
           deploymentRevision: "unknown",
@@ -909,14 +909,28 @@ describe("page coverage validation and rendering", () => {
           ],
         },
       ],
-    })
-    await write(resolve(root, "evidence/capture-manifest.json"), manifest)
+    }
+    let manifestContents = JSON.stringify(manifest)
+    await write(
+      resolve(root, "evidence/capture-manifest.json"),
+      manifestContents,
+    )
     scenario.evidence.push({
       kind: "capture-manifest",
       ref: "evidence/capture-manifest.json",
-      sha256: createHash("sha256").update(manifest).digest("hex"),
+      sha256: createHash("sha256").update(manifestContents).digest("hex"),
       captureId: "public-desktop-light",
     })
+    async function persistManifest() {
+      manifestContents = JSON.stringify(manifest)
+      await write(
+        resolve(root, "evidence/capture-manifest.json"),
+        manifestContents,
+      )
+      scenario.evidence[1].sha256 = createHash("sha256")
+        .update(manifestContents)
+        .digest("hex")
+    }
 
     await expect(validatePlan(root, [page], plan)).resolves.toBeUndefined()
     await write(resolve(root, "evidence/other.png"), "other")
@@ -933,6 +947,64 @@ describe("page coverage validation and rendering", () => {
       ref: "evidence/page.png",
       sha256: createHash("sha256").update("evidence").digest("hex"),
     }
+    await rm(resolve(root, "evidence/other.png"))
+
+    manifest.captures[0].requestedUrl = "https://example.com/completely-wrong"
+    await persistManifest()
+    await expect(validatePlan(root, [page], plan)).rejects.toThrow(
+      "capture requested URL does not match route scenario",
+    )
+    manifest.captures[0].requestedUrl =
+      "https://example.com/items/__unassessed_itemId__"
+    scenario.params.itemId = "wrong-item"
+    await persistManifest()
+    await expect(validatePlan(root, [page], plan)).rejects.toThrow(
+      "capture requested URL does not match route scenario",
+    )
+    scenario.params.itemId = "__unassessed_itemId__"
+    scenario.query = { mode: "full" }
+    await persistManifest()
+    await expect(validatePlan(root, [page], plan)).rejects.toThrow(
+      "capture requested URL does not match route scenario",
+    )
+    scenario.query = {}
+    scenario.viewport = "mobile"
+    await persistManifest()
+    await expect(validatePlan(root, [page], plan)).rejects.toThrow(
+      "capture viewport does not match scenario profile",
+    )
+    scenario.viewport = "desktop"
+
+    manifest.captures.push(structuredClone(manifest.captures[0]))
+    await persistManifest()
+    await expect(validatePlan(root, [page], plan)).rejects.toThrow(
+      "capture manifest IDs must be unique",
+    )
+    manifest.captures.pop()
+
+    await write(resolve(root, "evidence/orphan.png"), "orphan")
+    const orphanCapture = structuredClone(manifest.captures[0])
+    orphanCapture.id = "orphan-capture"
+    orphanCapture.artifacts = [
+      {
+        kind: "browser-screenshot",
+        ref: "evidence/orphan.png",
+        sha256: createHash("sha256").update("orphan").digest("hex"),
+      },
+    ]
+    manifest.captures.push(orphanCapture)
+    await persistManifest()
+    await expect(validatePlan(root, [page], plan)).rejects.toThrow(
+      "capture manifest has unreferenced captures",
+    )
+    manifest.captures.pop()
+    await persistManifest()
+    await expect(validatePlan(root, [page], plan)).rejects.toThrow(
+      "capture manifest directory has unreferenced evidence files",
+    )
+    await rm(resolve(root, "evidence/orphan.png"))
+
+    await persistManifest()
     scenario.evidence[1].captureId = "missing-capture"
     await expect(validatePlan(root, [page], plan)).rejects.toThrow(
       "capture manifest is missing captureId missing-capture",

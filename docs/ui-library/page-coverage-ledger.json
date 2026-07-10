@@ -1847,7 +1847,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "crew-home-desktop-light"
             }
           ],
@@ -1872,7 +1872,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "crew-home-mobile-light"
             }
           ],
@@ -1902,7 +1902,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "crew-home-mobile-dark"
             }
           ],
@@ -2270,7 +2270,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "crew-calculator-desktop-light"
             }
           ],
@@ -2295,7 +2295,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "crew-calculator-mobile-light"
             }
           ],
@@ -2325,7 +2325,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "crew-calculator-mobile-dark"
             }
           ],
@@ -3226,7 +3226,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "crew-sign-in-desktop-light"
             }
           ],
@@ -3251,7 +3251,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "crew-sign-in-mobile-light"
             }
           ],
@@ -3281,7 +3281,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "crew-sign-in-mobile-dark"
             }
           ],
@@ -3341,7 +3341,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "crew-sign-up-desktop-light"
             }
           ],
@@ -3366,7 +3366,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "crew-sign-up-mobile-light"
             }
           ],
@@ -3396,7 +3396,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "crew-sign-up-mobile-dark"
             }
           ],
@@ -4382,7 +4382,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "start-forgot-password-desktop-light"
             }
           ],
@@ -4407,7 +4407,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "start-forgot-password-mobile-dark"
             }
           ],
@@ -4462,7 +4462,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "start-reset-password-desktop-light"
             }
           ],
@@ -4535,7 +4535,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "start-sign-in-desktop-light"
             }
           ],
@@ -4560,7 +4560,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "start-sign-in-mobile-dark"
             }
           ],
@@ -4615,7 +4615,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "start-sign-up-desktop-light"
             }
           ],
@@ -4640,7 +4640,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "start-sign-up-mobile-dark"
             }
           ],
@@ -4695,7 +4695,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "start-team-invite-missing-token-redirect"
             }
           ],
@@ -4768,7 +4768,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "start-verify-email-desktop-light"
             }
           ],
@@ -4841,7 +4841,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "start-home-desktop-light"
             }
           ],
@@ -4866,7 +4866,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "start-home-mobile-dark"
             }
           ],
@@ -12223,7 +12223,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "start-maintenance-desktop-light"
             }
           ],
@@ -12248,7 +12248,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "start-maintenance-mobile-dark"
             }
           ],
@@ -12303,7 +12303,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "start-privacy-desktop-light"
             }
           ],
@@ -12328,7 +12328,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "start-privacy-mobile-dark"
             }
           ],
@@ -12383,7 +12383,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "start-terms-desktop-light"
             }
           ],
@@ -12408,7 +12408,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
-              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "sha256": "b24d3746148f9f882680c2b4e70fc339b98661657466509a965776e7ef720dc0",
               "captureId": "start-terms-mobile-dark"
             }
           ],

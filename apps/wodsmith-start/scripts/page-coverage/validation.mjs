@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto"
-import { readFile } from "node:fs/promises"
-import { isAbsolute, relative, resolve, sep } from "node:path"
+import { readFile, readdir } from "node:fs/promises"
+import { dirname, isAbsolute, relative, resolve, sep } from "node:path"
 import {
   AXES,
+  CAPTURE_VIEWPORTS,
   DISPOSITIONS,
   EVIDENCE_KINDS,
   KINDS,
@@ -145,7 +146,8 @@ export function isRepositoryRelativeRef(
   )
 }
 
-async function validateEvidence(repoRoot, routeId, scenario) {
+async function validateEvidence(repoRoot, record, scenario) {
+  const routeId = record.routeId
   for (const evidence of scenario.evidence) {
     if (
       !EVIDENCE_KINDS.includes(evidence?.kind) ||
@@ -200,6 +202,7 @@ async function validateEvidence(repoRoot, routeId, scenario) {
         viewport.width <= 0 ||
         !Number.isInteger(viewport?.height) ||
         viewport.height <= 0 ||
+        !CAPTURE_VIEWPORTS[viewport.profile] ||
         !AXES.themes.includes(capture.requestedColorScheme) ||
         !AXES.themes.includes(capture.effectiveColorScheme) ||
         capture.requestedColorScheme !== scenario.theme ||
@@ -210,6 +213,21 @@ async function validateEvidence(repoRoot, routeId, scenario) {
       ) {
         throw new Error(
           `${routeId}/${scenario.id} capture provenance is incomplete or mismatched`,
+        )
+      }
+      if (!requestedUrlMatches(record, scenario, requestedUrl)) {
+        throw new Error(
+          `${routeId}/${scenario.id} capture requested URL does not match route scenario`,
+        )
+      }
+      const viewportProfile = CAPTURE_VIEWPORTS[scenario.viewport]
+      if (
+        viewport.profile !== scenario.viewport ||
+        viewport.width !== viewportProfile.width ||
+        viewport.height !== viewportProfile.height
+      ) {
+        throw new Error(
+          `${routeId}/${scenario.id} capture viewport does not match scenario profile`,
         )
       }
       const claimedArtifacts = scenario.evidence.filter((candidate) =>
@@ -244,6 +262,114 @@ async function validateEvidence(repoRoot, routeId, scenario) {
   if (hasLiveBrowserEvidence && !hasCaptureManifest) {
     const qualifier = scenario.status === "verified" ? "verified browser scenario" : "browser evidence"
     throw new Error(`${routeId}/${scenario.id} ${qualifier} requires capture provenance`)
+  }
+}
+
+function requestedUrlMatches(record, scenario, requestedUrl) {
+  let pathname = record.urlPattern
+  for (const param of dynamicParamNames(record.sourceRouteId)) {
+    pathname = pathname.replace(`:${param}`, encodeURIComponent(scenario.params[param]))
+  }
+  const expectedQuery = new URLSearchParams()
+  for (const key of Object.keys(scenario.query).sort()) {
+    const value = scenario.query[key]
+    for (const item of Array.isArray(value) ? value : [value]) {
+      expectedQuery.append(key, item === null || item === undefined ? "" : String(item))
+    }
+  }
+  const actualQuery = new URLSearchParams(requestedUrl.search)
+  actualQuery.sort()
+  return (
+    requestedUrl.pathname === pathname &&
+    actualQuery.toString() === expectedQuery.toString()
+  )
+}
+
+async function filesUnder(repoRoot, directoryRef) {
+  const directory = resolve(repoRoot, directoryRef)
+  async function walk(current) {
+    const entries = await readdir(current, { withFileTypes: true })
+    return (
+      await Promise.all(
+        entries.map(async (entry) => {
+          const path = resolve(current, entry.name)
+          return entry.isDirectory() ? walk(path) : [relative(repoRoot, path)]
+        }),
+      )
+    ).flat()
+  }
+  return walk(directory)
+}
+
+async function validateManifestCoverage(repoRoot, entries) {
+  const scenarios = entries.flatMap((entry) => entry.scenarios)
+  const claimsByRef = new Map()
+  for (const scenario of scenarios) {
+    for (const evidence of scenario.evidence) {
+      if (evidence.kind !== "capture-manifest") continue
+      const claims = claimsByRef.get(evidence.ref) ?? []
+      claims.push(evidence)
+      claimsByRef.set(evidence.ref, claims)
+    }
+  }
+
+  const expectedFilesByDirectory = new Map()
+  for (const [manifestRef, claims] of claimsByRef) {
+    if (new Set(claims.map((claim) => claim.sha256)).size !== 1) {
+      throw new Error(`${manifestRef} capture manifest claims must use one SHA-256`)
+    }
+    const manifest = JSON.parse(await readFile(resolve(repoRoot, manifestRef), "utf8"))
+    const captureIds = manifest.captures?.map((capture) => capture.id) ?? []
+    if (
+      captureIds.some((id) => typeof id !== "string" || !id.trim()) ||
+      new Set(captureIds).size !== captureIds.length
+    ) {
+      throw new Error(`${manifestRef} capture manifest IDs must be unique non-empty strings`)
+    }
+    const claimedIds = claims.map((claim) => claim.captureId)
+    if (new Set(claimedIds).size !== claimedIds.length) {
+      throw new Error(`${manifestRef} capture IDs must be referenced exactly once`)
+    }
+    const unreferenced = captureIds.filter((id) => !claimedIds.includes(id))
+    if (unreferenced.length) {
+      throw new Error(
+        `${manifestRef} capture manifest has unreferenced captures: ${unreferenced.join(", ")}`,
+      )
+    }
+
+    const directoryRef = dirname(manifestRef)
+    const expectedFiles = expectedFilesByDirectory.get(directoryRef) ?? new Set()
+    expectedFiles.add(manifestRef)
+    if (manifest.captures.some((capture) => !Array.isArray(capture.artifacts))) {
+      throw new Error(`${manifestRef} capture manifest artifacts must be arrays`)
+    }
+    const artifactRefs = manifest.captures.flatMap((capture) =>
+      capture.artifacts.map((artifact) => artifact.ref),
+    )
+    if (new Set(artifactRefs).size !== artifactRefs.length) {
+      throw new Error(`${manifestRef} capture artifact refs must be unique`)
+    }
+    for (const artifactRef of artifactRefs) {
+      if (
+        artifactRef !== directoryRef &&
+        !artifactRef.startsWith(`${directoryRef}${sep}`) &&
+        !artifactRef.startsWith(`${directoryRef}/`)
+      ) {
+        throw new Error(`${manifestRef} capture artifact escapes its evidence directory`)
+      }
+      expectedFiles.add(artifactRef)
+    }
+    expectedFilesByDirectory.set(directoryRef, expectedFiles)
+  }
+
+  for (const [directoryRef, expectedFiles] of expectedFilesByDirectory) {
+    const actualFiles = await filesUnder(repoRoot, directoryRef)
+    const orphan = actualFiles.filter((file) => !expectedFiles.has(file))
+    if (orphan.length) {
+      throw new Error(
+        `${directoryRef} capture manifest directory has unreferenced evidence files: ${orphan.join(", ")}`,
+      )
+    }
   }
 }
 
@@ -394,7 +520,7 @@ export async function validatePlan(repoRoot, discovered, plan) {
       ) {
         throw new Error(`${record.routeId}/${scenario.id} blocked scenario requires code/detail`)
       }
-      await validateEvidence(repoRoot, record.routeId, scenario)
+      await validateEvidence(repoRoot, record, scenario)
     }
 
     for (const axis of REQUIRED_AXES) {
@@ -415,6 +541,7 @@ export async function validatePlan(repoRoot, discovered, plan) {
       }
     }
   }
+  await validateManifestCoverage(repoRoot, entries)
 }
 
 export function joinLedger(discovered, plan) {
