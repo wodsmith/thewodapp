@@ -36,7 +36,7 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/vite@7.3.0_@types+node@22.19.3_jiti@2.6.1_lightningcss@1.30.2_terser@5.44.1_tsx@4.20.3_yaml@2.8.2/node_modules/vite/dist/client/env.mjs",
+    "path": "/@fs/<repo>/node_modules/.pnpm/vite@7.3.0_@types+node@22.19.3_jiti@2.6.1_lightningcss@1.30.2_terser@5.44.1_tsx@4.20.3_yaml@2.8.2/node_modules/vite/dist/client/env.mjs",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -71,7 +71,7 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-start@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3_vite@7.3.0_@types+n_2hiqire2lwtoygp7i5vgrwr7xu/node_modules/@tanstack/react-start/dist/esm/client.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-start@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3_vite@7.3.0_@types+n_2hiqire2lwtoygp7i5vgrwr7xu/node_modules/@tanstack/react-start/dist/esm/client.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -92,28 +92,28 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-start-client@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-start-client/dist/esm/index.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-start-client@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-start-client/dist/esm/index.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-start-client@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-start-client/dist/esm/StartClient.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-start-client@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-start-client/dist/esm/StartClient.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-start-client@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-start-client/dist/esm/renderRSC.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-start-client@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-start-client/dist/esm/renderRSC.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-start-client@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-start-client/dist/esm/hydrateStart.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-start-client@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-start-client/dist/esm/hydrateStart.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -127,21 +127,21 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/index.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/index.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/tiny-invariant@1.3.3/node_modules/tiny-invariant/dist/esm/tiny-invariant.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/tiny-invariant@1.3.3/node_modules/tiny-invariant/dist/esm/tiny-invariant.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/client/index.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/client/index.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -155,392 +155,392 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/index.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/index.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+history@1.141.0/node_modules/@tanstack/history/dist/esm/index.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+history@1.141.0/node_modules/@tanstack/history/dist/esm/index.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/awaited.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/awaited.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/CatchBoundary.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/CatchBoundary.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/ClientOnly.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/ClientOnly.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/fileRoute.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/fileRoute.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/lazyRouteComponent.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/lazyRouteComponent.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/link.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/link.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/Matches.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/Matches.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/matchContext.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/matchContext.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/Match.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/Match.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useMatch.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useMatch.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useLoaderDeps.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useLoaderDeps.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useLoaderData.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useLoaderData.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/route.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/route.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/router.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/router.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/RouterProvider.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/RouterProvider.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/ScrollRestoration.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/ScrollRestoration.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useBlocker.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useBlocker.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useNavigate.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useNavigate.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useParams.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useParams.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useSearch.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useSearch.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/routerContext.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/routerContext.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useRouteContext.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useRouteContext.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useRouter.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useRouter.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useRouterState.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useRouterState.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useLocation.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useLocation.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useCanGoBack.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/useCanGoBack.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/utils.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/utils.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/not-found.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/not-found.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/ScriptOnce.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/ScriptOnce.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/Asset.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/Asset.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/HeadContent.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/HeadContent.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/Scripts.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/Scripts.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/client/hydrateStart.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/client/hydrateStart.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/defer.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/defer.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/link.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/link.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/load-matches.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/load-matches.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/Matches.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/Matches.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/path.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/path.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/qss.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/qss.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/root.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/root.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/route.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/route.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/router.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/router.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/config.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/config.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/searchMiddleware.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/searchMiddleware.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/searchParams.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/searchParams.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/utils.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/utils.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/redirect.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/redirect.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/not-found.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/not-found.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/scroll-restoration.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/scroll-restoration.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/serializer/transformer.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/serializer/transformer.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/serializer/seroval-plugins.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/serializer/seroval-plugins.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/serializer/RawStream.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/serializer/RawStream.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/rewrite.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/rewrite.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/tiny-warning@1.0.3/node_modules/tiny-warning/dist/tiny-warning.esm.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/tiny-warning@1.0.3/node_modules/tiny-warning/dist/tiny-warning.esm.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -554,28 +554,28 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/Transitioner.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/Transitioner.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/SafeFragment.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/SafeFragment.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/renderRouteNotFound.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/renderRouteNotFound.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/scroll-restoration.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router@1.144.0_react-dom@19.2.3_react@19.2.3__react@19.2.3/node_modules/@tanstack/react-router/dist/esm/scroll-restoration.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -589,14 +589,14 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/client.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/client.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/client/ServerFunctionSerializationAdapter.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/client/ServerFunctionSerializationAdapter.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -610,56 +610,56 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-start@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3_vite@7.3.0_@types+n_2hiqire2lwtoygp7i5vgrwr7xu/node_modules/@tanstack/react-start/dist/plugin/default-entry/start.ts",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-start@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3_vite@7.3.0_@types+n_2hiqire2lwtoygp7i5vgrwr7xu/node_modules/@tanstack/react-start/dist/plugin/default-entry/start.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+store@0.8.0/node_modules/@tanstack/store/dist/esm/index.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+store@0.8.0/node_modules/@tanstack/store/dist/esm/index.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/new-process-route-tree.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/new-process-route-tree.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/lru-cache.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/lru-cache.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/seroval@1.4.2/node_modules/seroval/dist/esm/development/index.mjs",
+    "path": "/@fs/<repo>/node_modules/.pnpm/seroval@1.4.2/node_modules/seroval/dist/esm/development/index.mjs",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/constants.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/constants.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/seroval-plugins@1.4.2_seroval@1.4.2/node_modules/seroval-plugins/dist/esm/development/web.mjs",
+    "path": "/@fs/<repo>/node_modules/.pnpm/seroval-plugins@1.4.2_seroval@1.4.2/node_modules/seroval-plugins/dist/esm/development/web.mjs",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/serializer/ShallowErrorPlugin.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/serializer/ShallowErrorPlugin.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -673,98 +673,98 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/headers.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/headers.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/json.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/json.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/ssr-client.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-core@1.144.0/node_modules/@tanstack/router-core/dist/esm/ssr/ssr-client.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/constants.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/constants.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/client-rpc/createClientRpc.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/client-rpc/createClientRpc.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+store@0.8.0/node_modules/@tanstack/store/dist/esm/derived.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+store@0.8.0/node_modules/@tanstack/store/dist/esm/derived.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+store@0.8.0/node_modules/@tanstack/store/dist/esm/effect.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+store@0.8.0/node_modules/@tanstack/store/dist/esm/effect.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+store@0.8.0/node_modules/@tanstack/store/dist/esm/store.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+store@0.8.0/node_modules/@tanstack/store/dist/esm/store.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+store@0.8.0/node_modules/@tanstack/store/dist/esm/types.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+store@0.8.0/node_modules/@tanstack/store/dist/esm/types.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+store@0.8.0/node_modules/@tanstack/store/dist/esm/scheduler.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+store@0.8.0/node_modules/@tanstack/store/dist/esm/scheduler.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/cookie-es@2.0.0/node_modules/cookie-es/dist/index.mjs",
+    "path": "/@fs/<repo>/node_modules/.pnpm/cookie-es@2.0.0/node_modules/cookie-es/dist/index.mjs",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/client-rpc/serverFnFetcher.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/client-rpc/serverFnFetcher.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/getDefaultSerovalPlugins.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/getDefaultSerovalPlugins.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/client-rpc/frame-decoder.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/client-rpc/frame-decoder.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -792,7 +792,7 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/getStartOptions.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/getStartOptions.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -2171,7 +2171,7 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router-devtools@1.144.0_@tanstack+react-router@1.144.0_react-dom@19.2.3_react_42pcq47wi5uuzni52zuvrexate/node_modules/@tanstack/react-router-devtools/dist/esm/index.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router-devtools@1.144.0_@tanstack+react-router@1.144.0_react-dom@19.2.3_react_42pcq47wi5uuzni52zuvrexate/node_modules/@tanstack/react-router-devtools/dist/esm/index.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -2213,14 +2213,14 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-start@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3_vite@7.3.0_@types+n_2hiqire2lwtoygp7i5vgrwr7xu/node_modules/@tanstack/react-start/dist/esm/client-rpc.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-start@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3_vite@7.3.0_@types+n_2hiqire2lwtoygp7i5vgrwr7xu/node_modules/@tanstack/react-start/dist/esm/client-rpc.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-start@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3_vite@7.3.0_@types+n_2hiqire2lwtoygp7i5vgrwr7xu/node_modules/@tanstack/react-start/dist/esm/index.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-start@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3_vite@7.3.0_@types+n_2hiqire2lwtoygp7i5vgrwr7xu/node_modules/@tanstack/react-start/dist/esm/index.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -2234,119 +2234,119 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router-devtools@1.144.0_@tanstack+react-router@1.144.0_react-dom@19.2.3_react_42pcq47wi5uuzni52zuvrexate/node_modules/@tanstack/react-router-devtools/dist/esm/TanStackRouterDevtools.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router-devtools@1.144.0_@tanstack+react-router@1.144.0_react-dom@19.2.3_react_42pcq47wi5uuzni52zuvrexate/node_modules/@tanstack/react-router-devtools/dist/esm/TanStackRouterDevtools.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-router-devtools@1.144.0_@tanstack+react-router@1.144.0_react-dom@19.2.3_react_42pcq47wi5uuzni52zuvrexate/node_modules/@tanstack/react-router-devtools/dist/esm/TanStackRouterDevtoolsPanel.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-router-devtools@1.144.0_@tanstack+react-router@1.144.0_react-dom@19.2.3_react_42pcq47wi5uuzni52zuvrexate/node_modules/@tanstack/react-router-devtools/dist/esm/TanStackRouterDevtoolsPanel.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/client-rpc/index.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/client-rpc/index.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+react-start@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3_vite@7.3.0_@types+n_2hiqire2lwtoygp7i5vgrwr7xu/node_modules/@tanstack/react-start/dist/esm/useServerFn.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+react-start@1.145.0_react-dom@19.2.3_react@19.2.3__react@19.2.3_vite@7.3.0_@types+n_2hiqire2lwtoygp7i5vgrwr7xu/node_modules/@tanstack/react-start/dist/esm/useServerFn.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/index.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/index.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-devtools-core@1.144.0_@tanstack+router-core@1.168.4_csstype@3.2.3_solid-js@1.9.10/node_modules/@tanstack/router-devtools-core/dist/esm/index.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-devtools-core@1.144.0_@tanstack+router-core@1.168.4_csstype@3.2.3_solid-js@1.9.10/node_modules/@tanstack/router-devtools-core/dist/esm/index.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+start-fn-stubs@1.143.8/node_modules/@tanstack/start-fn-stubs/dist/esm/index.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-fn-stubs@1.143.8/node_modules/@tanstack/start-fn-stubs/dist/esm/index.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/createServerFn.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/createServerFn.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/createMiddleware.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/createMiddleware.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/createStart.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/createStart.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/getRouterInstance.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/getRouterInstance.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/getGlobalStartContext.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/getGlobalStartContext.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/safeObjectMerge.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/safeObjectMerge.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+router-devtools-core@1.144.0_@tanstack+router-core@1.168.4_csstype@3.2.3_solid-js@1.9.10/node_modules/@tanstack/router-devtools-core/dist/index-Bjd63dIw.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+router-devtools-core@1.144.0_@tanstack+router-core@1.168.4_csstype@3.2.3_solid-js@1.9.10/node_modules/@tanstack/router-devtools-core/dist/index-Bjd63dIw.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+start-fn-stubs@1.143.8/node_modules/@tanstack/start-fn-stubs/dist/esm/createIsomorphicFn.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-fn-stubs@1.143.8/node_modules/@tanstack/start-fn-stubs/dist/esm/createIsomorphicFn.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+start-fn-stubs@1.143.8/node_modules/@tanstack/start-fn-stubs/dist/esm/envOnly.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-fn-stubs@1.143.8/node_modules/@tanstack/start-fn-stubs/dist/esm/envOnly.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/getStartContextServerOnly.js",
+    "path": "/@fs/<repo>/node_modules/.pnpm/@tanstack+start-client-core@1.145.0/node_modules/@tanstack/start-client-core/dist/esm/getStartContextServerOnly.js",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3179,7 +3179,7 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/wodsmith-db/src/schemas/workouts.ts",
+    "path": "/@fs/<repo>/packages/wodsmith-db/src/schemas/workouts.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3207,7 +3207,7 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/ui/src/components/skeleton.tsx",
+    "path": "/@fs/<repo>/packages/ui/src/components/skeleton.tsx",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3256,35 +3256,35 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/ui/src/components/badge.tsx",
+    "path": "/@fs/<repo>/packages/ui/src/components/badge.tsx",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/ui/src/components/button.tsx",
+    "path": "/@fs/<repo>/packages/ui/src/components/button.tsx",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/ui/src/components/breadcrumb.tsx",
+    "path": "/@fs/<repo>/packages/ui/src/components/breadcrumb.tsx",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/ui/src/utils/cn.ts",
+    "path": "/@fs/<repo>/packages/ui/src/utils/cn.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/wodsmith-db/src/schemas/volunteers.ts",
+    "path": "/@fs/<repo>/packages/wodsmith-db/src/schemas/volunteers.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3333,21 +3333,21 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/wodsmith-db/src/schemas/common.ts",
+    "path": "/@fs/<repo>/packages/wodsmith-db/src/schemas/common.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/wodsmith-db/src/schemas/teams.ts",
+    "path": "/@fs/<repo>/packages/wodsmith-db/src/schemas/teams.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/wodsmith-db/src/schemas/users.ts",
+    "path": "/@fs/<repo>/packages/wodsmith-db/src/schemas/users.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3375,49 +3375,49 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/wodsmith-db/src/schemas/programming.ts",
+    "path": "/@fs/<repo>/packages/wodsmith-db/src/schemas/programming.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/wodsmith-db/src/schemas/competition-invites.ts",
+    "path": "/@fs/<repo>/packages/wodsmith-db/src/schemas/competition-invites.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/ui/src/components/card.tsx",
+    "path": "/@fs/<repo>/packages/ui/src/components/card.tsx",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/ui/src/components/input.tsx",
+    "path": "/@fs/<repo>/packages/ui/src/components/input.tsx",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/ui/src/components/table.tsx",
+    "path": "/@fs/<repo>/packages/ui/src/components/table.tsx",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/ui/src/components/dropdown-menu.tsx",
+    "path": "/@fs/<repo>/packages/ui/src/components/dropdown-menu.tsx",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/ui/src/components/sheet.tsx",
+    "path": "/@fs/<repo>/packages/ui/src/components/sheet.tsx",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3438,21 +3438,21 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/wodsmith-db/src/schemas/competitions.ts",
+    "path": "/@fs/<repo>/packages/wodsmith-db/src/schemas/competitions.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/ui/src/components/separator.tsx",
+    "path": "/@fs/<repo>/packages/ui/src/components/separator.tsx",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/ui/src/components/tooltip.tsx",
+    "path": "/@fs/<repo>/packages/ui/src/components/tooltip.tsx",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3466,7 +3466,7 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/wodsmith-db/src/schemas/sponsors.ts",
+    "path": "/@fs/<repo>/packages/wodsmith-db/src/schemas/sponsors.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3620,14 +3620,14 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/wodsmith-db/src/schemas/addresses.ts",
+    "path": "/@fs/<repo>/packages/wodsmith-db/src/schemas/addresses.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/wodsmith-db/src/schemas/scaling.ts",
+    "path": "/@fs/<repo>/packages/wodsmith-db/src/schemas/scaling.ts",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3725,7 +3725,7 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/ui/src/components/label.tsx",
+    "path": "/@fs/<repo>/packages/ui/src/components/label.tsx",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3739,14 +3739,14 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/ui/src/components/textarea.tsx",
+    "path": "/@fs/<repo>/packages/ui/src/components/textarea.tsx",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/ui/src/components/select.tsx",
+    "path": "/@fs/<repo>/packages/ui/src/components/select.tsx",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
@@ -3760,7 +3760,7 @@
   },
   {
     "method": "GET",
-    "path": "/@fs/Users/zacjones/.codex/worktrees/ui-protected-athlete-coverage/thewodapp/packages/ui/src/components/dialog.tsx",
+    "path": "/@fs/<repo>/packages/ui/src/components/dialog.tsx",
     "status": 200,
     "resourceType": "Script",
     "mimeType": "text/javascript"
