@@ -16,6 +16,8 @@ The workspace package \`@repo/ui\` under \`packages/ui\` exposes direct componen
 
 The package may own presentational primitives, their variants, and portable styling contracts. It must not import TanStack route modules, server functions, database code, authentication state, or app feature types.
 
+React and React DOM are explicit peer contracts, while package tests pin both runtimes to the same 19.2.3 resolution used by Start and Crew.
+
 Its production TypeScript configuration includes only package source. Cross-app compatibility is verified separately, while Start and Crew type-check their adapters as consumers.
 
 The package build transpiles source to ignored JavaScript under \`dist\`. Declarations are not configured, and direct subpath exports continue to resolve the package TypeScript sources.
@@ -34,7 +36,7 @@ Representative stories cover foundations plus form validation, selection control
 
 Focused package tests prove that Start and Crew adapters expose the same runtime objects and exact export names as direct \`@repo/ui\` imports.
 
-[[packages/ui/test/compatibility.test.ts]] also checks the shared stylesheet contract. [[packages/ui/test/primitives.test.tsx]] verifies accessible checkbox interaction and dialog naming, description, open, and close behavior.
+[[packages/ui/test/compatibility.test.ts]] also checks the shared stylesheet contract. [[packages/ui/test/primitives.test.tsx]] verifies checkbox and dialog accessibility plus the diagnostic for form controls rendered outside a field context.
 
 ## Inventory contract
 

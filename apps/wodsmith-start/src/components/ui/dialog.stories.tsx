@@ -105,5 +105,6 @@ export const EditingSheet: Story = {
     })
     await expect(dialog).toBeVisible()
     await userEvent.click(within(dialog).getByRole("button", { name: "Done" }))
+    await expect(dialog).not.toBeInTheDocument()
   },
 }

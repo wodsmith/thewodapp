@@ -11,8 +11,20 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@repo/ui/dialog"
+import { Form, FormLabel } from "@repo/ui/form"
 import { fireEvent, render, screen } from "@testing-library/react"
+import { useForm } from "react-hook-form"
 import { describe, expect, it } from "vitest"
+
+function FormLabelWithoutField() {
+  const form = useForm()
+
+  return (
+    <Form {...form}>
+      <FormLabel>Event name</FormLabel>
+    </Form>
+  )
+}
 
 describe("shared form and overlay primitives", () => {
   it("exposes an accessible labeled checkbox with checked state", () => {
@@ -59,5 +71,11 @@ describe("shared form and overlay primitives", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
     expect(dialog).not.toBeInTheDocument()
+  })
+
+  it("reports FormField misuse before reading field state", () => {
+    expect(() => render(<FormLabelWithoutField />)).toThrow(
+      "useFormField should be used within <FormField>",
+    )
   })
 })
