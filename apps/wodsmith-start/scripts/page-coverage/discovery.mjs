@@ -641,27 +641,38 @@ function normalizeWorkerRegex(literal) {
 }
 
 function findFetchMethod(sourceFile) {
-  let fetchMethod = null
-  function visit(node) {
-    if (
-      !fetchMethod &&
-      ts.isMethodDeclaration(node) &&
-      propertyName(node) === "fetch" &&
-      node.body
-    ) {
-      fetchMethod = node
-      return
-    }
-    ts.forEachChild(node, visit)
+  for (const statement of sourceFile.statements) {
+    if (!ts.isExportAssignment(statement)) continue
+    const exported = unwrapExpression(statement.expression)
+    if (!ts.isObjectLiteralExpression(exported)) return null
+    return (
+      exported.properties.find(
+        (property) =>
+          ts.isMethodDeclaration(property) &&
+          propertyName(property) === "fetch" &&
+          property.body,
+      ) ?? null
+    )
   }
-  visit(sourceFile)
-  return fetchMethod
+  return null
 }
 
-function containsIdentifier(node, names) {
+function isPathnameExpression(node, pathNames) {
+  const expression = unwrapExpression(node)
+  return (
+    (ts.isIdentifier(expression) && pathNames.has(expression.text)) ||
+    (ts.isPropertyAccessExpression(expression) &&
+      expression.name.text === "pathname")
+  )
+}
+
+function containsPathnameFlow(node, pathNames, predicateBindings = new Map()) {
   let found = false
   function visit(current) {
-    if (ts.isIdentifier(current) && names.has(current.text)) {
+    if (
+      isPathnameExpression(current, pathNames) ||
+      (ts.isIdentifier(current) && predicateBindings.has(current.text))
+    ) {
       found = true
       return
     }
@@ -671,13 +682,77 @@ function containsIdentifier(node, names) {
   return found
 }
 
-function workerPredicatePatterns(node, pathNames) {
+function isBooleanPathPredicate(node, pathNames, predicateBindings) {
   const expression = unwrapExpression(node)
+  if (ts.isIdentifier(expression)) {
+    return predicateBindings.has(expression.text)
+  }
   if (
     ts.isPrefixUnaryExpression(expression) &&
     expression.operator === ts.SyntaxKind.ExclamationToken
   ) {
-    return workerPredicatePatterns(expression.operand, pathNames)
+    return isBooleanPathPredicate(
+      expression.operand,
+      pathNames,
+      predicateBindings,
+    )
+  }
+  if (ts.isBinaryExpression(expression)) {
+    return [
+      ts.SyntaxKind.AmpersandAmpersandToken,
+      ts.SyntaxKind.BarBarToken,
+      ts.SyntaxKind.EqualsEqualsToken,
+      ts.SyntaxKind.EqualsEqualsEqualsToken,
+    ].includes(expression.operatorToken.kind)
+  }
+  if (
+    ts.isCallExpression(expression) &&
+    ts.isPropertyAccessExpression(expression.expression)
+  ) {
+    const method = expression.expression.name.text
+    return (
+      (method === "startsWith" &&
+        isPathnameExpression(
+          expression.expression.expression,
+          pathNames,
+        )) ||
+      (method === "test" &&
+        expression.arguments[0] &&
+        isPathnameExpression(expression.arguments[0], pathNames))
+    )
+  }
+  return false
+}
+
+function workerPredicatePatterns(
+  node,
+  pathNames,
+  predicateBindings,
+  resolving = new Set(),
+) {
+  const expression = unwrapExpression(node)
+  if (ts.isIdentifier(expression) && predicateBindings.has(expression.text)) {
+    if (resolving.has(expression.text)) {
+      throw new Error(`Cyclic OG Worker path predicate: ${expression.text}`)
+    }
+    const next = new Set(resolving).add(expression.text)
+    return workerPredicatePatterns(
+      predicateBindings.get(expression.text),
+      pathNames,
+      predicateBindings,
+      next,
+    )
+  }
+  if (
+    ts.isPrefixUnaryExpression(expression) &&
+    expression.operator === ts.SyntaxKind.ExclamationToken
+  ) {
+    return workerPredicatePatterns(
+      expression.operand,
+      pathNames,
+      predicateBindings,
+      resolving,
+    )
   }
   if (ts.isBinaryExpression(expression)) {
     if (
@@ -686,8 +761,18 @@ function workerPredicatePatterns(node, pathNames) {
       )
     ) {
       return [
-        ...workerPredicatePatterns(expression.left, pathNames),
-        ...workerPredicatePatterns(expression.right, pathNames),
+        ...workerPredicatePatterns(
+          expression.left,
+          pathNames,
+          predicateBindings,
+          resolving,
+        ),
+        ...workerPredicatePatterns(
+          expression.right,
+          pathNames,
+          predicateBindings,
+          resolving,
+        ),
       ]
     }
     if (
@@ -697,11 +782,11 @@ function workerPredicatePatterns(node, pathNames) {
     ) {
       const left = unwrapExpression(expression.left)
       const right = unwrapExpression(expression.right)
-      if (ts.isIdentifier(left) && pathNames.has(left.text)) {
+      if (isPathnameExpression(left, pathNames)) {
         const path = staticString(right)
         if (path !== null) return [path]
       }
-      if (ts.isIdentifier(right) && pathNames.has(right.text)) {
+      if (isPathnameExpression(right, pathNames)) {
         const path = staticString(left)
         if (path !== null) return [path]
       }
@@ -713,7 +798,7 @@ function workerPredicatePatterns(node, pathNames) {
   ) {
     const receiver = unwrapExpression(expression.expression.expression)
     const method = expression.expression.name.text
-    if (ts.isIdentifier(receiver) && pathNames.has(receiver.text)) {
+    if (isPathnameExpression(receiver, pathNames)) {
       if (method === "startsWith") {
         const prefix = staticString(expression.arguments[0])
         if (prefix !== null) return [`${prefix}*`]
@@ -733,8 +818,7 @@ function workerPredicatePatterns(node, pathNames) {
       const argument = expression.arguments[0]
       if (
         argument &&
-        ts.isIdentifier(unwrapExpression(argument)) &&
-        pathNames.has(unwrapExpression(argument).text)
+        isPathnameExpression(argument, pathNames)
       ) {
         return [
           normalizeWorkerRegex(expression.expression.expression.getText()),
@@ -742,7 +826,7 @@ function workerPredicatePatterns(node, pathNames) {
       }
     }
   }
-  if (containsIdentifier(expression, pathNames)) {
+  if (containsPathnameFlow(expression, pathNames, predicateBindings)) {
     throw new Error(`Unsupported OG Worker path predicate: ${expression.getText()}`)
   }
   return []
@@ -750,6 +834,7 @@ function workerPredicatePatterns(node, pathNames) {
 
 function discoverWorkerPatterns(fetchMethod) {
   const pathNames = new Set()
+  const handledPathFlow = new Set()
   function findPathNames(node) {
     if (
       ts.isVariableDeclaration(node) &&
@@ -759,35 +844,87 @@ function discoverWorkerPatterns(fetchMethod) {
       unwrapExpression(node.initializer).name.text === "pathname"
     ) {
       pathNames.add(node.name.text)
+      handledPathFlow.add(node.initializer)
     }
     ts.forEachChild(node, findPathNames)
   }
   findPathNames(fetchMethod.body)
 
+  let addedAlias = true
+  while (addedAlias) {
+    addedAlias = false
+    function findAliases(node) {
+      if (
+        ts.isVariableDeclaration(node) &&
+        ts.isIdentifier(node.name) &&
+        node.initializer &&
+        isPathnameExpression(node.initializer, pathNames) &&
+        !pathNames.has(node.name.text)
+      ) {
+        pathNames.add(node.name.text)
+        handledPathFlow.add(node.initializer)
+        addedAlias = true
+      }
+      ts.forEachChild(node, findAliases)
+    }
+    findAliases(fetchMethod.body)
+  }
+
+  const predicateBindings = new Map()
+  function findPredicateBindings(node) {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.initializer &&
+      containsPathnameFlow(node.initializer, pathNames, predicateBindings) &&
+      isBooleanPathPredicate(node.initializer, pathNames, predicateBindings)
+    ) {
+      predicateBindings.set(node.name.text, node.initializer)
+      handledPathFlow.add(node.initializer)
+    }
+    ts.forEachChild(node, findPredicateBindings)
+  }
+  findPredicateBindings(fetchMethod.body)
+
   const patterns = new Set()
   function visit(node) {
     if (ts.isIfStatement(node)) {
-      for (const pattern of workerPredicatePatterns(node.expression, pathNames)) {
+      handledPathFlow.add(node.expression)
+      for (const pattern of workerPredicatePatterns(
+        node.expression,
+        pathNames,
+        predicateBindings,
+      )) {
         patterns.add(pattern)
       }
     } else if (ts.isConditionalExpression(node)) {
-      for (const pattern of workerPredicatePatterns(node.condition, pathNames)) {
+      handledPathFlow.add(node.condition)
+      for (const pattern of workerPredicatePatterns(
+        node.condition,
+        pathNames,
+        predicateBindings,
+      )) {
         patterns.add(pattern)
       }
     } else if (
       ts.isCallExpression(node) &&
       ts.isPropertyAccessExpression(node.expression) &&
       node.expression.name.text === "match" &&
-      containsIdentifier(node.expression.expression, pathNames)
+      containsPathnameFlow(node.expression.expression, pathNames)
     ) {
-      for (const pattern of workerPredicatePatterns(node, pathNames)) {
+      handledPathFlow.add(node)
+      for (const pattern of workerPredicatePatterns(
+        node,
+        pathNames,
+        predicateBindings,
+      )) {
         patterns.add(pattern)
       }
     } else if (
       ts.isSwitchStatement(node) &&
-      ts.isIdentifier(unwrapExpression(node.expression)) &&
-      pathNames.has(unwrapExpression(node.expression).text)
+      isPathnameExpression(node.expression, pathNames)
     ) {
+      handledPathFlow.add(node.expression)
       for (const clause of node.caseBlock.clauses) {
         if (ts.isDefaultClause(clause)) continue
         const path = staticString(clause.expression)
@@ -800,6 +937,24 @@ function discoverWorkerPatterns(fetchMethod) {
     ts.forEachChild(node, visit)
   }
   visit(fetchMethod.body)
+
+  function auditPathFlow(node) {
+    if (handledPathFlow.has(node)) return
+    const isBindingName =
+      ts.isIdentifier(node) &&
+      ts.isVariableDeclaration(node.parent) &&
+      node.parent.name === node
+    if (
+      !isBindingName &&
+      (isPathnameExpression(node, pathNames) ||
+        (ts.isIdentifier(node) && predicateBindings.has(node.text)))
+    ) {
+      throw new Error(`Unsupported OG Worker pathname flow: ${node.getText()}`)
+    }
+    ts.forEachChild(node, auditPathFlow)
+  }
+  auditPathFlow(fetchMethod.body)
+
   if (ts.isReturnStatement(fetchMethod.body.statements.at(-1))) {
     patterns.add("/*")
   }
@@ -841,40 +996,97 @@ function isNamedCall(node, name) {
   )
 }
 
-function fetchReturnsDelegation(fetchMethod, name) {
-  const delegated = new Set()
-  let returned = false
-  function visit(node) {
+function hasNamedImport(sourceFile, name) {
+  return sourceFile.statements.some((statement) => {
+    if (!ts.isImportDeclaration(statement)) return false
+    const bindings = statement.importClause?.namedBindings
+    return (
+      bindings &&
+      ts.isNamedImports(bindings) &&
+      bindings.elements.some(
+        (element) =>
+          element.name.text === name &&
+          (element.propertyName?.text ?? element.name.text) === name,
+      )
+    )
+  })
+}
+
+function fetchUnconditionallyReturnsDelegation(sourceFile, fetchMethod, name) {
+  if (!hasNamedImport(sourceFile, name)) return false
+  const statements = fetchMethod.body.statements
+  const returned = statements.at(-1)
+  if (!ts.isReturnStatement(returned) || !returned.expression) return false
+
+  let unsupportedControlFlow = false
+  let shadowsImport = false
+  function audit(node) {
+    if (
+      ts.isIfStatement(node) ||
+      ts.isSwitchStatement(node) ||
+      ts.isConditionalExpression(node) ||
+      ts.isTryStatement(node) ||
+      ts.isForStatement(node) ||
+      ts.isForInStatement(node) ||
+      ts.isForOfStatement(node) ||
+      ts.isWhileStatement(node) ||
+      ts.isDoStatement(node)
+    ) {
+      unsupportedControlFlow = true
+    }
+    if (
+      (ts.isVariableDeclaration(node) || ts.isParameter(node)) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === name
+    ) {
+      shadowsImport = true
+    }
+    ts.forEachChild(node, audit)
+  }
+  audit(fetchMethod.body)
+  if (unsupportedControlFlow || shadowsImport) return false
+
+  const returnValue = unwrapAwait(returned.expression)
+  if (isNamedCall(returnValue, name)) return true
+  if (!ts.isIdentifier(returnValue)) return false
+
+  const declarations = statements
+    .filter(ts.isVariableStatement)
+    .flatMap((statement) => [...statement.declarationList.declarations])
+    .filter(
+      (declaration) =>
+        ts.isIdentifier(declaration.name) &&
+        declaration.name.text === returnValue.text,
+    )
+  let matchingBindings = 0
+  let reassigned = false
+  function auditReturnedBinding(node) {
     if (
       ts.isVariableDeclaration(node) &&
       ts.isIdentifier(node.name) &&
-      node.initializer &&
-      isNamedCall(node.initializer, name)
+      node.name.text === returnValue.text
     ) {
-      delegated.add(node.name.text)
-    }
-    if (ts.isReturnStatement(node) && node.expression) {
-      const expression = unwrapAwait(node.expression)
-      if (
-        isNamedCall(expression, name) ||
-        (ts.isIdentifier(expression) && delegated.has(expression.text))
-      ) {
-        returned = true
-      }
+      matchingBindings += 1
     }
     if (
-      node !== fetchMethod.body &&
-      (ts.isFunctionDeclaration(node) ||
-        ts.isFunctionExpression(node) ||
-        ts.isArrowFunction(node) ||
-        ts.isMethodDeclaration(node))
+      ts.isBinaryExpression(node) &&
+      ts.isIdentifier(unwrapExpression(node.left)) &&
+      unwrapExpression(node.left).text === returnValue.text &&
+      node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
+      node.operatorToken.kind <= ts.SyntaxKind.LastAssignment
     ) {
-      return
+      reassigned = true
     }
-    ts.forEachChild(node, visit)
+    ts.forEachChild(node, auditReturnedBinding)
   }
-  visit(fetchMethod.body)
-  return returned
+  auditReturnedBinding(fetchMethod.body)
+  return (
+    declarations.length === 1 &&
+    matchingBindings === 1 &&
+    !reassigned &&
+    declarations[0].initializer &&
+    isNamedCall(declarations[0].initializer, name)
+  )
 }
 
 async function discoverPosthogProxySurfaces(repoRoot) {
@@ -882,7 +1094,14 @@ async function discoverPosthogProxySurfaces(repoRoot) {
   const source = await readFile(sourcePath, "utf8")
   const sourceFile = parseTypescript(source, sourcePath)
   const fetchMethod = findFetchMethod(sourceFile)
-  if (!fetchMethod || !fetchReturnsDelegation(fetchMethod, "proxyRequest")) {
+  if (
+    !fetchMethod ||
+    !fetchUnconditionallyReturnsDelegation(
+      sourceFile,
+      fetchMethod,
+      "proxyRequest",
+    )
+  ) {
     throw new Error("PostHog proxy wildcard fetch delegation is missing")
   }
   return [

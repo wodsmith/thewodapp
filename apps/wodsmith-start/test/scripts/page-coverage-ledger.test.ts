@@ -559,6 +559,43 @@ describe("page coverage discovery", () => {
     ).rejects.toThrow("Unsupported OG Worker path predicate")
   })
 
+  it.each([
+    {
+      syntax: "indirect",
+      source: `export default { async fetch(request) {
+        const path = new URL(request.url).pathname
+        const isAsset = path.startsWith("/assets/")
+        if (isAsset) return asset()
+        return fallback()
+      } }`,
+    },
+    {
+      syntax: "inline",
+      source: `export default { async fetch(request) {
+        if (new URL(request.url).pathname === "/health") return health()
+        return fallback()
+      } }`,
+    },
+  ])(
+    "rejects $syntax Worker pathname predicates missing from the registry",
+    async ({ source }) => {
+      const root = await makeTempRepo()
+      await write(resolve(root, "apps/og-worker/src/index.ts"), source)
+      await expect(
+        discoverServices(root, [
+          {
+            app: "og-worker",
+            source: "apps/og-worker/src/index.ts",
+            sourceRouteId: "/*",
+            protocol: "http",
+            method: "ANY",
+            urlPattern: "/*",
+          },
+        ]),
+      ).rejects.toThrow("Unregistered service surface")
+    },
+  )
+
   it("rejects comment-only PostHog delegation", async () => {
     const root = await makeTempRepo()
     for (const ignored of [
@@ -585,6 +622,39 @@ describe("page coverage discovery", () => {
         ]),
       ).rejects.toThrow("PostHog proxy wildcard fetch delegation is missing")
     }
+  })
+
+  it.each([
+    {
+      syntax: "shadowed binding",
+      body: `let response = new Response("not proxied")
+        if (false) { const response = proxyRequest(request) }
+        return response`,
+    },
+    {
+      syntax: "partial delegation",
+      body: `if (request.method === "GET") return proxyRequest(request)
+        return new Response("not proxied")`,
+    },
+  ])("rejects PostHog $syntax", async ({ body }) => {
+    const root = await makeTempRepo()
+    await write(
+      resolve(root, "apps/posthog-proxy/src/index.ts"),
+      `import { proxyRequest } from "./proxy"
+       export default { async fetch(request) { ${body} } }`,
+    )
+    await expect(
+      discoverServices(root, [
+        {
+          app: "posthog-proxy",
+          source: "apps/posthog-proxy/src/index.ts",
+          sourceRouteId: "/*",
+          protocol: "http",
+          method: "ANY",
+          urlPattern: "/*",
+        },
+      ]),
+    ).rejects.toThrow("PostHog proxy wildcard fetch delegation is missing")
   })
 
   it("supports registered service syntax variants", async () => {
@@ -645,8 +715,8 @@ describe("page coverage discovery", () => {
     ).resolves.toHaveLength(2)
 
     for (const source of [
-      "export default { async fetch(request) { return proxyRequest(request) } }",
-      "export default { async fetch(request) { const response = await proxyRequest(request); return response } }",
+      'import { proxyRequest } from "./proxy"; export default { async fetch(request) { return proxyRequest(request) } }',
+      'import { proxyRequest } from "./proxy"; export default { async fetch(request) { const response = await proxyRequest(request); return response } }',
     ]) {
       const proxyRoot = await makeTempRepo()
       await write(resolve(proxyRoot, "apps/posthog-proxy/src/index.ts"), source)
