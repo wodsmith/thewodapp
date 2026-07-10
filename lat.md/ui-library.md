@@ -59,3 +59,57 @@ Focused package tests prove that Start and Crew adapters expose the same runtime
 The checked-in inventory makes route and component coupling visible before each extraction slice.
 
 \`apps/wodsmith-start/scripts/generate-ui-library-inventory.mjs\` counts direct primitive consumers, identifies package-owned implementations, compares Start and Crew paths, and verifies the generated artifact is current.
+
+## Page coverage contract
+
+The checked-in page contract makes every browser surface and explicit non-page decision visible before route components move into the shared library.
+
+The human-owned plan lives at `docs/ui-library/page-coverage.plan.json`. Deterministic discovery joins it into generated JSON and Markdown ledgers without treating generated output as a planning surface.
+
+### Discovery identity
+
+Route identity preserves framework semantics while URL patterns represent the browser address that evidence will eventually exercise.
+
+TanStack discovery starts from each registered `routeTree.gen.ts`, joins every generated alias to its source `createFileRoute` or `createRootRoute` declaration, and then scans declarations only to reject orphans. Route filenames alone are never inventory inputs.
+
+Canonical TanStack IDs preserve pathless and index identity. For example, source ID `/compete/$slug/` becomes `tanstack:wodsmith-start:/compete/$slug/_index`, while its URL pattern is `/compete/:slug`.
+
+### Tree and source reconciliation
+
+Generated routes and source declarations must form a one-to-one mapping before any coverage plan can be rendered.
+
+The gate rejects unregistered app packages, missing imports, source/tree ID mismatches, orphan declarations, duplicate IDs, and unknown classifications. Shared URL patterns remain valid because layouts, pathless groups, and index pages can intentionally address the same URL.
+
+### Classification priority
+
+Mechanical classification distinguishes visual pages from infrastructure without using target counts as an input.
+
+Root and pathless routes are layouts. Server handlers and API routes are nonvisual; component-free redirects are redirect-only. Components with descendants and an index are layouts, those without an index are page-layouts, and other components are pages.
+
+Crew `/events` is therefore a page-layout/list, while `/events/$eventId` is a layout covered through its index descendant. Conditional redirects do not hide routes that also render components.
+
+The reconciled baseline is 328 records: 239 page/page-layout records and 89 explicit non-page decisions. The 239 visual records plus 17 redirects equal 256 browser-addressable patterns; the earlier ~203 estimate incorrectly treated trailing-slash index pages as layouts.
+
+### Docs and service decisions
+
+Docusaurus and service-only surfaces remain full records even when they do not produce browser evidence scenarios.
+
+Docs discovery records 31 source docs and 10 categories: 30 published pages, one draft-only doc, four generated category pages, and six navigation-only categories. The configured route base is validated against Docusaurus and applied to every URL; `intro` keeps its ID while its slug maps to `/` today.
+
+Team Memory contributes seven HTTP endpoints and one scheduled surface, OG Worker contributes three wildcard-aware HTTP decisions, and the PostHog proxy contributes one wildcard decision. Protocol and method remain part of every service ID.
+
+### Validation invariants
+
+The plan validator requires explicit placeholders for every page and page-layout while keeping exclusions reasoned and scenario-free.
+
+Each scenario names persona, fixture, params, query, data state, theme, viewport, evidence, blockers, and status. Required axis values need coverage but not a Cartesian product; dynamic parameters must have values even while a scenario is pending.
+
+Verified scenarios require hash-matched evidence and no blockers. Each evidence item names a known kind, repository-relative `ref`, and SHA-256; supported kinds cover screenshots, accessibility and DOM snapshots, console and network logs, and redirect traces.
+
+Blocked scenarios require a code and detail. Layout-only records must name a visual descendant in `coveredBy`, and all other exclusions require a reason. Kind and disposition must remain compatible so exclusions cannot silently become visual claims or vice versa.
+
+### Checked-in ledger gate
+
+Generation and CI fail whenever the human plan, discovered repository surfaces, generated JSON, or generated Markdown drift apart.
+
+`page-coverage:scaffold` adds explicit pending or exclusion decisions, `page-coverage:generate` joins the ledger, and `check:page-coverage` performs read-only validation. No initial record claims verified browser evidence.
