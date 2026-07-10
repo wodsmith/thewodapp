@@ -36,7 +36,8 @@
     "dom-snapshot",
     "console-log",
     "network-log",
-    "redirect-trace"
+    "redirect-trace",
+    "capture-manifest"
   ],
   "entries": [
     {
@@ -1528,37 +1529,111 @@
     },
     {
       "routeId": "tanstack:crew:/_index",
-      "disposition": "unassessed",
+      "disposition": "library-candidate",
       "requirements": {
         "personas": [
-          "unassessed"
+          "public"
         ],
         "fixtures": [
-          "unassessed"
+          "demo"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
-          "light"
+          "light",
+          "dark"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "public-desktop-light",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "demo",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/home-desktop-light.png",
+              "sha256": "a4f7af352bf822fb66d564e1e58bc15d19d0a0836da021401abd7b8baa6d3cfc"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "crew-home-desktop-light"
+            }
+          ],
           "blockers": []
+        },
+        {
+          "id": "public-mobile-light",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "demo",
+          "params": {},
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/home-mobile-light.png",
+              "sha256": "eae55be5c0578a20bcb51d93320389f6cb78d9839f95ae4e3c765c886e345870"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "crew-home-mobile-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "public-mobile-dark-blocked",
+          "status": "blocked",
+          "persona": "public",
+          "fixture": "demo",
+          "params": {},
+          "query": {},
+          "dataState": "default",
+          "theme": "dark",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/home-mobile-dark.png",
+              "sha256": "1dfc26e443780a02616ef8c1a2a26fe21ee8afdc07ed685089c5ca29323ead1c"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/home-mobile-dark-console.json",
+              "sha256": "e67658cd681eecd33c260bb67149d7b7e5a80c20aa3a304c4d23644ad77bf5c4"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "crew-home-mobile-dark"
+            }
+          ],
+          "blockers": [
+            {
+              "code": "THEME_NOT_IMPLEMENTED",
+              "detail": "The demo received prefers-color-scheme: dark, but html had no dark class and rendered the light theme; console messages were empty."
+            }
+          ]
         }
       ]
     },
@@ -1827,37 +1902,111 @@
     },
     {
       "routeId": "tanstack:crew:/calculator",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "public"
         ],
         "fixtures": [
-          "unassessed"
+          "demo"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
-          "light"
+          "light",
+          "dark"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "public-desktop-light",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "demo",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/calculator-desktop-light.png",
+              "sha256": "7748938c32662557fdb6315cb9adf9090e4a222c81cdc1640674138caaf65ce3"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "crew-calculator-desktop-light"
+            }
+          ],
           "blockers": []
+        },
+        {
+          "id": "public-mobile-light",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "demo",
+          "params": {},
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/calculator-mobile-light.png",
+              "sha256": "e68e19bbd3b136eee13e5e0ce6e336b0c3f59e3043072bc34c332628aa050bc2"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "crew-calculator-mobile-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "public-mobile-dark-blocked",
+          "status": "blocked",
+          "persona": "public",
+          "fixture": "demo",
+          "params": {},
+          "query": {},
+          "dataState": "default",
+          "theme": "dark",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/calculator-mobile-dark.png",
+              "sha256": "37c3452fb4317d318de6fd7de5557e58ac0b9baac79cd15410b712930c18a719"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/calculator-mobile-dark-console.json",
+              "sha256": "8d5347125f4f09dca1a47abeee26a7ab7e5b0e9e73ac2dcd1ce260a401b861f4"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "crew-calculator-mobile-dark"
+            }
+          ],
+          "blockers": [
+            {
+              "code": "THEME_NOT_IMPLEMENTED",
+              "detail": "The demo received prefers-color-scheme: dark, but html had no dark class and rendered the light theme; console messages were empty."
+            }
+          ]
         }
       ]
     },
@@ -2589,73 +2738,221 @@
     },
     {
       "routeId": "tanstack:crew:/sign-in",
-      "disposition": "unassessed",
+      "disposition": "library-candidate",
       "requirements": {
         "personas": [
-          "unassessed"
+          "public"
         ],
         "fixtures": [
-          "unassessed"
+          "demo"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
-          "light"
+          "light",
+          "dark"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "public-desktop-light",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "demo",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/sign-in-desktop-light.png",
+              "sha256": "6829023294d5a480033a64f0fa28ee4854ceea84a6eae0bb0e888b801a5a20c0"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "crew-sign-in-desktop-light"
+            }
+          ],
           "blockers": []
+        },
+        {
+          "id": "public-mobile-light",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "demo",
+          "params": {},
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/sign-in-mobile-light.png",
+              "sha256": "c7b8790ed19d00873388ddd5cc0314437e2c0d16b91300b3c0292c27f06cd8b2"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "crew-sign-in-mobile-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "public-mobile-dark-blocked",
+          "status": "blocked",
+          "persona": "public",
+          "fixture": "demo",
+          "params": {},
+          "query": {},
+          "dataState": "default",
+          "theme": "dark",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/sign-in-mobile-dark.png",
+              "sha256": "7c2e2e5abbfb222555e4d3e5f9c9ed5c752b915ce08ad8e3d188ebdba16fe64d"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/sign-in-mobile-dark-console.json",
+              "sha256": "806cde3c3b268a04af330fb20332cb83e82c9015e6f803b701dc94e7d6302b75"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "crew-sign-in-mobile-dark"
+            }
+          ],
+          "blockers": [
+            {
+              "code": "THEME_NOT_IMPLEMENTED",
+              "detail": "The demo received prefers-color-scheme: dark, but html had no dark class and rendered the light theme; console messages were empty."
+            }
+          ]
         }
       ]
     },
     {
       "routeId": "tanstack:crew:/sign-up",
-      "disposition": "unassessed",
+      "disposition": "library-candidate",
       "requirements": {
         "personas": [
-          "unassessed"
+          "public"
         ],
         "fixtures": [
-          "unassessed"
+          "demo"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
-          "light"
+          "light",
+          "dark"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "public-desktop-light",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "demo",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/sign-up-desktop-light.png",
+              "sha256": "36d55390bf684b5d402fae12904f3c25216576a68bd13560524a8b5f89f58971"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "crew-sign-up-desktop-light"
+            }
+          ],
           "blockers": []
+        },
+        {
+          "id": "public-mobile-light",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "demo",
+          "params": {},
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/sign-up-mobile-light.png",
+              "sha256": "a257819e620ada738d139581a11cf7f1e88cd81153d2e06c6565ace14a823994"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "crew-sign-up-mobile-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "public-mobile-dark-blocked",
+          "status": "blocked",
+          "persona": "public",
+          "fixture": "demo",
+          "params": {},
+          "query": {},
+          "dataState": "default",
+          "theme": "dark",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/sign-up-mobile-dark.png",
+              "sha256": "ac1f1c5db95230cd01ca1caba6069556a94a7ba25b244bea1c8820d329e2bf52"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/sign-up-mobile-dark-console.json",
+              "sha256": "35685b59ae8165493794b65fe2575392b06049dd1fa1eec3acc2287b34ddf666"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "crew-sign-up-mobile-dark"
+            }
+          ],
+          "blockers": [
+            {
+              "code": "THEME_NOT_IMPLEMENTED",
+              "detail": "The demo received prefers-color-scheme: dark, but html had no dark class and rendered the light theme; console messages were empty."
+            }
+          ]
         }
       ]
     },
@@ -3447,52 +3744,93 @@
     },
     {
       "routeId": "tanstack:wodsmith-start:/_auth/forgot-password",
-      "disposition": "unassessed",
+      "disposition": "library-candidate",
       "requirements": {
         "personas": [
-          "unassessed"
+          "public"
         ],
         "fixtures": [
-          "unassessed"
+          "empty"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
-          "light"
+          "light",
+          "dark"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "public-desktop-light",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "empty",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/forgot-password-desktop-light.png",
+              "sha256": "0ec844fcbee523a9b5e5c76697487b379e5bb1ed7c3fe0cf0b067f1cbf536c17"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "start-forgot-password-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "public-mobile-dark",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "empty",
+          "params": {},
+          "query": {},
+          "dataState": "default",
+          "theme": "dark",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/forgot-password-mobile-dark.png",
+              "sha256": "90ee3fab3a0e5d126ecea88fb31ffaab0a8b727b5addad519b468d876b9a8921"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "start-forgot-password-mobile-dark"
+            }
+          ],
           "blockers": []
         }
       ]
     },
     {
       "routeId": "tanstack:wodsmith-start:/_auth/reset-password",
-      "disposition": "unassessed",
+      "disposition": "library-candidate",
       "requirements": {
         "personas": [
-          "unassessed"
+          "public"
         ],
         "fixtures": [
-          "unassessed"
+          "empty",
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "error",
+          "default"
         ],
         "themes": [
           "light"
@@ -3503,88 +3841,196 @@
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "missing-token-error",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "empty",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "error",
+          "theme": "light",
+          "viewport": "desktop",
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/reset-password-desktop-light.png",
+              "sha256": "f3a017aea694f146ceea8a9fad2277eb77259b593be9a824d012602064468ce4"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "start-reset-password-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "valid-token-blocked",
+          "status": "blocked",
+          "persona": "public",
+          "fixture": "populated",
+          "params": {},
+          "query": {},
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
           "evidence": [],
-          "blockers": []
+          "blockers": [
+            {
+              "code": "FIXTURE_TOKEN_UNAVAILABLE",
+              "detail": "No disposable valid password-reset token was available; the happy path was not exercised."
+            }
+          ]
         }
       ]
     },
     {
       "routeId": "tanstack:wodsmith-start:/_auth/sign-in",
-      "disposition": "unassessed",
+      "disposition": "library-candidate",
       "requirements": {
         "personas": [
-          "unassessed"
+          "public"
         ],
         "fixtures": [
-          "unassessed"
+          "empty"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
-          "light"
+          "light",
+          "dark"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "public-desktop-light",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "empty",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/sign-in-desktop-light.png",
+              "sha256": "4b9480e432eabb70ee50b71a92c57ef3fdb251b59573eb4eac9c0325bf0cee75"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "start-sign-in-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "public-mobile-dark",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "empty",
+          "params": {},
+          "query": {},
+          "dataState": "default",
+          "theme": "dark",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/sign-in-mobile-dark.png",
+              "sha256": "8c5c980b81f105295b695591458eccd30d9534df56f25209dec7799a3ebbbf0f"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "start-sign-in-mobile-dark"
+            }
+          ],
           "blockers": []
         }
       ]
     },
     {
       "routeId": "tanstack:wodsmith-start:/_auth/sign-up",
-      "disposition": "unassessed",
+      "disposition": "library-candidate",
       "requirements": {
         "personas": [
-          "unassessed"
+          "public"
         ],
         "fixtures": [
-          "unassessed"
+          "empty"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
-          "light"
+          "light",
+          "dark"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "public-desktop-light",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "empty",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/sign-up-desktop-light.png",
+              "sha256": "469d78f5b9173e7b8a929640f3638c5d5f0aad04927d50edbb4c1e13a69f9e85"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "start-sign-up-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "public-mobile-dark",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "empty",
+          "params": {},
+          "query": {},
+          "dataState": "default",
+          "theme": "dark",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/sign-up-mobile-dark.png",
+              "sha256": "3f38322541cefddf3601dc635c50e504b64aed58b5dbf1fb8d702dfed0945606"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "start-sign-up-mobile-dark"
+            }
+          ],
           "blockers": []
         }
       ]
@@ -3594,13 +4040,15 @@
       "disposition": "unassessed",
       "requirements": {
         "personas": [
-          "unassessed"
+          "public",
+          "authenticated"
         ],
         "fixtures": [
-          "unassessed"
+          "empty",
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
           "light"
@@ -3611,32 +4059,64 @@
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "missing-token-redirect",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "empty",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "desktop",
+          "evidence": [
+            {
+              "kind": "redirect-trace",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/team-invite-missing-token-redirect.json",
+              "sha256": "b0415d610a7a9d1ba3250a72e39c476ede339c8c17881a3fb2de8b995ab2e1b9"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "start-team-invite-missing-token-redirect"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "valid-token-authenticated-blocked",
+          "status": "blocked",
+          "persona": "authenticated",
+          "fixture": "populated",
+          "params": {},
+          "query": {},
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
           "evidence": [],
-          "blockers": []
+          "blockers": [
+            {
+              "code": "FIXTURE_TOKEN_UNAVAILABLE",
+              "detail": "No disposable authenticated session and valid team-invite token were available; invitation acceptance was not attempted."
+            }
+          ]
         }
       ]
     },
     {
       "routeId": "tanstack:wodsmith-start:/_auth/verify-email",
-      "disposition": "unassessed",
+      "disposition": "library-candidate",
       "requirements": {
         "personas": [
-          "unassessed"
+          "public"
         ],
         "fixtures": [
-          "unassessed"
+          "empty",
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "error",
+          "default"
         ],
         "themes": [
           "light"
@@ -3647,52 +4127,121 @@
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "missing-token-error",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "empty",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "error",
+          "theme": "light",
+          "viewport": "desktop",
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/verify-email-desktop-light.png",
+              "sha256": "56f12e1c3b835acc03907da12615644108fbfe1d403a7a817266ab004fb88e84"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "start-verify-email-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "valid-token-blocked",
+          "status": "blocked",
+          "persona": "public",
+          "fixture": "populated",
+          "params": {},
+          "query": {},
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
           "evidence": [],
-          "blockers": []
+          "blockers": [
+            {
+              "code": "FIXTURE_TOKEN_UNAVAILABLE",
+              "detail": "No disposable valid email-verification token was available; the happy path was not exercised."
+            }
+          ]
         }
       ]
     },
     {
       "routeId": "tanstack:wodsmith-start:/_index",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "public"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
-          "light"
+          "light",
+          "dark"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "public-desktop-light",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "populated",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/home-desktop-light.png",
+              "sha256": "aa42cb517327aab2ac6ad1f51cabf986dd080cd996a6ad1f12e94d9937bd1339"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "start-home-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "public-mobile-dark",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "populated",
+          "params": {},
+          "query": {},
+          "dataState": "default",
+          "theme": "dark",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/home-mobile-dark.png",
+              "sha256": "cc350f7aad6a75527bed7b3473a509f64fe84361be43a360f7a306e0dcc27b69"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "start-home-mobile-dark"
+            }
+          ],
           "blockers": []
         }
       ]
@@ -10006,108 +10555,225 @@
     },
     {
       "routeId": "tanstack:wodsmith-start:/maintenance",
-      "disposition": "unassessed",
+      "disposition": "library-candidate",
       "requirements": {
         "personas": [
-          "unassessed"
+          "public"
         ],
         "fixtures": [
-          "unassessed"
+          "demo"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
-          "light"
+          "light",
+          "dark"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "public-desktop-light",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "demo",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/maintenance-desktop-light.png",
+              "sha256": "960993c02fca6ef5c5ea665d619eb996b5d4c0795a4040554aaf04ce5d6ce912"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "start-maintenance-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "public-mobile-dark",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "demo",
+          "params": {},
+          "query": {},
+          "dataState": "default",
+          "theme": "dark",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/maintenance-mobile-dark.png",
+              "sha256": "673627a06e08a9b7ab9c882dbb3ed82408116a2d2dc90a3b40283d2fe87d9bb9"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "start-maintenance-mobile-dark"
+            }
+          ],
           "blockers": []
         }
       ]
     },
     {
       "routeId": "tanstack:wodsmith-start:/privacy",
-      "disposition": "unassessed",
+      "disposition": "library-candidate",
       "requirements": {
         "personas": [
-          "unassessed"
+          "public"
         ],
         "fixtures": [
-          "unassessed"
+          "demo"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
-          "light"
+          "light",
+          "dark"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "public-desktop-light",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "demo",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/privacy-desktop-light.png",
+              "sha256": "900ada985d6a341eb32fe95b4aa924e9afb2e5f34c3c65c596233720927975ee"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "start-privacy-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "public-mobile-dark",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "demo",
+          "params": {},
+          "query": {},
+          "dataState": "default",
+          "theme": "dark",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/privacy-mobile-dark.png",
+              "sha256": "40b3a6e68cbe284b926c89d7333b95081dcd09fba1547a46df4ee6dc637f1e79"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "start-privacy-mobile-dark"
+            }
+          ],
           "blockers": []
         }
       ]
     },
     {
       "routeId": "tanstack:wodsmith-start:/terms",
-      "disposition": "unassessed",
+      "disposition": "library-candidate",
       "requirements": {
         "personas": [
-          "unassessed"
+          "public"
         ],
         "fixtures": [
-          "unassessed"
+          "demo"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
-          "light"
+          "light",
+          "dark"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "public-desktop-light",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "demo",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/terms-desktop-light.png",
+              "sha256": "930addc8515e09edfbb74931a034e9d626cacd53cf06760b5997b7204cde1c83"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "start-terms-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "public-mobile-dark",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "demo",
+          "params": {},
+          "query": {},
+          "dataState": "default",
+          "theme": "dark",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/terms-mobile-dark.png",
+              "sha256": "0196dc73dd5012bbccfa2d63b50f19c24b64598ba5d08696954c059c01040af2"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/public-entry/2026-07-10/capture-manifest.json",
+              "sha256": "225c4ed18548d4b7e074eca2c1895380c160ab4bd816e0e12a00a1329e0738eb",
+              "captureId": "start-terms-mobile-dark"
+            }
+          ],
           "blockers": []
         }
       ]

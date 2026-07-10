@@ -61,6 +61,7 @@ export const EVIDENCE_KINDS = [
   "console-log",
   "network-log",
   "redirect-trace",
+  "capture-manifest",
 ]
 
 export const SERVICE_DECISIONS = [

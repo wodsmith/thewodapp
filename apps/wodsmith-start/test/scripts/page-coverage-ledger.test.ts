@@ -865,6 +865,80 @@ describe("page coverage validation and rendering", () => {
     ).toBe(false)
   })
 
+  it("requires verified browser claims to reference complete capture provenance", async () => {
+    const root = await makeTempRepo()
+    const plan = scaffoldPlan([page])
+    const scenario = plan.entries[0].scenarios[0]
+    scenario.status = "verified"
+    await write(resolve(root, "evidence/page.png"), "evidence")
+    scenario.evidence = [
+      {
+        kind: "browser-screenshot",
+        ref: "evidence/page.png",
+        sha256: createHash("sha256").update("evidence").digest("hex"),
+      },
+    ]
+
+    await expect(validatePlan(root, [page], plan)).rejects.toThrow(
+      "verified browser scenario requires capture provenance",
+    )
+
+    const manifest = JSON.stringify({
+      version: 1,
+      captures: [
+        {
+          id: "public-desktop-light",
+          routeId: page.routeId,
+          scenarioId: scenario.id,
+          environment: "production",
+          requestedUrl: "https://example.com/items/fixture-item",
+          finalUrl: "https://example.com/items/fixture-item",
+          host: "example.com",
+          capturedAt: "2026-07-10T19:00:00.000Z",
+          viewport: { width: 1440, height: 900 },
+          requestedColorScheme: "light",
+          effectiveColorScheme: "light",
+          deploymentRevision: "unknown",
+          tool: "agent-browser 0.26.0",
+          artifacts: [
+            {
+              kind: "browser-screenshot",
+              ref: "evidence/page.png",
+              sha256: createHash("sha256").update("evidence").digest("hex"),
+            },
+          ],
+        },
+      ],
+    })
+    await write(resolve(root, "evidence/capture-manifest.json"), manifest)
+    scenario.evidence.push({
+      kind: "capture-manifest",
+      ref: "evidence/capture-manifest.json",
+      sha256: createHash("sha256").update(manifest).digest("hex"),
+      captureId: "public-desktop-light",
+    })
+
+    await expect(validatePlan(root, [page], plan)).resolves.toBeUndefined()
+    await write(resolve(root, "evidence/other.png"), "other")
+    scenario.evidence[0] = {
+      kind: "browser-screenshot",
+      ref: "evidence/other.png",
+      sha256: createHash("sha256").update("other").digest("hex"),
+    }
+    await expect(validatePlan(root, [page], plan)).rejects.toThrow(
+      "capture provenance does not match scenario evidence",
+    )
+    scenario.evidence[0] = {
+      kind: "browser-screenshot",
+      ref: "evidence/page.png",
+      sha256: createHash("sha256").update("evidence").digest("hex"),
+    }
+    scenario.evidence[1].captureId = "missing-capture"
+    await expect(validatePlan(root, [page], plan)).rejects.toThrow(
+      "capture manifest is missing captureId missing-capture",
+    )
+  })
+
   it("rejects dispositions that are incompatible with discovered kinds", async () => {
     const root = await makeTempRepo()
     const pagePlan = scaffoldPlan([page])

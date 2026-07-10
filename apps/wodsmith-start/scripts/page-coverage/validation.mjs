@@ -11,6 +11,14 @@ import {
 } from "./config.mjs"
 
 const BROWSER_KINDS = new Set(["page", "page-layout"])
+const LIVE_BROWSER_EVIDENCE_KINDS = new Set([
+  "browser-screenshot",
+  "accessibility-snapshot",
+  "dom-snapshot",
+  "console-log",
+  "network-log",
+  "redirect-trace",
+])
 const REQUIRED_AXES = ["personas", "fixtures", "dataStates", "themes", "viewports"]
 
 function dynamicParamNames(sourceRouteId) {
@@ -162,6 +170,88 @@ async function validateEvidence(repoRoot, routeId, scenario) {
     if (actual !== evidence.sha256) {
       throw new Error(`${routeId}/${scenario.id} evidence hash mismatch: ${evidence.ref}`)
     }
+    if (evidence.kind === "capture-manifest") {
+      let manifest
+      try {
+        manifest = JSON.parse(contents.toString("utf8"))
+      } catch {
+        throw new Error(`${routeId}/${scenario.id} capture manifest must be valid JSON`)
+      }
+      const capture = manifest.version === 1
+        ? manifest.captures?.find((candidate) => candidate.id === evidence.captureId)
+        : null
+      if (!capture) {
+        throw new Error(
+          `${routeId}/${scenario.id} capture manifest is missing captureId ${evidence.captureId ?? "undefined"}`,
+        )
+      }
+      const requestedUrl = safeUrl(capture.requestedUrl)
+      const finalUrl = safeUrl(capture.finalUrl)
+      const viewport = capture.viewport
+      if (
+        capture.routeId !== routeId ||
+        capture.scenarioId !== scenario.id ||
+        !capture.environment?.trim() ||
+        !requestedUrl ||
+        !finalUrl ||
+        capture.host !== finalUrl.hostname ||
+        !Number.isFinite(Date.parse(capture.capturedAt)) ||
+        !Number.isInteger(viewport?.width) ||
+        viewport.width <= 0 ||
+        !Number.isInteger(viewport?.height) ||
+        viewport.height <= 0 ||
+        !AXES.themes.includes(capture.requestedColorScheme) ||
+        !AXES.themes.includes(capture.effectiveColorScheme) ||
+        capture.requestedColorScheme !== scenario.theme ||
+        (scenario.status === "verified" &&
+          capture.effectiveColorScheme !== scenario.theme) ||
+        !capture.deploymentRevision?.trim() ||
+        !capture.tool?.trim()
+      ) {
+        throw new Error(
+          `${routeId}/${scenario.id} capture provenance is incomplete or mismatched`,
+        )
+      }
+      const claimedArtifacts = scenario.evidence.filter((candidate) =>
+        LIVE_BROWSER_EVIDENCE_KINDS.has(candidate.kind),
+      )
+      if (
+        !Array.isArray(capture.artifacts) ||
+        capture.artifacts.length !== claimedArtifacts.length ||
+        claimedArtifacts.some(
+          (claimed) =>
+            !capture.artifacts.some(
+              (recorded) =>
+                recorded.kind === claimed.kind &&
+                recorded.ref === claimed.ref &&
+                recorded.sha256 === claimed.sha256,
+            ),
+        )
+      ) {
+        throw new Error(
+          `${routeId}/${scenario.id} capture provenance does not match scenario evidence`,
+        )
+      }
+    }
+  }
+
+  const hasLiveBrowserEvidence = scenario.evidence.some((evidence) =>
+    LIVE_BROWSER_EVIDENCE_KINDS.has(evidence.kind),
+  )
+  const hasCaptureManifest = scenario.evidence.some(
+    (evidence) => evidence.kind === "capture-manifest",
+  )
+  if (hasLiveBrowserEvidence && !hasCaptureManifest) {
+    const qualifier = scenario.status === "verified" ? "verified browser scenario" : "browser evidence"
+    throw new Error(`${routeId}/${scenario.id} ${qualifier} requires capture provenance`)
+  }
+}
+
+function safeUrl(value) {
+  try {
+    return new URL(value)
+  } catch {
+    return null
   }
 }
 

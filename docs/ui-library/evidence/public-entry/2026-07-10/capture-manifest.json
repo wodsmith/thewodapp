@@ -1,0 +1,750 @@
+{
+  "version": 1,
+  "captures": [
+    {
+      "id": "start-home-desktop-light",
+      "routeId": "tanstack:wodsmith-start:/_index",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://wodsmith.com/",
+      "finalUrl": "https://wodsmith.com/",
+      "host": "wodsmith.com",
+      "capturedAt": "2026-07-10T19:11:46.185Z",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/home-desktop-light.png",
+          "sha256": "aa42cb517327aab2ac6ad1f51cabf986dd080cd996a6ad1f12e94d9937bd1339"
+        }
+      ]
+    },
+    {
+      "id": "start-home-mobile-dark",
+      "routeId": "tanstack:wodsmith-start:/_index",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://wodsmith.com/",
+      "finalUrl": "https://wodsmith.com/",
+      "host": "wodsmith.com",
+      "capturedAt": "2026-07-10T19:12:27.073Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/home-mobile-dark.png",
+          "sha256": "cc350f7aad6a75527bed7b3473a509f64fe84361be43a360f7a306e0dcc27b69"
+        }
+      ]
+    },
+    {
+      "id": "start-terms-desktop-light",
+      "routeId": "tanstack:wodsmith-start:/terms",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://wodsmith.com/terms",
+      "finalUrl": "https://wodsmith.com/terms",
+      "host": "wodsmith.com",
+      "capturedAt": "2026-07-10T19:11:59.792Z",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/terms-desktop-light.png",
+          "sha256": "930addc8515e09edfbb74931a034e9d626cacd53cf06760b5997b7204cde1c83"
+        }
+      ]
+    },
+    {
+      "id": "start-terms-mobile-dark",
+      "routeId": "tanstack:wodsmith-start:/terms",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://wodsmith.com/terms",
+      "finalUrl": "https://wodsmith.com/terms",
+      "host": "wodsmith.com",
+      "capturedAt": "2026-07-10T19:12:29.592Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/terms-mobile-dark.png",
+          "sha256": "0196dc73dd5012bbccfa2d63b50f19c24b64598ba5d08696954c059c01040af2"
+        }
+      ]
+    },
+    {
+      "id": "start-privacy-desktop-light",
+      "routeId": "tanstack:wodsmith-start:/privacy",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://wodsmith.com/privacy",
+      "finalUrl": "https://wodsmith.com/privacy",
+      "host": "wodsmith.com",
+      "capturedAt": "2026-07-10T19:12:02.624Z",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/privacy-desktop-light.png",
+          "sha256": "900ada985d6a341eb32fe95b4aa924e9afb2e5f34c3c65c596233720927975ee"
+        }
+      ]
+    },
+    {
+      "id": "start-privacy-mobile-dark",
+      "routeId": "tanstack:wodsmith-start:/privacy",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://wodsmith.com/privacy",
+      "finalUrl": "https://wodsmith.com/privacy",
+      "host": "wodsmith.com",
+      "capturedAt": "2026-07-10T19:12:32.127Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/privacy-mobile-dark.png",
+          "sha256": "40b3a6e68cbe284b926c89d7333b95081dcd09fba1547a46df4ee6dc637f1e79"
+        }
+      ]
+    },
+    {
+      "id": "start-maintenance-desktop-light",
+      "routeId": "tanstack:wodsmith-start:/maintenance",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://wodsmith.com/maintenance",
+      "finalUrl": "https://wodsmith.com/maintenance",
+      "host": "wodsmith.com",
+      "capturedAt": "2026-07-10T19:12:05.431Z",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/maintenance-desktop-light.png",
+          "sha256": "960993c02fca6ef5c5ea665d619eb996b5d4c0795a4040554aaf04ce5d6ce912"
+        }
+      ]
+    },
+    {
+      "id": "start-maintenance-mobile-dark",
+      "routeId": "tanstack:wodsmith-start:/maintenance",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://wodsmith.com/maintenance",
+      "finalUrl": "https://wodsmith.com/maintenance",
+      "host": "wodsmith.com",
+      "capturedAt": "2026-07-10T19:12:34.617Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/maintenance-mobile-dark.png",
+          "sha256": "673627a06e08a9b7ab9c882dbb3ed82408116a2d2dc90a3b40283d2fe87d9bb9"
+        }
+      ]
+    },
+    {
+      "id": "start-sign-in-desktop-light",
+      "routeId": "tanstack:wodsmith-start:/_auth/sign-in",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://wodsmith.com/sign-in",
+      "finalUrl": "https://wodsmith.com/sign-in?redirect=%2F",
+      "host": "wodsmith.com",
+      "capturedAt": "2026-07-10T19:12:08.218Z",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/sign-in-desktop-light.png",
+          "sha256": "4b9480e432eabb70ee50b71a92c57ef3fdb251b59573eb4eac9c0325bf0cee75"
+        }
+      ]
+    },
+    {
+      "id": "start-sign-in-mobile-dark",
+      "routeId": "tanstack:wodsmith-start:/_auth/sign-in",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://wodsmith.com/sign-in",
+      "finalUrl": "https://wodsmith.com/sign-in?redirect=%2F",
+      "host": "wodsmith.com",
+      "capturedAt": "2026-07-10T19:12:37.146Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/sign-in-mobile-dark.png",
+          "sha256": "8c5c980b81f105295b695591458eccd30d9534df56f25209dec7799a3ebbbf0f"
+        }
+      ]
+    },
+    {
+      "id": "start-sign-up-desktop-light",
+      "routeId": "tanstack:wodsmith-start:/_auth/sign-up",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://wodsmith.com/sign-up",
+      "finalUrl": "https://wodsmith.com/sign-up?redirect=%2F",
+      "host": "wodsmith.com",
+      "capturedAt": "2026-07-10T19:12:11.041Z",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/sign-up-desktop-light.png",
+          "sha256": "469d78f5b9173e7b8a929640f3638c5d5f0aad04927d50edbb4c1e13a69f9e85"
+        }
+      ]
+    },
+    {
+      "id": "start-sign-up-mobile-dark",
+      "routeId": "tanstack:wodsmith-start:/_auth/sign-up",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://wodsmith.com/sign-up",
+      "finalUrl": "https://wodsmith.com/sign-up?redirect=%2F",
+      "host": "wodsmith.com",
+      "capturedAt": "2026-07-10T19:12:39.653Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/sign-up-mobile-dark.png",
+          "sha256": "3f38322541cefddf3601dc635c50e504b64aed58b5dbf1fb8d702dfed0945606"
+        }
+      ]
+    },
+    {
+      "id": "start-forgot-password-desktop-light",
+      "routeId": "tanstack:wodsmith-start:/_auth/forgot-password",
+      "scenarioId": "public-desktop-light",
+      "environment": "production",
+      "requestedUrl": "https://wodsmith.com/forgot-password",
+      "finalUrl": "https://wodsmith.com/forgot-password",
+      "host": "wodsmith.com",
+      "capturedAt": "2026-07-10T19:12:13.971Z",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/forgot-password-desktop-light.png",
+          "sha256": "0ec844fcbee523a9b5e5c76697487b379e5bb1ed7c3fe0cf0b067f1cbf536c17"
+        }
+      ]
+    },
+    {
+      "id": "start-forgot-password-mobile-dark",
+      "routeId": "tanstack:wodsmith-start:/_auth/forgot-password",
+      "scenarioId": "public-mobile-dark",
+      "environment": "production",
+      "requestedUrl": "https://wodsmith.com/forgot-password",
+      "finalUrl": "https://wodsmith.com/forgot-password",
+      "host": "wodsmith.com",
+      "capturedAt": "2026-07-10T19:12:42.086Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "dark",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/forgot-password-mobile-dark.png",
+          "sha256": "90ee3fab3a0e5d126ecea88fb31ffaab0a8b727b5addad519b468d876b9a8921"
+        }
+      ]
+    },
+    {
+      "id": "start-reset-password-desktop-light",
+      "routeId": "tanstack:wodsmith-start:/_auth/reset-password",
+      "scenarioId": "missing-token-error",
+      "environment": "production",
+      "requestedUrl": "https://wodsmith.com/reset-password",
+      "finalUrl": "https://wodsmith.com/reset-password",
+      "host": "wodsmith.com",
+      "capturedAt": "2026-07-10T19:24:30.882Z",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/reset-password-desktop-light.png",
+          "sha256": "f3a017aea694f146ceea8a9fad2277eb77259b593be9a824d012602064468ce4"
+        }
+      ]
+    },
+    {
+      "id": "start-verify-email-desktop-light",
+      "routeId": "tanstack:wodsmith-start:/_auth/verify-email",
+      "scenarioId": "missing-token-error",
+      "environment": "production",
+      "requestedUrl": "https://wodsmith.com/verify-email",
+      "finalUrl": "https://wodsmith.com/verify-email?token=",
+      "host": "wodsmith.com",
+      "capturedAt": "2026-07-10T19:24:33.399Z",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/verify-email-desktop-light.png",
+          "sha256": "56f12e1c3b835acc03907da12615644108fbfe1d403a7a817266ab004fb88e84"
+        }
+      ]
+    },
+    {
+      "id": "crew-home-desktop-light",
+      "routeId": "tanstack:crew:/_index",
+      "scenarioId": "public-desktop-light",
+      "environment": "demo",
+      "requestedUrl": "https://crew-demo.wodsmith.com/",
+      "finalUrl": "https://crew-demo.wodsmith.com/",
+      "host": "crew-demo.wodsmith.com",
+      "capturedAt": "2026-07-10T19:12:55.741Z",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/home-desktop-light.png",
+          "sha256": "a4f7af352bf822fb66d564e1e58bc15d19d0a0836da021401abd7b8baa6d3cfc"
+        }
+      ]
+    },
+    {
+      "id": "crew-home-mobile-light",
+      "routeId": "tanstack:crew:/_index",
+      "scenarioId": "public-mobile-light",
+      "environment": "demo",
+      "requestedUrl": "https://crew-demo.wodsmith.com/",
+      "finalUrl": "https://crew-demo.wodsmith.com/",
+      "host": "crew-demo.wodsmith.com",
+      "capturedAt": "2026-07-10T19:14:02.380Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/home-mobile-light.png",
+          "sha256": "eae55be5c0578a20bcb51d93320389f6cb78d9839f95ae4e3c765c886e345870"
+        }
+      ]
+    },
+    {
+      "id": "crew-home-mobile-dark",
+      "routeId": "tanstack:crew:/_index",
+      "scenarioId": "public-mobile-dark-blocked",
+      "environment": "demo",
+      "requestedUrl": "https://crew-demo.wodsmith.com/",
+      "finalUrl": "https://crew-demo.wodsmith.com/",
+      "host": "crew-demo.wodsmith.com",
+      "capturedAt": "2026-07-10T19:13:15.496Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/home-mobile-dark.png",
+          "sha256": "1dfc26e443780a02616ef8c1a2a26fe21ee8afdc07ed685089c5ca29323ead1c"
+        },
+        {
+          "kind": "console-log",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/home-mobile-dark-console.json",
+          "sha256": "e67658cd681eecd33c260bb67149d7b7e5a80c20aa3a304c4d23644ad77bf5c4"
+        }
+      ]
+    },
+    {
+      "id": "crew-calculator-desktop-light",
+      "routeId": "tanstack:crew:/calculator",
+      "scenarioId": "public-desktop-light",
+      "environment": "demo",
+      "requestedUrl": "https://crew-demo.wodsmith.com/calculator",
+      "finalUrl": "https://crew-demo.wodsmith.com/calculator",
+      "host": "crew-demo.wodsmith.com",
+      "capturedAt": "2026-07-10T19:12:58.247Z",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/calculator-desktop-light.png",
+          "sha256": "7748938c32662557fdb6315cb9adf9090e4a222c81cdc1640674138caaf65ce3"
+        }
+      ]
+    },
+    {
+      "id": "crew-calculator-mobile-light",
+      "routeId": "tanstack:crew:/calculator",
+      "scenarioId": "public-mobile-light",
+      "environment": "demo",
+      "requestedUrl": "https://crew-demo.wodsmith.com/calculator",
+      "finalUrl": "https://crew-demo.wodsmith.com/calculator",
+      "host": "crew-demo.wodsmith.com",
+      "capturedAt": "2026-07-10T19:14:04.151Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/calculator-mobile-light.png",
+          "sha256": "e68e19bbd3b136eee13e5e0ce6e336b0c3f59e3043072bc34c332628aa050bc2"
+        }
+      ]
+    },
+    {
+      "id": "crew-calculator-mobile-dark",
+      "routeId": "tanstack:crew:/calculator",
+      "scenarioId": "public-mobile-dark-blocked",
+      "environment": "demo",
+      "requestedUrl": "https://crew-demo.wodsmith.com/calculator",
+      "finalUrl": "https://crew-demo.wodsmith.com/calculator",
+      "host": "crew-demo.wodsmith.com",
+      "capturedAt": "2026-07-10T19:13:17.956Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/calculator-mobile-dark.png",
+          "sha256": "37c3452fb4317d318de6fd7de5557e58ac0b9baac79cd15410b712930c18a719"
+        },
+        {
+          "kind": "console-log",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/calculator-mobile-dark-console.json",
+          "sha256": "8d5347125f4f09dca1a47abeee26a7ab7e5b0e9e73ac2dcd1ce260a401b861f4"
+        }
+      ]
+    },
+    {
+      "id": "crew-sign-in-desktop-light",
+      "routeId": "tanstack:crew:/sign-in",
+      "scenarioId": "public-desktop-light",
+      "environment": "demo",
+      "requestedUrl": "https://crew-demo.wodsmith.com/sign-in",
+      "finalUrl": "https://crew-demo.wodsmith.com/sign-in",
+      "host": "crew-demo.wodsmith.com",
+      "capturedAt": "2026-07-10T19:13:00.863Z",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/sign-in-desktop-light.png",
+          "sha256": "6829023294d5a480033a64f0fa28ee4854ceea84a6eae0bb0e888b801a5a20c0"
+        }
+      ]
+    },
+    {
+      "id": "crew-sign-in-mobile-light",
+      "routeId": "tanstack:crew:/sign-in",
+      "scenarioId": "public-mobile-light",
+      "environment": "demo",
+      "requestedUrl": "https://crew-demo.wodsmith.com/sign-in",
+      "finalUrl": "https://crew-demo.wodsmith.com/sign-in",
+      "host": "crew-demo.wodsmith.com",
+      "capturedAt": "2026-07-10T19:14:06.097Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/sign-in-mobile-light.png",
+          "sha256": "c7b8790ed19d00873388ddd5cc0314437e2c0d16b91300b3c0292c27f06cd8b2"
+        }
+      ]
+    },
+    {
+      "id": "crew-sign-in-mobile-dark",
+      "routeId": "tanstack:crew:/sign-in",
+      "scenarioId": "public-mobile-dark-blocked",
+      "environment": "demo",
+      "requestedUrl": "https://crew-demo.wodsmith.com/sign-in",
+      "finalUrl": "https://crew-demo.wodsmith.com/sign-in",
+      "host": "crew-demo.wodsmith.com",
+      "capturedAt": "2026-07-10T19:13:20.531Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/sign-in-mobile-dark.png",
+          "sha256": "7c2e2e5abbfb222555e4d3e5f9c9ed5c752b915ce08ad8e3d188ebdba16fe64d"
+        },
+        {
+          "kind": "console-log",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/sign-in-mobile-dark-console.json",
+          "sha256": "806cde3c3b268a04af330fb20332cb83e82c9015e6f803b701dc94e7d6302b75"
+        }
+      ]
+    },
+    {
+      "id": "crew-sign-up-desktop-light",
+      "routeId": "tanstack:crew:/sign-up",
+      "scenarioId": "public-desktop-light",
+      "environment": "demo",
+      "requestedUrl": "https://crew-demo.wodsmith.com/sign-up",
+      "finalUrl": "https://crew-demo.wodsmith.com/sign-up",
+      "host": "crew-demo.wodsmith.com",
+      "capturedAt": "2026-07-10T19:13:03.292Z",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/sign-up-desktop-light.png",
+          "sha256": "36d55390bf684b5d402fae12904f3c25216576a68bd13560524a8b5f89f58971"
+        }
+      ]
+    },
+    {
+      "id": "crew-sign-up-mobile-light",
+      "routeId": "tanstack:crew:/sign-up",
+      "scenarioId": "public-mobile-light",
+      "environment": "demo",
+      "requestedUrl": "https://crew-demo.wodsmith.com/sign-up",
+      "finalUrl": "https://crew-demo.wodsmith.com/sign-up",
+      "host": "crew-demo.wodsmith.com",
+      "capturedAt": "2026-07-10T19:14:07.802Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/sign-up-mobile-light.png",
+          "sha256": "a257819e620ada738d139581a11cf7f1e88cd81153d2e06c6565ace14a823994"
+        }
+      ]
+    },
+    {
+      "id": "crew-sign-up-mobile-dark",
+      "routeId": "tanstack:crew:/sign-up",
+      "scenarioId": "public-mobile-dark-blocked",
+      "environment": "demo",
+      "requestedUrl": "https://crew-demo.wodsmith.com/sign-up",
+      "finalUrl": "https://crew-demo.wodsmith.com/sign-up",
+      "host": "crew-demo.wodsmith.com",
+      "capturedAt": "2026-07-10T19:13:22.972Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "dark",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/sign-up-mobile-dark.png",
+          "sha256": "ac1f1c5db95230cd01ca1caba6069556a94a7ba25b244bea1c8820d329e2bf52"
+        },
+        {
+          "kind": "console-log",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/crew/sign-up-mobile-dark-console.json",
+          "sha256": "35685b59ae8165493794b65fe2575392b06049dd1fa1eec3acc2287b34ddf666"
+        }
+      ]
+    },
+    {
+      "id": "start-team-invite-missing-token-redirect",
+      "routeId": "tanstack:wodsmith-start:/_auth/team-invite",
+      "scenarioId": "missing-token-redirect",
+      "environment": "production",
+      "requestedUrl": "https://wodsmith.com/team-invite",
+      "finalUrl": "https://wodsmith.com/sign-in?redirect=%2F",
+      "host": "wodsmith.com",
+      "capturedAt": "2026-07-10T19:24:34.000Z",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "unknown",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "redirect-trace",
+          "ref": "docs/ui-library/evidence/public-entry/2026-07-10/start/team-invite-missing-token-redirect.json",
+          "sha256": "b0415d610a7a9d1ba3250a72e39c476ede339c8c17881a3fb2de8b995ab2e1b9"
+        }
+      ]
+    }
+  ]
+}

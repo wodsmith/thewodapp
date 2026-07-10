@@ -108,7 +108,9 @@ The plan validator requires explicit placeholders for every page and page-layout
 
 Each scenario names persona, fixture, params, query, data state, theme, viewport, evidence, blockers, and status. Required axis values need coverage but not a Cartesian product; dynamic parameters must have values even while a scenario is pending.
 
-Verified scenarios require hash-matched evidence and no blockers. Each evidence item names a known kind, portable repository-relative `ref`, and SHA-256; absolute and escaping refs are rejected on POSIX and Windows.
+Verified scenarios require hash-matched evidence and no blockers. Each evidence item names a known kind, portable repository-relative `ref`, and SHA-256; absolute and escaping refs are rejected on POSIX and Windows. Supported kinds include capture manifests alongside browser artifacts.
+
+Live browser evidence requires a capture manifest entry tied to the route and scenario. Provenance records requested and final URLs, host, environment, capture time, viewport, requested and effective theme, tool version, deployed revision or `unknown`, and the exact artifact kind, path, and hash set.
 
 Scenario IDs must be nonblank strings. Blocked scenarios require a code and detail; pending and verified scenarios cannot retain blockers. Layout-only records must name a visual descendant, and other exclusions require a reason.
 
@@ -117,3 +119,15 @@ Scenario IDs must be nonblank strings. Blocked scenarios require a code and deta
 Generation and CI fail whenever the human plan, discovered repository surfaces, generated JSON, or generated Markdown drift apart.
 
 `page-coverage:scaffold` adds explicit pending or exclusion decisions, `page-coverage:generate` joins the ledger, and `check:page-coverage` performs read-only validation. No initial record claims verified browser evidence.
+
+### Public and auth-entry evidence
+
+The first deployed evidence slice covers anonymous Start and Crew public/auth-entry surfaces while keeping deployed observations distinct from PR-head verification.
+
+`docs/ui-library/public-entry-coverage-audit.md` records 14 route records and 32 scenarios: 25 verified observations and seven explicit blockers. Evidence came from fresh anonymous sessions against Start production and the Crew demo deployment without submitting forms or mutating data.
+
+Start verified responsive light/dark behavior for competition discovery, legal, maintenance, and basic auth-entry pages. Missing-token reset and verification error states were observed separately from their blocked token-backed happy paths.
+
+Crew verified desktop and mobile light output, but all four requested-dark scenarios remained light and are blocked with `THEME_NOT_IMPLEMENTED`. Valid reset, verification, and authenticated invite paths remain blocked until disposable tokens exist.
+
+Observed repetition makes auth-entry composition, long-form legal documents, and centered status pages shared-library candidates. Competition discovery and the Crew staffing calculator remain route-specific; the team-invite UI stays unassessed because only its source gate was observed.

@@ -1,0 +1,9 @@
+{
+  "captureId": "start-team-invite-missing-token-redirect",
+  "sourceGate": "missing token",
+  "requestedUrl": "https://wodsmith.com/team-invite",
+  "finalUrl": "https://wodsmith.com/sign-in?redirect=%2F",
+  "observedDocumentResponse": {
+    "status": 200
+  }
+}
