@@ -1,0 +1,81 @@
+- main
+  - sectionheader
+    - button "Toggle Sidebar" [ref=e2]
+      - StaticText "Toggle Sidebar"
+    - link "wodsmith crew WODsmithCrew" [ref=e3]
+      - image "wodsmith crew"
+      - StaticText "WOD"
+      - StaticText "smith"
+      - StaticText "Crew"
+  - sectionheader
+    - paragraph
+      - StaticText "ORGANIZER CREW"
+    - heading "E2E Crew Demo Throwdown" [level=1, ref=e4]
+    - paragraph
+      - StaticText "2026-07-10 to 2026-07-11"
+  - generic
+    - heading "Event details" [level=2, ref=e9]
+    - paragraph
+      - StaticText "Confirm the details volunteers and staff will use for planning."
+    - LabelText
+      - StaticText "Event name"
+      - textbox "Event name" [ref=e26]: E2E Crew Demo Throwdown
+        - StaticText "E2E Crew Demo Throwdown"
+    - LabelText
+      - StaticText "Start date"
+      - Date "Start date": 2026-07-10
+        - generic
+          - spinbutton "Month Month" [ref=e30]: 7
+          - spinbutton "Day Day" [ref=e31]: 10
+          - spinbutton "Year Year" [ref=e32]: 2026
+        - button "Show date picker" [ref=e28]
+    - LabelText
+      - StaticText "End date"
+      - Date "End date": 2026-07-11
+        - generic
+          - spinbutton "Month Month" [ref=e33]: 7
+          - spinbutton "Day Day" [ref=e34]: 11
+          - spinbutton "Year Year" [ref=e35]: 2026
+        - button "Show date picker" [ref=e29]
+    - LabelText
+      - StaticText "Timezone"
+      - combobox "Timezone" [expanded=false, ref=e27]: Mountain Time (MT)
+        - MenuListPopup
+          - option "Eastern Time (ET)" [ref=e36]
+          - option "Central Time (CT)" [ref=e37]
+          - option "Mountain Time (MT)" [selected, ref=e38]
+          - option "Arizona (no DST)" [ref=e39]
+          - option "Pacific Time (PT)" [ref=e40]
+          - option "Alaska Time (AKT)" [ref=e41]
+          - option "Hawaii Time (HT)" [ref=e42]
+          - option "UTC" [ref=e43]
+    - button "Save changes" [ref=e10]
+  - generic
+    - heading "Workouts" [level=2, ref=e5]
+    - paragraph
+    - button "Add workout" [ref=e6]
+    - article
+      - heading "Fran" [level=3, ref=e11]
+      - button "Edit Fran" [ref=e12]
+      - button "Delete Fran" [ref=e13]
+    - article
+      - heading "Murph" [level=3, ref=e14]
+      - button "Edit Murph" [ref=e15]
+      - button "Delete Murph" [ref=e16]
+    - article
+      - heading "Cindy" [level=3, ref=e17]
+      - button "Edit Cindy" [ref=e18]
+      - button "Delete Cindy" [ref=e19]
+  - generic
+    - heading "Locations" [level=2, ref=e7]
+    - paragraph
+    - button "Add location" [ref=e8]
+    - article
+      - heading "North Floor" [level=3, ref=e20]
+      - button "Edit North Floor" [ref=e21]
+      - button "Delete North Floor" [ref=e22]
+    - article
+      - heading "South Floor" [level=3, ref=e23]
+      - button "Edit South Floor" [ref=e24]
+      - button "Delete South Floor" [ref=e25]
+- region "Notifications alt+T" [ref=e1]

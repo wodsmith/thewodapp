@@ -1,0 +1,80 @@
+- link "wodsmith crew WODsmithCrew" [ref=e2]
+- button "Toggle Sidebar" [ref=e3]
+- list
+  - listitem [level=1]
+    - link "Home" [ref=e13]
+- generic
+  - StaticText "Workflow"
+  - list
+    - listitem [level=1]
+      - link "Setup" [ref=e14]
+    - listitem [level=1]
+      - link "Heats" [ref=e15]
+    - listitem [level=1]
+      - link "Staffing Plan" [ref=e16]
+    - listitem [level=1]
+      - link "Volunteers" [ref=e17]
+- generic
+  - StaticText "Operations"
+  - list
+    - listitem [level=1]
+      - link "Volunteer Shifts" [ref=e18]
+    - listitem [level=1]
+      - link "Judge Assignments" [ref=e19]
+    - listitem [level=1]
+      - link "Confirmations" [ref=e20]
+    - listitem [level=1]
+      - link "Event Day" [ref=e21]
+    - listitem [level=1]
+      - link "Print Packet" [ref=e22]
+- list
+  - listitem [level=1]
+    - button "Toggle Sidebar" [ref=e7]
+- main
+  - sectionheader
+    - paragraph
+      - StaticText "ORGANIZER CREW"
+    - heading "E2E Crew Demo Throwdown" [level=1, ref=e4]
+    - paragraph
+      - StaticText "2026-07-10 to 2026-07-11"
+  - generic
+    - heading "Confirmations" [level=2, ref=e5]
+    - paragraph
+      - StaticText "11 assignments,3 awaiting a volunteer response"
+    - link "Shifts" [ref=e6]
+    - generic
+      - generic
+      - generic
+      - generic
+      - generic
+      - generic
+      - generic
+    - generic
+      - generic
+        - heading "Send assignment emails" [level=3, ref=e23]
+        - button "Send assignment emails" [disabled, ref=e24]
+      - generic
+        - heading "Send reminder emails" [level=3, ref=e25]
+        - button "Send reminder emails" [ref=e26]
+    - generic
+      - button "Send all unsent 0 ready" [disabled, ref=e8]
+      - button "Remind no responses 1 due now" [ref=e9]
+      - link "Review declines 1 assignment" [ref=e10]
+      - StaticText "Review change requests"
+      - StaticText "0 assignments"
+    - heading "No-response list" [level=3, ref=e11]
+    - paragraph
+      - StaticText "3 assignments"
+    - button "Export no-response list" [ref=e12]
+    - generic
+      - generic
+        - heading "No response" [level=3, ref=e27]
+      - generic
+        - heading "Declined" [level=3, ref=e28]
+      - generic
+        - heading "Change requested" [level=3, ref=e29]
+      - generic
+        - heading "Confirmed" [level=3, ref=e30]
+      - generic
+        - heading "Event-day outcomes" [level=3, ref=e31]
+- region "Notifications alt+T" [ref=e1]

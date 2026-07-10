@@ -1,0 +1,105 @@
+- link "wodsmith crew WODsmithCrew" [ref=e2]
+- button "Toggle Sidebar" [ref=e3]
+- list
+  - listitem [level=1]
+    - link "Home" [ref=e27]
+- generic
+  - StaticText "Workflow"
+  - list
+    - listitem [level=1]
+      - link "Setup" [ref=e28]
+    - listitem [level=1]
+      - link "Heats" [ref=e29]
+    - listitem [level=1]
+      - link "Staffing Plan" [ref=e30]
+    - listitem [level=1]
+      - link "Volunteers" [ref=e31]
+- generic
+  - StaticText "Operations"
+  - list
+    - listitem [level=1]
+      - link "Volunteer Shifts" [ref=e32]
+    - listitem [level=1]
+      - link "Judge Assignments" [ref=e33]
+    - listitem [level=1]
+      - link "Confirmations" [ref=e34]
+    - listitem [level=1]
+      - link "Event Day" [ref=e35]
+    - listitem [level=1]
+      - link "Print Packet" [ref=e36]
+- list
+  - listitem [level=1]
+    - button "Toggle Sidebar" [ref=e9]
+- main
+  - sectionheader
+    - paragraph
+      - StaticText "ORGANIZER CREW"
+    - heading "E2E Crew Demo Throwdown" [level=1, ref=e4]
+    - paragraph
+      - StaticText "2026-07-10 to 2026-07-11"
+  - generic
+    - heading "Event details" [level=2, ref=e10]
+    - paragraph
+      - StaticText "Confirm the details volunteers and staff will use for planning."
+    - LabelText
+      - StaticText "Event name"
+      - textbox "Event name" [ref=e37]: E2E Crew Demo Throwdown
+        - StaticText "E2E Crew Demo Throwdown"
+    - LabelText
+      - StaticText "Start date"
+      - Date "Start date": 2026-07-10
+        - generic
+          - spinbutton "Month Month" [ref=e41]: 7
+          - spinbutton "Day Day" [ref=e42]: 10
+          - spinbutton "Year Year" [ref=e43]: 2026
+        - button "Show date picker" [ref=e39]
+    - LabelText
+      - StaticText "End date"
+      - Date "End date": 2026-07-11
+        - generic
+          - spinbutton "Month Month" [ref=e44]: 7
+          - spinbutton "Day Day" [ref=e45]: 11
+          - spinbutton "Year Year" [ref=e46]: 2026
+        - button "Show date picker" [ref=e40]
+    - LabelText
+      - StaticText "Timezone"
+      - combobox "Timezone" [expanded=false, ref=e38]: Mountain Time (MT)
+        - MenuListPopup
+          - option "Eastern Time (ET)" [ref=e47]
+          - option "Central Time (CT)" [ref=e48]
+          - option "Mountain Time (MT)" [selected, ref=e49]
+          - option "Arizona (no DST)" [ref=e50]
+          - option "Pacific Time (PT)" [ref=e51]
+          - option "Alaska Time (AKT)" [ref=e52]
+          - option "Hawaii Time (HT)" [ref=e53]
+          - option "UTC" [ref=e54]
+    - button "Save changes" [ref=e11]
+  - generic
+    - heading "Workouts" [level=2, ref=e5]
+    - paragraph
+    - button "Add workout" [ref=e6]
+    - article
+      - heading "Fran" [level=3, ref=e12]
+      - button "Edit Fran" [ref=e13]
+      - button "Delete Fran" [ref=e14]
+    - article
+      - heading "Murph" [level=3, ref=e15]
+      - button "Edit Murph" [ref=e16]
+      - button "Delete Murph" [ref=e17]
+    - article
+      - heading "Cindy" [level=3, ref=e18]
+      - button "Edit Cindy" [ref=e19]
+      - button "Delete Cindy" [ref=e20]
+  - generic
+    - heading "Locations" [level=2, ref=e7]
+    - paragraph
+    - button "Add location" [ref=e8]
+    - article
+      - heading "North Floor" [level=3, ref=e21]
+      - button "Edit North Floor" [ref=e22]
+      - button "Delete North Floor" [ref=e23]
+    - article
+      - heading "South Floor" [level=3, ref=e24]
+      - button "Edit South Floor" [ref=e25]
+      - button "Delete South Floor" [ref=e26]
+- region "Notifications alt+T" [ref=e1]

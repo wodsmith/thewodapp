@@ -1,0 +1,49 @@
+- link "wodsmith crew WODsmithCrew" [ref=e2]
+- button "Toggle Sidebar" [ref=e3]
+- list
+  - listitem [level=1]
+    - link "Home" [ref=e12]
+- generic
+  - StaticText "Workflow"
+  - list
+    - listitem [level=1]
+      - link "Setup" [ref=e13]
+    - listitem [level=1]
+      - link "Heats" [ref=e14]
+    - listitem [level=1]
+      - link "Staffing Plan" [ref=e15]
+    - listitem [level=1]
+      - link "Volunteers" [ref=e16]
+- generic
+  - StaticText "Operations"
+  - list
+    - listitem [level=1]
+      - link "Volunteer Shifts" [ref=e17]
+    - listitem [level=1]
+      - link "Judge Assignments" [ref=e18]
+    - listitem [level=1]
+      - link "Confirmations" [ref=e19]
+    - listitem [level=1]
+      - link "Event Day" [ref=e20]
+    - listitem [level=1]
+      - link "Print Packet" [ref=e21]
+- list
+  - listitem [level=1]
+    - button "Toggle Sidebar" [ref=e5]
+- main
+  - sectionheader
+    - paragraph
+    - heading "E2E Crew Demo Throwdown" [level=1, ref=e4]
+    - paragraph
+  - generic
+    - paragraph
+    - heading "Finish event setup" [level=2, ref=e6]
+    - paragraph
+    - link "Finish setup" [ref=e7]
+    - generic
+      - heading "Current snapshot" [level=2, ref=e8]
+    - generic
+      - heading "Also useful" [level=2, ref=e9]
+      - link "Import volunteers" [ref=e10]
+      - link "Import heat schedule" [ref=e11]
+- region "Notifications alt+T" [ref=e1]

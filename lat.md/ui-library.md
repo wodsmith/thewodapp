@@ -215,3 +215,15 @@ The owner fixture verifies responsive light/dark output for scheduled-workout em
 Programming browse remains blocked because the required base seed exposes a public track instead of the audited empty state. Profile settings remains a verified error state. Athlete settings now verifies its route-specific imperial and metric form output after the form-context fix.
 
 Observed repetition supports a children-driven shared empty state and presentation-only settings header or section composition. Workout forms, calendars, scoring, navigation state, authentication, and route controllers remain app-owned.
+
+### Crew organizer evidence
+
+The fourth evidence slice covers the authenticated Crew organizer workflow from event discovery and setup through staffing, confirmations, event-day operations, and exports.
+
+[The Crew organizer coverage audit](../docs/ui-library/crew-organizer-coverage-audit.md) records 24 verified scenarios across 12 visual records. The complete plan now has 166 verified, 26 blocked, and 147 pending scenarios.
+
+Every route verifies desktop and mobile light output from the populated `e2e_competition` fixture with scrubbed accessibility, DOM, console, and network evidence. Twelve representative screenshots cover the primary list, form, overview, roster, day-of, setup, and export surfaces.
+
+Events and New event expand to 442 px at the 390 px viewport because the public header overflows. Print packet expands to 500 px because its outer packet table defeats the inner schedule scroller. The other nine audited routes do not overflow horizontally.
+
+The route records remain route-specific. Repetition supports presentation-only page headers, metric/status panels, empty states, responsive table containment, and the shared non-RHF field composition; Crew navigation, permissions, scheduling state, print semantics, and route actions remain app-owned.

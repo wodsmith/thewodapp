@@ -1,0 +1,28 @@
+- main
+  - sectionheader
+    - button "Toggle Sidebar" [ref=e2]
+    - link "wodsmith crew WODsmithCrew" [ref=e3]
+  - sectionheader
+    - paragraph
+    - heading "E2E Crew Demo Throwdown" [level=1, ref=e4]
+    - paragraph
+  - generic
+    - heading "Heats" [level=2, ref=e5]
+    - paragraph
+    - button "Import from CSV or Excel" [ref=e6]
+    - generic
+      - heading "Fran" [level=3, ref=e7]
+      - button "Add heats" [ref=e8]
+      - button "Remove" [ref=e13]
+      - button "Remove" [ref=e14]
+    - generic
+      - heading "Murph" [level=3, ref=e9]
+      - button "Add heats" [ref=e10]
+      - button "Remove" [ref=e15]
+      - button "Remove" [ref=e16]
+    - generic
+      - heading "Cindy" [level=3, ref=e11]
+      - button "Add heats" [ref=e12]
+      - button "Remove" [ref=e17]
+      - button "Remove" [ref=e18]
+- region "Notifications alt+T" [ref=e1]

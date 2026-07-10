@@ -1,0 +1,43 @@
+{
+  "bodyText": "C WODsmith Crew Calculator Events New event Events Crew-only event setup records backed by normal competitions. New event E2E Crew Demo Throwdown 2026-07-10 to 2026-07-11 ready Plan self serve Concierge ready Source e2e_demo Setup progress 0% Crew events use the competition ID as their route ID. The Crew settings table adds setup/import metadata without creating a separate event model.",
+  "effectiveTheme": "light",
+  "fields": [],
+  "finalUrl": "/events",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "Events"
+    },
+    {
+      "level": 2,
+      "text": "E2E Crew Demo Throwdown"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "main"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith Crew",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": true,
+    "scrollHeight": 844,
+    "scrollWidth": 442,
+    "width": 390
+  }
+}

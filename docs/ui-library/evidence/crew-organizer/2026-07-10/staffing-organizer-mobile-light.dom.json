@@ -1,0 +1,55 @@
+{
+  "bodyText": "Toggle Sidebar WODsmith Crew ORGANIZER CREW E2E Crew Demo Throwdown 2026-07-10 to 2026-07-11 Staffing gaps The volunteer and judge slots you still need to fill. 2 more people needed 34 of 36 slots filled · gaps across 2 time blocks. Who you need Manage shifts Assign judges Judge 24/25 filled 1 open Equipment 2/3 filled 1 open When they're needed Equipment Reset Equipment · Fri, Jul 10 5:50 PM to 8:05 PM 1 open Cindy - Heat 2 - South Floor Judge · Fri, Jul 10 6:48 PM to 7:06 PM 1 open",
+  "effectiveTheme": "light",
+  "fields": [],
+  "finalUrl": "/events/e2e_competition/staffing",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "E2E Crew Demo Throwdown"
+    },
+    {
+      "level": 2,
+      "text": "Staffing gaps"
+    },
+    {
+      "level": 3,
+      "text": "2 more people needed"
+    },
+    {
+      "level": 3,
+      "text": "Who you need"
+    },
+    {
+      "level": 3,
+      "text": "When they're needed"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "role": null,
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith Crew",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 1015,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

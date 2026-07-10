@@ -1,0 +1,20 @@
+- main
+  - sectionheader
+    - button "Toggle Sidebar" [ref=e2]
+    - link "wodsmith crew WODsmithCrew" [ref=e3]
+  - sectionheader
+    - paragraph
+    - heading "E2E Crew Demo Throwdown" [level=1, ref=e4]
+    - paragraph
+  - generic
+    - paragraph
+    - heading "Finish event setup" [level=2, ref=e5]
+    - paragraph
+    - link "Finish setup" [ref=e6]
+    - generic
+      - heading "Current snapshot" [level=2, ref=e7]
+    - generic
+      - heading "Also useful" [level=2, ref=e8]
+      - link "Import volunteers" [ref=e9]
+      - link "Import heat schedule" [ref=e10]
+- region "Notifications alt+T" [ref=e1]

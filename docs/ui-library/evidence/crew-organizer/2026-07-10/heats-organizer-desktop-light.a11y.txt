@@ -1,0 +1,57 @@
+- link "wodsmith crew WODsmithCrew" [ref=e2]
+- button "Toggle Sidebar" [ref=e3]
+- list
+  - listitem [level=1]
+    - link "Home" [ref=e14]
+- generic
+  - StaticText "Workflow"
+  - list
+    - listitem [level=1]
+      - link "Setup" [ref=e15]
+    - listitem [level=1]
+      - link "Heats" [ref=e16]
+    - listitem [level=1]
+      - link "Staffing Plan" [ref=e17]
+    - listitem [level=1]
+      - link "Volunteers" [ref=e18]
+- generic
+  - StaticText "Operations"
+  - list
+    - listitem [level=1]
+      - link "Volunteer Shifts" [ref=e19]
+    - listitem [level=1]
+      - link "Judge Assignments" [ref=e20]
+    - listitem [level=1]
+      - link "Confirmations" [ref=e21]
+    - listitem [level=1]
+      - link "Event Day" [ref=e22]
+    - listitem [level=1]
+      - link "Print Packet" [ref=e23]
+- list
+  - listitem [level=1]
+    - button "Toggle Sidebar" [ref=e7]
+- main
+  - sectionheader
+    - paragraph
+    - heading "E2E Crew Demo Throwdown" [level=1, ref=e4]
+    - paragraph
+  - generic
+    - heading "Heats" [level=2, ref=e5]
+    - paragraph
+    - button "Import from CSV or Excel" [ref=e6]
+    - generic
+      - heading "Fran" [level=3, ref=e8]
+      - button "Add heats" [ref=e9]
+      - button "Remove" [ref=e24]
+      - button "Remove" [ref=e25]
+    - generic
+      - heading "Murph" [level=3, ref=e10]
+      - button "Add heats" [ref=e11]
+      - button "Remove" [ref=e26]
+      - button "Remove" [ref=e27]
+    - generic
+      - heading "Cindy" [level=3, ref=e12]
+      - button "Add heats" [ref=e13]
+      - button "Remove" [ref=e28]
+      - button "Remove" [ref=e29]
+- region "Notifications alt+T" [ref=e1]

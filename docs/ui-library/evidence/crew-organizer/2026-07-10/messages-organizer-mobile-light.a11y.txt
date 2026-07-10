@@ -1,0 +1,56 @@
+- main
+  - sectionheader
+    - button "Toggle Sidebar" [ref=e2]
+      - StaticText "Toggle Sidebar"
+    - link "wodsmith crew WODsmithCrew" [ref=e3]
+      - image "wodsmith crew"
+      - StaticText "WOD"
+      - StaticText "smith"
+      - StaticText "Crew"
+  - sectionheader
+    - paragraph
+      - StaticText "ORGANIZER CREW"
+    - heading "E2E Crew Demo Throwdown" [level=1, ref=e4]
+    - paragraph
+      - StaticText "2026-07-10 to 2026-07-11"
+  - generic
+    - heading "Confirmations" [level=2, ref=e5]
+    - paragraph
+      - StaticText "11 assignments,3 awaiting a volunteer response"
+    - link "Shifts" [ref=e6]
+    - generic
+      - generic
+      - generic
+      - generic
+      - generic
+      - generic
+      - generic
+    - generic
+      - generic
+        - heading "Send assignment emails" [level=3, ref=e12]
+        - button "Send assignment emails" [disabled, ref=e13]
+      - generic
+        - heading "Send reminder emails" [level=3, ref=e14]
+        - button "Send reminder emails" [ref=e15]
+    - generic
+      - button "Send all unsent 0 ready" [disabled, ref=e7]
+      - button "Remind no responses 1 due now" [ref=e8]
+      - link "Review declines 1 assignment" [ref=e9]
+      - StaticText "Review change requests"
+      - StaticText "0 assignments"
+    - heading "No-response list" [level=3, ref=e10]
+    - paragraph
+      - StaticText "3 assignments"
+    - button "Export no-response list" [ref=e11]
+    - generic
+      - generic
+        - heading "No response" [level=3, ref=e16]
+      - generic
+        - heading "Declined" [level=3, ref=e17]
+      - generic
+        - heading "Change requested" [level=3, ref=e18]
+      - generic
+        - heading "Confirmed" [level=3, ref=e19]
+      - generic
+        - heading "Event-day outcomes" [level=3, ref=e20]
+- region "Notifications alt+T" [ref=e1]

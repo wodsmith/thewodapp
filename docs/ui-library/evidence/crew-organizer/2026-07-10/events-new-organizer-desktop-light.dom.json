@@ -1,0 +1,80 @@
+{
+  "bodyText": "C WODsmith Crew Calculator Events New event <email> New Crew event Create a normal competition and attach its Crew settings row. Event name Slug Start date End date Source event URL External registration URL Description Create Crew event Cancel",
+  "effectiveTheme": "light",
+  "fields": [
+    {
+      "label": "Event name",
+      "name": "",
+      "type": "input"
+    },
+    {
+      "label": "Slug",
+      "name": "",
+      "type": "input"
+    },
+    {
+      "label": "Start date",
+      "name": "",
+      "type": "date"
+    },
+    {
+      "label": "End date",
+      "name": "",
+      "type": "date"
+    },
+    {
+      "label": "Source event URL",
+      "name": "",
+      "type": "input"
+    },
+    {
+      "label": "External registration URL",
+      "name": "",
+      "type": "input"
+    },
+    {
+      "label": "Description",
+      "name": "",
+      "type": "textarea"
+    }
+  ],
+  "finalUrl": "/events/new",
+  "forms": [
+    {
+      "action": "",
+      "method": "get"
+    }
+  ],
+  "headings": [
+    {
+      "level": 1,
+      "text": "New Crew event"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "main"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith Crew",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 900,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

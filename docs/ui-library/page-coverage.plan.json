@@ -3893,36 +3893,114 @@
     },
     {
       "routeId": "tanstack:crew:/events",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "organizer"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
           "light"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "organizer-desktop-light",
+          "status": "verified",
+          "persona": "organizer",
+          "fixture": "populated",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-organizer-desktop-light.a11y.txt",
+              "sha256": "a2efb3d27f83404e9408f2455b2a095e229525bcbf9d36a57da4da4dc9d7f128"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-organizer-desktop-light.dom.json",
+              "sha256": "41c5d81bd40fef3518372bca40403c9d13ef9649f2585d020a4d17209b4fcf15"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-organizer-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-organizer-desktop-light.network.json",
+              "sha256": "d5e6a0a3c3870f236148868f97d19297b10aab15d789a935b03c7c6f5808fd16"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-organizer-desktop-light.png",
+              "sha256": "267ce4b840eff81202f08d776eb369c0ee944a7c51ed8d0c7dcc8a41f4a5475c"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
+              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "captureId": "events-organizer-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "organizer-mobile-light",
+          "status": "verified",
+          "persona": "organizer",
+          "fixture": "populated",
+          "params": {},
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-organizer-mobile-light.a11y.txt",
+              "sha256": "a2efb3d27f83404e9408f2455b2a095e229525bcbf9d36a57da4da4dc9d7f128"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-organizer-mobile-light.dom.json",
+              "sha256": "af85b470e719e7f072163e47b0b6ed2d11e4c937ad1c3a88b5dc06955a2531b1"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-organizer-mobile-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-organizer-mobile-light.network.json",
+              "sha256": "72f4915597352126cb885c43e15175cc912dfa8d1611aee76e427b00fa319a56"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-organizer-mobile-light.png",
+              "sha256": "b713a2bbb1803addbe180464753bf7492bfa55537ca363ab5f70718e5bcee69c"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
+              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "captureId": "events-organizer-mobile-light"
+            }
+          ],
           "blockers": []
         }
       ]
@@ -3945,38 +4023,118 @@
     },
     {
       "routeId": "tanstack:crew:/events/$eventId/_index",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "organizer"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
           "light"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "organizer-desktop-light",
+          "status": "verified",
+          "persona": "organizer",
+          "fixture": "populated",
           "params": {
-            "eventId": "__unassessed_eventId__"
+            "eventId": "e2e_competition"
           },
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/overview-organizer-desktop-light.a11y.txt",
+              "sha256": "a0b5eedec38e54d2a830bd37030c995752726853b5491ad5200991eb4809595b"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/overview-organizer-desktop-light.dom.json",
+              "sha256": "b72385e11419e6bea0a01987aa3a58447b296bd37d91d3bbcd099e82f69534a8"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/overview-organizer-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/overview-organizer-desktop-light.network.json",
+              "sha256": "bd730e8b10ac5575aea33c3d11bf637f30273fd45a01703959ce5624b333d88a"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/overview-organizer-desktop-light.png",
+              "sha256": "eae906b177b66a753fdb129522d8aa36e251b164d2e9c0e9489e7aefed8adadf"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
+              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "captureId": "overview-organizer-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "organizer-mobile-light",
+          "status": "verified",
+          "persona": "organizer",
+          "fixture": "populated",
+          "params": {
+            "eventId": "e2e_competition"
+          },
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/overview-organizer-mobile-light.a11y.txt",
+              "sha256": "b0e1c9cb465c0ed1e291ecd8cd79d8c19d97e8db24ff911b5cb3ea7aef9bee1a"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/overview-organizer-mobile-light.dom.json",
+              "sha256": "8cd074ffaf2770835f7f64f07013a582490b8497013e7a0b1a853dbfe49566b4"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/overview-organizer-mobile-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/overview-organizer-mobile-light.network.json",
+              "sha256": "730f8a69727d0c834b50c83047f0847ef0e5b5fac1618f58680f66a7f2a152d6"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/overview-organizer-mobile-light.png",
+              "sha256": "4b817b188b66e0904e194dca5e4281227d8ac695c3bd6110dc0f303b932df5fb"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
+              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "captureId": "overview-organizer-mobile-light"
+            }
+          ],
           "blockers": []
         }
       ]
@@ -4009,38 +4167,118 @@
     },
     {
       "routeId": "tanstack:crew:/events/$eventId/day-of",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "organizer"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
           "light"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "organizer-desktop-light",
+          "status": "verified",
+          "persona": "organizer",
+          "fixture": "populated",
           "params": {
-            "eventId": "__unassessed_eventId__"
+            "eventId": "e2e_competition"
           },
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/day-of-organizer-desktop-light.a11y.txt",
+              "sha256": "9a8952786baff1f015a6d543cea4a7075a2c544eb741005753aa6dddaf2775b0"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/day-of-organizer-desktop-light.dom.json",
+              "sha256": "e5abda6608904f5fbd0f238651ebc7ba1c77b1037534f060c781644c0890a93d"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/day-of-organizer-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/day-of-organizer-desktop-light.network.json",
+              "sha256": "ad7b5f795d73721401df931044c675ace424fb28639b45e1aa727e91218ba865"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/day-of-organizer-desktop-light.png",
+              "sha256": "11f8827e2b1f71000c7ebef121cbb40a5b729c2b5c44343f5ba9f58dfc3542fa"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
+              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "captureId": "day-of-organizer-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "organizer-mobile-light",
+          "status": "verified",
+          "persona": "organizer",
+          "fixture": "populated",
+          "params": {
+            "eventId": "e2e_competition"
+          },
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/day-of-organizer-mobile-light.a11y.txt",
+              "sha256": "40892d824c49ae1bcaaeb9096cd260c8eac7a6de99b254d95ef9b14f670fe067"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/day-of-organizer-mobile-light.dom.json",
+              "sha256": "bc43abef7af817e728e7d4a03cad5018a6d0013b51fe26ef2d6708dc4f0b1010"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/day-of-organizer-mobile-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/day-of-organizer-mobile-light.network.json",
+              "sha256": "7be43a7b94580511b6d279a6f7bbbdee405fa75b9ee809005fa06a99d251e048"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/day-of-organizer-mobile-light.png",
+              "sha256": "506ffc8c0cce94a3265e809becd77c59f043a6e72bb6f2d245451f447a4b3093"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
+              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "captureId": "day-of-organizer-mobile-light"
+            }
+          ],
           "blockers": []
         }
       ]
@@ -4060,152 +4298,437 @@
     },
     {
       "routeId": "tanstack:crew:/events/$eventId/exports",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "organizer"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
           "light"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "organizer-desktop-light",
+          "status": "verified",
+          "persona": "organizer",
+          "fixture": "populated",
           "params": {
-            "eventId": "__unassessed_eventId__"
+            "eventId": "e2e_competition"
           },
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/exports-organizer-desktop-light.a11y.txt",
+              "sha256": "684700823d769fa008d57cbe6c0fc5f9f9e104379994cfd955c95e66547c7122"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/exports-organizer-desktop-light.dom.json",
+              "sha256": "3973fbe026a31fbc80a6df2d9ca34d7c00a83709e3b5335400100ef0b2098690"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/exports-organizer-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/exports-organizer-desktop-light.network.json",
+              "sha256": "aa31cd351526be333c8ad472988957d7613a13a8cb89ed0007e698b3819ee0b3"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/exports-organizer-desktop-light.png",
+              "sha256": "0f244963f117fc7bc7d2a040bbae99c91bf914a9a619f22f79cc9062a0be7564"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
+              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "captureId": "exports-organizer-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "organizer-mobile-light",
+          "status": "verified",
+          "persona": "organizer",
+          "fixture": "populated",
+          "params": {
+            "eventId": "e2e_competition"
+          },
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/exports-organizer-mobile-light.a11y.txt",
+              "sha256": "9dd4951609ed2e0cd84a9d0ed1060593b157301014cc745fe5ba1a0581f19eb0"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/exports-organizer-mobile-light.dom.json",
+              "sha256": "d77e40d31d93854d3acdde62e8fa5a7f77c49b2a14ca3d6a90e3a37de896f68d"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/exports-organizer-mobile-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/exports-organizer-mobile-light.network.json",
+              "sha256": "2a2558fdd126dd84f442d7932bc03d6c27f7af2e86add2f4998b7d03faeefc6c"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
+              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "captureId": "exports-organizer-mobile-light"
+            }
+          ],
           "blockers": []
         }
       ]
     },
     {
       "routeId": "tanstack:crew:/events/$eventId/heats",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "organizer"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
           "light"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "organizer-desktop-light",
+          "status": "verified",
+          "persona": "organizer",
+          "fixture": "populated",
           "params": {
-            "eventId": "__unassessed_eventId__"
+            "eventId": "e2e_competition"
           },
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/heats-organizer-desktop-light.a11y.txt",
+              "sha256": "444844dde65ad1960d34fb4a3414d18aebbb1ef74dc4bcd1a1576aa5478c8d6b"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/heats-organizer-desktop-light.dom.json",
+              "sha256": "0e67c705f8e64680447f65f1a13e68e9b20cbf059bacfb5011fd14a88af7aaf2"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/heats-organizer-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/heats-organizer-desktop-light.network.json",
+              "sha256": "27640bfe31214e77e02e8fc532b7a158ca985f3e3f33760261a66491e09bc6b6"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
+              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "captureId": "heats-organizer-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "organizer-mobile-light",
+          "status": "verified",
+          "persona": "organizer",
+          "fixture": "populated",
+          "params": {
+            "eventId": "e2e_competition"
+          },
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/heats-organizer-mobile-light.a11y.txt",
+              "sha256": "95d37f43644e833bf2587317044f60f6444ae88197f3e1d25da7813e8e03b660"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/heats-organizer-mobile-light.dom.json",
+              "sha256": "0b54c278fe04c5f29a93d20f9d5265da852c5241668e4073182d404afc163bae"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/heats-organizer-mobile-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/heats-organizer-mobile-light.network.json",
+              "sha256": "26bdb84ec60e92b43d4b73f994eeb72fe70d26690d1b4ddced568d7715756d46"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
+              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "captureId": "heats-organizer-mobile-light"
+            }
+          ],
           "blockers": []
         }
       ]
     },
     {
       "routeId": "tanstack:crew:/events/$eventId/judges",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "organizer"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
           "light"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "organizer-desktop-light",
+          "status": "verified",
+          "persona": "organizer",
+          "fixture": "populated",
           "params": {
-            "eventId": "__unassessed_eventId__"
+            "eventId": "e2e_competition"
           },
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/judges-organizer-desktop-light.a11y.txt",
+              "sha256": "97f9415afed3ef1cb002f30a4b85a61802f352f703bb2ca14564771d7470b054"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/judges-organizer-desktop-light.dom.json",
+              "sha256": "279f34ee332412246c79db5b2d56b9a4586cf60a393fca46d8bd44d35edec8c1"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/judges-organizer-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/judges-organizer-desktop-light.network.json",
+              "sha256": "ebefca5a74c2d8c29887423a1ec38389eac59ec56d68678f64023629481c7672"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
+              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "captureId": "judges-organizer-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "organizer-mobile-light",
+          "status": "verified",
+          "persona": "organizer",
+          "fixture": "populated",
+          "params": {
+            "eventId": "e2e_competition"
+          },
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/judges-organizer-mobile-light.a11y.txt",
+              "sha256": "aaed0e20b2aa69becc364b9ba2bc330bf3c3db7b058ca056625fca7596e94328"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/judges-organizer-mobile-light.dom.json",
+              "sha256": "3f1cb573886326232d88467caf468ca742606e640c7fe28ea0aad97d4864a89c"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/judges-organizer-mobile-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/judges-organizer-mobile-light.network.json",
+              "sha256": "fa45a427f99475f97b99261bd523c2cf2cc9109e94908cd0799cafabd759bed4"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
+              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "captureId": "judges-organizer-mobile-light"
+            }
+          ],
           "blockers": []
         }
       ]
     },
     {
       "routeId": "tanstack:crew:/events/$eventId/messages",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "organizer"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
           "light"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "organizer-desktop-light",
+          "status": "verified",
+          "persona": "organizer",
+          "fixture": "populated",
           "params": {
-            "eventId": "__unassessed_eventId__"
+            "eventId": "e2e_competition"
           },
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/messages-organizer-desktop-light.a11y.txt",
+              "sha256": "2ec8dab93f391acd52e0bd80aece139e56b8d33284e4fbc2ddbd86a27425fd2c"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/messages-organizer-desktop-light.dom.json",
+              "sha256": "ba558d07e792897f18c4fc138376a256a7db980a06919d1d04b351635eb9ad11"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/messages-organizer-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/messages-organizer-desktop-light.network.json",
+              "sha256": "4fc299c1a00b8d838cbea7dacf1678502e120f68099316b3a07594bf303a3268"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
+              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "captureId": "messages-organizer-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "organizer-mobile-light",
+          "status": "verified",
+          "persona": "organizer",
+          "fixture": "populated",
+          "params": {
+            "eventId": "e2e_competition"
+          },
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/messages-organizer-mobile-light.a11y.txt",
+              "sha256": "f5f6051406003450dde099631ee59dab6a99d9def075a35cc6bd3adcfb5626d0"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/messages-organizer-mobile-light.dom.json",
+              "sha256": "9e6fe5836e8f108233491d775d5adb469eab4bbc0b2c46856e3f19e918d2d883"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/messages-organizer-mobile-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/messages-organizer-mobile-light.network.json",
+              "sha256": "95601814ccc3caee2f570334c122cbb1e1453215f28294271b252e1dae2c470f"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
+              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "captureId": "messages-organizer-mobile-light"
+            }
+          ],
           "blockers": []
         }
       ]
@@ -4238,188 +4761,561 @@
     },
     {
       "routeId": "tanstack:crew:/events/$eventId/setup",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "organizer"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
           "light"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "organizer-desktop-light",
+          "status": "verified",
+          "persona": "organizer",
+          "fixture": "populated",
           "params": {
-            "eventId": "__unassessed_eventId__"
+            "eventId": "e2e_competition"
           },
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/setup-organizer-desktop-light.a11y.txt",
+              "sha256": "b3545992fc99fee35109454552396ef69d5d53f6b237ca334f21d58dec5a15b3"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/setup-organizer-desktop-light.dom.json",
+              "sha256": "47876514b6aab3a11ff0f6cc94e9402b1333cf288be111b2c8cded6ad780de4e"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/setup-organizer-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/setup-organizer-desktop-light.network.json",
+              "sha256": "fdf74d4c63ec793e9c0ba6943655e0ee791c950a1cab3edfdd4de7329c91f73d"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/setup-organizer-desktop-light.png",
+              "sha256": "6bb6f183fbd84ed0553566d4a5bcc6affcbb774a1aa215dde12a3e0930ae3b59"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
+              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "captureId": "setup-organizer-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "organizer-mobile-light",
+          "status": "verified",
+          "persona": "organizer",
+          "fixture": "populated",
+          "params": {
+            "eventId": "e2e_competition"
+          },
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/setup-organizer-mobile-light.a11y.txt",
+              "sha256": "f109488d9f41099067358b8188ab95ffb1251bdad630ec3e734a0beed4500e2d"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/setup-organizer-mobile-light.dom.json",
+              "sha256": "4eb2e4e637a5e0137eca839dcde991c1b40f824d1beac6cc8350ff5552d5605e"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/setup-organizer-mobile-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/setup-organizer-mobile-light.network.json",
+              "sha256": "a047c3cd745161eac45d78afd646db2d5e4ea5d8090d440e8a5684a5786dc918"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
+              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "captureId": "setup-organizer-mobile-light"
+            }
+          ],
           "blockers": []
         }
       ]
     },
     {
       "routeId": "tanstack:crew:/events/$eventId/shifts",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "organizer"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
           "light"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "organizer-desktop-light",
+          "status": "verified",
+          "persona": "organizer",
+          "fixture": "populated",
           "params": {
-            "eventId": "__unassessed_eventId__"
+            "eventId": "e2e_competition"
           },
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/shifts-organizer-desktop-light.a11y.txt",
+              "sha256": "356f585538642c68a2c7f1c8b4ccb992650a0d00896b9bf833ff34c9442d4cb4"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/shifts-organizer-desktop-light.dom.json",
+              "sha256": "888d47c614e29b57440630a71abc14cc0f6759db1006209cb87a98cd0b0a04c6"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/shifts-organizer-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/shifts-organizer-desktop-light.network.json",
+              "sha256": "51f255b6d79c1d11055e0e2e7b0faeaf1780ad6869b68447cb5042c760118678"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
+              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "captureId": "shifts-organizer-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "organizer-mobile-light",
+          "status": "verified",
+          "persona": "organizer",
+          "fixture": "populated",
+          "params": {
+            "eventId": "e2e_competition"
+          },
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/shifts-organizer-mobile-light.a11y.txt",
+              "sha256": "605f39efdf4c03a3c628f99166b44d721236a9e87d99d59fad8e13ac366604e9"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/shifts-organizer-mobile-light.dom.json",
+              "sha256": "caa800624015a2291f57bedf9da68d913b9ef1375ca11ed4794b6bd349ef9cb9"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/shifts-organizer-mobile-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/shifts-organizer-mobile-light.network.json",
+              "sha256": "42691c7cdc061388fbca925e9642ffc679f9dfeb0e2284cdb69ae71f45c74d82"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
+              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "captureId": "shifts-organizer-mobile-light"
+            }
+          ],
           "blockers": []
         }
       ]
     },
     {
       "routeId": "tanstack:crew:/events/$eventId/staffing",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "organizer"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
           "light"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "organizer-desktop-light",
+          "status": "verified",
+          "persona": "organizer",
+          "fixture": "populated",
           "params": {
-            "eventId": "__unassessed_eventId__"
+            "eventId": "e2e_competition"
           },
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/staffing-organizer-desktop-light.a11y.txt",
+              "sha256": "f030fefe1be3141204e21f2992091106b6417f9a05b09edaf2e3e314e046127c"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/staffing-organizer-desktop-light.dom.json",
+              "sha256": "5f30335fcfd0db46daaaf3f3c79aecda7fda3500a5ba58083c21254b9a08850e"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/staffing-organizer-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/staffing-organizer-desktop-light.network.json",
+              "sha256": "66a440824107b76ef6fa8ca2910d946531c3c0d94a2c25cf20240a1a87c7c2af"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
+              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "captureId": "staffing-organizer-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "organizer-mobile-light",
+          "status": "verified",
+          "persona": "organizer",
+          "fixture": "populated",
+          "params": {
+            "eventId": "e2e_competition"
+          },
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/staffing-organizer-mobile-light.a11y.txt",
+              "sha256": "2492bbd240ed3adfa95ca11c9c7aecc23e2e0986ada55db403e8e6b516912cda"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/staffing-organizer-mobile-light.dom.json",
+              "sha256": "cd769dd15f5de04058e6281a8c72b83a79ce605cc38f92a544ee991981d143f6"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/staffing-organizer-mobile-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/staffing-organizer-mobile-light.network.json",
+              "sha256": "b333ab7bd73d8a3bfa5179dc457afdf512efb44618a371cdc80c0aceedc3124e"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
+              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "captureId": "staffing-organizer-mobile-light"
+            }
+          ],
           "blockers": []
         }
       ]
     },
     {
       "routeId": "tanstack:crew:/events/$eventId/volunteers",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "organizer"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
           "light"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "organizer-desktop-light",
+          "status": "verified",
+          "persona": "organizer",
+          "fixture": "populated",
           "params": {
-            "eventId": "__unassessed_eventId__"
+            "eventId": "e2e_competition"
           },
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/volunteers-organizer-desktop-light.a11y.txt",
+              "sha256": "bb086c38ef4ec796442a7c68631428381649968f95449bbd37ed6e332cca3fc4"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/volunteers-organizer-desktop-light.dom.json",
+              "sha256": "5e48747fe4b80d43800a6a5c2083b00117fe71acb414ae3d0f5b5014aabde7d9"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/volunteers-organizer-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/volunteers-organizer-desktop-light.network.json",
+              "sha256": "8f4c16851c5e8b40770db96fa2afd9275b9b2fe2b02f728d290ea92323917a3f"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/volunteers-organizer-desktop-light.png",
+              "sha256": "c761b89eaaf08d731b1e30d79451f218c4fa3faea2671380a04d6d8f998936aa"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
+              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "captureId": "volunteers-organizer-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "organizer-mobile-light",
+          "status": "verified",
+          "persona": "organizer",
+          "fixture": "populated",
+          "params": {
+            "eventId": "e2e_competition"
+          },
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/volunteers-organizer-mobile-light.a11y.txt",
+              "sha256": "ccc6e5be30b01d425c9df19d4ecf33a27ee574b8f7b606f9a9d9ebf3128349cd"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/volunteers-organizer-mobile-light.dom.json",
+              "sha256": "e1de56c0495f8883bcc0724e31274f739a1242e50061a39e049de2648a01018e"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/volunteers-organizer-mobile-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/volunteers-organizer-mobile-light.network.json",
+              "sha256": "eb23f53dbd4ed38c7557c9b460528f2b4b0ab9eb853c8660f4c28641d25737db"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/volunteers-organizer-mobile-light.png",
+              "sha256": "b1387cad048646aa0782e16c5fc536252657fba0d5cfca7397c1d7ed100ca08a"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
+              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "captureId": "volunteers-organizer-mobile-light"
+            }
+          ],
           "blockers": []
         }
       ]
     },
     {
       "routeId": "tanstack:crew:/events/new",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "organizer"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
           "light"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "organizer-desktop-light",
+          "status": "verified",
+          "persona": "organizer",
+          "fixture": "populated",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-new-organizer-desktop-light.a11y.txt",
+              "sha256": "176b9baacd29afcf8e1acca299632498b387e920948bf5d304281efb1ed6fd58"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-new-organizer-desktop-light.dom.json",
+              "sha256": "7c8c29b9ea3878be1d29dd80003602c7756c24fd797ec68ee720fd03a2cbb412"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-new-organizer-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-new-organizer-desktop-light.network.json",
+              "sha256": "5a8aeaecf45eacae58b9473c797c51df36664088710cddd8b0e25cf2074bfce1"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-new-organizer-desktop-light.png",
+              "sha256": "1b1eee7b3e0a0ed59e935e5ace5a12c77259fafd28908d0baa4b5804e199c98b"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
+              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "captureId": "events-new-organizer-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "organizer-mobile-light",
+          "status": "verified",
+          "persona": "organizer",
+          "fixture": "populated",
+          "params": {},
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-new-organizer-mobile-light.a11y.txt",
+              "sha256": "176b9baacd29afcf8e1acca299632498b387e920948bf5d304281efb1ed6fd58"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-new-organizer-mobile-light.dom.json",
+              "sha256": "85853a3bd8bd19ac2582f8ceddd84b00822a18693abe0aecf08ee722fe4b1c6e"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-new-organizer-mobile-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-new-organizer-mobile-light.network.json",
+              "sha256": "41d0a2345f5fec572e9a788ddf6429b455bdecfe06f22806fe574831cafb9f7e"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-new-organizer-mobile-light.png",
+              "sha256": "925fca5a14fc4155b4da22ed023aefc64be60ea6370a80d4aeb7a03768f2c345"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
+              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "captureId": "events-new-organizer-mobile-light"
+            }
+          ],
           "blockers": []
         }
       ]

@@ -1,0 +1,73 @@
+{
+  "bodyText": "Toggle Sidebar WODsmith Crew ORGANIZER CREW E2E Crew Demo Throwdown 2026-07-10 to 2026-07-11 Judging Schedule Plan judge coverage on the rotation timeline, then publish. Once published, fine-tune individual lane assignments below. Workout: Event 1.00: Fran Published v1 Published Assignments Drag judges onto lanes, or pick a judge and click lanes to fine-tune the published schedule. Re-publish to lock in changes. Auto-fill workout Judge Assignment Overview FRI, JUL 10 1.00 Fran 4:50 PM-5:16 PM 0/8 judges 0% 2.00 Murph 5:45 PM-6:11 PM 0/8 judges 0% 3.00 Cindy 6:40 PM-7:06 PM 0/8 judges 0% Available Judges Click a judge to enter click-to-assign mode, or drag them onto a lane. Shift-click to multi-select for bulk drags. Frank Garcia 0 Med Frank Garcia 0 – Grace Martinez 0 L1 Grace Martinez 0 – Lena Nguyen 0 L1 Miles Olsen 0 L1 Nora Diaz 0 L1 Owen Reed 0 L1 Priya Shah 0 L1 Quinn Stone 0 L1 Wren Clark 0 L1 Heat 1 0/4 Fill heat 7/10/26, 4:50 PM North Floor L1 Empty L2 Empty L3 Empty L4 Empty Assign Judge Heat 2 0/4 Fill heat 7/10/26, 4:58 PM South Floor L1 Empty L2 Empty L3 Empty L4 Empty Assign Judge Rotations Click a grid cell or \"Add\" to plan a judge's rotation across heats, then publish. Event defaults Fran Coverage: 0% 0/8 slots covered Publish rotations Rotation Timeline Fran - 2 heats x 4 lanes Only show lanes with athletes Assigned Judges (0) Add No judges assigned yet. Click a cell in the grid or \"Add\" to assign judges. Coverage: 0% (0/8) Lane H1 H2 4:50 PM 4:58 PM L1 L2 L3 L4 Empty Covered Overlap No Athlete Selected",
+  "effectiveTheme": "light",
+  "fields": [
+    {
+      "label": "",
+      "name": "",
+      "type": "text"
+    }
+  ],
+  "finalUrl": "/events/e2e_competition/judges",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "E2E Crew Demo Throwdown"
+    },
+    {
+      "level": 2,
+      "text": "Judging Schedule"
+    },
+    {
+      "level": 3,
+      "text": "Published Assignments"
+    },
+    {
+      "level": 3,
+      "text": "Judge Assignment Overview"
+    },
+    {
+      "level": 4,
+      "text": "FRI, JUL 10"
+    },
+    {
+      "level": 4,
+      "text": "Available Judges"
+    },
+    {
+      "level": 3,
+      "text": "Rotations"
+    },
+    {
+      "level": 3,
+      "text": "Rotation Timeline"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "role": null,
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith Crew",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 3107,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

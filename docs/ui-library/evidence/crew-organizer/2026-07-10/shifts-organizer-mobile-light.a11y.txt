@@ -1,0 +1,95 @@
+- main
+  - sectionheader
+    - button "Toggle Sidebar" [ref=e4]
+      - StaticText "Toggle Sidebar"
+    - link "wodsmith crew WODsmithCrew" [ref=e5]
+      - image "wodsmith crew"
+      - StaticText "WOD"
+      - StaticText "smith"
+      - StaticText "Crew"
+  - sectionheader
+    - paragraph
+      - StaticText "ORGANIZER CREW"
+    - heading "E2E Crew Demo Throwdown" [level=1, ref=e6]
+    - paragraph
+      - StaticText "2026-07-10 to 2026-07-11"
+  - heading "Volunteer shifts" [level=2, ref=e2]
+  - paragraph
+    - StaticText "Manage time-based volunteer shifts for event-day roles"
+  - button "Add shift" [ref=e3]
+  - StaticText "Friday, Jul 10"
+  - generic
+    - StaticText "7 shifts"
+  - table
+    - rowgroup
+      - row
+        - columnheader "Shift Name" [ref=e56]
+        - columnheader "Role" [ref=e57]
+        - columnheader "Time" [ref=e58]
+        - columnheader "Location" [ref=e59]
+        - columnheader "Assigned" [ref=e60]
+        - columnheader "Actions" [ref=e61]
+    - row [ref=e7] clickable [cursor:pointer, onclick]
+      - cell "Athlete Check-In" [ref=e14]
+      - cell "Check-In" [ref=e15]
+      - cell "4:05 PM-6:05 PM" [ref=e16]
+      - cell "Lobby" [ref=e17]
+      - cell "2 / 2" [ref=e18]
+      - cell "Edit Athlete Check-In Delete Athlete Check-In" [ref=e19]
+        - button "Edit Athlete Check-In" [ref=e62]
+        - button "Delete Athlete Check-In" [ref=e63]
+    - row [ref=e8] clickable [cursor:pointer, onclick]
+      - cell "North Floor Crew" [ref=e20]
+      - cell "Floor Manager" [ref=e21]
+      - cell "4:45 PM-6:45 PM" [ref=e22]
+      - cell "North Floor" [ref=e23]
+      - cell "2 / 2" [ref=e24]
+      - cell "Edit North Floor Crew Delete North Floor Crew" [ref=e25]
+        - button "Edit North Floor Crew" [ref=e64]
+        - button "Delete North Floor Crew" [ref=e65]
+    - row [ref=e9] clickable [cursor:pointer, onclick]
+      - cell "Medical Station" [ref=e26]
+      - cell "Medical" [ref=e27]
+      - cell "4:50 PM-8:20 PM" [ref=e28]
+      - cell "Medical Tent" [ref=e29]
+      - cell "1 / 1" [ref=e30]
+      - cell "Edit Medical Station Delete Medical Station" [ref=e31]
+        - button "Edit Medical Station" [ref=e66]
+        - button "Delete Medical Station" [ref=e67]
+    - row [ref=e10] clickable [cursor:pointer, onclick]
+      - cell "Score Table" [ref=e32]
+      - cell "Scorekeeper" [ref=e33]
+      - cell "4:55 PM-7:25 PM" [ref=e34]
+      - cell "Scoring Desk" [ref=e35]
+      - cell "2 / 2" [ref=e36]
+      - cell "Edit Score Table Delete Score Table" [ref=e37]
+        - button "Edit Score Table" [ref=e68]
+        - button "Delete Score Table" [ref=e69]
+    - row [ref=e11] clickable [cursor:pointer, onclick]
+      - cell "North Lane 2 Judge" [ref=e38]
+      - cell "Judge" [ref=e39]
+      - cell "5:25 PM-6:35 PM" [ref=e40]
+      - cell "North Floor / Lane 2" [ref=e41]
+      - cell "1 / 1" [ref=e42]
+      - cell "Edit North Lane 2 Judge Delete North Lane 2 Judge" [ref=e43]
+        - button "Edit North Lane 2 Judge" [ref=e70]
+        - button "Delete North Lane 2 Judge" [ref=e71]
+    - row [ref=e12] clickable [cursor:pointer, onclick]
+      - cell "Equipment Reset" [ref=e44]
+      - cell "Equipment" [ref=e45]
+      - cell "5:50 PM-8:05 PM" [ref=e46]
+      - cell "Equipment Staging" [ref=e47]
+      - cell "2 / 3" [ref=e48]
+      - cell "Edit Equipment Reset Delete Equipment Reset" [ref=e49]
+        - button "Edit Equipment Reset" [ref=e72]
+        - button "Delete Equipment Reset" [ref=e73]
+    - row [ref=e13] clickable [cursor:pointer, onclick]
+      - cell "Media Runner" [ref=e50]
+      - cell "Media" [ref=e51]
+      - cell "7:05 PM-8:35 PM" [ref=e52]
+      - cell "Awards Backdrop" [ref=e53]
+      - cell "1 / 1" [ref=e54]
+      - cell "Edit Media Runner Delete Media Runner" [ref=e55]
+        - button "Edit Media Runner" [ref=e74]
+        - button "Delete Media Runner" [ref=e75]
+- region "Notifications alt+T" [ref=e1]
