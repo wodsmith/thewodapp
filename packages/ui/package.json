@@ -19,6 +19,7 @@
     "./collapsible": "./src/components/collapsible.tsx",
     "./dialog": "./src/components/dialog.tsx",
     "./dropdown-menu": "./src/components/dropdown-menu.tsx",
+    "./field": "./src/components/field.tsx",
     "./form": "./src/components/form.tsx",
     "./hover-card": "./src/components/hover-card.tsx",
     "./input": "./src/components/input.tsx",

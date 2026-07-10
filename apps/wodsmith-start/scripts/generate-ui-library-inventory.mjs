@@ -17,6 +17,7 @@ const foundationModules = new Set([
   "button",
   "card",
   "checkbox",
+  "field",
   "input",
   "label",
   "progress",
@@ -183,9 +184,9 @@ Counts are unique importing files. Route-owned components under \`src/routes\` c
 | --- | --- | --- | ---: | ---: | ---: | --- |
 ${rows.join("\n")}
 
-## PR-3 migration constraint
+## Migration constraint
 
-This form-and-overlay PR keeps Start and Crew runtime imports stable through thin app-local re-exports. Storybook imports \`@repo/ui\` directly; divergent adapters and domain components stay app-owned for later reviewed slices.
+Extracted primitives keep Start and Crew runtime imports stable through thin app-local re-exports. Storybook imports \`@repo/ui\` directly; divergent adapters, form controllers, and domain components stay app-owned for later reviewed slices.
 `
 }
 

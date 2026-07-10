@@ -6,11 +6,21 @@ The UI library boundary lets WODsmith evolve reusable primitives independently f
 
 The shared package now includes a dependency-closed feedback, identity, navigation, disclosure, progress, and scrolling slice while preserving every Start and Crew route import.
 
-\`@repo/ui\` owns [[packages/ui/src/components/alert.tsx#Alert|alert]], avatar, breadcrumb, collapsible, hover-card, progress, and [[packages/ui/src/components/scroll-area.tsx#ScrollArea|scroll-area]] in addition to the earlier foundation, form, and overlay primitives. The apps keep thin re-exports at their previous paths.
+\`@repo/ui\` owns [[packages/ui/src/components/alert.tsx#Alert|alert]], avatar, breadcrumb, collapsible, hover-card, progress, [[packages/ui/src/components/scroll-area.tsx#ScrollArea|scroll-area]], and children-driven field composition in addition to the earlier foundation, form, and overlay primitives. The apps keep thin re-exports at their previous paths.
 
 [[packages/ui/src/components/auth-entry.tsx#AuthEntry|Auth entry]] is a children-driven compound pattern for responsive account-entry composition. It owns structure and semantics only; route controllers, forms, auth state, branding, and theme activation remain app-owned. Start and Crew sign-in are its first consumers.
 
 \`list-item\` remains an app adapter because its prop and compound APIs need a separate composition decision. The custom \`toggle-group\` remains app-owned pending an accessibility/API review. Divergent \`searchable-select\`, \`sidebar\`, domain components, and \`use-mobile\` also remain app-owned.
+
+### Field composition
+
+[[packages/ui/src/components/field.tsx#Field|Field]] and FieldGroup own portable label, control, description, error, fieldset, and legend semantics without owning validation state or form controllers.
+
+Callers provide a stable id plus optional description and error content to the compound root. Field.Control slots exactly one child, preserves existing described-by tokens, appends deduplicated metadata ids in description/error order, and marks invalid state only when an explicit error exists.
+
+Metadata renderers read the root contract and omit themselves when their content is absent. FieldGroup uses a native fieldset with a direct legend and the same description/error semantics. Compound parts fail fast outside their matching root.
+
+Start and Crew expose identity-only \`field\` adapters, but no feature route migrates in this extraction slice. Existing React Hook Form primitives and their misuse guard remain unchanged until separately reviewed consumer migrations.
 
 ## Shared package boundary
 
@@ -36,9 +46,9 @@ Storybook is the isolated development and static-build surface for the current b
 
 Canvas theme state also reaches its iframe root and body. This lets body-portalled overlays inherit the toolbar-selected semantic tokens even when the operating-system preference is the opposite theme.
 
-Representative stories cover foundations plus form validation, selection controls, dialogs, sheets, menus, popovers, tooltips, tabs, alerts, avatars, breadcrumbs, collapsibles, hover cards, progress, and scroll areas by importing direct \`@repo/ui/*\` entry points.
+Representative stories cover foundations plus form validation, field and fieldset composition, selection controls, dialogs, sheets, menus, popovers, tooltips, tabs, alerts, avatars, breadcrumbs, collapsibles, hover cards, progress, and scroll areas by importing direct \`@repo/ui/*\` entry points.
 
-The new stories verify alert and breadcrumb semantics, image and fallback identity, disclosure state, portal hover behavior, visible progress, and real overflow. Existing semantic-contrast tests exercise every added Canvas story in both themes.
+The new stories verify field naming, descriptions, invalid transitions, disabled and slotted controls, native fieldset groups, alert and breadcrumb semantics, image and fallback identity, disclosure state, portal hover behavior, visible progress, and real overflow. Existing semantic-contrast tests exercise every added Canvas story in both themes.
 
 Auth-entry stories cover the standard Card and unframed Plain surfaces, a forced-dark composition under opposite operating-system preference, composed error and pending status regions, keyboard order, long copy, and 320/390 px overflow safety.
 
@@ -61,6 +71,8 @@ Focused package tests prove that Start and Crew adapters expose the same runtime
 [[packages/ui/test/compatibility.test.ts]] checks exact export names and runtime identity for the added adapters as well as the shared stylesheet contract.
 
 [[packages/ui/test/primitives.test.tsx]] verifies alert, avatar fallback, breadcrumb, collapsible, progress, and scroll-area behavior alongside the existing form and overlay accessibility contracts. Hover timing and portal behavior stay in the browser-backed Storybook play test.
+
+[[packages/ui/test/field.test.tsx]] verifies accessible names, metadata id order and deduplication, omission, invalid state, slotted custom controls, native props and refs, fieldset legend semantics, stable ids, and strict compound-context errors.
 
 The same package suite verifies auth-entry heading semantics, native props, refs, class merging, and both explicit surfaces without coupling the package to any auth controller.
 

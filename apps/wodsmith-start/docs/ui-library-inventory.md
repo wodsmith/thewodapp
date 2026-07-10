@@ -6,12 +6,12 @@ Regenerate with `pnpm --filter wodsmith-start ui:inventory` and verify it with `
 
 ## Scope summary
 
-The Start app exposes 36 primitive import paths in `src/components/ui`. They are consumed directly by 181 route-owned files and 149 shared component files.
+The Start app exposes 37 primitive import paths in `src/components/ui`. They are consumed directly by 181 route-owned files and 149 shared component files.
 
-- `@repo/ui` owns 28 extracted primitive implementations under `packages/ui/src/components`.
-- 16 primitive modules have representative Storybook stories.
+- `@repo/ui` owns 29 extracted primitive implementations under `packages/ui/src/components`.
+- 17 primitive modules have representative Storybook stories.
 - Direct barrel consumers: 0.
-- Crew exposes 36 primitive import paths; 36 filenames overlap with Start and 34 of those adapters or app-local implementations are byte-identical.
+- Crew exposes 37 primitive import paths; 37 filenames overlap with Start and 35 of those adapters or app-local implementations are byte-identical.
 - Divergent Start/Crew paths: `searchable-select`, `sidebar`.
 
 ## Boundary classification
@@ -40,6 +40,7 @@ Counts are unique importing files. Route-owned components under `src/routes` cou
 | `collapsible` | composition | yes | 11 | 15 | 0 | yes |
 | `dialog` | composition | yes | 17 | 23 | 0 | yes |
 | `dropdown-menu` | composition | yes | 4 | 4 | 0 | yes |
+| `field` | foundation | yes | 0 | 0 | 0 | yes |
 | `file-upload` | app adapter | — | 0 | 1 | 0 | — |
 | `form` | composition | yes | 19 | 13 | 0 | yes |
 | `hover-card` | composition | yes | 0 | 1 | 0 | yes |
@@ -65,6 +66,6 @@ Counts are unique importing files. Route-owned components under `src/routes` cou
 | `tooltip` | composition | yes | 0 | 6 | 1 | — |
 | `video-url-input` | app adapter | — | 0 | 2 | 0 | — |
 
-## PR-3 migration constraint
+## Migration constraint
 
-This form-and-overlay PR keeps Start and Crew runtime imports stable through thin app-local re-exports. Storybook imports `@repo/ui` directly; divergent adapters and domain components stay app-owned for later reviewed slices.
+Extracted primitives keep Start and Crew runtime imports stable through thin app-local re-exports. Storybook imports `@repo/ui` directly; divergent adapters, form controllers, and domain components stay app-owned for later reviewed slices.
