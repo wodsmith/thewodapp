@@ -101,15 +101,25 @@ describe("athlete settings", () => {
   it("renders accessible imperial physical-stat inputs by default", () => {
     render(<AthleteSettingsPage />)
 
-    expect(
-      screen.getByRole("spinbutton", { name: "Height (feet)" }),
-    ).toHaveAccessibleDescription("Feet")
-    expect(
-      screen.getByRole("spinbutton", { name: "Height (inches)" }),
-    ).toHaveAccessibleDescription("Inches")
-    expect(
-      screen.getByRole("spinbutton", { name: "Weight (lbs)" }),
-    ).toHaveAccessibleDescription("Pounds")
+    const feet = screen.getByRole("spinbutton", { name: "Height (feet)" })
+    const inches = screen.getByRole("spinbutton", { name: "Height (inches)" })
+    const pounds = screen.getByRole("spinbutton", { name: "Weight (lbs)" })
+
+    expect(feet).toHaveAccessibleDescription("Feet")
+    expect(feet).toHaveAttribute(
+      "aria-describedby",
+      "athlete-height-feet-description",
+    )
+    expect(inches).toHaveAccessibleDescription("Inches")
+    expect(inches).toHaveAttribute(
+      "aria-describedby",
+      "athlete-height-inches-description",
+    )
+    expect(pounds).toHaveAccessibleDescription("Pounds")
+    expect(pounds).toHaveAttribute(
+      "aria-describedby",
+      "athlete-weight-lbs-description",
+    )
   })
 
   // @lat: [[auth#Authentication#Athlete Settings#Accessible metric physical stats]]
@@ -121,9 +131,12 @@ describe("athlete settings", () => {
     expect(
       await screen.findByRole("spinbutton", { name: "Height (cm)" }),
     ).toHaveAccessibleDescription("Centimeters")
-    expect(
-      screen.getByRole("spinbutton", { name: "Weight (kg)" }),
-    ).toHaveAccessibleDescription("Kilograms")
+    const kilograms = screen.getByRole("spinbutton", { name: "Weight (kg)" })
+    expect(kilograms).toHaveAccessibleDescription("Kilograms")
+    expect(kilograms).toHaveAttribute(
+      "aria-describedby",
+      "athlete-weight-kg-description",
+    )
   })
 
   // @lat: [[auth#Authentication#Athlete Settings#Canonical physical-stat hydration]]

@@ -76,6 +76,11 @@ describe("profile settings", () => {
 
     const email = screen.getByRole("textbox", { name: "Email" })
     expect(email).toBeDisabled()
+    expect(email).toHaveAttribute("id", "profile-email")
+    expect(email).toHaveAttribute(
+      "aria-describedby",
+      "profile-email-description",
+    )
     expect(email).toHaveValue("avery@example.com")
     expect(email).toHaveAccessibleDescription(
       "This is the email you use to sign in.",

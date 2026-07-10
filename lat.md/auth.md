@@ -26,13 +26,13 @@ Custom Worker handlers that run before TanStack Start installs its request conte
 
 Authenticated users can update their name and avatar while their account email remains an immutable, accessible display value.
 
-[[apps/wodsmith-start/src/routes/_protected/settings/profile/index.tsx#ProfileSettingsPage]] keeps email outside React Hook Form registration and the [[apps/wodsmith-start/src/server-fns/profile-fns.ts#updateUserProfileFn|profile update payload]]. Its disabled input has an explicit label and description association. [[apps/wodsmith-start/test/routes/settings/profile.test.tsx]] covers loaded and skeleton rendering, controlled editable fields, email accessibility, and payload exclusion.
+[[apps/wodsmith-start/src/routes/_protected/settings/profile/index.tsx#ProfileSettingsPage]] keeps email outside React Hook Form registration and the [[apps/wodsmith-start/src/server-fns/profile-fns.ts#updateUserProfileFn|profile update payload]]. Its disabled input uses the shared `Field` compound for its label and description association. [[apps/wodsmith-start/test/routes/settings/profile.test.tsx]] covers loaded and skeleton rendering, controlled editable fields, email accessibility, and payload exclusion.
 
 ## Athlete Settings
 
 Authenticated athletes edit profile details and unit-specific physical stats while the persisted height and weight remain canonical metric values.
 
-The physical-stat proxy inputs in [[apps/wodsmith-start/src/routes/_protected/settings/athlete/index.tsx#AthleteSettingsPage]] use ordinary labels and explicit descriptions because React Hook Form owns the canonical values rather than those display controls. [[apps/wodsmith-start/test/routes/settings/athlete.test.tsx]] covers both unit systems and their conversions.
+The physical-stat proxy inputs in [[apps/wodsmith-start/src/routes/_protected/settings/athlete/index.tsx#AthleteSettingsPage]] use the shared `Field` compound because React Hook Form owns the canonical values rather than those display controls. [[apps/wodsmith-start/test/routes/settings/athlete.test.tsx]] covers both unit systems, field accessibility, and their conversions.
 
 ### Accessible imperial physical stats
 

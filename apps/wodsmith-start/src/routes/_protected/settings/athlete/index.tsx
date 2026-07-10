@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Field } from "@/components/ui/field"
 import {
   Form,
   FormControl,
@@ -23,7 +24,6 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
@@ -344,64 +344,47 @@ function AthleteSettingsPage() {
               <div className="space-y-6">
                 {preferredUnits === "imperial" ? (
                   <div className="grid gap-6 sm:grid-cols-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="athlete-height-feet">Height (feet)</Label>
-                      <Input
-                        id="athlete-height-feet"
-                        type="number"
-                        placeholder="5"
-                        value={localFeet}
-                        onChange={(e) => setLocalFeet(e.target.value)}
-                        onBlur={handleImperialHeightChange}
-                        aria-describedby="athlete-height-feet-description"
-                      />
-                      <p
-                        id="athlete-height-feet-description"
-                        className="text-sm text-muted-foreground"
-                      >
-                        Feet
-                      </p>
-                    </div>
+                    <Field.Root id="athlete-height-feet" description="Feet">
+                      <Field.Label>Height (feet)</Field.Label>
+                      <Field.Control>
+                        <Input
+                          type="number"
+                          placeholder="5"
+                          value={localFeet}
+                          onChange={(e) => setLocalFeet(e.target.value)}
+                          onBlur={handleImperialHeightChange}
+                        />
+                      </Field.Control>
+                      <Field.Description />
+                    </Field.Root>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="athlete-height-inches">
-                        Height (inches)
-                      </Label>
-                      <Input
-                        id="athlete-height-inches"
-                        type="number"
-                        placeholder="10"
-                        value={localInches}
-                        onChange={(e) => setLocalInches(e.target.value)}
-                        onBlur={handleImperialHeightChange}
-                        aria-describedby="athlete-height-inches-description"
-                      />
-                      <p
-                        id="athlete-height-inches-description"
-                        className="text-sm text-muted-foreground"
-                      >
-                        Inches
-                      </p>
-                    </div>
+                    <Field.Root id="athlete-height-inches" description="Inches">
+                      <Field.Label>Height (inches)</Field.Label>
+                      <Field.Control>
+                        <Input
+                          type="number"
+                          placeholder="10"
+                          value={localInches}
+                          onChange={(e) => setLocalInches(e.target.value)}
+                          onBlur={handleImperialHeightChange}
+                        />
+                      </Field.Control>
+                      <Field.Description />
+                    </Field.Root>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="athlete-weight-lbs">Weight (lbs)</Label>
-                      <Input
-                        id="athlete-weight-lbs"
-                        type="number"
-                        placeholder="165"
-                        value={localWeight}
-                        onChange={(e) => setLocalWeight(e.target.value)}
-                        onBlur={handleWeightChange}
-                        aria-describedby="athlete-weight-lbs-description"
-                      />
-                      <p
-                        id="athlete-weight-lbs-description"
-                        className="text-sm text-muted-foreground"
-                      >
-                        Pounds
-                      </p>
-                    </div>
+                    <Field.Root id="athlete-weight-lbs" description="Pounds">
+                      <Field.Label>Weight (lbs)</Field.Label>
+                      <Field.Control>
+                        <Input
+                          type="number"
+                          placeholder="165"
+                          value={localWeight}
+                          onChange={(e) => setLocalWeight(e.target.value)}
+                          onBlur={handleWeightChange}
+                        />
+                      </Field.Control>
+                      <Field.Description />
+                    </Field.Root>
                   </div>
                 ) : (
                   <div className="grid gap-6 sm:grid-cols-2">
@@ -432,24 +415,19 @@ function AthleteSettingsPage() {
                       )}
                     />
 
-                    <div className="space-y-2">
-                      <Label htmlFor="athlete-weight-kg">Weight (kg)</Label>
-                      <Input
-                        id="athlete-weight-kg"
-                        type="number"
-                        placeholder="75"
-                        value={localWeight}
-                        onChange={(e) => setLocalWeight(e.target.value)}
-                        onBlur={handleWeightChange}
-                        aria-describedby="athlete-weight-kg-description"
-                      />
-                      <p
-                        id="athlete-weight-kg-description"
-                        className="text-sm text-muted-foreground"
-                      >
-                        Kilograms
-                      </p>
-                    </div>
+                    <Field.Root id="athlete-weight-kg" description="Kilograms">
+                      <Field.Label>Weight (kg)</Field.Label>
+                      <Field.Control>
+                        <Input
+                          type="number"
+                          placeholder="75"
+                          value={localWeight}
+                          onChange={(e) => setLocalWeight(e.target.value)}
+                          onBlur={handleWeightChange}
+                        />
+                      </Field.Control>
+                      <Field.Description />
+                    </Field.Root>
                   </div>
                 )}
               </div>
