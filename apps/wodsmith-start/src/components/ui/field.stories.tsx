@@ -52,6 +52,11 @@ export const WithDescription: Story = {
       <Field.Error />
     </Field.Root>
   ),
+  play: async ({ canvasElement }) => {
+    await expect(
+      within(canvasElement).getByRole("textbox", { name: "Team name" }),
+    ).toHaveAccessibleDescription("This name appears on public leaderboards.")
+  },
 }
 
 function ValidationTransition() {
@@ -205,4 +210,13 @@ export const InvalidGroup: Story = {
       <FieldGroup.Error />
     </FieldGroup.Root>
   ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const group = canvas.getByRole("group", { name: "Competition days" })
+    await expect(group).toHaveAccessibleDescription(
+      "At least one day is required. Select Saturday or Sunday.",
+    )
+    await expect(group).toHaveAttribute("aria-invalid", "true")
+    await expect(canvas.getByRole("alert")).toBeVisible()
+  },
 }

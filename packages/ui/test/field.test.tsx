@@ -16,6 +16,7 @@ function CustomControl({
 }
 
 describe("Field composition", () => {
+  // @lat: [[lat.md/ui-library#UI Library#Current boundary#Field composition#Accessible field metadata]]
   it("connects the accessible name, description, and error in stable order", () => {
     const labelRef = createRef<HTMLLabelElement>()
     const descriptionRef = createRef<HTMLParagraphElement>()
@@ -62,12 +63,19 @@ describe("Field composition", () => {
     expect(errorRef.current).toHaveAttribute("role", "alert")
   })
 
+  // @lat: [[lat.md/ui-library#UI Library#Current boundary#Field composition#Absent field metadata]]
   it("omits absent metadata and aria-invalid", () => {
     const { container } = render(
-      <Field.Root id="division" aria-label="Division field" className="gap-4">
+      <Field.Root
+        id="division"
+        aria-label="Division field"
+        className="gap-4"
+        description={false}
+        error={false}
+      >
         <Field.Label>Division</Field.Label>
         <Field.Control>
-          <Input />
+          <Input aria-invalid="true" />
         </Field.Control>
         <Field.Description data-testid="description" />
         <Field.Error data-testid="error" />
@@ -86,21 +94,38 @@ describe("Field composition", () => {
     expect(container.firstElementChild).toHaveClass("space-y-2", "gap-4")
   })
 
+  // @lat: [[lat.md/ui-library#UI Library#Current boundary#Field composition#Slotted control precedence]]
   it("slots one custom control while preserving native props, classes, and refs", () => {
     const rootRef = createRef<HTMLDivElement>()
     const controlRef = createRef<HTMLButtonElement>()
 
     render(
-      <Field.Root id="custom-trigger" ref={rootRef} data-state="ready">
+      <Field.Root
+        id="custom-trigger"
+        ref={rootRef}
+        data-state="ready"
+        description="Choose one division."
+        error="A division is required."
+      >
         <Field.Label>Custom trigger</Field.Label>
         <Field.Control
           ref={controlRef}
           name="custom"
           className="custom-class"
           data-kind="trigger"
+          aria-describedby="control-hint child-hint"
         >
-          <CustomControl type="button">Choose an option</CustomControl>
+          <CustomControl
+            id="child-id"
+            type="button"
+            aria-describedby="child-hint custom-trigger-description"
+            aria-invalid="false"
+          >
+            Choose an option
+          </CustomControl>
         </Field.Control>
+        <Field.Description />
+        <Field.Error />
       </Field.Root>,
     )
 
@@ -109,10 +134,16 @@ describe("Field composition", () => {
     expect(button).toHaveAttribute("name", "custom")
     expect(button).toHaveAttribute("data-kind", "trigger")
     expect(button).toHaveClass("custom-class")
+    expect(button).toHaveAttribute(
+      "aria-describedby",
+      "child-hint custom-trigger-description control-hint custom-trigger-error",
+    )
+    expect(button).toHaveAttribute("aria-invalid", "true")
     expect(controlRef.current).toBe(button)
     expect(rootRef.current).toHaveAttribute("data-state", "ready")
   })
 
+  // @lat: [[lat.md/ui-library#UI Library#Current boundary#Field composition#Single slotted control]]
   it("requires exactly one slotted control child", () => {
     expect(() =>
       render(
@@ -124,14 +155,28 @@ describe("Field composition", () => {
         </Field.Root>,
       ),
     ).toThrow()
+
+    expect(() =>
+      render(
+        <Field.Root id="fragment-control">
+          <Field.Control>
+            <>
+              <input />
+            </>
+          </Field.Control>
+        </Field.Root>,
+      ),
+    ).toThrow("Field.Control requires one concrete control child")
   })
 
+  // @lat: [[lat.md/ui-library#UI Library#Current boundary#Field composition#Stable field id]]
   it("rejects blank ids", () => {
     expect(() => render(<Field.Root id=" ">content</Field.Root>)).toThrow(
       "Field.Root requires a stable id",
     )
   })
 
+  // @lat: [[lat.md/ui-library#UI Library#Current boundary#Field composition#Field context misuse]]
   it.each([
     ["Field.Label", <Field.Label>Orphan</Field.Label>],
     [
@@ -150,6 +195,7 @@ describe("Field composition", () => {
 })
 
 describe("FieldGroup composition", () => {
+  // @lat: [[lat.md/ui-library#UI Library#Current boundary#Field composition#Accessible field group]]
   it("uses a real fieldset and direct legend with group metadata semantics", () => {
     const fieldsetRef = createRef<HTMLFieldSetElement>()
     const legendRef = createRef<HTMLLegendElement>()
@@ -192,9 +238,10 @@ describe("FieldGroup composition", () => {
     expect(within(group).getByRole("alert")).toHaveClass("text-destructive")
   })
 
+  // @lat: [[lat.md/ui-library#UI Library#Current boundary#Field composition#Absent group metadata]]
   it("omits absent group metadata and rejects blank ids", () => {
     render(
-      <FieldGroup.Root id="heat">
+      <FieldGroup.Root id="heat" description={false} error={false}>
         <FieldGroup.Legend>Heat</FieldGroup.Legend>
         <FieldGroup.Description data-testid="group-description" />
         <FieldGroup.Error data-testid="group-error" />
@@ -212,6 +259,7 @@ describe("FieldGroup composition", () => {
     ).toThrow("FieldGroup.Root requires a stable id")
   })
 
+  // @lat: [[lat.md/ui-library#UI Library#Current boundary#Field composition#Field group context misuse]]
   it.each([
     ["FieldGroup.Legend", <FieldGroup.Legend>Orphan</FieldGroup.Legend>],
     ["FieldGroup.Description", <FieldGroup.Description />],

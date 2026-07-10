@@ -16,11 +16,47 @@ The shared package now includes a dependency-closed feedback, identity, navigati
 
 [[packages/ui/src/components/field.tsx#Field|Field]] and FieldGroup own portable label, control, description, error, fieldset, and legend semantics without owning validation state or form controllers.
 
-Callers provide a stable id plus optional description and error content to the compound root. Field.Control slots exactly one child, preserves existing described-by tokens, appends deduplicated metadata ids in description/error order, and marks invalid state only when an explicit error exists.
+Callers provide a stable id plus optional description and error content to the compound root. Field.Control slots exactly one concrete child, preserves existing described-by tokens, appends deduplicated metadata ids in description/error order, and marks invalid state only for renderable error content.
 
 Metadata renderers read the root contract and omit themselves when their content is absent. FieldGroup uses a native fieldset with a direct legend and the same description/error semantics. Compound parts fail fast outside their matching root.
 
 Start and Crew expose identity-only \`field\` adapters, but no feature route migrates in this extraction slice. Existing React Hook Form primitives and their misuse guard remain unchanged until separately reviewed consumer migrations.
+
+#### Accessible field metadata
+
+The field control receives its accessible name, ordered description and error references, invalid state, enforced ids, semantic error role, and metadata refs.
+
+#### Absent field metadata
+
+A field without description or error content omits metadata nodes, described-by references, and invalid state while preserving root props and classes.
+
+#### Slotted control precedence
+
+A custom slotted child cannot override the field id, metadata references, or invalid state, while native props, classes, and composed refs remain intact.
+
+#### Single slotted control
+
+Field.Control rejects zero, multiple, or Fragment children so Radix Slot always receives exactly one concrete control.
+
+#### Stable field id
+
+Field.Root rejects a blank id because label and metadata relationships require a caller-owned stable identifier.
+
+#### Field context misuse
+
+Every Field compound part fails with a specific error when rendered outside Field.Root.
+
+#### Accessible field group
+
+FieldGroup renders a native fieldset with a direct legend, ordered description and error references, invalid state, native props, classes, and refs.
+
+#### Absent group metadata
+
+A field group without description or error content omits metadata nodes and ARIA state, while FieldGroup.Root rejects blank ids.
+
+#### Field group context misuse
+
+Every FieldGroup compound part fails with a specific error when rendered outside FieldGroup.Root.
 
 ## Shared package boundary
 

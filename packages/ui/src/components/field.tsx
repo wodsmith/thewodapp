@@ -4,7 +4,10 @@ import { Slot } from "@radix-ui/react-slot"
 import {
   Children,
   type ComponentPropsWithRef,
+  cloneElement,
   createContext,
+  Fragment,
+  type ReactElement,
   type ReactNode,
   use,
 } from "react"
@@ -15,6 +18,8 @@ type Metadata = {
   id: string
   description: ReactNode | undefined
   error: ReactNode | undefined
+  hasDescription: boolean
+  hasError: boolean
   descriptionId: string
   errorId: string
 }
@@ -44,16 +49,18 @@ function useFieldGroup(component: string) {
   return context
 }
 
-function describedBy(
-  existing: string | undefined,
-  descriptionId: string | undefined,
-  errorId: string | undefined,
-) {
-  const tokens = [existing, descriptionId, errorId]
+function describedBy(...values: Array<string | undefined>) {
+  const tokens = values
     .flatMap((value) => value?.split(/\s+/) ?? [])
     .filter(Boolean)
   const uniqueTokens = [...new Set(tokens)]
   return uniqueTokens.length > 0 ? uniqueTokens.join(" ") : undefined
+}
+
+function hasRenderableContent(value: ReactNode) {
+  return Children.toArray(value).some(
+    (node) => typeof node !== "string" || node.trim().length > 0,
+  )
 }
 
 type FieldRootProps = ComponentPropsWithRef<"div"> & {
@@ -67,6 +74,7 @@ function FieldRoot({
   description,
   error,
   className,
+  children,
   ...props
 }: FieldRootProps) {
   requireStableId(id, "Field.Root")
@@ -74,13 +82,17 @@ function FieldRoot({
     id,
     description,
     error,
+    hasDescription: hasRenderableContent(description),
+    hasError: hasRenderableContent(error),
     descriptionId: `${id}-description`,
     errorId: `${id}-error`,
   }
 
   return (
     <FieldContext value={metadata}>
-      <div className={cn("space-y-2", className)} {...props} />
+      <div className={cn("space-y-2", className)} {...props}>
+        {children}
+      </div>
     </FieldContext>
   )
 }
@@ -89,10 +101,10 @@ function FieldLabel({
   className,
   ...props
 }: ComponentPropsWithRef<typeof LabelPrimitive>) {
-  const { id, error } = useField("Field.Label")
+  const { id, hasError } = useField("Field.Label")
   return (
     <LabelPrimitive
-      className={cn(error && "text-destructive", className)}
+      className={cn(hasError && "text-destructive", className)}
       {...props}
       htmlFor={id}
     />
@@ -104,30 +116,36 @@ function FieldControl({
   "aria-describedby": ariaDescribedBy,
   ...props
 }: ComponentPropsWithRef<typeof Slot>) {
-  const { id, description, error, descriptionId, errorId } =
+  const { id, hasDescription, hasError, descriptionId, errorId } =
     useField("Field.Control")
+  const child = Children.only(children) as ReactElement<{
+    id?: string
+    "aria-describedby"?: string
+    "aria-invalid"?: boolean | "false" | "true"
+  }>
+  if (child.type === Fragment) {
+    throw new Error("Field.Control requires one concrete control child")
+  }
+  const normalizedChild = cloneElement(child, {
+    id,
+    "aria-describedby": describedBy(
+      child.props["aria-describedby"],
+      ariaDescribedBy,
+      hasDescription ? descriptionId : undefined,
+      hasError ? errorId : undefined,
+    ),
+    "aria-invalid": hasError ? true : undefined,
+  })
 
-  return (
-    <Slot
-      {...props}
-      id={id}
-      aria-describedby={describedBy(
-        ariaDescribedBy,
-        description == null ? undefined : descriptionId,
-        error == null ? undefined : errorId,
-      )}
-      aria-invalid={error == null ? undefined : true}
-    >
-      {Children.only(children)}
-    </Slot>
-  )
+  return <Slot {...props}>{normalizedChild}</Slot>
 }
 
 type MetadataProps = Omit<ComponentPropsWithRef<"p">, "children">
 
 function FieldDescription({ className, ...props }: MetadataProps) {
-  const { description, descriptionId } = useField("Field.Description")
-  if (description == null) return null
+  const { description, descriptionId, hasDescription } =
+    useField("Field.Description")
+  if (!hasDescription) return null
 
   return (
     <p
@@ -141,8 +159,8 @@ function FieldDescription({ className, ...props }: MetadataProps) {
 }
 
 function FieldError({ className, ...props }: MetadataProps) {
-  const { error, errorId } = useField("Field.Error")
-  if (error == null) return null
+  const { error, errorId, hasError } = useField("Field.Error")
+  if (!hasError) return null
 
   return (
     <p
@@ -167,6 +185,7 @@ function FieldGroupRoot({
   description,
   error,
   className,
+  children,
   "aria-describedby": ariaDescribedBy,
   ...props
 }: FieldGroupRootProps) {
@@ -175,6 +194,8 @@ function FieldGroupRoot({
     id,
     description,
     error,
+    hasDescription: hasRenderableContent(description),
+    hasError: hasRenderableContent(error),
     descriptionId: `${id}-description`,
     errorId: `${id}-error`,
   }
@@ -186,11 +207,13 @@ function FieldGroupRoot({
         {...props}
         aria-describedby={describedBy(
           ariaDescribedBy,
-          description == null ? undefined : metadata.descriptionId,
-          error == null ? undefined : metadata.errorId,
+          metadata.hasDescription ? metadata.descriptionId : undefined,
+          metadata.hasError ? metadata.errorId : undefined,
         )}
-        aria-invalid={error == null ? undefined : true}
-      />
+        aria-invalid={metadata.hasError ? true : undefined}
+      >
+        {children}
+      </fieldset>
     </FieldGroupContext>
   )
 }
@@ -204,8 +227,10 @@ function FieldGroupLegend({
 }
 
 function FieldGroupDescription({ className, ...props }: MetadataProps) {
-  const { description, descriptionId } = useFieldGroup("FieldGroup.Description")
-  if (description == null) return null
+  const { description, descriptionId, hasDescription } = useFieldGroup(
+    "FieldGroup.Description",
+  )
+  if (!hasDescription) return null
 
   return (
     <p
@@ -219,8 +244,8 @@ function FieldGroupDescription({ className, ...props }: MetadataProps) {
 }
 
 function FieldGroupError({ className, ...props }: MetadataProps) {
-  const { error, errorId } = useFieldGroup("FieldGroup.Error")
-  if (error == null) return null
+  const { error, errorId, hasError } = useFieldGroup("FieldGroup.Error")
+  if (!hasError) return null
 
   return (
     <p
