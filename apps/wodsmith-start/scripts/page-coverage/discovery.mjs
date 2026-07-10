@@ -996,9 +996,14 @@ function isNamedCall(node, name) {
   )
 }
 
-function hasNamedImport(sourceFile, name) {
+function hasNamedImport(sourceFile, name, specifier) {
   return sourceFile.statements.some((statement) => {
-    if (!ts.isImportDeclaration(statement)) return false
+    if (
+      !ts.isImportDeclaration(statement) ||
+      staticString(statement.moduleSpecifier) !== specifier
+    ) {
+      return false
+    }
     const bindings = statement.importClause?.namedBindings
     return (
       bindings &&
@@ -1012,8 +1017,19 @@ function hasNamedImport(sourceFile, name) {
   })
 }
 
+function bindingBindsName(binding, name) {
+  if (ts.isIdentifier(binding)) return binding.text === name
+  if (ts.isObjectBindingPattern(binding) || ts.isArrayBindingPattern(binding)) {
+    return binding.elements.some(
+      (element) =>
+        ts.isBindingElement(element) && bindingBindsName(element.name, name),
+    )
+  }
+  return false
+}
+
 function fetchUnconditionallyReturnsDelegation(sourceFile, fetchMethod, name) {
-  if (!hasNamedImport(sourceFile, name)) return false
+  if (!hasNamedImport(sourceFile, name, "./proxy")) return false
   const statements = fetchMethod.body.statements
   const returned = statements.at(-1)
   if (!ts.isReturnStatement(returned) || !returned.expression) return false
@@ -1036,8 +1052,16 @@ function fetchUnconditionallyReturnsDelegation(sourceFile, fetchMethod, name) {
     }
     if (
       (ts.isVariableDeclaration(node) || ts.isParameter(node)) &&
-      ts.isIdentifier(node.name) &&
-      node.name.text === name
+      bindingBindsName(node.name, name)
+    ) {
+      shadowsImport = true
+    }
+    if (
+      (ts.isFunctionDeclaration(node) ||
+        ts.isFunctionExpression(node) ||
+        ts.isClassDeclaration(node) ||
+        ts.isClassExpression(node)) &&
+      node.name?.text === name
     ) {
       shadowsImport = true
     }

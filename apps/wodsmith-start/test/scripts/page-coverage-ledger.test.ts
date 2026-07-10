@@ -635,12 +635,24 @@ describe("page coverage discovery", () => {
       syntax: "partial delegation",
       body: `if (request.method === "GET") return proxyRequest(request)
         return new Response("not proxied")`,
+      importSource: "./proxy",
     },
-  ])("rejects PostHog $syntax", async ({ body }) => {
+    {
+      syntax: "unrelated same-name import",
+      body: "return proxyRequest(request)",
+      importSource: "./unrelated",
+    },
+    {
+      syntax: "fetch-local function shadow",
+      body: `function proxyRequest() { return new Response("local") }
+        return proxyRequest(request)`,
+      importSource: "./proxy",
+    },
+  ])("rejects PostHog $syntax", async ({ body, importSource = "./proxy" }) => {
     const root = await makeTempRepo()
     await write(
       resolve(root, "apps/posthog-proxy/src/index.ts"),
-      `import { proxyRequest } from "./proxy"
+      `import { proxyRequest } from "${importSource}"
        export default { async fetch(request) { ${body} } }`,
     )
     await expect(
