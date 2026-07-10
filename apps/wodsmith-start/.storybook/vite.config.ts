@@ -10,9 +10,4 @@ export default defineConfig({
     }),
     tailwindcss(),
   ],
-  resolve: {
-    alias: {
-      "@": resolve(import.meta.dirname, "../src"),
-    },
-  },
 })

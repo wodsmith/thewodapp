@@ -22,7 +22,7 @@ App-specific adapters and domain compositions remain under each app. Package ext
 
 Storybook is the isolated development and static-build surface for the current boundary.
 
-[[apps/wodsmith-start/.storybook/main.ts]] uses the React Vite framework with a dedicated [[apps/wodsmith-start/.storybook/vite.config.ts|Storybook Vite config]], avoiding the Start app's Cloudflare and server plugins. [[apps/wodsmith-start/.storybook/preview.tsx]] loads global tokens and provides theme and tooltip context.
+[[apps/wodsmith-start/.storybook/main.ts]] uses the React Vite framework with a dedicated [[apps/wodsmith-start/.storybook/vite.config.ts|Storybook Vite config]], avoiding the Start app's Cloudflare and server plugins. [[apps/wodsmith-start/.storybook/preview.tsx]] scopes global tokens, theme state, and tooltip context to a full-size story wrapper so dark stories do not restyle Docs chrome.
 
 Representative stories cover button variants, badge states, card composition, and form-control states. Accessibility checks are configured as errors, and \`build-storybook\` is the production-like static validation.
 

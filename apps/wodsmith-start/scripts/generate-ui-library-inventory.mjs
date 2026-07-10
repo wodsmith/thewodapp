@@ -65,7 +65,7 @@ function classifyModule(moduleName) {
 }
 
 function consumerArea(path) {
-  const sourcePath = relative(sourceRoot, path)
+  const sourcePath = relative(sourceRoot, path).replaceAll("\\", "/")
   if (sourcePath.startsWith("routes/")) return "route"
   if (sourcePath.startsWith("components/ui/")) return "ui"
   return "component"
