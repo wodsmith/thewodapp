@@ -8,6 +8,8 @@ The shared package now includes a dependency-closed feedback, identity, navigati
 
 \`@repo/ui\` owns [[packages/ui/src/components/alert.tsx#Alert|alert]], avatar, breadcrumb, collapsible, hover-card, progress, and [[packages/ui/src/components/scroll-area.tsx#ScrollArea|scroll-area]] in addition to the earlier foundation, form, and overlay primitives. The apps keep thin re-exports at their previous paths.
 
+[[packages/ui/src/components/auth-entry.tsx#AuthEntry|Auth entry]] is a children-driven compound pattern for responsive account-entry composition. It owns structure and semantics only; route controllers, forms, auth state, branding, and theme activation remain app-owned. Start and Crew sign-in are its first consumers.
+
 \`list-item\` remains an app adapter because its prop and compound APIs need a separate composition decision. The custom \`toggle-group\` remains app-owned pending an accessibility/API review. Divergent \`searchable-select\`, \`sidebar\`, domain components, and \`use-mobile\` also remain app-owned.
 
 ## Shared package boundary
@@ -38,6 +40,8 @@ Representative stories cover foundations plus form validation, selection control
 
 The new stories verify alert and breadcrumb semantics, image and fallback identity, disclosure state, portal hover behavior, visible progress, and real overflow. Existing semantic-contrast tests exercise every added Canvas story in both themes.
 
+Auth-entry stories cover the standard Card and unframed Plain surfaces, a forced-dark composition under opposite operating-system preference, composed error and pending status regions, keyboard order, long copy, and 320/390 px overflow safety.
+
 ### Semantic contrast audit
 
 Semantic primary and destructive foreground pairs meet WCAG AA contrast for normal text in both themes.
@@ -57,6 +61,8 @@ Focused package tests prove that Start and Crew adapters expose the same runtime
 [[packages/ui/test/compatibility.test.ts]] checks exact export names and runtime identity for the added adapters as well as the shared stylesheet contract.
 
 [[packages/ui/test/primitives.test.tsx]] verifies alert, avatar fallback, breadcrumb, collapsible, progress, and scroll-area behavior alongside the existing form and overlay accessibility contracts. Hover timing and portal behavior stay in the browser-backed Storybook play test.
+
+The same package suite verifies auth-entry heading semantics, native props, refs, class merging, and both explicit surfaces without coupling the package to any auth controller.
 
 ## Inventory contract
 

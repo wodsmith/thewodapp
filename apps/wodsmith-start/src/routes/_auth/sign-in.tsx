@@ -1,4 +1,5 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
+import { AuthEntry } from "@repo/ui/auth-entry"
 import {
   createFileRoute,
   Link,
@@ -10,14 +11,6 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 import {
   Form,
   FormControl,
@@ -114,11 +107,11 @@ function SignInPage() {
   }
 
   return (
-    <div className="min-h-[90vh] flex flex-col items-center px-4 justify-center bg-background">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Sign in</CardTitle>
-          <CardDescription>
+    <AuthEntry.Root>
+      <AuthEntry.Card>
+        <AuthEntry.Header>
+          <AuthEntry.Title>Sign in</AuthEntry.Title>
+          <AuthEntry.Description>
             Or{" "}
             <Link
               to="/sign-up"
@@ -127,20 +120,24 @@ function SignInPage() {
             >
               create an account
             </Link>
-          </CardDescription>
-        </CardHeader>
+          </AuthEntry.Description>
+        </AuthEntry.Header>
 
-        <CardContent>
+        <AuthEntry.Content>
           {/* TODO: Add Passkey authentication when WebAuthn is implemented */}
 
           {error && (
-            <Alert variant="destructive" className="mb-6">
+            <Alert id="sign-in-error" variant="destructive" className="mb-6">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form
+              onSubmit={form.handleSubmit(onSubmit)}
+              className="space-y-4"
+              aria-describedby={error ? "sign-in-error" : undefined}
+            >
               <FormField
                 control={form.control}
                 name="email"
@@ -151,6 +148,8 @@ function SignInPage() {
                       <Input
                         placeholder="name@example.com"
                         type="email"
+                        autoComplete="email"
+                        spellCheck={false}
                         disabled={isLoading || inviteFlow}
                         {...field}
                       />
@@ -170,6 +169,8 @@ function SignInPage() {
                       <Input
                         type="password"
                         placeholder="Enter your password"
+                        autoComplete="current-password"
+                        spellCheck={false}
                         disabled={isLoading}
                         {...field}
                       />
@@ -184,17 +185,17 @@ function SignInPage() {
               </Button>
             </form>
           </Form>
-        </CardContent>
+        </AuthEntry.Content>
 
-        <CardFooter className="flex justify-center">
+        <AuthEntry.Footer className="justify-center">
           <Link
             to="/forgot-password"
             className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline"
           >
             Forgot password?
           </Link>
-        </CardFooter>
-      </Card>
-    </div>
+        </AuthEntry.Footer>
+      </AuthEntry.Card>
+    </AuthEntry.Root>
   )
 }

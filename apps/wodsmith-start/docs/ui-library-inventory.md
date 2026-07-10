@@ -8,8 +8,8 @@ Regenerate with `pnpm --filter wodsmith-start ui:inventory` and verify it with `
 
 The Start app exposes 36 primitive import paths in `src/components/ui`. They are consumed directly by 181 route-owned files and 149 shared component files.
 
-- `@repo/ui` owns 27 extracted primitive implementations under `packages/ui/src/components`.
-- 15 primitive modules have representative Storybook stories.
+- `@repo/ui` owns 28 extracted primitive implementations under `packages/ui/src/components`.
+- 16 primitive modules have representative Storybook stories.
 - Direct barrel consumers: 0.
 - Crew exposes 36 primitive import paths; 36 filenames overlap with Start and 34 of those adapters or app-local implementations are byte-identical.
 - Divergent Start/Crew paths: `searchable-select`, `sidebar`.
@@ -35,7 +35,7 @@ Counts are unique importing files. Route-owned components under `src/routes` cou
 | `breadcrumb` | composition | yes | 1 | 2 | 0 | yes |
 | `button` | foundation | yes | 151 | 108 | 4 | yes |
 | `calendar` | composition | — | 3 | 1 | 0 | — |
-| `card` | foundation | yes | 114 | 50 | 0 | yes |
+| `card` | foundation | yes | 113 | 50 | 0 | yes |
 | `checkbox` | foundation | yes | 23 | 12 | 0 | — |
 | `collapsible` | composition | yes | 11 | 15 | 0 | yes |
 | `dialog` | composition | yes | 17 | 23 | 0 | yes |

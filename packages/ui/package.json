@@ -8,6 +8,7 @@
   ],
   "exports": {
     "./alert": "./src/components/alert.tsx",
+    "./auth-entry": "./src/components/auth-entry.tsx",
     "./avatar": "./src/components/avatar.tsx",
     "./badge": "./src/components/badge.tsx",
     "./breadcrumb": "./src/components/breadcrumb.tsx",

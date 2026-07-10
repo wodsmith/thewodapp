@@ -3,6 +3,7 @@
 import "@testing-library/jest-dom/vitest"
 
 import { Alert, AlertDescription, AlertTitle } from "@repo/ui/alert"
+import { AuthEntry } from "@repo/ui/auth-entry"
 import { Avatar, AvatarFallback } from "@repo/ui/avatar"
 import {
   Breadcrumb,
@@ -29,6 +30,7 @@ import { Form, FormLabel } from "@repo/ui/form"
 import { Progress } from "@repo/ui/progress"
 import { ScrollArea } from "@repo/ui/scroll-area"
 import { fireEvent, render, screen } from "@testing-library/react"
+import { createRef } from "react"
 import { useForm } from "react-hook-form"
 import { describe, expect, it } from "vitest"
 
@@ -187,5 +189,60 @@ describe("shared feedback, identity, navigation, and disclosure primitives", () 
       "overflow-hidden",
       "h-24",
     )
+  })
+})
+
+describe("auth-entry composition", () => {
+  it("exposes a semantic, ref-forwarding Card composition", () => {
+    const rootRef = createRef<HTMLDivElement>()
+    const cardRef = createRef<HTMLDivElement>()
+
+    render(
+      <AuthEntry.Root
+        ref={rootRef}
+        aria-label="Account access"
+        className="min-h-0"
+      >
+        <AuthEntry.Card ref={cardRef} data-testid="auth-card">
+          <AuthEntry.Header>
+            <AuthEntry.Title>Sign in</AuthEntry.Title>
+            <AuthEntry.Description>
+              Use your WODsmith account.
+            </AuthEntry.Description>
+          </AuthEntry.Header>
+          <AuthEntry.Content>Form content</AuthEntry.Content>
+          <AuthEntry.Footer>Account links</AuthEntry.Footer>
+        </AuthEntry.Card>
+      </AuthEntry.Root>,
+    )
+
+    expect(rootRef.current).toHaveAttribute("aria-label", "Account access")
+    expect(rootRef.current).toHaveClass("min-h-0")
+    expect(rootRef.current).not.toHaveClass("min-h-[90svh]")
+    expect(cardRef.current).toBe(screen.getByTestId("auth-card"))
+    expect(screen.getByRole("heading", { level: 1, name: "Sign in" })).toBeVisible()
+    expect(screen.getByText("Use your WODsmith account.").tagName).toBe("P")
+    expect(screen.getByText("Form content")).toBeVisible()
+    expect(screen.getByText("Account links")).toBeVisible()
+  })
+
+  it("provides an unframed Plain surface without changing its content", () => {
+    const plainRef = createRef<HTMLElement>()
+
+    render(
+      <AuthEntry.Root>
+        <AuthEntry.Plain ref={plainRef} data-state="password-gate">
+          <AuthEntry.Header className="p-0">
+            <AuthEntry.Title>WODsmith Ledger</AuthEntry.Title>
+          </AuthEntry.Header>
+          <AuthEntry.Content className="p-0">Password form</AuthEntry.Content>
+        </AuthEntry.Plain>
+      </AuthEntry.Root>,
+    )
+
+    expect(plainRef.current?.tagName).toBe("SECTION")
+    expect(plainRef.current).toHaveAttribute("data-state", "password-gate")
+    expect(plainRef.current).toHaveClass("max-w-sm")
+    expect(screen.getByRole("heading", { name: "WODsmith Ledger" })).toBeVisible()
   })
 })
