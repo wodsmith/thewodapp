@@ -1,0 +1,56 @@
+{
+  "bodyText": "WODsmith Toggle navigation menu GENERAL Overview Profile Appearance ATHLETE Athlete profile Teams ACCOUNT Sessions Billing Sign out Something went wrong An unexpected error occurred. Please try again. Try Again",
+  "effectiveTheme": "dark",
+  "fields": [],
+  "finalUrl": "http://127.0.0.1:3317/settings/athlete",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "wodsmith"
+    },
+    {
+      "level": 1,
+      "text": "Settings"
+    },
+    {
+      "level": 1,
+      "text": "Something went wrong"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "tag": "nav"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith | Functional Fitness Competition Platform",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 918,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

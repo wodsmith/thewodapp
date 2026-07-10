@@ -1,0 +1,19 @@
+- generic
+  - banner
+    - generic
+      - link "wodsmith WODsmith" [ref=e9]
+        - heading "WODsmith" [level=1, ref=e12]
+      - button "Toggle navigation menu" [expanded=false, ref=e10]
+  - main
+    - link [ref=e2]
+    - heading "SCHEDULE WORKOUT" [level=1, ref=e3]
+    - heading "Fran" [level=2, ref=e4]
+    - paragraph
+    - LabelText
+    - button "SELECT DATE" [expanded=false, ref=e5]
+    - LabelText
+    - combobox "SCHEDULE FOR TEAM" [expanded=false, ref=e6]: E2E Test Gym
+      - generic [ref=e11] clickable [onclick]
+    - link "Cancel" [ref=e7]
+    - button "Schedule Workout" [ref=e8]
+  - region "Notifications alt+T" [ref=e1]

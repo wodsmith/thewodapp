@@ -1,0 +1,22 @@
+[
+  {
+    "type": "debug",
+    "text": "[vite] connecting..."
+  },
+  {
+    "type": "debug",
+    "text": "[vite] connected."
+  },
+  {
+    "type": "info",
+    "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+  },
+  {
+    "type": "error",
+    "text": "%o\n\n%s\n\n%s\n {stack: \"Error: useFormField should be used within <FormFie…ite/deps/react-dom_client.js?v=a027c16a:12408:13)\", message: \"useFormField should be used within <FormField>\"} The above error occurred in the <FormLabel> component. React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundaryImpl."
+  },
+  {
+    "type": "warning",
+    "text": "Warning: Error in route match: /_protected/settings/profile//settings/profile/"
+  }
+]

@@ -1,0 +1,47 @@
+{
+  "bodyText": "WODsmith WORKOUTS LOG TEAM COMPETE Test's Team (personal) Toggle theme MY SUBSCRIPTIONS Manage your team's programming track subscriptions You haven't subscribed to any programming tracks yet. Browse Programming Tracks",
+  "effectiveTheme": "light",
+  "fields": [
+    {
+      "disabled": false,
+      "placeholder": "Search subscriptions...",
+      "required": false,
+      "tag": "input"
+    }
+  ],
+  "finalUrl": "http://127.0.0.1:3317/programming/subscriptions",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "wodsmith"
+    },
+    {
+      "level": 1,
+      "text": "MY SUBSCRIPTIONS"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith | Functional Fitness Competition Platform",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 974,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

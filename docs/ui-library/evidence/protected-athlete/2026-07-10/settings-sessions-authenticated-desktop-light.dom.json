@@ -1,0 +1,56 @@
+{
+  "bodyText": "WODsmith WORKOUTS LOG TEAM COMPETE Test's Team (personal) Toggle theme Settings GENERAL Overview Profile Appearance ATHLETE Athlete profile Teams ACCOUNT Sessions Billing Sign out SESSIONS Manage your active sessions across devices Unknown location Current Session Authenticated with Password · 3 minutes ago Chrome Headless 146 on Apple Macintosh Unknown type (macOS 10.15.7) Unknown location Authenticated with Password · 4 minutes ago Chrome Headless 146 on Apple Macintosh Unknown type (macOS 10.15.7) Delete session Unknown location Authenticated with Password · 7 minutes ago Chrome Headless 146 on Apple Macintosh Unknown type (macOS 10.15.7) Delete session Unknown location Authenticated with Password · 9 minutes ago Chrome Headless 146 on Apple Macintosh Unknown type (macOS 10.15.7) Delete session Unknown location Authenticated with Password · 12 minutes ago Chrome Headless 146 on Apple Macintosh Unknown type (macOS 10.15.7) Delete session",
+  "effectiveTheme": "light",
+  "fields": [],
+  "finalUrl": "http://127.0.0.1:3317/settings/sessions",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "wodsmith"
+    },
+    {
+      "level": 1,
+      "text": "Settings"
+    },
+    {
+      "level": 1,
+      "text": "SESSIONS"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "tag": "nav"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith | Functional Fitness Competition Platform",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 974,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

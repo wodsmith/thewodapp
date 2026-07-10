@@ -1,0 +1,33 @@
+- banner
+  - generic
+    - link "wodsmith WODsmith" [ref=e6]
+      - heading "WODsmith" [level=1, ref=e15]
+    - button "Toggle navigation menu" [expanded=false, ref=e7]
+- main
+  - link [ref=e2]
+  - heading "LOG RESULT" [level=1, ref=e3]
+  - StaticText "Selected Workout"
+  - heading "Fran" [level=3, ref=e4]
+  - paragraph
+    - StaticText "21-15-9 Thrusters (95/65 lb) and Pull-ups"
+  - StaticText "TIME"
+  - button "Choose different workout" [ref=e5]
+  - generic
+    - StaticText "Log result for Fran"
+  - generic
+    - LabelText
+      - StaticText "Date"
+    - Date "Date": 2026-07-10
+      - generic
+        - spinbutton "Month Month" [ref=e17]: 7
+        - spinbutton "Day Day" [ref=e18]: 10
+        - spinbutton "Year Year" [ref=e19]: 2026
+      - button "Show date picker" [ref=e16]
+    - button "Rx+" [ref=e8]
+    - button "Rx" [ref=e9]
+    - button "Scaled" [ref=e10]
+    - textbox "Score" [required, ref=e11]
+    - textbox "Notes (optional)" [ref=e12]
+    - button "Cancel" [ref=e13]
+    - button "Save result" [ref=e14]
+- region "Notifications alt+T" [ref=e1]

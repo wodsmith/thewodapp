@@ -1,0 +1,18 @@
+{
+  "requestedUrl": "http://127.0.0.1:3317/dashboard",
+  "finalUrl": "http://127.0.0.1:3317/",
+  "documents": [
+    {
+      "method": "GET",
+      "path": "/dashboard",
+      "resourceType": "Document"
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "status": 200,
+      "resourceType": "Document",
+      "mimeType": "text/html"
+    }
+  ]
+}

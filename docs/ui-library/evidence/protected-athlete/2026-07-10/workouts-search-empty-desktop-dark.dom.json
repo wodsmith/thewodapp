@@ -1,0 +1,51 @@
+{
+  "bodyText": "WODsmith WORKOUTS LOG TEAM COMPETE Test's Team (personal) Toggle theme WORKOUTS Create workout Scheduled Workouts Today This Week No workouts scheduled for today Check back tomorrow or switch to the weekly view to see upcoming workouts. Filters No workouts found matching your filters.",
+  "effectiveTheme": "dark",
+  "fields": [
+    {
+      "disabled": false,
+      "placeholder": "Search workouts...",
+      "required": false,
+      "tag": "input"
+    }
+  ],
+  "finalUrl": "http://127.0.0.1:3317/workouts?view=row&q=__no_match__",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "wodsmith"
+    },
+    {
+      "level": 1,
+      "text": "WORKOUTS"
+    },
+    {
+      "level": 2,
+      "text": "Scheduled Workouts"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith | Functional Fitness Competition Platform",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 974,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

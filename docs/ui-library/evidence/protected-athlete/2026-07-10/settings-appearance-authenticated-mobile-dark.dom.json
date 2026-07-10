@@ -1,0 +1,56 @@
+{
+  "bodyText": "WODsmith Toggle navigation menu GENERAL Overview Profile Appearance ATHLETE Athlete profile Teams ACCOUNT Sessions Billing Sign out APPEARANCE Appearance Tune how WODsmith looks. Changes apply instantly to your account on this device. Theme Light Dark",
+  "effectiveTheme": "dark",
+  "fields": [],
+  "finalUrl": "http://127.0.0.1:3317/settings/appearance",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "wodsmith"
+    },
+    {
+      "level": 1,
+      "text": "Settings"
+    },
+    {
+      "level": 1,
+      "text": "Appearance"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "tag": "nav"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith | Functional Fitness Competition Platform",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 918,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

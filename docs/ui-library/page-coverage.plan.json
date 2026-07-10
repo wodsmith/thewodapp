@@ -6793,72 +6793,272 @@
     },
     {
       "routeId": "tanstack:wodsmith-start:/_protected/dashboard",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "authenticated"
         ],
         "fixtures": [
-          "unassessed"
+          "empty",
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "empty",
+          "error"
         ],
         "themes": [
-          "light"
+          "light",
+          "dark"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "authenticated-desktop-light",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "empty",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "empty",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/dashboard-authenticated-desktop-light.a11y.txt",
+              "sha256": "40720e3d2d59847421cbcd50309e0d41fd94ab07fbd5f82dc88d50aee2e4dade"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/dashboard-authenticated-desktop-light.dom.json",
+              "sha256": "11ddc18faf6864cf4cb52c99b26c700a8e79f5d32daff1eafc59f8e1758bbbf1"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/dashboard-authenticated-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/dashboard-authenticated-desktop-light.network.json",
+              "sha256": "8ef1af0d0a3706eb186ca628e2086c1dd19ba0985ddff6718379971c1dc7cece"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/dashboard-authenticated-desktop-light.png",
+              "sha256": "ed68abb356a7933ae49567884f90bab410e4f427913789cfd4b4c0bc07890a15"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "dashboard-authenticated-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "authenticated-mobile-dark",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "empty",
+          "params": {},
+          "query": {},
+          "dataState": "empty",
+          "theme": "dark",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/dashboard-authenticated-mobile-dark.a11y.txt",
+              "sha256": "3424bb76d03234cb767a3d92e8db650a62a06f9ee28f4639e47cdf79f87d4e04"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/dashboard-authenticated-mobile-dark.dom.json",
+              "sha256": "e8397c61b2077301e3e812a16704e9436c47c9b703b7b7dc44e0771806120c31"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/dashboard-authenticated-mobile-dark.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/dashboard-authenticated-mobile-dark.network.json",
+              "sha256": "1a9a679633aa4e539682c040f9486afc1ded802d89f0ccb84882c11982129a71"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/dashboard-authenticated-mobile-dark.png",
+              "sha256": "75317f7579192e735dd065fb902040aecd13d80377b10dd6a8d652e7f7588348"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "dashboard-authenticated-mobile-dark"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "no-workout-tracking-desktop-light",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "populated",
+          "params": {},
+          "query": {},
+          "dataState": "error",
+          "theme": "light",
+          "viewport": "desktop",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/dashboard-no-workout-tracking-desktop-light.a11y.txt",
+              "sha256": "da43af9404cf2e3dae43dfad8660c78de4129039719d36f82683bbc3468f5cf4"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/dashboard-no-workout-tracking-desktop-light.dom.json",
+              "sha256": "3653b709a99e038ab287de0c8b53b21207bae6b53f1e84fb940ce83f0afe780d"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/dashboard-no-workout-tracking-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/dashboard-no-workout-tracking-desktop-light.network.json",
+              "sha256": "8dc7f6efa71f820577a611df1f34436a34e2c72d5ae89f5cc5b304acd39baaaf"
+            },
+            {
+              "kind": "redirect-trace",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/dashboard-no-workout-tracking-desktop-light.redirect.json",
+              "sha256": "acdf9c4e62ab38b065f02df2ed7eb1427cd2b8c256274603b33f360bc447e333"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "dashboard-no-workout-tracking-desktop-light"
+            }
+          ],
           "blockers": []
         }
       ]
     },
     {
       "routeId": "tanstack:wodsmith-start:/_protected/log/_index",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "authenticated"
         ],
         "fixtures": [
-          "unassessed"
+          "empty"
         ],
         "dataStates": [
-          "unassessed"
+          "empty"
         ],
         "themes": [
-          "light"
+          "light",
+          "dark"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "authenticated-desktop-light",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "empty",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "empty",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/log-authenticated-desktop-light.a11y.txt",
+              "sha256": "7a1701122fd893b0d04d374b3ce5057b36640bece396778ff79023e838f8213b"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/log-authenticated-desktop-light.dom.json",
+              "sha256": "fd23f535134d08679cb5e885874e8a51a69802e87c27fb2f65095e2c6cecec7f"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/log-authenticated-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/log-authenticated-desktop-light.network.json",
+              "sha256": "63c5802edcb7c08ab466db5052284bebf6b90a04d509d5562588cb4a853131e6"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "log-authenticated-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "authenticated-mobile-dark",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "empty",
+          "params": {},
+          "query": {},
+          "dataState": "empty",
+          "theme": "dark",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/log-authenticated-mobile-dark.a11y.txt",
+              "sha256": "005189d50ef3686640ed497b064ff40e1150dc772de35f2e81272fef0ec61dc2"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/log-authenticated-mobile-dark.dom.json",
+              "sha256": "ef184039c92990e353437d04a200656c2ad68cb2ae918a051e5c38e3c1453fd3"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/log-authenticated-mobile-dark.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/log-authenticated-mobile-dark.network.json",
+              "sha256": "e4841c622ad659617c9eac3669cd45fb958f0f6f8f3ac5dfc0a4a261975665f4"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/log-authenticated-mobile-dark.png",
+              "sha256": "498cfe12f335a1ced569bf14b8cfc06c8dae91674f1407e0fc8c88d4ede79ad5"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "log-authenticated-mobile-dark"
+            }
+          ],
           "blockers": []
         }
       ]
@@ -6903,36 +7103,109 @@
     },
     {
       "routeId": "tanstack:wodsmith-start:/_protected/log/new/_index",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "authenticated"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
-          "light"
+          "light",
+          "dark"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "authenticated-desktop-light",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "populated",
           "params": {},
-          "query": {},
-          "dataState": "unassessed",
+          "query": {
+            "workoutId": "e2e_workout_fran"
+          },
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/log-new-authenticated-desktop-light.a11y.txt",
+              "sha256": "8178889f127161dd05aaf7fd9ed071c12cd3725f85b9dc815a0f45bd21da0068"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/log-new-authenticated-desktop-light.dom.json",
+              "sha256": "4a761302f478c3a1083449f38185076d5f6869f810589908d4d7d4d32e127fa5"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/log-new-authenticated-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/log-new-authenticated-desktop-light.network.json",
+              "sha256": "38c59437b6109b795a93ceb8c69ea8f41bd5f4d8b8870c3dce357351414ff8be"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "log-new-authenticated-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "authenticated-mobile-dark",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "populated",
+          "params": {},
+          "query": {
+            "workoutId": "e2e_workout_fran"
+          },
+          "dataState": "default",
+          "theme": "dark",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/log-new-authenticated-mobile-dark.a11y.txt",
+              "sha256": "4c339e1eaa167f967799b045f290c484028df3144cb1c6cfdc4db73d43eaa22d"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/log-new-authenticated-mobile-dark.dom.json",
+              "sha256": "8acadd5413d6a13c5fc2ee6d04165d5b93fa18f14c48bc0fd0778949d7eea9e5"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/log-new-authenticated-mobile-dark.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/log-new-authenticated-mobile-dark.network.json",
+              "sha256": "db3b246978631d5660b1b42140c5e11714a32bbc0c4fec7ff2c33e67545b228d"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "log-new-authenticated-mobile-dark"
+            }
+          ],
           "blockers": []
         }
       ]
@@ -7049,37 +7322,62 @@
     },
     {
       "routeId": "tanstack:wodsmith-start:/_protected/programming/_index",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "authenticated"
         ],
         "fixtures": [
-          "unassessed"
+          "empty"
         ],
         "dataStates": [
-          "unassessed"
+          "empty"
         ],
         "themes": [
-          "light"
+          "light",
+          "dark"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "authenticated-desktop-light",
+          "status": "blocked",
+          "persona": "authenticated",
+          "fixture": "empty",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "empty",
           "theme": "light",
           "viewport": "desktop",
           "evidence": [],
-          "blockers": []
+          "blockers": [
+            {
+              "code": "FIXTURE_STATE_MISMATCH",
+              "detail": "The required base seed exposes the public Girls programming track, so the audited empty state cannot be captured without mutating the existing fixture."
+            }
+          ]
+        },
+        {
+          "id": "authenticated-mobile-dark",
+          "status": "blocked",
+          "persona": "authenticated",
+          "fixture": "empty",
+          "params": {},
+          "query": {},
+          "dataState": "empty",
+          "theme": "dark",
+          "viewport": "mobile",
+          "evidence": [],
+          "blockers": [
+            {
+              "code": "FIXTURE_STATE_MISMATCH",
+              "detail": "The required base seed exposes the public Girls programming track, so the audited empty state cannot be captured without mutating the existing fixture."
+            }
+          ]
         }
       ]
     },
@@ -7123,36 +7421,110 @@
     },
     {
       "routeId": "tanstack:wodsmith-start:/_protected/programming/subscriptions/_index",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "authenticated"
         ],
         "fixtures": [
-          "unassessed"
+          "empty"
         ],
         "dataStates": [
-          "unassessed"
+          "empty"
         ],
         "themes": [
-          "light"
+          "light",
+          "dark"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "authenticated-desktop-light",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "empty",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "empty",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/programming-subscriptions-authenticated-desktop-light.a11y.txt",
+              "sha256": "7d707bd531c9ca4bdb104621f36232d928ee572909b8dd1a5ccee416e7a2c399"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/programming-subscriptions-authenticated-desktop-light.dom.json",
+              "sha256": "463f74db8183dbc2e5647c8b032e5149a7b4748a378b97b8b5b98439b6c0af66"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/programming-subscriptions-authenticated-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/programming-subscriptions-authenticated-desktop-light.network.json",
+              "sha256": "79eacf1df0789e214c27c0d71d926d2408e24e85f0af7ac232b660955288af9b"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/programming-subscriptions-authenticated-desktop-light.png",
+              "sha256": "e31ddfb4b01afd184b0227b4cc8de64caf707ac866f177dba06d97613e9b9de5"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "programming-subscriptions-authenticated-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "authenticated-mobile-dark",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "empty",
+          "params": {},
+          "query": {},
+          "dataState": "empty",
+          "theme": "dark",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/programming-subscriptions-authenticated-mobile-dark.a11y.txt",
+              "sha256": "bb420192bfeb3399aeb94aef4671f86d8394f843c6098bf69547ce06a5124777"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/programming-subscriptions-authenticated-mobile-dark.dom.json",
+              "sha256": "3f0fab38fa8529d6f71e1cf5613935d04db4eee23884656cd28acdb897af64f1"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/programming-subscriptions-authenticated-mobile-dark.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/programming-subscriptions-authenticated-mobile-dark.network.json",
+              "sha256": "6355d2936fe892739219d49314a6bee9b163b41e023a5e573e5625aeded7b693"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "programming-subscriptions-authenticated-mobile-dark"
+            }
+          ],
           "blockers": []
         }
       ]
@@ -7188,36 +7560,110 @@
     },
     {
       "routeId": "tanstack:wodsmith-start:/_protected/settings/appearance/_index",
-      "disposition": "unassessed",
+      "disposition": "library-candidate",
       "requirements": {
         "personas": [
-          "unassessed"
+          "authenticated"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
-          "light"
+          "light",
+          "dark"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "authenticated-desktop-light",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "populated",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-appearance-authenticated-desktop-light.a11y.txt",
+              "sha256": "c24223c39eb49588b89136ade59d3b64b2c8d8affefe410acf20867177fd1e9f"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-appearance-authenticated-desktop-light.dom.json",
+              "sha256": "0c4afdb5c44686366b2dec0b711d970f951adf9893820fc16c5fedecf1954c25"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-appearance-authenticated-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-appearance-authenticated-desktop-light.network.json",
+              "sha256": "a467a2451b0ee57844090775a8c47571564a21581c5d2bee050593e12564b2f5"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "settings-appearance-authenticated-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "authenticated-mobile-dark",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "populated",
+          "params": {},
+          "query": {},
+          "dataState": "default",
+          "theme": "dark",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-appearance-authenticated-mobile-dark.a11y.txt",
+              "sha256": "d1cdae863b22a1e92c6eecc7aa08689471eb9e2d6048333eb2285f80612947c1"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-appearance-authenticated-mobile-dark.dom.json",
+              "sha256": "2390102a46b712c15cfb9fa4522646e2373d305b89d88c521b2d6002c0e46df4"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-appearance-authenticated-mobile-dark.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-appearance-authenticated-mobile-dark.network.json",
+              "sha256": "57188f4472b3028260cbebb0466332124654b79bfd1442549ecbb2cbefe764e1"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-appearance-authenticated-mobile-dark.png",
+              "sha256": "58ca877b720ef1ecec94340cad35ab95f66fa27b063761242491cbfbe630b119"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "settings-appearance-authenticated-mobile-dark"
+            }
+          ],
           "blockers": []
         }
       ]
@@ -7227,33 +7673,102 @@
       "disposition": "unassessed",
       "requirements": {
         "personas": [
-          "unassessed"
+          "authenticated"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "error"
         ],
         "themes": [
-          "light"
+          "light",
+          "dark"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "authenticated-desktop-light",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "populated",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "error",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-athlete-authenticated-desktop-light.a11y.txt",
+              "sha256": "77f392f192daab99d4f3ed1ff48401fd2ff2420e6c87e158aecbde91e4af4766"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-athlete-authenticated-desktop-light.dom.json",
+              "sha256": "89741773c0019db026bb955800b7bd7f660f545e26ab8832463ea8477f0377d5"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-athlete-authenticated-desktop-light.console.json",
+              "sha256": "cdfb3fc1ee280a09b4c350ccfc32a2fc1bdce9d27d13c471acf3739561c05b3e"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-athlete-authenticated-desktop-light.network.json",
+              "sha256": "84b0c7ba78ad2737766a06081809e1da2e228dc57c7c491a6b57cb6b4a44d2d7"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "settings-athlete-authenticated-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "authenticated-mobile-dark",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "populated",
+          "params": {},
+          "query": {},
+          "dataState": "error",
+          "theme": "dark",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-athlete-authenticated-mobile-dark.a11y.txt",
+              "sha256": "cf9aae391359d704faf62c4bb51ab5c75233c9fa58abdc16ffd523f8acbe1934"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-athlete-authenticated-mobile-dark.dom.json",
+              "sha256": "19fac4d48de7b4752a71988b223b283f4160b005a4686a94b3dd3996cb871284"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-athlete-authenticated-mobile-dark.console.json",
+              "sha256": "cdfb3fc1ee280a09b4c350ccfc32a2fc1bdce9d27d13c471acf3739561c05b3e"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-athlete-authenticated-mobile-dark.network.json",
+              "sha256": "9d17f36b26114ffdbf60a408a5536c1d7cd81a9f988a05e30258644535300368"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "settings-athlete-authenticated-mobile-dark"
+            }
+          ],
           "blockers": []
         }
       ]
@@ -7334,36 +7849,110 @@
     },
     {
       "routeId": "tanstack:wodsmith-start:/_protected/settings/overview/_index",
-      "disposition": "unassessed",
+      "disposition": "library-candidate",
       "requirements": {
         "personas": [
-          "unassessed"
+          "authenticated"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
-          "light"
+          "light",
+          "dark"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "authenticated-desktop-light",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "populated",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-overview-authenticated-desktop-light.a11y.txt",
+              "sha256": "6fc0f65db63017086a23093d208b9798522b3aca066bf59a98a7122aec618e8e"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-overview-authenticated-desktop-light.dom.json",
+              "sha256": "b4743d4f855985677a5bf6f7495f9f217dd3ba3b22c8c62c61d803d4695a3e7c"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-overview-authenticated-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-overview-authenticated-desktop-light.network.json",
+              "sha256": "a8630c61ff2e67a8d89faad40373c4b014c1b3dcf0dd120773aa155774d7370f"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-overview-authenticated-desktop-light.png",
+              "sha256": "02d98187c111255988b4b320f86069f991894b289f613aa98979677f3d088567"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "settings-overview-authenticated-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "authenticated-mobile-dark",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "populated",
+          "params": {},
+          "query": {},
+          "dataState": "default",
+          "theme": "dark",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-overview-authenticated-mobile-dark.a11y.txt",
+              "sha256": "7ed6792adbd2776ffe1fe465d560d6e504fe2c41e266918d06f74d1553dc8c88"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-overview-authenticated-mobile-dark.dom.json",
+              "sha256": "cfa502431ef1b2d3f8d8f9d62b2926921b23bd6099067ace120eb19a9bb742ba"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-overview-authenticated-mobile-dark.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-overview-authenticated-mobile-dark.network.json",
+              "sha256": "fb34faa6f40db792ae7dadc086489984d24bdb6390088e0360fe5fe21990f04a"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "settings-overview-authenticated-mobile-dark"
+            }
+          ],
           "blockers": []
         }
       ]
@@ -7373,33 +7962,102 @@
       "disposition": "unassessed",
       "requirements": {
         "personas": [
-          "unassessed"
+          "authenticated"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "error"
         ],
         "themes": [
-          "light"
+          "light",
+          "dark"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "authenticated-desktop-light",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "populated",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "error",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-profile-authenticated-desktop-light.a11y.txt",
+              "sha256": "77f392f192daab99d4f3ed1ff48401fd2ff2420e6c87e158aecbde91e4af4766"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-profile-authenticated-desktop-light.dom.json",
+              "sha256": "4ed5955d229d36454c2e4cd7aa933f67bf3871623ceb0048bb9d1eadc0eb8132"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-profile-authenticated-desktop-light.console.json",
+              "sha256": "2dc0d04ef988147a6d9418c83c8f1105e4ae3978e9a333653867a9a6d705282f"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-profile-authenticated-desktop-light.network.json",
+              "sha256": "424b4f3b8dcedc61fa796052c80805bb2400a66bbc840aca15a44971e07847a4"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "settings-profile-authenticated-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "authenticated-mobile-dark",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "populated",
+          "params": {},
+          "query": {},
+          "dataState": "error",
+          "theme": "dark",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-profile-authenticated-mobile-dark.a11y.txt",
+              "sha256": "cf9aae391359d704faf62c4bb51ab5c75233c9fa58abdc16ffd523f8acbe1934"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-profile-authenticated-mobile-dark.dom.json",
+              "sha256": "5365e4579bc6997e9940d378ec6e9291d9cd7bd051524c601dc4bc76c6de0cf2"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-profile-authenticated-mobile-dark.console.json",
+              "sha256": "2dc0d04ef988147a6d9418c83c8f1105e4ae3978e9a333653867a9a6d705282f"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-profile-authenticated-mobile-dark.network.json",
+              "sha256": "52f47223d449a7accad26d91259d4c6e48663c6ab5242fd709df34d3e58b20cd"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "settings-profile-authenticated-mobile-dark"
+            }
+          ],
           "blockers": []
         }
       ]
@@ -7480,36 +8138,105 @@
     },
     {
       "routeId": "tanstack:wodsmith-start:/_protected/settings/sessions/_index",
-      "disposition": "unassessed",
+      "disposition": "library-candidate",
       "requirements": {
         "personas": [
-          "unassessed"
+          "authenticated"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
-          "light"
+          "light",
+          "dark"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "authenticated-desktop-light",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "populated",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-sessions-authenticated-desktop-light.a11y.txt",
+              "sha256": "a76f824a8107d6f1ef4ec267fc1d0af48b3e8db30f425f9f12bc27f67c361ec0"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-sessions-authenticated-desktop-light.dom.json",
+              "sha256": "a34124b80e7f9acbe5c3a6c2f3fe37cf05042ce84c6e1897167a4ea8858508c5"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-sessions-authenticated-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-sessions-authenticated-desktop-light.network.json",
+              "sha256": "f85102b75ee432fc1b358dc7faf078dc2c7d20ac6429b9b86e384e8e9fdbc728"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "settings-sessions-authenticated-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "authenticated-mobile-dark",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "populated",
+          "params": {},
+          "query": {},
+          "dataState": "default",
+          "theme": "dark",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-sessions-authenticated-mobile-dark.a11y.txt",
+              "sha256": "1e78702f506b80e8535449cd907a7be4a51fccc54f063593863981b4927d94dc"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-sessions-authenticated-mobile-dark.dom.json",
+              "sha256": "33291fc7640b03299aad6136eef0b6892fac843e1afe45c0b87b47961b1187e4"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-sessions-authenticated-mobile-dark.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/settings-sessions-authenticated-mobile-dark.network.json",
+              "sha256": "4084e410f337589b3d8313c295341535700e775f394cbd6b3302fca02a09942d"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "settings-sessions-authenticated-mobile-dark"
+            }
+          ],
           "blockers": []
         }
       ]
@@ -7698,186 +8425,749 @@
     },
     {
       "routeId": "tanstack:wodsmith-start:/_protected/workouts/_index",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "authenticated"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default",
+          "empty"
         ],
         "themes": [
-          "light"
+          "light",
+          "dark"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "authenticated-desktop-light",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "populated",
           "params": {},
-          "query": {},
-          "dataState": "unassessed",
+          "query": {
+            "q": "",
+            "view": "row"
+          },
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workouts-authenticated-desktop-light.a11y.txt",
+              "sha256": "561d70321f20fb0cb5023826d618cd351c06e5e64e2d79b9cf9e270d1ea0b407"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workouts-authenticated-desktop-light.dom.json",
+              "sha256": "98acfe75e3e998c9bd84ce8b63bec3cb3c4d1ceb97aeb84e80586d36e80f72e8"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workouts-authenticated-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workouts-authenticated-desktop-light.network.json",
+              "sha256": "9ffe22261e3f786909b3368c0a3e3f354633e8e58ea6599dc09891619ba67fb0"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workouts-authenticated-desktop-light.png",
+              "sha256": "d556bab988872ed805802af0b8224e3894fa8a3b43110c056ee11e04674c5e94"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "workouts-authenticated-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "authenticated-mobile-dark",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "populated",
+          "params": {},
+          "query": {
+            "q": "",
+            "view": "card"
+          },
+          "dataState": "default",
+          "theme": "dark",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workouts-authenticated-mobile-dark.a11y.txt",
+              "sha256": "7ae82b8f9d77414dde1f56f706be0a6619e4c9dd54e6984c0cf030bbc35feb88"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workouts-authenticated-mobile-dark.dom.json",
+              "sha256": "d13bf57ff17521dda1a6c75c90e9b17a76d28e4558ccb73e88d41525b8fe25a3"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workouts-authenticated-mobile-dark.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workouts-authenticated-mobile-dark.network.json",
+              "sha256": "bf4e4933ba60ead90cc8009023df5b60d3118d7167ffc05c2d398f04a2ba06c0"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workouts-authenticated-mobile-dark.png",
+              "sha256": "c07f5d95ae92c2ffffb2d05dde5633a85ebdf3ad656a58188d4a3ff368fa3894"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "workouts-authenticated-mobile-dark"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "search-empty-desktop-dark",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "populated",
+          "params": {},
+          "query": {
+            "q": "__no_match__",
+            "view": "row"
+          },
+          "dataState": "empty",
+          "theme": "dark",
+          "viewport": "desktop",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workouts-search-empty-desktop-dark.a11y.txt",
+              "sha256": "fac9d3e333d180155598181cf8dfa50965fac85a8dab15acac84371de76f1502"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workouts-search-empty-desktop-dark.dom.json",
+              "sha256": "ffe3a3430de24db565af2c387aa387c1244ad145bf4d7df59ac4e770f69fa58d"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workouts-search-empty-desktop-dark.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workouts-search-empty-desktop-dark.network.json",
+              "sha256": "62dbf82b3021bff0eb6c0898c2692dee748d09c140aa3e6ddf7cd367099e0721"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "workouts-search-empty-desktop-dark"
+            }
+          ],
           "blockers": []
         }
       ]
     },
     {
       "routeId": "tanstack:wodsmith-start:/_protected/workouts/$workoutId/_index",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "authenticated"
         ],
         "fixtures": [
-          "unassessed"
+          "populated",
+          "empty"
         ],
         "dataStates": [
-          "unassessed"
+          "default",
+          "error"
         ],
         "themes": [
-          "light"
+          "light",
+          "dark"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "authenticated-desktop-light",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "populated",
           "params": {
-            "workoutId": "__unassessed_workoutId__"
+            "workoutId": "e2e_workout_fran"
           },
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-detail-authenticated-desktop-light.a11y.txt",
+              "sha256": "6b7dcb6b6a632ebfdb2ef477c30ae69a3aa0b01c84a808ee0af216f27aff9116"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-detail-authenticated-desktop-light.dom.json",
+              "sha256": "a17561458f77da32346e139b84bd062e5ee5864b3ff82a839c9ce6472b0f0707"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-detail-authenticated-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-detail-authenticated-desktop-light.network.json",
+              "sha256": "de01df316a5aa634b20099678f76b5a12efa0aba2a9c77d7f7a5a0939bff9931"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-detail-authenticated-desktop-light.png",
+              "sha256": "c1b4016a6734919cbd52dc88493344fb5927891936545fe78a4652a1844e013b"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "workout-detail-authenticated-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "authenticated-mobile-dark",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "populated",
+          "params": {
+            "workoutId": "e2e_workout_fran"
+          },
+          "query": {},
+          "dataState": "default",
+          "theme": "dark",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-detail-authenticated-mobile-dark.a11y.txt",
+              "sha256": "de8dd914d5ffa562ecafc0eafadde6eb105807423ef8a1010e604927122bc1a7"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-detail-authenticated-mobile-dark.dom.json",
+              "sha256": "1d70f5bcaac8ff4be881aa4fafa8b723c94780fe58c40111f45c7bcdc0f097ab"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-detail-authenticated-mobile-dark.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-detail-authenticated-mobile-dark.network.json",
+              "sha256": "27ebdde5610750650c98b74ec73ed999f2f8e76a8f1acb0a4a02be37c1db3171"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "workout-detail-authenticated-mobile-dark"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "not-found-desktop-dark",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "empty",
+          "params": {
+            "workoutId": "e2e_missing_workout"
+          },
+          "query": {},
+          "dataState": "error",
+          "theme": "dark",
+          "viewport": "desktop",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-detail-not-found-desktop-dark.a11y.txt",
+              "sha256": "adb3bb7e1c04b2b359b92ec8f06b7716ac3cce3291ec198d02d8c7bfcac141f6"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-detail-not-found-desktop-dark.dom.json",
+              "sha256": "07bb06bab544d75c22adbd5d099518de26ecb0cd192d6a7d25fc47197e36978a"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-detail-not-found-desktop-dark.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-detail-not-found-desktop-dark.network.json",
+              "sha256": "9d92a6eca16b0acb91a24b05941a06271dbb97e4974cdb19bde0c69669179e9a"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-detail-not-found-desktop-dark.png",
+              "sha256": "320dc57e9b5c4e07005131b8dbe21065352468775862653c43ad0eb0e894814c"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "workout-detail-not-found-desktop-dark"
+            }
+          ],
           "blockers": []
         }
       ]
     },
     {
       "routeId": "tanstack:wodsmith-start:/_protected/workouts/$workoutId/edit/_index",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "authenticated"
         ],
         "fixtures": [
-          "unassessed"
+          "populated",
+          "empty"
         ],
         "dataStates": [
-          "unassessed"
+          "default",
+          "error"
         ],
         "themes": [
-          "light"
+          "light",
+          "dark"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "authenticated-desktop-light",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "populated",
           "params": {
-            "workoutId": "__unassessed_workoutId__"
+            "workoutId": "e2e_workout_fran"
           },
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-edit-authenticated-desktop-light.a11y.txt",
+              "sha256": "b01fb70dffc0c44fbf9745051f6d7989f0a449d690829262955716c5a51db582"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-edit-authenticated-desktop-light.dom.json",
+              "sha256": "93994559877f6cb5fae77015a757dca52c3d301925d7180deee7258261819707"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-edit-authenticated-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-edit-authenticated-desktop-light.network.json",
+              "sha256": "aa2fe9612b3308350cba3e588dba86b69c345190c7c639871e009a8415f4d05c"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "workout-edit-authenticated-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "authenticated-mobile-dark",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "populated",
+          "params": {
+            "workoutId": "e2e_workout_fran"
+          },
+          "query": {},
+          "dataState": "default",
+          "theme": "dark",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-edit-authenticated-mobile-dark.a11y.txt",
+              "sha256": "4ccfe4e75f35c987c128270fca98202d6cf6b39911e46a068f963adb5f51fd31"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-edit-authenticated-mobile-dark.dom.json",
+              "sha256": "02bf5d10dc56dc0e641792e05663dd9c22cb82fc2852d79a21d5059cf2d00b0e"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-edit-authenticated-mobile-dark.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-edit-authenticated-mobile-dark.network.json",
+              "sha256": "3dceaf912fb557d90ed18d29de885894dc607567dd125cfe5e8d3598c831b088"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-edit-authenticated-mobile-dark.png",
+              "sha256": "d35951fcdc331d7ce464f7a41167cf46ff9f3b6b8fb483405a22bd1193b7ffd4"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "workout-edit-authenticated-mobile-dark"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "not-found-desktop-dark",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "empty",
+          "params": {
+            "workoutId": "e2e_missing_workout"
+          },
+          "query": {},
+          "dataState": "error",
+          "theme": "dark",
+          "viewport": "desktop",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-edit-not-found-desktop-dark.a11y.txt",
+              "sha256": "838371864a00c7475c16d90154487d7f1663d8797a5ece16f40eb6c8f5cca90f"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-edit-not-found-desktop-dark.dom.json",
+              "sha256": "7030acb4d0053d7b690fea4b528098c227513b84818744604184c4cc4338b19a"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-edit-not-found-desktop-dark.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-edit-not-found-desktop-dark.network.json",
+              "sha256": "a439be651733566cacee844f3f52ab11c312ee818695e5ff71a1cf5e5cf099f8"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "workout-edit-not-found-desktop-dark"
+            }
+          ],
           "blockers": []
         }
       ]
     },
     {
       "routeId": "tanstack:wodsmith-start:/_protected/workouts/$workoutId/schedule/_index",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "authenticated"
         ],
         "fixtures": [
-          "unassessed"
+          "populated",
+          "empty"
         ],
         "dataStates": [
-          "unassessed"
+          "default",
+          "error"
         ],
         "themes": [
-          "light"
+          "light",
+          "dark"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "authenticated-desktop-light",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "populated",
           "params": {
-            "workoutId": "__unassessed_workoutId__"
+            "workoutId": "e2e_workout_fran"
           },
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-schedule-authenticated-desktop-light.a11y.txt",
+              "sha256": "6f0c4344b523f9a652bf5bc2680946083bca8d89877765515ce46423ff027189"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-schedule-authenticated-desktop-light.dom.json",
+              "sha256": "cee722de9ef9d0ffbe38497d5fb47e51af309e4460d849055e4c06b5dcf7d2ea"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-schedule-authenticated-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-schedule-authenticated-desktop-light.network.json",
+              "sha256": "ae17ebfcd46ef525e4eb4014815d957f3de585f7d00b889467e3632888091f7e"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "workout-schedule-authenticated-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "authenticated-mobile-dark",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "populated",
+          "params": {
+            "workoutId": "e2e_workout_fran"
+          },
+          "query": {},
+          "dataState": "default",
+          "theme": "dark",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-schedule-authenticated-mobile-dark.a11y.txt",
+              "sha256": "340c5b7bca8af0f680a9c9008d239fae09c0e1640b7e6ccbb3cca6fc53b4e4d3"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-schedule-authenticated-mobile-dark.dom.json",
+              "sha256": "2c16ab7ff7c6b3bccb71611a8d10eecd06f63cf3c87daae93a8115c3881f799d"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-schedule-authenticated-mobile-dark.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-schedule-authenticated-mobile-dark.network.json",
+              "sha256": "41978570d6d18fc0f32a0bccff9b46117c88d6f92364559bd4c583022d3906ce"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "workout-schedule-authenticated-mobile-dark"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "not-found-desktop-dark",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "empty",
+          "params": {
+            "workoutId": "e2e_missing_workout"
+          },
+          "query": {},
+          "dataState": "error",
+          "theme": "dark",
+          "viewport": "desktop",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-schedule-not-found-desktop-dark.a11y.txt",
+              "sha256": "adb3bb7e1c04b2b359b92ec8f06b7716ac3cce3291ec198d02d8c7bfcac141f6"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-schedule-not-found-desktop-dark.dom.json",
+              "sha256": "b87534ed5899a99b7d2ebc0f136174510cdb1c4e6cf0fc8c1e3d661a1f9eb050"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-schedule-not-found-desktop-dark.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-schedule-not-found-desktop-dark.network.json",
+              "sha256": "d0ec748ec19146d790b0167ee28e1eb18e2b6b7bc2e98a6d29f06c45630fc25b"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "workout-schedule-not-found-desktop-dark"
+            }
+          ],
           "blockers": []
         }
       ]
     },
     {
       "routeId": "tanstack:wodsmith-start:/_protected/workouts/new/_index",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "authenticated"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
-          "light"
+          "light",
+          "dark"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "authenticated-desktop-light",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "populated",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-new-authenticated-desktop-light.a11y.txt",
+              "sha256": "a7a2d0e28c63fd526080c2153ac7c61366454c44cca7d151cae0ce602584999a"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-new-authenticated-desktop-light.dom.json",
+              "sha256": "b8b8fd6e4de9e1e54f8544fdd49f02790e1f2dd431da7c23e9e4e094b7d20198"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-new-authenticated-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-new-authenticated-desktop-light.network.json",
+              "sha256": "a1ef037715daf663c29e543b9367cb2b1bb9e1eca8342932147b2181ccde3c37"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-new-authenticated-desktop-light.png",
+              "sha256": "bc6ff9bae065d6f161c748efc747800e346fa4ab50aa66f174e172115aab1aa7"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "workout-new-authenticated-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "authenticated-mobile-dark",
+          "status": "verified",
+          "persona": "authenticated",
+          "fixture": "populated",
+          "params": {},
+          "query": {},
+          "dataState": "default",
+          "theme": "dark",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-new-authenticated-mobile-dark.a11y.txt",
+              "sha256": "3fb7fe925c2db199a6c8ae2a8825a8cf3ec8a099cd5b4f5fbc1c2d5f84397a42"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-new-authenticated-mobile-dark.dom.json",
+              "sha256": "22382e0a5804549b6155a1ffbfe4bacca8a697fd027b7ea5f3247ab0cc72b7ca"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-new-authenticated-mobile-dark.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/workout-new-authenticated-mobile-dark.network.json",
+              "sha256": "df76d0c8966fec0b12eda32bc720b4059b5b1e2d1b6b4cd309610c5082252eed"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/protected-athlete/2026-07-10/capture-manifest.json",
+              "sha256": "d2260c23372b419955c2a5084b125ed1e22993e11713fdfe709131a3e267e3da",
+              "captureId": "workout-new-authenticated-mobile-dark"
+            }
+          ],
           "blockers": []
         }
       ]

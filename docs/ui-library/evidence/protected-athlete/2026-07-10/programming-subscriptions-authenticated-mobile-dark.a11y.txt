@@ -1,0 +1,11 @@
+- banner
+  - generic
+    - link "wodsmith WODsmith" [ref=e5]
+      - heading "WODsmith" [level=1, ref=e8]
+    - button "Toggle navigation menu" [expanded=false, ref=e6]
+- main
+  - link [ref=e2]
+  - heading "MY SUBSCRIPTIONS" [level=1, ref=e3]
+  - textbox "Search subscriptions..." [ref=e7]
+  - link "Browse Programming Tracks" [ref=e4]
+- region "Notifications alt+T" [ref=e1]

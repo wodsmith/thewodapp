@@ -1,0 +1,18 @@
+- banner
+  - generic
+    - link "wodsmith WODsmith" [ref=e8]
+      - heading "WODsmith" [level=1, ref=e13]
+    - button "Toggle navigation menu" [expanded=false, ref=e9]
+- main
+  - heading "E2E Test Gym" [level=1, ref=e2]
+  - paragraph
+  - button "Previous day" [ref=e3]
+  - button "Today" [ref=e4]
+  - button "Fri, Jul 10, 2026" [expanded=false, ref=e5]
+  - button "Next day" [ref=e6]
+  - link "Browse Workouts" [ref=e7]
+  - generic
+    - heading "Today's Workouts" [level=2, ref=e10]
+    - heading "No workouts scheduled" [level=3, ref=e11]
+    - link "Browse Workouts" [ref=e12]
+- region "Notifications alt+T" [ref=e1]

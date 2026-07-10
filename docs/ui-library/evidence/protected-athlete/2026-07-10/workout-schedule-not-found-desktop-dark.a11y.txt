@@ -1,0 +1,17 @@
+- banner
+  - generic
+    - link "wodsmith WODsmith" [ref=e4]
+      - heading "WODsmith" [level=1, ref=e5]
+    - navigation
+      - link "WORKOUTS" [ref=e6]
+      - link "LOG" [ref=e7]
+      - link "TEAM" [ref=e8]
+      - link "COMPETE" [ref=e9]
+      - button "Test's Team (personal)" [expanded=false, ref=e10]
+      - link [ref=e11]
+      - button "Switch to light mode" [ref=e12]
+      - button "Log out" [ref=e13]
+- main
+  - heading "Workout Not Found" [level=1, ref=e2]
+  - link "Back to Workouts" [ref=e3]
+- region "Notifications alt+T" [ref=e1]

@@ -1,0 +1,44 @@
+{
+  "bodyText": "WODsmith WORKOUTS LOG TEAM COMPETE Test's Team (personal) Toggle theme SCHEDULE WORKOUT Fran 21-15-9 Thrusters (95/65 lb) and Pull-ups SELECT DATE Pick a date SCHEDULE FOR TEAM E2E Test Gym Cancel Schedule Workout",
+  "effectiveTheme": "light",
+  "fields": [],
+  "finalUrl": "http://127.0.0.1:3317/workouts/e2e_workout_fran/schedule",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "wodsmith"
+    },
+    {
+      "level": 1,
+      "text": "SCHEDULE WORKOUT"
+    },
+    {
+      "level": 2,
+      "text": "Fran"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith | Functional Fitness Competition Platform",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 974,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "bodyText": "WODsmith Toggle navigation menu EDIT WORKOUT WORKOUT NAME DESCRIPTION MOVEMENTS All Types All Types Weightlifting Gymnastic Monostructural air squat GYMNASTIC assault bike MONOSTRUCTURAL back squat WEIGHTLIFTING bench press WEIGHTLIFTING bike MONOSTRUCTURAL box jump GYMNASTIC burpee GYMNASTIC clean WEIGHTLIFTING clean and jerk WEIGHTLIFTING chest to bar pull up GYMNASTIC dumbbell snatch WEIGHTLIFTING deadlift WEIGHTLIFTING double under MONOSTRUCTURAL front squat WEIGHTLIFTING handstand walk GYMNASTIC handstand push up GYMNASTIC jerk WEIGHTLIFTING jumping jack GYMNASTIC kettlebell swing WEIGHTLIFTING knees to elbows GYMNASTIC lunge GYMNASTIC muscle up GYMNASTIC overhead squat WEIGHTLIFTING pistol GYMNASTIC power clean WEIGHTLIFTING power snatch WEIGHTLIFTING press WEIGHTLIFTING pull up GYMNASTIC push jerk WEIGHTLIFTING push press WEIGHTLIFTING push up GYMNASTIC ring dip GYMNASTIC ring muscle up GYMNASTIC rope climb GYMNASTIC row MONOSTRUCTURAL run MONOSTRUCTURAL sumo deadlift high pull WEIGHTLIFTING single under MONOSTRUCTURAL sit up GYMNASTIC ski erg MONOSTRUCTURAL snatch WEIGHTLIFTING split jerk WEIGHTLIFTING thruster WEIGHTLIFTING toes to bar GYMNASTIC wall ball WEIGHTLIFTING SCHEME For Time For Time For Time (with cap) Pass/Fail AMRAP (Rounds + Reps) Max Reps EMOM Max Load Calories Meters Feet Points SCORE TYPE Select score type Min (lowest single set wins) Max (highest single set wins) Sum (total across rounds) Average (mean across rounds) First Last SCOPE Private Private Public ROUNDS TO SCORE Cancel Save changes",
+  "effectiveTheme": "dark",
+  "fields": [
+    {
+      "disabled": false,
+      "placeholder": "e.g., Fran, Cindy, Custom WOD",
+      "required": true,
+      "tag": "input",
+      "type": "text"
+    },
+    {
+      "disabled": false,
+      "placeholder": "Describe the workout (e.g., 21-15-9 reps for time of Thrusters and Pull-ups)",
+      "required": true,
+      "tag": "textarea"
+    },
+    {
+      "disabled": false,
+      "placeholder": "Search movements...",
+      "required": false,
+      "tag": "input"
+    },
+    {
+      "disabled": false,
+      "required": false,
+      "tag": "select"
+    },
+    {
+      "disabled": false,
+      "required": false,
+      "tag": "select"
+    },
+    {
+      "disabled": false,
+      "required": false,
+      "tag": "select"
+    },
+    {
+      "disabled": false,
+      "required": false,
+      "tag": "select"
+    },
+    {
+      "disabled": false,
+      "placeholder": "e.g., 4 (default is 1)",
+      "required": false,
+      "tag": "input",
+      "type": "number"
+    }
+  ],
+  "finalUrl": "http://127.0.0.1:3317/workouts/e2e_workout_fran/edit",
+  "forms": [
+    {
+      "actionPath": "/workouts/e2e_workout_fran/edit",
+      "fieldCount": 8,
+      "method": "get"
+    }
+  ],
+  "headings": [
+    {
+      "level": 1,
+      "text": "wodsmith"
+    },
+    {
+      "level": 1,
+      "text": "EDIT WORKOUT"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith | Functional Fitness Competition Platform",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 1362,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

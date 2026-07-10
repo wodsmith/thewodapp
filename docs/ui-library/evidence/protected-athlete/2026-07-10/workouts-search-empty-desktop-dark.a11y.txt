@@ -1,0 +1,26 @@
+- banner
+  - generic
+    - link "wodsmith WODsmith" [ref=e12]
+      - heading "WODsmith" [level=1, ref=e14]
+    - navigation
+      - link "WORKOUTS" [ref=e15]
+      - link "LOG" [ref=e16]
+      - link "TEAM" [ref=e17]
+      - link "COMPETE" [ref=e18]
+      - button "Test's Team (personal)" [expanded=false, ref=e19]
+      - link [ref=e20]
+      - button "Switch to light mode" [ref=e21]
+      - button "Log out" [ref=e22]
+- main
+  - heading "WORKOUTS" [level=1, ref=e2]
+  - link "Create workout" [ref=e3]
+  - heading "Scheduled Workouts" [level=2, ref=e4]
+  - button "Today" [ref=e5]
+  - button "This Week" [ref=e6]
+  - button "Refresh" [ref=e7]
+  - heading "No workouts scheduled for today" [level=4, ref=e8]
+  - textbox "Search workouts..." [ref=e13]: __no_match__
+  - button [ref=e9]
+  - button [ref=e10]
+  - button "Filters" [expanded=false, ref=e11]
+- region "Notifications alt+T" [ref=e1]

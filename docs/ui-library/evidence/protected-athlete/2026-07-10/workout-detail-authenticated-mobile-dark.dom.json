@@ -1,0 +1,52 @@
+{
+  "bodyText": "WODsmith Toggle navigation menu Fran Edit Schedule DESCRIPTION 21-15-9 Thrusters (95/65 lb) and Pull-ups SCHEME TIME SCOPE private REMIX INFO This workout has not been remixed yet. Remix this workout WORKOUT RESULTS Log result No results logged yet for this workout.",
+  "effectiveTheme": "dark",
+  "fields": [],
+  "finalUrl": "http://127.0.0.1:3317/workouts/e2e_workout_fran",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "wodsmith"
+    },
+    {
+      "level": 1,
+      "text": "Fran"
+    },
+    {
+      "level": 2,
+      "text": "DESCRIPTION"
+    },
+    {
+      "level": 2,
+      "text": "REMIX INFO"
+    },
+    {
+      "level": 2,
+      "text": "WORKOUT RESULTS"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith | Functional Fitness Competition Platform",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 966,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

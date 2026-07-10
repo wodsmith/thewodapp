@@ -1,0 +1,64 @@
+{
+  "bodyText": "WODsmith WORKOUTS LOG TEAM COMPETE Test's Team (personal) Toggle theme Settings GENERAL Overview Profile Appearance ATHLETE Athlete profile Teams ACCOUNT Sessions Billing Sign out OVERVIEW Hey, Test. One place to manage everything WODsmith knows about you — from how your name shows on the leaderboard to which competitions invoice you. TU ATHLETE Test User [redacted-email] Edit athlete GET REGISTRATION READY Profile completion Finish these so organizers can register you without back-and-forth. 25% 1/4 DONE Add your name Upload an avatar Date of birth & gender Height & weight Age Not set Height Not set Weight Not set Competitive History Your competition participation history No competitions yet Register for a competition to start building your competitive history Browse Competitions Notable Metcons Personal bests for benchmark workouts Fran Not recorded Grace Not recorded Helen Not recorded Diane Not recorded Murph Not recorded Cindy Not recorded Conditioning Metcons Personal bests for other conditioning workouts 2K Row Not recorded 1 Mile Run Not recorded 5K Run Not recorded 500m Row Not recorded Max Pull-ups Not recorded Strength Lifts One-rep max personal records Back Squat Not recorded Deadlift Not recorded Bench Press Not recorded Press Not recorded Snatch Not recorded Clean & Jerk Not recorded Social Networks Connect on social media No social networks added yet Sponsors Supporting brands and partners Manage No sponsors added yet",
+  "effectiveTheme": "light",
+  "fields": [],
+  "finalUrl": "http://127.0.0.1:3317/settings/overview",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "wodsmith"
+    },
+    {
+      "level": 1,
+      "text": "Settings"
+    },
+    {
+      "level": 1,
+      "text": "Hey, Test."
+    },
+    {
+      "level": 2,
+      "text": "Test User"
+    },
+    {
+      "level": 3,
+      "text": "Profile completion"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "tag": "nav"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith | Functional Fitness Competition Platform",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 2655,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

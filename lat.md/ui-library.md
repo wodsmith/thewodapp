@@ -155,3 +155,15 @@ CRM and Ledger password roots verified dark desktop and mobile output without ov
 Gameday remains blocked because no deployed DNS target or exact-revision local Vite/API runtime was available. Its browser output and component disposition are not inferred from source inspection.
 
 The duplicated CRM and Ledger password experience supports a shared authentication-entry composition. Docs stays Docusaurus-owned and route-specific; authenticated auxiliary-app patterns remain unassessed until reproducible credentials and seeded data exist.
+
+### Protected athlete evidence
+
+The third evidence slice covers a bounded authenticated Start workflow across the dashboard, workouts, logs, programming, and personal settings using only disposable local infrastructure.
+
+[The protected athlete coverage audit](../docs/ui-library/protected-athlete-coverage-audit.md) records 35 scenarios across 15 visual records: 33 verified and two blocked. The complete plan now has 142 verified, 26 blocked, and 159 pending scenarios.
+
+The owner fixture verifies responsive light/dark output for scheduled-workout emptiness, populated workouts, filtered emptiness, workout detail and forms, missing-workout states, empty logs, a preselected log form, empty subscriptions, and representative settings pages. A separate seeded athlete verifies the dashboard workout-tracking redirect.
+
+Programming browse remains blocked because the required base seed exposes a public track instead of the audited empty state. Profile and athlete settings are verified error states because their shared form label usage reaches the root error boundary.
+
+Observed repetition supports a children-driven shared empty state and presentation-only settings header or section composition. Workout forms, calendars, scoring, navigation state, authentication, and route controllers remain app-owned.
