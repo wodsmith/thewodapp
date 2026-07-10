@@ -23,6 +23,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
@@ -118,7 +119,7 @@ function AthleteSettingsPage() {
 
     if (heightCm && preferredUnits === "imperial") {
       const formatted = cmToFeetInches(heightCm)
-      const match = formatted.match(/(\d+)'(\d+)"/)
+      const match = formatted.match(/^(\d+)'(\d+)"?$/)
       if (match) {
         setLocalFeet(match[1] || "")
         setLocalInches(match[2] || "")
@@ -343,47 +344,64 @@ function AthleteSettingsPage() {
               <div className="space-y-6">
                 {preferredUnits === "imperial" ? (
                   <div className="grid gap-6 sm:grid-cols-3">
-                    <FormItem>
-                      <FormLabel>Height (feet)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="5"
-                          value={localFeet}
-                          onChange={(e) => setLocalFeet(e.target.value)}
-                          onBlur={handleImperialHeightChange}
-                        />
-                      </FormControl>
-                      <FormDescription>Feet</FormDescription>
-                    </FormItem>
+                    <div className="space-y-2">
+                      <Label htmlFor="athlete-height-feet">Height (feet)</Label>
+                      <Input
+                        id="athlete-height-feet"
+                        type="number"
+                        placeholder="5"
+                        value={localFeet}
+                        onChange={(e) => setLocalFeet(e.target.value)}
+                        onBlur={handleImperialHeightChange}
+                        aria-describedby="athlete-height-feet-description"
+                      />
+                      <p
+                        id="athlete-height-feet-description"
+                        className="text-sm text-muted-foreground"
+                      >
+                        Feet
+                      </p>
+                    </div>
 
-                    <FormItem>
-                      <FormLabel>Height (inches)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="10"
-                          value={localInches}
-                          onChange={(e) => setLocalInches(e.target.value)}
-                          onBlur={handleImperialHeightChange}
-                        />
-                      </FormControl>
-                      <FormDescription>Inches</FormDescription>
-                    </FormItem>
+                    <div className="space-y-2">
+                      <Label htmlFor="athlete-height-inches">
+                        Height (inches)
+                      </Label>
+                      <Input
+                        id="athlete-height-inches"
+                        type="number"
+                        placeholder="10"
+                        value={localInches}
+                        onChange={(e) => setLocalInches(e.target.value)}
+                        onBlur={handleImperialHeightChange}
+                        aria-describedby="athlete-height-inches-description"
+                      />
+                      <p
+                        id="athlete-height-inches-description"
+                        className="text-sm text-muted-foreground"
+                      >
+                        Inches
+                      </p>
+                    </div>
 
-                    <FormItem>
-                      <FormLabel>Weight (lbs)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="165"
-                          value={localWeight}
-                          onChange={(e) => setLocalWeight(e.target.value)}
-                          onBlur={handleWeightChange}
-                        />
-                      </FormControl>
-                      <FormDescription>Pounds</FormDescription>
-                    </FormItem>
+                    <div className="space-y-2">
+                      <Label htmlFor="athlete-weight-lbs">Weight (lbs)</Label>
+                      <Input
+                        id="athlete-weight-lbs"
+                        type="number"
+                        placeholder="165"
+                        value={localWeight}
+                        onChange={(e) => setLocalWeight(e.target.value)}
+                        onBlur={handleWeightChange}
+                        aria-describedby="athlete-weight-lbs-description"
+                      />
+                      <p
+                        id="athlete-weight-lbs-description"
+                        className="text-sm text-muted-foreground"
+                      >
+                        Pounds
+                      </p>
+                    </div>
                   </div>
                 ) : (
                   <div className="grid gap-6 sm:grid-cols-2">
@@ -414,19 +432,24 @@ function AthleteSettingsPage() {
                       )}
                     />
 
-                    <FormItem>
-                      <FormLabel>Weight (kg)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="75"
-                          value={localWeight}
-                          onChange={(e) => setLocalWeight(e.target.value)}
-                          onBlur={handleWeightChange}
-                        />
-                      </FormControl>
-                      <FormDescription>Kilograms</FormDescription>
-                    </FormItem>
+                    <div className="space-y-2">
+                      <Label htmlFor="athlete-weight-kg">Weight (kg)</Label>
+                      <Input
+                        id="athlete-weight-kg"
+                        type="number"
+                        placeholder="75"
+                        value={localWeight}
+                        onChange={(e) => setLocalWeight(e.target.value)}
+                        onBlur={handleWeightChange}
+                        aria-describedby="athlete-weight-kg-description"
+                      />
+                      <p
+                        id="athlete-weight-kg-description"
+                        className="text-sm text-muted-foreground"
+                      >
+                        Kilograms
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -727,7 +750,11 @@ function AthleteSettingsPage() {
             <CardContent className="space-y-4">
               {(
                 [
-                  ["instagram", "Instagram", "https://instagram.com/yourhandle"],
+                  [
+                    "instagram",
+                    "Instagram",
+                    "https://instagram.com/yourhandle",
+                  ],
                   ["facebook", "Facebook", "https://facebook.com/yourpage"],
                   ["twitter", "Twitter/X", "https://twitter.com/yourhandle"],
                   ["tiktok", "TikTok", "https://tiktok.com/@yourhandle"],
