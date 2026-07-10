@@ -100,7 +100,13 @@ async function expectSurfaceTheme(
 
 async function openDialog(page: Page, theme: Theme) {
   await expect(page.getByRole("dialog")).toHaveCount(0)
-  await page.getByRole("button", { name: "Open confirmation" }).click()
+  const trigger = page.getByRole("button", { name: "Open confirmation" })
+  if (theme === "dark") {
+    await trigger.hover()
+    await expect(trigger).toBeVisible()
+    await expectZeroContrastViolations(page, "confirmation trigger hover (dark)")
+  }
+  await trigger.click()
   const dialog = page.getByRole("dialog", { name: "Publish competition?" })
   await expectPortalTheme(page, dialog, theme)
   await expectZeroContrastViolations(page, `dialog (${theme})`)

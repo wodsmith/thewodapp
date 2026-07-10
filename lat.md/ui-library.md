@@ -46,7 +46,7 @@ The Start, Crew, and shared-package audit covers 267 \`bg-primary\`, 82 \`text-p
 
 Foreground exceptions are state-matched: light \`bg-black\` becomes dark \`bg-primary\`, group-hover foreground changes accompany group-hover backgrounds, and destructive foreground hover states accompany destructive hover backgrounds. No unmatched foreground/background pair needs a local color override.
 
-[[apps/wodsmith-start/storybook-tests/semantic-contrast.spec.ts]] reads every Canvas story id from the static \`index.json\`, runs light and dark with opposite OS preferences, exercises portal states, and requires zero axe color-contrast violations. It separately verifies Docs theme isolation.
+[[apps/wodsmith-start/storybook-tests/semantic-contrast.spec.ts]] reads every Canvas story id from the static \`index.json\`, runs light and dark with opposite OS preferences, exercises portal states, and requires zero axe color-contrast violations. The confirmation dialog coverage explicitly audits the shared default Button's pointer-hover state, including its dark-theme foreground pair. The suite separately verifies Docs theme isolation.
 
 ## Compatibility contract
 
