@@ -2,7 +2,21 @@
 
 import "@testing-library/jest-dom/vitest"
 
+import { Alert, AlertDescription, AlertTitle } from "@repo/ui/alert"
+import { Avatar, AvatarFallback } from "@repo/ui/avatar"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@repo/ui/breadcrumb"
 import { Checkbox } from "@repo/ui/checkbox"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@repo/ui/collapsible"
 import {
   Dialog,
   DialogClose,
@@ -12,6 +26,8 @@ import {
   DialogTrigger,
 } from "@repo/ui/dialog"
 import { Form, FormLabel } from "@repo/ui/form"
+import { Progress } from "@repo/ui/progress"
+import { ScrollArea } from "@repo/ui/scroll-area"
 import { fireEvent, render, screen } from "@testing-library/react"
 import { useForm } from "react-hook-form"
 import { describe, expect, it } from "vitest"
@@ -76,6 +92,100 @@ describe("shared form and overlay primitives", () => {
   it("reports FormField misuse before reading field state", () => {
     expect(() => render(<FormLabelWithoutField />)).toThrow(
       "useFormField should be used within <FormField>",
+    )
+  })
+})
+
+describe("shared feedback, identity, navigation, and disclosure primitives", () => {
+  it("exposes named default and destructive alerts", () => {
+    const { rerender } = render(
+      <Alert>
+        <AlertTitle>Registration ready</AlertTitle>
+        <AlertDescription>Athletes can now register.</AlertDescription>
+      </Alert>,
+    )
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Registration ready")
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Athletes can now register.",
+    )
+
+    rerender(<Alert variant="destructive">Registration failed</Alert>)
+    expect(screen.getByRole("alert")).toHaveClass("text-destructive")
+  })
+
+  it("renders avatar fallback content", () => {
+    render(
+      <Avatar>
+        <AvatarFallback>WS</AvatarFallback>
+      </Avatar>,
+    )
+
+    expect(screen.getByText("WS")).toBeVisible()
+  })
+
+  it("marks the current breadcrumb page and hides separators", () => {
+    render(
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>Competitions</BreadcrumbItem>
+          <BreadcrumbSeparator data-testid="separator" />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Results</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>,
+    )
+
+    expect(screen.getByRole("navigation", { name: "breadcrumb" })).toBeVisible()
+    expect(screen.getByRole("link", { name: "Results" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    )
+    expect(screen.getByTestId("separator")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    )
+  })
+
+  it("opens collapsible content from its trigger", () => {
+    render(
+      <Collapsible>
+        <CollapsibleTrigger>Show standards</CollapsibleTrigger>
+        <CollapsibleContent>Movement standards</CollapsibleContent>
+      </Collapsible>,
+    )
+
+    expect(screen.queryByText("Movement standards")).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Show standards" }))
+    expect(screen.getByText("Movement standards")).toBeVisible()
+  })
+
+  it("renders a progressbar and moves its indicator", () => {
+    const { container } = render(
+      <Progress aria-label="Review progress" value={50} />,
+    )
+
+    expect(
+      screen.getByRole("progressbar", { name: "Review progress" }),
+    ).toBeVisible()
+    expect(container.querySelector("[data-state] > div")).toHaveStyle({
+      transform: "translateX(-50%)",
+    })
+  })
+
+  it("renders scroll-area content inside a constrained root", () => {
+    const { container } = render(
+      <ScrollArea className="h-24">
+        <p>Scrollable competition list</p>
+      </ScrollArea>,
+    )
+
+    expect(screen.getByText("Scrollable competition list")).toBeVisible()
+    expect(container.firstElementChild).toHaveClass(
+      "relative",
+      "overflow-hidden",
+      "h-24",
     )
   })
 })

@@ -4,11 +4,11 @@ The UI library boundary lets WODsmith evolve reusable primitives independently f
 
 ## Current boundary
 
-PR 3 expands [[packages/ui/src/components/button.tsx#Button|the shared package primitive directory]] with a dependency-closed form and overlay layer while preserving every Start and Crew route import.
+The shared package now includes a dependency-closed feedback, identity, navigation, disclosure, progress, and scrolling slice while preserving every Start and Crew route import.
 
-\`@repo/ui\` owns the foundation primitives plus \`checkbox\`, \`dialog\`, \`dropdown-menu\`, \`form\`, \`popover\`, \`radio-group\`, \`select\`, \`sheet\`, \`tabs\`, and \`tooltip\`. The two apps keep thin re-export files at their previous paths, so feature and route files do not churn.
+\`@repo/ui\` owns [[packages/ui/src/components/alert.tsx#Alert|alert]], avatar, breadcrumb, collapsible, hover-card, progress, and [[packages/ui/src/components/scroll-area.tsx#ScrollArea|scroll-area]] in addition to the earlier foundation, form, and overlay primitives. The apps keep thin re-exports at their previous paths.
 
-\`switch\` and \`command\` are not present in either app at this layer. Divergent \`searchable-select\`, \`sidebar\`, domain components, and \`use-mobile\` remain app-owned.
+\`list-item\` remains an app adapter because its prop and compound APIs need a separate composition decision. The custom \`toggle-group\` remains app-owned pending an accessibility/API review. Divergent \`searchable-select\`, \`sidebar\`, domain components, and \`use-mobile\` also remain app-owned.
 
 ## Shared package boundary
 
@@ -34,7 +34,9 @@ Storybook is the isolated development and static-build surface for the current b
 
 Canvas theme state also reaches its iframe root and body. This lets body-portalled overlays inherit the toolbar-selected semantic tokens even when the operating-system preference is the opposite theme.
 
-Representative stories cover foundations plus form validation, selection controls, dialogs, sheets, menus, popovers, tooltips, and tabs by importing direct \`@repo/ui/*\` entry points. Their play functions exercise keyboard and pointer interactions.
+Representative stories cover foundations plus form validation, selection controls, dialogs, sheets, menus, popovers, tooltips, tabs, alerts, avatars, breadcrumbs, collapsibles, hover cards, progress, and scroll areas by importing direct \`@repo/ui/*\` entry points.
+
+The new stories verify alert and breadcrumb semantics, image and fallback identity, disclosure state, portal hover behavior, visible progress, and real overflow. Existing semantic-contrast tests exercise every added Canvas story in both themes.
 
 ### Semantic contrast audit
 
@@ -52,7 +54,9 @@ Foreground exceptions are state-matched: light \`bg-black\` becomes dark \`bg-pr
 
 Focused package tests prove that Start and Crew adapters expose the same runtime objects and exact export names as direct \`@repo/ui\` imports.
 
-[[packages/ui/test/compatibility.test.ts]] also checks the shared stylesheet contract. [[packages/ui/test/primitives.test.tsx]] verifies checkbox and dialog accessibility plus the diagnostic for form controls rendered outside a field context.
+[[packages/ui/test/compatibility.test.ts]] checks exact export names and runtime identity for the added adapters as well as the shared stylesheet contract.
+
+[[packages/ui/test/primitives.test.tsx]] verifies alert, avatar fallback, breadcrumb, collapsible, progress, and scroll-area behavior alongside the existing form and overlay accessibility contracts. Hover timing and portal behavior stay in the browser-backed Storybook play test.
 
 ## Inventory contract
 

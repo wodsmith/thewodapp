@@ -8,8 +8,8 @@ Regenerate with `pnpm --filter wodsmith-start ui:inventory` and verify it with `
 
 The Start app exposes 36 primitive import paths in `src/components/ui`. They are consumed directly by 181 route-owned files and 149 shared component files.
 
-- `@repo/ui` owns 20 extracted primitive implementations under `packages/ui/src/components`.
-- 8 primitive modules have representative Storybook stories.
+- `@repo/ui` owns 27 extracted primitive implementations under `packages/ui/src/components`.
+- 15 primitive modules have representative Storybook stories.
 - Direct barrel consumers: 0.
 - Crew exposes 36 primitive import paths; 36 filenames overlap with Start and 34 of those adapters or app-local implementations are byte-identical.
 - Divergent Start/Crew paths: `searchable-select`, `sidebar`.
@@ -28,29 +28,29 @@ Counts are unique importing files. Route-owned components under `src/routes` cou
 
 | Primitive module | Classification | Shared package | Route files | Component files | UI dependencies | Story |
 | --- | --- | --- | ---: | ---: | ---: | --- |
-| `alert` | foundation | — | 24 | 10 | 0 | — |
+| `alert` | foundation | yes | 24 | 10 | 0 | yes |
 | `alert-dialog` | composition | — | 18 | 4 | 0 | — |
-| `avatar` | foundation | — | 18 | 2 | 0 | — |
+| `avatar` | foundation | yes | 18 | 2 | 0 | yes |
 | `badge` | foundation | yes | 79 | 64 | 0 | yes |
-| `breadcrumb` | composition | — | 1 | 2 | 0 | — |
+| `breadcrumb` | composition | yes | 1 | 2 | 0 | yes |
 | `button` | foundation | yes | 151 | 108 | 4 | yes |
 | `calendar` | composition | — | 3 | 1 | 0 | — |
 | `card` | foundation | yes | 114 | 50 | 0 | yes |
 | `checkbox` | foundation | yes | 23 | 12 | 0 | — |
-| `collapsible` | composition | — | 11 | 15 | 0 | — |
+| `collapsible` | composition | yes | 11 | 15 | 0 | yes |
 | `dialog` | composition | yes | 17 | 23 | 0 | yes |
 | `dropdown-menu` | composition | yes | 4 | 4 | 0 | yes |
 | `file-upload` | app adapter | — | 0 | 1 | 0 | — |
 | `form` | composition | yes | 19 | 13 | 0 | yes |
-| `hover-card` | composition | — | 0 | 1 | 0 | — |
+| `hover-card` | composition | yes | 0 | 1 | 0 | yes |
 | `image-upload` | app adapter | — | 1 | 1 | 0 | — |
 | `input` | foundation | yes | 66 | 43 | 3 | yes |
 | `label` | foundation | yes | 38 | 25 | 0 | — |
 | `list-item` | app adapter | — | 0 | 4 | 0 | — |
 | `popover` | composition | yes | 7 | 6 | 1 | — |
-| `progress` | foundation | — | 5 | 0 | 0 | — |
+| `progress` | foundation | yes | 5 | 0 | 0 | yes |
 | `radio-group` | composition | yes | 4 | 2 | 0 | — |
-| `scroll-area` | composition | — | 2 | 3 | 1 | — |
+| `scroll-area` | composition | yes | 2 | 3 | 1 | yes |
 | `searchable-select` | app adapter | — | 1 | 1 | 0 | — |
 | `select` | composition | yes | 49 | 35 | 0 | — |
 | `separator` | foundation | yes | 7 | 4 | 1 | — |
