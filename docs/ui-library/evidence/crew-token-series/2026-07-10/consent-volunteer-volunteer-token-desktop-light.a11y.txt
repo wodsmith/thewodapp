@@ -1,0 +1,54 @@
+- banner
+  - link "C WODsmith Crew" [ref=e2]
+    - StaticText "C"
+    - StaticText "WODsmith Crew"
+  - navigation "Primary navigation" [ref=e3]
+    - link "Calculator" [ref=e6]
+    - link "Events" [ref=e7]
+    - link "New event" [ref=e8]
+  - link "Sign in" [ref=e4]
+  - link "Sign up" [ref=e5]
+- main
+  - generic
+    - paragraph
+      - StaticText "Volunteer consent center"
+    - heading "E2E Crew Demo Throwdown" [level=1, ref=e9]
+    - paragraph
+      - StaticText "Your crew profile"
+  - generic
+    - article
+      - heading "Communication history" [level=2, ref=e10]
+      - paragraph
+        - StaticText "Let this organizing team use factual crew communication and assignment response history for future Crew workflows."
+      - StaticText "Not granted"
+      - DescriptionList
+        - term "Last updated"
+        - definition
+          - StaticText "Not recorded"
+        - term "Consent text"
+        - definition
+          - StaticText "Not recorded"
+      - button "Grant" [ref=e11]
+      - button "Revoke" [disabled, ref=e12]
+    - article
+      - heading "Regional discovery" [level=2, ref=e13]
+      - paragraph
+        - StaticText "Allow future regional volunteer discovery only after eligibility checks. Raw contact and private metadata stay hidden."
+      - StaticText "Not granted"
+      - DescriptionList
+        - term "Last updated"
+        - definition
+          - StaticText "Not recorded"
+        - term "Consent text"
+        - definition
+          - StaticText "Not recorded"
+      - paragraph
+        - StaticText "Regional discovery requires adult eligibility before opt-in."
+      - button "Grant" [disabled, ref=e14]
+      - button "Revoke" [disabled, ref=e15]
+  - list
+    - listitem [level=1]
+      - StaticText "SMS messaging is not enabled from this consent center."
+    - listitem [level=1]
+      - StaticText "Regional discovery stays off unless you explicitly opt in and the account is eligible."
+- region "Notifications alt+T" [ref=e1]

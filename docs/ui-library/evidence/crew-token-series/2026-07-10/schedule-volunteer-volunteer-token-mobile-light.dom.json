@@ -1,0 +1,69 @@
+{
+  "title": "E2E Crew Demo Throwdown Volunteer Schedule | WODsmith Crew",
+  "finalUrl": "/e/e2e-throwdown/schedule/[fixture-token]",
+  "language": "en",
+  "effectiveTheme": "light",
+  "bodyText": "C WODsmith Crew Calculator Events New event Sign in Sign up Volunteer schedule E2E Crew Demo Throwdown Grace Martinez · [fixture-volunteer-email] iCal Google Print Consent Volunteer Grace Martinez Email [fixture-volunteer-email] Availability All day Preferred roles Judge Phone 555-2002 Credentials L1 judge course complete Availability notes Available all day on both competition floors. Assignments Response page North Lane 2 Judge Judge Pending Start Fri, Jul 10 8:15 PM End Fri, Jul 10 9:25 PM Location North Floor / Lane 2 Event dates 2026-07-10 to 2026-07-11 Primary owner for this block. Confirm Request change Send request Decline Decline",
+  "headings": [
+    {
+      "level": 1,
+      "text": "E2E Crew Demo Throwdown"
+    },
+    {
+      "level": 2,
+      "text": "Assignments"
+    },
+    {
+      "level": 3,
+      "text": "North Lane 2 Judge"
+    }
+  ],
+  "landmarks": [
+    {
+      "tag": "header",
+      "role": null,
+      "label": ""
+    },
+    {
+      "tag": "nav",
+      "role": null,
+      "label": "Primary navigation"
+    },
+    {
+      "tag": "main",
+      "role": null,
+      "label": ""
+    }
+  ],
+  "forms": [
+    {
+      "label": "",
+      "method": "get"
+    },
+    {
+      "label": "",
+      "method": "get"
+    }
+  ],
+  "fields": [
+    {
+      "type": "textarea",
+      "name": "note",
+      "label": "",
+      "required": false
+    },
+    {
+      "type": "textarea",
+      "name": "note",
+      "label": "",
+      "required": false
+    }
+  ],
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollHeight": 2245,
+    "horizontalOverflow": false
+  }
+}

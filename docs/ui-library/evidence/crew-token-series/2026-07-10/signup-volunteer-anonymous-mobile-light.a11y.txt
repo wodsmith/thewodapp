@@ -1,0 +1,93 @@
+- generic
+  - banner
+    - link "C WODsmith Crew" [ref=e2]
+      - StaticText "C"
+      - StaticText "WODsmith Crew"
+    - navigation "Primary navigation" [ref=e3]
+      - link "Calculator" [ref=e7]
+      - link "Events" [ref=e8]
+      - link "New event" [ref=e9]
+    - link "Sign in" [ref=e4]
+    - link "Sign up" [ref=e5]
+  - main
+    - heading "Volunteer for E2E Crew Demo Throwdown" [level=1, ref=e6]
+      - StaticText "Volunteer for E2E Crew Demo Throwdown"
+    - StaticText "Share your contact details, availability, and preferred roles."
+    - generic
+      - LabelText
+        - StaticText "Full name *"
+      - textbox "Full name *" [required, ref=e10]
+      - LabelText
+        - StaticText "Email *"
+      - textbox "Email *" [required, ref=e11]
+      - LabelText
+        - StaticText "Phone number"
+      - textbox "Phone number" [ref=e12]
+      - LabelText
+        - StaticText "Preferred roles"
+      - checkbox "Judge" [checked=false, ref=e13]
+      - LabelText [ref=e14] clickable [cursor:pointer]
+        - StaticText "Judge"
+      - checkbox "Head Judge" [checked=false, ref=e15]
+      - LabelText [ref=e16] clickable [cursor:pointer]
+        - StaticText "Head Judge"
+      - checkbox "Equipment" [checked=false, ref=e17]
+      - LabelText [ref=e18] clickable [cursor:pointer]
+        - StaticText "Equipment"
+      - checkbox "Medical" [checked=false, ref=e19]
+      - LabelText [ref=e20] clickable [cursor:pointer]
+        - StaticText "Medical"
+      - checkbox "Check-In" [checked=false, ref=e21]
+      - LabelText [ref=e22] clickable [cursor:pointer]
+        - StaticText "Check-In"
+      - checkbox "Staff" [checked=false, ref=e23]
+      - LabelText [ref=e24] clickable [cursor:pointer]
+        - StaticText "Staff"
+      - checkbox "Scorekeeper" [checked=false, ref=e25]
+      - LabelText [ref=e26] clickable [cursor:pointer]
+        - StaticText "Scorekeeper"
+      - checkbox "Emcee" [checked=false, ref=e27]
+      - LabelText [ref=e28] clickable [cursor:pointer]
+        - StaticText "Emcee"
+      - checkbox "Floor Manager" [checked=false, ref=e29]
+      - LabelText [ref=e30] clickable [cursor:pointer]
+        - StaticText "Floor Manager"
+      - checkbox "Media" [checked=false, ref=e31]
+      - LabelText [ref=e32] clickable [cursor:pointer]
+        - StaticText "Media"
+      - checkbox "General" [checked=true, ref=e33]
+      - LabelText [ref=e34] clickable [cursor:pointer]
+        - StaticText "General"
+      - checkbox "Athlete Control" [checked=false, ref=e35]
+      - LabelText [ref=e36] clickable [cursor:pointer]
+        - StaticText "Athlete Control"
+      - checkbox "Equipment Team" [checked=false, ref=e37]
+      - LabelText [ref=e38] clickable [cursor:pointer]
+        - StaticText "Equipment Team"
+      - LabelText
+        - StaticText "Certifications or credentials"
+      - textbox "Certifications or credentials" [ref=e39]
+      - LabelText
+        - StaticText "Availability *"
+      - radio "Morning" [checked=false, ref=e40]
+      - radio "Afternoon" [checked=false, ref=e41]
+      - radio "All day" [checked=true, ref=e42]
+      - LabelText
+        - StaticText "Availability notes"
+      - textbox "Availability notes" [ref=e43]
+      - paragraph
+        - StaticText "Additional questions"
+      - LabelText
+        - StaticText "First Aid Certification*"
+      - paragraph
+        - StaticText "Do you have a current first aid or EMT certification?"
+      - combobox "First Aid Certification*" [expanded=false, ref=e44]: Select an option
+        - StaticText "Select an option"
+      - LabelText
+        - StaticText "Day Availability*"
+      - paragraph
+        - StaticText "Which days can you volunteer?"
+      - combobox "Day Availability*" [expanded=false, ref=e45]: Select an option
+        - StaticText "Select an option"
+      - button "Sign up to volunteer" [ref=e46]
+  - region "Notifications alt+T" [ref=e1]

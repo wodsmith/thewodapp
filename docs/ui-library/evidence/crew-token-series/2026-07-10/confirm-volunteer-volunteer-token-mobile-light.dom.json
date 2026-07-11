@@ -1,0 +1,65 @@
+{
+  "title": "E2E Crew Demo Throwdown Assignment Confirmation | WODsmith Crew",
+  "finalUrl": "/e/e2e-throwdown/confirm/[fixture-token]",
+  "language": "en",
+  "effectiveTheme": "light",
+  "bodyText": "C WODsmith Crew Calculator Events New event Sign in Sign up Assignment confirmation E2E Crew Demo Throwdown Grace Martinez · [fixture-volunteer-email] North Lane 2 Judge Judge Pending Start Fri, Jul 10 8:15 PM End Fri, Jul 10 9:25 PM Location North Floor / Lane 2 Primary owner for this block. Confirm Request change Send request Decline Decline",
+  "headings": [
+    {
+      "level": 1,
+      "text": "E2E Crew Demo Throwdown"
+    },
+    {
+      "level": 2,
+      "text": "North Lane 2 Judge"
+    }
+  ],
+  "landmarks": [
+    {
+      "tag": "header",
+      "role": null,
+      "label": ""
+    },
+    {
+      "tag": "nav",
+      "role": null,
+      "label": "Primary navigation"
+    },
+    {
+      "tag": "main",
+      "role": null,
+      "label": ""
+    }
+  ],
+  "forms": [
+    {
+      "label": "",
+      "method": "get"
+    },
+    {
+      "label": "",
+      "method": "get"
+    }
+  ],
+  "fields": [
+    {
+      "type": "textarea",
+      "name": "note",
+      "label": "",
+      "required": false
+    },
+    {
+      "type": "textarea",
+      "name": "note",
+      "label": "",
+      "required": false
+    }
+  ],
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "scrollHeight": 1311,
+    "horizontalOverflow": false
+  }
+}

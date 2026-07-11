@@ -4214,155 +4214,478 @@
     },
     {
       "routeId": "tanstack:crew:/e/$slug/confirm/$token",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "public"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
           "light"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "volunteer-token-desktop-light",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "populated",
           "params": {
-            "slug": "__unassessed_slug__",
-            "token": "__unassessed_token__"
+            "slug": "e2e-throwdown",
+            "token": "e2e-crew-demo-volunteer-schedule"
           },
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/confirm-volunteer-volunteer-token-desktop-light.a11y.txt",
+              "sha256": "05ed7ea2ab25019f1f97d5f28fb4eef0c748224afca58fa0a32c21e4d825f2b5"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/confirm-volunteer-volunteer-token-desktop-light.dom.json",
+              "sha256": "28c2ccd99ac0fb2e0647c75a713583d5bca48afa84196d3d62163d1fea513e37"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/confirm-volunteer-volunteer-token-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/confirm-volunteer-volunteer-token-desktop-light.network.json",
+              "sha256": "8dd0781260b6c1499ea16bc5e71c95dd4d9a0a2cbc0f8d6e0c193bea24e16a8d"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/confirm-volunteer-volunteer-token-desktop-light.png",
+              "sha256": "4db969e5bd861386425defa95cd404b8310dda433aa452a8a4ff51ecb75a8e72"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/capture-manifest.json",
+              "sha256": "4e8543448ca6f05632e262a6cdc2efbbeec611d96d84f3e3f0b21893779a51d6",
+              "captureId": "confirm-volunteer-volunteer-token-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "volunteer-token-mobile-light",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "populated",
+          "params": {
+            "slug": "e2e-throwdown",
+            "token": "e2e-crew-demo-volunteer-schedule"
+          },
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/confirm-volunteer-volunteer-token-mobile-light.a11y.txt",
+              "sha256": "05ed7ea2ab25019f1f97d5f28fb4eef0c748224afca58fa0a32c21e4d825f2b5"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/confirm-volunteer-volunteer-token-mobile-light.dom.json",
+              "sha256": "659a58ad984e76a8a4de469962ef921ccc484fdc39b947632af32b7ee62df387"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/confirm-volunteer-volunteer-token-mobile-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/confirm-volunteer-volunteer-token-mobile-light.network.json",
+              "sha256": "894a13d28178ec5a31e40b1537f96cb388889ed9150d7c7eda003aaa8a6c93b1"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/confirm-volunteer-volunteer-token-mobile-light.png",
+              "sha256": "89c9c2615fd7433dcf015e0774de8feef791dea7e451dad7f70dcdbc0399aaf9"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/capture-manifest.json",
+              "sha256": "4e8543448ca6f05632e262a6cdc2efbbeec611d96d84f3e3f0b21893779a51d6",
+              "captureId": "confirm-volunteer-volunteer-token-mobile-light"
+            }
+          ],
           "blockers": []
         }
       ]
     },
     {
       "routeId": "tanstack:crew:/e/$slug/consent/$token",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "public"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
           "light"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "volunteer-token-desktop-light",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "populated",
           "params": {
-            "slug": "__unassessed_slug__",
-            "token": "__unassessed_token__"
+            "slug": "e2e-throwdown",
+            "token": "e2e-crew-demo-volunteer-schedule"
           },
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/consent-volunteer-volunteer-token-desktop-light.a11y.txt",
+              "sha256": "d54ea6060d6b2c2298b38ede5cc1b482c316a5c58e73f336deb35a681cd742ac"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/consent-volunteer-volunteer-token-desktop-light.dom.json",
+              "sha256": "2bc05e88f454709b49227383d6b7a593b5e3671d3dd73ef9f4ef5f083b3a6e93"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/consent-volunteer-volunteer-token-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/consent-volunteer-volunteer-token-desktop-light.network.json",
+              "sha256": "d70faeaf603eb2b327007a51457372abbe967a9d2ce885cf2ad1eb644ee89c54"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/consent-volunteer-volunteer-token-desktop-light.png",
+              "sha256": "02302398eb399df4061fa3f04e514e84d6dd6f7bddcf7a3a6c2cb1fac753fc3b"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/capture-manifest.json",
+              "sha256": "4e8543448ca6f05632e262a6cdc2efbbeec611d96d84f3e3f0b21893779a51d6",
+              "captureId": "consent-volunteer-volunteer-token-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "volunteer-token-mobile-light",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "populated",
+          "params": {
+            "slug": "e2e-throwdown",
+            "token": "e2e-crew-demo-volunteer-schedule"
+          },
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/consent-volunteer-volunteer-token-mobile-light.a11y.txt",
+              "sha256": "d54ea6060d6b2c2298b38ede5cc1b482c316a5c58e73f336deb35a681cd742ac"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/consent-volunteer-volunteer-token-mobile-light.dom.json",
+              "sha256": "b1b3fe7e55144cce84f01d4b369f1a10edda7e48184a027abda25a2c16aad4e6"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/consent-volunteer-volunteer-token-mobile-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/consent-volunteer-volunteer-token-mobile-light.network.json",
+              "sha256": "5f1942ece8db6fa47c15221a87051279b3d8833c293ed9655cd678b3c61cc904"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/consent-volunteer-volunteer-token-mobile-light.png",
+              "sha256": "470e86cbba0faee0d25ace336ea6c71e5f72dcb83c56e1ea9a2af604cfaefbb9"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/capture-manifest.json",
+              "sha256": "4e8543448ca6f05632e262a6cdc2efbbeec611d96d84f3e3f0b21893779a51d6",
+              "captureId": "consent-volunteer-volunteer-token-mobile-light"
+            }
+          ],
           "blockers": []
         }
       ]
     },
     {
       "routeId": "tanstack:crew:/e/$slug/schedule/$token",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "public"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
           "light"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "volunteer-token-desktop-light",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "populated",
           "params": {
-            "slug": "__unassessed_slug__",
-            "token": "__unassessed_token__"
+            "slug": "e2e-throwdown",
+            "token": "e2e-crew-demo-volunteer-schedule"
           },
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/schedule-volunteer-volunteer-token-desktop-light.a11y.txt",
+              "sha256": "c4dcb78091289eb35224a26f2efbdd8aaa701ed315a5ba6a1e55717798a40dce"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/schedule-volunteer-volunteer-token-desktop-light.dom.json",
+              "sha256": "857fd01cf0867446741befcc96914a8475f235f506f021e5236c6f65d7864030"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/schedule-volunteer-volunteer-token-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/schedule-volunteer-volunteer-token-desktop-light.network.json",
+              "sha256": "79d20b9f30c89121b9bb5a08b757bab5ccc6297980faa8580ce65478f4d3eac0"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/schedule-volunteer-volunteer-token-desktop-light.png",
+              "sha256": "5384db44738e708de91bbb7c2481d8899a96ed85c8fb1904eb3b0e987005bcb9"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/capture-manifest.json",
+              "sha256": "4e8543448ca6f05632e262a6cdc2efbbeec611d96d84f3e3f0b21893779a51d6",
+              "captureId": "schedule-volunteer-volunteer-token-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "volunteer-token-mobile-light",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "populated",
+          "params": {
+            "slug": "e2e-throwdown",
+            "token": "e2e-crew-demo-volunteer-schedule"
+          },
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/schedule-volunteer-volunteer-token-mobile-light.a11y.txt",
+              "sha256": "c4dcb78091289eb35224a26f2efbdd8aaa701ed315a5ba6a1e55717798a40dce"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/schedule-volunteer-volunteer-token-mobile-light.dom.json",
+              "sha256": "d561468da6dcca0807a1cc43eb1ba5e44d653466e3edcb118d7b93c69f1f579b"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/schedule-volunteer-volunteer-token-mobile-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/schedule-volunteer-volunteer-token-mobile-light.network.json",
+              "sha256": "ae2f1b0f585b670d68ad2377e542b6acc828914ba0704239e8b9787d1c0f5c0c"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/schedule-volunteer-volunteer-token-mobile-light.png",
+              "sha256": "46753ba032d6fac3cc14b652c92e3779df54bfc7c21129ac0a783632b0c6bb83"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/capture-manifest.json",
+              "sha256": "4e8543448ca6f05632e262a6cdc2efbbeec611d96d84f3e3f0b21893779a51d6",
+              "captureId": "schedule-volunteer-volunteer-token-mobile-light"
+            }
+          ],
           "blockers": []
         }
       ]
     },
     {
       "routeId": "tanstack:crew:/e/$slug/volunteer",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "public"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
           "light"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "anonymous-desktop-light",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "populated",
           "params": {
-            "slug": "__unassessed_slug__"
+            "slug": "e2e-throwdown"
           },
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/signup-volunteer-anonymous-desktop-light.a11y.txt",
+              "sha256": "31635eeb3838b6a8764b3955307d562fcb0f6e41d6c51261b77969f984b148c9"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/signup-volunteer-anonymous-desktop-light.dom.json",
+              "sha256": "958803ec1718cf25272500fbc4626f5e40504925e252c4d5d7af012b1bb1a696"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/signup-volunteer-anonymous-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/signup-volunteer-anonymous-desktop-light.network.json",
+              "sha256": "8e592ae12634d71d3f6de65e28408627370769f83b5e8dbc7d3ef1d792d85ff6"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/signup-volunteer-anonymous-desktop-light.png",
+              "sha256": "b9221a7121482b1f08f3998cd843262699ff1db136723cc830b5dd4824b6c607"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/capture-manifest.json",
+              "sha256": "4e8543448ca6f05632e262a6cdc2efbbeec611d96d84f3e3f0b21893779a51d6",
+              "captureId": "signup-volunteer-anonymous-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "anonymous-mobile-light",
+          "status": "verified",
+          "persona": "public",
+          "fixture": "populated",
+          "params": {
+            "slug": "e2e-throwdown"
+          },
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/signup-volunteer-anonymous-mobile-light.a11y.txt",
+              "sha256": "31635eeb3838b6a8764b3955307d562fcb0f6e41d6c51261b77969f984b148c9"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/signup-volunteer-anonymous-mobile-light.dom.json",
+              "sha256": "4eee75cce7f5da597e54c13188ec0ed11aed1f7e8b2dbcc4e28b120e4b5625e6"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/signup-volunteer-anonymous-mobile-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/signup-volunteer-anonymous-mobile-light.network.json",
+              "sha256": "3c8d547de0da8538f2efad3364f0bc2d53e128acfaf4a80878de16ecb118db84"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/signup-volunteer-anonymous-mobile-light.png",
+              "sha256": "9400be435f2738c7913af2a3ab349455ed1839ab7388125d5513d4c54cdf8018"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/capture-manifest.json",
+              "sha256": "4e8543448ca6f05632e262a6cdc2efbbeec611d96d84f3e3f0b21893779a51d6",
+              "captureId": "signup-volunteer-anonymous-mobile-light"
+            }
+          ],
           "blockers": []
         }
       ]
@@ -5803,38 +6126,118 @@
     },
     {
       "routeId": "tanstack:crew:/series/$groupId/crew",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "organizer"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
           "light"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "organizer-desktop-light",
+          "status": "verified",
+          "persona": "organizer",
+          "fixture": "populated",
           "params": {
-            "groupId": "__unassessed_groupId__"
+            "groupId": "cgrp_coverage_series"
           },
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/series-crew-organizer-desktop-light.a11y.txt",
+              "sha256": "e0c9673381ff528209a497569d1b75dff030f913d1109b55c2d7920174f42f68"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/series-crew-organizer-desktop-light.dom.json",
+              "sha256": "7da80d9c3391ee0488475b5fdc169779380d3c48413f8a0025e86757a26f9ca1"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/series-crew-organizer-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/series-crew-organizer-desktop-light.network.json",
+              "sha256": "8ce85fc27232a98abb2644c8d7206c4bcbd829fd2a212293a78783ac6f5cfe54"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/series-crew-organizer-desktop-light.png",
+              "sha256": "d78be18650edda7ce7da8c00c8c9c7423daf31574c6e9d0bfce4b4ce6a5f1456"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/capture-manifest.json",
+              "sha256": "4e8543448ca6f05632e262a6cdc2efbbeec611d96d84f3e3f0b21893779a51d6",
+              "captureId": "series-crew-organizer-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "organizer-mobile-light",
+          "status": "verified",
+          "persona": "organizer",
+          "fixture": "populated",
+          "params": {
+            "groupId": "cgrp_coverage_series"
+          },
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/series-crew-organizer-mobile-light.a11y.txt",
+              "sha256": "5ac78b7cca3573a0170899535639f7d30d2900f45585d7eeafade47fb9425af4"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/series-crew-organizer-mobile-light.dom.json",
+              "sha256": "9657c22d17c6f48df5a937b006cd8063297469f6b2a37c27fb3c907720235e4d"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/series-crew-organizer-mobile-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/series-crew-organizer-mobile-light.network.json",
+              "sha256": "053fbfc4527e6e99115f82553b89aae1811042ecf558fd6f7e59553f6654f1b9"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/series-crew-organizer-mobile-light.png",
+              "sha256": "b122257c46c4c402d5b7561b512a436ff0ef713ecfa291a5f2431489e9bda8f2"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-token-series/2026-07-10/capture-manifest.json",
+              "sha256": "4e8543448ca6f05632e262a6cdc2efbbeec611d96d84f3e3f0b21893779a51d6",
+              "captureId": "series-crew-organizer-mobile-light"
+            }
+          ],
           "blockers": []
         }
       ]

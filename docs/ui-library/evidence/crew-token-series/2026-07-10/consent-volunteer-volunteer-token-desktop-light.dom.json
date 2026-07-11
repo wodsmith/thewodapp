@@ -1,0 +1,47 @@
+{
+  "title": "E2E Crew Demo Throwdown Consent Center | WODsmith Crew",
+  "finalUrl": "/e/e2e-throwdown/consent/[fixture-token]",
+  "language": "en",
+  "effectiveTheme": "light",
+  "bodyText": "C WODsmith Crew Calculator Events New event Sign in Sign up Volunteer consent center E2E Crew Demo Throwdown Your crew profile Communication history Let this organizing team use factual crew communication and assignment response history for future Crew workflows. Not granted Last updated Not recorded Consent text Not recorded Grant Revoke Regional discovery Allow future regional volunteer discovery only after eligibility checks. Raw contact and private metadata stay hidden. Not granted Last updated Not recorded Consent text Not recorded Regional discovery requires adult eligibility before opt-in. Grant Revoke SMS messaging is not enabled from this consent center. Regional discovery stays off unless you explicitly opt in and the account is eligible.",
+  "headings": [
+    {
+      "level": 1,
+      "text": "E2E Crew Demo Throwdown"
+    },
+    {
+      "level": 2,
+      "text": "Communication history"
+    },
+    {
+      "level": 2,
+      "text": "Regional discovery"
+    }
+  ],
+  "landmarks": [
+    {
+      "tag": "header",
+      "role": null,
+      "label": ""
+    },
+    {
+      "tag": "nav",
+      "role": null,
+      "label": "Primary navigation"
+    },
+    {
+      "tag": "main",
+      "role": null,
+      "label": ""
+    }
+  ],
+  "forms": [],
+  "fields": [],
+  "viewport": {
+    "width": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "scrollHeight": 971,
+    "horizontalOverflow": false
+  }
+}

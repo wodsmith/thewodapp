@@ -397,3 +397,15 @@ The existing global-admin fixture reaches the control room, event list, event di
 Every route verifies desktop and mobile light output from the populated `e2e_competition` fixture. The control room and event list stay contained at 390 px while keeping public-header actions visible, and the other routes report no overflow.
 
 The routes remain route-specific. Repetition supports presentation-only headers, metric and fact panels, empty and progress states, checklist cards, responsive table containment, and operator-action presentation while permissions and workflow semantics remain app-owned.
+
+### Crew token and series evidence
+
+The sixth evidence slice covers Crew's public volunteer token workflow, volunteer signup, and authenticated series crew pool.
+
+[The Crew token and series coverage audit](../docs/ui-library/crew-token-series-coverage-audit.md) records 10 verified scenarios across five visual records. The complete plan now has 188 verified, 26 blocked, and 136 pending scenarios.
+
+Confirmation, consent, schedule, and signup use the populated Crew demo fixture without an authenticated session. The series pool uses the organizer fixture plus a disposable local group relation and contains 18 unique volunteers.
+
+Every route verifies desktop and mobile light output from exact revision `b241ddfc4c3a023669c1604147e3bda3ce8343a5`. Text evidence scrubs the deterministic fixture token and synthetic emails, while the manifest retains the fixture path required to validate route parameters.
+
+All five routes remain route-specific. Repetition supports presentation-only public headers, metric panels, fact rows, status badges, and responsive action groups; `FieldGroup` is already shared while token, response, consent, signup, and series semantics remain app-owned.

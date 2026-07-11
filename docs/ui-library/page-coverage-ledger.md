@@ -102,10 +102,10 @@ The 239 visual records plus 17 redirect-only records reconcile to 256 browser-ad
 | `tanstack:crew:/api/e2e/session` | crew | api | non-visual | `/api/e2e/session` | 0 |
 | `tanstack:crew:/api/webhooks/stripe` | crew | api | non-visual | `/api/webhooks/stripe` | 0 |
 | `tanstack:crew:/calculator` | crew | page | route-specific | `/calculator` | 3 |
-| `tanstack:crew:/e/$slug/confirm/$token` | crew | page | unassessed | `/e/:slug/confirm/:token` | 1 |
-| `tanstack:crew:/e/$slug/consent/$token` | crew | page | unassessed | `/e/:slug/consent/:token` | 1 |
-| `tanstack:crew:/e/$slug/schedule/$token` | crew | page | unassessed | `/e/:slug/schedule/:token` | 1 |
-| `tanstack:crew:/e/$slug/volunteer` | crew | page | unassessed | `/e/:slug/volunteer` | 1 |
+| `tanstack:crew:/e/$slug/confirm/$token` | crew | page | route-specific | `/e/:slug/confirm/:token` | 2 |
+| `tanstack:crew:/e/$slug/consent/$token` | crew | page | route-specific | `/e/:slug/consent/:token` | 2 |
+| `tanstack:crew:/e/$slug/schedule/$token` | crew | page | route-specific | `/e/:slug/schedule/:token` | 2 |
+| `tanstack:crew:/e/$slug/volunteer` | crew | page | route-specific | `/e/:slug/volunteer` | 2 |
 | `tanstack:crew:/events` | crew | page-layout | route-specific | `/events` | 2 |
 | `tanstack:crew:/events/$eventId` | crew | layout | layout-only | `/events/:eventId` | 0 |
 | `tanstack:crew:/events/$eventId/_index` | crew | page | route-specific | `/events/:eventId` | 2 |
@@ -124,7 +124,7 @@ The 239 visual records plus 17 redirect-only records reconcile to 256 browser-ad
 | `tanstack:crew:/events/$eventId/staffing` | crew | page | route-specific | `/events/:eventId/staffing` | 2 |
 | `tanstack:crew:/events/$eventId/volunteers` | crew | page | route-specific | `/events/:eventId/volunteers` | 2 |
 | `tanstack:crew:/events/new` | crew | page | route-specific | `/events/new` | 2 |
-| `tanstack:crew:/series/$groupId/crew` | crew | page | unassessed | `/series/:groupId/crew` | 1 |
+| `tanstack:crew:/series/$groupId/crew` | crew | page | route-specific | `/series/:groupId/crew` | 2 |
 | `tanstack:crew:/sign-in` | crew | page | library-candidate | `/sign-in` | 3 |
 | `tanstack:crew:/sign-up` | crew | page | library-candidate | `/sign-up` | 3 |
 | `tanstack:crm:__root__` | crm | layout | layout-only | `/` | 0 |

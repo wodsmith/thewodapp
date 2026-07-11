@@ -1,0 +1,222 @@
+- banner
+  - link "C WODsmith Crew" [ref=e2]
+    - StaticText "C"
+    - StaticText "WODsmith Crew"
+  - navigation "Primary navigation" [ref=e3]
+    - link "Calculator" [ref=e7]
+    - link "Events" [ref=e8]
+    - link "New event" [ref=e9]
+  - button "Log out" [ref=e4]
+- main
+  - paragraph
+    - StaticText "cgrp_coverage_series"
+  - heading "E2E Crew Coverage Series" [level=1, ref=e5]
+  - paragraph
+    - StaticText "Series crew pool"
+  - navigation "Series navigation" [ref=e6]
+    - link "Events" [ref=e10]
+  - generic
+    - StaticText "Pool"
+    - StaticText "18"
+    - StaticText "Placements"
+    - StaticText "18"
+    - StaticText "Selected"
+    - StaticText "18"
+    - StaticText "History"
+    - StaticText "0"
+    - StaticText "Credentials"
+    - StaticText "0"
+  - generic
+    - heading "Selected competitions" [level=2, ref=e11]
+    - LabelText [ref=e12] clickable [cursor:pointer]
+      - checkbox "E2E Crew Demo Throwdown 2026-07-10 to 2026-07-11 -18 rostered" [checked=true, disabled, ref=e13]
+      - StaticText "E2E Crew Demo Throwdown"
+      - StaticText "2026-07-10"
+      - StaticText " to "
+      - StaticText "2026-07-11"
+      - StaticText " -"
+      - StaticText "18"
+      - StaticText " rostered"
+  - article
+    - heading "Frank Garcia" [level=3, ref=e14]
+    - paragraph
+      - StaticText "1 roster placement -0 prior series events"
+    - StaticText "E2E Crew Demo Throwdown"
+    - StaticText "Selected"
+    - StaticText "Judge"
+    - StaticText "Medical"
+    - StaticText "Morning"
+    - link "Roster" [ref=e15]
+    - link "Shifts" [ref=e16]
+  - article
+    - heading "Grace Martinez" [level=3, ref=e17]
+    - paragraph
+      - StaticText "1 roster placement -0 prior series events"
+    - StaticText "E2E Crew Demo Throwdown"
+    - StaticText "Selected"
+    - StaticText "Judge"
+    - StaticText "All day"
+    - link "Roster" [ref=e18]
+    - link "Shifts" [ref=e19]
+  - article
+    - heading "Hank Brown" [level=3, ref=e20]
+    - paragraph
+      - StaticText "1 roster placement -0 prior series events"
+    - StaticText "E2E Crew Demo Throwdown"
+    - StaticText "Selected"
+    - StaticText "Scorekeeper"
+    - StaticText "Morning"
+    - link "Roster" [ref=e21]
+    - link "Shifts" [ref=e22]
+  - article
+    - heading "Ivy Chen" [level=3, ref=e23]
+    - paragraph
+      - StaticText "1 roster placement -0 prior series events"
+    - StaticText "E2E Crew Demo Throwdown"
+    - StaticText "Selected"
+    - StaticText "Check-In"
+    - StaticText "Morning"
+    - link "Roster" [ref=e24]
+    - link "Shifts" [ref=e25]
+  - article
+    - heading "Jules Patel" [level=3, ref=e26]
+    - paragraph
+      - StaticText "1 roster placement -0 prior series events"
+    - StaticText "E2E Crew Demo Throwdown"
+    - StaticText "Selected"
+    - StaticText "Floor Manager"
+    - StaticText "Morning"
+    - link "Roster" [ref=e27]
+    - link "Shifts" [ref=e28]
+  - article
+    - heading "Kai Robinson" [level=3, ref=e29]
+    - paragraph
+      - StaticText "1 roster placement -0 prior series events"
+    - StaticText "E2E Crew Demo Throwdown"
+    - StaticText "Selected"
+    - StaticText "Equipment"
+    - StaticText "Morning"
+    - link "Roster" [ref=e30]
+    - link "Shifts" [ref=e31]
+  - article
+    - heading "Lena Nguyen" [level=3, ref=e32]
+    - paragraph
+      - StaticText "1 roster placement -0 prior series events"
+    - StaticText "E2E Crew Demo Throwdown"
+    - StaticText "Selected"
+    - StaticText "Judge"
+    - StaticText "Morning"
+    - link "Roster" [ref=e33]
+    - link "Shifts" [ref=e34]
+  - article
+    - heading "Miles Olsen" [level=3, ref=e35]
+    - paragraph
+      - StaticText "1 roster placement -0 prior series events"
+    - StaticText "E2E Crew Demo Throwdown"
+    - StaticText "Selected"
+    - StaticText "Judge"
+    - StaticText "Morning"
+    - link "Roster" [ref=e36]
+    - link "Shifts" [ref=e37]
+  - article
+    - heading "Nora Diaz" [level=3, ref=e38]
+    - paragraph
+      - StaticText "1 roster placement -0 prior series events"
+    - StaticText "E2E Crew Demo Throwdown"
+    - StaticText "Selected"
+    - StaticText "Judge"
+    - StaticText "Morning"
+    - link "Roster" [ref=e39]
+    - link "Shifts" [ref=e40]
+  - article
+    - heading "Owen Reed" [level=3, ref=e41]
+    - paragraph
+      - StaticText "1 roster placement -0 prior series events"
+    - StaticText "E2E Crew Demo Throwdown"
+    - StaticText "Selected"
+    - StaticText "Judge"
+    - StaticText "Morning"
+    - link "Roster" [ref=e42]
+    - link "Shifts" [ref=e43]
+  - article
+    - heading "Priya Shah" [level=3, ref=e44]
+    - paragraph
+      - StaticText "1 roster placement -0 prior series events"
+    - StaticText "E2E Crew Demo Throwdown"
+    - StaticText "Selected"
+    - StaticText "Judge"
+    - StaticText "Morning"
+    - link "Roster" [ref=e45]
+    - link "Shifts" [ref=e46]
+  - article
+    - heading "Quinn Stone" [level=3, ref=e47]
+    - paragraph
+      - StaticText "1 roster placement -0 prior series events"
+    - StaticText "E2E Crew Demo Throwdown"
+    - StaticText "Selected"
+    - StaticText "Judge"
+    - StaticText "Morning"
+    - link "Roster" [ref=e48]
+    - link "Shifts" [ref=e49]
+  - article
+    - heading "Rosa King" [level=3, ref=e50]
+    - paragraph
+      - StaticText "1 roster placement -0 prior series events"
+    - StaticText "E2E Crew Demo Throwdown"
+    - StaticText "Selected"
+    - StaticText "Athlete Control"
+    - StaticText "Morning"
+    - link "Roster" [ref=e51]
+    - link "Shifts" [ref=e52]
+  - article
+    - heading "Sam Lee" [level=3, ref=e53]
+    - paragraph
+      - StaticText "1 roster placement -0 prior series events"
+    - StaticText "E2E Crew Demo Throwdown"
+    - StaticText "Selected"
+    - StaticText "Equipment Team"
+    - StaticText "Morning"
+    - link "Roster" [ref=e54]
+    - link "Shifts" [ref=e55]
+  - article
+    - heading "Tara Brooks" [level=3, ref=e56]
+    - paragraph
+      - StaticText "1 roster placement -0 prior series events"
+    - StaticText "E2E Crew Demo Throwdown"
+    - StaticText "Selected"
+    - StaticText "Staff"
+    - StaticText "Morning"
+    - link "Roster" [ref=e57]
+    - link "Shifts" [ref=e58]
+  - article
+    - heading "Uma Miller" [level=3, ref=e59]
+    - paragraph
+      - StaticText "1 roster placement -0 prior series events"
+    - StaticText "E2E Crew Demo Throwdown"
+    - StaticText "Selected"
+    - StaticText "Emcee"
+    - StaticText "Morning"
+    - link "Roster" [ref=e60]
+    - link "Shifts" [ref=e61]
+  - article
+    - heading "Vince Adams" [level=3, ref=e62]
+    - paragraph
+      - StaticText "1 roster placement -0 prior series events"
+    - StaticText "E2E Crew Demo Throwdown"
+    - StaticText "Selected"
+    - StaticText "Media"
+    - StaticText "Morning"
+    - link "Roster" [ref=e63]
+    - link "Shifts" [ref=e64]
+  - article
+    - heading "Wren Clark" [level=3, ref=e65]
+    - paragraph
+      - StaticText "1 roster placement -0 prior series events"
+    - StaticText "E2E Crew Demo Throwdown"
+    - StaticText "Selected"
+    - StaticText "Head Judge"
+    - StaticText "Judge"
+    - StaticText "Morning"
+    - link "Roster" [ref=e66]
+    - link "Shifts" [ref=e67]
+- region "Notifications alt+T" [ref=e1]
