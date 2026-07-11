@@ -21,6 +21,7 @@ const foundationModules = new Set([
   "field",
   "input",
   "label",
+  "metric",
   "progress",
   "separator",
   "skeleton",

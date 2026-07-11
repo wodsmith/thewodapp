@@ -25,6 +25,7 @@
     "./hover-card": "./src/components/hover-card.tsx",
     "./input": "./src/components/input.tsx",
     "./label": "./src/components/label.tsx",
+    "./metric": "./src/components/metric.tsx",
     "./popover": "./src/components/popover.tsx",
     "./progress": "./src/components/progress.tsx",
     "./radio-group": "./src/components/radio-group.tsx",

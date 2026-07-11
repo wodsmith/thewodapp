@@ -19,6 +19,7 @@ import * as crewForm from "../../../apps/crew/src/components/ui/form"
 import * as crewHoverCard from "../../../apps/crew/src/components/ui/hover-card"
 import * as crewInput from "../../../apps/crew/src/components/ui/input"
 import * as crewLabel from "../../../apps/crew/src/components/ui/label"
+import * as crewMetric from "../../../apps/crew/src/components/ui/metric"
 import * as crewPopover from "../../../apps/crew/src/components/ui/popover"
 import * as crewProgress from "../../../apps/crew/src/components/ui/progress"
 import * as crewRadioGroup from "../../../apps/crew/src/components/ui/radio-group"
@@ -49,6 +50,7 @@ import * as sharedForm from "@repo/ui/form"
 import * as sharedHoverCard from "@repo/ui/hover-card"
 import * as sharedInput from "@repo/ui/input"
 import * as sharedLabel from "@repo/ui/label"
+import * as sharedMetric from "@repo/ui/metric"
 import * as sharedPopover from "@repo/ui/popover"
 import * as sharedProgress from "@repo/ui/progress"
 import * as sharedRadioGroup from "@repo/ui/radio-group"
@@ -79,6 +81,7 @@ import * as startForm from "../../../apps/wodsmith-start/src/components/ui/form"
 import * as startHoverCard from "../../../apps/wodsmith-start/src/components/ui/hover-card"
 import * as startInput from "../../../apps/wodsmith-start/src/components/ui/input"
 import * as startLabel from "../../../apps/wodsmith-start/src/components/ui/label"
+import * as startMetric from "../../../apps/wodsmith-start/src/components/ui/metric"
 import * as startPopover from "../../../apps/wodsmith-start/src/components/ui/popover"
 import * as startProgress from "../../../apps/wodsmith-start/src/components/ui/progress"
 import * as startRadioGroup from "../../../apps/wodsmith-start/src/components/ui/radio-group"
@@ -115,6 +118,7 @@ const compatibilityModules: Array<
   ["hover-card", sharedHoverCard, startHoverCard, crewHoverCard],
   ["input", sharedInput, startInput, crewInput],
   ["label", sharedLabel, startLabel, crewLabel],
+  ["metric", sharedMetric, startMetric, crewMetric],
   ["popover", sharedPopover, startPopover, crewPopover],
   ["progress", sharedProgress, startProgress, crewProgress],
   ["radio-group", sharedRadioGroup, startRadioGroup, crewRadioGroup],

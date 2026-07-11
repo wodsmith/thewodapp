@@ -4,9 +4,9 @@ The UI library boundary lets WODsmith evolve reusable primitives independently f
 
 ## Current boundary
 
-The shared package now includes a dependency-closed feedback, identity, navigation, disclosure, progress, and scrolling slice while preserving every Start and Crew route import.
+The shared package now includes dependency-closed feedback, identity, navigation, disclosure, progress, scrolling, empty-state, field, and metric presentation while preserving every Start and Crew route import.
 
-\`@repo/ui\` owns [[packages/ui/src/components/alert.tsx#Alert|alert]], avatar, breadcrumb, collapsible, hover-card, progress, [[packages/ui/src/components/scroll-area.tsx#ScrollArea|scroll-area]], and children-driven field and empty-state composition in addition to the earlier foundation, form, and overlay primitives. The apps keep thin re-exports at their previous paths.
+\`@repo/ui\` owns [[packages/ui/src/components/alert.tsx#Alert|alert]], avatar, breadcrumb, collapsible, hover-card, progress, [[packages/ui/src/components/scroll-area.tsx#ScrollArea|scroll-area]], and children-driven field, empty-state, and metric composition in addition to the earlier foundation, form, and overlay primitives. The apps keep thin re-exports at their previous paths.
 
 [[packages/ui/src/components/auth-entry.tsx#AuthEntry|Auth entry]] is a children-driven compound pattern for responsive account-entry composition. It owns structure and semantics only; route controllers, forms, auth state, branding, and theme activation remain app-owned. Start and Crew sign-in are its first consumers.
 
@@ -133,6 +133,32 @@ The Start venue test verifies the empty h3 remains below the Venues h2 and Add v
 ##### Crew venue empty action
 
 The Crew venue test verifies the mirrored heading hierarchy and existing dialog action.
+
+### Metric composition
+
+[[packages/ui/src/components/metric.tsx#Metric|Metric]] owns portable metric structure and presentation without owning grids, calculations, data fetching, actions, animation, or state vocabulary.
+
+Root, Card, and Inset are explicit children-driven surfaces that render native description lists. Label renders a term, Value and Supporting render definitions, and its optional nested Icon is decorative by default. Start and Crew expose identity-only adapters without consumers in this extraction slice.
+
+#### Semantic metric root
+
+Root and every portable part forward native attributes, refs, and classes while preserving `dl`, `dt`, and `dd` semantics, tabular values, and a decorative icon nested within its term.
+
+#### Explicit metric surfaces
+
+Card provides a bounded card surface and Inset provides a compact muted surface without boolean presentation props; Root remains unframed for caller-owned layout.
+
+#### Metric value variants
+
+Value exposes only finite `sm`, `md`, and `lg` sizes plus neutral, positive, warning, and critical tones. Visible labels and supporting text must carry meaning independently of color.
+
+#### Metric overflow safety
+
+Every surface and text part has a zero minimum width, while labels, values, code-like identifiers, and supporting copy can wrap without forcing horizontal overflow.
+
+#### Metric context misuse
+
+Icon, Label, Value, and Supporting fail with a specific error outside Root, Card, or Inset so detached parts cannot silently lose the semantic composition contract.
 
 ### Field composition
 
@@ -306,7 +332,7 @@ Canvas theme state also reaches its iframe root and body. This lets body-portall
 
 Representative stories cover foundations plus form validation, field and fieldset composition, selection controls, dialogs, sheets, menus, popovers, tooltips, tabs, alerts, avatars, breadcrumbs, collapsibles, hover cards, progress, and scroll areas by importing direct \`@repo/ui/*\` entry points.
 
-The new stories verify field naming, descriptions, invalid transitions, disabled and slotted controls, native fieldset groups, empty-state surfaces, alert and breadcrumb semantics, image and fallback identity, disclosure state, portal hover behavior, visible progress, and real overflow. Existing semantic-contrast tests exercise every added Canvas story in both themes.
+The new stories verify field naming, descriptions, invalid transitions, disabled and slotted controls, native fieldset groups, empty-state and metric surfaces, alert and breadcrumb semantics, image and fallback identity, disclosure state, portal hover behavior, visible progress, and real overflow. Existing semantic-contrast tests exercise every added Canvas story in both themes.
 
 ### Bounded empty state story
 
@@ -331,6 +357,30 @@ The long-content story verifies that bounded empty states, actions, and expanded
 ### Empty state heading levels story
 
 The heading-level story verifies that callers can provide different valid document levels without a heading-level prop.
+
+### Neutral metric grid story
+
+The neutral grid story verifies three independent card description lists with explicit term and definition semantics while the caller owns the responsive grid.
+
+### Metric icon and supporting story
+
+The icon story verifies decorative icon behavior and a second definition for supporting context without adding an icon meaning or supporting-text prop to the surface.
+
+### Metric tone story
+
+The tone story exercises every finite value tone with visible supporting text so neutral, positive, warning, and critical meaning never depends on color alone.
+
+### Compact metric inset story
+
+The compact story verifies the explicit muted Inset surface and small Value presentation without a compact boolean prop.
+
+### Mobile metric overflow story
+
+The long-content story verifies description-list semantics and containment for code-like values and unbroken supporting references at 320 and 390 px.
+
+### Metric state composition story
+
+The state story verifies caller-owned `aria-busy` Skeleton composition and an adjacent destructive Alert without adding loading or error behavior to Metric.
 
 Auth-entry stories cover the standard Card and unframed Plain surfaces, a forced-dark composition under opposite operating-system preference, composed error and pending status regions, keyboard order, long copy, and 320/390 px overflow safety.
 
@@ -359,6 +409,8 @@ Focused package tests prove that Start and Crew adapters expose the same runtime
 The same package suite verifies auth-entry heading semantics, native props, refs, class merging, and both explicit surfaces without coupling the package to any auth controller.
 
 [[packages/ui/test/empty-state.test.tsx]] verifies both explicit empty-state surfaces, native props and refs, decorative icons, explicit heading children, arbitrary actions, and strict compound-context errors.
+
+[[packages/ui/test/metric.test.tsx]] verifies description-list semantics, explicit surfaces, finite value variants, native props and refs, decorative icons, long-content wrapping, and strict compound-context errors.
 
 ## Inventory contract
 
