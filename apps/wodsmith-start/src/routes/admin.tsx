@@ -104,10 +104,10 @@ function AdminSidebar() {
               key={item.href}
               to={item.href}
               activeOptions={{ exact: item.href === "/admin" }}
-              className="flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors hover:bg-accent"
+              className="flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors"
+              inactiveProps={{ className: "hover:bg-accent" }}
               activeProps={{
-                className:
-                  "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors bg-primary text-primary-foreground",
+                className: "bg-primary text-primary-foreground",
               }}
             >
               <item.icon className="h-4 w-4" />

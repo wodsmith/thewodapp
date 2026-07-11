@@ -7,7 +7,7 @@ lat:
 
 The Start admin shell delegates active-link matching to TanStack Router so direct SSR loads and client hydration produce identical navigation markup.
 
-The dashboard link matches only `/admin`, while each remaining platform link stays active for its nested routes. Navigation destinations, authorization, and layout remain route-owned.
+The dashboard link matches only `/admin`, while each remaining platform link stays active for its nested routes. Router-owned inactive props keep hover styling off active links. Navigation destinations, authorization, and layout remain route-owned.
 
 ## Admin Navigation Hydration Tests
 

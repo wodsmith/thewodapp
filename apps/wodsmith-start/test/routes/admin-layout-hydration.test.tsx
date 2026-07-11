@@ -17,22 +17,27 @@ vi.mock("@tanstack/react-router", () => ({
     activeProps,
     children,
     className,
+    inactiveProps,
     to,
   }: {
     activeOptions?: { exact?: boolean }
     activeProps?: { className?: string }
     children: ReactNode
     className?: string
+    inactiveProps?: { className?: string }
     to: string
   }) => {
     const active = activeOptions?.exact
       ? routerPath === to
       : routerPath === to || routerPath.startsWith(`${to}/`)
+    const stateClassName = active
+      ? activeProps?.className
+      : inactiveProps?.className
 
     return (
       <a
         aria-current={active ? "page" : undefined}
-        className={activeProps?.className && active ? activeProps.className : className}
+        className={[className, stateClassName].filter(Boolean).join(" ")}
         data-status={active ? "active" : undefined}
         href={to}
       >
@@ -100,6 +105,14 @@ async function expectHydrationStable(pathname: string, activeLabel: string) {
   expect(activeLink).toHaveAttribute("data-status", "active")
   expect(activeLink).toHaveAttribute("aria-current", "page")
   expect(activeLink).toHaveClass("bg-primary", "text-primary-foreground")
+  expect(activeLink).not.toHaveClass("hover:bg-accent")
+
+  const inactiveLabel = activeLabel === "Dashboard" ? "Teams" : "Dashboard"
+  const inactiveLink = Array.from(container.querySelectorAll("a")).find(
+    (link) => link.textContent?.trim() === inactiveLabel,
+  )
+  expect(inactiveLink).toHaveClass("hover:bg-accent")
+  expect(inactiveLink).not.toHaveClass("bg-primary")
 }
 
 describe("AdminLayout hydration", () => {
