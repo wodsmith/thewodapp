@@ -6,7 +6,7 @@ Regenerate with `pnpm --filter wodsmith-start ui:inventory` and verify it with `
 
 ## Scope summary
 
-The Start app exposes 38 primitive import paths in `src/components/ui`. They are consumed directly by 181 route-owned files and 149 shared component files.
+The Start app exposes 38 primitive import paths in `src/components/ui`. They are consumed directly by 183 route-owned files and 149 shared component files.
 
 - `@repo/ui` owns 30 extracted primitive implementations under `packages/ui/src/components`.
 - 18 primitive modules have representative Storybook stories.
@@ -28,19 +28,19 @@ Counts are unique importing files. Route-owned components under `src/routes` cou
 
 | Primitive module | Classification | Shared package | Route files | Component files | UI dependencies | Story |
 | --- | --- | --- | ---: | ---: | ---: | --- |
-| `alert` | foundation | yes | 24 | 10 | 0 | yes |
+| `alert` | foundation | yes | 25 | 10 | 0 | yes |
 | `alert-dialog` | composition | — | 18 | 4 | 0 | — |
 | `avatar` | foundation | yes | 18 | 2 | 0 | yes |
 | `badge` | foundation | yes | 79 | 64 | 0 | yes |
 | `breadcrumb` | composition | yes | 1 | 2 | 0 | yes |
-| `button` | foundation | yes | 151 | 108 | 4 | yes |
+| `button` | foundation | yes | 153 | 108 | 4 | yes |
 | `calendar` | composition | — | 3 | 1 | 0 | — |
-| `card` | foundation | yes | 113 | 50 | 0 | yes |
+| `card` | foundation | yes | 114 | 49 | 0 | yes |
 | `checkbox` | foundation | yes | 23 | 12 | 0 | — |
 | `collapsible` | composition | yes | 11 | 15 | 0 | yes |
 | `dialog` | composition | yes | 17 | 23 | 0 | yes |
 | `dropdown-menu` | composition | yes | 4 | 4 | 0 | yes |
-| `empty-state` | foundation | yes | 0 | 0 | 0 | yes |
+| `empty-state` | foundation | yes | 0 | 1 | 0 | yes |
 | `field` | foundation | yes | 3 | 2 | 0 | yes |
 | `file-upload` | app adapter | — | 0 | 1 | 0 | — |
 | `form` | composition | yes | 19 | 13 | 0 | yes |

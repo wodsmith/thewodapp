@@ -16,7 +16,7 @@ The shared package now includes a dependency-closed feedback, identity, navigati
 
 [[packages/ui/src/components/empty-state.tsx#EmptyState|EmptyState]] owns portable plain and bounded presentation without owning route state, copy, heading level, actions, or live-region policy.
 
-Root and Card are explicit surfaces instead of modes. Icon, Title, Description, and Actions compose caller content inside either surface; Start and Crew expose identity-only adapters without migrating feature consumers in this slice.
+Root and Card are explicit surfaces instead of modes. Icon, Title, Description, and Actions compose caller content inside either surface; Start and Crew expose identity-only UI adapters while organizer compatibility adapters preserve the legacy feature API.
 
 #### Plain empty state
 
@@ -33,6 +33,60 @@ Title slots exactly one concrete h1 through h6 child so the caller owns document
 #### Empty state context misuse
 
 Icon, Title, Description, and Actions fail with a specific error outside Root or Card, preventing detached compound parts from silently losing their composition contract.
+
+#### Organizer compatibility adapter
+
+The mirrored [[apps/wodsmith-start/src/components/organizer/empty-state.tsx#OrganizerEmptyState|Start]] and [[apps/crew/src/components/organizer/empty-state.tsx#OrganizerEmptyState|Crew]] adapters map the legacy prop API to explicit EmptyState surfaces.
+
+The [adapter inventory](../docs/ui-library/organizer-empty-state-adapter.md) records all 21 render sites. Plain and card layout, h3 hierarchy, action order, callbacks, icons, and legacy card spacing remain stable; the decorative icon wrapper now has `aria-hidden` semantics.
+
+##### Start adapter
+
+Start keeps its organizer feature API stable while the adapter composes the shared primitive.
+
+###### Plain presentation
+
+The plain adapter retains centered spacing, h3 hierarchy, description width, and decorative icon treatment without adding a bounded surface.
+
+###### Card presentation
+
+The default adapter retains the prior card border, foreground, shadow, and nested content spacing without applying the shared card's default maximum width or padding.
+
+###### Incomplete actions
+
+An action renders only when its label and callback are both present, preserving the legacy optional-pair contract.
+
+###### Action behavior
+
+Primary and outlined secondary buttons retain their order, supplied icons, and callback behavior.
+
+###### Mirrored source parity
+
+The Start source stays byte-identical to the Crew source so both application surfaces keep one compatibility contract.
+
+##### Crew adapter
+
+Crew mirrors the Start organizer feature API and shared primitive composition exactly.
+
+###### Plain presentation
+
+The plain adapter retains centered spacing, h3 hierarchy, description width, and decorative icon treatment without adding a bounded surface.
+
+###### Card presentation
+
+The default adapter retains the prior card border, foreground, shadow, and nested content spacing without applying the shared card's default maximum width or padding.
+
+###### Incomplete actions
+
+An action renders only when its label and callback are both present, preserving the legacy optional-pair contract.
+
+###### Action behavior
+
+Primary and outlined secondary buttons retain their order, supplied icons, and callback behavior.
+
+###### Mirrored source parity
+
+The Crew source stays byte-identical to the Start source so both application surfaces keep one compatibility contract.
 
 ### Field composition
 

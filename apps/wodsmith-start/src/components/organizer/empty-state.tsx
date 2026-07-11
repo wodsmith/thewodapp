@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react"
 import type { ReactNode } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { EmptyState } from "@/components/ui/empty-state"
 
 interface OrganizerEmptyStateProps {
   variant?: "card" | "plain"
@@ -32,16 +32,18 @@ export function OrganizerEmptyState({
     (actionLabel && onAction) || (secondaryActionLabel && onSecondaryAction)
 
   const content = (
-    <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-muted">
+    <>
+      <EmptyState.Icon className="mb-4 rounded-lg">
         <Icon className="h-6 w-6 text-muted-foreground" />
-      </div>
-      <h3 className="text-lg font-semibold">{title}</h3>
-      <p className="mt-2 max-w-md text-sm text-muted-foreground">
+      </EmptyState.Icon>
+      <EmptyState.Title className="break-normal text-wrap text-lg font-semibold tracking-normal">
+        <h3>{title}</h3>
+      </EmptyState.Title>
+      <EmptyState.Description className="mt-2 max-w-md break-normal text-wrap">
         {description}
-      </p>
+      </EmptyState.Description>
       {hasActions ? (
-        <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+        <EmptyState.Actions className="mt-5 flex-col flex-nowrap sm:flex-row">
           {actionLabel && onAction ? (
             <Button onClick={onAction}>
               {actionIcon}
@@ -54,16 +56,24 @@ export function OrganizerEmptyState({
               {secondaryActionLabel}
             </Button>
           ) : null}
-        </div>
+        </EmptyState.Actions>
       ) : null}
-    </div>
+    </>
   )
 
-  if (variant === "plain") return content
+  if (variant === "plain") {
+    return (
+      <EmptyState.Root className="gap-0 px-6 py-12">{content}</EmptyState.Root>
+    )
+  }
 
   return (
-    <Card>
-      <CardContent>{content}</CardContent>
-    </Card>
+    <EmptyState.Card className="w-auto max-w-none items-stretch justify-normal gap-0 p-0">
+      <div className="p-6 pt-0">
+        <EmptyState.Root className="gap-0 px-6 py-12">
+          {content}
+        </EmptyState.Root>
+      </div>
+    </EmptyState.Card>
   )
 }
