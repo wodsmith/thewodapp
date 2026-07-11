@@ -229,3 +229,11 @@ The follow-up responsive slice makes the public Crew header wrap navigation belo
 Focused browser coverage verifies Events, New event, and all three print-packet tabs at 390 × 844, including visible header actions, document containment, the nested schedule scroller, and print-only header/chrome behavior.
 
 The route records remain route-specific. Repetition supports presentation-only page headers, metric/status panels, empty states, responsive table containment, and the shared non-RHF field composition; Crew navigation, permissions, scheduling state, print semantics, and route actions remain app-owned.
+
+#### Responsive public header
+
+At 390 × 844, Events and New event keep every public navigation link and the account action visible while the document remains contained within the viewport.
+
+#### Export table containment and print layout
+
+At 390 × 844, each selected packet tab updates its route and content before containment is checked; the schedule table scrolls internally, and print media repeats its header while hiding app chrome.

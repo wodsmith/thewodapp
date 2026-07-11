@@ -1,4 +1,3 @@
-// @lat: [[ui-library#UI Library#Page coverage contract#Crew organizer evidence]]
 import { expect, test, type Page } from "@playwright/test"
 import { loginAsTestUser, waitForHydration } from "./fixtures/auth"
 import { TEST_DATA } from "./fixtures/test-data"
@@ -12,6 +11,7 @@ test.describe("Crew responsive layouts", () => {
 		await loginAsTestUser(page)
 	})
 
+	// @lat: [[ui-library#UI Library#Page coverage contract#Crew organizer evidence#Responsive public header]]
 	test("keeps public event navigation inside the mobile viewport", async ({
 		page,
 	}) => {
@@ -35,6 +35,7 @@ test.describe("Crew responsive layouts", () => {
 		}
 	})
 
+	// @lat: [[ui-library#UI Library#Page coverage contract#Crew organizer evidence#Export table containment and print layout]]
 	test("keeps packet tabs inside the page while the schedule table scrolls", async ({
 		page,
 	}) => {
@@ -57,8 +58,21 @@ test.describe("Crew responsive layouts", () => {
 			)
 			.toBe(true)
 
-		for (const tab of ["Judges", "Shifts"]) {
-			await page.getByRole("tab", { name: new RegExp(tab) }).click()
+		for (const tab of [
+			{ label: "Judges", search: "judges", columnHeader: "Lane" },
+			{ label: "Shifts", search: "shifts", columnHeader: "Volunteer" },
+		]) {
+			const targetTab = page.getByRole("tab", {
+				name: new RegExp(tab.label),
+			})
+			await targetTab.click()
+			await expect(targetTab).toHaveAttribute("aria-selected", "true")
+			await expect
+				.poll(() => new URL(page.url()).searchParams.get("tab"))
+				.toBe(tab.search)
+			await expect(
+				page.getByRole("columnheader", { name: tab.columnHeader }).first(),
+			).toBeVisible()
 			await expectNoDocumentOverflow(page)
 		}
 
