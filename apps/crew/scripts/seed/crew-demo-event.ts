@@ -671,10 +671,18 @@ export function crewDemoEventDateRange(
 	now: Date,
 	timezone: string,
 ): { startDate: string; endDate: string } {
+	const startDate = dateStringInTimeZone(now, timezone)
+
 	return {
-		startDate: dateStringInTimeZone(now, timezone),
-		endDate: dateStringInTimeZone(addMinutes(now, 24 * 60), timezone),
+		startDate,
+		endDate: nextCalendarDate(startDate),
 	}
+}
+
+function nextCalendarDate(dateString: string): string {
+	const date = new Date(`${dateString}T00:00:00.000Z`)
+	date.setUTCDate(date.getUTCDate() + 1)
+	return date.toISOString().slice(0, 10)
 }
 
 function dateStringInTimeZone(date: Date, timezone: string): string {

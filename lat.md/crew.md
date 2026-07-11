@@ -492,6 +492,14 @@ Focused regression coverage keeps deterministic Crew fixtures and public route l
 
 The demo event window derives calendar dates in the event timezone so token schedule assignments cannot appear outside the seeded event solely because UTC is on another date.
 
+#### Uses Event Local Date At UTC Boundary
+
+The event start date follows the event timezone even when the same instant falls on the next UTC calendar date.
+
+#### Advances One Local Calendar Day Across Fall Back
+
+The event end date advances one local calendar day rather than 24 elapsed hours so daylight-saving fall-back cannot collapse the two-day window onto one date.
+
 ### Global And Series Navigation Landmarks Are Named
 
 The global Crew navigation and series-local navigation expose distinct names so assistive technology users can tell the two landmarks apart.
