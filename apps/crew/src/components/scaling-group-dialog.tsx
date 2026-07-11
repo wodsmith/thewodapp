@@ -29,10 +29,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { FieldGroup } from "@/components/ui/field"
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -81,6 +81,22 @@ interface ScalingLevelItemProps {
   onDrop: (sourceIndex: number, targetIndex: number) => void
 }
 
+function getLevelsErrorMessage(error: unknown): string | undefined {
+  if (!error || typeof error !== "object") return undefined
+  if ("message" in error && typeof error.message === "string") {
+    return error.message
+  }
+  if (Array.isArray(error)) {
+    for (const item of error) {
+      const message = getLevelsErrorMessage(item)
+      if (message) return message
+    }
+  }
+  if ("label" in error) return getLevelsErrorMessage(error.label)
+  if ("root" in error) return getLevelsErrorMessage(error.root)
+  return undefined
+}
+
 function ScalingLevelItem({
   id,
   label,
@@ -94,6 +110,9 @@ function ScalingLevelItem({
   const dragHandleRef = useRef<HTMLButtonElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [closestEdge, setClosestEdge] = useState<Edge | null>(null)
+  const levelName = `Scaling level ${index + 1}${label.trim() ? `: ${label.trim()}` : ""}`
+  const levelTarget = `scaling level ${index + 1}${label.trim() ? `: ${label.trim()}` : ""}`
+  const inputId = `scaling-level-${id}`
 
   useEffect(() => {
     const element = ref.current
@@ -206,14 +225,18 @@ function ScalingLevelItem({
           ref={dragHandleRef}
           type="button"
           className="cursor-grab active:cursor-grabbing"
-          aria-label="Drag to reorder"
+          aria-label={`Reorder ${levelTarget}`}
         >
           <GripVertical className="h-4 w-4 text-muted-foreground" />
         </button>
         <span className="text-sm font-mono text-muted-foreground w-8">
           #{index + 1}
         </span>
+        <label htmlFor={inputId} className="sr-only">
+          {levelName}
+        </label>
         <Input
+          id={inputId}
           value={label}
           onChange={(e) => onLabelChange(e.target.value)}
           placeholder="Enter level name"
@@ -225,6 +248,7 @@ function ScalingLevelItem({
           variant="ghost"
           onClick={onRemove}
           disabled={index === 0} // Can't remove first level
+          aria-label={`Remove ${levelTarget}`}
         >
           <Trash2 className="h-4 w-4" />
         </Button>
@@ -404,6 +428,7 @@ export function ScalingGroupDialog({
   }
 
   const levels = form.watch("levels")
+  const levelsError = getLevelsErrorMessage(form.formState.errors.levels)
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -461,19 +486,24 @@ export function ScalingGroupDialog({
                 )}
               />
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <FormLabel>Scaling Levels</FormLabel>
-                    <FormDescription>
-                      Drag to reorder. Top = Hardest, Bottom = Easiest
-                      {isEditing && (
-                        <span className="block text-yellow-600 mt-1">
-                          Note: Level changes are only applied on creation.
-                        </span>
-                      )}
-                    </FormDescription>
-                  </div>
+              <FieldGroup.Root
+                id="scaling-levels"
+                description={
+                  <>
+                    Drag to reorder. Top = Hardest, Bottom = Easiest
+                    {isEditing && (
+                      <span className="block text-yellow-600 mt-1">
+                        Note: Level changes are only applied on creation.
+                      </span>
+                    )}
+                  </>
+                }
+                error={levelsError}
+                className="space-y-2"
+              >
+                <FieldGroup.Legend>Scaling Levels</FieldGroup.Legend>
+                <div className="flex items-start justify-between gap-4">
+                  <FieldGroup.Description />
                   {!isEditing && (
                     <Button type="button" size="sm" onClick={addLevel}>
                       <Plus className="h-4 w-4 mr-1" />
@@ -497,8 +527,8 @@ export function ScalingGroupDialog({
                   ))}
                 </div>
 
-                <FormMessage />
-              </div>
+                <FieldGroup.Error />
+              </FieldGroup.Root>
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={onClose}>

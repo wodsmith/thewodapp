@@ -86,6 +86,34 @@ Create state renders the named collection with a canonical Judge field, supports
 
 Edit state renders existing rotation values and preserves the Crew save payload.
 
+#### Scaling level field groups
+
+The Start and Crew scaling-group dialogs use FieldGroup for the levels collection while preserving their React Hook Form title and description fields, drag ordering, and server-function contracts.
+
+##### Organizer scaling level create
+
+Create state renders a named Scaling Levels group, labels every row and control target, supports add, remove, and reorder, and preserves the ordered create payload.
+
+##### Organizer scaling level validation
+
+Invalid level labels render the collection error through FieldGroup without requiring React Hook Form field context or crashing the organizer dialog.
+
+##### Organizer scaling level update
+
+Edit state renders sorted existing levels and its creation-only note while preserving the canonical organizer update payload without level mutations.
+
+##### Crew scaling level create
+
+Crew create state mirrors the named group, row labels, controls, collection editing, and ordered create payload used by Start.
+
+##### Crew scaling level validation
+
+Invalid Crew level labels render a semantic collection error without the former React Hook Form context crash.
+
+##### Crew scaling level update
+
+Crew edit state mirrors sorted levels and the creation-only note while retaining the unchanged update payload.
+
 ## Shared package boundary
 
 The workspace package \`@repo/ui\` under \`packages/ui\` exposes direct component subpaths, \`cn\`, and a shared stylesheet without a root barrel migration.

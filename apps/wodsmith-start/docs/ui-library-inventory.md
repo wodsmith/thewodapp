@@ -40,7 +40,7 @@ Counts are unique importing files. Route-owned components under `src/routes` cou
 | `collapsible` | composition | yes | 11 | 15 | 0 | yes |
 | `dialog` | composition | yes | 17 | 23 | 0 | yes |
 | `dropdown-menu` | composition | yes | 4 | 4 | 0 | yes |
-| `field` | foundation | yes | 3 | 0 | 0 | yes |
+| `field` | foundation | yes | 3 | 1 | 0 | yes |
 | `file-upload` | app adapter | — | 0 | 1 | 0 | — |
 | `form` | composition | yes | 19 | 13 | 0 | yes |
 | `hover-card` | composition | yes | 0 | 1 | 0 | yes |
