@@ -24,3 +24,15 @@ This test verifies `/admin/teams` hydrates without an attribute mismatch and mar
 ### Nested Team Route Preserves Parent Active State
 
 This test verifies a nested team route hydrates without an attribute mismatch while retaining the teams parent link's active styling and semantics.
+
+## Admin Dashboard Heading Tests
+
+These tests keep the direct `/admin` page title and section hierarchy available to heading navigation without changing the dashboard actions or layout.
+
+### Direct Dashboard Exposes One Page Heading
+
+This test verifies the visible Admin Dashboard title is the direct page's only level-one heading.
+
+### Dashboard Sections Follow the Page Heading
+
+This test verifies Quick Actions and Recent Activity are level-two headings beneath the dashboard title.
