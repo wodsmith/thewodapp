@@ -43,7 +43,7 @@ export function OrganizerEmptyState({
         {description}
       </EmptyState.Description>
       {hasActions ? (
-        <EmptyState.Actions className="mt-5 flex-col flex-nowrap sm:flex-row">
+        <EmptyState.Actions className="mt-5 flex-col flex-nowrap items-stretch justify-start sm:flex-row sm:items-center">
           {actionLabel && onAction ? (
             <Button onClick={onAction}>
               {actionIcon}

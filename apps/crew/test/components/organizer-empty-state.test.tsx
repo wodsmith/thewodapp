@@ -105,6 +105,11 @@ describe("OrganizerEmptyState", () => {
     expect(screen.getByTestId("primary-icon")).toBeInTheDocument()
     expect(screen.getByTestId("secondary-icon")).toBeInTheDocument()
     expect(buttons[1]).toHaveClass("border")
+    expect(buttons[0]?.parentElement).toHaveClass(
+      "items-stretch",
+      "justify-start",
+      "sm:items-center",
+    )
 
     fireEvent.click(buttons[0])
     fireEvent.click(buttons[1])

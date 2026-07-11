@@ -38,7 +38,7 @@ Icon, Title, Description, and Actions fail with a specific error outside Root or
 
 The mirrored [[apps/wodsmith-start/src/components/organizer/empty-state.tsx#OrganizerEmptyState|Start]] and [[apps/crew/src/components/organizer/empty-state.tsx#OrganizerEmptyState|Crew]] adapters map the legacy prop API to explicit EmptyState surfaces.
 
-The [adapter inventory](../docs/ui-library/organizer-empty-state-adapter.md) records all 21 render sites. Plain and card layout, h3 hierarchy, action order, callbacks, icons, and legacy card spacing remain stable; the decorative icon wrapper now has `aria-hidden` semantics.
+The [adapter inventory](../docs/ui-library/organizer-empty-state-adapter.md) records all 19 render sites. Plain and card layout, h3 hierarchy, action order, callbacks, icons, and legacy card spacing remain stable; the decorative icon wrapper now has `aria-hidden` semantics.
 
 ##### Start adapter
 
@@ -58,7 +58,7 @@ An action renders only when its label and callback are both present, preserving 
 
 ###### Action behavior
 
-Primary and outlined secondary buttons retain their order, supplied icons, and callback behavior.
+Primary and outlined secondary buttons retain their order, supplied icons, callback behavior, mobile equal-width stretch, and centered row alignment from `sm` upward.
 
 ###### Mirrored source parity
 
@@ -82,7 +82,7 @@ An action renders only when its label and callback are both present, preserving 
 
 ###### Action behavior
 
-Primary and outlined secondary buttons retain their order, supplied icons, and callback behavior.
+Primary and outlined secondary buttons retain their order, supplied icons, callback behavior, mobile equal-width stretch, and centered row alignment from `sm` upward.
 
 ###### Mirrored source parity
 
