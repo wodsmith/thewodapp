@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Metric } from "@/components/ui/metric"
 import {
   getImportFields,
   inferColumnMapping,
@@ -582,19 +583,46 @@ function PreviewPanel({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <SummaryMetric
-          label={`Ready ${importCopy.nounPlural}`}
-          value={impact.readyCount}
-        />
-        <SummaryMetric label="Warnings" value={preview.warningCount} />
-        <SummaryMetric label="Need review" value={impact.blockedCount} />
+        <Metric.Inset className="border bg-background">
+          <Metric.Label className="font-normal text-muted-foreground">
+            {`Ready ${importCopy.nounPlural}`}
+          </Metric.Label>
+          <Metric.Value>{impact.readyCount}</Metric.Value>
+        </Metric.Inset>
+        <Metric.Inset className="border bg-background">
+          <Metric.Label className="font-normal text-muted-foreground">
+            Warnings
+          </Metric.Label>
+          <Metric.Value>{preview.warningCount}</Metric.Value>
+        </Metric.Inset>
+        <Metric.Inset className="border bg-background">
+          <Metric.Label className="font-normal text-muted-foreground">
+            Need review
+          </Metric.Label>
+          <Metric.Value>{impact.blockedCount}</Metric.Value>
+        </Metric.Inset>
       </div>
 
       {applyResult ? (
         <div className="grid gap-3 sm:grid-cols-3">
-          <SummaryMetric label="Applied" value={appliedCount} />
-          <SummaryMetric label="Added" value={applyResult.createdCount} />
-          <SummaryMetric label="Skipped" value={applyResult.skippedCount} />
+          <Metric.Inset className="border bg-background">
+            <Metric.Label className="font-normal text-muted-foreground">
+              Applied
+            </Metric.Label>
+            <Metric.Value>{appliedCount}</Metric.Value>
+          </Metric.Inset>
+          <Metric.Inset className="border bg-background">
+            <Metric.Label className="font-normal text-muted-foreground">
+              Added
+            </Metric.Label>
+            <Metric.Value>{applyResult.createdCount}</Metric.Value>
+          </Metric.Inset>
+          <Metric.Inset className="border bg-background">
+            <Metric.Label className="font-normal text-muted-foreground">
+              Skipped
+            </Metric.Label>
+            <Metric.Value>{applyResult.skippedCount}</Metric.Value>
+          </Metric.Inset>
         </div>
       ) : null}
 
@@ -627,9 +655,24 @@ function PreviewPanel({
           <div className="space-y-3 text-sm">
             <p>{importCopy.changeSummary}</p>
             <div className="grid gap-3 sm:grid-cols-3">
-              <SummaryMetric label="Ready" value={impact.readyCount} />
-              <SummaryMetric label="Skipped" value={impact.skippedCount} />
-              <SummaryMetric label="Need review" value={impact.blockedCount} />
+              <Metric.Inset className="border bg-background">
+                <Metric.Label className="font-normal text-muted-foreground">
+                  Ready
+                </Metric.Label>
+                <Metric.Value>{impact.readyCount}</Metric.Value>
+              </Metric.Inset>
+              <Metric.Inset className="border bg-background">
+                <Metric.Label className="font-normal text-muted-foreground">
+                  Skipped
+                </Metric.Label>
+                <Metric.Value>{impact.skippedCount}</Metric.Value>
+              </Metric.Inset>
+              <Metric.Inset className="border bg-background">
+                <Metric.Label className="font-normal text-muted-foreground">
+                  Need review
+                </Metric.Label>
+                <Metric.Value>{impact.blockedCount}</Metric.Value>
+              </Metric.Inset>
             </div>
             {preview.warningCount > 0 ? (
               <p className="text-amber-700">
@@ -950,15 +993,6 @@ function IssueList({
           </div>
         ))}
       </div>
-    </div>
-  )
-}
-
-function SummaryMetric({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-md border bg-background p-3">
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-semibold">{value}</p>
     </div>
   )
 }

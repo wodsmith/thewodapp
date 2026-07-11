@@ -412,6 +412,26 @@ The same package suite verifies auth-entry heading semantics, native props, refs
 
 [[packages/ui/test/metric.test.tsx]] verifies description-list semantics, explicit surfaces, finite value variants, native props and refs, decorative icons, long-content wrapping, and strict compound-context errors.
 
+## Crew metric consumer tests
+
+Crew import summary tests keep each migrated label and value in a direct shared Metric description-list pair without changing import or heat workflow behavior.
+
+### Combined import summary composition
+
+The combined import preview retains all nine summary label/value sites while replacing its local presentation helper with direct shared Metric composition.
+
+### Volunteer import summary composition
+
+The volunteer import preview retains all nine summary label/value sites while replacing its local presentation helper with direct shared Metric composition.
+
+### Heats import summary composition
+
+The heats import preview retains all nine summary label/value sites while replacing its local presentation helper with direct shared Metric composition.
+
+### Consumer value edge cases
+
+Direct consumer-style Metric composition preserves zero, composed React nodes, and long unbroken values as ordered semantic label/value pairs.
+
 ## Inventory contract
 
 The checked-in inventory makes route and component coupling visible before each extraction slice.
