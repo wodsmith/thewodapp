@@ -540,6 +540,8 @@ The tabs are **Master Schedule** (shifts and heats combined, day-sectioned, with
 
 Print output hides all app chrome (sidebar, mobile top bar, and the event hero header get `print:hidden` in [[apps/crew/src/components/crew-event-sidebar.tsx]] and the sidebar UI primitive) and instead shows a compact WODsmith Crew brand header — logo, event name, packet name, generated time — repeated on every printed page via a `thead` set to `print:table-header-group` wrapping the packet content.
 
+On screen, the outer print table uses fixed layout so its nested packet table owns horizontal scrolling without widening the page. Print media restores automatic table layout to preserve the repeating header and operator-ready column sizing.
+
 The packet is full local-operator-only through [[apps/crew/src/server/crew-pilot-exports.server.ts]] and [[apps/crew/src/server-fns/crew-pilot-export-fns.ts]]. It deliberately omits station/floor cards, role sheets, the response/decline list, the packet index, and metric panels, and does not add PDF runtime infrastructure, schema, queue/email work, public tokens, department-lead subset export access, or assignment/judge-version mutations.
 
 ## Strategic Moat Privacy Model

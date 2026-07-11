@@ -78,7 +78,7 @@ export function EventPilotExportsView({
   const timezone = event.timezone ?? "America/Denver"
 
   return (
-    <section className="space-y-5">
+    <section className="min-w-0 space-y-5">
       <div className="flex flex-col gap-3 print:hidden sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-xl font-semibold">Print packet</h2>
@@ -138,7 +138,7 @@ export function EventPilotExportsView({
 
       {/* The thead repeats on every printed page, giving each page a compact
           branded header without any screen-layout impact. */}
-      <table className="w-full">
+      <table className="w-full table-fixed print:table-auto">
         <thead className="hidden print:table-header-group">
           <tr>
             <td className="pb-4">

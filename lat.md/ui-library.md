@@ -224,6 +224,8 @@ The fourth evidence slice covers the authenticated Crew organizer workflow from 
 
 Every route verifies desktop and mobile light output from the populated `e2e_competition` fixture with scrubbed accessibility, DOM, console, and network evidence. Twelve representative screenshots cover the primary list, form, overview, roster, day-of, setup, and export surfaces.
 
-Events and New event expand to 442 px at the 390 px viewport because the public header overflows. Print packet expands to 500 px because its outer packet table defeats the inner schedule scroller. The other nine audited routes do not overflow horizontally.
+The follow-up responsive slice makes the public Crew header wrap navigation below the brand and account row on narrow screens. The print packet constrains its screen-only outer table while preserving internal schedule scrolling and automatic print layout.
+
+Focused browser coverage verifies Events, New event, and all three print-packet tabs at 390 × 844, including visible header actions, document containment, the nested schedule scroller, and print-only header/chrome behavior.
 
 The route records remain route-specific. Repetition supports presentation-only page headers, metric/status panels, empty states, responsive table containment, and the shared non-RHF field composition; Crew navigation, permissions, scheduling state, print semantics, and route actions remain app-owned.
