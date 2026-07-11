@@ -6,6 +6,7 @@ const ORGANIZER_TEAM_ID = "e2e_test_team"
 const COMPETITION_TEAM_ID = "e2e_comp_team"
 const SLUG = "e2e-throwdown"
 const VOLUNTEER_TOKEN = "e2e-crew-demo-volunteer-schedule"
+const EVENT_TIMEZONE = "America/Denver"
 
 const DEMO_VOLUNTEERS = [
 	["01", "Frank", "Garcia", "frank.crew.demo@test.com", ["judge", "medical"]],
@@ -164,8 +165,7 @@ export async function seedCrewDemoEvent(
 	await cleanupCrewDemoEvent(connection)
 
 	const now = new Date()
-	const startDate = dateStringFrom(now)
-	const endDate = dateStringFrom(addMinutes(now, 24 * 60))
+	const { startDate, endDate } = crewDemoEventDateRange(now, EVENT_TIMEZONE)
 	const expiresAt = sqlDatetime(addMinutes(now, 14 * 24 * 60))
 
 	await connection.execute(
@@ -177,7 +177,7 @@ export async function seedCrewDemoEvent(
 			"A seeded Crew demo with staffed floors, published heats, confirmations, and day-of state.",
 			startDate,
 			endDate,
-			"America/Denver",
+			EVENT_TIMEZONE,
 			"public",
 			"published",
 			"in-person",
@@ -667,6 +667,26 @@ function sqlDatetime(date: Date): string {
 	return date.toISOString().slice(0, 19).replace("T", " ")
 }
 
-function dateStringFrom(date: Date): string {
-	return date.toISOString().slice(0, 10)
+export function crewDemoEventDateRange(
+	now: Date,
+	timezone: string,
+): { startDate: string; endDate: string } {
+	return {
+		startDate: dateStringInTimeZone(now, timezone),
+		endDate: dateStringInTimeZone(addMinutes(now, 24 * 60), timezone),
+	}
+}
+
+function dateStringInTimeZone(date: Date, timezone: string): string {
+	const parts = new Intl.DateTimeFormat("en-US", {
+		timeZone: timezone,
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+	}).formatToParts(date)
+	const values = Object.fromEntries(
+		parts.map((part) => [part.type, part.value]),
+	)
+
+	return `${values.year}-${values.month}-${values.day}`
 }

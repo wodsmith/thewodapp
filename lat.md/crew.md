@@ -484,6 +484,22 @@ Crew volunteer self-service is a no-session, no-password token surface scoped to
 
 [[apps/crew/src/routes/e/$slug/schedule/$token.tsx]] renders the token volunteer's own schedule, response entry point, print-friendly schedule view, calendar links, and contact metadata form. [[apps/crew/src/server-fns/crew-confirmation-fns.ts]] keeps route imports thin while [[apps/crew/src/server/crew-confirmation.server.ts]] validates the event slug, token hash, Crew-only event state, assignment row, and volunteer membership before returning or mutating data.
 
+## Crew Accessibility Regressions
+
+Focused regression coverage keeps deterministic Crew fixtures and public route landmarks aligned with their rendered semantics.
+
+### Demo Event Dates Use Event Timezone
+
+The demo event window derives calendar dates in the event timezone so token schedule assignments cannot appear outside the seeded event solely because UTC is on another date.
+
+### Global And Series Navigation Landmarks Are Named
+
+The global Crew navigation and series-local navigation expose distinct names so assistive technology users can tell the two landmarks apart.
+
+### Volunteer Signup Title Is An H1
+
+The public volunteer signup card exposes its visible event-specific title as the page-level heading without changing the shared card title element.
+
 [[apps/crew/src/lib/crew/volunteer-self-service.ts]] owns deterministic schedule shaping, metadata-only contact updates, and calendar snippet helpers. Contact updates write only volunteer roster metadata on `team_memberships`; they do not mutate user account email, assignment rows, confirmation response state, reminder counts, or sent timestamps.
 
 ## Assignment Confirmation Responses

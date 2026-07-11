@@ -1,19 +1,20 @@
 // @lat: [[crew#Series Crew Pools]]
-import type { ReactNode } from "react"
+
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import {
   CalendarCheck,
   History,
   ShieldCheck,
-  Users,
   UserRoundCheck,
+  Users,
 } from "lucide-react"
-import type { SeriesCrewPoolEntry } from "@/lib/crew/series-crew-pools"
-import { formatCrewValue } from "@/lib/crew-event-display"
+import type { ReactNode } from "react"
 import {
   formatVolunteerAvailability,
   formatVolunteerRole,
 } from "@/lib/crew/roster-shifts"
+import type { SeriesCrewPoolEntry } from "@/lib/crew/series-crew-pools"
+import { formatCrewValue } from "@/lib/crew-event-display"
 import { getCrewSeriesCrewPoolPageFn } from "@/server-fns/crew-series-fns"
 
 export const Route = createFileRoute("/series/$groupId/crew")({
@@ -61,7 +62,10 @@ function SeriesCrewPoolPage() {
           <h1 className="text-3xl font-semibold">{group.name}</h1>
           <p className="text-muted-foreground">Series crew pool</p>
         </div>
-        <nav className="flex flex-wrap gap-2 text-sm">
+        <nav
+          aria-label="Series navigation"
+          className="flex flex-wrap gap-2 text-sm"
+        >
           <Link
             to="/events"
             className="rounded-md border px-3 py-2 text-muted-foreground hover:bg-muted hover:text-foreground"

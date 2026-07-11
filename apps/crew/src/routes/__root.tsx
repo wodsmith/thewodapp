@@ -70,7 +70,10 @@ function RootComponent() {
               </span>
               <span>WODsmith Crew</span>
             </Link>
-            <nav className="order-last flex w-full items-center justify-center gap-1 text-sm lg:order-none lg:w-auto">
+            <nav
+              aria-label="Primary navigation"
+              className="order-last flex w-full items-center justify-center gap-1 text-sm lg:order-none lg:w-auto"
+            >
               <Link
                 to="/calculator"
                 activeProps={{
