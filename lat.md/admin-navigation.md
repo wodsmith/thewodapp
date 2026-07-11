@@ -36,3 +36,15 @@ This test verifies the visible Admin Dashboard title is the direct page's only l
 ### Dashboard Sections Follow the Page Heading
 
 This test verifies Quick Actions and Recent Activity are level-two headings beneath the dashboard title.
+
+## Demo Competitions Semantic Tests
+
+These tests keep the demo generator's content structure navigable without changing its creation or deletion behavior.
+
+### Page and Card Sections Form a Coherent Heading Outline
+
+This test verifies the page title, card sections, and creation summary use consecutive heading levels.
+
+### Creation Summary Uses Valid Nested Lists
+
+This test verifies workout details are nested within their parent list item so assistive technology receives valid list semantics.
