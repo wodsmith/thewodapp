@@ -204,6 +204,24 @@ describe("Crew registration question option field composition", () => {
     mocks.update.mockResolvedValue({ question: existingQuestion })
   })
 
+  // @lat: [[ui-library#UI Library#Current boundary#Empty state composition#Direct organizer consumers#Crew registration questions empty state]]
+  it("keeps the empty questions action under a section-level heading", () => {
+    render(<RegistrationQuestionsEditor {...props()} />)
+
+    expect(
+      screen.getByRole("heading", {
+        level: 3,
+        name: "No registration questions yet",
+      }),
+    ).toBeVisible()
+
+    fireEvent.click(screen.getByRole("button", { name: "Add Question" }))
+
+    expect(
+      screen.getByRole("heading", { name: "Add Registration Question" }),
+    ).toBeVisible()
+  })
+
   // @lat: [[ui-library#UI Library#Current boundary#Field composition#Registration option field groups#Crew registration option type rendering]]
   it("renders the Options group only for select questions", () => {
     render(<RegistrationQuestionsEditor {...props()} />)

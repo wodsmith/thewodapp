@@ -1,20 +1,33 @@
 # Organizer empty-state adapter inventory
 
-This inventory records the audited Start and Crew organizer adapters that now compose the shared `@repo/ui` EmptyState without changing their feature-facing prop API.
+This inventory records the remaining compatibility-adapter surface and the first direct organizer consumers of the shared `@repo/ui` EmptyState.
 
 ## Audited surface
 
-The two adapter definitions were byte-identical before migration and remain byte-identical after migration. No feature consumer changes are part of this slice.
+The two adapter definitions remain byte-identical. Ten component-owned render sites now compose the shared primitive directly, while nine Start route-owned sites retain the legacy adapter for later slices.
 
-| App | Adapter definition | Consumer files | Render sites | Plain | Default card |
-| --- | --- | ---: | ---: | ---: | ---: |
-| WODsmith Start | `apps/wodsmith-start/src/components/organizer/empty-state.tsx` | 10 | 14 | 3 | 11 |
-| Crew | `apps/crew/src/components/organizer/empty-state.tsx` | 4 | 5 | 3 | 2 |
-| Total | 2 mirrored definitions | 14 | 19 | 6 | 13 |
+| App | Remaining adapter consumer files | Remaining render sites | Plain | Default card |
+| --- | ---: | ---: | ---: | ---: |
+| WODsmith Start | 6 | 9 | 0 | 9 |
+| Crew | 0 | 0 | 0 | 0 |
+| Total | 6 | 9 | 0 | 9 |
+
+## Direct consumer migration
+
+The mirrored component cluster keeps Start and Crew source parity while making surface, heading, copy, and actions explicit at each call site.
+
+| Consumer | Sites per app | Surface | Heading | Action |
+| --- | ---: | --- | --- | --- |
+| `registration-questions-editor.tsx` | 1 | plain | h3 | Add Question opens the existing dialog |
+| `event-division-mapper.tsx` | 2 | plain | h3 | none |
+| `organizer/invites/invite-sources-list.tsx` | 1 | card | h2 | optional Add source callback |
+| `organizer/schedule/venue-manager.tsx` | 1 | card | h3 beneath the Venues h2 | Add venue opens the existing dialog |
+
+The two apps therefore migrate five render sites each and ten total. Copy, icon treatment, plain/card classes, card nesting, callbacks, action omission, and route/domain logic remain stable. The Sources tab title moves from the adapter-forced h3 to the caller-correct h2 below the Invites h1.
 
 ## Compatibility mapping
 
-The adapter maps `variant="plain"` to `EmptyState.Root` and the default `variant="card"` to `EmptyState.Card`. Both surfaces compose `Icon`, `Title`, `Description`, and optional `Actions` children.
+For the nine remaining sites, the adapter maps `variant="plain"` to `EmptyState.Root` and the default `variant="card"` to `EmptyState.Card`. Both surfaces compose `Icon`, `Title`, `Description`, and optional `Actions` children.
 
 - The required icon, title, and description props are unchanged.
 - The caller-owned title remains an `h3` at every existing render site.
@@ -25,4 +38,4 @@ The adapter maps `variant="plain"` to `EmptyState.Root` and the default `variant
 
 ## Verification contract
 
-Mirrored Start and Crew tests cover plain and card presentations, incomplete action omission, responsive action alignment and callbacks, icon rendering, heading level, and byte-identical source parity. Shared primitive behavior remains covered by the package EmptyState tests and Storybook stories.
+Adapter tests continue to cover its compatibility API. Mirrored consumer tests cover the registration action, both event-mapping prerequisites, optional invite action, venue action, and caller-owned heading levels. Shared primitive behavior remains covered by package tests and Storybook stories.

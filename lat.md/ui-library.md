@@ -38,7 +38,7 @@ Icon, Title, Description, and Actions fail with a specific error outside Root or
 
 The mirrored [[apps/wodsmith-start/src/components/organizer/empty-state.tsx#OrganizerEmptyState|Start]] and [[apps/crew/src/components/organizer/empty-state.tsx#OrganizerEmptyState|Crew]] adapters map the legacy prop API to explicit EmptyState surfaces.
 
-The [adapter inventory](../docs/ui-library/organizer-empty-state-adapter.md) records all 19 render sites. Plain and card layout, h3 hierarchy, action order, callbacks, icons, and legacy card spacing remain stable; the decorative icon wrapper now has `aria-hidden` semantics.
+The [adapter inventory](../docs/ui-library/organizer-empty-state-adapter.md) records the original 19 sites, ten direct component migrations, and nine remaining Start route sites. Legacy layout, action behavior, and decorative icon semantics remain stable.
 
 ##### Start adapter
 
@@ -87,6 +87,52 @@ Primary and outlined secondary buttons retain their order, supplied icons, callb
 ###### Mirrored source parity
 
 The Crew source stays byte-identical to the Start source so both application surfaces keep one compatibility contract.
+
+#### Direct organizer consumers
+
+Four mirrored component clusters compose `@repo/ui` EmptyState directly so each caller owns its surface, heading, copy, and actions without a feature prop adapter.
+
+Registration questions and event-mapping prerequisites keep their plain presentation. Invite sources and venues keep the legacy card nesting and spacing. The Sources tab now uses an h2 below its route h1; nested component states keep h3 headings.
+
+##### Start registration questions empty state
+
+The Start empty-question test verifies an h3 title and that Add Question opens the existing registration-question dialog.
+
+##### Crew registration questions empty state
+
+The Crew mirror verifies the same heading and action semantics without changing question state or payloads.
+
+##### Start event mapping event prerequisite
+
+The Start mapper test verifies the missing-events branch keeps its h3 and prerequisite guidance.
+
+##### Start event mapping division prerequisite
+
+The Start mapper test verifies the missing-divisions branch keeps its h3 and prerequisite guidance.
+
+##### Crew event mapping event prerequisite
+
+The Crew mapper test verifies the missing-events branch keeps its h3 and prerequisite guidance.
+
+##### Crew event mapping division prerequisite
+
+The Crew mapper test verifies the missing-divisions branch keeps its h3 and prerequisite guidance.
+
+##### Start invite sources empty action
+
+The Start invite test verifies the Sources tab uses an h2 and invokes the optional Add source callback only when supplied.
+
+##### Crew invite sources empty action
+
+The Crew invite test verifies the Sources tab uses an h2 and preserves optional action omission and invocation.
+
+##### Start venue empty action
+
+The Start venue test verifies the empty h3 remains below the Venues h2 and Add venue opens the existing dialog.
+
+##### Crew venue empty action
+
+The Crew venue test verifies the mirrored heading hierarchy and existing dialog action.
 
 ### Field composition
 

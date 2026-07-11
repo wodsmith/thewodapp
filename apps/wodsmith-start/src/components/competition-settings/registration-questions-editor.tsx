@@ -15,6 +15,7 @@ import {
 } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge"
 import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator/box"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { EmptyState } from "@repo/ui/empty-state"
 import { useServerFn } from "@tanstack/react-start"
 import {
   CheckCircle2,
@@ -30,7 +31,6 @@ import { useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
-import { OrganizerEmptyState } from "@/components/organizer/empty-state"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -921,23 +921,29 @@ export function RegistrationQuestionsEditor({
         </CardHeader>
         <CardContent>
           {questions.length === 0 ? (
-            <OrganizerEmptyState
-              variant="plain"
-              icon={HelpCircle}
-              title={
-                questionTarget === "volunteer"
-                  ? "No volunteer signup questions yet"
-                  : "No registration questions yet"
-              }
-              description={
-                questionTarget === "volunteer"
+            <EmptyState.Root className="gap-0 px-6 py-12">
+              <EmptyState.Icon className="mb-4 rounded-lg">
+                <HelpCircle className="h-6 w-6 text-muted-foreground" />
+              </EmptyState.Icon>
+              <EmptyState.Title className="break-normal text-wrap text-lg font-semibold tracking-normal">
+                <h3>
+                  {questionTarget === "volunteer"
+                    ? "No volunteer signup questions yet"
+                    : "No registration questions yet"}
+                </h3>
+              </EmptyState.Title>
+              <EmptyState.Description className="mt-2 max-w-md break-normal text-wrap">
+                {questionTarget === "volunteer"
                   ? "Ask volunteers about availability, certifications, shirt size, or preferred roles."
-                  : "Ask athletes about shirt size, experience level, teammate details, or other registration needs."
-              }
-              actionLabel="Add Question"
-              actionIcon={<Plus className="mr-2 h-4 w-4" />}
-              onAction={handleAddNew}
-            />
+                  : "Ask athletes about shirt size, experience level, teammate details, or other registration needs."}
+              </EmptyState.Description>
+              <EmptyState.Actions className="mt-5 flex-col flex-nowrap items-stretch justify-start sm:flex-row sm:items-center">
+                <Button onClick={handleAddNew}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Question
+                </Button>
+              </EmptyState.Actions>
+            </EmptyState.Root>
           ) : (
             <div className="space-y-2">
               {questions.map((question, index) => (

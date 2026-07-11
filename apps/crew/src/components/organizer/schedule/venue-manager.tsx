@@ -1,13 +1,13 @@
 "use client"
 
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
+import { EmptyState } from "@repo/ui/empty-state"
 import { Loader2, MapPin, Pencil, Plus, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
 import { AddressFields } from "@/components/forms/address-fields"
-import { OrganizerEmptyState } from "@/components/organizer/empty-state"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -372,14 +372,28 @@ export function VenueManager({
 
       {/* Venue List */}
       {displayVenues.length === 0 ? (
-        <OrganizerEmptyState
-          icon={MapPin}
-          title="No venues yet"
-          description='Create venues like "Main Floor" or "Outside Rig" with lane counts for heat scheduling.'
-          actionLabel="Add venue"
-          actionIcon={<Plus className="mr-2 h-4 w-4" />}
-          onAction={() => setIsCreateOpen(true)}
-        />
+        <EmptyState.Card className="w-auto max-w-none items-stretch justify-normal gap-0 p-0">
+          <div className="p-6 pt-0">
+            <EmptyState.Root className="gap-0 px-6 py-12">
+              <EmptyState.Icon className="mb-4 rounded-lg">
+                <MapPin className="h-6 w-6 text-muted-foreground" />
+              </EmptyState.Icon>
+              <EmptyState.Title className="break-normal text-wrap text-lg font-semibold tracking-normal">
+                <h3>No venues yet</h3>
+              </EmptyState.Title>
+              <EmptyState.Description className="mt-2 max-w-md break-normal text-wrap">
+                Create venues like &quot;Main Floor&quot; or &quot;Outside
+                Rig&quot; with lane counts for heat scheduling.
+              </EmptyState.Description>
+              <EmptyState.Actions className="mt-5 flex-col flex-nowrap items-stretch justify-start sm:flex-row sm:items-center">
+                <Button onClick={() => setIsCreateOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add venue
+                </Button>
+              </EmptyState.Actions>
+            </EmptyState.Root>
+          </div>
+        </EmptyState.Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {displayVenues.map((venue) => (

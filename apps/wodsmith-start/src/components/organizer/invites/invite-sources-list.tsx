@@ -6,9 +6,9 @@
  * (matches `project/invites/sources.jsx` modulo visual polish).
  */
 
+import { EmptyState } from "@repo/ui/empty-state"
 import { Layers, Trophy } from "lucide-react"
 import type React from "react"
-import { OrganizerEmptyState } from "@/components/organizer/empty-state"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -71,13 +71,27 @@ export function InviteSourcesList({
 
   if (sources.length === 0) {
     return (
-      <OrganizerEmptyState
-        icon={Layers}
-        title="No qualification sources yet"
-        description="Add a competition or series source to identify athletes who qualify for this championship."
-        actionLabel={onAdd ? "Add source" : undefined}
-        onAction={onAdd}
-      />
+      <EmptyState.Card className="w-auto max-w-none items-stretch justify-normal gap-0 p-0">
+        <div className="p-6 pt-0">
+          <EmptyState.Root className="gap-0 px-6 py-12">
+            <EmptyState.Icon className="mb-4 rounded-lg">
+              <Layers className="h-6 w-6 text-muted-foreground" />
+            </EmptyState.Icon>
+            <EmptyState.Title className="break-normal text-wrap text-lg font-semibold tracking-normal">
+              <h2>No qualification sources yet</h2>
+            </EmptyState.Title>
+            <EmptyState.Description className="mt-2 max-w-md break-normal text-wrap">
+              Add a competition or series source to identify athletes who
+              qualify for this championship.
+            </EmptyState.Description>
+            {onAdd ? (
+              <EmptyState.Actions className="mt-5 flex-col flex-nowrap items-stretch justify-start sm:flex-row sm:items-center">
+                <Button onClick={onAdd}>Add source</Button>
+              </EmptyState.Actions>
+            ) : null}
+          </EmptyState.Root>
+        </div>
+      </EmptyState.Card>
     )
   }
 
