@@ -19,15 +19,15 @@ The slice verifies 24 scenarios across 12 visual records. Every record has a des
 - `/events/e2e_competition/day-of`
 - `/events/e2e_competition/exports`
 
-All observations were captured on 2026-07-10 from commit `e7ba19fa32e0c95b49793e4afbfcf2cbe302fdd7` with `agent-browser 0.26.0`. The app ran locally with `VITE_E2E=true`, local KV/R2 bindings, and Hyperdrive pointed at a fresh disposable loopback-bound MySQL database.
+All observations were captured on 2026-07-10 with `agent-browser 0.26.0`. The initial slice used commit `e7ba19fa32e0c95b49793e4afbfcf2cbe302fdd7`; Events, New event, and Exports were recaptured at responsive-fix commit `2333f9328338f20dc0423fc48a1031a812be4060`. The app ran locally with `VITE_E2E=true`, local KV/R2 bindings, and Hyperdrive pointed at a fresh disposable loopback-bound MySQL database.
 
 The database received the normal Crew base seed followed by `apps/crew/scripts/seed-e2e.ts`, whose `crew-demo-event` fixture provides the event, workouts, heats, volunteers, shifts, confirmations, judge assignments, and event-day state used here. Authentication used `/api/e2e/session` for `e2e_test_user`. No form was submitted and no mutating action was clicked.
 
 ## Evidence contract
 
-The capture manifest contains 24 exact-head captures and 108 hash-pinned live artifacts. Every scenario has an accessibility snapshot, scrubbed DOM/overflow snapshot, scrubbed console log, and scrubbed network log. Twelve representative screenshots cover both viewports for Events, New event, Overview, Day-of operations, and Volunteers, plus desktop Setup and Print packet.
+The capture manifest contains 24 exact-revision captures and 109 hash-pinned live artifacts. Every scenario has an accessibility snapshot, scrubbed DOM/overflow snapshot, scrubbed console log, and scrubbed network log. Thirteen representative screenshots cover both viewports for Events, New event, Overview, Day-of operations, Volunteers, and Print packet, plus desktop Setup.
 
-The complete evidence directory contains 109 files including its manifest. Captures serialize no cookies, headers, credentials, form values, database URLs, local repository paths, or network query values. Every final URL, viewport, and effective theme matched its scenario. The exports route intentionally normalized the requested URL to `?tab=schedule`, its route-validated default tab.
+The complete evidence directory contains 110 files including its manifest. Captures serialize no cookies, headers, credentials, form values, database URLs, local repository paths, or network query values. Every final URL, viewport, and effective theme matched its scenario. The exports route intentionally normalized the requested URL to `?tab=schedule`, its route-validated default tab.
 
 All 24 scenarios had zero uncaught page errors, zero console errors, and zero network responses with status 400 or higher.
 
@@ -39,13 +39,13 @@ Volunteers, Volunteer Shifts, Judge Assignments, and Confirmations all expose th
 
 ## Responsive findings
 
-Three real mobile overflow issues remain non-blocking findings because the underlying routes loaded successfully and the evidence records the observed output:
+The three mobile overflow findings are resolved and recaptured at the responsive-fix revision:
 
-- `/events` measures 442 px of content in a 390 px viewport. The public Crew header's account/logout control begins at x=402, so the navigation row extends 52 px beyond the viewport.
-- `/events/new` shares the same 442 px public-header width and overflow.
-- `/events/e2e_competition/exports?tab=schedule` measures 500 px in a 390 px viewport. The outer packet table grows to 484 px; its inner schedule table has an `overflow-x-auto` wrapper, but the print-packet structure itself still widens the page.
+- `/events` now measures 390 px at the 390 px viewport. The public header wraps its navigation below the brand/account row, and the logout control stays fully visible from x=334 to x=374.
+- `/events/new` uses the same contained header layout and also measures exactly 390 px.
+- `/events/e2e_competition/exports?tab=schedule` now measures 390 px. Its schedule scroller is 358 px wide with 484 px of table content, so horizontal movement remains local to the table instead of widening the document.
 
-The other nine audited routes reported no horizontal overflow in either viewport. The findings should be handled in responsive implementation PRs rather than changing the truthfulness of this evidence slice.
+All 12 audited routes report no document-level horizontal overflow in either viewport. Focused Playwright coverage also verifies the Judges and Shifts tabs plus print media's repeated packet header and hidden application chrome.
 
 ## Reusable-pattern inventory
 

@@ -4285,7 +4285,7 @@
             {
               "kind": "dom-snapshot",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-organizer-desktop-light.dom.json",
-              "sha256": "41c5d81bd40fef3518372bca40403c9d13ef9649f2585d020a4d17209b4fcf15"
+              "sha256": "072113552d63057945cc546203b0b917e040aa3f86194a7ca22a8587a133d7c3"
             },
             {
               "kind": "console-log",
@@ -4295,17 +4295,17 @@
             {
               "kind": "network-log",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-organizer-desktop-light.network.json",
-              "sha256": "d5e6a0a3c3870f236148868f97d19297b10aab15d789a935b03c7c6f5808fd16"
+              "sha256": "a0b9e3883c5462c1bc4f86bcaf381dbc706e3fe6dd90fa21b26e9078f24deaa5"
             },
             {
               "kind": "browser-screenshot",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-organizer-desktop-light.png",
-              "sha256": "267ce4b840eff81202f08d776eb369c0ee944a7c51ed8d0c7dcc8a41f4a5475c"
+              "sha256": "8435a8926886290763a5f3b42d80ed402415302ad0b25d5f5d3bc1e0a79e84f6"
             },
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
-              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "sha256": "9ca5a57e25efe9d190d26f70953a3206714b6c2066c93a4fd85b1fd9e889dbaa",
               "captureId": "events-organizer-desktop-light"
             }
           ],
@@ -4330,7 +4330,7 @@
             {
               "kind": "dom-snapshot",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-organizer-mobile-light.dom.json",
-              "sha256": "af85b470e719e7f072163e47b0b6ed2d11e4c937ad1c3a88b5dc06955a2531b1"
+              "sha256": "8c0ab02cf5cfbcc77b4308958d6504e71b212fd18c74752c279c5c0d0adae44f"
             },
             {
               "kind": "console-log",
@@ -4340,17 +4340,17 @@
             {
               "kind": "network-log",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-organizer-mobile-light.network.json",
-              "sha256": "72f4915597352126cb885c43e15175cc912dfa8d1611aee76e427b00fa319a56"
+              "sha256": "bf8bd33d561473f9f98d5c4f6659e97a3f29d4a47f5b495e43b047399e545a9b"
             },
             {
               "kind": "browser-screenshot",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-organizer-mobile-light.png",
-              "sha256": "b713a2bbb1803addbe180464753bf7492bfa55537ca363ab5f70718e5bcee69c"
+              "sha256": "2455be94e5578602531a1a1e0829885ac818642a8337def356a46a0984cd3fe1"
             },
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
-              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "sha256": "9ca5a57e25efe9d190d26f70953a3206714b6c2066c93a4fd85b1fd9e889dbaa",
               "captureId": "events-organizer-mobile-light"
             }
           ],
@@ -4447,7 +4447,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
-              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "sha256": "9ca5a57e25efe9d190d26f70953a3206714b6c2066c93a4fd85b1fd9e889dbaa",
               "captureId": "overview-organizer-desktop-light"
             }
           ],
@@ -4494,7 +4494,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
-              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "sha256": "9ca5a57e25efe9d190d26f70953a3206714b6c2066c93a4fd85b1fd9e889dbaa",
               "captureId": "overview-organizer-mobile-light"
             }
           ],
@@ -4606,7 +4606,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
-              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "sha256": "9ca5a57e25efe9d190d26f70953a3206714b6c2066c93a4fd85b1fd9e889dbaa",
               "captureId": "day-of-organizer-desktop-light"
             }
           ],
@@ -4653,7 +4653,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
-              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "sha256": "9ca5a57e25efe9d190d26f70953a3206714b6c2066c93a4fd85b1fd9e889dbaa",
               "captureId": "day-of-organizer-mobile-light"
             }
           ],
@@ -4722,12 +4722,12 @@
             {
               "kind": "accessibility-snapshot",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/exports-organizer-desktop-light.a11y.txt",
-              "sha256": "684700823d769fa008d57cbe6c0fc5f9f9e104379994cfd955c95e66547c7122"
+              "sha256": "f0427049b9da2938696f1036a304cbe0cfaf418af8217a9490f6d2a8557370b3"
             },
             {
               "kind": "dom-snapshot",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/exports-organizer-desktop-light.dom.json",
-              "sha256": "3973fbe026a31fbc80a6df2d9ca34d7c00a83709e3b5335400100ef0b2098690"
+              "sha256": "b648932370ef685e84e85da97e22b191403c7b934087fb98960d92efc3ea216f"
             },
             {
               "kind": "console-log",
@@ -4737,17 +4737,17 @@
             {
               "kind": "network-log",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/exports-organizer-desktop-light.network.json",
-              "sha256": "aa31cd351526be333c8ad472988957d7613a13a8cb89ed0007e698b3819ee0b3"
+              "sha256": "e97a5e9f2468918f297a2bcb92443d33c68b4046390be246ee130a814023ebf1"
             },
             {
               "kind": "browser-screenshot",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/exports-organizer-desktop-light.png",
-              "sha256": "0f244963f117fc7bc7d2a040bbae99c91bf914a9a619f22f79cc9062a0be7564"
+              "sha256": "fd116a5bcc0296685eda117c6d15aa9626e295518633be02fb5426e6e18a5d7c"
             },
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
-              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "sha256": "9ca5a57e25efe9d190d26f70953a3206714b6c2066c93a4fd85b1fd9e889dbaa",
               "captureId": "exports-organizer-desktop-light"
             }
           ],
@@ -4769,12 +4769,12 @@
             {
               "kind": "accessibility-snapshot",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/exports-organizer-mobile-light.a11y.txt",
-              "sha256": "9dd4951609ed2e0cd84a9d0ed1060593b157301014cc745fe5ba1a0581f19eb0"
+              "sha256": "c30e8578352d7acd673c8dd21b6ebcc060c88cc9e99ee174ecf6b5aab640d1d6"
             },
             {
               "kind": "dom-snapshot",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/exports-organizer-mobile-light.dom.json",
-              "sha256": "d77e40d31d93854d3acdde62e8fa5a7f77c49b2a14ca3d6a90e3a37de896f68d"
+              "sha256": "0ab74c74ae64cfa0785dc6cd6335a4e4cfbcc6225e29f9a9f6d259032681c260"
             },
             {
               "kind": "console-log",
@@ -4784,12 +4784,17 @@
             {
               "kind": "network-log",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/exports-organizer-mobile-light.network.json",
-              "sha256": "2a2558fdd126dd84f442d7932bc03d6c27f7af2e86add2f4998b7d03faeefc6c"
+              "sha256": "39f95ee0b26bfcb3f9f83a04d238f7d53901b5ebfdb1213e473180b1f3e0527d"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/exports-organizer-mobile-light.png",
+              "sha256": "632f983d7d264b203d4f80afa332bdb9d40b0d8e7ed1c8afb2cb435245b6af00"
             },
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
-              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "sha256": "9ca5a57e25efe9d190d26f70953a3206714b6c2066c93a4fd85b1fd9e889dbaa",
               "captureId": "exports-organizer-mobile-light"
             }
           ],
@@ -4860,7 +4865,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
-              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "sha256": "9ca5a57e25efe9d190d26f70953a3206714b6c2066c93a4fd85b1fd9e889dbaa",
               "captureId": "heats-organizer-desktop-light"
             }
           ],
@@ -4902,7 +4907,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
-              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "sha256": "9ca5a57e25efe9d190d26f70953a3206714b6c2066c93a4fd85b1fd9e889dbaa",
               "captureId": "heats-organizer-mobile-light"
             }
           ],
@@ -4973,7 +4978,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
-              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "sha256": "9ca5a57e25efe9d190d26f70953a3206714b6c2066c93a4fd85b1fd9e889dbaa",
               "captureId": "judges-organizer-desktop-light"
             }
           ],
@@ -5015,7 +5020,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
-              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "sha256": "9ca5a57e25efe9d190d26f70953a3206714b6c2066c93a4fd85b1fd9e889dbaa",
               "captureId": "judges-organizer-mobile-light"
             }
           ],
@@ -5086,7 +5091,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
-              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "sha256": "9ca5a57e25efe9d190d26f70953a3206714b6c2066c93a4fd85b1fd9e889dbaa",
               "captureId": "messages-organizer-desktop-light"
             }
           ],
@@ -5128,7 +5133,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
-              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "sha256": "9ca5a57e25efe9d190d26f70953a3206714b6c2066c93a4fd85b1fd9e889dbaa",
               "captureId": "messages-organizer-mobile-light"
             }
           ],
@@ -5240,7 +5245,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
-              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "sha256": "9ca5a57e25efe9d190d26f70953a3206714b6c2066c93a4fd85b1fd9e889dbaa",
               "captureId": "setup-organizer-desktop-light"
             }
           ],
@@ -5282,7 +5287,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
-              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "sha256": "9ca5a57e25efe9d190d26f70953a3206714b6c2066c93a4fd85b1fd9e889dbaa",
               "captureId": "setup-organizer-mobile-light"
             }
           ],
@@ -5353,7 +5358,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
-              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "sha256": "9ca5a57e25efe9d190d26f70953a3206714b6c2066c93a4fd85b1fd9e889dbaa",
               "captureId": "shifts-organizer-desktop-light"
             }
           ],
@@ -5395,7 +5400,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
-              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "sha256": "9ca5a57e25efe9d190d26f70953a3206714b6c2066c93a4fd85b1fd9e889dbaa",
               "captureId": "shifts-organizer-mobile-light"
             }
           ],
@@ -5466,7 +5471,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
-              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "sha256": "9ca5a57e25efe9d190d26f70953a3206714b6c2066c93a4fd85b1fd9e889dbaa",
               "captureId": "staffing-organizer-desktop-light"
             }
           ],
@@ -5508,7 +5513,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
-              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "sha256": "9ca5a57e25efe9d190d26f70953a3206714b6c2066c93a4fd85b1fd9e889dbaa",
               "captureId": "staffing-organizer-mobile-light"
             }
           ],
@@ -5584,7 +5589,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
-              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "sha256": "9ca5a57e25efe9d190d26f70953a3206714b6c2066c93a4fd85b1fd9e889dbaa",
               "captureId": "volunteers-organizer-desktop-light"
             }
           ],
@@ -5631,7 +5636,7 @@
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
-              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "sha256": "9ca5a57e25efe9d190d26f70953a3206714b6c2066c93a4fd85b1fd9e889dbaa",
               "captureId": "volunteers-organizer-mobile-light"
             }
           ],
@@ -5685,7 +5690,7 @@
             {
               "kind": "dom-snapshot",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-new-organizer-desktop-light.dom.json",
-              "sha256": "7c8c29b9ea3878be1d29dd80003602c7756c24fd797ec68ee720fd03a2cbb412"
+              "sha256": "ec5ee33ea69c1685cfabc87fe0fd1a22f590d3da16324e4b437ec47056fdf0fc"
             },
             {
               "kind": "console-log",
@@ -5695,17 +5700,17 @@
             {
               "kind": "network-log",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-new-organizer-desktop-light.network.json",
-              "sha256": "5a8aeaecf45eacae58b9473c797c51df36664088710cddd8b0e25cf2074bfce1"
+              "sha256": "3edab26ae2f7b7a7ce1e077d8a951ad1ee29b96754f32fe84e7974fc847657fe"
             },
             {
               "kind": "browser-screenshot",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-new-organizer-desktop-light.png",
-              "sha256": "1b1eee7b3e0a0ed59e935e5ace5a12c77259fafd28908d0baa4b5804e199c98b"
+              "sha256": "dc2ec159a390837d3902e15f52204faf7ffcdc1ac40da8e81ad7326c0fdd2abb"
             },
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
-              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "sha256": "9ca5a57e25efe9d190d26f70953a3206714b6c2066c93a4fd85b1fd9e889dbaa",
               "captureId": "events-new-organizer-desktop-light"
             }
           ],
@@ -5730,7 +5735,7 @@
             {
               "kind": "dom-snapshot",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-new-organizer-mobile-light.dom.json",
-              "sha256": "85853a3bd8bd19ac2582f8ceddd84b00822a18693abe0aecf08ee722fe4b1c6e"
+              "sha256": "99b6a94aec16ef4f1dad80678b8dbd255661c8b06855f69ee0c0aba65566ef51"
             },
             {
               "kind": "console-log",
@@ -5740,17 +5745,17 @@
             {
               "kind": "network-log",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-new-organizer-mobile-light.network.json",
-              "sha256": "41d0a2345f5fec572e9a788ddf6429b455bdecfe06f22806fe574831cafb9f7e"
+              "sha256": "fadf1f39c6d2bb1b061d131a2634ca8ad94d864975ddd95b1dbebfb48eca7d97"
             },
             {
               "kind": "browser-screenshot",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/events-new-organizer-mobile-light.png",
-              "sha256": "925fca5a14fc4155b4da22ed023aefc64be60ea6370a80d4aeb7a03768f2c345"
+              "sha256": "12793f30fb9bfc5252c5fe299f739aa548be3d54d20861b23a638bd5267605b3"
             },
             {
               "kind": "capture-manifest",
               "ref": "docs/ui-library/evidence/crew-organizer/2026-07-10/capture-manifest.json",
-              "sha256": "d284ba90ea41b3b5790f17ad6df52501b14168eb9789c3529de5894b894c3ee9",
+              "sha256": "9ca5a57e25efe9d190d26f70953a3206714b6c2066c93a4fd85b1fd9e889dbaa",
               "captureId": "events-new-organizer-mobile-light"
             }
           ],

@@ -222,7 +222,7 @@ The fourth evidence slice covers the authenticated Crew organizer workflow from 
 
 [The Crew organizer coverage audit](../docs/ui-library/crew-organizer-coverage-audit.md) records 24 verified scenarios across 12 visual records. The complete plan now has 166 verified, 26 blocked, and 147 pending scenarios.
 
-Every route verifies desktop and mobile light output from the populated `e2e_competition` fixture with scrubbed accessibility, DOM, console, and network evidence. Twelve representative screenshots cover the primary list, form, overview, roster, day-of, setup, and export surfaces.
+Every route verifies desktop and mobile light output from the populated `e2e_competition` fixture with scrubbed accessibility, DOM, console, and network evidence. Thirteen representative screenshots cover the primary list, form, overview, roster, day-of, setup, and export surfaces.
 
 The follow-up responsive slice makes the public Crew header wrap navigation below the brand and account row on narrow screens. The print packet constrains its screen-only outer table while preserving internal schedule scrolling and automatic print layout.
 

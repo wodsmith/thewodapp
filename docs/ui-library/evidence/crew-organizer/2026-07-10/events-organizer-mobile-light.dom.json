@@ -32,12 +32,20 @@
     }
   ],
   "language": "en",
+  "layout": {
+    "logout": {
+      "fullyInViewport": true,
+      "left": 334,
+      "right": 374
+    },
+    "scheduleScroller": null
+  },
   "title": "WODsmith Crew",
   "viewport": {
     "height": 844,
-    "horizontalOverflow": true,
+    "horizontalOverflow": false,
     "scrollHeight": 844,
-    "scrollWidth": 442,
+    "scrollWidth": 390,
     "width": 390
   }
 }

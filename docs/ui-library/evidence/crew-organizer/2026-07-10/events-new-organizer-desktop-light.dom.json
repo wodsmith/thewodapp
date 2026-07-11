@@ -69,6 +69,14 @@
     }
   ],
   "language": "en",
+  "layout": {
+    "logout": {
+      "fullyInViewport": true,
+      "left": 1232,
+      "right": 1272
+    },
+    "scheduleScroller": null
+  },
   "title": "WODsmith Crew",
   "viewport": {
     "height": 900,
