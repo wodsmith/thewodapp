@@ -52,6 +52,7 @@ export interface CrewStaffingVolunteerInput {
   availability?: VolunteerAvailability | null
   credentials?: string | null
   isActive?: boolean | null
+  isAccountless?: boolean | null
 }
 
 export interface CrewStaffingShiftAssignmentInput {

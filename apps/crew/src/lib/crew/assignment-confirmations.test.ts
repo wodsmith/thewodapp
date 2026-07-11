@@ -362,6 +362,17 @@ describe("Crew assignment confirmation operational states", () => {
     })
     expect(
       resolveCrewAssignmentConfirmationOrganizerStateUpdate(
+        "checked_in",
+        "Checked in by organizer override.",
+        now,
+      ),
+    ).toMatchObject({
+      status: CREW_ASSIGNMENT_CONFIRMATION_STATUS.CHECKED_IN,
+      respondedAt: now,
+      responseNote: null,
+    })
+    expect(
+      resolveCrewAssignmentConfirmationOrganizerStateUpdate(
         "replaced",
         "Covered by Sam.",
         now,

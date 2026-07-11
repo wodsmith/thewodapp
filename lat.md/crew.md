@@ -140,13 +140,13 @@ Deleting a shell is blocked while it still has heats — [[apps/crew/src/server-
 
 ## Heats Page
 
-The Heats page lets an organizer view, manually schedule, and import heats for a Crew event, combining a list-first manual UI with the existing CSV import infrastructure.
+The Heats page lets an organizer view, manually schedule, and import heats for a Crew event, combining a list-first manual UI with the import infrastructure.
 
-[[apps/crew/src/routes/events/$eventId/heats.tsx]] renders a per-workout breakdown of scheduled heats plus an "Import from CSV" modal. The loader calls [[apps/crew/src/server-fns/crew-heats-fns.ts#getCrewHeatsPageFn]] which fetches track workouts, existing heats enriched with location (venue) name and lane count plus division names, and location options (each carrying `laneCount`) in parallel, gated behind `requireCrewEventManagerAccess`. The page appears in the sidebar navigation for `wodsmith_operator`, `organizer_admin`, and `department_lead` roles.
+[[apps/crew/src/routes/events/$eventId/heats.tsx]] renders a per-workout breakdown of scheduled heats plus an "Import from CSV or Excel" modal. The loader calls [[apps/crew/src/server-fns/crew-heats-fns.ts#getCrewHeatsPageFn]] which fetches track workouts, existing heats enriched with location (venue) name and lane count plus division names, and location options (each carrying `laneCount`) in parallel, gated behind `requireCrewEventManagerAccess`. The page appears in the sidebar navigation for `wodsmith_operator`, `organizer_admin`, and `department_lead` roles.
 
 Heat creation is bulk-first (see [[crew#Bulk Heat Scheduling]]): the "Add heats" dialog takes a count plus a start time and auto-spaces the heats into a per-heat editable list. `getNextHeatNumberFn` from [[apps/crew/src/server-fns/competition-heats-fns.ts]] supplies the starting heat number; the explicit per-heat rows are persisted by `generateHeatsFn` from [[apps/crew/src/server-fns/crew-heats-fns.ts]]. Deletion uses `deleteHeatFn` with an inline confirm step. Each heat row shows its number, scheduled time, location (with its lane count, e.g. "Main Floor · 6 lanes"), division badge, and draft/published status. The "Add heats" dialog's location dropdown is populated from the event's locations (see [[crew#Event Locations]]) and shows each option's lane count. After any mutation the page calls `router.invalidate()` to refetch loader data.
 
-The CSV import modal reuses the `heat_schedule` kind from the shared import infrastructure: `getImportFields` and `inferColumnMapping` from [[apps/crew/src/lib/crew/imports/column-mapping.ts]], `parseCsv` from [[apps/crew/src/lib/crew/imports/csv.ts]], the `/api/crew/import` endpoint for preview, and `applyCrewImportFn` from [[apps/crew/src/server-fns/crew-import-fns.ts]]. The existing `schedule.tsx` is a redirect stub to the Volunteer Shifts page (`/events/$eventId/shifts`).
+The import modal reuses the `heat_schedule` kind from the shared import infrastructure: `getImportFields` and `inferColumnMapping` from [[apps/crew/src/lib/crew/imports/column-mapping.ts]], the CSV/Excel router in [[apps/crew/src/lib/crew/imports/file.ts#parseCrewImportFile]], the `/api/crew/import` endpoint for preview, and `applyCrewImportFn` from [[apps/crew/src/server-fns/crew-import-fns.ts]]. The existing `schedule.tsx` is a redirect stub to the Volunteer Shifts page (`/events/$eventId/shifts`).
 
 ## Bulk Heat Scheduling
 
@@ -192,7 +192,7 @@ Shift assignments reference a volunteer by a canonical assignee id, so imported 
 
 `volunteer_shift_assignments` carries a nullable `membershipId` and a nullable `invitationId` (exactly one is set per row), mirroring `crew_assignment_confirmations`. [[apps/crew/src/lib/crew/roster-shifts.ts#getCrewRosterAssigneeId]] derives the canonical id and [[apps/crew/src/lib/crew/roster-shifts.ts#isCrewRosterVolunteerStaffable]] gates the assignable pool: a volunteer is staffable when it has a usable id and a staffable status (`active`, `accepted`, or `pending`); `inactive` memberships and `expired` invitations are excluded. Role compatibility (General matches every shift) is checked separately by [[apps/crew/src/lib/crew/roster-shifts.ts#isVolunteerCompatibleWithShift]].
 
-[[apps/crew/src/server/crew-roster-shift.server.ts#assignCrewVolunteerToShift]] resolves the assignee from either source, stores the matching column, and seeds the confirmation with the same `invitationId`/`membershipId`. The shift board, staffing matrix, and pilot ops all key assignments by the canonical assignee id so invitation-based volunteers participate in coverage, double-booking, and credential checks. Day-of check-in still requires a membership and rejects invitation-based assignees with a clear message.
+[[apps/crew/src/server/crew-roster-shift.server.ts#assignCrewVolunteerToShift]] resolves the assignee from either source, stores the matching column, and seeds the confirmation with the same `invitationId`/`membershipId`. The shift board, staffing matrix, pilot ops, and day-of actions all key assignments by the canonical assignee id so invitation-based volunteers participate in coverage, double-booking, credential checks, and organizer-entered attendance overrides.
 
 ## Roster Volunteer Editing
 
@@ -286,15 +286,15 @@ The CSV import modal uses [[apps/crew/src/components/crew/volunteer-import-flow.
 
 ## Staffing Page Gap Report
 
-Crew staffing pages expose the matrix core as a read-only event operations report.
+The Crew staffing page answers a single question — "what volunteer gaps do I still have?" — as a read-only view over the matrix core.
 
 [[apps/crew/src/server-fns/crew-staffing-fns.ts]] exposes a lightweight route-safe server-function wrapper.
 
-[[apps/crew/src/server-fns/crew-staffing-fns.server.ts]] hydrates the matrix from existing event, venue, heat, lane, roster, shift, active judge assignment, and confirmation data.
+[[apps/crew/src/server-fns/crew-staffing-fns.server.ts]] hydrates the matrix from existing event, venue, heat, lane, roster, shift, active judge assignment, and confirmation data. `getCrewStaffingReportForDayOf` keeps the full matrix and report for the Event Day surface, while `getCrewStaffingReportPage` trims the loader payload to just the gap data the page renders: event, time blocks, the needed/filled/open summary, role summaries, and underfilled rows.
 
-[[apps/crew/src/routes/events/$eventId/staffing.tsx]] renders coverage, open capacity, judge lane gaps, conflicts, availability warnings, role warnings, confirmation gaps, and source counts without mutating schema or assignments.
+[[apps/crew/src/routes/events/$eventId/staffing.tsx]] renders a gaps-only view: a single verdict (open slots needed, fully staffed, or nothing to staff yet) plus two complementary cuts of the open slots — "who you need" (by role) and "when they're needed" (by distinct time block). Judge lane gaps surface as judge-role coverage rows, so the role action links operators to the Judges page for judge gaps and the Shifts page for shift gaps. Confirmation, conflict, availability, and credential signals live on the Confirmations and Event Day pages, not here. The page never mutates schema or assignments.
 
-[[apps/crew/src/lib/crew/staffing/report.ts]] owns the deterministic event-level status and report summaries used by the page.
+[[apps/crew/src/lib/crew/staffing/report.ts]] owns the deterministic event-level status and report summaries used by the page; its `roleSummaries` and `underfilledRows` drive the role and time-block gap cuts.
 
 ## Staffing Calculator
 
@@ -334,13 +334,31 @@ Operator-facing durations render in compact hour/minute labels so workout block 
 
 ## Import CSV Preview
 
-Crew import preview is a private operator workflow for CSV-only volunteer and heat schedule uploads.
+Crew import preview is a private operator workflow for volunteer and heat schedule uploads from CSV or Excel workbooks.
 
 Volunteer imports surface as a modal on [[apps/crew/src/routes/events/$eventId/volunteers.tsx|the Volunteers page]] via [[apps/crew/src/components/crew/volunteer-import-flow.tsx]]. Heat schedule imports surface as a modal on [[apps/crew/src/routes/events/$eventId/heats.tsx|the Heats page]]. The shared tab UI component lives in [[apps/crew/src/components/crew/crew-import-tabs.tsx]]. [[apps/crew/src/routes/api/crew/import.ts]] accepts private preview uploads, while [[apps/crew/src/lib/crew/imports/preview.ts]] and [[apps/crew/src/server/crew-imports.server.ts]] parse and persist previews without applying rows.
+
+CSV parsing still uses [[apps/crew/src/lib/crew/imports/csv.ts#parseCsv]]. Excel workbook parsing accepts `.xlsx` and `.xlsm` uploads, reads the first worksheet through [[apps/crew/src/lib/crew/imports/xlsx.ts#parseXlsx]], converts shared strings and styled time/date cells into text, and feeds the same tabular parser shape as CSV so column mapping, warning generation, and apply planning remain shared. The shared tabular parser rejects any blank header cell with a `missing_headers` error (not just fully empty header rows), since blank labels would collapse multiple columns onto one empty key and silently drop data. Both upload panels catch `parseCrewImportFile` throws (malformed workbooks), reset the mapping state, and surface an `invalid_import_file` client issue so the dialog stays usable.
+
+To bound decompression on the worker, `parseXlsx` only extracts the workbook parts it reads (workbook metadata, worksheets, shared strings, and styles) and rejects the upload with an `invalid_workbook` error when any entry exceeds 20 MB or the extracted total exceeds 50 MB. Shared-string extraction ignores phonetic furigana (`<rPh>`) runs so only base text becomes cell values.
+
+Volunteer imports carry first-class fields beyond name/email/role so Competition Corner exports auto-map: `phoneCountryCode`, `shirtSize`, ranked `rolePreference1`–`rolePreference3`, plus provenance `sourceExternalId` and `sourceCreatedAt`. [[apps/crew/src/lib/crew/imports/column-mapping.ts]] defines their header aliases and [[apps/crew/src/lib/crew/imports/normalize-volunteer-row.ts]] normalizes each to a trimmed string.
+
+### Question Mapped Columns
+
+Leftover volunteer columns (Gender, Birth Date, Shoe Size, Instagram, etc.) can be mapped to volunteer registration questions instead of being dropped, landing as structured `volunteer_registration_answers` keyed by invitation.
+
+[[apps/crew/src/lib/crew/imports/question-mapping.ts]] owns the reserved mapping-key namespaces `question:<id>` (existing) and `newQuestion:<label>` (created at apply), keeping `ColumnMapping` a plain `Record<fieldKey, header>` so preview records and mapping presets round-trip. [[apps/crew/src/lib/crew/imports/column-mapping.ts#sanitizeColumnMapping]] accepts these keys for volunteers only, and [[apps/crew/src/lib/crew/imports/normalize-volunteer-row.ts]] carries each row's non-empty answers on `questionAnswers`.
+
+Preview resolves columns against existing questions, collapses new labels onto matching existing questions, plans creation, counts answers, and warns (not errors) on empty columns via [[apps/crew/src/lib/crew/imports/preview.ts]]. Apply is the only mutation: [[apps/crew/src/server/crew-imports.server.ts]] creates missing `text` volunteer questions (deduped by normalized label, sort order after max), then upserts answers on the `(questionId, invitationId)` unique index. [[apps/crew/src/components/crew/volunteer-import-flow.tsx]] surfaces the mapping affordance backed by [[apps/crew/src/server-fns/crew-import-fns.ts#getCrewVolunteerImportQuestionsFn]].
+
+Questions are created as `text` only for now; select-type inference from column values is future polish. Answers attach to volunteer invitations only, so rows matched to existing memberships do not receive imported answers.
 
 ### Private Upload Route
 
 The Crew import upload route is `/api/crew/import`. It is separate from the existing public file upload path and does not write uploaded files to public object storage.
+
+Uploads are parsed from raw file bytes so binary Excel workbooks are not coerced through text decoding before preview. The route accepts CSV plus `.xlsx` and `.xlsm` workbook files.
 
 ### Parser Warnings
 
@@ -369,6 +387,8 @@ The apply layer consumes parser output from the preview slice, plans create/upda
 The confirmed mutation is the only apply path allowed to create or update Crew roster and scheduling data from parsed import rows.
 
 It keeps the destructive boundary explicit: preview remains read-only, while confirmation can create invitations, update memberships, and attach import metadata to the resulting records.
+
+Volunteer apply composes first-class import fields into `VolunteerMembershipMetadata`: `phoneCountryCode` + `phone` become `signupPhone` (e.g. `+1 5551234567`, without double-prefixing), `shirtSize` maps through, and ranked role preferences resolve to a deduped ordered `volunteerRoleTypes` (falling back to `GENERAL`) while their raw labels are preserved in `internalNotes`. Provenance is stored under the extra keys `crewImportExternalId` and `crewImportSourceCreatedAt`.
 
 ## Add Thin Crew Tables
 
@@ -421,6 +441,16 @@ Crew import mapping memory stores confirmed CSV header mappings in `crew_import_
 [[apps/crew/src/lib/crew/imports/mapping-memory.ts]] owns pure header fingerprinting, source normalization, scoped suggestion selection, and save-payload sanitization. [[apps/crew/src/server-fns/crew-import-fns.ts]] keeps the route-facing functions thin while [[apps/crew/src/server/crew-imports.server.ts]] loads and upserts presets through the shared table.
 
 The volunteer import modal on [[apps/crew/src/routes/events/$eventId/volunteers.tsx|the Volunteers page]] surfaces saved mappings as explicit suggestions. Operators must click to use or remember a mapping; previews and applies continue to use the currently visible mapping and never rewrite historical `crew_import_rows`.
+
+### Built-in Presets
+
+Built-in presets are code-defined mappings shipped with Crew (no DB row, no migration) that recognize known third-party exports and offer a one-click full mapping alongside team-saved suggestions.
+
+[[apps/crew/src/lib/crew/imports/builtin-presets.ts]] exports the presets and a pure `selectBuiltInImportMappingSuggestion`. It reuses [[apps/crew/src/lib/crew/imports/mapping-memory.ts]] normalization/fingerprinting and matches tolerantly: a preset qualifies when its normalized headers cover the upload at or above `BUILT_IN_IMPORT_PRESET_MIN_COVERAGE` (0.8), so extra upload columns never hurt and a few missing columns are allowed; unrelated files fall below the threshold and do not match. The returned mapping is adapted to the upload's header casing and sanitized, so absent columns drop out.
+
+The Competition Corner volunteer preset maps all 20 export columns: first-class fields for identity, contact, shirt size, notes, source id/date, availability, and role preferences, plus `newQuestion:<label>` keys (Age, Birth Date, Gender, Shorts Size, Shoe Size, Instagram, WhatsApp) so no exported column is dropped.
+
+[[apps/crew/src/server/crew-imports.server.ts]] returns the built-in match beside the team suggestion (`builtInSuggestion`); [[apps/crew/src/components/crew/volunteer-import-flow.tsx]] renders the team suggestion first (precedence) then the built-in, labeled "(built-in)". Applying a built-in mapping fills the visible mapping and pre-fills the source label; it is never written to `crew_import_mapping_presets` as-is — an operator tweak saved afterward goes through the normal team preset save flow.
 
 ## Guided Setup State
 
@@ -484,13 +514,15 @@ Crew confirmation email operations use `crew_assignment_confirmations` as the so
 
 ## Day Of Operations Board
 
-Crew day-of operations is a compact read-only board for current blocks, response queues, role gaps, no-shows, replacements, and active judge lane coverage.
+Crew day-of operations is a compact board for current blocks, response queues, role gaps, no-shows, replacements, active judge lane coverage, and organizer-entered attendance state.
 
-[[apps/crew/src/routes/events/$eventId/day-of.tsx]] renders the event board. [[apps/crew/src/server-fns/crew-day-of-fns.ts]] keeps the route import light while [[apps/crew/src/server/crew-day-of.server.ts]] reuses staffing hydration without mutating event data.
+[[apps/crew/src/routes/events/$eventId/day-of.tsx]] renders the event board. [[apps/crew/src/server-fns/crew-day-of-fns.ts]] keeps the route import light while [[apps/crew/src/server/crew-day-of.server.ts]] reuses staffing hydration and mutates only assignment confirmation state for check-in, no-show, and replacement actions.
 
-[[apps/crew/src/lib/crew/day-of-operations.ts]] derives current and next blocks, critical unfilled roles, due-soon no-responses, decision queues, no-show/replaced queues, time-block status, and judge coverage.
+[[apps/crew/src/lib/crew/day-of-operations.ts]] derives current and next blocks, critical unfilled roles, due-soon no-responses, decision queues, no-show/replaced queues, time-block status, judge coverage, and accountless assignment action metadata.
 
-The board does not add schema, exports, queue bindings, live email sends, public token changes, assignment automation, or published judge-row mutation. Checked-in remains unavailable until a dedicated primitive exists.
+Accountless volunteers keep their invitation identity on `crew_assignment_confirmations`: organizer-entered check-in/no-show writes `invitationId`, null `membershipId`, normalized contact fields when present, and a day-of override note without creating an account, accepting an invite, authenticating the volunteer, or changing public token flows. Replacement remains account-backed only: accountless volunteers are excluded from replacement options because the server accepts only real team memberships.
+
+The board does not add schema, exports, queue bindings, live email sends, public token changes, assignment automation, or published judge-row mutation.
 
 ## Pilot Exports
 

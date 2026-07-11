@@ -1,4 +1,8 @@
 // @lat: [[crew#Import CSV Preview#Parser Warnings]]
+import {
+  isQuestionMappingKey,
+  parseQuestionMappingKey,
+} from "./question-mapping"
 import type {
   ColumnMapping,
   CrewImportKind,
@@ -33,9 +37,50 @@ export const volunteerImportFields: ImportFieldDefinition[] = [
     aliases: ["phone", "phone number", "mobile", "cell"],
   },
   {
+    key: "phoneCountryCode",
+    label: "Phone country code",
+    aliases: [
+      "area code/country code",
+      "country code",
+      "area code",
+      "phone country code",
+      "dial code",
+    ],
+  },
+  {
     key: "role",
     label: "Role",
     aliases: ["role", "crew role", "job", "position", "assignment"],
+  },
+  {
+    key: "rolePreference1",
+    label: "Role preference 1",
+    aliases: [
+      "preference 1",
+      "role preference 1",
+      "preference1",
+      "first preference",
+    ],
+  },
+  {
+    key: "rolePreference2",
+    label: "Role preference 2",
+    aliases: [
+      "preference 2",
+      "role preference 2",
+      "preference2",
+      "second preference",
+    ],
+  },
+  {
+    key: "rolePreference3",
+    label: "Role preference 3",
+    aliases: [
+      "preference 3",
+      "role preference 3",
+      "preference3",
+      "third preference",
+    ],
   },
   {
     key: "division",
@@ -46,6 +91,21 @@ export const volunteerImportFields: ImportFieldDefinition[] = [
     key: "availability",
     label: "Availability",
     aliases: ["availability", "available", "shift", "shifts"],
+  },
+  {
+    key: "shirtSize",
+    label: "Shirt size",
+    aliases: ["shirt size", "t-shirt size", "tshirt size", "tee size"],
+  },
+  {
+    key: "sourceExternalId",
+    label: "External ID",
+    aliases: ["id", "external id", "volunteer id"],
+  },
+  {
+    key: "sourceCreatedAt",
+    label: "Created date",
+    aliases: ["create date", "created date", "created at", "signup date"],
   },
   {
     key: "notes",
@@ -137,7 +197,17 @@ export function sanitizeColumnMapping(
   const sanitized: ColumnMapping = {}
 
   for (const [field, header] of Object.entries(mapping)) {
-    if (allowedFields.has(field) && allowedHeaders.has(header)) {
+    if (!allowedHeaders.has(header)) continue
+
+    if (allowedFields.has(field)) {
+      sanitized[field] = header
+    } else if (
+      kind === "volunteers" &&
+      isQuestionMappingKey(field) &&
+      parseQuestionMappingKey(field)
+    ) {
+      // Question-namespaced keys ("question:<id>" / "newQuestion:<label>") are
+      // volunteer-only and round-trip through preview records and presets.
       sanitized[field] = header
     }
   }

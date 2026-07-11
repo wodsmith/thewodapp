@@ -2,10 +2,10 @@
 import { describe, expect, it } from "vitest"
 import {
   buildCrewImportMappingPresetWrite,
+  type CrewImportMappingPresetCandidate,
   computeImportHeaderFingerprint,
   normalizeImportMappingSourcePlatform,
   selectCrewImportMappingSuggestion,
-  type CrewImportMappingPresetCandidate,
 } from "./mapping-memory"
 
 describe("Crew import mapping memory", () => {
@@ -192,7 +192,7 @@ function candidate(
       name: "Full Name",
       role: "Crew Role",
     },
-    parserVersion: "crew-csv-preview-v1",
+    parserVersion: "crew-tabular-preview-v2",
     lastUsedAt: null,
     createdAt: "2026-06-20T10:00:00.000Z",
     updatedAt: "2026-06-20T10:00:00.000Z",
