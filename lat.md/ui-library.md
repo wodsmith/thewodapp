@@ -66,9 +66,25 @@ The Start and Crew multi-rotation editors use FieldGroup only for the rotations 
 
 The organizer and cohost editor renders a named Rotations fieldset in create and edit states, supports block add/remove, and preserves batch create and update payloads.
 
+###### Organizer rotation create
+
+Create state renders the named collection with a canonical Judge field, supports adding and removing blocks, and preserves the batch-create payload.
+
+###### Organizer rotation update
+
+Edit state renders existing rotation values and preserves the batch-update payload for organizer and cohost callers.
+
 ##### Crew rotation editor group
 
 The Crew editor renders the same named Rotations fieldset, preserves existing blocks and add/remove behavior, and sends unchanged judge and rotation values to its save callback.
+
+###### Crew rotation create
+
+Create state renders the named collection with a canonical Judge field, supports adding and removing blocks, and preserves the Crew save payload.
+
+###### Crew rotation update
+
+Edit state renders existing rotation values and preserves the Crew save payload.
 
 ## Shared package boundary
 

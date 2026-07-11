@@ -82,7 +82,7 @@ describe("Crew multi-rotation editor field composition", () => {
     mocks.save.mockResolvedValue(undefined)
   })
 
-  // @lat: [[ui-library#UI Library#Current boundary#Field composition#Rotation editor field groups#Crew rotation editor group]]
+  // @lat: [[ui-library#UI Library#Current boundary#Field composition#Rotation editor field groups#Crew rotation editor group#Crew rotation create]]
   it("renders create state as a named group and preserves the save payload", async () => {
     const { container } = render(<MultiRotationEditor {...props()} />)
 
@@ -113,6 +113,7 @@ describe("Crew multi-rotation editor field composition", () => {
     )
   })
 
+  // @lat: [[ui-library#UI Library#Current boundary#Field composition#Rotation editor field groups#Crew rotation editor group#Crew rotation update]]
   it("renders existing rotations and preserves the update payload", async () => {
     const existingRotations = [
       {

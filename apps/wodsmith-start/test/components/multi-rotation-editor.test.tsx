@@ -81,7 +81,7 @@ describe("organizer multi-rotation editor field composition", () => {
     mocks.update.mockResolvedValue({ success: true, data: {} })
   })
 
-  // @lat: [[ui-library#UI Library#Current boundary#Field composition#Rotation editor field groups#Organizer rotation editor group]]
+  // @lat: [[ui-library#UI Library#Current boundary#Field composition#Rotation editor field groups#Organizer rotation editor group#Organizer rotation create]]
   it("renders create state as a named group and preserves the create payload", async () => {
     const { container } = render(
       <MultiRotationEditor {...props({ onBatchCreateRotations: mocks.create })} />,
@@ -123,6 +123,7 @@ describe("organizer multi-rotation editor field composition", () => {
     )
   })
 
+  // @lat: [[ui-library#UI Library#Current boundary#Field composition#Rotation editor field groups#Organizer rotation editor group#Organizer rotation update]]
   it("renders existing rotations and preserves the update payload", async () => {
     const existingRotations = [
       {
