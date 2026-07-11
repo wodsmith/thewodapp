@@ -265,3 +265,15 @@ At 390 × 844, Events and New event keep every public navigation link and the ac
 #### Export table containment and print layout
 
 At 390 × 844, each selected packet tab updates its route and content before containment is checked; the schedule table scrolls internally, and print media repeats its header while hiding app chrome.
+
+### Crew admin evidence
+
+The fifth evidence slice covers the private Crew operator workflow across event discovery, diagnostics, billing, conversion, and readiness.
+
+[The Crew admin coverage audit](../docs/ui-library/crew-admin-coverage-audit.md) records 12 verified scenarios across six visual records. The complete plan now has 178 verified, 26 blocked, and 141 pending scenarios.
+
+The existing global-admin fixture reaches the control room, event list, event diagnostics, billing, conversion, and readiness surfaces without new seed data. The organizer fixture remains insufficient because these routes and their server functions require the global `admin` role.
+
+Every route verifies desktop and mobile light output from the populated `e2e_competition` fixture. The control room and event list stay contained at 390 px while keeping public-header actions visible, and the other routes report no overflow.
+
+The routes remain route-specific. Repetition supports presentation-only headers, metric and fact panels, empty and progress states, checklist cards, responsive table containment, and operator-action presentation while permissions and workflow semantics remain app-owned.

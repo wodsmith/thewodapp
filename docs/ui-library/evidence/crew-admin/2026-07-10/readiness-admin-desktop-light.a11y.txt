@@ -1,0 +1,88 @@
+- link "wodsmith crew WODsmithAdmin" [ref=e2]
+- button "Toggle Sidebar" [ref=e3]
+- list
+  - listitem [level=1]
+    - link "Overview" [ref=e8]
+- generic
+  - StaticText "Operator"
+  - list
+    - listitem [level=1]
+      - link "Readiness" [ref=e9]
+    - listitem [level=1]
+      - link "Billing" [ref=e10]
+    - listitem [level=1]
+      - link "Conversion" [ref=e11]
+- generic
+  - StaticText "Views"
+  - list
+    - listitem [level=1]
+      - link "Organizer view" [ref=e12]
+    - listitem [level=1]
+      - link "Event list" [ref=e13]
+- list
+  - listitem [level=1]
+    - button "Toggle Sidebar" [ref=e6]
+- main
+  - sectionheader
+    - paragraph
+      - StaticText "WODSMITH ADMIN"
+    - heading "E2E Crew Demo Throwdown" [level=1, ref=e4]
+    - paragraph
+      - StaticText "2026-07-11 to 2026-07-12"
+  - generic
+    - heading "Admin readiness" [level=3, ref=e5]
+    - paragraph
+      - StaticText "Operator diagnostic detail for setup, source data, imports, schedule, roster, shifts, judge publishing, and confirmations."
+    - StaticText "Needs attention"
+    - generic
+      - generic
+        - paragraph
+          - StaticText "Ready"
+        - paragraph
+          - StaticText "4/7"
+      - generic
+        - paragraph
+          - StaticText "Needs attention"
+        - paragraph
+          - StaticText "3"
+      - generic
+        - paragraph
+          - StaticText "Blocked"
+        - paragraph
+          - StaticText "0"
+      - generic
+        - paragraph
+          - StaticText "Progress"
+        - paragraph
+          - StaticText "57%"
+    - generic
+      - article
+        - heading "Event dates and timezone" [level=3, ref=e14]
+        - paragraph
+          - StaticText "2026-07-11 to 2026-07-12"
+        - StaticText "Needs attention"
+        - list
+          - listitem [level=1]
+            - StaticText "Timezone: America/Denver"
+        - link "Review setup" [ref=e15]
+      - article
+        - heading "Venues, floors, and lanes" [level=3, ref=e16]
+        - link "Open schedule" [ref=e17]
+      - article
+        - heading "Workouts and heats" [level=3, ref=e18]
+        - link "Review imports" [ref=e19]
+      - article
+        - heading "Volunteer roster" [level=3, ref=e20]
+        - link "Open volunteers" [ref=e21]
+      - article
+        - heading "Shifts and assignments" [level=3, ref=e22]
+        - link "Manage shifts" [ref=e23]
+      - article
+        - heading "Judge rotation publishing" [level=3, ref=e24]
+        - link "Open schedule" [ref=e25]
+      - article
+        - heading "Assignment confirmations" [level=3, ref=e26]
+        - link "Review shifts" [ref=e27]
+    - generic
+      - heading "Source counts" [level=3, ref=e7]
+- region "Notifications alt+T" [ref=e1]

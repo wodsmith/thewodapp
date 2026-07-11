@@ -1,0 +1,52 @@
+{
+  "bodyText": "C WODsmith Crew Calculator Events New event WODSMITH ADMIN Crew control room Internal operator surface for pilots, diagnostics, billing, and conversion handoff. Overview Events Admin events Operator-only event list with setup, billing, source, and concierge state. New event E2E Crew Demo Throwdown 2026-07-11 to 2026-07-12 ready Concierge ready Billing comped Source e2e_demo Setup progress 0/5",
+  "effectiveTheme": "light",
+  "fields": [],
+  "finalUrl": "/admin/crew/events",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "Crew control room"
+    },
+    {
+      "level": 2,
+      "text": "Admin events"
+    },
+    {
+      "level": 3,
+      "text": "E2E Crew Demo Throwdown"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "nav"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith Crew",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 846,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

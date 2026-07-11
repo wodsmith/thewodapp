@@ -1,0 +1,76 @@
+{
+  "bodyText": "Toggle Sidebar WODsmith Admin WODSMITH ADMIN E2E Crew Demo Throwdown 2026-07-11 to 2026-07-12 Lifecycle ready Concierge ready Plan self serve Payment Comped Setup 0/5 Roster 21 total, 21 assignable Assignments 11/12 Confirmed 5/11 Next admin action Event dates and timezone: 2026-07-11 to 2026-07-12 Readiness diagnostics Source counts and readiness details stay in the operator shell. Open readiness Setup checks 0/5 Venues and lanes 2 / 8 Workouts and heats 3 / 6 Imports 0/0 volunteer, 0/0 heat Roster 21 total, 21 assignable Shift coverage 11/12 Confirmations 5/11 Judge versions 3 RAW IDS Competition e2e_competition Slug e2e-throwdown Organizer team e2e_test_team Event team e2e_comp_team Setup and source Source platform e2e_demo Source event URL Not set External registration URL Not set Acquisition source Not set Desired go-live date Not set Source contact Not set Billing and conversion Event-level Crew billing state and full-platform handoff. Billing Conversion Billing plan No plan Billing source Comp Amount No event charge recorded Upgrade credit No upgrade credit recorded Stripe Payment Link Not recorded Stripe Checkout Session Not recorded Operator notes Assumptions No assumptions recorded. Internal notes No internal notes recorded.",
+  "effectiveTheme": "light",
+  "fields": [],
+  "finalUrl": "/admin/crew/events/e2e_competition",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "E2E Crew Demo Throwdown"
+    },
+    {
+      "level": 3,
+      "text": "Next admin action"
+    },
+    {
+      "level": 3,
+      "text": "Readiness diagnostics"
+    },
+    {
+      "level": 3,
+      "text": "RAW IDS"
+    },
+    {
+      "level": 3,
+      "text": "Setup and source"
+    },
+    {
+      "level": 3,
+      "text": "Billing and conversion"
+    },
+    {
+      "level": 3,
+      "text": "Operator notes"
+    },
+    {
+      "level": 4,
+      "text": "Assumptions"
+    },
+    {
+      "level": 4,
+      "text": "Internal notes"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "role": null,
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "aside"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith Crew",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 3331,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

@@ -1,0 +1,78 @@
+- link "wodsmith crew WODsmithAdmin" [ref=e2]
+- button "Toggle Sidebar" [ref=e3]
+- list
+  - listitem [level=1]
+    - link "Overview" [ref=e16]
+- generic
+  - StaticText "Operator"
+  - list
+    - listitem [level=1]
+      - link "Readiness" [ref=e17]
+    - listitem [level=1]
+      - link "Billing" [ref=e18]
+    - listitem [level=1]
+      - link "Conversion" [ref=e19]
+- generic
+  - StaticText "Views"
+  - list
+    - listitem [level=1]
+      - link "Organizer view" [ref=e20]
+    - listitem [level=1]
+      - link "Event list" [ref=e21]
+- list
+  - listitem [level=1]
+    - button "Toggle Sidebar" [ref=e5]
+- main
+  - sectionheader
+    - paragraph
+      - StaticText "WODSMITH ADMIN"
+    - heading "E2E Crew Demo Throwdown" [level=1, ref=e4]
+    - paragraph
+      - StaticText "2026-07-11 to 2026-07-12"
+  - generic
+    - generic
+      - paragraph
+      - paragraph
+    - generic
+      - paragraph
+      - paragraph
+    - generic
+      - paragraph
+      - paragraph
+    - generic
+      - paragraph
+      - paragraph
+    - generic
+      - paragraph
+      - paragraph
+    - generic
+      - paragraph
+      - paragraph
+    - generic
+      - paragraph
+      - paragraph
+    - generic
+      - paragraph
+      - paragraph
+    - generic
+      - heading "Next admin action" [level=3, ref=e6]
+      - paragraph
+        - StaticText "Event dates and timezone: 2026-07-11 to 2026-07-12"
+    - generic
+      - heading "Readiness diagnostics" [level=3, ref=e7]
+      - paragraph
+      - link "Open readiness" [ref=e8]
+      - DescriptionList
+      - generic
+        - heading "RAW IDS" [level=3, ref=e22]
+    - generic
+      - heading "Setup and source" [level=3, ref=e9]
+    - generic
+      - heading "Billing and conversion" [level=3, ref=e10]
+      - link "Billing" [ref=e11]
+      - link "Conversion" [ref=e12]
+    - generic
+      - heading "Operator notes" [level=3, ref=e13]
+      - heading "Assumptions" [level=4, ref=e14]
+      - heading "Internal notes" [level=4, ref=e15]
+- region "Notifications alt+T" [ref=e1]

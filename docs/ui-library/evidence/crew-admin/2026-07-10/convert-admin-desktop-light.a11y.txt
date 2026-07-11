@@ -1,0 +1,216 @@
+- link "wodsmith crew WODsmithAdmin" [ref=e2]
+- button "Toggle Sidebar" [ref=e3]
+- list
+  - listitem [level=1]
+    - link "Overview" [ref=e9]
+- generic
+  - StaticText "Operator"
+  - list
+    - listitem [level=1]
+      - link "Readiness" [ref=e10]
+    - listitem [level=1]
+      - link "Billing" [ref=e11]
+    - listitem [level=1]
+      - link "Conversion" [ref=e12]
+- generic
+  - StaticText "Views"
+  - list
+    - listitem [level=1]
+      - link "Organizer view" [ref=e13]
+    - listitem [level=1]
+      - link "Event list" [ref=e14]
+- list
+  - listitem [level=1]
+    - button "Toggle Sidebar" [ref=e5]
+- main
+  - sectionheader
+    - paragraph
+      - StaticText "WODSMITH ADMIN"
+    - heading "E2E Crew Demo Throwdown" [level=1, ref=e4]
+    - paragraph
+      - StaticText "2026-07-11 to 2026-07-12"
+  - generic
+    - generic
+      - paragraph
+        - StaticText "Competition"
+      - paragraph
+        - StaticText "e2e_competition"
+    - generic
+      - paragraph
+        - StaticText "Crew-only"
+      - paragraph
+        - StaticText "Yes"
+    - generic
+      - paragraph
+        - StaticText "Conversion"
+      - paragraph
+        - StaticText "Not requested"
+    - generic
+      - paragraph
+        - StaticText "Full setup"
+      - paragraph
+        - StaticText "3/8"
+    - StaticText "Full WODsmith conversion"
+    - heading "Convert without duplicating the event" [level=3, ref=e6]
+    - paragraph
+      - StaticText "This operator assistant inventories what stays on the current competition and points missing full-platform setup to existing WODsmith organizer surfaces."
+    - StaticText "Read-only"
+    - paragraph
+      - StaticText "No conversion mutation, checkout, registration launch, payout setup, deploy, import apply, or public activation happens here."
+    - generic
+      - heading "Missing full WODsmith setup" [level=3, ref=e7]
+      - paragraph
+        - StaticText "3/8 ready, 3 blocked."
+      - StaticText "Blocked"
+      - article
+        - heading "Divisions" [level=3, ref=e15]
+        - paragraph
+          - StaticText "No athlete divisions are configured."
+        - StaticText "Blocked"
+        - list
+          - listitem [level=1]
+          - listitem [level=1]
+        - link "Open divisions" [ref=e16]
+      - article
+        - heading "Registration window" [level=3, ref=e17]
+        - paragraph
+          - StaticText "2026-07-10 to 2026-08-09"
+        - StaticText "Ready"
+        - list
+          - listitem [level=1]
+            - StaticText "Opens: 2026-07-10"
+          - listitem [level=1]
+            - StaticText "Closes: 2026-08-09"
+        - link "Open event settings" [ref=e18]
+      - article
+        - heading "Pricing" [level=3, ref=e19]
+        - paragraph
+          - StaticText "Pricing is currently free or unconfirmed."
+        - StaticText "Blocked"
+        - list
+          - listitem [level=1]
+            - StaticText "Default fee: $0.00."
+          - listitem [level=1]
+        - link "Open pricing" [ref=e20]
+      - article
+        - heading "Scoring" [level=3, ref=e21]
+        - paragraph
+          - StaticText "Scoring should be confirmed before launch."
+        - StaticText "Needs attention"
+        - list
+          - listitem [level=1]
+        - link "Open scoring" [ref=e22]
+      - article
+        - heading "Public page" [level=3, ref=e23]
+        - paragraph
+          - StaticText "Competition page is public."
+        - StaticText "Ready"
+        - list
+          - listitem [level=1]
+            - StaticText "Status: published."
+          - listitem [level=1]
+            - StaticText "Visibility: public."
+        - link "Open public page" [ref=e24]
+      - article
+        - heading "Waivers" [level=3, ref=e25]
+        - paragraph
+          - StaticText "No required athlete waivers are configured."
+        - StaticText "Blocked"
+        - list
+          - listitem [level=1]
+        - link "Open waivers" [ref=e26]
+      - article
+        - heading "Payouts" [level=3, ref=e27]
+        - paragraph
+          - StaticText "Payout setup can wait while registration remains free."
+        - StaticText "Needs attention"
+        - list
+          - listitem [level=1]
+            - StaticText "Stripe account status: not connected."
+        - link "Open payouts" [ref=e28]
+      - article
+        - heading "Athlete registration" [level=3, ref=e29]
+        - paragraph
+          - StaticText "8 active athlete registrations"
+        - StaticText "Ready"
+        - list
+          - listitem [level=1]
+          - listitem [level=1]
+        - link "Open registration" [ref=e30]
+    - generic
+      - heading "Crew data preserved" [level=3, ref=e8]
+      - paragraph
+        - StaticText "6/8 ready, 0 blocked."
+      - StaticText "Needs attention"
+      - article
+        - heading "Competition record" [level=3, ref=e31]
+        - paragraph
+          - StaticText "Reuses e2e_competition."
+        - StaticText "Ready"
+        - list
+          - listitem [level=1]
+          - listitem [level=1]
+        - link "Open Crew overview" [ref=e32]
+      - article
+        - heading "Volunteers" [level=3, ref=e33]
+        - paragraph
+          - StaticText "21 volunteers, 21 assignable"
+        - StaticText "Ready"
+        - list
+          - listitem [level=1]
+          - listitem [level=1]
+        - link "Open volunteers" [ref=e34]
+      - article
+        - heading "Shifts" [level=3, ref=e35]
+        - paragraph
+          - StaticText "11/12 shift slots assigned"
+        - StaticText "Ready"
+        - list
+          - listitem [level=1]
+        - link "Open shifts" [ref=e36]
+      - article
+        - heading "Heat schedule" [level=3, ref=e37]
+        - paragraph
+          - StaticText "6/6 heats scheduled"
+        - StaticText "Ready"
+        - list
+          - listitem [level=1]
+          - listitem [level=1]
+        - link "Open schedule" [ref=e38]
+      - article
+        - heading "Judge assignments" [level=3, ref=e39]
+        - paragraph
+          - StaticText "23 judge heat assignments"
+        - StaticText "Ready"
+        - list
+          - listitem [level=1]
+          - listitem [level=1]
+        - link "Open judges" [ref=e40]
+      - article
+        - heading "Confirmations" [level=3, ref=e41]
+        - paragraph
+          - StaticText "5/11 assignments confirmed"
+        - StaticText "Ready"
+        - list
+          - listitem [level=1]
+          - listitem [level=1]
+        - link "Open shifts" [ref=e42]
+      - article
+        - heading "Imports" [level=3, ref=e43]
+        - paragraph
+          - StaticText "0 applied Crew imports"
+        - StaticText "Needs attention"
+        - list
+          - listitem [level=1]
+          - listitem [level=1]
+        - link "Open imports" [ref=e44]
+      - article
+        - heading "Credits" [level=3, ref=e45]
+        - paragraph
+          - StaticText "No conversion credit is recorded."
+        - StaticText "Needs attention"
+        - list
+          - listitem [level=1]
+            - StaticText "Crew billing state: comped."
+        - link "Open billing" [ref=e46]
+- region "Notifications alt+T" [ref=e1]

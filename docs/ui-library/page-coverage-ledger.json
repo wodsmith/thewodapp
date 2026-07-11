@@ -33,13 +33,13 @@
       "navigation-only": 6,
       "non-visual": 40,
       "redirect-only": 17,
-      "route-specific": 59,
-      "unassessed": 164
+      "route-specific": 65,
+      "unassessed": 158
     },
     "byScenarioStatus": {
       "blocked": 26,
-      "pending": 147,
-      "verified": 166
+      "pending": 141,
+      "verified": 178
     }
   },
   "records": [
@@ -3648,36 +3648,114 @@
       "sourceRouteId": "/admin/crew",
       "urlPattern": "/admin/crew",
       "kind": "page-layout",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "admin"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
           "light"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "admin-desktop-light",
+          "status": "verified",
+          "persona": "admin",
+          "fixture": "populated",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/control-room-admin-desktop-light.a11y.txt",
+              "sha256": "c6eec7ca23134eface6d441f0564080013f90d5a037b42c8b6a09cab5ef03634"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/control-room-admin-desktop-light.dom.json",
+              "sha256": "c370c48f146f8f31a2f7d9895d6c6924d0b0c96abd004b0032fb559bd7e2a0a4"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/control-room-admin-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/control-room-admin-desktop-light.network.json",
+              "sha256": "b9464b5105f3d094403380303df22a85469928f9ff3f79562b7b41231ba39162"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/control-room-admin-desktop-light.png",
+              "sha256": "3cb4f995f08bf7016e0f5b18662d72018f133a7117675493e6ab3e3be25684f7"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/capture-manifest.json",
+              "sha256": "3c4a91751d9fc9c486cb743ea54ba3f0c762adea8b95e9db2f8a3f604b833311",
+              "captureId": "control-room-admin-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "admin-mobile-light",
+          "status": "verified",
+          "persona": "admin",
+          "fixture": "populated",
+          "params": {},
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/control-room-admin-mobile-light.a11y.txt",
+              "sha256": "318b6aacd1ec51d181349b3510118bdf445b5bcebf356069036469f2196825f1"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/control-room-admin-mobile-light.dom.json",
+              "sha256": "f1ad5bb902e3c341cea2308c46e76fdcc44905f2f0cab1450f91e26de09e24a2"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/control-room-admin-mobile-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/control-room-admin-mobile-light.network.json",
+              "sha256": "4b674321d56af5709b37e35d8640ba53091bf54edc7d1522451aa41103397fdd"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/control-room-admin-mobile-light.png",
+              "sha256": "ada70182c4ba03e92f1d04a12db92da14d69b74c8e7b953f50dbb6e626565e85"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/capture-manifest.json",
+              "sha256": "3c4a91751d9fc9c486cb743ea54ba3f0c762adea8b95e9db2f8a3f604b833311",
+              "captureId": "control-room-admin-mobile-light"
+            }
+          ],
           "blockers": []
         }
       ]
@@ -3689,36 +3767,114 @@
       "sourceRouteId": "/admin/crew/events",
       "urlPattern": "/admin/crew/events",
       "kind": "page-layout",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "admin"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
           "light"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "admin-desktop-light",
+          "status": "verified",
+          "persona": "admin",
+          "fixture": "populated",
           "params": {},
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/events-admin-desktop-light.a11y.txt",
+              "sha256": "4f5b09eafa35add7cfd1962bd4ff5b409d32d2a15260a1c108ef82f2bd9ab2ae"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/events-admin-desktop-light.dom.json",
+              "sha256": "a384b582034f8bee8b5994a01969197145dac1fc47d95ca1d8a9efd77399a7f2"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/events-admin-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/events-admin-desktop-light.network.json",
+              "sha256": "3d09df8dca64b0283d7c54a9ca90b142cf371e5cfc91018b19e001ade7b2f3f2"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/events-admin-desktop-light.png",
+              "sha256": "235d32a978488aa92bf435478dae7900af8d40d91ba070d2078409067e648d70"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/capture-manifest.json",
+              "sha256": "3c4a91751d9fc9c486cb743ea54ba3f0c762adea8b95e9db2f8a3f604b833311",
+              "captureId": "events-admin-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "admin-mobile-light",
+          "status": "verified",
+          "persona": "admin",
+          "fixture": "populated",
+          "params": {},
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/events-admin-mobile-light.a11y.txt",
+              "sha256": "a6e7a9d4966652071aa34ddd94ce468ea7672007b6d023a4820525e9974a4f52"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/events-admin-mobile-light.dom.json",
+              "sha256": "53c639a7f1d9db51aac348cc0fcbd277d1c7966b572ec523bd24d99820ed4e64"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/events-admin-mobile-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/events-admin-mobile-light.network.json",
+              "sha256": "2ef77dc6d7d3e0bb8aa8150f8c2ee8f3f5e2f506cfbfd90b0e9798a939445b72"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/events-admin-mobile-light.png",
+              "sha256": "90d8d2efecacd0b4740aff2c6d8da46433894b0c2ae8e48518bcd589ca9d773c"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/capture-manifest.json",
+              "sha256": "3c4a91751d9fc9c486cb743ea54ba3f0c762adea8b95e9db2f8a3f604b833311",
+              "captureId": "events-admin-mobile-light"
+            }
+          ],
           "blockers": []
         }
       ]
@@ -3730,38 +3886,118 @@
       "sourceRouteId": "/admin/crew/events/$eventId",
       "urlPattern": "/admin/crew/events/:eventId",
       "kind": "page-layout",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "admin"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
           "light"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "admin-desktop-light",
+          "status": "verified",
+          "persona": "admin",
+          "fixture": "populated",
           "params": {
-            "eventId": "__unassessed_eventId__"
+            "eventId": "e2e_competition"
           },
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/overview-admin-desktop-light.a11y.txt",
+              "sha256": "2d9a19de1da301eb5b0a5c206f05d0836a36ec403a55252e5752b542ae24b734"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/overview-admin-desktop-light.dom.json",
+              "sha256": "c56f69288490854515dc0f19c4102073c76a25e19086a7c3706bdf5d3a107487"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/overview-admin-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/overview-admin-desktop-light.network.json",
+              "sha256": "dc614133655c07dddaaa60cc50e2ed8e09cbae8c05aeed4ee99d9333238c347b"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/overview-admin-desktop-light.png",
+              "sha256": "bf0588d25de74ab55b86a497ae6a4891fb8d2295f9f391f0dcc84520f58d6f0c"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/capture-manifest.json",
+              "sha256": "3c4a91751d9fc9c486cb743ea54ba3f0c762adea8b95e9db2f8a3f604b833311",
+              "captureId": "overview-admin-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "admin-mobile-light",
+          "status": "verified",
+          "persona": "admin",
+          "fixture": "populated",
+          "params": {
+            "eventId": "e2e_competition"
+          },
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/overview-admin-mobile-light.a11y.txt",
+              "sha256": "75c88d23be8277bd5168cd714ac6c69cf81df64ba8f66c647746e1aa57e0999e"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/overview-admin-mobile-light.dom.json",
+              "sha256": "b141533322bb635cadff3a395829116dbc97688fc571c136546e17b73fecaef0"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/overview-admin-mobile-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/overview-admin-mobile-light.network.json",
+              "sha256": "d87b9599ae58cb652016ba88f64d1339679c4af564092ac1237dbe75fc3c50b7"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/overview-admin-mobile-light.png",
+              "sha256": "648a1079b9e0d1c66237ed4067c8d00cbd42af207639a1d801dd5ddbe5d8c018"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/capture-manifest.json",
+              "sha256": "3c4a91751d9fc9c486cb743ea54ba3f0c762adea8b95e9db2f8a3f604b833311",
+              "captureId": "overview-admin-mobile-light"
+            }
+          ],
           "blockers": []
         }
       ]
@@ -3773,38 +4009,118 @@
       "sourceRouteId": "/admin/crew/events/$eventId/billing",
       "urlPattern": "/admin/crew/events/:eventId/billing",
       "kind": "page",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "admin"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
           "light"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "admin-desktop-light",
+          "status": "verified",
+          "persona": "admin",
+          "fixture": "populated",
           "params": {
-            "eventId": "__unassessed_eventId__"
+            "eventId": "e2e_competition"
           },
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/billing-admin-desktop-light.a11y.txt",
+              "sha256": "5d7845f1c2707cec124d1a8eabf897e53b3ac01b1803bc9c799c90943bbf6488"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/billing-admin-desktop-light.dom.json",
+              "sha256": "f1c0d0e61f15ba15f115f176568aaa8dfe3f74b8860c69ac79277c2a51e7ac2b"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/billing-admin-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/billing-admin-desktop-light.network.json",
+              "sha256": "9e12ce69e3218401fe8ea08162d7f7a295497f9c571a7a613e403aa3355b300d"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/billing-admin-desktop-light.png",
+              "sha256": "ca27ec77b23525e4130678a37f4016c9dff2faee334ad49deb2a0651d15af6c2"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/capture-manifest.json",
+              "sha256": "3c4a91751d9fc9c486cb743ea54ba3f0c762adea8b95e9db2f8a3f604b833311",
+              "captureId": "billing-admin-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "admin-mobile-light",
+          "status": "verified",
+          "persona": "admin",
+          "fixture": "populated",
+          "params": {
+            "eventId": "e2e_competition"
+          },
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/billing-admin-mobile-light.a11y.txt",
+              "sha256": "4049eda492189e1957d68fc923469fd98c7014497660b94496b217ca9c8a5def"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/billing-admin-mobile-light.dom.json",
+              "sha256": "e18379e66e889167137b418d43ffa0b80b857cb3d1b2f8f19d1736bb03c0acff"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/billing-admin-mobile-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/billing-admin-mobile-light.network.json",
+              "sha256": "7550a760a74b49ef89a2856aa920317d545cdffb10d80a237fd4ac7a834a6450"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/billing-admin-mobile-light.png",
+              "sha256": "00fcec2fd52bd6ac29d5ad47d5a1e9e19ba0f5d0ec4d74ee56bc3f7e2d92d209"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/capture-manifest.json",
+              "sha256": "3c4a91751d9fc9c486cb743ea54ba3f0c762adea8b95e9db2f8a3f604b833311",
+              "captureId": "billing-admin-mobile-light"
+            }
+          ],
           "blockers": []
         }
       ]
@@ -3816,38 +4132,118 @@
       "sourceRouteId": "/admin/crew/events/$eventId/convert",
       "urlPattern": "/admin/crew/events/:eventId/convert",
       "kind": "page",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "admin"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
           "light"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "admin-desktop-light",
+          "status": "verified",
+          "persona": "admin",
+          "fixture": "populated",
           "params": {
-            "eventId": "__unassessed_eventId__"
+            "eventId": "e2e_competition"
           },
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/convert-admin-desktop-light.a11y.txt",
+              "sha256": "aab6243765f626b96de60345c04b4fb7ddcac70c901a583298c4c6b230a77da5"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/convert-admin-desktop-light.dom.json",
+              "sha256": "3798f134f818cb8c15d8ae41d6291b6f9e0d675f8e80f26f44572ce2ee3ba6f0"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/convert-admin-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/convert-admin-desktop-light.network.json",
+              "sha256": "c2198229b8243e46927c50f68bd741f1c1c4b81bcc1c4b7eaaefbd22fa2f00dd"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/convert-admin-desktop-light.png",
+              "sha256": "923d04a1b297647290fbfdedb3873e5ccee0bfb7d686ac7dd620951429ef1b28"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/capture-manifest.json",
+              "sha256": "3c4a91751d9fc9c486cb743ea54ba3f0c762adea8b95e9db2f8a3f604b833311",
+              "captureId": "convert-admin-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "admin-mobile-light",
+          "status": "verified",
+          "persona": "admin",
+          "fixture": "populated",
+          "params": {
+            "eventId": "e2e_competition"
+          },
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/convert-admin-mobile-light.a11y.txt",
+              "sha256": "e58b2b66c83fe838f4d58aa4abf4f6fe98488d8eaf1588477914cff0225efb2e"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/convert-admin-mobile-light.dom.json",
+              "sha256": "e7ca234dc53cb12edf98423398d3d7a56de6c0c1a3dde46778c01ddd201e3656"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/convert-admin-mobile-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/convert-admin-mobile-light.network.json",
+              "sha256": "f154cd6b35858085b92d485d03da9c522b2e151446b58f5b5eecb5b89aa52b31"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/convert-admin-mobile-light.png",
+              "sha256": "4e205e3c6da250cf104299f7388f4685776c6c3fb3c0beeda7501037fa812761"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/capture-manifest.json",
+              "sha256": "3c4a91751d9fc9c486cb743ea54ba3f0c762adea8b95e9db2f8a3f604b833311",
+              "captureId": "convert-admin-mobile-light"
+            }
+          ],
           "blockers": []
         }
       ]
@@ -3859,38 +4255,118 @@
       "sourceRouteId": "/admin/crew/events/$eventId/readiness",
       "urlPattern": "/admin/crew/events/:eventId/readiness",
       "kind": "page",
-      "disposition": "unassessed",
+      "disposition": "route-specific",
       "requirements": {
         "personas": [
-          "unassessed"
+          "admin"
         ],
         "fixtures": [
-          "unassessed"
+          "populated"
         ],
         "dataStates": [
-          "unassessed"
+          "default"
         ],
         "themes": [
           "light"
         ],
         "viewports": [
-          "desktop"
+          "desktop",
+          "mobile"
         ]
       },
       "scenarios": [
         {
-          "id": "unassessed",
-          "status": "pending",
-          "persona": "unassessed",
-          "fixture": "unassessed",
+          "id": "admin-desktop-light",
+          "status": "verified",
+          "persona": "admin",
+          "fixture": "populated",
           "params": {
-            "eventId": "__unassessed_eventId__"
+            "eventId": "e2e_competition"
           },
           "query": {},
-          "dataState": "unassessed",
+          "dataState": "default",
           "theme": "light",
           "viewport": "desktop",
-          "evidence": [],
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/readiness-admin-desktop-light.a11y.txt",
+              "sha256": "5ee9b4cae16903ac14b180762e99e70fa5a1770f8b780bd4330b640b7fe98f71"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/readiness-admin-desktop-light.dom.json",
+              "sha256": "414fd74e5b193e9a10beacec3875aaed961ab89773f1e3973d9be9178a1f9dde"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/readiness-admin-desktop-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/readiness-admin-desktop-light.network.json",
+              "sha256": "46dbdc29fe2a07d5e83163df5573ffb42ea2c361b76ebdd928447dc6a284a18c"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/readiness-admin-desktop-light.png",
+              "sha256": "aa5677bf3672c0dd341a3546ff8b35b28fd4f1ec88cf6b72f2a3fa1742cfa46f"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/capture-manifest.json",
+              "sha256": "3c4a91751d9fc9c486cb743ea54ba3f0c762adea8b95e9db2f8a3f604b833311",
+              "captureId": "readiness-admin-desktop-light"
+            }
+          ],
+          "blockers": []
+        },
+        {
+          "id": "admin-mobile-light",
+          "status": "verified",
+          "persona": "admin",
+          "fixture": "populated",
+          "params": {
+            "eventId": "e2e_competition"
+          },
+          "query": {},
+          "dataState": "default",
+          "theme": "light",
+          "viewport": "mobile",
+          "evidence": [
+            {
+              "kind": "accessibility-snapshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/readiness-admin-mobile-light.a11y.txt",
+              "sha256": "60514abf4678fbe976e65e69e9cead5fa68e1dbfb009730520c548d7711c2e50"
+            },
+            {
+              "kind": "dom-snapshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/readiness-admin-mobile-light.dom.json",
+              "sha256": "78042311e3e71a7ee96601fb152f732e32ad315b7bb92c0eb7cd303533c367d8"
+            },
+            {
+              "kind": "console-log",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/readiness-admin-mobile-light.console.json",
+              "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+            },
+            {
+              "kind": "network-log",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/readiness-admin-mobile-light.network.json",
+              "sha256": "17b0e99c663a326e3db5970fd8ccd7452eb6f627da143675ee9ed86d0d330099"
+            },
+            {
+              "kind": "browser-screenshot",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/readiness-admin-mobile-light.png",
+              "sha256": "d7ab0415d1ec5e701064e73d5cda7a337e4ab2a273994a0b6b506beeca78862b"
+            },
+            {
+              "kind": "capture-manifest",
+              "ref": "docs/ui-library/evidence/crew-admin/2026-07-10/capture-manifest.json",
+              "sha256": "3c4a91751d9fc9c486cb743ea54ba3f0c762adea8b95e9db2f8a3f604b833311",
+              "captureId": "readiness-admin-mobile-light"
+            }
+          ],
           "blockers": []
         }
       ]
