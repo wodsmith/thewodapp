@@ -51,6 +51,7 @@ import {
 import { getSubmissionCountsByEventFn } from "@/server-fns/video-submission-fns"
 import { cn } from "@/utils/cn"
 import { formatTrackOrder } from "@/utils/format-track-order"
+import { ResultsLoadError } from "./-components/results-load-error"
 
 // Get parent route API to access competition data
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
@@ -766,11 +767,7 @@ function InPersonResultsEntry({
             Enter scores for competition events
           </p>
         </div>
-        <OrganizerEmptyState
-          icon={AlertTriangle}
-          title="Unable to load results"
-          description="Unable to load score entry data. Please try again."
-        />
+        <ResultsLoadError onRetry={() => router.invalidate()} />
       </div>
     )
   }
