@@ -106,9 +106,15 @@ describe("Crew template metric composition", () => {
       expect(metric.querySelector("dd")).toHaveClass(
         "order-first",
         "text-xs",
+        "leading-4",
+        "tracking-normal",
         "min-w-0",
         "break-words",
         "[overflow-wrap:anywhere]",
+      )
+      expect(metric.querySelector("dd")).not.toHaveClass(
+        "leading-none",
+        "tracking-tight",
       )
       expect(metric.querySelector("dt")).toHaveClass(
         "text-xs",

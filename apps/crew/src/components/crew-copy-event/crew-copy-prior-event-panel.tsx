@@ -108,7 +108,7 @@ export function CrewCopyPriorEventPanel({
                     <Metric.Label className="text-xs font-normal text-muted-foreground">
                       Copy
                     </Metric.Label>
-                    <Metric.Value className="order-first text-base">
+                    <Metric.Value className="order-first text-base leading-6 tracking-normal">
                       {
                         preview.summary.filter((item) => item.status === "copy")
                           .length
@@ -119,7 +119,7 @@ export function CrewCopyPriorEventPanel({
                     <Metric.Label className="text-xs font-normal text-muted-foreground">
                       Skip
                     </Metric.Label>
-                    <Metric.Value className="order-first text-base">
+                    <Metric.Value className="order-first text-base leading-6 tracking-normal">
                       {
                         preview.summary.filter((item) => item.status === "skip")
                           .length
@@ -130,7 +130,7 @@ export function CrewCopyPriorEventPanel({
                     <Metric.Label className="text-xs font-normal text-muted-foreground">
                       Deny
                     </Metric.Label>
-                    <Metric.Value className="order-first text-base">
+                    <Metric.Value className="order-first text-base leading-6 tracking-normal">
                       {
                         preview.summary.filter((item) => item.status === "deny")
                           .length

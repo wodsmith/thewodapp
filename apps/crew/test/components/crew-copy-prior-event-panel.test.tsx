@@ -110,7 +110,16 @@ describe("Crew copy-prior-event metric composition", () => {
         "py-2",
       )
       expect(metric).not.toHaveClass("gap-1", "bg-muted", "p-3")
-      expect(metric.querySelector("dd")).toHaveClass("order-first", "text-base")
+      expect(metric.querySelector("dd")).toHaveClass(
+        "order-first",
+        "text-base",
+        "leading-6",
+        "tracking-normal",
+      )
+      expect(metric.querySelector("dd")).not.toHaveClass(
+        "leading-none",
+        "tracking-tight",
+      )
       expect(metric.querySelector("dt")).toHaveClass(
         "text-xs",
         "font-normal",

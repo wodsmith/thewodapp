@@ -121,7 +121,7 @@ export function CrewTemplatePanel({
                 <Metric.Label className="text-xs font-normal text-muted-foreground">
                   Roles
                 </Metric.Label>
-                <Metric.Value className="order-first text-xs">
+                <Metric.Value className="order-first text-xs leading-4 tracking-normal">
                   {preview.summary.roles}
                 </Metric.Value>
               </Metric.Inset>
@@ -129,7 +129,7 @@ export function CrewTemplatePanel({
                 <Metric.Label className="text-xs font-normal text-muted-foreground">
                   New
                 </Metric.Label>
-                <Metric.Value className="order-first text-xs">
+                <Metric.Value className="order-first text-xs leading-4 tracking-normal">
                   {preview.summary.newShifts}
                 </Metric.Value>
               </Metric.Inset>
@@ -137,7 +137,7 @@ export function CrewTemplatePanel({
                 <Metric.Label className="text-xs font-normal text-muted-foreground">
                   Skipped
                 </Metric.Label>
-                <Metric.Value className="order-first text-xs">
+                <Metric.Value className="order-first text-xs leading-4 tracking-normal">
                   {preview.summary.duplicateShifts}
                 </Metric.Value>
               </Metric.Inset>
