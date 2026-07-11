@@ -114,6 +114,50 @@ Invalid Crew level labels render a semantic collection error without the former 
 
 Crew edit state mirrors sorted levels and the creation-only note while retaining the unchanged update payload.
 
+#### Registration option field groups
+
+The Start and Crew registration-question editors use FieldGroup for select options while preserving text/number rendering, question schemas, server actions, and create/update payloads.
+
+##### Organizer registration option type rendering
+
+The organizer editor omits the Options group for text questions and renders a named fieldset with a labeled option input only for select questions.
+
+##### Organizer registration option editing
+
+Organizer select options are trimmed, deduplicated, removable through named controls, and stored in the existing React Hook Form options value.
+
+##### Organizer registration option validation
+
+Submitting an empty select question marks the Options fieldset invalid and renders the existing minimum-option message as a semantic error without a Form context crash.
+
+##### Organizer registration option create payload
+
+Organizer create state preserves the competition, team, type, label, help text, options, required, teammate, and target values sent to the existing create action.
+
+##### Organizer registration option update payload
+
+Organizer edit state loads existing options and preserves the canonical question update payload.
+
+##### Crew registration option type rendering
+
+The Crew editor mirrors the organizer type-dependent Options fieldset and labeled option input.
+
+##### Crew registration option editing
+
+Crew mirrors trimmed option addition, duplicate rejection, and accessible removal without changing form ownership.
+
+##### Crew registration option validation
+
+Crew renders empty-select validation through the shared FieldGroup semantics without requiring React Hook Form field context.
+
+##### Crew registration option create payload
+
+Crew preserves the canonical competition question create payload while composing the select options collection.
+
+##### Crew registration option update payload
+
+Crew edit state retains existing select options and sends the unchanged update payload.
+
 ## Shared package boundary
 
 The workspace package \`@repo/ui\` under \`packages/ui\` exposes direct component subpaths, \`cn\`, and a shared stylesheet without a root barrel migration.
