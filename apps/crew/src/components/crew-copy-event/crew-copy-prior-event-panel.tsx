@@ -3,9 +3,10 @@
 // @lat: [[crew#Copy Prior Event Setup]]
 import { Ban, CheckCircle2, Copy, Loader2 } from "lucide-react"
 import { useEffect, useState } from "react"
+import { Metric } from "@/components/ui/metric"
 import {
-  getCrewCopyPriorEventPageFn,
   type CrewCopyPriorEventPageData,
+  getCrewCopyPriorEventPageFn,
 } from "@/server-fns/crew-copy-event-fns"
 
 interface CrewCopyPriorEventPanelProps {
@@ -103,27 +104,39 @@ export function CrewCopyPriorEventPanel({
                   {preview.targetEvent.startDate ?? "target date"}
                 </p>
                 <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
-                  <Metric
-                    label="Copy"
-                    value={
-                      preview.summary.filter((item) => item.status === "copy")
-                        .length
-                    }
-                  />
-                  <Metric
-                    label="Skip"
-                    value={
-                      preview.summary.filter((item) => item.status === "skip")
-                        .length
-                    }
-                  />
-                  <Metric
-                    label="Deny"
-                    value={
-                      preview.summary.filter((item) => item.status === "deny")
-                        .length
-                    }
-                  />
+                  <Metric.Inset className="gap-0 border bg-card px-2 py-2">
+                    <Metric.Label className="text-xs font-normal text-muted-foreground">
+                      Copy
+                    </Metric.Label>
+                    <Metric.Value className="order-first text-base">
+                      {
+                        preview.summary.filter((item) => item.status === "copy")
+                          .length
+                      }
+                    </Metric.Value>
+                  </Metric.Inset>
+                  <Metric.Inset className="gap-0 border bg-card px-2 py-2">
+                    <Metric.Label className="text-xs font-normal text-muted-foreground">
+                      Skip
+                    </Metric.Label>
+                    <Metric.Value className="order-first text-base">
+                      {
+                        preview.summary.filter((item) => item.status === "skip")
+                          .length
+                      }
+                    </Metric.Value>
+                  </Metric.Inset>
+                  <Metric.Inset className="gap-0 border bg-card px-2 py-2">
+                    <Metric.Label className="text-xs font-normal text-muted-foreground">
+                      Deny
+                    </Metric.Label>
+                    <Metric.Value className="order-first text-base">
+                      {
+                        preview.summary.filter((item) => item.status === "deny")
+                          .length
+                      }
+                    </Metric.Value>
+                  </Metric.Inset>
                 </div>
               </div>
             ) : null}
@@ -209,15 +222,6 @@ export function CrewCopyPriorEventPanel({
         </div>
       )}
     </section>
-  )
-}
-
-function Metric({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-md border bg-card px-2 py-2">
-      <div className="text-base font-semibold">{value}</div>
-      <div className="text-muted-foreground">{label}</div>
-    </div>
   )
 }
 

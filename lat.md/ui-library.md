@@ -138,7 +138,7 @@ The Crew venue test verifies the mirrored heading hierarchy and existing dialog 
 
 [[packages/ui/src/components/metric.tsx#Metric|Metric]] owns portable metric structure and presentation without owning grids, calculations, data fetching, actions, animation, or state vocabulary.
 
-Root, Card, and Inset are explicit children-driven surfaces that render native description lists. Label renders a term, Value and Supporting render definitions, and its optional nested Icon is decorative by default. Start and Crew expose identity-only adapters without consumers in this extraction slice.
+Root, Card, and Inset are explicit children-driven surfaces that render native description lists. Label renders a term, Value and Supporting render definitions, and its optional nested Icon is decorative by default. Start and Crew expose identity-only adapters for reviewed consumer migrations.
 
 #### Semantic metric root
 
@@ -159,6 +159,28 @@ Every surface and text part has a zero minimum width, while labels, values, code
 #### Metric context misuse
 
 Icon, Label, Value, and Supporting fail with a specific error outside Root, Card, or Inset so detached parts cannot silently lose the semantic composition contract.
+
+#### Crew compact preview consumers
+
+Crew copy-event and template previews compose compact metrics directly while preserving their grids, values, and visible value-before-label layout.
+
+The semantic source order remains label then value, and caller-owned `order-first` styling keeps the existing visual order without weakening the `dl`, `dt`, and `dd` relationship.
+
+##### Copy prior event metrics
+
+The copy-preview test verifies Copy, Skip, and Deny are semantic pairs, including zero, with the prior compact surface and visible order.
+
+##### Copy prior event empty state
+
+The copy-preview test verifies an event with no eligible source keeps its existing message and does not fabricate metric structure.
+
+##### Template preview metrics
+
+The template-preview test verifies Roles, New, and Skipped are semantic pairs, including long and zero values, with the prior compact surface and visible order.
+
+##### Template unavailable state
+
+The template-preview test verifies an unavailable template keeps the panel non-rendering rather than creating empty metric structure.
 
 ### Field composition
 

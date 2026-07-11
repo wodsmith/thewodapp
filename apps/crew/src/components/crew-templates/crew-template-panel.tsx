@@ -3,6 +3,7 @@
 // @lat: [[crew#Role And Shift Templates]]
 import { Save, WandSparkles } from "lucide-react"
 import { useMemo, useState } from "react"
+import { Metric } from "@/components/ui/metric"
 import { VOLUNTEER_ROLE_LABELS } from "@/db/schemas/volunteers"
 import {
   buildCrewTemplateApplyPlan,
@@ -116,9 +117,30 @@ export function CrewTemplatePanel({
               {selectedTemplate.description}
             </p>
             <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
-              <Metric label="Roles" value={preview.summary.roles} />
-              <Metric label="New" value={preview.summary.newShifts} />
-              <Metric label="Skipped" value={preview.summary.duplicateShifts} />
+              <Metric.Inset className="gap-0 border bg-card px-2 py-2">
+                <Metric.Label className="text-xs font-normal text-muted-foreground">
+                  Roles
+                </Metric.Label>
+                <Metric.Value className="order-first text-xs">
+                  {preview.summary.roles}
+                </Metric.Value>
+              </Metric.Inset>
+              <Metric.Inset className="gap-0 border bg-card px-2 py-2">
+                <Metric.Label className="text-xs font-normal text-muted-foreground">
+                  New
+                </Metric.Label>
+                <Metric.Value className="order-first text-xs">
+                  {preview.summary.newShifts}
+                </Metric.Value>
+              </Metric.Inset>
+              <Metric.Inset className="gap-0 border bg-card px-2 py-2">
+                <Metric.Label className="text-xs font-normal text-muted-foreground">
+                  Skipped
+                </Metric.Label>
+                <Metric.Value className="order-first text-xs">
+                  {preview.summary.duplicateShifts}
+                </Metric.Value>
+              </Metric.Inset>
             </div>
           </div>
 
@@ -260,15 +282,6 @@ export function CrewTemplatePanel({
         </div>
       </div>
     </section>
-  )
-}
-
-function Metric({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-md border bg-card px-2 py-2">
-      <div className="font-semibold">{value}</div>
-      <div className="text-muted-foreground">{label}</div>
-    </div>
   )
 }
 
