@@ -20,7 +20,7 @@ Callers provide a stable id plus optional description and error content to the c
 
 Metadata renderers read the root contract and omit themselves when their content is absent. FieldGroup uses a native fieldset with a direct legend and the same description/error semantics. Compound parts fail fast outside their matching root.
 
-Start and Crew expose identity-only \`field\` adapters, but no feature route migrates in this extraction slice. Existing React Hook Form primitives and their misuse guard remain unchanged until separately reviewed consumer migrations.
+Start and Crew expose identity-only \`field\` adapters for reviewed consumer migrations. Canonical React Hook Form fields stay on the existing primitives and retain their misuse guard.
 
 #### Accessible field metadata
 
@@ -57,6 +57,18 @@ A field group without description or error content omits metadata nodes and ARIA
 #### Field group context misuse
 
 Every FieldGroup compound part fails with a specific error when rendered outside FieldGroup.Root.
+
+#### Rotation editor field groups
+
+The Start and Crew multi-rotation editors use FieldGroup only for the rotations collection while preserving every row-level React Hook Form field and persistence contract.
+
+##### Organizer rotation editor group
+
+The organizer and cohost editor renders a named Rotations fieldset in create and edit states, supports block add/remove, and preserves batch create and update payloads.
+
+##### Crew rotation editor group
+
+The Crew editor renders the same named Rotations fieldset, preserves existing blocks and add/remove behavior, and sends unchanged judge and rotation values to its save callback.
 
 ## Shared package boundary
 

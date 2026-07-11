@@ -14,6 +14,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
+import { FieldGroup } from "@/components/ui/field"
 import {
   Form,
   FormControl,
@@ -506,8 +507,8 @@ export function MultiRotationEditor({
         />
 
         {/* Rotation Blocks - Accordion/Collapsible */}
-        <div className="space-y-2">
-          <FormLabel>Rotations</FormLabel>
+        <FieldGroup.Root id="judge-rotations" className="space-y-2">
+          <FieldGroup.Legend>Rotations</FieldGroup.Legend>
           {fields.map((field, index) => {
             const rotation = formValues.rotations[index]
             const isOpen = openBlocks.has(index)
@@ -681,7 +682,7 @@ export function MultiRotationEditor({
             <Plus className="mr-2 h-4 w-4" />
             Add rotation
           </Button>
-        </div>
+        </FieldGroup.Root>
 
         {/* Actions */}
         <div className="flex justify-end gap-2 pt-2">
