@@ -126,6 +126,7 @@ interface TeamForForm {
   id: string
   name: string
   type: string
+  canCreateBenchmarks?: boolean
 }
 
 interface OrganizerCompetitionFormProps {
@@ -162,7 +163,6 @@ export function OrganizerCompetitionForm({
 }: OrganizerCompetitionFormProps) {
   const navigate = useNavigate()
   const router = useRouter()
-  const competitionTypeOptions = selectableCompetitionTypeOptions()
   const isEditMode = !!competition
   const initialCompetitionType: CompetitionTypeId =
     isSelectableCompetitionTypeValue(competition?.competitionType)
@@ -216,9 +216,28 @@ export function OrganizerCompetitionForm({
   })
 
   const isMultiDay = form.watch("isMultiDay")
+  const selectedFormTeamId = form.watch("teamId")
   const watchedCompetitionType = form.watch("competitionType")
   const isPerpetualType = competitionCan(watchedCompetitionType, "perpetual")
   const watchedGroupId = form.watch("groupId")
+  const canCreateBenchmarks =
+    teams.find((team) => team.id === selectedFormTeamId)?.canCreateBenchmarks ??
+    false
+  const competitionTypeOptions = selectableCompetitionTypeOptions().filter(
+    (option) =>
+      option.id !== "benchmark" ||
+      canCreateBenchmarks ||
+      (isEditMode && initialCompetitionType === "benchmark"),
+  )
+
+  useEffect(() => {
+    if (
+      !canCreateBenchmarks &&
+      form.getValues("competitionType") === "benchmark"
+    ) {
+      form.setValue("competitionType", "in-person")
+    }
+  }, [canCreateBenchmarks, form])
 
   // Track selected divisions for series template
   const templateData = watchedGroupId

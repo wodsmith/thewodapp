@@ -35,6 +35,7 @@ interface CompeteMobileNavProps {
   invitations?: PendingInvitation[]
   hasOrganizerApplication?: boolean
   missingProfileFields?: AthleteProfileMissingFields | null
+  showBenchmarksLink?: boolean
 }
 
 function formatMissingFields(
@@ -65,6 +66,7 @@ export default function CompeteMobileNav({
   invitations = [],
   hasOrganizerApplication = false,
   missingProfileFields = null,
+  showBenchmarksLink = false,
 }: CompeteMobileNavProps) {
   const [open, setOpen] = useState(false)
   const router = useRouterState()
@@ -149,14 +151,16 @@ export default function CompeteMobileNav({
               >
                 Competitions
               </Link>
-              <Link
-                to="/benchmarks"
-                aria-current={isBenchmarksIndex ? "page" : undefined}
-                className={benchmarksLinkClass}
-                onClick={handleLinkClick}
-              >
-                Benchmarks
-              </Link>
+              {showBenchmarksLink ? (
+                <Link
+                  to="/benchmarks"
+                  aria-current={isBenchmarksIndex ? "page" : undefined}
+                  className={benchmarksLinkClass}
+                  onClick={handleLinkClick}
+                >
+                  Benchmarks
+                </Link>
+              ) : null}
               {showManageCompetitionsLink && (
                 <a
                   href="/compete/organizer"
@@ -242,14 +246,16 @@ export default function CompeteMobileNav({
               >
                 Competitions
               </Link>
-              <Link
-                to="/benchmarks"
-                aria-current={isBenchmarksIndex ? "page" : undefined}
-                className={benchmarksLinkClass}
-                onClick={handleLinkClick}
-              >
-                Benchmarks
-              </Link>
+              {showBenchmarksLink ? (
+                <Link
+                  to="/benchmarks"
+                  aria-current={isBenchmarksIndex ? "page" : undefined}
+                  className={benchmarksLinkClass}
+                  onClick={handleLinkClick}
+                >
+                  Benchmarks
+                </Link>
+              ) : null}
               <a
                 href="/sign-in"
                 className="hover:text-primary"

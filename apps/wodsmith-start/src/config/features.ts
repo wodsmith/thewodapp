@@ -29,6 +29,7 @@ export const FEATURES = {
 
   // Competition platform features
   HOST_COMPETITIONS: "host_competitions",
+  CREATE_BENCHMARKS: "create_benchmarks",
   PRODUCT_COUPONS: "product_coupons",
 
   // `@lat`: [[crew#Crew Billing Catalog]]

@@ -35,6 +35,7 @@ import {
   updateRequestContext,
 } from "@/lib/logging"
 import { addressInputSchema } from "@/schemas/address"
+import { assertBenchmarkCreationAccess } from "@/server/benchmark-creation-access"
 import {
   createCompetition,
   createCompetitionGroup,
@@ -607,6 +608,11 @@ export const createCompetitionFn = createServerFn({ method: "POST" })
     })
 
     try {
+      await assertBenchmarkCreationAccess({
+        teamId: data.organizingTeamId,
+        competitionType: data.competitionType,
+      })
+
       const result = await createCompetition({
         organizingTeamId: data.organizingTeamId,
         name: data.name,

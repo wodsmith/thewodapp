@@ -33,6 +33,16 @@ export async function seed(client: Connection): Promise<void> {
 		tfe("tfe_box1_ai_workout", "team_cokkpu1klwo0ulfhl1iwzpvnbox1", "feat_ai_workout_generation", "pro"),
 		tfe("tfe_box1_multi_team", "team_cokkpu1klwo0ulfhl1iwzpvnbox1", "feat_multi_team_management", "pro"),
 		tfe("tfe_box1_host_comp", "team_cokkpu1klwo0ulfhl1iwzpvnbox1", "feat_host_competitions", "pro"),
+		{
+			id: "tfe_box1_create_benchmarks",
+			team_id: "team_cokkpu1klwo0ulfhl1iwzpvnbox1",
+			feature_id: "feat_create_benchmarks",
+			source: "override",
+			source_plan_id: null,
+			created_at: cts,
+			updated_at: cts,
+			update_counter: 0,
+		},
 		// Winter Throwdown (inherits Pro)
 		tfe("tfe_winter_basic", "team_winter_throwdown_2025", "feat_basic_workouts", "pro"),
 		tfe("tfe_winter_tracks", "team_winter_throwdown_2025", "feat_programming_tracks", "pro"),
