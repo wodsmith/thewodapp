@@ -1,0 +1,376 @@
+- banner
+  - link "WODsmith" [ref=e2]
+  - StaticText "Admin"
+  - link "Home" [ref=e3]
+  - button "Switch to dark mode" [ref=e4]
+    - StaticText "Toggle theme"
+  - button "Log out" [ref=e5]
+- complementary
+  - paragraph
+    - StaticText "PLATFORM"
+  - navigation
+    - link "Dashboard" [ref=e7]
+    - link "Teams" [ref=e8]
+    - link "Competitions" [ref=e9]
+    - link "Organizer Requests" [ref=e10]
+    - link "Entitlements" [ref=e11]
+    - link "Demo Competitions" [ref=e12]
+    - link "Documentation" [ref=e13]
+- main
+  - navigation
+    - link "Admin" [ref=e14]
+    - StaticText "/"
+    - StaticText "Teams"
+  - heading "Teams" [level=1, ref=e6]
+  - paragraph
+    - StaticText "Manage all teams in the platform"
+  - StaticText "Total Teams"
+  - StaticText "30"
+  - StaticText "Gyms"
+  - StaticText "4"
+  - StaticText "Personal"
+  - StaticText "6"
+  - StaticText "Competition Events"
+  - StaticText "12"
+  - StaticText "All Teams"
+  - generic
+    - StaticText "30 teams found"
+  - table
+    - rowgroup
+      - row
+        - columnheader "Team" [ref=e165]
+        - columnheader "Type" [ref=e166]
+        - columnheader "Members" [ref=e167]
+        - columnheader "Competitions" [ref=e168]
+        - columnheader "Created" [ref=e169]
+    - row
+      - cell "Admin's Team (personal) admin-n_user" [ref=e15]
+        - link "Admin's Team (personal)" [ref=e170]
+        - paragraph
+          - StaticText "admin-n_user"
+      - cell "Personal" [ref=e16]
+      - cell "0" [ref=e17]
+        - StaticText "0"
+      - cell "0" [ref=e18]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e19]
+    - row
+      - cell "Test's Team (personal) test-st_user" [ref=e20]
+        - link "Test's Team (personal)" [ref=e171]
+        - paragraph
+          - StaticText "test-st_user"
+      - cell "Personal" [ref=e21]
+      - cell "0" [ref=e22]
+        - StaticText "0"
+      - cell "0" [ref=e23]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e24]
+    - row
+      - cell "E2E Test Gym e2e-test-gym" [ref=e25]
+        - link "E2E Test Gym" [ref=e172]
+        - paragraph
+          - StaticText "e2e-test-gym"
+      - cell "Gym" [ref=e26]
+      - cell "0" [ref=e27]
+        - StaticText "0"
+      - cell "0" [ref=e28]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e29]
+    - row
+      - cell "E2E Comp Athletes e2e-comp-athletes" [ref=e30]
+        - link "E2E Comp Athletes" [ref=e173]
+        - paragraph
+          - StaticText "e2e-comp-athletes"
+      - cell "Competition Event" [ref=e31]
+      - cell "0" [ref=e32]
+        - StaticText "0"
+      - cell "0" [ref=e33]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e34]
+    - row
+      - cell "MWFC B Athletes mwfc-b-athletes" [ref=e35]
+        - link "MWFC B Athletes" [ref=e174]
+        - paragraph
+          - StaticText "mwfc-b-athletes"
+      - cell "Competition Event" [ref=e36]
+      - cell "0" [ref=e37]
+        - StaticText "0"
+      - cell "0" [ref=e38]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e39]
+    - row
+      - cell "Mike & Ghost mike-and-ghost-winter" [ref=e40]
+        - link "Mike & Ghost" [ref=e175]
+        - paragraph
+          - StaticText "mike-and-ghost-winter"
+      - cell "Athlete Team" [ref=e41]
+      - cell "0" [ref=e42]
+        - StaticText "0"
+      - cell "0" [ref=e43]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e44]
+    - row
+      - cell "Alex & Ryan alex-and-ryan-winter" [ref=e45]
+        - link "Alex & Ryan" [ref=e176]
+        - paragraph
+          - StaticText "alex-and-ryan-winter"
+      - cell "Athlete Team" [ref=e46]
+      - cell "0" [ref=e47]
+        - StaticText "0"
+      - cell "0" [ref=e48]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e49]
+    - row
+      - cell "Summer Showdown W2 Athletes summer-showdown-w2-athletes" [ref=e50]
+        - link "Summer Showdown W2 Athletes" [ref=e177]
+        - paragraph
+          - StaticText "summer-showdown-w2-athletes"
+      - cell "Competition Event" [ref=e51]
+      - cell "0" [ref=e52]
+        - StaticText "0"
+      - cell "0" [ref=e53]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e54]
+    - row
+      - cell "Summer Showdown W1 Athletes summer-showdown-w1-athletes" [ref=e55]
+        - link "Summer Showdown W1 Athletes" [ref=e178]
+        - paragraph
+          - StaticText "summer-showdown-w1-athletes"
+      - cell "Competition Event" [ref=e56]
+      - cell "0" [ref=e57]
+        - StaticText "0"
+      - cell "0" [ref=e58]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e59]
+    - row
+      - cell "MWFC E Athletes mwfc-e-athletes" [ref=e60]
+        - link "MWFC E Athletes" [ref=e179]
+        - paragraph
+          - StaticText "mwfc-e-athletes"
+      - cell "Competition Event" [ref=e61]
+      - cell "0" [ref=e62]
+        - StaticText "0"
+      - cell "0" [ref=e63]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e64]
+    - row
+      - cell "MWFC D Athletes mwfc-d-athletes" [ref=e65]
+        - link "MWFC D Athletes" [ref=e180]
+        - paragraph
+          - StaticText "mwfc-d-athletes"
+      - cell "Competition Event" [ref=e66]
+      - cell "0" [ref=e67]
+        - StaticText "0"
+      - cell "0" [ref=e68]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e69]
+    - row
+      - cell "MWFC C Athletes mwfc-c-athletes" [ref=e70]
+        - link "MWFC C Athletes" [ref=e181]
+        - paragraph
+          - StaticText "mwfc-c-athletes"
+      - cell "Competition Event" [ref=e71]
+      - cell "0" [ref=e72]
+        - StaticText "0"
+      - cell "0" [ref=e73]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e74]
+    - row
+      - cell "MWFC A Athletes mwfc-a-athletes" [ref=e75]
+        - link "MWFC A Athletes" [ref=e182]
+        - paragraph
+          - StaticText "mwfc-a-athletes"
+      - cell "Competition Event" [ref=e76]
+      - cell "0" [ref=e77]
+        - StaticText "0"
+      - cell "0" [ref=e78]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e79]
+    - row
+      - cell "Team Thunder inv-qual-thunder" [ref=e80]
+        - link "Team Thunder" [ref=e183]
+        - paragraph
+          - StaticText "inv-qual-thunder"
+      - cell "Athlete Team" [ref=e81]
+      - cell "0" [ref=e82]
+        - StaticText "0"
+      - cell "0" [ref=e83]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e84]
+    - row
+      - cell "Team Storm inv-qual-storm" [ref=e85]
+        - link "Team Storm" [ref=e184]
+        - paragraph
+          - StaticText "inv-qual-storm"
+      - cell "Athlete Team" [ref=e86]
+      - cell "0" [ref=e87]
+        - StaticText "0"
+      - cell "0" [ref=e88]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e89]
+    - row
+      - cell "Team Pulse inv-qual-pulse" [ref=e90]
+        - link "Team Pulse" [ref=e185]
+        - paragraph
+          - StaticText "inv-qual-pulse"
+      - cell "Athlete Team" [ref=e91]
+      - cell "0" [ref=e92]
+        - StaticText "0"
+      - cell "0" [ref=e93]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e94]
+    - row
+      - cell "Team Havoc inv-qual-havoc" [ref=e95]
+        - link "Team Havoc" [ref=e186]
+        - paragraph
+          - StaticText "inv-qual-havoc"
+      - cell "Athlete Team" [ref=e96]
+      - cell "0" [ref=e97]
+        - StaticText "0"
+      - cell "0" [ref=e98]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e99]
+    - row
+      - cell "Team Grit inv-qual-grit" [ref=e100]
+        - link "Team Grit" [ref=e187]
+        - paragraph
+          - StaticText "inv-qual-grit"
+      - cell "Athlete Team" [ref=e101]
+      - cell "0" [ref=e102]
+        - StaticText "0"
+      - cell "0" [ref=e103]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e104]
+    - row
+      - cell "Regional Qualifier Athletes regional-qualifier-athletes" [ref=e105]
+        - link "Regional Qualifier Athletes" [ref=e188]
+        - paragraph
+          - StaticText "regional-qualifier-athletes"
+      - cell "Competition Event" [ref=e106]
+      - cell "0" [ref=e107]
+        - StaticText "0"
+      - cell "0" [ref=e108]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e109]
+    - row
+      - cell "Invitational Athletes invitational-athletes" [ref=e110]
+        - link "Invitational Athletes" [ref=e189]
+        - paragraph
+          - StaticText "invitational-athletes"
+      - cell "Competition Event" [ref=e111]
+      - cell "0" [ref=e112]
+        - StaticText "0"
+      - cell "0" [ref=e113]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e114]
+    - row
+      - cell "Winter Throwdown 2025 winter-throwdown-2025" [ref=e115]
+        - link "Winter Throwdown 2025" [ref=e190]
+        - paragraph
+          - StaticText "winter-throwdown-2025"
+      - cell "Competition Event" [ref=e116]
+      - cell "0" [ref=e117]
+        - StaticText "0"
+      - cell "0" [ref=e118]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e119]
+    - row
+      - cell "CrossFit crossfit" [ref=e120]
+        - link "CrossFit" [ref=e191]
+        - paragraph
+          - StaticText "crossfit"
+      - cell "Gym" [ref=e121]
+      - cell "0" [ref=e122]
+        - StaticText "0"
+      - cell "0" [ref=e123]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e124]
+    - row
+      - cell "CrossFit Box One crossfit-box-one" [ref=e125]
+        - link "CrossFit Box One" [ref=e192]
+        - paragraph
+          - StaticText "crossfit-box-one"
+      - cell "Gym" [ref=e126]
+      - cell "0" [ref=e127]
+        - StaticText "0"
+      - cell "0" [ref=e128]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e129]
+    - row
+      - cell "Home Gym Heroes home-gym-heroes" [ref=e130]
+        - link "Home Gym Heroes" [ref=e193]
+        - paragraph
+          - StaticText "home-gym-heroes"
+      - cell "Gym" [ref=e131]
+      - cell "0" [ref=e132]
+        - StaticText "0"
+      - cell "0" [ref=e133]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e134]
+    - row
+      - cell "John Personal john-personal" [ref=e135]
+        - link "John Personal" [ref=e194]
+        - paragraph
+          - StaticText "john-personal"
+      - cell "Personal" [ref=e136]
+      - cell "0" [ref=e137]
+        - StaticText "0"
+      - cell "0" [ref=e138]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e139]
+    - row
+      - cell "Jane Personal jane-personal" [ref=e140]
+        - link "Jane Personal" [ref=e195]
+        - paragraph
+          - StaticText "jane-personal"
+      - cell "Personal" [ref=e141]
+      - cell "0" [ref=e142]
+        - StaticText "0"
+      - cell "0" [ref=e143]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e144]
+    - row
+      - cell "Coach Personal coach-personal" [ref=e145]
+        - link "Coach Personal" [ref=e196]
+        - paragraph
+          - StaticText "coach-personal"
+      - cell "Personal" [ref=e146]
+      - cell "0" [ref=e147]
+        - StaticText "0"
+      - cell "0" [ref=e148]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e149]
+    - row
+      - cell "Admin Personal admin-personal" [ref=e150]
+        - link "Admin Personal" [ref=e197]
+        - paragraph
+          - StaticText "admin-personal"
+      - cell "Personal" [ref=e151]
+      - cell "0" [ref=e152]
+        - StaticText "0"
+      - cell "0" [ref=e153]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e154]
+    - row
+      - cell "Team Send It team-send-it" [ref=e155]
+        - link "Team Send It" [ref=e198]
+        - paragraph
+          - StaticText "team-send-it"
+      - cell "Athlete Team" [ref=e156]
+      - cell "0" [ref=e157]
+        - StaticText "0"
+      - cell "0" [ref=e158]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e159]
+    - row
+      - cell "Online Qualifier 2026 Athletes online-qualifier-2026-athletes" [ref=e160]
+        - link "Online Qualifier 2026 Athletes" [ref=e199]
+        - paragraph
+          - StaticText "online-qualifier-2026-athletes"
+      - cell "Competition Event" [ref=e161]
+      - cell "0" [ref=e162]
+        - StaticText "0"
+      - cell "0" [ref=e163]
+        - StaticText "0"
+      - cell "Jul 10, 2026" [ref=e164]
+- region "Notifications alt+T" [ref=e1]

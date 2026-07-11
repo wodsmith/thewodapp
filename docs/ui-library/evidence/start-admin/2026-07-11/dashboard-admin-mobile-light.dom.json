@@ -1,0 +1,57 @@
+{
+  "bodyText": "WODsmith Admin Home Toggle theme PLATFORM Dashboard Teams Competitions Organizer Requests Entitlements Demo Competitions Documentation Admin Admin Dashboard Welcome to the admin panel. Manage your platform from here. Total Teams -- Pending Requests -- Active Competitions -- Quick Actions Manage competitions Entitlements Organizer Requests Demo Competitions Recent Activity Activity tracking Coming soon... --",
+  "effectiveTheme": "light",
+  "fields": [],
+  "finalUrl": "/admin",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "Admin Dashboard"
+    },
+    {
+      "level": 2,
+      "text": "Quick Actions"
+    },
+    {
+      "level": 2,
+      "text": "Recent Activity"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "nav"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith | Functional Fitness Competition Platform",
+  "viewport": {
+    "height": 844,
+    "horizontalOverflow": false,
+    "scrollHeight": 1456,
+    "scrollWidth": 390,
+    "width": 390
+  }
+}

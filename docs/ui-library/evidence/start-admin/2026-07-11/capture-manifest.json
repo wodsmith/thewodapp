@@ -1,0 +1,741 @@
+{
+  "version": 1,
+  "captures": [
+    {
+      "id": "dashboard-admin-desktop-light",
+      "routeId": "tanstack:wodsmith-start:/admin/_index",
+      "scenarioId": "admin-desktop-light",
+      "environment": "local-e2e",
+      "requestedUrl": "http://127.0.0.1:3321/admin",
+      "finalUrl": "http://127.0.0.1:3321/admin",
+      "host": "127.0.0.1",
+      "capturedAt": "2026-07-11T15:31:22.878Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "739ca5370f292aac9f20a1ae7389c6e6e07e9e4c",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/dashboard-admin-desktop-light.a11y.txt",
+          "sha256": "1190dad5df40aefec10fd087a582b077da942174c98530dd6833cc8b85b68926"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/dashboard-admin-desktop-light.dom.json",
+          "sha256": "082e16c4653e92f06bc93cdfe964a61d7d8b461569b942fbac898b376e80cf4d"
+        },
+        {
+          "kind": "console-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/dashboard-admin-desktop-light.console.json",
+          "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+        },
+        {
+          "kind": "network-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/dashboard-admin-desktop-light.network.json",
+          "sha256": "0a5e27b53feb4b7df3d19c5caeda93e9aebc84097438c483f8d47e9539e8f681"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/dashboard-admin-desktop-light.png",
+          "sha256": "6ffbce929e11ee968b5e2599669582eed8c6adb279375d399c6fe8f974afaf32"
+        }
+      ]
+    },
+    {
+      "id": "competitions-admin-desktop-light",
+      "routeId": "tanstack:wodsmith-start:/admin/competitions/_index",
+      "scenarioId": "admin-desktop-light",
+      "environment": "local-e2e",
+      "requestedUrl": "http://127.0.0.1:3321/admin/competitions",
+      "finalUrl": "http://127.0.0.1:3321/admin/competitions",
+      "host": "127.0.0.1",
+      "capturedAt": "2026-07-11T15:31:27.322Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "739ca5370f292aac9f20a1ae7389c6e6e07e9e4c",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/competitions-admin-desktop-light.a11y.txt",
+          "sha256": "c2402d54730117124a174d02851dc56f3552a0b8610553a3ab6577d4ea9ded9d"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/competitions-admin-desktop-light.dom.json",
+          "sha256": "c0da2962aeb9d44400d357a800f3e528e6779f82f9cdc6c25a1fc0afba8dca5d"
+        },
+        {
+          "kind": "console-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/competitions-admin-desktop-light.console.json",
+          "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+        },
+        {
+          "kind": "network-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/competitions-admin-desktop-light.network.json",
+          "sha256": "6329a3e41fbd1f14e32e012f25fd58f7f9e78e8220a40ab1af023cf8b288398e"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/competitions-admin-desktop-light.png",
+          "sha256": "45b578f3ed59a2c805c3cb55a4abff84df7b008c099ef2f643f70ca3b94f09b1"
+        }
+      ]
+    },
+    {
+      "id": "demo-competitions-admin-desktop-light",
+      "routeId": "tanstack:wodsmith-start:/admin/demo-competitions/_index",
+      "scenarioId": "admin-desktop-light",
+      "environment": "local-e2e",
+      "requestedUrl": "http://127.0.0.1:3321/admin/demo-competitions",
+      "finalUrl": "http://127.0.0.1:3321/admin/demo-competitions",
+      "host": "127.0.0.1",
+      "capturedAt": "2026-07-11T15:31:31.782Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "739ca5370f292aac9f20a1ae7389c6e6e07e9e4c",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/demo-competitions-admin-desktop-light.a11y.txt",
+          "sha256": "4e9e2771c3db4bfdaaa53c9ea6b9b7b1a39e00b676727e0daf0233e5a78eb757"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/demo-competitions-admin-desktop-light.dom.json",
+          "sha256": "0e300992fecfaf82e014d12c13e644246168625df1d215c06ff2ca8aa36de80c"
+        },
+        {
+          "kind": "console-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/demo-competitions-admin-desktop-light.console.json",
+          "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+        },
+        {
+          "kind": "network-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/demo-competitions-admin-desktop-light.network.json",
+          "sha256": "1c3c89ca0c15039ec1f5cf33d248ff856ac74fb389d71f6c0e267325aeca0d0f"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/demo-competitions-admin-desktop-light.png",
+          "sha256": "d77040aa172b2a8ed877fd15e0a4b78310d6278fcbaf39670fcd078e771c3865"
+        }
+      ]
+    },
+    {
+      "id": "documentation-admin-desktop-light",
+      "routeId": "tanstack:wodsmith-start:/admin/docs/_index",
+      "scenarioId": "admin-desktop-light",
+      "environment": "local-e2e",
+      "requestedUrl": "http://127.0.0.1:3321/admin/docs",
+      "finalUrl": "http://127.0.0.1:3321/admin/docs",
+      "host": "127.0.0.1",
+      "capturedAt": "2026-07-11T15:31:36.530Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "739ca5370f292aac9f20a1ae7389c6e6e07e9e4c",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/documentation-admin-desktop-light.a11y.txt",
+          "sha256": "627f87c84076e50a89f0daa88cf1ff6cbfd3c09d55e5e662b6fca670929f0d7e"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/documentation-admin-desktop-light.dom.json",
+          "sha256": "b28c46721d3fa58dceb9af9bd8fcd56f28bcb37af432452d6f2ff866f4ecdcb5"
+        },
+        {
+          "kind": "console-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/documentation-admin-desktop-light.console.json",
+          "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+        },
+        {
+          "kind": "network-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/documentation-admin-desktop-light.network.json",
+          "sha256": "dcba0f8f9325475116028f72a79d300ec39f8639e98da1f8ff1d4e305cf15f28"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/documentation-admin-desktop-light.png",
+          "sha256": "2a6f81e7fe5367ec283a9a2fd1de0dbda34379c9ace302d43afe28da104e5fdd"
+        }
+      ]
+    },
+    {
+      "id": "documentation-new-admin-desktop-light",
+      "routeId": "tanstack:wodsmith-start:/admin/docs/new",
+      "scenarioId": "admin-desktop-light",
+      "environment": "local-e2e",
+      "requestedUrl": "http://127.0.0.1:3321/admin/docs/new",
+      "finalUrl": "http://127.0.0.1:3321/admin/docs/new",
+      "host": "127.0.0.1",
+      "capturedAt": "2026-07-11T15:31:41.357Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "739ca5370f292aac9f20a1ae7389c6e6e07e9e4c",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/documentation-new-admin-desktop-light.a11y.txt",
+          "sha256": "0837ceb71a801dc89f974e2d5013916749c4cd96785cce1be13f3216d6f4b463"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/documentation-new-admin-desktop-light.dom.json",
+          "sha256": "b2d6828c230e4291d9ba72ca22af5ef1e3b99433fe2d7e4f00133d74bb496da4"
+        },
+        {
+          "kind": "console-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/documentation-new-admin-desktop-light.console.json",
+          "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+        },
+        {
+          "kind": "network-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/documentation-new-admin-desktop-light.network.json",
+          "sha256": "f6f38bd2ca9e2540346c05131bed2d18888708b03082e1207efed0a9cc3c3f1a"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/documentation-new-admin-desktop-light.png",
+          "sha256": "8678f4a6cda92bcc523181c9c012e7c4fc6a6bd0eabe90446087d0be027071bf"
+        }
+      ]
+    },
+    {
+      "id": "entitlements-admin-desktop-light",
+      "routeId": "tanstack:wodsmith-start:/admin/entitlements/_index",
+      "scenarioId": "admin-desktop-light",
+      "environment": "local-e2e",
+      "requestedUrl": "http://127.0.0.1:3321/admin/entitlements",
+      "finalUrl": "http://127.0.0.1:3321/admin/entitlements",
+      "host": "127.0.0.1",
+      "capturedAt": "2026-07-11T15:31:45.881Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "739ca5370f292aac9f20a1ae7389c6e6e07e9e4c",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/entitlements-admin-desktop-light.a11y.txt",
+          "sha256": "29c18c71b314c2964670b16c1fccc1894e2c18d096ff9023f187b5ff9133004f"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/entitlements-admin-desktop-light.dom.json",
+          "sha256": "458266050efa8f325c9d3917958ded5ae61b96bbc556ba9ea1bf1256cc3b99ed"
+        },
+        {
+          "kind": "console-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/entitlements-admin-desktop-light.console.json",
+          "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+        },
+        {
+          "kind": "network-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/entitlements-admin-desktop-light.network.json",
+          "sha256": "7ed842bd0cc494749a2106d20dd2d32c06e2ec6fba0b6c0f04073c10020dc535"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/entitlements-admin-desktop-light.png",
+          "sha256": "ead01a32745db4f4b10192e05efe4100d60ca9fc073d984715ebd8603f4eb965"
+        }
+      ]
+    },
+    {
+      "id": "organizer-requests-admin-desktop-light",
+      "routeId": "tanstack:wodsmith-start:/admin/organizer-requests/_index",
+      "scenarioId": "admin-desktop-light",
+      "environment": "local-e2e",
+      "requestedUrl": "http://127.0.0.1:3321/admin/organizer-requests",
+      "finalUrl": "http://127.0.0.1:3321/admin/organizer-requests",
+      "host": "127.0.0.1",
+      "capturedAt": "2026-07-11T15:31:50.310Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "739ca5370f292aac9f20a1ae7389c6e6e07e9e4c",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/organizer-requests-admin-desktop-light.a11y.txt",
+          "sha256": "18e3239f11f8c49a771950577574017a11a09b3701fe1216c84d173a26b1003c"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/organizer-requests-admin-desktop-light.dom.json",
+          "sha256": "c0d296e0109df08123fa0bf1ca3cf08686c7311a40bba36f0e608da3c55329ed"
+        },
+        {
+          "kind": "console-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/organizer-requests-admin-desktop-light.console.json",
+          "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+        },
+        {
+          "kind": "network-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/organizer-requests-admin-desktop-light.network.json",
+          "sha256": "8d5c57cde3ee43f8b380390109c2e3039015703952cc103be3d6336ced3fd61f"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/organizer-requests-admin-desktop-light.png",
+          "sha256": "fd79594589d208adc04e530d6394085f5d548194a99b2e8d3d0d22dd71a76719"
+        }
+      ]
+    },
+    {
+      "id": "teams-admin-desktop-light",
+      "routeId": "tanstack:wodsmith-start:/admin/teams/_index",
+      "scenarioId": "admin-desktop-light",
+      "environment": "local-e2e",
+      "requestedUrl": "http://127.0.0.1:3321/admin/teams",
+      "finalUrl": "http://127.0.0.1:3321/admin/teams",
+      "host": "127.0.0.1",
+      "capturedAt": "2026-07-11T15:31:54.834Z",
+      "viewport": {
+        "profile": "desktop",
+        "width": 1440,
+        "height": 900
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "739ca5370f292aac9f20a1ae7389c6e6e07e9e4c",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/teams-admin-desktop-light.a11y.txt",
+          "sha256": "8c72e2dcc92c96815d172f3a6bb99a9f9257e1829c1793d3434b6d6d7a04bfea"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/teams-admin-desktop-light.dom.json",
+          "sha256": "85d04e82c8d1540fd08ca506571d0e3dbaea790a47b002e07f7daec602d02d31"
+        },
+        {
+          "kind": "console-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/teams-admin-desktop-light.console.json",
+          "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+        },
+        {
+          "kind": "network-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/teams-admin-desktop-light.network.json",
+          "sha256": "3b0154d8cbe6810b2a274263c0bf585f99fd030a4cd75768ec03515d003a652a"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/teams-admin-desktop-light.png",
+          "sha256": "cea0c22ee0e7d0a9a9001fadaac114986feaa8a23df28ccecc4c008f0a28449e"
+        }
+      ]
+    },
+    {
+      "id": "dashboard-admin-mobile-light",
+      "routeId": "tanstack:wodsmith-start:/admin/_index",
+      "scenarioId": "admin-mobile-light",
+      "environment": "local-e2e",
+      "requestedUrl": "http://127.0.0.1:3321/admin",
+      "finalUrl": "http://127.0.0.1:3321/admin",
+      "host": "127.0.0.1",
+      "capturedAt": "2026-07-11T15:31:59.735Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "739ca5370f292aac9f20a1ae7389c6e6e07e9e4c",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/dashboard-admin-mobile-light.a11y.txt",
+          "sha256": "1190dad5df40aefec10fd087a582b077da942174c98530dd6833cc8b85b68926"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/dashboard-admin-mobile-light.dom.json",
+          "sha256": "7836633ff2b8494eb94f38320b6e4c24367b755a6630c359124a24be85232cd3"
+        },
+        {
+          "kind": "console-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/dashboard-admin-mobile-light.console.json",
+          "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+        },
+        {
+          "kind": "network-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/dashboard-admin-mobile-light.network.json",
+          "sha256": "700cfd5d196ae6a22cef1206e0aa00f83e09d66d379d3e8a93b6843d74ab7ac3"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/dashboard-admin-mobile-light.png",
+          "sha256": "5ba2e416315698469155f93836bb478b398b8e920372da1c5ecfd83debf695b4"
+        }
+      ]
+    },
+    {
+      "id": "competitions-admin-mobile-light",
+      "routeId": "tanstack:wodsmith-start:/admin/competitions/_index",
+      "scenarioId": "admin-mobile-light",
+      "environment": "local-e2e",
+      "requestedUrl": "http://127.0.0.1:3321/admin/competitions",
+      "finalUrl": "http://127.0.0.1:3321/admin/competitions",
+      "host": "127.0.0.1",
+      "capturedAt": "2026-07-11T15:32:04.188Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "739ca5370f292aac9f20a1ae7389c6e6e07e9e4c",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/competitions-admin-mobile-light.a11y.txt",
+          "sha256": "c2402d54730117124a174d02851dc56f3552a0b8610553a3ab6577d4ea9ded9d"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/competitions-admin-mobile-light.dom.json",
+          "sha256": "2ecc87eb59fd8547bcd229f385c9f7c60ddc5b0b4d3ac9c29aec889e538fad13"
+        },
+        {
+          "kind": "console-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/competitions-admin-mobile-light.console.json",
+          "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+        },
+        {
+          "kind": "network-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/competitions-admin-mobile-light.network.json",
+          "sha256": "3ebe2786a1b0ef53b90eaf1c23e1f510224f68e563ae333d94306213f1ef1b5d"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/competitions-admin-mobile-light.png",
+          "sha256": "2f17cd8362bcec47f6d2f52b25842aab21b7eeeede876201e3686d8fb28fb121"
+        }
+      ]
+    },
+    {
+      "id": "demo-competitions-admin-mobile-light",
+      "routeId": "tanstack:wodsmith-start:/admin/demo-competitions/_index",
+      "scenarioId": "admin-mobile-light",
+      "environment": "local-e2e",
+      "requestedUrl": "http://127.0.0.1:3321/admin/demo-competitions",
+      "finalUrl": "http://127.0.0.1:3321/admin/demo-competitions",
+      "host": "127.0.0.1",
+      "capturedAt": "2026-07-11T15:32:08.615Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "739ca5370f292aac9f20a1ae7389c6e6e07e9e4c",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/demo-competitions-admin-mobile-light.a11y.txt",
+          "sha256": "4e9e2771c3db4bfdaaa53c9ea6b9b7b1a39e00b676727e0daf0233e5a78eb757"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/demo-competitions-admin-mobile-light.dom.json",
+          "sha256": "196cfa5d40211da682830e3cc88753057bd45b1799e2b6fbbd6df759cf3d30a8"
+        },
+        {
+          "kind": "console-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/demo-competitions-admin-mobile-light.console.json",
+          "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+        },
+        {
+          "kind": "network-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/demo-competitions-admin-mobile-light.network.json",
+          "sha256": "484c5f66d9feeaffb111a50245f0f370eb403dba1fdc79f1976c21f0bdef9046"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/demo-competitions-admin-mobile-light.png",
+          "sha256": "c2fc3e42b791ee7a4f678fd8cfcfd0834a370f84f6e798fd9541530dadc7e62d"
+        }
+      ]
+    },
+    {
+      "id": "documentation-admin-mobile-light",
+      "routeId": "tanstack:wodsmith-start:/admin/docs/_index",
+      "scenarioId": "admin-mobile-light",
+      "environment": "local-e2e",
+      "requestedUrl": "http://127.0.0.1:3321/admin/docs",
+      "finalUrl": "http://127.0.0.1:3321/admin/docs",
+      "host": "127.0.0.1",
+      "capturedAt": "2026-07-11T15:32:13.059Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "739ca5370f292aac9f20a1ae7389c6e6e07e9e4c",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/documentation-admin-mobile-light.a11y.txt",
+          "sha256": "627f87c84076e50a89f0daa88cf1ff6cbfd3c09d55e5e662b6fca670929f0d7e"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/documentation-admin-mobile-light.dom.json",
+          "sha256": "710980fd28296ce1429bc33e324b7fbe6fdf3dd30266c412ca3688e64d420491"
+        },
+        {
+          "kind": "console-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/documentation-admin-mobile-light.console.json",
+          "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+        },
+        {
+          "kind": "network-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/documentation-admin-mobile-light.network.json",
+          "sha256": "fcdca6cb916d604832460b468cde6f605a9925e4cca055e0c49badb27b006109"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/documentation-admin-mobile-light.png",
+          "sha256": "9fbab2d7b9d425a84d8b331b531a847195c67b44a6b88c5faeb419bded2ba475"
+        }
+      ]
+    },
+    {
+      "id": "documentation-new-admin-mobile-light",
+      "routeId": "tanstack:wodsmith-start:/admin/docs/new",
+      "scenarioId": "admin-mobile-light",
+      "environment": "local-e2e",
+      "requestedUrl": "http://127.0.0.1:3321/admin/docs/new",
+      "finalUrl": "http://127.0.0.1:3321/admin/docs/new",
+      "host": "127.0.0.1",
+      "capturedAt": "2026-07-11T15:32:17.453Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "739ca5370f292aac9f20a1ae7389c6e6e07e9e4c",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/documentation-new-admin-mobile-light.a11y.txt",
+          "sha256": "0837ceb71a801dc89f974e2d5013916749c4cd96785cce1be13f3216d6f4b463"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/documentation-new-admin-mobile-light.dom.json",
+          "sha256": "87c03e7e0c10feb9bad787d253d943aaebe890ad7c678aac7ede4541c75a73f4"
+        },
+        {
+          "kind": "console-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/documentation-new-admin-mobile-light.console.json",
+          "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+        },
+        {
+          "kind": "network-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/documentation-new-admin-mobile-light.network.json",
+          "sha256": "d50cfa73da4b87c765aeadec5159358b24540e7271dbfaa0aa8e88e1a0ed4c19"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/documentation-new-admin-mobile-light.png",
+          "sha256": "7b6c066ee5ebb0df5d4f8c6e66d6a5ec4df4acbc26b7aa7acc91e7004e30f042"
+        }
+      ]
+    },
+    {
+      "id": "entitlements-admin-mobile-light",
+      "routeId": "tanstack:wodsmith-start:/admin/entitlements/_index",
+      "scenarioId": "admin-mobile-light",
+      "environment": "local-e2e",
+      "requestedUrl": "http://127.0.0.1:3321/admin/entitlements",
+      "finalUrl": "http://127.0.0.1:3321/admin/entitlements",
+      "host": "127.0.0.1",
+      "capturedAt": "2026-07-11T15:32:21.881Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "739ca5370f292aac9f20a1ae7389c6e6e07e9e4c",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/entitlements-admin-mobile-light.a11y.txt",
+          "sha256": "29c18c71b314c2964670b16c1fccc1894e2c18d096ff9023f187b5ff9133004f"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/entitlements-admin-mobile-light.dom.json",
+          "sha256": "1c59d0df19fe113bf2f0fcf88384cf0bb4000470bee3b47fcf4077488a2d847c"
+        },
+        {
+          "kind": "console-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/entitlements-admin-mobile-light.console.json",
+          "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+        },
+        {
+          "kind": "network-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/entitlements-admin-mobile-light.network.json",
+          "sha256": "c347eb87a228d456fbbef2740b88934b599201965e5db6bc6cf181f38244decb"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/entitlements-admin-mobile-light.png",
+          "sha256": "90b984038a2c5891a8dd352825ecd46aca4a5b1ba870c58aa3eb17a88b343574"
+        }
+      ]
+    },
+    {
+      "id": "organizer-requests-admin-mobile-light",
+      "routeId": "tanstack:wodsmith-start:/admin/organizer-requests/_index",
+      "scenarioId": "admin-mobile-light",
+      "environment": "local-e2e",
+      "requestedUrl": "http://127.0.0.1:3321/admin/organizer-requests",
+      "finalUrl": "http://127.0.0.1:3321/admin/organizer-requests",
+      "host": "127.0.0.1",
+      "capturedAt": "2026-07-11T15:32:26.656Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "739ca5370f292aac9f20a1ae7389c6e6e07e9e4c",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/organizer-requests-admin-mobile-light.a11y.txt",
+          "sha256": "448e625785342cf37c37881e6fb00fd6fc54a720bba3296a323b2f0e84977c84"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/organizer-requests-admin-mobile-light.dom.json",
+          "sha256": "fa33f6f7e3550d53ac4aa7983f3d6206b2b19b1edbf48cf478828218da42f0a0"
+        },
+        {
+          "kind": "console-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/organizer-requests-admin-mobile-light.console.json",
+          "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+        },
+        {
+          "kind": "network-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/organizer-requests-admin-mobile-light.network.json",
+          "sha256": "66c740ebd6fe14b34d2f92d23f88e04a96052fcab07f1478ef4e6e0aba358fce"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/organizer-requests-admin-mobile-light.png",
+          "sha256": "b317c84467958a0157a444040c0098f3bbf33190053f1fc9746c0094a655736f"
+        }
+      ]
+    },
+    {
+      "id": "teams-admin-mobile-light",
+      "routeId": "tanstack:wodsmith-start:/admin/teams/_index",
+      "scenarioId": "admin-mobile-light",
+      "environment": "local-e2e",
+      "requestedUrl": "http://127.0.0.1:3321/admin/teams",
+      "finalUrl": "http://127.0.0.1:3321/admin/teams",
+      "host": "127.0.0.1",
+      "capturedAt": "2026-07-11T15:32:31.081Z",
+      "viewport": {
+        "profile": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "requestedColorScheme": "light",
+      "effectiveColorScheme": "light",
+      "deploymentRevision": "739ca5370f292aac9f20a1ae7389c6e6e07e9e4c",
+      "tool": "agent-browser 0.26.0",
+      "artifacts": [
+        {
+          "kind": "accessibility-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/teams-admin-mobile-light.a11y.txt",
+          "sha256": "8c72e2dcc92c96815d172f3a6bb99a9f9257e1829c1793d3434b6d6d7a04bfea"
+        },
+        {
+          "kind": "dom-snapshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/teams-admin-mobile-light.dom.json",
+          "sha256": "ac3f2980c6e796749b5ff38300c54e316f6703410cf40d6f8832c1b1af0d97aa"
+        },
+        {
+          "kind": "console-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/teams-admin-mobile-light.console.json",
+          "sha256": "c7228676df25155a5adae8d2bd94ffe02caa9d3a0f05391123c481f43f751617"
+        },
+        {
+          "kind": "network-log",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/teams-admin-mobile-light.network.json",
+          "sha256": "da6dc34e70dedeb2d0a205be0e9c0458cad22698d647941f1cb6ee0d173c6dcb"
+        },
+        {
+          "kind": "browser-screenshot",
+          "ref": "docs/ui-library/evidence/start-admin/2026-07-11/teams-admin-mobile-light.png",
+          "sha256": "e8a29de39296e3e6e1055728395cd4c6c1127a459984440b09225ecc81e5568b"
+        }
+      ]
+    }
+  ]
+}

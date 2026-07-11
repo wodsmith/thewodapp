@@ -1,0 +1,37 @@
+- banner
+  - link "WODsmith" [ref=e2]
+  - StaticText "Admin"
+  - link "Home" [ref=e3]
+  - button "Switch to dark mode" [ref=e4]
+    - StaticText "Toggle theme"
+  - button "Log out" [ref=e5]
+- complementary
+  - paragraph
+    - StaticText "PLATFORM"
+  - navigation
+    - link "Dashboard" [ref=e8]
+    - link "Teams" [ref=e9]
+    - link "Competitions" [ref=e10]
+    - link "Organizer Requests" [ref=e11]
+    - link "Entitlements" [ref=e12]
+    - link "Demo Competitions" [ref=e13]
+    - link "Documentation" [ref=e14]
+- main
+  - navigation
+    - link "Admin" [ref=e15]
+    - StaticText "/"
+    - StaticText "Organizer Requests"
+  - heading "Organizer Requests" [level=1, ref=e6]
+  - paragraph
+    - StaticText "Review applications from teams wanting to host competitions"
+  - paragraph
+    - StaticText "No pending requests"
+  - paragraph
+    - StaticText "All organizer applications have been processed"
+  - heading "Past Requests (1)" [level=2, ref=e7]
+    - StaticText "Past Requests (1)"
+  - StaticText "Approved"
+  - StaticText "CrossFit Box One"
+  - StaticText "Admin User"
+  - StaticText "Jul 10, 2026"
+- region "Notifications alt+T" [ref=e1]

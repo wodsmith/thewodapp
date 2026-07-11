@@ -1,0 +1,220 @@
+- generic
+  - banner
+    - link "WODsmith" [ref=e2]
+    - StaticText "Admin"
+    - link "Home" [ref=e3]
+    - button "Switch to dark mode" [ref=e4]
+      - StaticText "Toggle theme"
+    - button "Log out" [ref=e5]
+  - complementary
+    - paragraph
+      - StaticText "PLATFORM"
+    - navigation
+      - link "Dashboard" [ref=e7]
+      - link "Teams" [ref=e8]
+      - link "Competitions" [ref=e9]
+      - link "Organizer Requests" [ref=e10]
+      - link "Entitlements" [ref=e11]
+      - link "Demo Competitions" [ref=e12]
+      - link "Documentation" [ref=e13]
+  - main
+    - navigation
+      - link "Admin" [ref=e14]
+      - StaticText "/"
+      - link "Documentation" [ref=e15]
+      - StaticText "/"
+      - StaticText "New"
+    - heading "New documentation" [level=1, ref=e6]
+    - paragraph
+      - StaticText "Create contextual help and map it to organizer pages"
+    - generic
+      - StaticText "Details"
+      - StaticText "Title and summary shown in the documentation drawer"
+      - LabelText
+        - StaticText "Title"
+      - textbox "Title" [ref=e16]
+      - LabelText
+        - StaticText "Description (optional)"
+      - textbox "Description (optional)" [ref=e17]
+      - LabelText
+        - StaticText "Sort order"
+      - spinbutton "Sort order" [ref=e18]: 1
+        - StaticText "1"
+      - checkbox "Published (visible in the drawer)" [checked=false, ref=e19]
+      - LabelText
+        - StaticText "Published (visible in the drawer)"
+      - StaticText "Content"
+      - StaticText "Markdown article, video, or external link"
+      - LabelText
+        - StaticText "Type"
+      - combobox "Type" [expanded=false, ref=e20]: Markdown article
+        - generic [ref=e25] clickable [onclick]
+          - StaticText "Markdown article"
+      - LabelText
+        - StaticText "Content (markdown)"
+      - button "Preview" [ref=e21]
+      - textbox "Content (markdown)" [ref=e22]
+      - StaticText "Routes"
+      - StaticText "Pages where this doc appears. Selecting a layout route (e.g. a competition section) shows the doc on all of its child pages."
+      - textbox "Filter routes…" [ref=e23]
+      - generic
+        - checkbox "/compete/organizer" [checked=false, ref=e26]
+        - LabelText
+          - StaticText "/compete/organizer"
+        - checkbox "/compete/organizer/$competitionId" [checked=false, ref=e27]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId"
+        - checkbox "/compete/organizer/$competitionId/announcements" [checked=false, ref=e28]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/announcements"
+        - checkbox "/compete/organizer/$competitionId/athletes/" [checked=false, ref=e29]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/athletes/"
+        - checkbox "/compete/organizer/$competitionId/athletes/$registrationId" [checked=false, ref=e30]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/athletes/$registrationId"
+        - checkbox "/compete/organizer/$competitionId/athletes/form-questions" [checked=false, ref=e31]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/athletes/form-questions"
+        - checkbox "/compete/organizer/$competitionId/broadcasts" [checked=false, ref=e32]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/broadcasts"
+        - checkbox "/compete/organizer/$competitionId/check-in" [checked=false, ref=e33]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/check-in"
+        - checkbox "/compete/organizer/$competitionId/co-hosts" [checked=false, ref=e34]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/co-hosts"
+        - checkbox "/compete/organizer/$competitionId/coupons" [checked=false, ref=e35]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/coupons"
+        - checkbox "/compete/organizer/$competitionId/danger-zone" [checked=false, ref=e36]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/danger-zone"
+        - checkbox "/compete/organizer/$competitionId/divisions" [checked=false, ref=e37]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/divisions"
+        - checkbox "/compete/organizer/$competitionId/edit" [checked=false, ref=e38]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/edit"
+        - checkbox "/compete/organizer/$competitionId/event-divisions" [checked=false, ref=e39]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/event-divisions"
+        - checkbox "/compete/organizer/$competitionId/events/" [checked=false, ref=e40]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/events/"
+        - checkbox "/compete/organizer/$competitionId/events/$eventId" [checked=false, ref=e41]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/events/$eventId"
+        - checkbox "/compete/organizer/$competitionId/events/$eventId/submissions" [checked=false, ref=e42]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/events/$eventId/submissions"
+        - checkbox "/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId" [checked=false, ref=e43]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/events/$eventId/submissions/$submissionId"
+        - checkbox "/compete/organizer/$competitionId/invites/" [checked=false, ref=e44]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/invites/"
+        - checkbox "/compete/organizer/$competitionId/invites/sources/$sourceId" [checked=false, ref=e45]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/invites/sources/$sourceId"
+        - checkbox "/compete/organizer/$competitionId/judges-ai" [checked=false, ref=e46]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/judges-ai"
+        - checkbox "/compete/organizer/$competitionId/leaderboard-preview" [checked=false, ref=e47]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/leaderboard-preview"
+        - checkbox "/compete/organizer/$competitionId/locations" [checked=false, ref=e48]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/locations"
+        - checkbox "/compete/organizer/$competitionId/pricing" [checked=false, ref=e49]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/pricing"
+        - checkbox "/compete/organizer/$competitionId/results" [checked=false, ref=e50]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/results"
+        - checkbox "/compete/organizer/$competitionId/revenue" [checked=false, ref=e51]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/revenue"
+        - checkbox "/compete/organizer/$competitionId/schedule" [checked=false, ref=e52]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/schedule"
+        - checkbox "/compete/organizer/$competitionId/scoring" [checked=false, ref=e53]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/scoring"
+        - checkbox "/compete/organizer/$competitionId/settings" [checked=false, ref=e54]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/settings"
+        - checkbox "/compete/organizer/$competitionId/sponsors" [checked=false, ref=e55]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/sponsors"
+        - checkbox "/compete/organizer/$competitionId/submission-windows" [checked=false, ref=e56]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/submission-windows"
+        - checkbox "/compete/organizer/$competitionId/volunteers/" [checked=false, ref=e57]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/volunteers/"
+        - checkbox "/compete/organizer/$competitionId/volunteers/judges" [checked=false, ref=e58]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/volunteers/judges"
+        - checkbox "/compete/organizer/$competitionId/volunteers/shifts" [checked=false, ref=e59]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/volunteers/shifts"
+        - checkbox "/compete/organizer/$competitionId/volunteers/signup-questions" [checked=false, ref=e60]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/volunteers/signup-questions"
+        - checkbox "/compete/organizer/$competitionId/waivers" [checked=false, ref=e61]
+        - LabelText
+          - StaticText "/compete/organizer/$competitionId/waivers"
+        - checkbox "/compete/organizer/_dashboard" [checked=false, ref=e62]
+        - LabelText
+          - StaticText "/compete/organizer/_dashboard"
+        - checkbox "/compete/organizer/_dashboard/new" [checked=false, ref=e63]
+        - LabelText
+          - StaticText "/compete/organizer/_dashboard/new"
+        - checkbox "/compete/organizer/_dashboard/series/" [checked=false, ref=e64]
+        - LabelText
+          - StaticText "/compete/organizer/_dashboard/series/"
+        - checkbox "/compete/organizer/_dashboard/series/new" [checked=false, ref=e65]
+        - LabelText
+          - StaticText "/compete/organizer/_dashboard/series/new"
+        - checkbox "/compete/organizer/_dashboard/settings/payouts/$teamSlug/" [checked=false, ref=e66]
+        - LabelText
+          - StaticText "/compete/organizer/_dashboard/settings/payouts/$teamSlug/"
+        - checkbox "/compete/organizer/onboard/" [checked=false, ref=e67]
+        - LabelText
+          - StaticText "/compete/organizer/onboard/"
+        - checkbox "/compete/organizer/onboard/pending" [checked=false, ref=e68]
+        - LabelText
+          - StaticText "/compete/organizer/onboard/pending"
+        - checkbox "/compete/organizer/series/$groupId" [checked=false, ref=e69]
+        - LabelText
+          - StaticText "/compete/organizer/series/$groupId"
+        - checkbox "/compete/organizer/series/$groupId/divisions" [checked=false, ref=e70]
+        - LabelText
+          - StaticText "/compete/organizer/series/$groupId/divisions"
+        - checkbox "/compete/organizer/series/$groupId/edit" [checked=false, ref=e71]
+        - LabelText
+          - StaticText "/compete/organizer/series/$groupId/edit"
+        - checkbox "/compete/organizer/series/$groupId/event-mappings" [checked=false, ref=e72]
+        - LabelText
+          - StaticText "/compete/organizer/series/$groupId/event-mappings"
+        - checkbox "/compete/organizer/series/$groupId/events" [checked=false, ref=e73]
+        - LabelText
+          - StaticText "/compete/organizer/series/$groupId/events"
+        - checkbox "/compete/organizer/series/$groupId/events/$eventId" [checked=false, ref=e74]
+        - LabelText
+          - StaticText "/compete/organizer/series/$groupId/events/$eventId"
+        - checkbox "/compete/organizer/series/$groupId/leaderboard" [checked=false, ref=e75]
+        - LabelText
+          - StaticText "/compete/organizer/series/$groupId/leaderboard"
+        - checkbox "/compete/organizer/series/$groupId/publish-workouts" [checked=false, ref=e76]
+        - LabelText
+          - StaticText "/compete/organizer/series/$groupId/publish-workouts"
+        - checkbox "/compete/organizer/series/$groupId/registration-questions" [checked=false, ref=e77]
+        - LabelText
+          - StaticText "/compete/organizer/series/$groupId/registration-questions"
+      - paragraph
+        - StaticText "0 routes selected"
+      - button "Create doc" [ref=e24]
+  - region "Notifications alt+T" [ref=e1]

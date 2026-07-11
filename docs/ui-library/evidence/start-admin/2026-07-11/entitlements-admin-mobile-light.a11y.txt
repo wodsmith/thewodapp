@@ -1,0 +1,149 @@
+- generic
+  - banner
+    - link "WODsmith" [ref=e2]
+    - StaticText "Admin"
+    - link "Home" [ref=e3]
+    - button "Switch to dark mode" [ref=e4]
+      - StaticText "Toggle theme"
+    - button "Log out" [ref=e5]
+  - complementary
+    - paragraph
+      - StaticText "PLATFORM"
+    - navigation
+      - link "Dashboard" [ref=e8]
+      - link "Teams" [ref=e9]
+      - link "Competitions" [ref=e10]
+      - link "Organizer Requests" [ref=e11]
+      - link "Entitlements" [ref=e12]
+      - link "Demo Competitions" [ref=e13]
+      - link "Documentation" [ref=e14]
+  - main
+    - navigation
+      - link "Admin" [ref=e15]
+      - StaticText "/"
+      - StaticText "Entitlements"
+    - heading "Feature Entitlements" [level=1, ref=e6]
+    - paragraph
+      - StaticText "Grant or revoke feature access per team"
+    - StaticText "Feature"
+    - StaticText "Select a feature to manage"
+    - combobox [expanded=false, ref=e7]: Workout Tracking(workouts)
+      - generic [ref=e16] clickable [onclick]
+        - StaticText "Workout Tracking(workouts)"
+    - StaticText "Teams with Access"
+    - StaticText "0"
+    - StaticText "Total Teams"
+    - StaticText "10"
+    - StaticText "Workout Tracking"
+    - StaticText " Access"
+    - StaticText "Access to personal workout tracking features"
+    - textbox "Search teams..." [ref=e17]
+    - table
+      - rowgroup
+        - row
+          - columnheader "Team" [ref=e58]
+          - columnheader "Type" [ref=e59]
+          - columnheader "Members" [ref=e60]
+          - columnheader "Status" [ref=e61]
+          - columnheader "Action" [ref=e62]
+      - row
+        - cell "E2E Test Gym e2e-test-gym" [ref=e18]
+          - link "E2E Test Gym" [ref=e63]
+          - paragraph
+            - StaticText "e2e-test-gym"
+        - cell "Gym" [ref=e19]
+        - cell "0" [ref=e20]
+        - cell
+        - cell "Grant" [ref=e21]
+          - button "Grant" [ref=e64]
+      - row
+        - cell "Admin's Team (personal) admin-n_user" [ref=e22]
+          - link "Admin's Team (personal)" [ref=e65]
+          - paragraph
+            - StaticText "admin-n_user"
+        - cell "Personal" [ref=e23]
+        - cell "0" [ref=e24]
+        - cell
+        - cell "Grant" [ref=e25]
+          - button "Grant" [ref=e66]
+      - row
+        - cell "Test's Team (personal) test-st_user" [ref=e26]
+          - link "Test's Team (personal)" [ref=e67]
+          - paragraph
+            - StaticText "test-st_user"
+        - cell "Personal" [ref=e27]
+        - cell "0" [ref=e28]
+        - cell
+        - cell "Grant" [ref=e29]
+          - button "Grant" [ref=e68]
+      - row
+        - cell "CrossFit crossfit" [ref=e30]
+          - link "CrossFit" [ref=e69]
+          - paragraph
+            - StaticText "crossfit"
+        - cell "Gym" [ref=e31]
+        - cell "0" [ref=e32]
+        - cell
+        - cell "Grant" [ref=e33]
+          - button "Grant" [ref=e70]
+      - row
+        - cell "CrossFit Box One crossfit-box-one" [ref=e34]
+          - link "CrossFit Box One" [ref=e71]
+          - paragraph
+            - StaticText "crossfit-box-one"
+        - cell "Gym" [ref=e35]
+        - cell "0" [ref=e36]
+        - cell
+        - cell "Grant" [ref=e37]
+          - button "Grant" [ref=e72]
+      - row
+        - cell "Home Gym Heroes home-gym-heroes" [ref=e38]
+          - link "Home Gym Heroes" [ref=e73]
+          - paragraph
+            - StaticText "home-gym-heroes"
+        - cell "Gym" [ref=e39]
+        - cell "0" [ref=e40]
+        - cell
+        - cell "Grant" [ref=e41]
+          - button "Grant" [ref=e74]
+      - row
+        - cell "Admin Personal admin-personal" [ref=e42]
+          - link "Admin Personal" [ref=e75]
+          - paragraph
+            - StaticText "admin-personal"
+        - cell "Personal" [ref=e43]
+        - cell "0" [ref=e44]
+        - cell
+        - cell "Grant" [ref=e45]
+          - button "Grant" [ref=e76]
+      - row
+        - cell "Coach Personal coach-personal" [ref=e46]
+          - link "Coach Personal" [ref=e77]
+          - paragraph
+            - StaticText "coach-personal"
+        - cell "Personal" [ref=e47]
+        - cell "0" [ref=e48]
+        - cell
+        - cell "Grant" [ref=e49]
+          - button "Grant" [ref=e78]
+      - row
+        - cell "Jane Personal jane-personal" [ref=e50]
+          - link "Jane Personal" [ref=e79]
+          - paragraph
+            - StaticText "jane-personal"
+        - cell "Personal" [ref=e51]
+        - cell "0" [ref=e52]
+        - cell
+        - cell "Grant" [ref=e53]
+          - button "Grant" [ref=e80]
+      - row
+        - cell "John Personal john-personal" [ref=e54]
+          - link "John Personal" [ref=e81]
+          - paragraph
+            - StaticText "john-personal"
+        - cell "Personal" [ref=e55]
+        - cell "0" [ref=e56]
+        - cell
+        - cell "Grant" [ref=e57]
+          - button "Grant" [ref=e82]
+  - region "Notifications alt+T" [ref=e1]

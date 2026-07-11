@@ -1,0 +1,97 @@
+- generic
+  - banner
+    - link "WODsmith" [ref=e2]
+    - StaticText "Admin"
+    - link "Home" [ref=e3]
+    - button "Switch to dark mode" [ref=e4]
+      - StaticText "Toggle theme"
+    - button "Log out" [ref=e5]
+  - complementary
+    - paragraph
+      - StaticText "PLATFORM"
+    - navigation
+      - link "Dashboard" [ref=e10]
+      - link "Teams" [ref=e11]
+      - link "Competitions" [ref=e12]
+      - link "Organizer Requests" [ref=e13]
+      - link "Entitlements" [ref=e14]
+      - link "Demo Competitions" [ref=e15]
+      - link "Documentation" [ref=e16]
+  - main
+    - navigation
+      - link "Admin" [ref=e17]
+      - StaticText "/"
+      - StaticText "Demo Competitions"
+    - heading "Demo Competitions" [level=1, ref=e6]
+    - paragraph
+      - StaticText "Generate fully-populated demo competitions for client presentations"
+    - heading "Existing Demo Competitions" [level=2, ref=e7]
+    - StaticText "Demo competitions that have been generated. Delete when no longer needed."
+    - paragraph
+      - StaticText "No demo competitions found. Create one below."
+    - heading "Generate New Demo Competition" [level=2, ref=e8]
+    - StaticText "Creates a complete competition with 4 divisions, 3 workouts, 40 athletes, heats, scores, and volunteers."
+    - generic
+      - LabelText
+        - StaticText "Competition Name *"
+      - textbox "Competition Name *" [ref=e18]
+      - LabelText
+        - StaticText "Organizing Team (optional)"
+      - combobox "Organizing Team (optional)" [expanded=false, ref=e19]: Create demo team automatically
+        - StaticText "Create demo team automatically"
+      - paragraph
+        - StaticText "Leave empty to create a new demo organizing team"
+      - LabelText
+        - StaticText "Competition date *"
+      - Date "Competition date *"
+        - generic
+          - spinbutton "Month Month" [ref=e23]: 0
+            - StaticText "mm"
+          - StaticText "/"
+          - spinbutton "Day Day" [ref=e24]: 0
+            - StaticText "dd"
+          - StaticText "/"
+          - spinbutton "Year Year" [ref=e25]: 0
+            - StaticText "yyyy"
+        - button "Show date picker" [ref=e21]
+      - LabelText
+        - StaticText "Demo start time *"
+      - InputTime "Demo start time *": 10:00
+        - generic
+          - spinbutton "Hours Hours" [ref=e26]: 10
+            - StaticText "10"
+          - StaticText ":"
+          - spinbutton "Minutes Minutes" [ref=e27]: 0
+            - StaticText "00"
+          - StaticText " "
+          - spinbutton "AM/PM AM/PM" [ref=e28]: 1
+            - StaticText "AM"
+        - button "Show time picker" [ref=e22]
+      - paragraph
+        - StaticText "Event 2 will start 30 min after this time"
+      - button "Generate Demo Competition" [ref=e20]
+    - heading "What gets created:" [level=3, ref=e9]
+    - list
+      - listitem [level=1]
+        - StaticText "4 Divisions: Rx Male/Female Individual ($150), Rx Male/Female Team of 2 ($200)"
+      - listitem [level=1]
+        - StaticText "3 Workouts with smart timing:"
+        - list
+          - listitem [level=2]
+            - ListMarker "• "
+            - StaticText "Event 1: Completed (in the past with scores)"
+          - listitem [level=2]
+            - ListMarker "• "
+            - StaticText "Event 2: Starting 30 min after demo time"
+          - listitem [level=2]
+            - ListMarker "• "
+            - StaticText "Event 3: Upcoming (no heats yet)"
+      - listitem [level=1]
+        - StaticText "~28 Fake athletes with registrations"
+      - listitem [level=1]
+        - StaticText "Heats for Event 1 with results, Event 2 ready to go"
+      - listitem [level=1]
+        - StaticText "Volunteer judges assigned to heats"
+      - listitem [level=1]
+        - StaticText "1 Liability waiver, 3 Sponsors"
+  - region "Notifications alt+T" [ref=e1]

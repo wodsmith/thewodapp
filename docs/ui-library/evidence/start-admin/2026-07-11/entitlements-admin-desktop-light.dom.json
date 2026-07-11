@@ -1,0 +1,57 @@
+{
+  "bodyText": "WODsmith Admin Home Toggle theme PLATFORM Dashboard Teams Competitions Organizer Requests Entitlements Demo Competitions Documentation Admin / Entitlements Feature Entitlements Grant or revoke feature access per team Feature Select a feature to manage Workout Tracking(workouts) Teams with Access 0 Total Teams 10 Workout Tracking Access Access to personal workout tracking features Team Type Members Status Action E2E Test Gym e2e-test-gym Gym 0 Grant Admin's Team (personal) admin-n_user Personal 0 Grant Test's Team (personal) test-st_user Personal 0 Grant CrossFit crossfit Gym 0 Grant CrossFit Box One crossfit-box-one Gym 0 Grant Home Gym Heroes home-gym-heroes Gym 0 Grant Admin Personal admin-personal Personal 0 Grant Coach Personal coach-personal Personal 0 Grant Jane Personal jane-personal Personal 0 Grant John Personal john-personal Personal 0 Grant",
+  "effectiveTheme": "light",
+  "fields": [
+    {
+      "tag": "input",
+      "type": null,
+      "name": null,
+      "label": null,
+      "required": false
+    }
+  ],
+  "finalUrl": "/admin/entitlements",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "Feature Entitlements"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "nav"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith | Functional Fitness Competition Platform",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 1468,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

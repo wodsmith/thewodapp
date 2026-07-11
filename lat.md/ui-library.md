@@ -463,3 +463,15 @@ Confirmation, consent, schedule, and signup use the populated Crew demo fixture 
 Every route verifies desktop and mobile light output from exact revision `b241ddfc4c3a023669c1604147e3bda3ce8343a5`. Text evidence scrubs the deterministic fixture token and synthetic emails, while the manifest retains the fixture path required to validate route parameters.
 
 All five routes remain route-specific. Repetition supports presentation-only public headers, metric panels, fact rows, status badges, and responsive action groups; `FieldGroup` is already shared while token, response, consent, signup, and series semantics remain app-owned.
+
+### Start admin evidence
+
+The seventh evidence slice covers Start's private platform-admin workflow across dashboard, competition, documentation, entitlement, organizer-request, and team operations.
+
+[The Start admin coverage audit](../docs/ui-library/start-admin-coverage-audit.md) records 16 verified scenarios across eight visual records. The complete plan now has 204 verified, 26 blocked, and 128 pending scenarios.
+
+The disposable global-admin fixture reaches all eight routes against an isolated local database. Every route verifies desktop and mobile light output from exact revision `739ca5370f292aac9f20a1ae7389c6e6e07e9e4c` with no redirects, console errors, failing responses, or horizontal overflow.
+
+The dashboard and demo-competition fixes preserve stable direct-load hydration and semantic heading order. The demo detail list also retains valid list nesting in both responsive captures.
+
+All eight routes remain route-specific. Repetition supports presentation-only page headers, metric cards, collection summaries, status badges, empty states, and responsive collection containment while authorization, loaders, forms, mutations, and admin navigation remain app-owned.

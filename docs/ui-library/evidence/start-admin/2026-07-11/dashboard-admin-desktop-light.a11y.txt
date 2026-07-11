@@ -1,0 +1,41 @@
+- banner
+  - link "WODsmith" [ref=e2]
+  - StaticText "Admin"
+  - link "Home" [ref=e3]
+  - button "Switch to dark mode" [ref=e4]
+    - StaticText "Toggle theme"
+  - button "Log out" [ref=e5]
+- complementary
+  - paragraph
+    - StaticText "PLATFORM"
+  - navigation
+    - link "Dashboard" [ref=e13]
+    - link "Teams" [ref=e14]
+    - link "Competitions" [ref=e15]
+    - link "Organizer Requests" [ref=e16]
+    - link "Entitlements" [ref=e17]
+    - link "Demo Competitions" [ref=e18]
+    - link "Documentation" [ref=e19]
+- main
+  - navigation
+    - StaticText "Admin"
+  - heading "Admin Dashboard" [level=1, ref=e6]
+  - StaticText "Welcome to the admin panel. Manage your platform from here."
+  - StaticText "Total Teams"
+  - StaticText "--"
+  - StaticText "Pending Requests"
+  - StaticText "--"
+  - StaticText "Active Competitions"
+  - StaticText "--"
+  - heading "Quick Actions" [level=2, ref=e7]
+  - link "Manage competitions" [ref=e8]
+  - link "Entitlements" [ref=e9]
+  - link "Organizer Requests" [ref=e10]
+  - link "Demo Competitions" [ref=e11]
+  - heading "Recent Activity" [level=2, ref=e12]
+  - paragraph
+    - StaticText "Activity tracking"
+  - paragraph
+    - StaticText "Coming soon..."
+  - StaticText "--"
+- region "Notifications alt+T" [ref=e1]

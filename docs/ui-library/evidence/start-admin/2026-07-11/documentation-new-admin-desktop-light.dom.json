@@ -1,0 +1,468 @@
+{
+  "bodyText": "WODsmith Admin Home Toggle theme PLATFORM Dashboard Teams Competitions Organizer Requests Entitlements Demo Competitions Documentation Admin / Documentation / New New documentation Create contextual help and map it to organizer pages Details Title and summary shown in the documentation drawer Title Description (optional) Sort order Published (visible in the drawer) Content Markdown article, video, or external link Type Markdown article Markdown article Video External link Content (markdown) Preview Routes Pages where this doc appears. Selecting a layout route (e.g. a competition section) shows the doc on all of its child pages. /compete/organizer /compete/organizer/$competitionId /compete/organizer/$competitionId/announcements /compete/organizer/$competitionId/athletes/ /compete/organizer/$competitionId/athletes/$registrationId /compete/organizer/$competitionId/athletes/form-questions /compete/organizer/$competitionId/broadcasts /compete/organizer/$competitionId/check-in /compete/organizer/$competitionId/co-hosts /compete/organizer/$competitionId/coupons /compete/organizer/$competitionId/danger-zone /compete/organizer/$competitionId/divisions /compete/organizer/$competitionId/edit /compete/organizer/$competitionId/event-divisions /compete/organizer/$competitionId/events/ /compete/organizer/$competitionId/events/$eventId /compete/organizer/$competitionId/events/$eventId/submissions /compete/organizer/$competitionId/events/$eventId/submissions/$submissionId /compete/organizer/$competitionId/invites/ /compete/organizer/$competitionId/invites/sources/$sourceId /compete/organizer/$competitionId/judges-ai /compete/organizer/$competitionId/leaderboard-preview /compete/organizer/$competitionId/locations /compete/organizer/$competitionId/pricing /compete/organizer/$competitionId/results /compete/organizer/$competitionId/revenue /compete/organizer/$competitionId/schedule /compete/organizer/$competitionId/scoring /compete/organizer/$competitionId/settings /compete/organizer/$competitionId/sponsors /compete/organizer/$competitionId/submission-windows /compete/organizer/$competitionId/volunteers/ /compete/organizer/$competitionId/volunteers/judges /compete/organizer/$competitionId/volunteers/shifts /compete/organizer/$competitionId/volunteers/signup-questions /compete/organizer/$competitionId/waivers /compete/organizer/_dashboard /compete/organizer/_dashboard/new /compete/organizer/_dashboard/series/ /compete/organizer/_dashboard/series/new /compete/organizer/_dashboard/settings/payouts/$teamSlug/ /compete/organizer/onboard/ /compete/organizer/onboard/pending /compete/organizer/series/$groupId /compete/organizer/series/$groupId/divisions /compete/organizer/series/$groupId/edit /compete/organizer/series/$groupId/event-mappings /compete/organizer/series/$groupId/events /compete/organizer/series/$groupId/events/$eventId /compete/organizer/series/$groupId/leaderboard /compete/organizer/series/$groupId/publish-workouts /compete/organizer/series/$groupId/registration-questions 0 routes selected Create doc",
+  "effectiveTheme": "light",
+  "fields": [
+    {
+      "tag": "input",
+      "type": null,
+      "name": "title",
+      "label": "Title",
+      "required": false
+    },
+    {
+      "tag": "textarea",
+      "type": null,
+      "name": "description",
+      "label": "Description (optional)",
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "number",
+      "name": null,
+      "label": "Sort order",
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "select",
+      "type": null,
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "textarea",
+      "type": null,
+      "name": null,
+      "label": "Content (markdown)",
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": null,
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    },
+    {
+      "tag": "input",
+      "type": "checkbox",
+      "name": null,
+      "label": null,
+      "required": false
+    }
+  ],
+  "finalUrl": "/admin/docs/new",
+  "forms": [
+    {
+      "method": "get",
+      "action": "/admin/docs/new"
+    }
+  ],
+  "headings": [
+    {
+      "level": 1,
+      "text": "New documentation"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "nav"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith | Functional Fitness Competition Platform",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 3022,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}

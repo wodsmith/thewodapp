@@ -1,0 +1,49 @@
+{
+  "bodyText": "WODsmith Admin Home Toggle theme PLATFORM Dashboard Teams Competitions Organizer Requests Entitlements Demo Competitions Documentation Admin / Teams Teams Manage all teams in the platform Total Teams 30 Gyms 4 Personal 6 Competition Events 12 All Teams 30 teams found Team Type Members Competitions Created Admin's Team (personal) admin-n_user Personal 0 0 Jul 10, 2026 Test's Team (personal) test-st_user Personal 0 0 Jul 10, 2026 E2E Test Gym e2e-test-gym Gym 0 0 Jul 10, 2026 E2E Comp Athletes e2e-comp-athletes Competition Event 0 0 Jul 10, 2026 MWFC B Athletes mwfc-b-athletes Competition Event 0 0 Jul 10, 2026 Mike & Ghost mike-and-ghost-winter Athlete Team 0 0 Jul 10, 2026 Alex & Ryan alex-and-ryan-winter Athlete Team 0 0 Jul 10, 2026 Summer Showdown W2 Athletes summer-showdown-w2-athletes Competition Event 0 0 Jul 10, 2026 Summer Showdown W1 Athletes summer-showdown-w1-athletes Competition Event 0 0 Jul 10, 2026 MWFC E Athletes mwfc-e-athletes Competition Event 0 0 Jul 10, 2026 MWFC D Athletes mwfc-d-athletes Competition Event 0 0 Jul 10, 2026 MWFC C Athletes mwfc-c-athletes Competition Event 0 0 Jul 10, 2026 MWFC A Athletes mwfc-a-athletes Competition Event 0 0 Jul 10, 2026 Team Thunder inv-qual-thunder Athlete Team 0 0 Jul 10, 2026 Team Storm inv-qual-storm Athlete Team 0 0 Jul 10, 2026 Team Pulse inv-qual-pulse Athlete Team 0 0 Jul 10, 2026 Team Havoc inv-qual-havoc Athlete Team 0 0 Jul 10, 2026 Team Grit inv-qual-grit Athlete Team 0 0 Jul 10, 2026 Regional Qualifier Athletes regional-qualifier-athletes Competition Event 0 0 Jul 10, 2026 Invitational Athletes invitational-athletes Competition Event 0 0 Jul 10, 2026 Winter Throwdown 2025 winter-throwdown-2025 Competition Event 0 0 Jul 10, 2026 CrossFit crossfit Gym 0 0 Jul 10, 2026 CrossFit Box One crossfit-box-one Gym 0 0 Jul 10, 2026 Home Gym Heroes home-gym-heroes Gym 0 0 Jul 10, 2026 John Personal john-personal Personal 0 0 Jul 10, 2026 Jane Personal jane-personal Personal 0 0 Jul 10, 2026 Coach Personal coach-personal Personal 0 0 Jul 10, 2026 Admin Personal admin-personal Personal 0 0 Jul 10, 2026 Team Send It team-send-it Athlete Team 0 0 Jul 10, 2026 Online Qualifier 2026 Athletes online-qualifier-2026-athletes Competition Event 0 0 Jul 10, 2026",
+  "effectiveTheme": "light",
+  "fields": [],
+  "finalUrl": "/admin/teams",
+  "forms": [],
+  "headings": [
+    {
+      "level": 1,
+      "text": "Teams"
+    }
+  ],
+  "landmarks": [
+    {
+      "label": "",
+      "role": null,
+      "tag": "header"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "aside"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "nav"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "main"
+    },
+    {
+      "label": "",
+      "role": null,
+      "tag": "nav"
+    }
+  ],
+  "language": "en",
+  "title": "WODsmith | Functional Fitness Competition Platform",
+  "viewport": {
+    "height": 900,
+    "horizontalOverflow": false,
+    "scrollHeight": 2612,
+    "scrollWidth": 1440,
+    "width": 1440
+  }
+}
