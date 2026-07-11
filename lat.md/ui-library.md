@@ -6,11 +6,33 @@ The UI library boundary lets WODsmith evolve reusable primitives independently f
 
 The shared package now includes a dependency-closed feedback, identity, navigation, disclosure, progress, and scrolling slice while preserving every Start and Crew route import.
 
-\`@repo/ui\` owns [[packages/ui/src/components/alert.tsx#Alert|alert]], avatar, breadcrumb, collapsible, hover-card, progress, [[packages/ui/src/components/scroll-area.tsx#ScrollArea|scroll-area]], and children-driven field composition in addition to the earlier foundation, form, and overlay primitives. The apps keep thin re-exports at their previous paths.
+\`@repo/ui\` owns [[packages/ui/src/components/alert.tsx#Alert|alert]], avatar, breadcrumb, collapsible, hover-card, progress, [[packages/ui/src/components/scroll-area.tsx#ScrollArea|scroll-area]], and children-driven field and empty-state composition in addition to the earlier foundation, form, and overlay primitives. The apps keep thin re-exports at their previous paths.
 
 [[packages/ui/src/components/auth-entry.tsx#AuthEntry|Auth entry]] is a children-driven compound pattern for responsive account-entry composition. It owns structure and semantics only; route controllers, forms, auth state, branding, and theme activation remain app-owned. Start and Crew sign-in are its first consumers.
 
 \`list-item\` remains an app adapter because its prop and compound APIs need a separate composition decision. The custom \`toggle-group\` remains app-owned pending an accessibility/API review. Divergent \`searchable-select\`, \`sidebar\`, domain components, and \`use-mobile\` also remain app-owned.
+
+### Empty state composition
+
+[[packages/ui/src/components/empty-state.tsx#EmptyState|EmptyState]] owns portable plain and bounded presentation without owning route state, copy, heading level, actions, or live-region policy.
+
+Root and Card are explicit surfaces instead of modes. Icon, Title, Description, and Actions compose caller content inside either surface; Start and Crew expose identity-only adapters without migrating feature consumers in this slice.
+
+#### Plain empty state
+
+Root forwards native div props, refs, and classes so callers can opt into roles such as status while composing decorative icons, explicit headings, descriptions, buttons, and links.
+
+#### Bounded empty state card
+
+Card provides the explicit bounded surface and forwards native div props, refs, and classes without introducing variant or domain props.
+
+#### Explicit heading child
+
+Title slots exactly one concrete h1 through h6 child so the caller owns document hierarchy while the primitive owns portable typography.
+
+#### Empty state context misuse
+
+Icon, Title, Description, and Actions fail with a specific error outside Root or Card, preventing detached compound parts from silently losing their composition contract.
 
 ### Field composition
 
@@ -184,7 +206,31 @@ Canvas theme state also reaches its iframe root and body. This lets body-portall
 
 Representative stories cover foundations plus form validation, field and fieldset composition, selection controls, dialogs, sheets, menus, popovers, tooltips, tabs, alerts, avatars, breadcrumbs, collapsibles, hover cards, progress, and scroll areas by importing direct \`@repo/ui/*\` entry points.
 
-The new stories verify field naming, descriptions, invalid transitions, disabled and slotted controls, native fieldset groups, alert and breadcrumb semantics, image and fallback identity, disclosure state, portal hover behavior, visible progress, and real overflow. Existing semantic-contrast tests exercise every added Canvas story in both themes.
+The new stories verify field naming, descriptions, invalid transitions, disabled and slotted controls, native fieldset groups, empty-state surfaces, alert and breadcrumb semantics, image and fallback identity, disclosure state, portal hover behavior, visible progress, and real overflow. Existing semantic-contrast tests exercise every added Canvas story in both themes.
+
+### Bounded empty state story
+
+The Card story verifies its bounded surface, explicit h2, and decorative icon semantics.
+
+### Plain empty state story
+
+The Plain story verifies caller-owned status semantics, live-region policy, and an explicit h3.
+
+### Empty state action story
+
+The action story verifies arbitrary primary and secondary controls, button activation, link targets, and keyboard order.
+
+### Dynamic empty state story
+
+The filtered-results story verifies a caller-owned state transition while the primitive remains presentation-only.
+
+### Mobile empty state story
+
+The long-content story verifies that bounded empty states, actions, and expanded copy remain contained at 320 and 390 px.
+
+### Empty state heading levels story
+
+The heading-level story verifies that callers can provide different valid document levels without a heading-level prop.
 
 Auth-entry stories cover the standard Card and unframed Plain surfaces, a forced-dark composition under opposite operating-system preference, composed error and pending status regions, keyboard order, long copy, and 320/390 px overflow safety.
 
@@ -211,6 +257,8 @@ Focused package tests prove that Start and Crew adapters expose the same runtime
 [[packages/ui/test/field.test.tsx]] verifies accessible names, metadata id order and deduplication, omission, invalid state, slotted custom controls, native props and refs, fieldset legend semantics, stable ids, and strict compound-context errors.
 
 The same package suite verifies auth-entry heading semantics, native props, refs, class merging, and both explicit surfaces without coupling the package to any auth controller.
+
+[[packages/ui/test/empty-state.test.tsx]] verifies both explicit empty-state surfaces, native props and refs, decorative icons, explicit heading children, arbitrary actions, and strict compound-context errors.
 
 ## Inventory contract
 

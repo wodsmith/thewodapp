@@ -17,6 +17,7 @@ const foundationModules = new Set([
   "button",
   "card",
   "checkbox",
+  "empty-state",
   "field",
   "input",
   "label",

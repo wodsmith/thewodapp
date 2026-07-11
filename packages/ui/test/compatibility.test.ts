@@ -13,6 +13,7 @@ import * as crewCollapsible from "../../../apps/crew/src/components/ui/collapsib
 import * as crewCn from "../../../apps/crew/src/utils/cn"
 import * as crewDialog from "../../../apps/crew/src/components/ui/dialog"
 import * as crewDropdownMenu from "../../../apps/crew/src/components/ui/dropdown-menu"
+import * as crewEmptyState from "../../../apps/crew/src/components/ui/empty-state"
 import * as crewField from "../../../apps/crew/src/components/ui/field"
 import * as crewForm from "../../../apps/crew/src/components/ui/form"
 import * as crewHoverCard from "../../../apps/crew/src/components/ui/hover-card"
@@ -42,6 +43,7 @@ import * as sharedCollapsible from "@repo/ui/collapsible"
 import * as sharedCn from "@repo/ui/cn"
 import * as sharedDialog from "@repo/ui/dialog"
 import * as sharedDropdownMenu from "@repo/ui/dropdown-menu"
+import * as sharedEmptyState from "@repo/ui/empty-state"
 import * as sharedField from "@repo/ui/field"
 import * as sharedForm from "@repo/ui/form"
 import * as sharedHoverCard from "@repo/ui/hover-card"
@@ -71,6 +73,7 @@ import * as startCollapsible from "../../../apps/wodsmith-start/src/components/u
 import * as startCn from "../../../apps/wodsmith-start/src/utils/cn"
 import * as startDialog from "../../../apps/wodsmith-start/src/components/ui/dialog"
 import * as startDropdownMenu from "../../../apps/wodsmith-start/src/components/ui/dropdown-menu"
+import * as startEmptyState from "../../../apps/wodsmith-start/src/components/ui/empty-state"
 import * as startField from "../../../apps/wodsmith-start/src/components/ui/field"
 import * as startForm from "../../../apps/wodsmith-start/src/components/ui/form"
 import * as startHoverCard from "../../../apps/wodsmith-start/src/components/ui/hover-card"
@@ -106,6 +109,7 @@ const compatibilityModules: Array<
   ["collapsible", sharedCollapsible, startCollapsible, crewCollapsible],
   ["dialog", sharedDialog, startDialog, crewDialog],
   ["dropdown-menu", sharedDropdownMenu, startDropdownMenu, crewDropdownMenu],
+  ["empty-state", sharedEmptyState, startEmptyState, crewEmptyState],
   ["field", sharedField, startField, crewField],
   ["form", sharedForm, startForm, crewForm],
   ["hover-card", sharedHoverCard, startHoverCard, crewHoverCard],
