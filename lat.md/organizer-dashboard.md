@@ -132,6 +132,8 @@ Organizers can permanently clear one saved score from its athlete row on an in-p
 
 Each saved row exposes a compact trash action beside its status; unsaved rows and non-organizer score-entry surfaces do not expose it. The confirmation uses one high-contrast orange danger palette throughout, names the athlete or team and, for a parent event, the sub-event before calling [[apps/wodsmith-start/src/server-fns/competition-score-fns.ts#deleteCompetitionScoreFn]].
 
+After deletion, only the cleared row resets its local input state. Draft or invalid values in other rows remain untouched because they may not have reached auto-save yet.
+
 The server requires `MANAGE_COMPETITIONS`, verifies the organizing team and event belong to the competition, and scopes the delete to the athlete, event, and exact division. A transaction deletes round breakdowns before their parent score because the schema does not declare a database cascade.
 
 ### Division Results Publish Gate

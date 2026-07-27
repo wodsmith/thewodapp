@@ -647,7 +647,6 @@ function InPersonResultsEntry({
   const publishDivisionResults = useServerFn(publishDivisionResultsFn)
   const deleteCompetitionScore = useServerFn(deleteCompetitionScoreFn)
   const [isPublishing, setIsPublishing] = useState(false)
-  const [resultsResetKey, setResultsResetKey] = useState(0)
 
   // Find the current division's publish status for the selected event
   const currentDivisionStatus =
@@ -704,7 +703,6 @@ function InPersonResultsEntry({
           },
         })
         await router.invalidate()
-        setResultsResetKey((key) => key + 1)
         toast.success("Result permanently cleared")
       } catch (error) {
         toast.error(
@@ -914,7 +912,7 @@ function InPersonResultsEntry({
 
       {isParentEvent && childScoreDataList.length > 0 ? (
         <ResultsEntryForm
-          key={`${selectedEventId}-${selectedDivisionId}-${resultsResetKey}`}
+          key={`${selectedEventId}-${selectedDivisionId}`}
           competitionId={competitionId}
           organizingTeamId={competition.organizingTeamId}
           events={events.map((e) => ({
@@ -952,7 +950,7 @@ function InPersonResultsEntry({
       ) : (
         scoreEntryData && (
           <ResultsEntryForm
-            key={`${selectedEventId}-${selectedDivisionId}-${resultsResetKey}`}
+            key={`${selectedEventId}-${selectedDivisionId}`}
             competitionId={competitionId}
             organizingTeamId={competition.organizingTeamId}
             events={events.map((e) => ({

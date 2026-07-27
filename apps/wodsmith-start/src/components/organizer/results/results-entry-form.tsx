@@ -128,6 +128,7 @@ export function ResultsEntryForm({
 
   const [scores, setScores] = useState<Record<string, ScoreEntryData>>({})
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set())
+  const [rowResetKeys, setRowResetKeys] = useState<Record<string, number>>({})
   const [savedIds, setSavedIds] = useState<Set<string>>(
     new Set(
       isSubEventMode
@@ -144,6 +145,32 @@ export function ResultsEntryForm({
   const [focusedIndex, setFocusedIndex] = useState(0)
   const rowRefs = useRef<Map<string, ScoreInputRowHandle>>(new Map())
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
+
+  const handleClearResult = useCallback(
+    async (
+      stateKey: string,
+      params: Parameters<ClearScoreFn>[0],
+    ): Promise<void> => {
+      if (!clearScore) return
+
+      await clearScore(params)
+      setScores((prev) => {
+        const next = { ...prev }
+        delete next[stateKey]
+        return next
+      })
+      setSavedIds((prev) => {
+        const next = new Set(prev)
+        next.delete(stateKey)
+        return next
+      })
+      setRowResetKeys((prev) => ({
+        ...prev,
+        [stateKey]: (prev[stateKey] ?? 0) + 1,
+      }))
+    },
+    [clearScore],
+  )
 
   // Check if we have heats to display
   const hasHeats = heats.length > 0
@@ -604,7 +631,7 @@ export function ResultsEntryForm({
                     )
                     return (
                       <ScoreInputRow
-                        key={stateKey}
+                        key={`${stateKey}-${rowResetKeys[stateKey] ?? 0}`}
                         ref={(handle) => {
                           if (handle) {
                             rowRefs.current.set(stateKey, handle)
@@ -612,7 +639,11 @@ export function ResultsEntryForm({
                             rowRefs.current.delete(stateKey)
                           }
                         }}
-                        athlete={subAthlete}
+                        athlete={
+                          rowResetKeys[stateKey]
+                            ? { ...subAthlete, existingResult: null }
+                            : subAthlete
+                        }
                         subEventLabel={sub.event.workout.name}
                         workoutScheme={sub.event.workout.scheme}
                         tiebreakScheme={sub.event.workout.tiebreakScheme}
@@ -630,7 +661,7 @@ export function ResultsEntryForm({
                         onClear={
                           clearScore
                             ? () =>
-                                clearScore({
+                                handleClearResult(stateKey, {
                                   trackWorkoutId: sub.event.id,
                                   userId: subAthlete.userId,
                                   divisionId: subAthlete.divisionId,
@@ -693,10 +724,11 @@ export function ResultsEntryForm({
                       scores={scores}
                       savingIds={savingIds}
                       savedIds={savedIds}
+                      rowResetKeys={rowResetKeys}
                       onClearScore={
                         clearScore
                           ? (athlete) =>
-                              clearScore({
+                              handleClearResult(athlete.registrationId, {
                                 trackWorkoutId: event.id,
                                 userId: athlete.userId,
                                 divisionId: athlete.divisionId,
@@ -730,6 +762,7 @@ export function ResultsEntryForm({
                       return (
                         <div key={athlete.registrationId}>
                           <ScoreInputRow
+                            key={`${athlete.registrationId}-${rowResetKeys[athlete.registrationId] ?? 0}`}
                             ref={(handle) => {
                               if (handle) {
                                 rowRefs.current.set(
@@ -740,7 +773,11 @@ export function ResultsEntryForm({
                                 rowRefs.current.delete(athlete.registrationId)
                               }
                             }}
-                            athlete={athlete}
+                            athlete={
+                              rowResetKeys[athlete.registrationId]
+                                ? { ...athlete, existingResult: null }
+                                : athlete
+                            }
                             workoutScheme={event.workout.scheme}
                             tiebreakScheme={event.workout.tiebreakScheme}
                             timeCap={timeCap ?? undefined}
@@ -753,7 +790,7 @@ export function ResultsEntryForm({
                             onClear={
                               clearScore
                                 ? () =>
-                                    clearScore({
+                                    handleClearResult(athlete.registrationId, {
                                       trackWorkoutId: event.id,
                                       userId: athlete.userId,
                                       divisionId: athlete.divisionId,
@@ -776,6 +813,7 @@ export function ResultsEntryForm({
               athletes.map((athlete, index) => (
                 <div key={athlete.registrationId}>
                   <ScoreInputRow
+                    key={`${athlete.registrationId}-${rowResetKeys[athlete.registrationId] ?? 0}`}
                     ref={(handle) => {
                       if (handle) {
                         rowRefs.current.set(athlete.registrationId, handle)
@@ -783,7 +821,11 @@ export function ResultsEntryForm({
                         rowRefs.current.delete(athlete.registrationId)
                       }
                     }}
-                    athlete={athlete}
+                    athlete={
+                      rowResetKeys[athlete.registrationId]
+                        ? { ...athlete, existingResult: null }
+                        : athlete
+                    }
                     workoutScheme={event.workout.scheme}
                     tiebreakScheme={event.workout.tiebreakScheme}
                     timeCap={timeCap ?? undefined}
@@ -796,7 +838,7 @@ export function ResultsEntryForm({
                     onClear={
                       clearScore
                         ? () =>
-                            clearScore({
+                            handleClearResult(athlete.registrationId, {
                               trackWorkoutId: event.id,
                               userId: athlete.userId,
                               divisionId: athlete.divisionId,
