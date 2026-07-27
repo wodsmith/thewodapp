@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import type { SQL } from "drizzle-orm"
+import { MySqlDialect } from "drizzle-orm/mysql-core"
 import { scoreRoundsTable, scoresTable } from "@/db/schemas/scores"
 import { deleteCompetitionScoreFn } from "@/server-fns/competition-score-fns"
 import { requireTeamPermission } from "@/utils/team-auth"
 
 type QueryResult = unknown[]
 
-function createSelectChain(result: QueryResult) {
+function createSelectChain(result: QueryResult, whereCalls: unknown[] = []) {
   const chain: Record<string, ReturnType<typeof vi.fn>> & {
     then?: (
       resolve: (value: QueryResult) => void,
@@ -20,7 +22,10 @@ function createSelectChain(result: QueryResult) {
 
   chain.from.mockReturnValue(chain)
   chain.innerJoin.mockReturnValue(chain)
-  chain.where.mockReturnValue(chain)
+  chain.where.mockImplementation((condition: unknown) => {
+    whereCalls.push(condition)
+    return chain
+  })
   chain.limit.mockResolvedValue(result)
   chain.then = (resolve, reject) =>
     Promise.resolve(result).then(resolve, reject)
@@ -31,9 +36,12 @@ function createSelectChain(result: QueryResult) {
 function createDbMock(selectResults: QueryResult[]) {
   const pendingResults = [...selectResults]
   const deleteCalls: unknown[] = []
+  const txSelectWhereCalls: unknown[] = []
   const deleteWhere = vi.fn().mockResolvedValue(undefined)
   const tx = {
-    select: vi.fn(() => createSelectChain(pendingResults.shift() ?? [])),
+    select: vi.fn(() =>
+      createSelectChain(pendingResults.shift() ?? [], txSelectWhereCalls),
+    ),
     delete: vi.fn((table: unknown) => {
       deleteCalls.push(table)
       return { where: deleteWhere }
@@ -47,7 +55,11 @@ function createDbMock(selectResults: QueryResult[]) {
     ),
   }
 
-  return { db, deleteCalls, tx }
+  return { db, deleteCalls, deleteWhere, tx, txSelectWhereCalls }
+}
+
+function renderCondition(condition: unknown) {
+  return new MySqlDialect().sqlToQuery(condition as SQL)
 }
 
 let mockDb: ReturnType<typeof createDbMock>["db"]
@@ -92,7 +104,13 @@ describe("deleteCompetitionScoreFn", () => {
 
   // @lat: [[organizer-dashboard#Results Entry#Clear Results#Deletes score and rounds]]
   it("deletes one owned score and its round breakdowns", async () => {
-    const { db, deleteCalls, tx } = createDbMock([
+    const {
+      db,
+      deleteCalls,
+      deleteWhere,
+      tx,
+      txSelectWhereCalls,
+    } = createDbMock([
       [{ organizingTeamId: "team-1" }],
       [{ id: "tw-1" }],
       [{ id: "score-1" }],
@@ -116,6 +134,20 @@ describe("deleteCompetitionScoreFn", () => {
     )
     expect(tx.delete).toHaveBeenCalledTimes(2)
     expect(deleteCalls).toEqual([scoreRoundsTable, scoresTable])
+    expect(txSelectWhereCalls).toHaveLength(1)
+    const selectionWhere = renderCondition(txSelectWhereCalls[0])
+    expect(selectionWhere.sql).toContain("`scores`.`competitionEventId` = ?")
+    expect(selectionWhere.sql).toContain("`scores`.`userId` = ?")
+    expect(selectionWhere.sql).toContain("`scores`.`scalingLevelId` = ?")
+    expect(selectionWhere.params).toEqual(["tw-1", "user-1", "division-1"])
+
+    expect(deleteWhere).toHaveBeenCalledTimes(2)
+    const roundDeleteWhere = renderCondition(deleteWhere.mock.calls[0]?.[0])
+    expect(roundDeleteWhere.sql).toBe("`score_rounds`.`scoreId` in (?)")
+    expect(roundDeleteWhere.params).toEqual(["score-1"])
+    const scoreDeleteWhere = renderCondition(deleteWhere.mock.calls[1]?.[0])
+    expect(scoreDeleteWhere.sql).toBe("`scores`.`id` in (?)")
+    expect(scoreDeleteWhere.params).toEqual(["score-1"])
   })
 
   // @lat: [[organizer-dashboard#Results Entry#Clear Results#Rejects event outside competition]]

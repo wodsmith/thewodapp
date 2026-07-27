@@ -140,6 +140,10 @@ The server requires `MANAGE_COMPETITIONS`, verifies the organizing team and even
 
 The row action requires explicit confirmation, identifies the affected athlete or team, and consistently uses the accessible orange danger palette.
 
+#### Cancel is non-mutating
+
+Opening and canceling confirmation neither auto-saves a focused draft edit nor clears the existing saved result.
+
 #### Hides clear without organizer callback
 
 Score-entry surfaces that do not receive the organizer-only clear callback never render the destructive action.

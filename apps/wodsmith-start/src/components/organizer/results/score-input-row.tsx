@@ -107,6 +107,7 @@ export const ScoreInputRow = forwardRef<
     handleInputChange,
     handleRoundScoreChange,
     handleTieBreakChange,
+    suppressNextBlurSubmit,
     handleBlur,
     handleKeyDown,
     handleConfirmWarning,
@@ -561,6 +562,7 @@ export const ScoreInputRow = forwardRef<
                   disabled={isSaving || isClearing}
                   aria-label={`Clear result for ${displayName}`}
                   title={`Clear result for ${displayName}`}
+                  onPointerDown={suppressNextBlurSubmit}
                   className="h-8 w-8 shrink-0 text-muted-foreground hover:bg-orange-100 hover:text-orange-700"
                 >
                   <Trash2 className="h-4 w-4" />

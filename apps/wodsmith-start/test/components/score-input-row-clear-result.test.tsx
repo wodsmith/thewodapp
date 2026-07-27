@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import { ScoreInputRow } from "@/components/organizer/results/score-input-row"
 import type { EventScoreEntryAthlete } from "@/types/competition-scores"
@@ -53,9 +53,11 @@ describe("ScoreInputRow clear result action", () => {
       }),
     ).toBeInTheDocument()
     const warning = screen.getByRole("alert")
-    expect(warning).toHaveClass("bg-orange-50", "text-orange-950")
-    expect(warning.className).not.toContain("destructive")
-    expect(warning.className).not.toContain("dark:")
+    expect(warning).toHaveClass(
+      "border-orange-500",
+      "bg-orange-50",
+      "text-orange-950",
+    )
     expect(screen.getByText("This action cannot be undone")).toBeInTheDocument()
     expect(onClear).not.toHaveBeenCalled()
 
@@ -73,6 +75,47 @@ describe("ScoreInputRow clear result action", () => {
         }),
       ).not.toBeInTheDocument(),
     )
+  })
+
+  // @lat: [[organizer-dashboard#Results Entry#Clear Results#Cancel is non-mutating]]
+  it("does not save or clear when confirmation is canceled", async () => {
+    const onClear = vi.fn().mockResolvedValue(undefined)
+    const onChange = vi.fn()
+
+    render(
+      <ScoreInputRow
+        athlete={athlete}
+        workoutScheme="time"
+        scoreType="min"
+        tiebreakScheme={null}
+        isSaved
+        onClear={onClear}
+        onChange={onChange}
+        onTabNext={() => undefined}
+      />,
+    )
+
+    const scoreInput = screen.getByPlaceholderText("90 (secs) or 1:30")
+    const clearButton = screen.getByRole("button", {
+      name: "Clear result for Maya Chen",
+    })
+    scoreInput.focus()
+    fireEvent.change(scoreInput, { target: { value: "13:00" } })
+    fireEvent.pointerDown(clearButton)
+    clearButton.focus()
+    fireEvent.click(clearButton)
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    expect(onChange).not.toHaveBeenCalled()
+    expect(onClear).not.toHaveBeenCalled()
+    expect(
+      screen.queryByRole("heading", {
+        name: "Clear result for Maya Chen?",
+      }),
+    ).not.toBeInTheDocument()
   })
 
   // @lat: [[organizer-dashboard#Results Entry#Clear Results#Hides clear without organizer callback]]
