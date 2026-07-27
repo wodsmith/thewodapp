@@ -1559,24 +1559,6 @@ export const previewAudienceFn = createServerFn({ method: "GET" })
           existingUserIds.add(v.userId)
         }
       }
-
-      // Drop pending-invite athlete rows whose email collides with a volunteer
-      // — keep preview count in lock-step with send-time dedup.
-      if (volunteerRecipients.length > 0) {
-        const volunteerEmails = new Set(
-          volunteerRecipients
-            .map((v) => v.email?.toLowerCase())
-            .filter((e): e is string => !!e),
-        )
-        athleteRecipients = athleteRecipients.filter(
-          (r) =>
-            !(
-              r.invitationId !== null &&
-              r.email !== null &&
-              volunteerEmails.has(r.email.toLowerCase())
-            ),
-        )
-      }
     }
 
     // Apply question filters if present. Skip for pending_teammates — invitees
@@ -1607,6 +1589,24 @@ export const previewAudienceFn = createServerFn({ method: "GET" })
         athleteRecipients,
         waiverFilters,
         data.competitionId,
+      )
+    }
+
+    // Drop pending-invite athlete rows whose email collides with a volunteer
+    // after all filters, matching send-time deduplication ordering.
+    if (volunteerRecipients.length > 0) {
+      const volunteerEmails = new Set(
+        volunteerRecipients
+          .map((v) => v.email?.toLowerCase())
+          .filter((e): e is string => !!e),
+      )
+      athleteRecipients = athleteRecipients.filter(
+        (r) =>
+          !(
+            r.invitationId !== null &&
+            r.email !== null &&
+            volunteerEmails.has(r.email.toLowerCase())
+          ),
       )
     }
 

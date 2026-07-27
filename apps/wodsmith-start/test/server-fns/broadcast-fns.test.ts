@@ -232,7 +232,8 @@ describe("audienceFilterSchema", () => {
 		expect(result.success).toBe(false)
 	})
 
-	it("accepts waiver filters for athlete audiences", () => {
+	// @lat: [[organizer-dashboard#Organizer Dashboard#Event announcements#Athlete waiver-status filters#All-athlete waiver filters]]
+	it("accepts waiver filters for all-athlete audiences", () => {
 		const result = audienceFilterSchema.safeParse({
 			type: "all",
 			waiverFilters: [{ waiverId: "waiv_liability", status: "unsigned" }],
@@ -240,6 +241,17 @@ describe("audienceFilterSchema", () => {
 		expect(result.success).toBe(true)
 	})
 
+	// @lat: [[organizer-dashboard#Organizer Dashboard#Event announcements#Athlete waiver-status filters#Division waiver filters]]
+	it("accepts waiver filters for division audiences", () => {
+		const result = audienceFilterSchema.safeParse({
+			type: "division",
+			divisionId: "div_rx",
+			waiverFilters: [{ waiverId: "waiv_liability", status: "unsigned" }],
+		})
+		expect(result.success).toBe(true)
+	})
+
+	// @lat: [[organizer-dashboard#Organizer Dashboard#Event announcements#Athlete waiver-status filters#Non-athlete waiver filters]]
 	it("rejects waiver filters for non-athlete audiences", () => {
 		for (const type of ["public", "volunteers", "pending_teammates"]) {
 			const result = audienceFilterSchema.safeParse({
@@ -288,6 +300,7 @@ describe("filterRecipientsByWaiverStatus", () => {
 		["user_unsigned", new Set(["waiv_photo"])],
 	])
 
+	// @lat: [[organizer-dashboard#Organizer Dashboard#Event announcements#Athlete waiver-status filters#Signed status matching]]
 	it("keeps only athletes who have signed the selected waiver", () => {
 		const result = filterRecipientsByWaiverStatus(
 			recipients,
@@ -298,6 +311,7 @@ describe("filterRecipientsByWaiverStatus", () => {
 		expect(result.map((recipient) => recipient.userId)).toEqual(["user_signed"])
 	})
 
+	// @lat: [[organizer-dashboard#Organizer Dashboard#Event announcements#Athlete waiver-status filters#Unsigned status matching]]
 	it("treats athletes and pending invitees without a signature as unsigned", () => {
 		const result = filterRecipientsByWaiverStatus(
 			recipients,
@@ -311,6 +325,7 @@ describe("filterRecipientsByWaiverStatus", () => {
 		])
 	})
 
+	// @lat: [[organizer-dashboard#Organizer Dashboard#Event announcements#Athlete waiver-status filters#Multiple waiver filters]]
 	it("combines multiple waiver filters with AND logic", () => {
 		const result = filterRecipientsByWaiverStatus(
 			recipients,

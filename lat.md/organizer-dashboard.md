@@ -295,6 +295,30 @@ The composer loads required athlete waivers and adds `signed` / `unsigned` choic
 
 [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#filterRecipientsByWaiverStatus]] is the shared pure status matcher covered by broadcast unit tests. Both [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#sendBroadcastFn]] and [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#previewAudienceFn]] call the same database-backed helper so the preview count matches the sent audience.
 
+#### All-athlete waiver filters
+
+All-athlete audiences accept required-waiver status filters without requiring a division.
+
+#### Division waiver filters
+
+Division audiences accept required-waiver status filters when a valid division id is supplied.
+
+#### Non-athlete waiver filters
+
+Public, volunteer, and pending-teammate audiences reject athlete waiver-status filters.
+
+#### Signed status matching
+
+The signed status keeps only athletes with a signature for the selected waiver.
+
+#### Unsigned status matching
+
+The unsigned status keeps athletes and pending invitees who lack a signature for the selected waiver.
+
+#### Multiple waiver filters
+
+Multiple selected waiver statuses combine with AND logic.
+
 ### Pending teammate invites filter
 
 The `pending_teammates` audience type targets only unclaimed invitations — useful for nudging invitees to accept or submit their waiver/questions.
