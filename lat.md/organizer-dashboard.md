@@ -126,6 +126,14 @@ For parent events with sub-events, the results loader fetches all child score-en
 
 For **online competitions**: Shows a submissions overview with links to individual video verification pages at `/events/{eventId}/submissions/`. Layout mirrors the volunteer review index (`/compete/$slug/review`) — parent events render as cards with their child sub-events listed inline, each row showing per-event total / reviewed / pending counts and a progress bar. Counts come from [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#getSubmissionCountsByEventFn]], which gates on `requireSubmissionReviewAccess(competitionId)`, filters the requested trackWorkoutIds to those belonging to the competition's programming track (so callers can't enumerate counts across tenants), then issues grouped `COUNT() ... GROUP BY trackWorkoutId` queries for total and reviewed counts — autochunked as needed to respect MySQL parameter limits. It inner-joins `competition_registrations` to exclude submissions from removed registrations, matching the leaderboard and in-person results entry filter. This replaces the prior per-event `getEventSubmissionsFn` fan-out, which materialized full submission rows (with autochunked user/division/registration lookups) just to compute three numbers per event. The per-event review list ([[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#getOrganizerSubmissionsFn]]) applies the same removed-registration filter on its registration join.
 
+### Clear Results
+
+Organizers can permanently clear one saved score from its athlete row on an in-person results page after confirming an irreversible warning.
+
+Each saved row exposes a compact trash action beside its status; unsaved rows and non-organizer score-entry surfaces do not expose it. The confirmation uses one high-contrast orange danger palette throughout, names the athlete or team and, for a parent event, the sub-event before calling [[apps/wodsmith-start/src/server-fns/competition-score-fns.ts#deleteCompetitionScoreFn]].
+
+The server requires `MANAGE_COMPETITIONS`, verifies the organizing team and event belong to the competition, and scopes the delete to the athlete, event, and exact division. A transaction deletes round breakdowns before their parent score because the schema does not declare a database cascade.
+
 ### Division Results Publish Gate
 
 Controls whether scores for a given (event, division) pair are visible on the public leaderboard. Organizers toggle publish state per event-division from the results entry UI.

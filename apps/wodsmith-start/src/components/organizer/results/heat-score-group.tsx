@@ -39,6 +39,8 @@ interface HeatScoreGroupProps {
   savingIds: Set<string>
   /** Saved state by registrationId */
   savedIds: Set<string>
+  /** Optional organizer-only action for clearing one athlete's saved result. */
+  onClearScore?: (athlete: EventScoreEntryAthlete) => Promise<void>
   /** Score change handler */
   onScoreChange: (athlete: EventScoreEntryAthlete, data: ScoreEntryData) => void
   /** Tab to next athlete - called with global index */
@@ -63,6 +65,7 @@ export function HeatScoreGroup({
   scores,
   savingIds,
   savedIds,
+  onClearScore,
   onScoreChange,
   onTabNext,
   rowRefs,
@@ -188,6 +191,9 @@ export function HeatScoreGroup({
                   value={scores[item.registrationId]}
                   isSaving={savingIds.has(item.registrationId)}
                   isSaved={savedIds.has(item.registrationId)}
+                  onClear={
+                    onClearScore ? () => onClearScore(item.athlete) : undefined
+                  }
                   onChange={(data) => onScoreChange(item.athlete, data)}
                   onTabNext={() => onTabNext(startIndex + index)}
                 />

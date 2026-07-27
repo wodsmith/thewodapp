@@ -21,12 +21,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { cn } from "@/lib/utils"
 import type {
   EventScoreEntryAthlete,
   EventScoreEntryData,
   HeatScoreGroup as HeatScoreGroupType,
 } from "@/types/competition-scores"
-import { cn } from "@/lib/utils"
 import { formatTrackOrder } from "@/utils/format-track-order"
 import { HeatScoreGroup } from "./heat-score-group"
 import {
@@ -72,6 +72,13 @@ export type SaveScoreFn = (params: {
   }
 }) => Promise<{ resultId: string; isNew: boolean }>
 
+/** Organizer-only server action for permanently deleting one saved result. */
+export type ClearScoreFn = (params: {
+  trackWorkoutId: string
+  userId: string
+  divisionId: string | null
+}) => Promise<void>
+
 interface SubEventData {
   event: EventScoreEntryData["event"]
   athletes: EventScoreEntryAthlete[]
@@ -90,6 +97,8 @@ interface ResultsEntryFormProps {
   selectedDivisionId?: string
   /** Server function to save scores */
   saveScore: SaveScoreFn
+  /** Optional organizer-only action for clearing a single row's saved result. */
+  clearScore?: ClearScoreFn
   /** Sub-event score data for parent events. Renders grouped rows per athlete. */
   subEventScoreData?: SubEventData[]
 }
@@ -106,6 +115,7 @@ export function ResultsEntryForm({
   divisions,
   selectedDivisionId,
   saveScore,
+  clearScore,
   subEventScoreData,
 }: ResultsEntryFormProps) {
   const router = useRouter()
@@ -617,6 +627,16 @@ export function ResultsEntryForm({
                         value={scores[stateKey]}
                         isSaving={savingIds.has(stateKey)}
                         isSaved={savedIds.has(stateKey)}
+                        onClear={
+                          clearScore
+                            ? () =>
+                                clearScore({
+                                  trackWorkoutId: sub.event.id,
+                                  userId: subAthlete.userId,
+                                  divisionId: subAthlete.divisionId,
+                                })
+                            : undefined
+                        }
                         onChange={(data) =>
                           handleScoreChange(
                             subAthlete,
@@ -673,6 +693,16 @@ export function ResultsEntryForm({
                       scores={scores}
                       savingIds={savingIds}
                       savedIds={savedIds}
+                      onClearScore={
+                        clearScore
+                          ? (athlete) =>
+                              clearScore({
+                                trackWorkoutId: event.id,
+                                userId: athlete.userId,
+                                divisionId: athlete.divisionId,
+                              })
+                          : undefined
+                      }
                       onScoreChange={handleScoreChange}
                       onTabNext={handleTabNext}
                       rowRefs={rowRefs}
@@ -720,6 +750,16 @@ export function ResultsEntryForm({
                             value={scores[athlete.registrationId]}
                             isSaving={savingIds.has(athlete.registrationId)}
                             isSaved={savedIds.has(athlete.registrationId)}
+                            onClear={
+                              clearScore
+                                ? () =>
+                                    clearScore({
+                                      trackWorkoutId: event.id,
+                                      userId: athlete.userId,
+                                      divisionId: athlete.divisionId,
+                                    })
+                                : undefined
+                            }
                             onChange={(data) =>
                               handleScoreChange(athlete, data)
                             }
@@ -753,6 +793,16 @@ export function ResultsEntryForm({
                     value={scores[athlete.registrationId]}
                     isSaving={savingIds.has(athlete.registrationId)}
                     isSaved={savedIds.has(athlete.registrationId)}
+                    onClear={
+                      clearScore
+                        ? () =>
+                            clearScore({
+                              trackWorkoutId: event.id,
+                              userId: athlete.userId,
+                              divisionId: athlete.divisionId,
+                            })
+                        : undefined
+                    }
                     onChange={(data) => handleScoreChange(athlete, data)}
                     onTabNext={() => handleTabNext(index)}
                     autoFocus={index === focusedIndex && index === 0}
