@@ -1644,6 +1644,7 @@ export const saveCompetitionScoresFn = createServerFn({ method: "POST" })
 /**
  * Delete a competition score
  */
+// @lat: [[organizer-dashboard#Results Entry#Clear Results]]
 export const deleteCompetitionScoreFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
     deleteCompetitionScoreInputSchema.parse(data),

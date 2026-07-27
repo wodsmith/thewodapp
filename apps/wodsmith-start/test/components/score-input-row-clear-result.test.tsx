@@ -24,6 +24,7 @@ const athlete: EventScoreEntryAthlete = {
 }
 
 describe("ScoreInputRow clear result action", () => {
+  // @lat: [[organizer-dashboard#Results Entry#Clear Results#Confirms destructive clear]]
   it("confirms before clearing a saved result", async () => {
     const onClear = vi.fn().mockResolvedValue(undefined)
 
@@ -74,6 +75,7 @@ describe("ScoreInputRow clear result action", () => {
     )
   })
 
+  // @lat: [[organizer-dashboard#Results Entry#Clear Results#Hides clear without organizer callback]]
   it("does not expose the destructive action without an organizer callback", () => {
     render(
       <ScoreInputRow

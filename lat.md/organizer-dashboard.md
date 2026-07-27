@@ -136,6 +136,38 @@ After deletion, only the cleared row resets its local input state. Draft or inva
 
 The server requires `MANAGE_COMPETITIONS`, verifies the organizing team and event belong to the competition, and scopes the delete to the athlete, event, and exact division. A transaction deletes round breakdowns before their parent score because the schema does not declare a database cascade.
 
+#### Confirms destructive clear
+
+The row action requires explicit confirmation, identifies the affected athlete or team, and consistently uses the accessible orange danger palette.
+
+#### Hides clear without organizer callback
+
+Score-entry surfaces that do not receive the organizer-only clear callback never render the destructive action.
+
+#### Preserves other row drafts
+
+Clearing a saved result resets only its row and preserves partial or invalid draft input in every other row.
+
+#### Deletes score and rounds
+
+An owned score deletion removes its round breakdowns before removing the parent score.
+
+#### Rejects event outside competition
+
+The delete action rejects a track workout that does not belong to the requested competition before opening a transaction.
+
+#### Rejects mismatched organizing team
+
+The delete action rejects a competition whose organizing team differs from the team supplied by the caller.
+
+#### Missing score is idempotent
+
+Clearing a valid athlete, event, and division scope with no matching score succeeds without issuing delete statements.
+
+#### Deletes null-division score
+
+A required `null` division explicitly targets an open score through the null scaling-level scope and deletes its rounds and parent score.
+
 ### Division Results Publish Gate
 
 Controls whether scores for a given (event, division) pair are visible on the public leaderboard. Organizers toggle publish state per event-division from the results entry UI.

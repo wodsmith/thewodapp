@@ -90,7 +90,7 @@ describe("deleteCompetitionScoreFn", () => {
     vi.clearAllMocks()
   })
 
-  // @lat: [[organizer-dashboard#Results Entry#Clear Results]]
+  // @lat: [[organizer-dashboard#Results Entry#Clear Results#Deletes score and rounds]]
   it("deletes one owned score and its round breakdowns", async () => {
     const { db, deleteCalls, tx } = createDbMock([
       [{ organizingTeamId: "team-1" }],
@@ -118,6 +118,7 @@ describe("deleteCompetitionScoreFn", () => {
     expect(deleteCalls).toEqual([scoreRoundsTable, scoresTable])
   })
 
+  // @lat: [[organizer-dashboard#Results Entry#Clear Results#Rejects event outside competition]]
   it("rejects an event outside the competition", async () => {
     const { db } = createDbMock([
       [{ organizingTeamId: "team-1" }],
@@ -140,6 +141,7 @@ describe("deleteCompetitionScoreFn", () => {
     expect(db.transaction).not.toHaveBeenCalled()
   })
 
+  // @lat: [[organizer-dashboard#Results Entry#Clear Results#Rejects mismatched organizing team]]
   it("rejects a mismatched organizing team", async () => {
     const { db } = createDbMock([
       [{ organizingTeamId: "team-1" }],
@@ -160,5 +162,54 @@ describe("deleteCompetitionScoreFn", () => {
 
     expect(requireTeamPermission).not.toHaveBeenCalled()
     expect(db.transaction).not.toHaveBeenCalled()
+  })
+
+  // @lat: [[organizer-dashboard#Results Entry#Clear Results#Missing score is idempotent]]
+  it("succeeds without deletes when no score matches", async () => {
+    const { db, tx } = createDbMock([
+      [{ organizingTeamId: "team-1" }],
+      [{ id: "tw-1" }],
+      [],
+    ])
+    mockDb = db
+
+    const result = await deleteCompetitionScoreFn({
+      data: {
+        organizingTeamId: "team-1",
+        competitionId: "comp-1",
+        trackWorkoutId: "tw-1",
+        userId: "user-without-score",
+        divisionId: "division-1",
+      },
+    })
+
+    expect(result).toEqual({ success: true })
+    expect(db.transaction).toHaveBeenCalledOnce()
+    expect(tx.delete).not.toHaveBeenCalled()
+  })
+
+  // @lat: [[organizer-dashboard#Results Entry#Clear Results#Deletes null-division score]]
+  it("deletes an open score with a null division", async () => {
+    const { db, deleteCalls, tx } = createDbMock([
+      [{ organizingTeamId: "team-1" }],
+      [{ id: "tw-1" }],
+      [{ id: "score-open" }],
+    ])
+    mockDb = db
+
+    const result = await deleteCompetitionScoreFn({
+      data: {
+        organizingTeamId: "team-1",
+        competitionId: "comp-1",
+        trackWorkoutId: "tw-1",
+        userId: "user-1",
+        divisionId: null,
+      },
+    })
+
+    expect(result).toEqual({ success: true })
+    expect(tx.select).toHaveBeenCalledOnce()
+    expect(tx.delete).toHaveBeenCalledTimes(2)
+    expect(deleteCalls).toEqual([scoreRoundsTable, scoresTable])
   })
 })

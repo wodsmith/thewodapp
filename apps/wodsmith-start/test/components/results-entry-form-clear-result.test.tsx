@@ -38,6 +38,7 @@ const draftAthlete: EventScoreEntryAthlete = {
 }
 
 describe("ResultsEntryForm clear result", () => {
+  // @lat: [[organizer-dashboard#Results Entry#Clear Results#Preserves other row drafts]]
   it("preserves draft values in other rows", async () => {
     const clearScore = vi.fn().mockResolvedValue(undefined)
 
