@@ -35,6 +35,7 @@ import {
   teamTable,
 } from "@/db/schemas/teams"
 import { userTable } from "@/db/schemas/users"
+import { waiverSignaturesTable, waiversTable } from "@/db/schemas/waivers"
 import {
   addRequestContextAttribute,
   logEntityCreated,
@@ -62,6 +63,13 @@ const questionFilterSchema = z.object({
 
 export type QuestionFilter = z.infer<typeof questionFilterSchema>
 
+const waiverFilterSchema = z.object({
+  waiverId: z.string().min(1),
+  status: z.enum(["signed", "unsigned"]),
+})
+
+export type WaiverFilter = z.infer<typeof waiverFilterSchema>
+
 export const audienceFilterSchema = z
   .object({
     type: z.enum([
@@ -75,6 +83,7 @@ export const audienceFilterSchema = z
     divisionId: z.string().optional(),
     volunteerRole: z.string().optional(),
     questionFilters: z.array(questionFilterSchema).optional(),
+    waiverFilters: z.array(waiverFilterSchema).optional(),
   })
   .refine(
     (filter) =>
@@ -96,6 +105,16 @@ export const audienceFilterSchema = z
     {
       message:
         "Registration question filters are not supported for pending teammate invites (invitees have no registration answers)",
+    },
+  )
+  .refine(
+    (filter) =>
+      !filter.waiverFilters ||
+      filter.waiverFilters.length === 0 ||
+      filter.type === "all" ||
+      filter.type === "division",
+    {
+      message: "Waiver filters are only supported for athlete audiences",
     },
   )
 
@@ -479,6 +498,97 @@ async function applyAthleteQuestionFilters(
     if (r.athleteTeamId) return matchedAthleteTeamIds.has(r.athleteTeamId)
     return false
   })
+}
+
+/**
+ * Filter athlete recipients by per-user waiver signature status.
+ *
+ * Pending invitees have no user account or signature, so they count as
+ * unsigned. Multiple waiver filters are combined with AND logic.
+ */
+export function filterRecipientsByWaiverStatus(
+  recipients: Recipient[],
+  waiverFilters: WaiverFilter[],
+  signedWaiverIdsByUserId: ReadonlyMap<string, ReadonlySet<string>>,
+): Recipient[] {
+  if (waiverFilters.length === 0) return recipients
+
+  return recipients.filter((recipient) => {
+    const signedWaiverIds = recipient.userId
+      ? signedWaiverIdsByUserId.get(recipient.userId)
+      : undefined
+
+    return waiverFilters.every((filter) => {
+      const hasSigned = signedWaiverIds?.has(filter.waiverId) ?? false
+      return filter.status === "signed" ? hasSigned : !hasSigned
+    })
+  })
+}
+
+/**
+ * Validate waiver filters against required athlete waivers for the competition,
+ * then batch-load signatures and apply the requested statuses.
+ */
+async function applyAthleteWaiverFilters(
+  recipients: Recipient[],
+  waiverFilters: WaiverFilter[],
+  competitionId: string,
+): Promise<Recipient[]> {
+  if (waiverFilters.length === 0) return recipients
+
+  const db = getDb()
+  const waiverIds = [...new Set(waiverFilters.map((filter) => filter.waiverId))]
+  const validWaivers = await db
+    .select({ id: waiversTable.id })
+    .from(waiversTable)
+    .where(
+      and(
+        eq(waiversTable.competitionId, competitionId),
+        eq(waiversTable.required, true),
+        inArray(waiversTable.id, waiverIds),
+      ),
+    )
+
+  if (validWaivers.length !== waiverIds.length) {
+    throw new Error("One or more athlete waiver filters are no longer valid")
+  }
+
+  const userIds = [
+    ...new Set(
+      recipients
+        .map((recipient) => recipient.userId)
+        .filter((userId): userId is string => userId !== null),
+    ),
+  ]
+  const signedWaiverIdsByUserId = new Map<string, Set<string>>()
+
+  if (userIds.length > 0) {
+    const signatures = await db
+      .select({
+        userId: waiverSignaturesTable.userId,
+        waiverId: waiverSignaturesTable.waiverId,
+      })
+      .from(waiverSignaturesTable)
+      .where(
+        and(
+          inArray(waiverSignaturesTable.userId, userIds),
+          inArray(waiverSignaturesTable.waiverId, waiverIds),
+        ),
+      )
+
+    for (const signature of signatures) {
+      const signedWaiverIds =
+        signedWaiverIdsByUserId.get(signature.userId) ?? new Set<string>()
+      signedWaiverIds.add(signature.waiverId)
+      signedWaiverIdsByUserId.set(signature.userId, signedWaiverIds)
+    }
+  }
+
+  return filterRecipientsByWaiverStatus(
+    recipients,
+    waiverFilters,
+    signedWaiverIdsByUserId,
+  )
 }
 
 /**
@@ -938,6 +1048,15 @@ export const sendBroadcastFn = createServerFn({ method: "POST" })
 
       athleteRecipients = filteredAthletes
       volunteerRecipients = filteredVolunteers
+    }
+
+    const waiverFilters = data.audienceFilter?.waiverFilters
+    if (waiverFilters && waiverFilters.length > 0) {
+      athleteRecipients = await applyAthleteWaiverFilters(
+        athleteRecipients,
+        waiverFilters,
+        data.competitionId,
+      )
     }
 
     // Drop pending-invite athlete rows whose email collides with a volunteer
@@ -1480,6 +1599,15 @@ export const previewAudienceFn = createServerFn({ method: "GET" })
               competition.competitionTeamId,
             )
           : volunteerRecipients
+    }
+
+    const waiverFilters = data.audienceFilter?.waiverFilters
+    if (waiverFilters && waiverFilters.length > 0) {
+      athleteRecipients = await applyAthleteWaiverFilters(
+        athleteRecipients,
+        waiverFilters,
+        data.competitionId,
+      )
     }
 
     return {

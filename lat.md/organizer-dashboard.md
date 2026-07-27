@@ -285,6 +285,16 @@ Teammates and pending invites inherit their captain's match against registration
 
 Each `Recipient` carries its `athleteTeamId` (captain/teammate/invite) or `null` (solo) so the inheritance step has the team context without re-fetching.
 
+### Athlete waiver-status filters
+
+Athlete announcements can target people who have signed or not signed each required athlete waiver.
+
+The composer loads required athlete waivers and adds `signed` / `unsigned` choices alongside registration-question filters. Waiver filters are available only for all-athlete and division audiences; multiple waiver and question filters compose with AND logic.
+
+[[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#applyAthleteWaiverFilters]] validates every selected waiver still belongs to the competition and is required for athletes, then batch-loads [[packages/wodsmith-db/src/schemas/waivers.ts#waiverSignaturesTable]] by recipient user id. Unlike question-answer filters, waiver status is per athlete and is never inherited from a captain. Pending invite recipients have no user or signature, so they match `unsigned` and never `signed`.
+
+[[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#filterRecipientsByWaiverStatus]] is the shared pure status matcher covered by broadcast unit tests. Both [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#sendBroadcastFn]] and [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#previewAudienceFn]] call the same database-backed helper so the preview count matches the sent audience.
+
 ### Pending teammate invites filter
 
 The `pending_teammates` audience type targets only unclaimed invitations — useful for nudging invitees to accept or submit their waiver/questions.

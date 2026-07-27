@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest"
 import {
 	audienceFilterSchema,
 	buildBroadcastRecipients,
+	filterRecipientsByWaiverStatus,
 	type RawAthleteRegistrationRow,
 	type RawPendingInvitationRow,
 	type RawTeammateMembershipRow,
+	type Recipient,
 } from "@/server-fns/broadcast-fns"
 
 // ============================================================================
@@ -228,5 +230,99 @@ describe("audienceFilterSchema", () => {
 	it("requires volunteerRole when type=volunteer_role", () => {
 		const result = audienceFilterSchema.safeParse({ type: "volunteer_role" })
 		expect(result.success).toBe(false)
+	})
+
+	it("accepts waiver filters for athlete audiences", () => {
+		const result = audienceFilterSchema.safeParse({
+			type: "all",
+			waiverFilters: [{ waiverId: "waiv_liability", status: "unsigned" }],
+		})
+		expect(result.success).toBe(true)
+	})
+
+	it("rejects waiver filters for non-athlete audiences", () => {
+		for (const type of ["public", "volunteers", "pending_teammates"]) {
+			const result = audienceFilterSchema.safeParse({
+				type,
+				waiverFilters: [{ waiverId: "waiv_liability", status: "unsigned" }],
+			})
+			expect(result.success).toBe(false)
+		}
+	})
+})
+
+// ============================================================================
+// filterRecipientsByWaiverStatus
+// ============================================================================
+
+describe("filterRecipientsByWaiverStatus", () => {
+	const recipients: Recipient[] = [
+		{
+			registrationId: "reg_signed",
+			userId: "user_signed",
+			invitationId: null,
+			email: "signed@example.com",
+			firstName: "Signed",
+			athleteTeamId: null,
+		},
+		{
+			registrationId: "reg_unsigned",
+			userId: "user_unsigned",
+			invitationId: null,
+			email: "unsigned@example.com",
+			firstName: "Unsigned",
+			athleteTeamId: null,
+		},
+		{
+			registrationId: null,
+			userId: null,
+			invitationId: "tinv_pending",
+			email: "pending@example.com",
+			firstName: "Pending",
+			athleteTeamId: "team_pending",
+		},
+	]
+
+	const signatures = new Map<string, ReadonlySet<string>>([
+		["user_signed", new Set(["waiv_liability", "waiv_photo"])],
+		["user_unsigned", new Set(["waiv_photo"])],
+	])
+
+	it("keeps only athletes who have signed the selected waiver", () => {
+		const result = filterRecipientsByWaiverStatus(
+			recipients,
+			[{ waiverId: "waiv_liability", status: "signed" }],
+			signatures,
+		)
+
+		expect(result.map((recipient) => recipient.userId)).toEqual(["user_signed"])
+	})
+
+	it("treats athletes and pending invitees without a signature as unsigned", () => {
+		const result = filterRecipientsByWaiverStatus(
+			recipients,
+			[{ waiverId: "waiv_liability", status: "unsigned" }],
+			signatures,
+		)
+
+		expect(result.map((recipient) => recipient.email)).toEqual([
+			"unsigned@example.com",
+			"pending@example.com",
+		])
+	})
+
+	it("combines multiple waiver filters with AND logic", () => {
+		const result = filterRecipientsByWaiverStatus(
+			recipients,
+			[
+				{ waiverId: "waiv_liability", status: "unsigned" },
+				{ waiverId: "waiv_photo", status: "signed" },
+			],
+			signatures,
+		)
+
+		expect(result.map((recipient) => recipient.userId)).toEqual([
+			"user_unsigned",
+		])
 	})
 })
