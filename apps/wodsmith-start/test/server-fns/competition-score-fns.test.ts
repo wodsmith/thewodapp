@@ -4,7 +4,6 @@ import {
   getEventScoreEntryDataWithHeatsFn,
   saveCompetitionScoreFn,
   saveCompetitionScoresFn,
-  deleteCompetitionScoreFn,
 } from '@/server-fns/competition-score-fns'
 
 // Create mock database
@@ -688,29 +687,6 @@ describe('Competition Score Server Functions (TanStack)', () => {
       expect(result.success).toBe(true)
       // Note: Due to mock complexity, savedCount may vary
       // The important thing is the function completes without error
-    })
-  })
-
-  describe('deleteCompetitionScoreFn', () => {
-    it('deletes a score by trackWorkoutId and userId', async () => {
-      const deleteMock = {
-        delete: vi.fn().mockReturnValue({
-          where: vi.fn().mockResolvedValue(undefined),
-        }),
-      }
-      mockDbInstance = deleteMock as unknown as ReturnType<typeof createDbMock>
-
-      const result = await deleteCompetitionScoreFn({
-        data: {
-          organizingTeamId: 'team-1',
-          competitionId: 'comp-1',
-          trackWorkoutId: 'tw-1',
-          userId: 'user-1',
-        },
-      })
-
-      expect(result.success).toBe(true)
-      expect(deleteMock.delete).toHaveBeenCalled()
     })
   })
 

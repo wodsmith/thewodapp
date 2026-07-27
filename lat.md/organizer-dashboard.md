@@ -126,6 +126,52 @@ For parent events with sub-events, the results loader fetches all child score-en
 
 For **online competitions**: Shows a submissions overview with links to individual video verification pages at `/events/{eventId}/submissions/`. Layout mirrors the volunteer review index (`/compete/$slug/review`) — parent events render as cards with their child sub-events listed inline, each row showing per-event total / reviewed / pending counts and a progress bar. Counts come from [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#getSubmissionCountsByEventFn]], which gates on `requireSubmissionReviewAccess(competitionId)`, filters the requested trackWorkoutIds to those belonging to the competition's programming track (so callers can't enumerate counts across tenants), then issues grouped `COUNT() ... GROUP BY trackWorkoutId` queries for total and reviewed counts — autochunked as needed to respect MySQL parameter limits. It inner-joins `competition_registrations` to exclude submissions from removed registrations, matching the leaderboard and in-person results entry filter. This replaces the prior per-event `getEventSubmissionsFn` fan-out, which materialized full submission rows (with autochunked user/division/registration lookups) just to compute three numbers per event. The per-event review list ([[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#getOrganizerSubmissionsFn]]) applies the same removed-registration filter on its registration join.
 
+### Clear Results
+
+Organizers can permanently clear one saved score from its athlete row on an in-person results page after confirming an irreversible warning.
+
+Each saved row exposes a compact trash action beside its status; unsaved rows and non-organizer score-entry surfaces do not expose it. The confirmation uses one high-contrast orange danger palette throughout, names the athlete or team and, for a parent event, the sub-event before calling [[apps/wodsmith-start/src/server-fns/competition-score-fns.ts#deleteCompetitionScoreFn]].
+
+After deletion, only the cleared row resets its local input state. Draft or invalid values in other rows remain untouched because they may not have reached auto-save yet.
+
+The server requires `MANAGE_COMPETITIONS`, verifies the organizing team and event belong to the competition, and scopes the delete to the athlete, event, and exact division. A transaction deletes round breakdowns before their parent score because the schema does not declare a database cascade.
+
+#### Confirms destructive clear
+
+The row action requires explicit confirmation, identifies the affected athlete or team, and consistently uses the accessible orange danger palette.
+
+#### Cancel is non-mutating
+
+Opening and canceling confirmation neither auto-saves a focused draft edit nor clears the existing saved result.
+
+#### Hides clear without organizer callback
+
+Score-entry surfaces that do not receive the organizer-only clear callback never render the destructive action.
+
+#### Preserves other row drafts
+
+Clearing a saved result resets only its row and preserves partial or invalid draft input in every other row.
+
+#### Deletes score and rounds
+
+An owned score deletion removes its round breakdowns before removing the parent score.
+
+#### Rejects event outside competition
+
+The delete action rejects a track workout that does not belong to the requested competition before opening a transaction.
+
+#### Rejects mismatched organizing team
+
+The delete action rejects a competition whose organizing team differs from the team supplied by the caller.
+
+#### Missing score is idempotent
+
+Clearing a valid athlete, event, and division scope with no matching score succeeds without issuing delete statements.
+
+#### Deletes null-division score
+
+A required `null` division explicitly targets an open score through the null scaling-level scope and deletes its rounds and parent score.
+
 ### Division Results Publish Gate
 
 Controls whether scores for a given (event, division) pair are visible on the public leaderboard. Organizers toggle publish state per event-division from the results entry UI.

@@ -38,6 +38,7 @@ import { Progress } from "@/components/ui/progress"
 import { resultsEntryMode } from "@/lib/competitions/capabilities"
 import { getCompetitionDivisionsWithCountsFn } from "@/server-fns/competition-divisions-fns"
 import {
+  deleteCompetitionScoreFn,
   getEventScoreEntryDataWithHeatsBatchFn,
   getEventScoreEntryDataWithHeatsFn,
   saveCompetitionScoreFn,
@@ -644,6 +645,7 @@ function InPersonResultsEntry({
 
   // Wrap server function for client-side publishing
   const publishDivisionResults = useServerFn(publishDivisionResultsFn)
+  const deleteCompetitionScore = useServerFn(deleteCompetitionScoreFn)
   const [isPublishing, setIsPublishing] = useState(false)
 
   // Find the current division's publish status for the selected event
@@ -683,6 +685,39 @@ function InPersonResultsEntry({
       setIsPublishing(false)
     }
   }
+
+  const handleClearScore = useCallback(
+    async (params: {
+      trackWorkoutId: string
+      userId: string
+      divisionId: string | null
+    }) => {
+      try {
+        await deleteCompetitionScore({
+          data: {
+            competitionId,
+            organizingTeamId: competition.organizingTeamId,
+            trackWorkoutId: params.trackWorkoutId,
+            userId: params.userId,
+            divisionId: params.divisionId,
+          },
+        })
+        await router.invalidate()
+        toast.success("Result permanently cleared")
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Failed to clear result",
+        )
+        throw error
+      }
+    },
+    [
+      competition.organizingTeamId,
+      competitionId,
+      deleteCompetitionScore,
+      router,
+    ],
+  )
 
   // Handle saving scores - wraps the server function with required params
   const handleSaveScore = useCallback(
@@ -906,6 +941,7 @@ function InPersonResultsEntry({
           }))}
           selectedDivisionId={selectedDivisionId}
           saveScore={handleSaveScore}
+          clearScore={handleClearScore}
           subEventScoreData={childScoreDataList.map((child) => ({
             event: child.event,
             athletes: child.athletes,
@@ -933,6 +969,7 @@ function InPersonResultsEntry({
             }))}
             selectedDivisionId={selectedDivisionId}
             saveScore={handleSaveScore}
+            clearScore={handleClearScore}
           />
         )
       )}

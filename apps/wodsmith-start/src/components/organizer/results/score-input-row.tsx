@@ -1,7 +1,19 @@
 "use client"
 
-import { AlertTriangle, Check, Loader2 } from "lucide-react"
-import { forwardRef, useImperativeHandle } from "react"
+import { AlertTriangle, Check, Loader2, Trash2 } from "lucide-react"
+import { forwardRef, useImperativeHandle, useState } from "react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -28,6 +40,8 @@ interface ScoreInputRowProps {
   value?: ScoreEntryData
   isSaving?: boolean
   isSaved?: boolean
+  /** Organizer-only destructive action for an existing saved result. */
+  onClear?: () => Promise<void>
   onChange: (data: ScoreEntryData) => void
   onTabNext: () => void
   autoFocus?: boolean
@@ -56,6 +70,7 @@ export const ScoreInputRow = forwardRef<
     value,
     isSaving,
     isSaved,
+    onClear,
     onChange,
     onTabNext,
     autoFocus,
@@ -64,6 +79,8 @@ export const ScoreInputRow = forwardRef<
   },
   ref,
 ) {
+  const [isClearDialogOpen, setIsClearDialogOpen] = useState(false)
+  const [isClearing, setIsClearing] = useState(false)
   const {
     scoreInputRef,
     roundInputRefs,
@@ -90,6 +107,7 @@ export const ScoreInputRow = forwardRef<
     handleInputChange,
     handleRoundScoreChange,
     handleTieBreakChange,
+    suppressNextBlurSubmit,
     handleBlur,
     handleKeyDown,
     handleConfirmWarning,
@@ -125,6 +143,28 @@ export const ScoreInputRow = forwardRef<
 
   // Determine status display
   const hasExistingResult = !!athlete.existingResult
+  const canClear = !!onClear && (isSaved || hasExistingResult)
+  const displayName =
+    athlete.teamName || `${athlete.firstName} ${athlete.lastName}`
+  const hasInput = isMultiRound
+    ? roundScores.some((roundScore) => roundScore.score)
+    : !!inputValue
+
+  const handleClearResult = async (event: React.MouseEvent) => {
+    event.preventDefault()
+    if (!onClear || isSaving || isClearing) return
+
+    setIsClearing(true)
+    try {
+      await onClear()
+      setIsClearDialogOpen(false)
+    } catch {
+      // The caller owns error reporting; keep the dialog open for retry.
+    } finally {
+      setIsClearing(false)
+    }
+  }
+
   // Only show invalid warning styling when explicitly triggered (not persisted after "Save anyway")
   const isInvalidWarning = showWarning
   const hasWarning = parseResult?.error && parseResult?.isValid
@@ -490,35 +530,88 @@ export const ScoreInputRow = forwardRef<
 
       {/* Status */}
       <div className="col-span-full sm:col-span-1 pl-10 sm:pl-0 sm:text-center">
-        {(() => {
-          // Check if there's any input (for multi-round or single)
-          const hasInput = isMultiRound
-            ? roundScores.some((rs) => rs.score)
-            : inputValue
+        <div className="flex items-center justify-center gap-1">
+          {isSaving ? (
+            <div className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="hidden sm:inline">Saving...</span>
+            </div>
+          ) : isSaved || hasExistingResult ? (
+            <div className="flex items-center justify-center gap-1.5 text-sm text-green-600">
+              <Check className="h-4 w-4" />
+              <span className="hidden sm:inline">Saved</span>
+            </div>
+          ) : hasInput ? (
+            <span className="text-sm text-muted-foreground">Pending</span>
+          ) : (
+            <span className="text-sm text-muted-foreground">-</span>
+          )}
 
-          if (isSaving) {
-            return (
-              <div className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="hidden sm:inline">Saving...</span>
-              </div>
-            )
-          }
-          if (isSaved || hasExistingResult) {
-            return (
-              <div className="flex items-center justify-center gap-1.5 text-sm text-green-600">
-                <Check className="h-4 w-4" />
-                <span className="hidden sm:inline">Saved</span>
-              </div>
-            )
-          }
-          if (hasInput) {
-            return (
-              <span className="text-sm text-muted-foreground">Pending</span>
-            )
-          }
-          return <span className="text-sm text-muted-foreground">-</span>
-        })()}
+          {canClear && (
+            <AlertDialog
+              open={isClearDialogOpen}
+              onOpenChange={(open) => {
+                if (!isClearing) setIsClearDialogOpen(open)
+              }}
+            >
+              <AlertDialogTrigger asChild>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  disabled={isSaving || isClearing}
+                  aria-label={`Clear result for ${displayName}`}
+                  title={`Clear result for ${displayName}`}
+                  onPointerDown={suppressNextBlurSubmit}
+                  className="h-8 w-8 shrink-0 text-muted-foreground hover:bg-orange-100 hover:text-orange-700"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <div className="mb-1 flex h-11 w-11 items-center justify-center rounded-full bg-orange-100">
+                    <Trash2 className="h-5 w-5 text-orange-700" />
+                  </div>
+                  <AlertDialogTitle>
+                    Clear result for {displayName}?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This permanently deletes the saved result
+                    {subEventLabel ? ` for ${subEventLabel}` : ""} and any
+                    round-by-round scores.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <Alert className="border-orange-500 bg-orange-50 text-orange-950 [&>svg]:text-orange-700">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>This action cannot be undone</AlertTitle>
+                  <AlertDescription>
+                    There is no way to restore this result after you clear it.
+                  </AlertDescription>
+                </Alert>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={isClearing}>
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    disabled={isClearing || isSaving}
+                    className="bg-orange-700 text-white hover:bg-orange-800 focus-visible:ring-orange-700 dark:bg-orange-800 dark:hover:bg-orange-900"
+                    onClick={handleClearResult}
+                  >
+                    {isClearing ? (
+                      <>
+                        <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                        Clearing…
+                      </>
+                    ) : (
+                      "Yes, clear result"
+                    )}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </div>
       </div>
     </div>
   )

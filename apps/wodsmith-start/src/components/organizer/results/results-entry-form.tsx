@@ -21,12 +21,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { cn } from "@/lib/utils"
 import type {
   EventScoreEntryAthlete,
   EventScoreEntryData,
   HeatScoreGroup as HeatScoreGroupType,
 } from "@/types/competition-scores"
-import { cn } from "@/lib/utils"
 import { formatTrackOrder } from "@/utils/format-track-order"
 import { HeatScoreGroup } from "./heat-score-group"
 import {
@@ -72,6 +72,13 @@ export type SaveScoreFn = (params: {
   }
 }) => Promise<{ resultId: string; isNew: boolean }>
 
+/** Organizer-only server action for permanently deleting one saved result. */
+export type ClearScoreFn = (params: {
+  trackWorkoutId: string
+  userId: string
+  divisionId: string | null
+}) => Promise<void>
+
 interface SubEventData {
   event: EventScoreEntryData["event"]
   athletes: EventScoreEntryAthlete[]
@@ -90,6 +97,8 @@ interface ResultsEntryFormProps {
   selectedDivisionId?: string
   /** Server function to save scores */
   saveScore: SaveScoreFn
+  /** Optional organizer-only action for clearing a single row's saved result. */
+  clearScore?: ClearScoreFn
   /** Sub-event score data for parent events. Renders grouped rows per athlete. */
   subEventScoreData?: SubEventData[]
 }
@@ -106,6 +115,7 @@ export function ResultsEntryForm({
   divisions,
   selectedDivisionId,
   saveScore,
+  clearScore,
   subEventScoreData,
 }: ResultsEntryFormProps) {
   const router = useRouter()
@@ -118,6 +128,7 @@ export function ResultsEntryForm({
 
   const [scores, setScores] = useState<Record<string, ScoreEntryData>>({})
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set())
+  const [rowResetKeys, setRowResetKeys] = useState<Record<string, number>>({})
   const [savedIds, setSavedIds] = useState<Set<string>>(
     new Set(
       isSubEventMode
@@ -134,6 +145,32 @@ export function ResultsEntryForm({
   const [focusedIndex, setFocusedIndex] = useState(0)
   const rowRefs = useRef<Map<string, ScoreInputRowHandle>>(new Map())
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
+
+  const handleClearResult = useCallback(
+    async (
+      stateKey: string,
+      params: Parameters<ClearScoreFn>[0],
+    ): Promise<void> => {
+      if (!clearScore) return
+
+      await clearScore(params)
+      setScores((prev) => {
+        const next = { ...prev }
+        delete next[stateKey]
+        return next
+      })
+      setSavedIds((prev) => {
+        const next = new Set(prev)
+        next.delete(stateKey)
+        return next
+      })
+      setRowResetKeys((prev) => ({
+        ...prev,
+        [stateKey]: (prev[stateKey] ?? 0) + 1,
+      }))
+    },
+    [clearScore],
+  )
 
   // Check if we have heats to display
   const hasHeats = heats.length > 0
@@ -594,7 +631,7 @@ export function ResultsEntryForm({
                     )
                     return (
                       <ScoreInputRow
-                        key={stateKey}
+                        key={`${stateKey}-${rowResetKeys[stateKey] ?? 0}`}
                         ref={(handle) => {
                           if (handle) {
                             rowRefs.current.set(stateKey, handle)
@@ -602,7 +639,11 @@ export function ResultsEntryForm({
                             rowRefs.current.delete(stateKey)
                           }
                         }}
-                        athlete={subAthlete}
+                        athlete={
+                          rowResetKeys[stateKey]
+                            ? { ...subAthlete, existingResult: null }
+                            : subAthlete
+                        }
                         subEventLabel={sub.event.workout.name}
                         workoutScheme={sub.event.workout.scheme}
                         tiebreakScheme={sub.event.workout.tiebreakScheme}
@@ -617,6 +658,16 @@ export function ResultsEntryForm({
                         value={scores[stateKey]}
                         isSaving={savingIds.has(stateKey)}
                         isSaved={savedIds.has(stateKey)}
+                        onClear={
+                          clearScore
+                            ? () =>
+                                handleClearResult(stateKey, {
+                                  trackWorkoutId: sub.event.id,
+                                  userId: subAthlete.userId,
+                                  divisionId: subAthlete.divisionId,
+                                })
+                            : undefined
+                        }
                         onChange={(data) =>
                           handleScoreChange(
                             subAthlete,
@@ -673,6 +724,17 @@ export function ResultsEntryForm({
                       scores={scores}
                       savingIds={savingIds}
                       savedIds={savedIds}
+                      rowResetKeys={rowResetKeys}
+                      onClearScore={
+                        clearScore
+                          ? (athlete) =>
+                              handleClearResult(athlete.registrationId, {
+                                trackWorkoutId: event.id,
+                                userId: athlete.userId,
+                                divisionId: athlete.divisionId,
+                              })
+                          : undefined
+                      }
                       onScoreChange={handleScoreChange}
                       onTabNext={handleTabNext}
                       rowRefs={rowRefs}
@@ -700,6 +762,7 @@ export function ResultsEntryForm({
                       return (
                         <div key={athlete.registrationId}>
                           <ScoreInputRow
+                            key={`${athlete.registrationId}-${rowResetKeys[athlete.registrationId] ?? 0}`}
                             ref={(handle) => {
                               if (handle) {
                                 rowRefs.current.set(
@@ -710,7 +773,11 @@ export function ResultsEntryForm({
                                 rowRefs.current.delete(athlete.registrationId)
                               }
                             }}
-                            athlete={athlete}
+                            athlete={
+                              rowResetKeys[athlete.registrationId]
+                                ? { ...athlete, existingResult: null }
+                                : athlete
+                            }
                             workoutScheme={event.workout.scheme}
                             tiebreakScheme={event.workout.tiebreakScheme}
                             timeCap={timeCap ?? undefined}
@@ -720,6 +787,16 @@ export function ResultsEntryForm({
                             value={scores[athlete.registrationId]}
                             isSaving={savingIds.has(athlete.registrationId)}
                             isSaved={savedIds.has(athlete.registrationId)}
+                            onClear={
+                              clearScore
+                                ? () =>
+                                    handleClearResult(athlete.registrationId, {
+                                      trackWorkoutId: event.id,
+                                      userId: athlete.userId,
+                                      divisionId: athlete.divisionId,
+                                    })
+                                : undefined
+                            }
                             onChange={(data) =>
                               handleScoreChange(athlete, data)
                             }
@@ -736,6 +813,7 @@ export function ResultsEntryForm({
               athletes.map((athlete, index) => (
                 <div key={athlete.registrationId}>
                   <ScoreInputRow
+                    key={`${athlete.registrationId}-${rowResetKeys[athlete.registrationId] ?? 0}`}
                     ref={(handle) => {
                       if (handle) {
                         rowRefs.current.set(athlete.registrationId, handle)
@@ -743,7 +821,11 @@ export function ResultsEntryForm({
                         rowRefs.current.delete(athlete.registrationId)
                       }
                     }}
-                    athlete={athlete}
+                    athlete={
+                      rowResetKeys[athlete.registrationId]
+                        ? { ...athlete, existingResult: null }
+                        : athlete
+                    }
                     workoutScheme={event.workout.scheme}
                     tiebreakScheme={event.workout.tiebreakScheme}
                     timeCap={timeCap ?? undefined}
@@ -753,6 +835,16 @@ export function ResultsEntryForm({
                     value={scores[athlete.registrationId]}
                     isSaving={savingIds.has(athlete.registrationId)}
                     isSaved={savedIds.has(athlete.registrationId)}
+                    onClear={
+                      clearScore
+                        ? () =>
+                            handleClearResult(athlete.registrationId, {
+                              trackWorkoutId: event.id,
+                              userId: athlete.userId,
+                              divisionId: athlete.divisionId,
+                            })
+                        : undefined
+                    }
                     onChange={(data) => handleScoreChange(athlete, data)}
                     onTabNext={() => handleTabNext(index)}
                     autoFocus={index === focusedIndex && index === 0}
