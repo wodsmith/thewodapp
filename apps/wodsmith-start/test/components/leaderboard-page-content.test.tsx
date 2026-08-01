@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
-import { describe, expect, it, vi, beforeEach } from "vitest"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { CompetitionLeaderboardEntry, CompetitionLeaderboardResponse } from "@/server-fns/leaderboard-fns"
 import type { ScoringAlgorithm } from "@/types/scoring"
 
@@ -199,6 +199,11 @@ describe("LeaderboardPageContent", () => {
 			divisions: mockDivisions,
 			competitionCapacity: null,
 		})
+	})
+
+	afterEach(() => {
+		vi.useRealTimers()
+		vi.restoreAllMocks()
 	})
 
 	describe("Competition type leaderboard variants", () => {
@@ -795,6 +800,63 @@ describe("LeaderboardPageContent", () => {
 	})
 
 	describe("Loading and Empty States", () => {
+		it("retries transient network failures before showing an error", async () => {
+			vi.useFakeTimers()
+			vi.mocked(getCompetitionLeaderboardFn)
+				.mockRejectedValueOnce(new TypeError("Load failed"))
+				.mockResolvedValueOnce(mockLeaderboardResponse([createMockEntry()]))
+
+			render(<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={mockCompetition}
+				/>)
+
+			expect(getCompetitionLeaderboardFn).toHaveBeenCalledTimes(1)
+
+			await act(async () => {
+				await vi.advanceTimersByTimeAsync(250)
+			})
+
+			expect(getCompetitionLeaderboardFn).toHaveBeenCalledTimes(2)
+			expect(screen.getAllByText("John Doe").length).toBeGreaterThan(0)
+			expect(
+				screen.queryByText("Error loading leaderboard"),
+			).not.toBeInTheDocument()
+		})
+
+		it("lets the viewer retry after a leaderboard error", async () => {
+			vi.spyOn(console, "error").mockImplementation(() => {})
+			vi.mocked(getCompetitionLeaderboardFn).mockRejectedValueOnce(
+				new Error("Unexpected response"),
+			)
+
+			render(<LeaderboardPageContent
+					competitionId="comp-1"
+					divisions={mockDivisions}
+					competition={mockCompetition}
+				/>)
+
+			await waitFor(() => {
+				expect(screen.getByText("Error loading leaderboard")).toBeInTheDocument()
+			})
+			expect(
+				screen.getByText(
+					"We couldn't load the leaderboard. Check your connection and try again.",
+				),
+			).toBeInTheDocument()
+
+			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValueOnce(
+				mockLeaderboardResponse([createMockEntry()]),
+			)
+			fireEvent.click(screen.getByRole("button", { name: "Try again" }))
+
+			await waitFor(() => {
+				expect(screen.getAllByText("John Doe").length).toBeGreaterThan(0)
+			})
+			expect(getCompetitionLeaderboardFn).toHaveBeenCalledTimes(2)
+		})
+
 		it("shows loading indicator while fetching data", () => {
 			vi.mocked(getCompetitionLeaderboardFn).mockImplementation(
 				() =>
