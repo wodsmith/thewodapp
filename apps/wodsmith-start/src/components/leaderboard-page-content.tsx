@@ -38,7 +38,6 @@ import {
 } from "@/server-fns/competition-workouts-fns"
 import {
   type CompetitionLeaderboardEntry,
-  type CompetitionLeaderboardResponse,
   getCompetitionLeaderboardFn,
 } from "@/server-fns/leaderboard-fns"
 import type { ScoringAlgorithm } from "@/types/scoring"
@@ -51,23 +50,6 @@ interface LeaderboardDivision {
 interface LeaderboardCompetitionInfo {
   slug: string
   competitionType: "in-person" | "online"
-}
-
-const LEADERBOARD_NETWORK_RETRY_DELAYS_MS = [250, 750] as const
-
-function isTransientNetworkError(error: unknown): error is TypeError {
-  return (
-    error instanceof TypeError &&
-    /(?:load failed|failed to fetch|networkerror when attempting to fetch resource)/i.test(
-      error.message,
-    )
-  )
-}
-
-async function waitForRetry(delayMs: number) {
-  await new Promise<void>((resolve) => {
-    setTimeout(resolve, delayMs)
-  })
 }
 
 /**
@@ -353,27 +335,13 @@ export function LeaderboardPageContent({
       setError(null)
 
       try {
-        let result: CompetitionLeaderboardResponse | null = null
-
-        for (let attempt = 0; result === null; attempt += 1) {
-          try {
-            result = await getLeaderboard({
-              data: {
-                competitionId,
-                divisionId: selectedDivision,
-                preview,
-              },
-            })
-          } catch (err) {
-            const retryDelay = LEADERBOARD_NETWORK_RETRY_DELAYS_MS[attempt]
-            if (!isTransientNetworkError(err) || retryDelay === undefined) {
-              throw err
-            }
-
-            await waitForRetry(retryDelay)
-            if (cancelled) return
-          }
-        }
+        const result = await getLeaderboard({
+          data: {
+            competitionId,
+            divisionId: selectedDivision,
+            preview,
+          },
+        })
 
         if (!cancelled) {
           setLeaderboard(result.entries)
