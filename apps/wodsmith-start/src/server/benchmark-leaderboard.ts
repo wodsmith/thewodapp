@@ -135,6 +135,7 @@ export function buildBenchmarkLeaderboardContext({
     string,
     BenchmarkLeaderboardTestMetadata
   >()
+  const mappedIncludedTestCountByCategory = new Map<string, number>()
   const trackWorkoutByTestId = new Map<string, string>()
 
   for (const trackWorkout of trackWorkouts) {
@@ -204,19 +205,26 @@ export function buildBenchmarkLeaderboardContext({
         maxTier: battery.maxTier,
       }),
     })
+    mappedIncludedTestCountByCategory.set(
+      test.categoryKey,
+      (mappedIncludedTestCountByCategory.get(test.categoryKey) ?? 0) + 1,
+    )
   }
 
-  for (const test of tests) {
-    if (!trackWorkoutByTestId.has(test.id)) {
-      throw new BenchmarkConfigError(
-        `Benchmark test ${test.id} is missing a mapped track workout`,
-      )
-    }
-  }
+  // Public leaderboard reads only include visible events. A benchmark test may
+  // therefore be intentionally absent while its event is still draft (or while
+  // an organizer is finishing the link). Keep tier context for every complete,
+  // mapped test instead of letting that one setup gap hide the whole battery.
+  // Category denominators must use the same mapped subset so hidden tests do
+  // not lower otherwise-valid category and Overall scores.
+  const mappedCategories = categories.flatMap((category) => {
+    const testCount = mappedIncludedTestCountByCategory.get(category.key) ?? 0
+    return testCount > 0 ? [{ ...category, testCount }] : []
+  })
 
   return {
     batteryId: battery.id,
-    categories,
+    categories: mappedCategories,
     ratingBands,
     maxTier: battery.maxTier,
     scoreMax: battery.scoreMax,
