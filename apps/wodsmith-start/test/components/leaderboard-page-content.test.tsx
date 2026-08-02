@@ -201,6 +201,29 @@ describe("LeaderboardPageContent", () => {
 		})
 	})
 
+	it("recovers when the loader fallback hits a transient network error", async () => {
+		const entries = [createMockEntry()]
+		vi.mocked(getCompetitionLeaderboardFn)
+			.mockRejectedValueOnce(new TypeError("Load failed"))
+			.mockResolvedValueOnce(mockLeaderboardResponse(entries))
+
+		render(
+			<LeaderboardPageContent
+				competitionId="comp-1"
+				divisions={mockDivisions}
+				competition={mockCompetition}
+				initialData={null}
+			/>,
+		)
+
+		// @lat: [[architecture#Route Groups#compete#Transient leaderboard recovery]]
+		await waitFor(() => {
+			expect(getCompetitionLeaderboardFn).toHaveBeenCalledTimes(2)
+		})
+		expect(screen.queryByText("Error loading leaderboard")).not.toBeInTheDocument()
+		expect(screen.getAllByText("John Doe").length).toBeGreaterThan(0)
+	})
+
 	describe("Competition type leaderboard variants", () => {
 		it("renders the standard leaderboard variant for in-person competitions", async () => {
 			vi.mocked(getCompetitionLeaderboardFn).mockResolvedValue(

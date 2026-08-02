@@ -118,6 +118,12 @@ The event detail page (`/compete/{slug}/workouts/{eventId}`) loads through [[app
 
 The public schedule page never receives unpublished heats: [[apps/wodsmith-start/src/server-fns/competition-heats-fns.ts#getHeatsForCompetitionFn]] adds `schedulePublishedAt IS NOT NULL` to the heats SQL unless the viewer is a site admin or holds owner/admin/`manage_programming` on the organizing team, so draft heats — and the athlete names on them — never reach public clients. Its internal dependent lookups and those of `getPublicScheduleDataFn`/`getPublicEventHeatsFn` run in dependency-ordered parallel batches.
 
+#### Transient leaderboard recovery
+
+Leaderboard client fallback requests retry transient browser fetch failures twice with short backoff before replacing the page with an error state.
+
+[[apps/wodsmith-start/src/components/leaderboard-page-content.tsx#LeaderboardPageContent]] applies this recovery after the route loader returns no initial data. It recognizes Safari `Load failed`, Chromium `Failed to fetch`, and Firefox network errors while surfacing application and authorization errors immediately. [[apps/wodsmith-start/test/components/leaderboard-page-content.test.tsx]] verifies a transient first failure recovers without rendering the blocking leaderboard alert.
+
 ### compete/organizer
 
 Competition management dashboard for organizers. Accessible at `/compete/organizer/{competitionId}/`. Handles divisions, heats, scheduling, scoring, volunteers, and settings.

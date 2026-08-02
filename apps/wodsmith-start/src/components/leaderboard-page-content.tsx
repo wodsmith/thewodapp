@@ -52,6 +52,18 @@ interface LeaderboardCompetitionInfo {
   competitionType: "in-person" | "online"
 }
 
+const transientNetworkRetryDelaysMs = [300, 900] as const
+
+function isTransientNetworkError(error: unknown): error is TypeError {
+  if (!(error instanceof TypeError)) return false
+
+  return [
+    "Failed to fetch",
+    "Load failed",
+    "NetworkError when attempting to fetch resource.",
+  ].some((message) => error.message.startsWith(message))
+}
+
 /**
  * Props for the LeaderboardPageContent component
  */
@@ -333,17 +345,32 @@ export function LeaderboardPageContent({
       setError(null)
 
       try {
-        const result = await getLeaderboard({
-          data: {
-            competitionId,
-            divisionId: selectedDivision,
-            preview,
-          },
-        })
+        for (let retryIndex = 0; ; retryIndex++) {
+          try {
+            const result = await getLeaderboard({
+              data: {
+                competitionId,
+                divisionId: selectedDivision,
+                preview,
+              },
+            })
 
-        if (!cancelled) {
-          setLeaderboard(result.entries)
-          setScoringAlgorithm(result.scoringAlgorithm)
+            if (!cancelled) {
+              setLeaderboard(result.entries)
+              setScoringAlgorithm(result.scoringAlgorithm)
+            }
+            break
+          } catch (err) {
+            const retryDelay = transientNetworkRetryDelaysMs[retryIndex]
+            if (retryDelay === undefined || !isTransientNetworkError(err)) {
+              throw err
+            }
+
+            await new Promise<void>((resolve) => {
+              setTimeout(resolve, retryDelay)
+            })
+            if (cancelled) return
+          }
         }
       } catch (err) {
         if (!cancelled) {
