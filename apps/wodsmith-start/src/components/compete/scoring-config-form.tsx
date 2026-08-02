@@ -292,12 +292,16 @@ function getPreviewTemplateFromAlgorithm(
  * tiebreaker configuration, and DNF/DNS/Withdrawn handling.
  */
 export function ScoringConfigForm({
-  value,
+  value: providedValue,
   onChange,
   events,
   disabled = false,
   lockAlgorithmOnline = false,
 }: ScoringConfigFormProps) {
+  const value: ScoringConfig = lockAlgorithmOnline
+    ? { ...providedValue, algorithm: "online", customTable: undefined }
+    : providedValue
+
   // Get the base algorithm (not "custom" - that's derived)
   const displayAlgorithm =
     value.algorithm === "custom"

@@ -178,6 +178,32 @@ describe("RegistrationSidebar volunteer signup card", () => {
       screen.queryByRole("link", { name: /sign up to volunteer/i }),
     ).not.toBeInTheDocument()
   })
+
+  it("hides all volunteer tools for existing benchmark role holders", () => {
+    renderSidebar({
+      competition: {
+        ...competition,
+        competitionType: "benchmark",
+      } as ComponentProps<typeof RegistrationSidebar>["competition"],
+      isVolunteer: true,
+    })
+
+    expect(screen.queryByText("Volunteer Dashboard")).not.toBeInTheDocument()
+    expect(screen.queryByText("Check-In Kiosk")).not.toBeInTheDocument()
+  })
+
+  it("shows only capability-supported tools for online volunteers", () => {
+    renderSidebar({
+      competition: {
+        ...competition,
+        competitionType: "online",
+      } as ComponentProps<typeof RegistrationSidebar>["competition"],
+      isVolunteer: true,
+    })
+
+    expect(screen.getByText("Volunteer Dashboard")).toBeInTheDocument()
+    expect(screen.queryByText("Check-In Kiosk")).not.toBeInTheDocument()
+  })
 })
 
 describe("RegistrationSidebar pending team invites", () => {

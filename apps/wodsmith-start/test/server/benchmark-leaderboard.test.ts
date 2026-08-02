@@ -157,7 +157,7 @@ describe("benchmark leaderboard context", () => {
   })
 
   // @lat: [[organizer-dashboard#Benchmark Tier Scoring#Test-Event Linking#Partial Public Tier Context]]
-  it("keeps mapped tier context when another benchmark test has no visible event", () => {
+  it("keeps mapped tier context when tests or visible events are unlinked", () => {
     const context = buildContext({
       trackWorkouts: [
         {
@@ -169,6 +169,11 @@ describe("benchmark leaderboard context", () => {
           id: "tw-back-squat",
           benchmarkTestId: "back-squat",
           benchmarkCategory: "strength",
+        },
+        {
+          id: "tw-visible-unlinked",
+          benchmarkTestId: null,
+          benchmarkCategory: null,
         },
       ],
     })

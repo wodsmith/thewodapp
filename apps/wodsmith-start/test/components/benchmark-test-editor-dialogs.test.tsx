@@ -138,6 +138,7 @@ describe("AddTestDialog", () => {
     fireEvent.click(screen.getByLabelText(/scheme/i))
     fireEvent.click(screen.getByRole("option", { name: "time" }))
     expect(screen.getByLabelText(/input unit/i)).toHaveTextContent("Time")
+    expect(screen.getByLabelText(/input unit/i)).toBeDisabled()
 
     // EMOM results are entered as times too.
     fireEvent.click(screen.getByLabelText(/scheme/i))
@@ -148,6 +149,7 @@ describe("AddTestDialog", () => {
     fireEvent.click(screen.getByLabelText(/scheme/i))
     fireEvent.click(screen.getByRole("option", { name: "load" }))
     expect(screen.getByLabelText(/input unit/i)).toHaveTextContent("Reps")
+    expect(screen.getByLabelText(/input unit/i)).toBeEnabled()
   })
 
   it("prefills name, scheme, score type, and input unit from the selected event", () => {
@@ -166,6 +168,8 @@ describe("AddTestDialog", () => {
           linkedTestName: null,
           scheme: "load",
           scoreType: "max",
+          categoryKey: "engine",
+          inputUnit: "lb",
         },
       ],
     })
@@ -178,6 +182,11 @@ describe("AddTestDialog", () => {
     expect(screen.getByLabelText(/scheme/i)).toHaveTextContent("time")
     expect(screen.getByLabelText(/score type/i)).toHaveTextContent("min")
     expect(screen.getByLabelText(/input unit/i)).toHaveTextContent("Time")
+
+    fireEvent.click(screen.getByLabelText(/linked event/i))
+    fireEvent.click(screen.getByRole("option", { name: "Event 2 - Max Snatch" }))
+    expect(screen.getByLabelText(/category/i)).toHaveTextContent("Conditioning")
+    expect(screen.getByLabelText(/input unit/i)).toHaveTextContent("Pounds")
   })
 
   it("swaps event-derived names but never clobbers a manually typed name", () => {
@@ -361,6 +370,26 @@ describe("EditTestDialog", () => {
     await waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(1))
     expect(onUpdate).toHaveBeenCalledWith("test-1", {
       scheme: "time",
+      inputUnit: "time",
+    })
+  })
+
+  it("repairs a stale non-time unit when saving a time-based test", async () => {
+    const { onUpdate } = renderEditDialog({
+      test: makeEditableTest({ scheme: "time", scoreType: "min" }),
+    })
+    openEditDialog()
+
+    expect(screen.getByLabelText(/input unit/i)).toHaveTextContent("Time")
+    expect(screen.getByLabelText(/input unit/i)).toBeDisabled()
+    fireEvent.change(screen.getByLabelText(/test name/i), {
+      target: { value: "Timed pull-ups" },
+    })
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }))
+
+    await waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(1))
+    expect(onUpdate).toHaveBeenCalledWith("test-1", {
+      name: "Timed pull-ups",
       inputUnit: "time",
     })
   })

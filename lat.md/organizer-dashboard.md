@@ -136,13 +136,13 @@ The link lives on `trackWorkouts.benchmarkTestId` (+ denormalized `benchmarkCate
 
 One unmapped benchmark test must not hide tier context for complete, visible tests.
 
-Public leaderboard reads only include published events, so a newly linked draft event is temporarily indistinguishable from an unmapped test. [[apps/wodsmith-start/src/server/benchmark-leaderboard.ts#buildBenchmarkLeaderboardContext]] keeps tables and metadata for the visible mapped subset, and recomputes category test counts from that subset so hidden tests do not lower category or Overall scores. Malformed global battery/category data and ambiguous duplicate mappings remain configuration errors.
+[[apps/wodsmith-start/src/server/benchmark-leaderboard.ts#buildBenchmarkLeaderboardContext]] skips tests without a visible event and visible events without a test link, keeps tables and metadata for the remaining mapped subset, and recomputes category test counts from that subset so setup gaps do not lower category or Overall scores. Malformed global battery/category data, missing referenced tests, and ambiguous duplicate mappings remain configuration errors.
 
 #### Add Event Tiers Dialog
 
 The create-test dialog's CTA is "Add event tiers" and it prompts to connect the new tiers to a competition event, listing unlinked events first (linked ones disabled with their test's name).
 
-[[apps/wodsmith-start/src/components/benchmark-tiers/test-editor-dialogs.tsx#AddTestDialog]] takes an optional `events` list and passes the chosen event id to `onCreate`; [[apps/wodsmith-start/src/server-fns/benchmark-scoring-tier-fns.ts#createBenchmarkTestFn]] accepts `linkTrackWorkoutId`, and [[apps/wodsmith-start/src/server/benchmark-scoring-tiers.ts#createBenchmarkTest]] writes the link inside the create transaction after checking the event belongs to the competition and is not already linked. It returns the created `testId` alongside the refreshed summary. Picking an event prefills the test's name, scheme, score type, and input unit from the event's workout, and both dialogs auto-select the "time" input unit for time-entered schemes (`time`, `emom`, `time-with-cap`).
+[[apps/wodsmith-start/src/components/benchmark-tiers/test-editor-dialogs.tsx#AddTestDialog]] takes an optional `events` list and passes the chosen event id to `onCreate`; [[apps/wodsmith-start/src/server-fns/benchmark-scoring-tier-fns.ts#createBenchmarkTestFn]] accepts `linkTrackWorkoutId`, and [[apps/wodsmith-start/src/server/benchmark-scoring-tiers.ts#createBenchmarkTest]] writes the link inside the create transaction after checking the event belongs to the competition and is not already linked. It returns the created `testId` alongside the refreshed summary. Picking an event prefills the test's name, scheme, normalized score type, scheme-derived input unit, and an existing benchmark category when that category belongs to the battery. Both dialogs force and lock the `time` input unit for time-entered schemes (`time`, `emom`, `time-with-cap`) so stale or edited values cannot persist an incompatible unit.
 
 #### Inline Event Tiers Creation
 

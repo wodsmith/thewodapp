@@ -87,6 +87,10 @@ export interface EventLinkOption {
   scheme?: string | null
   /** Event workout score type, used to prefill the test editor when known */
   scoreType?: string | null
+  /** Existing event benchmark category, used when it matches this battery */
+  categoryKey?: string | null
+  /** Event-derived threshold input unit */
+  inputUnit?: string | null
 }
 
 export interface AddTestDialogProps {
@@ -352,7 +356,7 @@ function TestFieldSet({
           <Select
             value={inputUnit}
             onValueChange={onInputUnitChange}
-            disabled={disabled}
+            disabled={disabled || isTimeScheme(scheme)}
           >
             <SelectTrigger id={`${idPrefix}-input-unit`}>
               <SelectValue placeholder="Select unit" />
@@ -502,6 +506,16 @@ export function AddTestDialog({
     eventDerivedName.current = event.name
     if (event.scheme) handleSchemeChange(event.scheme)
     if (event.scoreType) setScoreType(event.scoreType)
+    if (
+      event.categoryKey &&
+      categories.some((category) => category.key === event.categoryKey)
+    ) {
+      setCategoryKey(event.categoryKey)
+    }
+    const eventScheme = event.scheme ?? scheme
+    if (event.inputUnit && !isTimeScheme(eventScheme)) {
+      setInputUnit(event.inputUnit)
+    }
   }
 
   const handleEventChange = (value: string) => {
@@ -570,7 +584,7 @@ export function AddTestDialog({
         categoryKey,
         scheme,
         scoreType,
-        inputUnit,
+        inputUnit: isTimeScheme(scheme) ? "time" : inputUnit,
         includedInScoring,
         scoreModel,
         hybridFlipTier: scoreModel === "hybrid" ? hybridFlipTier : null,
@@ -792,13 +806,16 @@ export function EditTestDialog({
   const effectiveFlipTier = scoreModel === "hybrid" ? hybridFlipTier : null
   const originalModel = test.scoreModel ?? "standard"
   const originalFlipTier = test.hybridFlipTier ?? null
+  const effectiveInputUnit = isTimeScheme(scheme) ? "time" : inputUnit
 
   const changes: Partial<TestDraft> = {}
   if (name.trim() !== test.name) changes.name = name.trim()
   if (categoryKey !== test.categoryKey) changes.categoryKey = categoryKey
   if (scheme !== test.scheme) changes.scheme = scheme
   if (scoreType !== test.scoreType) changes.scoreType = scoreType
-  if (inputUnit !== test.inputUnit) changes.inputUnit = inputUnit
+  if (effectiveInputUnit !== test.inputUnit) {
+    changes.inputUnit = effectiveInputUnit
+  }
   if (includedInScoring !== test.includedInScoring) {
     changes.includedInScoring = includedInScoring
   }
@@ -885,7 +902,7 @@ export function EditTestDialog({
           onSchemeChange={handleSchemeChange}
           scoreType={scoreType}
           onScoreTypeChange={setScoreType}
-          inputUnit={inputUnit}
+          inputUnit={effectiveInputUnit}
           onInputUnitChange={setInputUnit}
           includedInScoring={includedInScoring}
           onIncludedChange={setIncludedInScoring}

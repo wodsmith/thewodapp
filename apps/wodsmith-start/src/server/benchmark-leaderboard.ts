@@ -140,9 +140,7 @@ export function buildBenchmarkLeaderboardContext({
 
   for (const trackWorkout of trackWorkouts) {
     if (!trackWorkout.benchmarkTestId) {
-      throw new BenchmarkConfigError(
-        `Benchmark event ${trackWorkout.id} is missing benchmarkTestId`,
-      )
+      continue
     }
 
     const test = testById.get(trackWorkout.benchmarkTestId)
@@ -217,6 +215,7 @@ export function buildBenchmarkLeaderboardContext({
   // mapped test instead of letting that one setup gap hide the whole battery.
   // Category denominators must use the same mapped subset so hidden tests do
   // not lower otherwise-valid category and Overall scores.
+  // @lat: [[organizer-dashboard#Benchmark Tier Scoring#Test-Event Linking#Partial Public Tier Context]]
   const mappedCategories = categories.flatMap((category) => {
     const testCount = mappedIncludedTestCountByCategory.get(category.key) ?? 0
     return testCount > 0 ? [{ ...category, testCount }] : []

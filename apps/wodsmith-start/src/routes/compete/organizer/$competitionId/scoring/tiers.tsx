@@ -348,6 +348,8 @@ function BenchmarkScoringTiersEditor({
     linkedTestName: event.linkedTestName,
     scheme: event.scheme,
     scoreType: event.scoreType,
+    categoryKey: event.categoryKey,
+    inputUnit: event.inputUnit,
   }))
   const unlinkedEvents = summary.events.filter(
     (event) => event.linkedTestId === null,

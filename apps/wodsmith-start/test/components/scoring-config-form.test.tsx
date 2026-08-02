@@ -353,6 +353,35 @@ describe("ScoringConfigForm", () => {
 	})
 
 	describe("Locked Online Algorithm (benchmark boards)", () => {
+		it("normalizes stale configs for previews and emitted changes", () => {
+			const config = createDefaultConfig({
+				algorithm: "custom",
+				customTable: {
+					baseTemplate: "traditional",
+					overrides: { "1": 500 },
+				},
+			})
+
+			render(
+				<ScoringConfigForm
+					value={config}
+					onChange={onChange}
+					lockAlgorithmOnline
+				/>,
+			)
+
+			expect(
+				screen.getByText(/pattern continues: 21st = 21 pts/i),
+			).toBeInTheDocument()
+			fireEvent.click(screen.getByLabelText(/head-to-head/i))
+			expect(onChange).toHaveBeenCalledWith(
+				expect.objectContaining({
+					algorithm: "online",
+					customTable: undefined,
+				}),
+			)
+		})
+
 		it("hides the algorithm radio group and explains the fixed online ranking", () => {
 			const config = createDefaultConfig({ algorithm: "online" })
 

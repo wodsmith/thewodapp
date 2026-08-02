@@ -11,6 +11,7 @@ import {
   prepareBenchmarkRatingBands,
   prepareBenchmarkTierThresholdUpdates,
   recomputeCategoryTestCounts,
+  resolveBenchmarkEventTestDefaults,
   resolveBenchmarkTestScoreModel,
   resolveBenchmarkTestThresholdRows,
 } from "@/server/benchmark-scoring-tiers"
@@ -96,6 +97,21 @@ function buildSummary(overrides = {}) {
 }
 
 describe("benchmark scoring tier summaries", () => {
+  it("derives event prefill units and defaults missing score types", () => {
+    expect(
+      resolveBenchmarkEventTestDefaults({ scheme: "time", scoreType: null }),
+    ).toEqual({ scoreType: "min", inputUnit: "time" })
+    expect(
+      resolveBenchmarkEventTestDefaults({ scheme: "load", scoreType: null }),
+    ).toEqual({ scoreType: "max", inputUnit: "lb" })
+    expect(
+      resolveBenchmarkEventTestDefaults({
+        scheme: "calories",
+        scoreType: "sum",
+      }),
+    ).toEqual({ scoreType: "sum", inputUnit: "cal" })
+  })
+
   // @lat: [[organizer-dashboard#Benchmark Tier Scoring]]
   it("groups raw threshold tables by category, test, and variant", () => {
     const summary = buildSummary()
@@ -160,6 +176,8 @@ describe("benchmark scoring tier summaries", () => {
         linkedTestName: "Strict Press",
         scheme: "load" as const,
         scoreType: "max",
+        categoryKey: "strength",
+        inputUnit: "lb",
       },
       {
         trackWorkoutId: "tw-amrap",
@@ -168,6 +186,8 @@ describe("benchmark scoring tier summaries", () => {
         linkedTestName: null,
         scheme: "time-with-cap" as const,
         scoreType: "min",
+        categoryKey: null,
+        inputUnit: "time",
       },
     ]
 
