@@ -800,6 +800,7 @@ describe("LeaderboardPageContent", () => {
 	})
 
 	describe("Loading and Empty States", () => {
+		// @lat: [[lat.md/architecture#Architecture#Route Groups#compete]]
 		it("retries transient network failures before showing an error", async () => {
 			vi.useFakeTimers()
 			vi.mocked(getCompetitionLeaderboardFn)
@@ -825,6 +826,7 @@ describe("LeaderboardPageContent", () => {
 			).not.toBeInTheDocument()
 		})
 
+		// @lat: [[lat.md/architecture#Architecture#Route Groups#compete]]
 		it("lets the viewer retry after a leaderboard error", async () => {
 			vi.spyOn(console, "error").mockImplementation(() => {})
 			vi.mocked(getCompetitionLeaderboardFn).mockRejectedValueOnce(
