@@ -84,9 +84,9 @@ export interface AllEventsResultsStatusResponse {
   events: EventDivisionResultsStatusResponse[]
   totalPublishedCount: number
   totalCombinations: number
-  /** Whether this competition type supports pre-publishing (perpetual/benchmark) */
+  /** Whether this competition type supports auto-publishing (perpetual/benchmark) */
   supportsAutoPublish?: boolean
-  /** Effective pre-publish state (defaults to true for perpetual competitions) */
+  /** Effective auto-publish state (defaults to true for perpetual competitions) */
   resultsAutoPublish?: boolean
 }
 
@@ -691,7 +691,7 @@ export const publishAllDivisionResultsFn = createServerFn({ method: "POST" })
   )
 
 /**
- * Enable or disable pre-publishing of division results.
+ * Enable or disable auto-publishing of division results.
  *
  * When enabled, results appear on the public leaderboard as soon as scores
  * come in — no manual publish step. Only available for perpetual (benchmark)
@@ -739,7 +739,7 @@ export const setResultsAutoPublishFn = createServerFn({ method: "POST" })
 
       if (!competitionCan(competition.competitionType, "perpetual")) {
         throw new Error(
-          "Pre-publishing results is only available for benchmark competitions",
+          "Auto-publishing results is only available for benchmark competitions",
         )
       }
 

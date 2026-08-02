@@ -156,23 +156,33 @@ describe("benchmark leaderboard context", () => {
     ).toThrow(/missing female thresholds/i)
   })
 
-  it("fails closed when a benchmark test is not mapped to an event", () => {
-    expect(() =>
-      buildContext({
-        trackWorkouts: [
-          {
-            id: "tw-strict-press",
-            benchmarkTestId: "strict-press",
-            benchmarkCategory: "strength",
-          },
-          {
-            id: "tw-back-squat",
-            benchmarkTestId: "back-squat",
-            benchmarkCategory: "strength",
-          },
-        ],
-      }),
-    ).toThrow(/mile-run.*missing a mapped track workout/i)
+  // @lat: [[organizer-dashboard#Benchmark Tier Scoring#Test-Event Linking#Partial Public Tier Context]]
+  it("keeps mapped tier context when tests or visible events are unlinked", () => {
+    const context = buildContext({
+      trackWorkouts: [
+        {
+          id: "tw-strict-press",
+          benchmarkTestId: "strict-press",
+          benchmarkCategory: "strength",
+        },
+        {
+          id: "tw-back-squat",
+          benchmarkTestId: "back-squat",
+          benchmarkCategory: "strength",
+        },
+        {
+          id: "tw-visible-unlinked",
+          benchmarkTestId: null,
+          benchmarkCategory: null,
+        },
+      ],
+    })
+
+    expect(context.absoluteTier.tableByEventId.size).toBe(2)
+    expect(context.testsByTrackWorkoutId.has("tw-mile-run")).toBe(false)
+    expect(context.categories).toEqual([
+      { key: "strength", label: "Strength", testCount: 2, weight: 1 },
+    ])
   })
 
   it("fails closed when one benchmark test is mapped by multiple events", () => {

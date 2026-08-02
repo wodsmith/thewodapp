@@ -164,6 +164,45 @@ describe("OnlineCompetitionLeaderboardTable benchmark display", () => {
     expect(screen.queryByText(/HillerFit/i)).not.toBeInTheDocument()
   })
 
+  it("renders affiliate as subtext under the athlete instead of a dedicated column", () => {
+    render(
+      <OnlineCompetitionLeaderboardTable
+        leaderboard={[createBenchmarkEntry()]}
+        events={[
+          {
+            id: "tw-1",
+            name: "Strict Press",
+            trackOrder: 1,
+            scheme: "load",
+          },
+          {
+            id: "tw-2",
+            name: "Mile Run",
+            trackOrder: 2,
+            scheme: "time",
+          },
+        ]}
+        selectedEventId={null}
+        scoringAlgorithm="online"
+      />,
+    )
+
+    // No dedicated Affiliate column header
+    const headerTexts = screen
+      .getAllByRole("columnheader")
+      .map((h) => h.textContent)
+    expect(headerTexts).not.toContain("Affiliate")
+
+    // Affiliate still renders as subtext in the same cell as the athlete name
+    const affiliateNodes = screen.getAllByText("WODsmith Gym")
+    expect(affiliateNodes.length).toBeGreaterThan(0)
+    expect(
+      affiliateNodes.some((node) =>
+        node.parentElement?.textContent?.includes("Alex Athlete"),
+      ),
+    ).toBe(true)
+  })
+
   // @lat: [[competition-type-capabilities#Benchmark Category Grouping#Category Group Headers]]
   it("groups event columns under benchmark category headers", () => {
     render(

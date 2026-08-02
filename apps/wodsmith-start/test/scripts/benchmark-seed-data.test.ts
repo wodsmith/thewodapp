@@ -116,6 +116,7 @@ describe("benchmark seed data", () => {
 					row.tier === 1,
 			)?.threshold_value,
 		).toBe(52163)
+		// Vertical jump thresholds are plain integer inches (points scheme).
 		expect(
 			rows.benchmarkTierThresholds.find(
 				(row) =>
@@ -123,7 +124,7 @@ describe("benchmark seed data", () => {
 					row.variant === "male" &&
 					row.tier === 1,
 			)?.threshold_value,
-		).toBe(508)
+		).toBe(20)
 		// Added-load thresholds: "BW" encodes as 0 lb, "+5" as 5 lb.
 		const weightedC2b = rows.benchmarkTierThresholds.filter(
 			(row) =>
@@ -133,6 +134,45 @@ describe("benchmark seed data", () => {
 		expect(weightedC2b.find((row) => row.tier === 1)?.threshold_value).toBe(0)
 		expect(weightedC2b.find((row) => row.tier === 1)?.raw_value).toBe("BW")
 		expect(weightedC2b.find((row) => row.tier === 2)?.threshold_value).toBe(2268)
+	})
+
+	it("scores vertical jump in plain inches and tops the L-sit at three minutes", () => {
+		const rows = buildBenchmarkSeedRows(TEST_TS)
+
+		// The athlete score input derives its unit from the workout scheme, and
+		// the only distance schemes collect meters or feet. Scoring the jump as
+		// plain integer inches via the points scheme (like BikeErg watts) keeps
+		// athlete entries and tier thresholds in the same number space.
+		const verticalJump = BENCHMARK_SEED_TESTS.find(
+			(test) => test.name === "Vertical Jump (in)",
+		)
+		expect(verticalJump?.scheme).toBe("points")
+		expect(verticalJump?.inputUnit).toBe("inches")
+
+		const verticalJumpMale = rows.benchmarkTierThresholds.filter(
+			(row) =>
+				row.test_id === "btst_training_guide_vertical_jump_in" &&
+				row.variant === "male",
+		)
+		expect(verticalJumpMale.find((row) => row.tier === 1)?.threshold_value).toBe(
+			20,
+		)
+		expect(
+			verticalJumpMale.find((row) => row.tier === 10)?.threshold_value,
+		).toBe(38)
+
+		// The L-sit tier-10 standard is a three-minute hold for both variants;
+		// tiers 1-9 keep the source progression.
+		for (const variant of ["male", "female"] as const) {
+			const lSitTopTier = rows.benchmarkTierThresholds.find(
+				(row) =>
+					row.test_id === "btst_training_guide_l_sit_hold" &&
+					row.variant === variant &&
+					row.tier === 10,
+			)
+			expect(lSitTopTier?.raw_value).toBe("00:03:00")
+			expect(lSitTopTier?.threshold_value).toBe(180_000)
+		}
 	})
 
 	it("encodes hybrid rep tiers as plain integers and time tiers as milliseconds", () => {

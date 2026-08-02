@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
+import { competitionCan } from "@/lib/competitions/capabilities"
 import { getCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
 import { ScoringSettingsForm } from "../-components/scoring-settings-form"
 
@@ -71,6 +72,12 @@ function ScoringPage() {
           settings: competition.settings,
         }}
         events={events}
+        // Benchmark boards always rank with the online algorithm; only the
+        // tiebreaker and status-handling settings stay configurable.
+        lockAlgorithmOnline={competitionCan(
+          competition.competitionType,
+          "benchmarkScoringTiers",
+        )}
       />
     </div>
   )

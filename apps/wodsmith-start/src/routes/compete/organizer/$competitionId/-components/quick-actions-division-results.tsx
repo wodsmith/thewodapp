@@ -84,7 +84,7 @@ export function QuickActionsDivisionResults({
     ),
   )
 
-  // Track pending state for the pre-publish setting toggle
+  // Track pending state for the auto-publish setting toggle
   const [isAutoPublishPending, setIsAutoPublishPending] = useState(false)
 
   // Wrap server functions with useServerFn for client-side calls
@@ -92,7 +92,7 @@ export function QuickActionsDivisionResults({
   const publishAllDivisionResults = useServerFn(publishAllDivisionResultsFn)
   const setResultsAutoPublish = useServerFn(setResultsAutoPublishFn)
 
-  // Pre-publishing is only offered for perpetual (benchmark) competitions
+  // Auto-publishing is only offered for perpetual (benchmark) competitions
   const supportsAutoPublish = divisionResults.supportsAutoPublish === true
   const autoPublish =
     supportsAutoPublish && divisionResults.resultsAutoPublish !== false
@@ -281,7 +281,7 @@ export function QuickActionsDivisionResults({
                       ) : (
                         <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
                       )}
-                      {autoPublish ? "Pre-published" : "Manual publishing"}
+                      {autoPublish ? "Auto-publish" : "Manual publishing"}
                     </span>
                   )}
                 </SelectValue>
@@ -290,7 +290,7 @@ export function QuickActionsDivisionResults({
                 <SelectItem value="auto">
                   <span className="flex items-center gap-2">
                     <Eye className="h-3.5 w-3.5 text-green-600" />
-                    Pre-published
+                    Auto-publish
                   </span>
                 </SelectItem>
                 <SelectItem value="manual">
@@ -307,8 +307,8 @@ export function QuickActionsDivisionResults({
       {autoPublish ? (
         <CardContent>
           <p className="text-xs text-muted-foreground">
-            This benchmark board pre-publishes results: scores appear on the
-            public leaderboard as soon as they come in. Switch to manual
+            This benchmark board publishes results automatically: scores appear
+            on the public leaderboard as soon as they come in. Switch to manual
             publishing to review results per division before releasing them.
           </p>
         </CardContent>

@@ -260,6 +260,23 @@ export function resolveLeaderboardDivisionResults(params: {
   )
 }
 
+/**
+ * Effective scoring config for a leaderboard read. Benchmark boards always
+ * rank with the online algorithm, so stale or legacy stored configs can never
+ * change the ranking.
+ */
+export function resolveLeaderboardScoringConfig(params: {
+  competitionType: string
+  settings: CompetitionSettings | null | undefined
+}): import("@/types/scoring").ScoringConfig {
+  const scoringConfig =
+    getEffectiveScoringConfig(params.settings ?? null) ?? DEFAULT_SCORING_CONFIG
+  if (competitionCan(params.competitionType, "benchmarkScoringTiers")) {
+    return { ...scoringConfig, algorithm: "online", customTable: undefined }
+  }
+  return scoringConfig
+}
+
 export function shouldFetchLeaderboardVideoSubmissions(params: {
   competitionType: string
   registrationCount: number
@@ -591,8 +608,10 @@ export async function getCompetitionLeaderboard(params: {
 
   // Parse settings and get scoring config
   const settings = parseCompetitionSettings(competition.settings)
-  const scoringConfig =
-    getEffectiveScoringConfig(settings) ?? DEFAULT_SCORING_CONFIG
+  const scoringConfig = resolveLeaderboardScoringConfig({
+    competitionType: competition.competitionType,
+    settings,
+  })
 
   // Division results publishing state — controls leaderboard visibility.
   // For online competitions, default to empty (everything hidden until explicitly published).

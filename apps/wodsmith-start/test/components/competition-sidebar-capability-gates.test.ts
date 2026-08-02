@@ -49,6 +49,7 @@ describe("competition sidebar capability gates", () => {
         "Volunteer roster",
         "Volunteer shifts",
         "Judge assignments",
+        "Co-Hosts",
       ]),
     )
 		expect(inPersonLabels).not.toContain("Submission windows")
@@ -65,6 +66,7 @@ describe("competition sidebar capability gates", () => {
     expect(onlineLabels).not.toContain("Judge assignments")
 		expect(onlineLabels).toContain("Volunteer roster")
 		expect(onlineLabels).toContain("Volunteer shifts")
+		expect(onlineLabels).toContain("Co-Hosts")
 		expect(onlineLabels).not.toContain("Results")
 		expect(onlineLabels).not.toContain("Benchmark scoring")
 
@@ -77,6 +79,12 @@ describe("competition sidebar capability gates", () => {
 		)
 		expect(benchmarkLabels).not.toContain("Submission windows")
 		expect(benchmarkLabels).not.toContain("Results")
+		// Benchmark boards drop co-host management and volunteer shifts but
+		// keep the volunteer roster and signup questions for invited volunteers.
+		expect(benchmarkLabels).not.toContain("Co-Hosts")
+		expect(benchmarkLabels).not.toContain("Volunteer shifts")
+		expect(benchmarkLabels).toContain("Volunteer roster")
+		expect(benchmarkLabels).toContain("Registration questions")
 	})
 
   it("labels and gates cohost navigation by both permissions and capabilities", () => {

@@ -11,7 +11,7 @@ import {
   trackWorkoutsTable,
 } from "@/db/schemas/programming"
 import { workouts } from "@/db/schemas/workouts"
-import { encodeScore } from "@/lib/scoring"
+import { encodeScore, getDefaultScoreType } from "@/lib/scoring"
 import { BenchmarkConfigError } from "@/lib/scoring/algorithms"
 import type { WorkoutScheme } from "@/lib/scoring/types"
 import {
@@ -69,6 +69,11 @@ export interface BenchmarkScoringTierEventOption {
   eventName: string
   linkedTestId: string | null
   linkedTestName: string | null
+  /** Event workout config used to prefill a new benchmark test */
+  scheme: WorkoutScheme
+  scoreType: string
+  categoryKey: string | null
+  inputUnit: string
 }
 
 export interface BenchmarkScoringTierTest {
@@ -410,14 +415,9 @@ export async function loadBenchmarkScoringTierSummary({
     competitionId,
   })
   const testNameById = new Map(tests.map((test) => [test.id, test.name]))
-  const events: BenchmarkScoringTierEventOption[] = eventRows.map((row) => ({
-    trackWorkoutId: row.trackWorkoutId,
-    eventName: row.eventName,
-    linkedTestId: row.benchmarkTestId,
-    linkedTestName: row.benchmarkTestId
-      ? (testNameById.get(row.benchmarkTestId) ?? null)
-      : null,
-  }))
+  const events: BenchmarkScoringTierEventOption[] = eventRows.map((row) =>
+    toBenchmarkEventOption(row, testNameById),
+  )
 
   return buildBenchmarkScoringTierSummary({
     competitionId,
@@ -514,14 +514,7 @@ export async function loadBenchmarkEventTestOptions({
         linkedEventName: linkedEvent?.eventName ?? null,
       }
     }),
-    events: eventRows.map((row) => ({
-      trackWorkoutId: row.trackWorkoutId,
-      eventName: row.eventName,
-      linkedTestId: row.benchmarkTestId,
-      linkedTestName: row.benchmarkTestId
-        ? (testNameById.get(row.benchmarkTestId) ?? null)
-        : null,
-    })),
+    events: eventRows.map((row) => toBenchmarkEventOption(row, testNameById)),
   }
 }
 
@@ -529,6 +522,67 @@ interface BenchmarkCompetitionEventRow {
   trackWorkoutId: string
   eventName: string
   benchmarkTestId: string | null
+  benchmarkCategory: string | null
+  scheme: WorkoutScheme
+  scoreType: string | null
+}
+
+export function resolveBenchmarkEventTestDefaults({
+  scheme,
+  scoreType,
+}: {
+  scheme: WorkoutScheme
+  scoreType: string | null
+}): { scoreType: string; inputUnit: string } {
+  let inputUnit: string
+  switch (scheme) {
+    case "time":
+    case "time-with-cap":
+    case "emom":
+      inputUnit = "time"
+      break
+    case "load":
+      inputUnit = "lb"
+      break
+    case "calories":
+      inputUnit = "cal"
+      break
+    case "meters":
+      inputUnit = "m"
+      break
+    case "feet":
+      inputUnit = "ft"
+      break
+    default:
+      inputUnit = "reps"
+  }
+
+  return {
+    scoreType: scoreType ?? getDefaultScoreType(scheme),
+    inputUnit,
+  }
+}
+
+function toBenchmarkEventOption(
+  row: BenchmarkCompetitionEventRow,
+  testNameById: ReadonlyMap<string, string>,
+): BenchmarkScoringTierEventOption {
+  const defaults = resolveBenchmarkEventTestDefaults({
+    scheme: row.scheme,
+    scoreType: row.scoreType,
+  })
+  return {
+    trackWorkoutId: row.trackWorkoutId,
+    eventName: row.eventName,
+    linkedTestId: row.benchmarkTestId,
+    linkedTestName: row.benchmarkTestId
+      ? (testNameById.get(row.benchmarkTestId) ?? null)
+      : null,
+    scheme: row.scheme,
+    scoreType: defaults.scoreType,
+    categoryKey: row.benchmarkCategory,
+    inputUnit: defaults.inputUnit,
+  }
 }
 
 /**
@@ -548,6 +602,9 @@ async function loadBenchmarkCompetitionEventRows({
       parentEventId: trackWorkoutsTable.parentEventId,
       eventName: workouts.name,
       benchmarkTestId: trackWorkoutsTable.benchmarkTestId,
+      benchmarkCategory: trackWorkoutsTable.benchmarkCategory,
+      scheme: workouts.scheme,
+      scoreType: workouts.scoreType,
     })
     .from(trackWorkoutsTable)
     .innerJoin(
@@ -563,11 +620,7 @@ async function loadBenchmarkCompetitionEventRows({
   )
   return rows
     .filter((row) => !parentIds.has(row.trackWorkoutId))
-    .map(({ trackWorkoutId, eventName, benchmarkTestId }) => ({
-      trackWorkoutId,
-      eventName,
-      benchmarkTestId,
-    }))
+    .map(({ parentEventId: _parentEventId, ...row }) => row)
 }
 
 function buildLinkedEventsByTestId(

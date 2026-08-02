@@ -2,7 +2,7 @@
 
 import { createFileRoute, Link, notFound } from "@tanstack/react-router"
 import { useServerFn } from "@tanstack/react-start"
-import { AlertTriangle, CheckCircle2, Gauge, Loader2, Save } from "lucide-react"
+import { AlertTriangle, Gauge, Link2, Loader2, Save } from "lucide-react"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import {
@@ -23,6 +23,7 @@ import {
   type CategoryOption,
   type EditableTest,
   EditTestDialog,
+  type EventLinkOption,
   type TestDraft,
 } from "@/components/benchmark-tiers/test-editor-dialogs"
 import { Badge } from "@/components/ui/badge"
@@ -143,7 +144,7 @@ function HowScoringWorksCard({
   const steps = [
     {
       title: "Each test result earns a tier",
-      body: `When an athlete logs a score, it's compared against the thresholds below and lands in a tier from 1 to ${maxTier}. Tier ${maxTier} is the hardest standard; a score below the tier 1 threshold still earns half a tier.`,
+      body: `When an athlete logs a score, it's compared against the thresholds below and lands in a tier from 1 to ${maxTier}. Tier ${maxTier} is the hardest standard; a score below the tier 1 threshold still earns half a point.`,
     },
     {
       title: "Tiers become category scores",
@@ -341,6 +342,18 @@ function BenchmarkScoringTiersEditor({
   const allCategoryOptions: CategoryOption[] = summary.categories.map(
     (category) => ({ key: category.key, label: category.label }),
   )
+  const eventLinkOptions: EventLinkOption[] = summary.events.map((event) => ({
+    id: event.trackWorkoutId,
+    name: event.eventName,
+    linkedTestName: event.linkedTestName,
+    scheme: event.scheme,
+    scoreType: event.scoreType,
+    categoryKey: event.categoryKey,
+    inputUnit: event.inputUnit,
+  }))
+  const unlinkedEvents = summary.events.filter(
+    (event) => event.linkedTestId === null,
+  )
 
   return (
     <div className="space-y-6 pb-24">
@@ -365,20 +378,39 @@ function BenchmarkScoringTiersEditor({
         </div>
       </div>
 
-      <Card>
-        <CardContent className="flex gap-3 py-5">
-          <CheckCircle2 className="mt-0.5 h-5 w-5 text-primary" />
-          <div>
-            <h2 className="font-semibold">Tier context is live</h2>
+      {unlinkedEvents.length > 0 && (
+        <Card>
+          <CardHeader className="gap-1">
+            <CardTitle>Link events to tier thresholds</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              The leaderboard ranks athletes with online scoring. These tier
-              thresholds add context on top: each result shows its tier, and
-              athletes get category scores and an overall rating on the
-              leaderboard and stats pages.
+              These competition events have no tier thresholds yet. Pick one to
+              set up its tiers — the test details are prefilled from the event.
             </p>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="flex flex-wrap gap-2">
+              {unlinkedEvents.map((event) => (
+                <AddTestDialog
+                  key={event.trackWorkoutId}
+                  categories={allCategoryOptions}
+                  maxTier={summary.battery.maxTier}
+                  variants={VARIANTS}
+                  events={eventLinkOptions}
+                  defaultEventId={event.trackWorkoutId}
+                  lockEvent
+                  onCreate={handleCreateTest}
+                  trigger={
+                    <Button variant="outline" size="sm">
+                      <Link2 className="mr-2 h-4 w-4" />
+                      {event.eventName}
+                    </Button>
+                  }
+                />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <HowScoringWorksCard summary={summary} />
 
@@ -452,11 +484,7 @@ function BenchmarkScoringTiersEditor({
                     defaultCategoryKey={category.key}
                     maxTier={summary.battery.maxTier}
                     variants={VARIANTS}
-                    events={summary.events.map((event) => ({
-                      id: event.trackWorkoutId,
-                      name: event.eventName,
-                      linkedTestName: event.linkedTestName,
-                    }))}
+                    events={eventLinkOptions}
                     onCreate={handleCreateTest}
                   />
                 </div>

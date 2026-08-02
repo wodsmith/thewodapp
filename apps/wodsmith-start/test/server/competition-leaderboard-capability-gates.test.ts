@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
+import { DEFAULT_SCORING_CONFIG } from "@/lib/scoring"
 import {
 	resolveLeaderboardDivisionResults,
+	resolveLeaderboardScoringConfig,
 	shouldFetchLeaderboardVideoSubmissions,
 } from "@/server/competition-leaderboard"
 import type { CompetitionSettings } from "@/types/competitions"
@@ -109,6 +111,68 @@ describe("competition leaderboard capability gates", () => {
 					},
 				}),
 			).toBeUndefined()
+		})
+	})
+
+	describe("resolveLeaderboardScoringConfig", () => {
+		it("ranks benchmark boards with the online algorithm when no config is stored", () => {
+			expect(
+				resolveLeaderboardScoringConfig({
+					competitionType: "benchmark",
+					settings: null,
+				}),
+			).toEqual({
+				...DEFAULT_SCORING_CONFIG,
+				algorithm: "online",
+				customTable: undefined,
+			})
+		})
+
+		it("forces stored non-online configs to online for benchmark boards", () => {
+			const settings: CompetitionSettings = {
+				scoringConfig: {
+					algorithm: "traditional",
+					traditional: { step: 5, firstPlacePoints: 100 },
+					tiebreaker: { primary: "countback" },
+					statusHandling: {
+						dnf: "last_place",
+						dns: "zero",
+						withdrawn: "exclude",
+					},
+				},
+			}
+
+			const resolved = resolveLeaderboardScoringConfig({
+				competitionType: "benchmark",
+				settings,
+			})
+			expect(resolved.algorithm).toBe("online")
+			expect(resolved.customTable).toBeUndefined()
+			expect(resolved.statusHandling).toEqual(
+				settings.scoringConfig?.statusHandling,
+			)
+		})
+
+		it("keeps stored configs as-is for non-benchmark competitions", () => {
+			const settings: CompetitionSettings = {
+				scoringConfig: {
+					algorithm: "traditional",
+					traditional: { step: 5, firstPlacePoints: 100 },
+					tiebreaker: { primary: "countback" },
+					statusHandling: {
+						dnf: "last_place",
+						dns: "zero",
+						withdrawn: "exclude",
+					},
+				},
+			}
+
+			expect(
+				resolveLeaderboardScoringConfig({
+					competitionType: "online",
+					settings,
+				}),
+			).toEqual(settings.scoringConfig)
 		})
 	})
 
