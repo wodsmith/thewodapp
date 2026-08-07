@@ -33,6 +33,9 @@ describe("JudgesScheduleContent", () => {
       screen.getAllByRole("heading", { name: "Jamie Judge" }).length,
     ).toBeGreaterThan(0)
     expect(screen.getAllByText("3 Rounds for Time").length).toBeGreaterThan(0)
+    expect(
+      screen.getAllByText("RX team workout brief").length,
+    ).toBeGreaterThan(0)
 
     fireEvent.change(screen.getByLabelText("Print sheets for"), {
       target: { value: "tmem_judge_2" },
@@ -43,6 +46,57 @@ describe("JudgesScheduleContent", () => {
     ).not.toBeInTheDocument()
     expect(
       screen.getAllByRole("heading", { name: "Morgan Marshal" }).length,
+    ).toBeGreaterThan(0)
+  })
+
+  it("falls back to an athlete name when a team name is empty", () => {
+    const events = scheduleEvents()
+    const lane = events[0]?.heats[0]?.laneAssignments[0]
+    if (lane?.registration) lane.registration.teamName = ""
+
+    render(
+      <JudgesScheduleContent
+        competitionName="Mountain Throwdown"
+        events={events}
+        timezone="America/Denver"
+      />,
+    )
+
+    expect(screen.getAllByText("Avery Athlete").length).toBeGreaterThan(0)
+  })
+
+  it("shows all packets when the selected judge disappears after refresh", () => {
+    const { rerender } = render(
+      <JudgesScheduleContent
+        competitionName="Mountain Throwdown"
+        events={scheduleEvents()}
+        timezone="America/Denver"
+      />,
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Judge packets" }))
+    fireEvent.change(screen.getByLabelText("Print sheets for"), {
+      target: { value: "tmem_judge_2" },
+    })
+
+    const refreshedEvents = scheduleEvents()
+    const refreshedHeat = refreshedEvents[0]?.heats[0]
+    if (refreshedHeat) {
+      refreshedHeat.judges = refreshedHeat.judges.filter(
+        (judge) => judge.membershipId === "tmem_judge_1",
+      )
+    }
+    rerender(
+      <JudgesScheduleContent
+        competitionName="Mountain Throwdown"
+        events={refreshedEvents}
+        timezone="America/Denver"
+      />,
+    )
+
+    expect(screen.getByLabelText("Print sheets for")).toHaveValue("all")
+    expect(
+      screen.getAllByRole("heading", { name: "Jamie Judge" }).length,
     ).toBeGreaterThan(0)
   })
 })
@@ -101,6 +155,7 @@ function scheduleEvents(): JudgesScheduleEvent[] {
             {
               laneNumber: 1,
               division: { id: "division_rx", label: "RX Team" },
+              workoutDescription: "RX team workout brief",
               registration: {
                 id: "creg_team_1",
                 teamName: "Team Thunder",
@@ -110,6 +165,7 @@ function scheduleEvents(): JudgesScheduleEvent[] {
             {
               laneNumber: 2,
               division: { id: "division_rx", label: "RX Team" },
+              workoutDescription: "RX team workout brief",
               registration: {
                 id: "creg_team_2",
                 teamName: "Barbell Club",

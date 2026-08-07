@@ -29,6 +29,7 @@ interface LaneData {
   judge: ScheduleJudge | null
   registration: LaneAssignment["registration"]
   division: string | null
+  workoutDescription: string | null
 }
 
 interface JudgePacketAssignment {
@@ -142,6 +143,7 @@ function getLaneData(
       judge: null,
       registration: null,
       division: null,
+      workoutDescription: null,
     })
   }
   for (const assignment of heat.laneAssignments) {
@@ -149,6 +151,7 @@ function getLaneData(
       judge: laneData.get(assignment.laneNumber)?.judge ?? null,
       registration: assignment.registration,
       division: assignment.division?.label ?? null,
+      workoutDescription: assignment.workoutDescription,
     })
   }
   for (const judge of heat.judges) {
@@ -158,6 +161,7 @@ function getLaneData(
       judge,
       registration: existing?.registration ?? null,
       division: existing?.division ?? null,
+      workoutDescription: existing?.workoutDescription ?? null,
     })
   }
   return laneData
@@ -165,9 +169,19 @@ function getLaneData(
 
 function getCompetitorLabel(lane: LaneData): string {
   return (
-    lane.registration?.teamName ??
-    lane.registration?.athleteNames[0] ??
+    lane.registration?.teamName ||
+    lane.registration?.athleteNames[0] ||
     "Unassigned athlete"
+  )
+}
+
+function getAssignmentWorkoutDescription(
+  assignment: JudgePacketAssignment,
+): string {
+  return (
+    assignment.lane?.workoutDescription ||
+    assignment.event.workoutDescription ||
+    "No workout description provided."
   )
 }
 
@@ -209,8 +223,8 @@ function getDayGroups(
 function getJudgePackets(events: JudgesScheduleEvent[]): JudgePacket[] {
   const packets = new Map<string, JudgePacket>()
   for (const event of events) {
+    const maxLanes = getMaxLanes(event)
     for (const heat of event.heats) {
-      const maxLanes = getMaxLanes(event)
       const lanes = getLaneData(heat, maxLanes)
       for (const judge of heat.judges) {
         const packet = packets.get(judge.membershipId) ?? {
@@ -262,10 +276,17 @@ export function JudgesScheduleContent({
     [events, timezone],
   )
   const judgePackets = useMemo(() => getJudgePackets(events), [events])
+  const resolvedSelectedJudgeId =
+    selectedJudgeId === "all" ||
+    judgePackets.some((packet) => packet.membershipId === selectedJudgeId)
+      ? selectedJudgeId
+      : "all"
   const visibleJudgePackets =
-    selectedJudgeId === "all"
+    resolvedSelectedJudgeId === "all"
       ? judgePackets
-      : judgePackets.filter((packet) => packet.membershipId === selectedJudgeId)
+      : judgePackets.filter(
+          (packet) => packet.membershipId === resolvedSelectedJudgeId,
+        )
 
   if (events.length === 0) {
     return (
@@ -346,7 +367,7 @@ export function JudgesScheduleContent({
           competitionName={competitionName}
           packets={visibleJudgePackets}
           allPackets={judgePackets}
-          selectedJudgeId={selectedJudgeId}
+          selectedJudgeId={resolvedSelectedJudgeId}
           onJudgeChange={setSelectedJudgeId}
           timezone={timezone}
         />
@@ -898,7 +919,7 @@ function JudgeAssignmentBlock({
                 .join(" / ")}
             </p>
             <p className="mt-2 whitespace-pre-line text-sm leading-6 text-muted-foreground print:text-xs print:leading-5 print:text-gray-800">
-              {event.workoutDescription || "No workout description provided."}
+              {getAssignmentWorkoutDescription(assignment)}
             </p>
           </div>
         </div>
@@ -918,12 +939,20 @@ function PrintJudgePacket({
   timezone: string
   pageBreak: boolean
 }) {
-  const packetEvents = Array.from(
+  const packetBriefs = Array.from(
     new Map(
-      packet.assignments.map((assignment) => [
-        assignment.event.trackWorkoutId,
-        assignment.event,
-      ]),
+      packet.assignments.map((assignment) => {
+        const division = assignment.lane?.division ?? null
+        const workoutDescription = getAssignmentWorkoutDescription(assignment)
+        return [
+          `${assignment.event.trackWorkoutId}:${division ?? "base"}:${workoutDescription}`,
+          {
+            event: assignment.event,
+            division,
+            workoutDescription,
+          },
+        ]
+      }),
     ).values(),
   )
 
@@ -1002,11 +1031,15 @@ function PrintJudgePacket({
           Workout briefs
         </h2>
         <div className="divide-y divide-gray-300">
-          {packetEvents.map((event) => (
-            <div key={event.trackWorkoutId} className="py-2 text-[9px]">
+          {packetBriefs.map(({ event, division, workoutDescription }) => (
+            <div
+              key={`${event.trackWorkoutId}:${division ?? "base"}:${workoutDescription}`}
+              className="py-2 text-[9px]"
+            >
               <div className="flex items-baseline justify-between gap-4">
                 <h3 className="font-bold">
                   Event {formatTrackOrder(event.trackOrder)}: {event.eventName}
+                  {division ? ` / ${division}` : ""}
                 </h3>
                 <p className="shrink-0 text-gray-600">
                   {[
@@ -1018,7 +1051,7 @@ function PrintJudgePacket({
                 </p>
               </div>
               <p className="mt-1 whitespace-pre-line leading-4 text-gray-800">
-                {event.workoutDescription || "No workout description provided."}
+                {workoutDescription}
               </p>
             </div>
           ))}

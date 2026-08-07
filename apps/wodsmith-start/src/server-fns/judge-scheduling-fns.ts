@@ -23,6 +23,7 @@ import {
   trackWorkoutsTable,
   userTable,
   VOLUNTEER_ROLE_TYPES,
+  workoutScalingDescriptionsTable,
   workouts,
 } from "@/db/schema"
 import { createHeatVolunteerId } from "@/db/schemas/common"
@@ -31,7 +32,11 @@ import type {
   VolunteerAvailability,
   VolunteerMembershipMetadata,
 } from "@/db/schemas/volunteers"
-import { requireTeamPermission } from "@/utils/team-auth"
+import {
+  hasTeamPermission,
+  isTeamMember,
+  requireTeamPermission,
+} from "@/utils/team-auth"
 import {
   type ClonedJudgeAssignmentForRevision,
   createPublishedJudgeAssignmentRevision,
@@ -1289,6 +1294,7 @@ export interface JudgesScheduleHeat {
   laneAssignments: Array<{
     laneNumber: number
     division: { id: string; label: string } | null
+    workoutDescription: string | null
     registration: {
       id: string
       teamName: string | null
@@ -1351,9 +1357,7 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<{ events: JudgesScheduleEvent[] }> => {
     const db = getDb()
 
-    // No auth required - accessible to anyone with the direct link.
-    // Validate that the provided team IDs match the competition to prevent
-    // using arbitrary team context to access unrelated competition data.
+    // Validate the caller-provided team context before checking access.
     const [competition] = await db
       .select({
         organizingTeamId: competitionsTable.organizingTeamId,
@@ -1371,6 +1375,20 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
       competition.competitionTeamId !== data.competitionTeamId
     ) {
       return { events: [] }
+    }
+
+    const canManageCompetition = await hasTeamPermission(
+      competition.organizingTeamId,
+      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+    )
+    const isCompetitionTeamMember = competition.competitionTeamId
+      ? await isTeamMember(competition.competitionTeamId)
+      : false
+
+    if (!canManageCompetition && !isCompetitionTeamMember) {
+      throw new Error(
+        "FORBIDDEN: You don't have permission to view judge schedules",
+      )
     }
 
     // Get all heats for this competition with venues and divisions
@@ -1613,7 +1631,9 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
           ? (athleteUserIdsByTeam.get(registration.athleteTeamId) ?? [])
           : []
         const rosterUserIds = [
-          ...new Set([registration.userId, ...teamUserIds]),
+          ...new Set(
+            teamUserIds.length > 0 ? teamUserIds : [registration.userId],
+          ),
         ]
         const athleteNames = rosterUserIds
           .map((userId) => {
@@ -1659,6 +1679,32 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
         divisionMap.set(div.id, div)
       }
     }
+
+    const scalingDescriptions =
+      workoutIds.length > 0 && regDivisionIds.length > 0
+        ? await db
+            .select({
+              workoutId: workoutScalingDescriptionsTable.workoutId,
+              scalingLevelId: workoutScalingDescriptionsTable.scalingLevelId,
+              description: workoutScalingDescriptionsTable.description,
+            })
+            .from(workoutScalingDescriptionsTable)
+            .where(
+              and(
+                inArray(workoutScalingDescriptionsTable.workoutId, workoutIds),
+                inArray(
+                  workoutScalingDescriptionsTable.scalingLevelId,
+                  regDivisionIds,
+                ),
+              ),
+            )
+        : []
+    const scalingDescriptionMap = new Map(
+      scalingDescriptions.map((description) => [
+        `${description.workoutId}:${description.scalingLevelId}`,
+        description.description,
+      ]),
+    )
 
     // Group judge assignments by heat
     const judgesByHeat = new Map<string, Array<(typeof judgeAssignments)[0]>>()
@@ -1727,6 +1773,12 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
         return {
           laneNumber: la.laneNumber,
           division: division || null,
+          workoutDescription:
+            trackWorkout.workoutId && regDivisionId
+              ? (scalingDescriptionMap.get(
+                  `${trackWorkout.workoutId}:${regDivisionId}`,
+                ) ?? null)
+              : null,
           registration: la.registrationId
             ? (registrationMap.get(la.registrationId) ?? null)
             : null,
