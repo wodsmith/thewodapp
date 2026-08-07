@@ -178,10 +178,12 @@ function getCompetitorLabel(lane: LaneData): string {
 function getAssignmentWorkoutDescription(
   assignment: JudgePacketAssignment,
 ): string {
+  const laneDescription = assignment.lane?.workoutDescription
+  if (laneDescription !== null && laneDescription !== undefined) {
+    return laneDescription
+  }
   return (
-    assignment.lane?.workoutDescription ||
-    assignment.event.workoutDescription ||
-    "No workout description provided."
+    assignment.event.workoutDescription || "No workout description provided."
   )
 }
 
@@ -965,9 +967,15 @@ function PrintJudgePacket({
       packet.assignments.map((assignment) => {
         const division = assignment.lane?.division ?? null
         const workoutDescription = getAssignmentWorkoutDescription(assignment)
+        const key = JSON.stringify([
+          assignment.event.trackWorkoutId,
+          division,
+          workoutDescription,
+        ])
         return [
-          `${assignment.event.trackWorkoutId}:${division ?? "base"}:${workoutDescription}`,
+          key,
           {
+            key,
             event: assignment.event,
             division,
             workoutDescription,
@@ -1052,11 +1060,8 @@ function PrintJudgePacket({
           Workout briefs
         </h2>
         <div className="divide-y divide-gray-300">
-          {packetBriefs.map(({ event, division, workoutDescription }) => (
-            <div
-              key={`${event.trackWorkoutId}:${division ?? "base"}:${workoutDescription}`}
-              className="py-2 text-[9px]"
-            >
+          {packetBriefs.map(({ key, event, division, workoutDescription }) => (
+            <div key={key} className="py-2 text-[9px]">
               <div className="flex items-baseline justify-between gap-4">
                 <h3 className="font-bold">
                   Event {formatTrackOrder(event.trackOrder)}: {event.eventName}

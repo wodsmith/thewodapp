@@ -133,6 +133,34 @@ function parseVolunteerMetadata(
   }
 }
 
+function parsePendingTeammateNames(pendingTeammates: string | null): string[] {
+  if (!pendingTeammates) return []
+
+  try {
+    const parsed = JSON.parse(pendingTeammates) as unknown
+    if (!Array.isArray(parsed)) return []
+
+    return parsed
+      .map((teammate) => {
+        if (!teammate || typeof teammate !== "object") return ""
+        const { firstName, lastName, email } = teammate as {
+          firstName?: unknown
+          lastName?: unknown
+          email?: unknown
+        }
+        const name = [firstName, lastName]
+          .filter((part): part is string => typeof part === "string")
+          .map((part) => part.trim())
+          .filter(Boolean)
+          .join(" ")
+        return name || (typeof email === "string" ? email.trim() : "")
+      })
+      .filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
 /**
  * Check if volunteer has judge or head_judge role type
  */
@@ -1591,6 +1619,7 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
               userId: competitionRegistrationsTable.userId,
               teamName: competitionRegistrationsTable.teamName,
               athleteTeamId: competitionRegistrationsTable.athleteTeamId,
+              pendingTeammates: competitionRegistrationsTable.pendingTeammates,
             })
             .from(competitionRegistrationsTable)
             .where(inArray(competitionRegistrationsTable.id, registrationIds))
@@ -1660,7 +1689,7 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
             teamUserIds.length > 0 ? teamUserIds : [registration.userId],
           ),
         ]
-        const athleteNames = rosterUserIds
+        const confirmedAthleteNames = rosterUserIds
           .map((userId) => {
             const athlete = athleteUserMap.get(userId)
             return [athlete?.firstName, athlete?.lastName]
@@ -1668,7 +1697,12 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
               .join(" ")
           })
           .filter(Boolean)
-          .sort((a, b) => a.localeCompare(b))
+        const athleteNames = [
+          ...new Set([
+            ...confirmedAthleteNames,
+            ...parsePendingTeammateNames(registration.pendingTeammates),
+          ]),
+        ].sort((a, b) => a.localeCompare(b))
 
         return [
           registration.id,

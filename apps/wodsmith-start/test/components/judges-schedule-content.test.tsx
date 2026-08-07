@@ -145,6 +145,72 @@ describe("JudgesScheduleContent", () => {
     expect(screen.getAllByText("Taylor Temp").length).toBeGreaterThan(0)
     expect(screen.getAllByText("Jordan Guest").length).toBeGreaterThan(0)
   })
+
+  it("preserves blank division briefs instead of falling back to the base workout", () => {
+    const events = scheduleEvents()
+    const heat = events[0]?.heats[0]
+    if (heat) {
+      heat.judges = heat.judges.slice(0, 1)
+      heat.laneAssignments = heat.laneAssignments.slice(0, 1)
+      const lane = heat.laneAssignments[0]
+      if (lane) lane.workoutDescription = ""
+    }
+
+    render(
+      <JudgesScheduleContent
+        competitionName="Mountain Throwdown"
+        events={events}
+        timezone="America/Denver"
+      />,
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Judge packets" }))
+
+    expect(screen.queryByText("3 Rounds for Time")).not.toBeInTheDocument()
+  })
+
+  it("keeps distinct briefs when their values contain key delimiters", () => {
+    const events = scheduleEvents()
+    const event = events[0]
+    const firstHeat = event?.heats[0]
+    const firstJudge = firstHeat?.judges[0]
+    const firstLane = firstHeat?.laneAssignments[0]
+    if (event && firstHeat && firstJudge && firstLane) {
+      firstHeat.judges = [firstJudge]
+      firstHeat.laneAssignments = [
+        {
+          ...firstLane,
+          division: { id: "division_one", label: "RX:Team" },
+          workoutDescription: "Brief",
+        },
+      ]
+      event.heats.push({
+        ...firstHeat,
+        id: "heat_2",
+        heatNumber: 2,
+        scheduledTime: new Date("2026-08-08T15:20:00.000Z"),
+        judges: [{ ...firstJudge, assignmentId: "jha_4" }],
+        laneAssignments: [
+          {
+            ...firstLane,
+            division: { id: "division_two", label: "RX" },
+            workoutDescription: "Team:Brief",
+          },
+        ],
+      })
+    }
+
+    render(
+      <JudgesScheduleContent
+        competitionName="Mountain Throwdown"
+        events={events}
+        timezone="America/Denver"
+      />,
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Judge packets" }))
+
+    expect(screen.getAllByText("Brief")).toHaveLength(2)
+    expect(screen.getAllByText("Team:Brief")).toHaveLength(2)
+  })
 })
 
 function scheduleEvents(): JudgesScheduleEvent[] {
