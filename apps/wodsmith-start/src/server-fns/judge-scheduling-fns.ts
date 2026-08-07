@@ -19,6 +19,7 @@ import {
   judgeAssignmentVersionsTable,
   judgeHeatAssignmentsTable,
   scalingLevelsTable,
+  teamInvitationTable,
   teamMembershipTable,
   trackWorkoutsTable,
   userTable,
@@ -1285,7 +1286,9 @@ export interface JudgesScheduleHeat {
   judges: Array<{
     assignmentId: string
     laneNumber: number | null
-    membershipId: string
+    assigneeId: string
+    membershipId: string | null
+    invitationId: string | null
     userId: string
     firstName: string | null
     lastName: string | null
@@ -1467,6 +1470,28 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
             .where(inArray(teamMembershipTable.id, membershipIds))
         : []
     const membershipMap = new Map(memberships.map((m) => [m.id, m]))
+
+    const invitationIds = [
+      ...new Set(
+        judgeAssignments
+          .map((assignment) => assignment.invitationId)
+          .filter((id): id is string => id !== null),
+      ),
+    ]
+    const invitations =
+      invitationIds.length > 0
+        ? await db
+            .select({
+              id: teamInvitationTable.id,
+              email: teamInvitationTable.email,
+              metadata: teamInvitationTable.metadata,
+            })
+            .from(teamInvitationTable)
+            .where(inArray(teamInvitationTable.id, invitationIds))
+        : []
+    const invitationMap = new Map(
+      invitations.map((invitation) => [invitation.id, invitation]),
+    )
 
     const userIds = [...new Set(memberships.map((m) => m.userId))]
     const users =
@@ -1754,12 +1779,20 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
       const judges = heatJudges.map((ja) => {
         const membership = membershipMap.get(ja.membershipId ?? "")
         const user = membership ? userMap.get(membership.userId) : null
+        const invitation = invitationMap.get(ja.invitationId ?? "")
+        const invitationMetadata = parseVolunteerMetadata(
+          invitation?.metadata ?? null,
+        )
+        const invitationName =
+          invitationMetadata?.signupName?.trim() || invitation?.email || null
         return {
           assignmentId: ja.id,
           laneNumber: ja.laneNumber,
-          membershipId: ja.membershipId ?? "",
+          assigneeId: ja.membershipId ?? ja.invitationId ?? ja.id,
+          membershipId: ja.membershipId,
+          invitationId: ja.invitationId,
           userId: membership?.userId || "",
-          firstName: user?.firstName || null,
+          firstName: user?.firstName || invitationName,
           lastName: user?.lastName || null,
           position: ja.position,
         }

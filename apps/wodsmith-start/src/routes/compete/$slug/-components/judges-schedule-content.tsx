@@ -40,7 +40,7 @@ interface JudgePacketAssignment {
 }
 
 interface JudgePacket {
-  membershipId: string
+  assigneeId: string
   name: string
   assignments: JudgePacketAssignment[]
 }
@@ -227,8 +227,8 @@ function getJudgePackets(events: JudgesScheduleEvent[]): JudgePacket[] {
     for (const heat of event.heats) {
       const lanes = getLaneData(heat, maxLanes)
       for (const judge of heat.judges) {
-        const packet = packets.get(judge.membershipId) ?? {
-          membershipId: judge.membershipId,
+        const packet = packets.get(judge.assigneeId) ?? {
+          assigneeId: judge.assigneeId,
           name: getFullName(judge.firstName, judge.lastName),
           assignments: [],
         }
@@ -238,7 +238,7 @@ function getJudgePackets(events: JudgesScheduleEvent[]): JudgePacket[] {
           judge,
           lane: judge.laneNumber ? (lanes.get(judge.laneNumber) ?? null) : null,
         })
-        packets.set(judge.membershipId, packet)
+        packets.set(judge.assigneeId, packet)
       }
     }
   }
@@ -278,14 +278,14 @@ export function JudgesScheduleContent({
   const judgePackets = useMemo(() => getJudgePackets(events), [events])
   const resolvedSelectedJudgeId =
     selectedJudgeId === "all" ||
-    judgePackets.some((packet) => packet.membershipId === selectedJudgeId)
+    judgePackets.some((packet) => packet.assigneeId === selectedJudgeId)
       ? selectedJudgeId
       : "all"
   const visibleJudgePackets =
     resolvedSelectedJudgeId === "all"
       ? judgePackets
       : judgePackets.filter(
-          (packet) => packet.membershipId === resolvedSelectedJudgeId,
+          (packet) => packet.assigneeId === resolvedSelectedJudgeId,
         )
 
   if (events.length === 0) {
@@ -678,6 +678,17 @@ function PrintMasterEvent({
                 key={laneNumbers[0]}
                 className="mb-2 w-full table-fixed border-collapse text-[9px] leading-tight"
               >
+                <colgroup>
+                  {Array.from({ length: PRINT_LANES_PER_ROW }).map(
+                    (_, index) => (
+                      <col
+                        // biome-ignore lint/suspicious/noArrayIndexKey: Fixed print-grid columns have no identity.
+                        key={`print-column-${index}`}
+                        className="w-1/6"
+                      />
+                    ),
+                  )}
+                </colgroup>
                 <thead>
                   <tr>
                     {laneNumbers.map((laneNumber) => (
@@ -688,6 +699,16 @@ function PrintMasterEvent({
                         Lane {laneNumber}
                       </th>
                     ))}
+                    {laneNumbers.length < PRINT_LANES_PER_ROW &&
+                      Array.from({
+                        length: PRINT_LANES_PER_ROW - laneNumbers.length,
+                      }).map((_, index) => (
+                        <th
+                          // biome-ignore lint/suspicious/noArrayIndexKey: Print-only filler headers have no identity.
+                          key={`filler-header-${index}`}
+                          className="border-0"
+                        />
+                      ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -730,7 +751,7 @@ function PrintMasterEvent({
                       }).map((_, index) => (
                         <td
                           // biome-ignore lint/suspicious/noArrayIndexKey: Print-only filler cells have no identity.
-                          key={index}
+                          key={`filler-cell-${index}`}
                           className="border-0"
                         />
                       ))}
@@ -757,7 +778,7 @@ function JudgePackets({
   packets: JudgePacket[]
   allPackets: JudgePacket[]
   selectedJudgeId: string
-  onJudgeChange: (membershipId: string) => void
+  onJudgeChange: (assigneeId: string) => void
   timezone: string
 }) {
   return (
@@ -775,7 +796,7 @@ function JudgePackets({
           >
             <option value="all">All judges ({allPackets.length} sheets)</option>
             {allPackets.map((packet) => (
-              <option key={packet.membershipId} value={packet.membershipId}>
+              <option key={packet.assigneeId} value={packet.assigneeId}>
                 {packet.name} ({packet.assignments.length} heats)
               </option>
             ))}
@@ -791,7 +812,7 @@ function JudgePackets({
           <div className="space-y-5 print:hidden">
             {packets.map((packet) => (
               <JudgePacketCard
-                key={packet.membershipId}
+                key={packet.assigneeId}
                 packet={packet}
                 timezone={timezone}
               />
@@ -800,7 +821,7 @@ function JudgePackets({
           <div className="hidden text-black print:block">
             {packets.map((packet, index) => (
               <PrintJudgePacket
-                key={packet.membershipId}
+                key={packet.assigneeId}
                 packet={packet}
                 competitionName={competitionName}
                 timezone={timezone}

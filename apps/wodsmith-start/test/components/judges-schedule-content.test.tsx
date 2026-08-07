@@ -19,7 +19,7 @@ describe("JudgesScheduleContent", () => {
     ).toBeInTheDocument()
     expect(screen.getAllByText("Team Thunder").length).toBeGreaterThan(0)
     expect(
-      screen.getAllByText("Avery Athlete / Riley Runner").length,
+      screen.getAllByText("Avery Athlete, Riley Runner").length,
     ).toBeGreaterThan(0)
     expect(screen.getByText("Floor: Rae Reserve")).toBeInTheDocument()
     expect(
@@ -99,6 +99,52 @@ describe("JudgesScheduleContent", () => {
       screen.getAllByRole("heading", { name: "Jamie Judge" }).length,
     ).toBeGreaterThan(0)
   })
+
+  it("keeps invitation-backed judges in separate printable packets", () => {
+    const events = scheduleEvents()
+    const heat = events[0]?.heats[0]
+    if (heat) {
+      heat.judges = [
+        {
+          assignmentId: "jha_invite_1",
+          laneNumber: null,
+          assigneeId: "tinv_judge_1",
+          membershipId: null,
+          invitationId: "tinv_judge_1",
+          userId: "",
+          firstName: "Taylor Temp",
+          lastName: null,
+          position: "judge",
+        },
+        {
+          assignmentId: "jha_invite_2",
+          laneNumber: null,
+          assigneeId: "tinv_judge_2",
+          membershipId: null,
+          invitationId: "tinv_judge_2",
+          userId: "",
+          firstName: "Jordan Guest",
+          lastName: null,
+          position: "judge",
+        },
+      ]
+    }
+
+    render(
+      <JudgesScheduleContent
+        competitionName="Mountain Throwdown"
+        events={events}
+        timezone="America/Denver"
+      />,
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Judge packets" }))
+
+    expect(screen.getByLabelText("Print sheets for")).toHaveTextContent(
+      "All judges (2 sheets)",
+    )
+    expect(screen.getAllByText("Taylor Temp").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("Jordan Guest").length).toBeGreaterThan(0)
+  })
 })
 
 function scheduleEvents(): JudgesScheduleEvent[] {
@@ -126,7 +172,9 @@ function scheduleEvents(): JudgesScheduleEvent[] {
             {
               assignmentId: "jha_1",
               laneNumber: 1,
+              assigneeId: "tmem_judge_1",
               membershipId: "tmem_judge_1",
+              invitationId: null,
               userId: "user_judge_1",
               firstName: "Jamie",
               lastName: "Judge",
@@ -135,7 +183,9 @@ function scheduleEvents(): JudgesScheduleEvent[] {
             {
               assignmentId: "jha_2",
               laneNumber: 2,
+              assigneeId: "tmem_judge_2",
               membershipId: "tmem_judge_2",
+              invitationId: null,
               userId: "user_judge_2",
               firstName: "Morgan",
               lastName: "Marshal",
@@ -144,7 +194,9 @@ function scheduleEvents(): JudgesScheduleEvent[] {
             {
               assignmentId: "jha_3",
               laneNumber: null,
+              assigneeId: "tmem_judge_3",
               membershipId: "tmem_judge_3",
+              invitationId: null,
               userId: "user_judge_3",
               firstName: "Rae",
               lastName: "Reserve",
