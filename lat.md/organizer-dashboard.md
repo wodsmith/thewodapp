@@ -243,6 +243,12 @@ When the selected event has no athlete heats, the judge assignment and rotation 
 
 The volunteers/judges and judges-ai route loaders load all per-event judge data (heat assignments, rotations + event defaults, version history, active versions) through one batched call — [[apps/wodsmith-start/src/server-fns/judge-scheduling-fns.ts#getJudgeSchedulingDataForEventsFn]] — which issues a constant number of `inArray` queries for any event count and returns records keyed by trackWorkoutId. This replaced four per-event server-fn fan-outs (4N round trips, ~10N queries). The single-event fns (`getJudgeHeatAssignmentsFn`, `getRotationsForEventFn`, `getVersionHistoryFn`, `getActiveVersionFn`) remain for targeted refreshes. The "adjust for occupied lanes" feature (`adjustRotationsForOccupiedLanesFn`) splits rotations to skip unoccupied lanes; cohost routes use `cohostAdjustRotationsForOccupiedLanesFn` via the `onAdjustRotationsForOccupiedLanes` override prop on `RotationTimeline`.
 
+### Judge Schedule Printouts
+
+The print center produces a master lane grid and paper run sheets for every assigned judge, so event-day staff can operate without signing in.
+
+The printable schedule at `/compete/{slug}/judges-schedule` is linked from [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/-components/judges/judge-scheduling-container.tsx#JudgeSchedulingContainer]], [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/-components/quick-actions-heats.tsx#QuickActionsHeats]], and the organizer or volunteer actions in [[apps/wodsmith-start/src/components/competition-hero.tsx#CompetitionHero]]. [[apps/wodsmith-start/src/server-fns/judge-scheduling-fns.ts#getJudgesScheduleDataFn]] batches active assignments, heat lanes, team registrations, complete active team rosters, and workout briefs. [[apps/wodsmith-start/src/routes/compete/$slug/-components/judges-schedule-content.tsx#JudgesScheduleContent]] offers two print modes: a scrollable heat-by-lane grid with judge, team or athlete, roster, division, time, venue, and floating floor judges; and judge packets that can print all judges or one selected judge. Every printed master event and personal packet carries a compact WODsmith Compete brand mark. Printed packets use a compact assignment table plus one brief per workout so each judge starts on a fresh page without repeated workout text.
+
 ### AI Judge Scheduling
 
 Optional AI-augmented entry point that proposes judge rotations for organizer review.

@@ -78,7 +78,7 @@ function JudgesSchedulePage() {
 
           <Button onClick={handlePrint}>
             <Printer className="mr-2 h-4 w-4" />
-            Print Schedule
+            Print current view
           </Button>
         </div>
       </div>

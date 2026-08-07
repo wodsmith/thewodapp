@@ -97,7 +97,7 @@ Control when athletes can see their heat assignments:
 
 When set to Draft, athletes cannot see heat assignments on the public schedule.
 
-<!-- FEATURE NOT FOUND: Export Heat Sheets to PDF/Print -->
+For judge-facing paper schedules, open **Volunteers → Judge Schedule → View printable schedule**. The master grid prints all heats and lanes; judge packets print one personalized run sheet per judge.
 <!-- FEATURE NOT FOUND: Automatic adjustment of subsequent heat times -->
 
 ## Schedule Overview

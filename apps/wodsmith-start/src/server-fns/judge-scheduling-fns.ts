@@ -1289,12 +1289,20 @@ export interface JudgesScheduleHeat {
   laneAssignments: Array<{
     laneNumber: number
     division: { id: string; label: string } | null
+    registration: {
+      id: string
+      teamName: string | null
+      athleteNames: string[]
+    } | null
   }>
 }
 
 export interface JudgesScheduleEvent {
   trackWorkoutId: string
   eventName: string
+  workoutDescription: string
+  workoutScheme: string
+  timeCapSeconds: number | null
   trackOrder: number
   heats: JudgesScheduleHeat[]
 }
@@ -1504,6 +1512,9 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
             .select({
               id: workouts.id,
               name: workouts.name,
+              description: workouts.description,
+              scheme: workouts.scheme,
+              timeCap: workouts.timeCap,
             })
             .from(workouts)
             .where(inArray(workouts.id, workoutIds))
@@ -1534,12 +1545,95 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
             .select({
               id: competitionRegistrationsTable.id,
               divisionId: competitionRegistrationsTable.divisionId,
+              userId: competitionRegistrationsTable.userId,
+              teamName: competitionRegistrationsTable.teamName,
+              athleteTeamId: competitionRegistrationsTable.athleteTeamId,
             })
             .from(competitionRegistrationsTable)
             .where(inArray(competitionRegistrationsTable.id, registrationIds))
         : []
     const registrationDivisionMap = new Map(
       registrations.map((r) => [r.id, r.divisionId]),
+    )
+
+    // Resolve the full athlete roster for every lane assignment. Team
+    // registrations use active athlete-team memberships; individual
+    // registrations fall back to the registration owner.
+    const athleteTeamIds = [
+      ...new Set(
+        registrations
+          .map((registration) => registration.athleteTeamId)
+          .filter((id): id is string => !!id),
+      ),
+    ]
+    const athleteMemberships =
+      athleteTeamIds.length > 0
+        ? await db
+            .select({
+              teamId: teamMembershipTable.teamId,
+              userId: teamMembershipTable.userId,
+            })
+            .from(teamMembershipTable)
+            .where(
+              and(
+                inArray(teamMembershipTable.teamId, athleteTeamIds),
+                eq(teamMembershipTable.isActive, true),
+              ),
+            )
+        : []
+    const athleteUserIds = [
+      ...new Set([
+        ...registrations.map((registration) => registration.userId),
+        ...athleteMemberships.map((membership) => membership.userId),
+      ]),
+    ]
+    const athleteUsers =
+      athleteUserIds.length > 0
+        ? await db
+            .select({
+              id: userTable.id,
+              firstName: userTable.firstName,
+              lastName: userTable.lastName,
+            })
+            .from(userTable)
+            .where(inArray(userTable.id, athleteUserIds))
+        : []
+    const athleteUserMap = new Map(
+      athleteUsers.map((athlete) => [athlete.id, athlete]),
+    )
+    const athleteUserIdsByTeam = new Map<string, string[]>()
+    for (const membership of athleteMemberships) {
+      const existing = athleteUserIdsByTeam.get(membership.teamId) ?? []
+      existing.push(membership.userId)
+      athleteUserIdsByTeam.set(membership.teamId, existing)
+    }
+    const registrationMap = new Map(
+      registrations.map((registration) => {
+        const teamUserIds = registration.athleteTeamId
+          ? (athleteUserIdsByTeam.get(registration.athleteTeamId) ?? [])
+          : []
+        const rosterUserIds = [
+          ...new Set([registration.userId, ...teamUserIds]),
+        ]
+        const athleteNames = rosterUserIds
+          .map((userId) => {
+            const athlete = athleteUserMap.get(userId)
+            return [athlete?.firstName, athlete?.lastName]
+              .filter(Boolean)
+              .join(" ")
+          })
+          .filter(Boolean)
+          .sort((a, b) => a.localeCompare(b))
+
+        return [
+          registration.id,
+          {
+            id: registration.id,
+            teamName: registration.teamName,
+            athleteNames,
+          },
+        ]
+      }),
     )
 
     // Fetch division labels for registration divisions
@@ -1600,6 +1694,9 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
         event = {
           trackWorkoutId: heat.trackWorkoutId,
           eventName,
+          workoutDescription: workout?.description ?? "",
+          workoutScheme: workout?.scheme ?? "",
+          timeCapSeconds: workout?.timeCap ?? null,
           trackOrder: trackWorkout.trackOrder,
           heats: [],
         }
@@ -1630,6 +1727,9 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
         return {
           laneNumber: la.laneNumber,
           division: division || null,
+          registration: la.registrationId
+            ? (registrationMap.get(la.registrationId) ?? null)
+            : null,
         }
       })
 
