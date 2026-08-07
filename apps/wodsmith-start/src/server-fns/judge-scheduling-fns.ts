@@ -19,10 +19,12 @@ import {
   judgeAssignmentVersionsTable,
   judgeHeatAssignmentsTable,
   scalingLevelsTable,
+  teamInvitationTable,
   teamMembershipTable,
   trackWorkoutsTable,
   userTable,
   VOLUNTEER_ROLE_TYPES,
+  workoutScalingDescriptionsTable,
   workouts,
 } from "@/db/schema"
 import { createHeatVolunteerId } from "@/db/schemas/common"
@@ -31,7 +33,11 @@ import type {
   VolunteerAvailability,
   VolunteerMembershipMetadata,
 } from "@/db/schemas/volunteers"
-import { requireTeamPermission } from "@/utils/team-auth"
+import {
+  hasTeamPermission,
+  isTeamMember,
+  requireTeamPermission,
+} from "@/utils/team-auth"
 import {
   type ClonedJudgeAssignmentForRevision,
   createPublishedJudgeAssignmentRevision,
@@ -124,6 +130,34 @@ function parseVolunteerMetadata(
     return JSON.parse(metadata) as VolunteerMembershipMetadata
   } catch {
     return null
+  }
+}
+
+function parsePendingTeammateNames(pendingTeammates: string | null): string[] {
+  if (!pendingTeammates) return []
+
+  try {
+    const parsed = JSON.parse(pendingTeammates) as unknown
+    if (!Array.isArray(parsed)) return []
+
+    return parsed
+      .map((teammate) => {
+        if (!teammate || typeof teammate !== "object") return ""
+        const { firstName, lastName, email } = teammate as {
+          firstName?: unknown
+          lastName?: unknown
+          email?: unknown
+        }
+        const name = [firstName, lastName]
+          .filter((part): part is string => typeof part === "string")
+          .map((part) => part.trim())
+          .filter(Boolean)
+          .join(" ")
+        return name || (typeof email === "string" ? email.trim() : "")
+      })
+      .filter(Boolean)
+  } catch {
+    return []
   }
 }
 
@@ -1280,7 +1314,9 @@ export interface JudgesScheduleHeat {
   judges: Array<{
     assignmentId: string
     laneNumber: number | null
-    membershipId: string
+    assigneeId: string
+    membershipId: string | null
+    invitationId: string | null
     userId: string
     firstName: string | null
     lastName: string | null
@@ -1289,12 +1325,21 @@ export interface JudgesScheduleHeat {
   laneAssignments: Array<{
     laneNumber: number
     division: { id: string; label: string } | null
+    workoutDescription: string | null
+    registration: {
+      id: string
+      teamName: string | null
+      athleteNames: string[]
+    } | null
   }>
 }
 
 export interface JudgesScheduleEvent {
   trackWorkoutId: string
   eventName: string
+  workoutDescription: string
+  workoutScheme: string
+  timeCapSeconds: number | null
   trackOrder: number
   heats: JudgesScheduleHeat[]
 }
@@ -1343,9 +1388,7 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<{ events: JudgesScheduleEvent[] }> => {
     const db = getDb()
 
-    // No auth required - accessible to anyone with the direct link.
-    // Validate that the provided team IDs match the competition to prevent
-    // using arbitrary team context to access unrelated competition data.
+    // Validate the caller-provided team context before checking access.
     const [competition] = await db
       .select({
         organizingTeamId: competitionsTable.organizingTeamId,
@@ -1363,6 +1406,20 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
       competition.competitionTeamId !== data.competitionTeamId
     ) {
       return { events: [] }
+    }
+
+    const canManageCompetition = await hasTeamPermission(
+      competition.organizingTeamId,
+      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+    )
+    const isCompetitionTeamMember = competition.competitionTeamId
+      ? await isTeamMember(competition.competitionTeamId)
+      : false
+
+    if (!canManageCompetition && !isCompetitionTeamMember) {
+      throw new Error(
+        "FORBIDDEN: You don't have permission to view judge schedules",
+      )
     }
 
     // Get all heats for this competition with venues and divisions
@@ -1442,6 +1499,28 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
         : []
     const membershipMap = new Map(memberships.map((m) => [m.id, m]))
 
+    const invitationIds = [
+      ...new Set(
+        judgeAssignments
+          .map((assignment) => assignment.invitationId)
+          .filter((id): id is string => id !== null),
+      ),
+    ]
+    const invitations =
+      invitationIds.length > 0
+        ? await db
+            .select({
+              id: teamInvitationTable.id,
+              email: teamInvitationTable.email,
+              metadata: teamInvitationTable.metadata,
+            })
+            .from(teamInvitationTable)
+            .where(inArray(teamInvitationTable.id, invitationIds))
+        : []
+    const invitationMap = new Map(
+      invitations.map((invitation) => [invitation.id, invitation]),
+    )
+
     const userIds = [...new Set(memberships.map((m) => m.userId))]
     const users =
       userIds.length > 0
@@ -1504,6 +1583,9 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
             .select({
               id: workouts.id,
               name: workouts.name,
+              description: workouts.description,
+              scheme: workouts.scheme,
+              timeCap: workouts.timeCap,
             })
             .from(workouts)
             .where(inArray(workouts.id, workoutIds))
@@ -1534,12 +1616,103 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
             .select({
               id: competitionRegistrationsTable.id,
               divisionId: competitionRegistrationsTable.divisionId,
+              userId: competitionRegistrationsTable.userId,
+              teamName: competitionRegistrationsTable.teamName,
+              athleteTeamId: competitionRegistrationsTable.athleteTeamId,
+              pendingTeammates: competitionRegistrationsTable.pendingTeammates,
             })
             .from(competitionRegistrationsTable)
             .where(inArray(competitionRegistrationsTable.id, registrationIds))
         : []
     const registrationDivisionMap = new Map(
       registrations.map((r) => [r.id, r.divisionId]),
+    )
+
+    // Resolve the full athlete roster for every lane assignment. Team
+    // registrations use active athlete-team memberships; individual
+    // registrations fall back to the registration owner.
+    const athleteTeamIds = [
+      ...new Set(
+        registrations
+          .map((registration) => registration.athleteTeamId)
+          .filter((id): id is string => !!id),
+      ),
+    ]
+    const athleteMemberships =
+      athleteTeamIds.length > 0
+        ? await db
+            .select({
+              teamId: teamMembershipTable.teamId,
+              userId: teamMembershipTable.userId,
+            })
+            .from(teamMembershipTable)
+            .where(
+              and(
+                inArray(teamMembershipTable.teamId, athleteTeamIds),
+                eq(teamMembershipTable.isActive, true),
+              ),
+            )
+        : []
+    const athleteUserIds = [
+      ...new Set([
+        ...registrations.map((registration) => registration.userId),
+        ...athleteMemberships.map((membership) => membership.userId),
+      ]),
+    ]
+    const athleteUsers =
+      athleteUserIds.length > 0
+        ? await db
+            .select({
+              id: userTable.id,
+              firstName: userTable.firstName,
+              lastName: userTable.lastName,
+            })
+            .from(userTable)
+            .where(inArray(userTable.id, athleteUserIds))
+        : []
+    const athleteUserMap = new Map(
+      athleteUsers.map((athlete) => [athlete.id, athlete]),
+    )
+    const athleteUserIdsByTeam = new Map<string, string[]>()
+    for (const membership of athleteMemberships) {
+      const existing = athleteUserIdsByTeam.get(membership.teamId) ?? []
+      existing.push(membership.userId)
+      athleteUserIdsByTeam.set(membership.teamId, existing)
+    }
+    const registrationMap = new Map(
+      registrations.map((registration) => {
+        const teamUserIds = registration.athleteTeamId
+          ? (athleteUserIdsByTeam.get(registration.athleteTeamId) ?? [])
+          : []
+        const rosterUserIds = [
+          ...new Set(
+            teamUserIds.length > 0 ? teamUserIds : [registration.userId],
+          ),
+        ]
+        const confirmedAthleteNames = rosterUserIds
+          .map((userId) => {
+            const athlete = athleteUserMap.get(userId)
+            return [athlete?.firstName, athlete?.lastName]
+              .filter(Boolean)
+              .join(" ")
+          })
+          .filter(Boolean)
+        const athleteNames = [
+          ...new Set([
+            ...confirmedAthleteNames,
+            ...parsePendingTeammateNames(registration.pendingTeammates),
+          ]),
+        ].sort((a, b) => a.localeCompare(b))
+
+        return [
+          registration.id,
+          {
+            id: registration.id,
+            teamName: registration.teamName,
+            athleteNames,
+          },
+        ]
+      }),
     )
 
     // Fetch division labels for registration divisions
@@ -1565,6 +1738,32 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
         divisionMap.set(div.id, div)
       }
     }
+
+    const scalingDescriptions =
+      workoutIds.length > 0 && regDivisionIds.length > 0
+        ? await db
+            .select({
+              workoutId: workoutScalingDescriptionsTable.workoutId,
+              scalingLevelId: workoutScalingDescriptionsTable.scalingLevelId,
+              description: workoutScalingDescriptionsTable.description,
+            })
+            .from(workoutScalingDescriptionsTable)
+            .where(
+              and(
+                inArray(workoutScalingDescriptionsTable.workoutId, workoutIds),
+                inArray(
+                  workoutScalingDescriptionsTable.scalingLevelId,
+                  regDivisionIds,
+                ),
+              ),
+            )
+        : []
+    const scalingDescriptionMap = new Map(
+      scalingDescriptions.map((description) => [
+        `${description.workoutId}:${description.scalingLevelId}`,
+        description.description,
+      ]),
+    )
 
     // Group judge assignments by heat
     const judgesByHeat = new Map<string, Array<(typeof judgeAssignments)[0]>>()
@@ -1600,6 +1799,9 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
         event = {
           trackWorkoutId: heat.trackWorkoutId,
           eventName,
+          workoutDescription: workout?.description ?? "",
+          workoutScheme: workout?.scheme ?? "",
+          timeCapSeconds: workout?.timeCap ?? null,
           trackOrder: trackWorkout.trackOrder,
           heats: [],
         }
@@ -1611,12 +1813,20 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
       const judges = heatJudges.map((ja) => {
         const membership = membershipMap.get(ja.membershipId ?? "")
         const user = membership ? userMap.get(membership.userId) : null
+        const invitation = invitationMap.get(ja.invitationId ?? "")
+        const invitationMetadata = parseVolunteerMetadata(
+          invitation?.metadata ?? null,
+        )
+        const invitationName =
+          invitationMetadata?.signupName?.trim() || invitation?.email || null
         return {
           assignmentId: ja.id,
           laneNumber: ja.laneNumber,
-          membershipId: ja.membershipId ?? "",
+          assigneeId: ja.membershipId ?? ja.invitationId ?? ja.id,
+          membershipId: ja.membershipId,
+          invitationId: ja.invitationId,
           userId: membership?.userId || "",
-          firstName: user?.firstName || null,
+          firstName: user?.firstName || invitationName,
           lastName: user?.lastName || null,
           position: ja.position,
         }
@@ -1630,6 +1840,15 @@ export const getJudgesScheduleDataFn = createServerFn({ method: "GET" })
         return {
           laneNumber: la.laneNumber,
           division: division || null,
+          workoutDescription:
+            trackWorkout.workoutId && regDivisionId
+              ? (scalingDescriptionMap.get(
+                  `${trackWorkout.workoutId}:${regDivisionId}`,
+                ) ?? null)
+              : null,
+          registration: la.registrationId
+            ? (registrationMap.get(la.registrationId) ?? null)
+            : null,
         }
       })
 
