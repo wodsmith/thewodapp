@@ -14,7 +14,7 @@ Athletes pay registration fees via Stripe Checkout, handled by `src/workflows/st
 
 Competitions set a `defaultRegistrationFeeCents` (default $0 = free). Division-specific fees can override the default. The checkout flow creates a Stripe session, redirects the athlete, and a webhook confirms payment.
 
-Stripe Checkout sessions do not enable Stripe-hosted promotion-code entry. WODsmith coupons are collected before checkout and, when applied, are attached to the session as a transient Stripe coupon discount. The destination-charge application fee is computed from undiscounted totals (coupons are organizer-funded) but clamped to the post-discount charge by [[apps/wodsmith-start/src/server/commerce/utils.ts#calculateApplicationFeeCents]] — Stripe rejects sessions whose fee exceeds the amount charged, reachable when a large coupon meets organizer-absorbed fees. The clamp is logged for reconciliation.
+Stripe Checkout sessions do not enable Stripe-hosted promotion-code entry. WODsmith coupons are collected before checkout and allocated across registration purchase rows before the session is created; merch remains outside the discount base. The destination-charge application fee is the sum of the post-discount purchase allocations. Coupon redemption is recorded once when the whole session settles.
 
 ## Coupons
 
@@ -32,7 +32,7 @@ Athletes enter WODsmith coupon codes before leaving for Stripe Checkout.
 
 Organizers sell merch (e.g., event tees with sizes) inside the registration flow. Selections become extra line items in the same Stripe Checkout Session and extra `ADDON` purchase rows; pickup is at the venue.
 
-The catalog lives in [[apps/wodsmith-start/src/db/schemas/competition-products.ts#competitionProductsTable]] and [[apps/wodsmith-start/src/db/schemas/competition-products.ts#competitionProductVariantsTable]]. Each add-on line item is its own `commerce_purchases` row (with `variantId` + `quantity` columns) referencing a lazily created `commerce_products` row (`type=ADDON`, `resourceId` = catalog product id). Organizer CRUD, the athlete-facing catalog, and fulfillment reports (counts-by-variant + pickup list) live in `src/server-fns/competition-addon-fns.ts`. The organizer Revenue page and series revenue rollups stay registration-only (add-on purchases are excluded by their null divisionId); merch revenue is reported on the Merch page.
+The catalog lives in [[packages/wodsmith-db/src/schemas/competition-products.ts#competitionProductsTable]] and [[packages/wodsmith-db/src/schemas/competition-products.ts#competitionProductVariantsTable]]. Each add-on line item is its own `commerce_purchases` row (with `variantId` + `quantity` columns) referencing a lazily created `commerce_products` row (`type=ADDON`, `resourceId` = catalog product id). Organizer CRUD, the athlete-facing catalog, and fulfillment reports (counts-by-variant + pickup list) live in `src/server-fns/competition-addon-fns.ts`. The organizer Revenue page and series revenue rollups stay registration-only (add-on purchases are excluded by their null divisionId); merch revenue is reported on the Merch page.
 
 ### Entitlement Gate
 
@@ -44,19 +44,55 @@ Server functions are the authority: CRUD mutations throw without the feature ([[
 
 Merch pays the percentage platform fee but not the $2 fixed fee, and follows the competition's fee pass-through configuration.
 
-Pricing is per-unit all-in ([[apps/wodsmith-start/src/server/commerce/addons.ts#getAddonUnitBreakdown]]) multiplied by quantity ([[apps/wodsmith-start/src/server/commerce/addons.ts#multiplyFeeBreakdown]]), so the form summary, Stripe line item, and purchase row are cent-identical. Coupons never discount merch: the discount base stays the registration subtotal only. A free division plus a paid add-on routes through the Stripe path (the all-free shortcut requires zero add-ons).
+[[apps/wodsmith-start/src/utils/checkout-fees.ts#calculateCheckoutFees]] prices the complete session and allocates the single Stripe percentage-plus-fixed processing fee across its purchase rows without losing cents. Merch quantity is multiplied into its base price before this calculation, so Stripe's fixed fee is never repeated per shirt or per line. The registration form uses the same helper as the server. Coupons never discount merch: the discount base stays the registration subtotal only. A free division plus a paid add-on routes through Stripe, and the free registration remains pending until payment succeeds.
 
 ### Availability
 
-Two optional controls per product: an `availableUntil` order-by deadline and per-variant stock; deadline-only is the recommended default.
+Products support an optional order deadline, per-variant stock, and a per-athlete purchase limit.
+
+The deadline-only setup is the recommended default. `maxPerAthlete` includes completed purchases and unexpired pending checkout reservations across every variant, not only the current request.
 
 The deadline is a `YYYY-MM-DD` string evaluated end-of-day in the competition's IANA timezone (same semantics as `registrationClosesAt`), checked at checkout creation by [[apps/wodsmith-start/src/utils/addon-availability.ts#isAddonPurchasable]] with no webhook re-check — Stripe's 30-minute session expiry bounds the race. Stock (`stockQty`/`soldQty` on variants) gets a soft check at submit and an authoritative claim in the workflow.
 
-### Checkout Workflow Branch
+### Checkout Session Settlement
 
-ADDON purchases complete without creating registrations: the checkout workflow branches on the purchase's product type before the registration idempotency checks.
+One webhook event reconciles every registration and add-on purchase in the Stripe Checkout Session as a unit.
 
-[[apps/wodsmith-start/src/workflows/stripe-checkout-workflow.ts#completeAddonPurchase]] claims variant stock and flips the purchase PENDING→COMPLETED inside one transaction: the conditional status update is the idempotency gate, so a workflow step retry (or concurrent run) can never claim stock twice — either both writes committed or neither did. A failed stock claim (zero rows affected = oversold during payment) marks the purchase FAILED and partial-refunds just that line with `reverse_transfer`; the add-on is also refunded when every registration purchase in the same session already FAILED (capacity auto-refund grouping). Completion records a `PAYMENT_COMPLETED` financial event. Per-purchase workflows run in parallel, so a registration that fails *after* the add-on completes keeps the add-on sold — rare, logged, accepted for v1.
+[[apps/wodsmith-start/src/workflows/stripe-checkout-workflow.ts#processCheckoutSession]] creates or resolves every registration first, including zero-dollar placeholder purchases. Merch completes only after at least one registration succeeds. If all registrations fail, every session line is refunded by its own recorded amount; partial registration failure refunds only that registration line.
+
+[[apps/wodsmith-start/src/workflows/stripe-checkout-workflow.ts#completeAddonPurchase]] claims variant stock and flips the purchase PENDING→COMPLETED in one transaction. The conditional status update is the idempotency gate, so retries cannot claim stock twice. Oversold merch gets a line-level refund. [[apps/wodsmith-start/src/workflows/stripe-checkout-workflow.ts#refundCheckoutPurchase]] calls Stripe before marking an add-on failed, uses a stable per-purchase idempotency key, and rethrows Stripe errors for workflow retry. Destination-charge refunds reverse the organizer transfer.
+
+### Session-level settlement tests
+
+These focused tests protect ordering, transaction fee allocation, and retry-safe refunds across a multi-line checkout.
+
+#### Registration completes before merch
+
+The workflow settles a successful registration before it completes the attached add-on purchase.
+
+#### Free registration waits for paid merch
+
+A zero-dollar division included with paid merch is represented by a pending purchase and is not registered before Stripe confirms payment.
+
+#### Retries preserve registration notifications
+
+If a later merch or refund operation makes settlement retry after registration completed, the workflow reconstructs its registration result so invite and notification steps still run.
+
+#### Failed registration refunds every session line
+
+When no registration line succeeds, the workflow issues one exact partial refund for each registration and add-on purchase in the session.
+
+#### Refund failures remain retryable
+
+A Stripe refund error leaves an add-on pending and escapes the workflow step so its durable retry can attempt the same idempotent refund again.
+
+#### Oversold merch refunds only its line
+
+An add-on that loses the stock race is failed and refunded by its own amount without refunding an otherwise successful registration.
+
+#### One transaction fee per checkout
+
+The fee calculator applies Stripe's fixed processing component once to the complete Checkout Session and allocates it exactly across purchase rows.
 
 ## Purchase Transfers
 

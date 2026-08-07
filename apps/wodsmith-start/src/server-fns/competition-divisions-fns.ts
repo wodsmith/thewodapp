@@ -29,8 +29,8 @@ import { getSessionFromCookie } from "@/utils/auth"
 import { calculateCompetitionCapacity } from "@/utils/competition-capacity"
 import {
   PENDING_PURCHASE_MAX_AGE_MINUTES,
-  parseCompetitionSettings,
   type PublicCompetitionDivision,
+  parseCompetitionSettings,
 } from "@/utils/competition-settings"
 import { calculateDivisionCapacity } from "@/utils/division-capacity"
 
@@ -39,9 +39,9 @@ import { calculateDivisionCapacity } from "@/utils/division-capacity"
 // Re-exported here to keep existing importers working.
 export {
   PENDING_PURCHASE_MAX_AGE_MINUTES,
-  parseCompetitionSettings,
   type PublicCompetitionDivision,
   type PublicDivisionsCompetitionInput,
+  parseCompetitionSettings,
 } from "@/utils/competition-settings"
 
 // ============================================================================

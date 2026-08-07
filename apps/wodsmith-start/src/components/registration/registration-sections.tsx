@@ -36,13 +36,15 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { Competition, ScalingLevel, Team, Waiver } from "@/db/schema"
+import type { FeeConfiguration } from "@/server/commerce/fee-calculator"
 import type { PublicCompetitionDivision } from "@/server-fns/competition-divisions-fns"
 import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
+import { allocateCents, calculateCheckoutFees } from "@/utils/checkout-fees"
 import { cn } from "@/utils/cn"
 import type { CompetitionCapacityResult } from "@/utils/competition-capacity"
 import { isSameDateString } from "@/utils/date-utils"
 import { AffiliateCombobox } from "./affiliate-combobox"
-import { FeeBreakdown } from "./fee-breakdown"
+import { FeeBreakdown, type FeeData } from "./fee-breakdown"
 import type { TeamEntry, Teammate } from "./use-registration-form"
 
 // ─── utils ──────────────────────────────────────────────────────────────────
@@ -725,8 +727,9 @@ export interface AddonLineItem {
   name: string
   variantLabel: string | null
   quantity: number
-  /** All-in line total (per-unit charge × quantity) */
+  /** Organizer-set price multiplied by quantity, before checkout fees. */
   lineTotalCents: number
+  feeConfig?: FeeConfiguration
 }
 
 export function FeeSummarySection({
@@ -741,7 +744,7 @@ export function FeeSummarySection({
   competitionId: string
   selectedDivisionIds: string[]
   getDivision: (id: string) => ScalingLevel | undefined
-  divisionFees: Map<string, number>
+  divisionFees: Map<string, FeeData>
   onFeesLoaded: (
     divisionId: string,
     fees: { isFree: boolean; totalChargeCents?: number } | null,
@@ -752,13 +755,9 @@ export function FeeSummarySection({
   const isMulti = selectedDivisionIds.length > 1
   const hasSelectedDivisions = selectedDivisionIds.length > 0
   const hasAddons = addonLineItems.length > 0
-  const addonTotalCents = addonLineItems.reduce(
-    (sum, item) => sum + item.lineTotalCents,
-    0,
-  )
   const selectedFeeValues = selectedDivisionIds
     .map((divisionId) => divisionFees.get(divisionId))
-    .filter((fee): fee is number => fee !== undefined)
+    .filter((fee): fee is FeeData => fee !== undefined)
   const hasLoadedSelectedFees =
     selectedFeeValues.length === selectedDivisionIds.length
 
@@ -793,6 +792,7 @@ export function FeeSummarySection({
                 competitionId={competitionId}
                 divisionId={divisionId}
                 hideTotal={hideDivTotal}
+                hideFees={hideDivTotal}
                 onFeesLoaded={onFeesLoaded}
               />
             </div>
@@ -800,30 +800,63 @@ export function FeeSummarySection({
         })}
         {hasSelectedDivisions && hasLoadedSelectedFees
           ? (() => {
-              const subtotal = selectedFeeValues.reduce((sum, c) => sum + c, 0)
+              const registrationBaseCents = selectedFeeValues.reduce(
+                (sum, fees) => sum + (fees.registrationFeeCents ?? 0),
+                0,
+              )
               if (!activeCoupon && !hasAddons) {
                 if (!isMulti) return null
+              }
+              const discount = activeCoupon
+                ? Math.min(activeCoupon.amountOffCents, registrationBaseCents)
+                : 0
+              const feeConfig =
+                selectedFeeValues.find((fees) => fees.feeConfig)?.feeConfig ??
+                addonLineItems.find((item) => item.feeConfig)?.feeConfig
+              if (!feeConfig) {
+                const fallbackTotal = selectedFeeValues.reduce(
+                  (sum, fees) => sum + (fees.totalChargeCents ?? 0),
+                  0,
+                )
                 return (
                   <div className="flex justify-between font-medium pt-2 border-t">
                     <span>Total</span>
                     <span className="text-lg">
-                      ${(subtotal / 100).toFixed(2)}
+                      ${(fallbackTotal / 100).toFixed(2)}
                     </span>
                   </div>
                 )
               }
-              const discount = activeCoupon
-                ? Math.min(activeCoupon.amountOffCents, subtotal)
-                : 0
-              // Coupons only ever discount registration fees — merch is
-              // always full price (matches the server's discount base).
-              const total = subtotal - discount + addonTotalCents
+              const registrationDiscounts = allocateCents(
+                discount,
+                selectedFeeValues.map((fees) => fees.registrationFeeCents ?? 0),
+              )
+              const checkout = calculateCheckoutFees(
+                [
+                  ...selectedFeeValues.map((fees, index) => ({
+                    key: `registration:${selectedDivisionIds[index]}`,
+                    basePriceCents: fees.registrationFeeCents ?? 0,
+                    discountCents: registrationDiscounts[index] ?? 0,
+                    platformFixedCents:
+                      (fees.registrationFeeCents ?? 0) === 0 ? 0 : undefined,
+                  })),
+                  ...addonLineItems.map((item) => ({
+                    key: item.key,
+                    basePriceCents: item.lineTotalCents,
+                    platformFixedCents: 0,
+                  })),
+                ],
+                feeConfig,
+              )
+              const checkoutLines = new Map(
+                checkout.lines.map((line) => [line.key, line]),
+              )
               return (
                 <>
                   {(isMulti || hasAddons) && (
                     <div className="flex justify-between text-sm pt-2 border-t">
                       <span>Registration subtotal</span>
-                      <span>${(subtotal / 100).toFixed(2)}</span>
+                      <span>${(registrationBaseCents / 100).toFixed(2)}</span>
                     </div>
                   )}
                   {activeCoupon && (
@@ -845,12 +878,46 @@ export function FeeSummarySection({
                         {item.variantLabel ? ` (${item.variantLabel})` : ""}
                         {item.quantity > 1 ? ` × ${item.quantity}` : ""}
                       </span>
-                      <span>${(item.lineTotalCents / 100).toFixed(2)}</span>
+                      <span>
+                        $
+                        {(
+                          (checkoutLines.get(item.key)?.registrationFeeCents ??
+                            item.lineTotalCents) / 100
+                        ).toFixed(2)}
+                      </span>
                     </div>
                   ))}
+                  {checkout.totalPlatformFeeCents > 0 && (
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>
+                        Platform fee
+                        {!feeConfig.passPlatformFeesToCustomer
+                          ? " (included)"
+                          : ""}
+                      </span>
+                      <span>
+                        ${(checkout.totalPlatformFeeCents / 100).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+                  {checkout.totalStripeFeeCents > 0 && (
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>
+                        Processing fee
+                        {!feeConfig.passStripeFeesToCustomer
+                          ? " (included)"
+                          : ""}
+                      </span>
+                      <span>
+                        ${(checkout.totalStripeFeeCents / 100).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between font-medium pt-2 border-t">
                     <span>Total</span>
-                    <span className="text-lg">${(total / 100).toFixed(2)}</span>
+                    <span className="text-lg">
+                      ${(checkout.totalChargeCents / 100).toFixed(2)}
+                    </span>
                   </div>
                 </>
               )

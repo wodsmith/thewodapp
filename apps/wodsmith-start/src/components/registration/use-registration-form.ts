@@ -22,6 +22,7 @@ import {
   setCouponSession,
 } from "@/utils/coupon-cookie"
 import { addonSelectionKey } from "./addons-section"
+import type { FeeData } from "./fee-breakdown"
 import type { AddonLineItem } from "./registration-sections"
 
 export interface Teammate {
@@ -203,7 +204,7 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
     return next
   })
 
-  const [divisionFees, setDivisionFees] = useState<Map<string, number>>(
+  const [divisionFees, setDivisionFees] = useState<Map<string, FeeData>>(
     new Map(),
   )
 
@@ -273,7 +274,8 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
         name: addon?.name ?? "Add-on",
         variantLabel: variant?.label ?? null,
         quantity: selection.quantity,
-        lineTotalCents: (addon?.unitChargeCents ?? 0) * selection.quantity,
+        lineTotalCents: (addon?.priceCents ?? 0) * selection.quantity,
+        feeConfig: addon?.feeConfig,
       }
     },
   )
@@ -287,7 +289,7 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
         if (!selectedSet.has(key)) changed = true
       }
       if (!changed) return prev
-      const next = new Map<string, number>()
+      const next = new Map<string, FeeData>()
       for (const [k, v] of prev) {
         if (selectedSet.has(k)) next.set(k, v)
       }
@@ -295,19 +297,14 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
     })
   }, [selectedDivisionIds])
 
-  const handleFeesLoaded = (
-    divisionId: string,
-    fees: { isFree: boolean; totalChargeCents?: number } | null,
-  ) => {
+  const handleFeesLoaded = (divisionId: string, fees: FeeData | null) => {
     setDivisionFees((prev) => {
       const next = new Map(prev)
-      if (fees && !fees.isFree && fees.totalChargeCents) {
-        next.set(divisionId, fees.totalChargeCents)
-      } else if (fees?.isFree) {
+      if (fees) {
         // Track free divisions as $0 rather than absent — the fee summary
         // gates its totals (and add-on lines) on every selected division
         // having reported, so a free division must still count as loaded.
-        next.set(divisionId, 0)
+        next.set(divisionId, fees)
       } else {
         next.delete(divisionId)
       }

@@ -43,6 +43,7 @@ vi.mock("cloudflare:workers", () => ({
 
 import {
   createCompetitionAddonFn,
+  archiveCompetitionAddonFn,
   getPublicCompetitionAddonsFn,
   listCompetitionAddonsFn,
   updateCompetitionAddonFn,
@@ -50,6 +51,7 @@ import {
 
 type AnyFn = (args: { data: unknown }) => Promise<any>
 const createAddon = createCompetitionAddonFn as unknown as AnyFn
+const archiveAddon = archiveCompetitionAddonFn as unknown as AnyFn
 const updateAddon = updateCompetitionAddonFn as unknown as AnyFn
 const listAddons = listCompetitionAddonsFn as unknown as AnyFn
 const getPublicAddons = getPublicCompetitionAddonsFn as unknown as AnyFn
@@ -178,6 +180,17 @@ describe("competition-addon-fns", () => {
     })
   })
 
+  describe("archiveCompetitionAddonFn entitlement gate", () => {
+    it("rejects archival when the entitlement was revoked", async () => {
+      mockHasFeature.mockResolvedValue(false)
+
+      await expect(
+        archiveAddon({ data: { productId: "cmpprod-1", teamId: "team-1" } }),
+      ).rejects.toThrow(/not enabled for your account/)
+      expect(mockDb.update).not.toHaveBeenCalled()
+    })
+  })
+
   describe("listCompetitionAddonsFn", () => {
     it("reports entitled=false while still listing existing products", async () => {
       mockHasFeature.mockResolvedValue(false)
@@ -229,7 +242,7 @@ describe("competition-addon-fns", () => {
       expect(result.addons).toEqual([])
     })
 
-    it("returns purchasable products with all-in unit pricing", async () => {
+    it("returns purchasable products with base pricing and session fee config", async () => {
       mockDb.queueMockSingleValues([
         competition,
         {
@@ -274,8 +287,11 @@ describe("competition-addon-fns", () => {
       // HIDDEN and deadline-passed products filtered out
       expect(result.addons).toHaveLength(1)
       const addon = result.addons[0]
-      // $25 + 4% platform fee (no $2 fixed on merch) = $26.00
-      expect(addon.unitChargeCents).toBe(2600)
+      expect(addon.priceCents).toBe(2500)
+      expect(addon.feeConfig).toMatchObject({
+        platformPercentageBasisPoints: 400,
+        platformFixedCents: 200,
+      })
       expect(addon.variants).toEqual([
         { id: "var-1", label: "M", soldOut: true, remaining: 0 },
         { id: "var-2", label: "L", soldOut: false, remaining: 15 },

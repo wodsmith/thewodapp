@@ -23,7 +23,7 @@ The flow validates in order:
 
 For **free** competitions (or fully discounted by coupon): calls `registerForCompetition` directly and returns immediately. Selecting any add-on disables this shortcut — add-ons are always paid, so a free division plus a paid shirt still routes through Stripe.
 
-For **paid** competitions: creates `commercePurchaseTable` records (one per division, plus one per add-on selection), builds Stripe Checkout line items with fee breakdown, creates a Stripe Checkout Session, and redirects the athlete. Registration is finalized asynchronously by the [[registration#Stripe Checkout Workflow]]; add-on purchases complete through the same workflow's ADDON branch without creating registrations.
+For **paid** competitions: creates `commercePurchaseTable` records (one per division, plus one per add-on selection), calculates fees once for the complete transaction, creates a Stripe Checkout Session, and redirects the athlete. A free division paired with paid merch also gets a zero-dollar pending purchase, although it is omitted from Stripe's visible line items. Registration and merch are finalized together by the [[registration#Stripe Checkout Workflow]]. If Stripe session creation fails, every pending purchase created for the attempt is cancelled.
 
 The registration form renders an optional "Event merch" order-bump section between the coupon input and the fee summary when the organizer has purchasable add-ons ([[apps/wodsmith-start/src/components/registration/addons-section.tsx#AddOnsSection]]).
 
@@ -60,7 +60,7 @@ It handles:
 
 Athletes can register for multiple divisions in a single checkout session.
 
-Each division becomes a separate line item in Stripe Checkout and a separate `commercePurchaseTable` record. Free divisions within a mixed checkout are registered immediately while paid ones go through Stripe. The `items` array in the input schema supports this, with duplicate division validation.
+Each division becomes a separate `commercePurchaseTable` record. Paid divisions become Stripe line items; zero-dollar divisions in a mixed checkout remain pending placeholders until payment succeeds. The `items` array in the input schema supports this, with duplicate division validation.
 
 Downstream, scores stay scoped per division — see [[lat.md/domain#Domain Model#Scoring#One score per athlete per event per division]] for the unique key and write/read contracts that prevent a partner-division score from leaking onto the individual leaderboard when the same track workout is shared across both divisions.
 
@@ -106,12 +106,9 @@ ADR-0013: the [[competition-invites#Sent invites tab]] reads the same `divisionM
 
 A Cloudflare Workflow that processes `checkout.session.completed` events from Stripe webhooks.
 
-Three durable steps with independent retries:
-1. **create-registration**: Idempotency checks (by purchaseId and by user+division), re-checks capacity (refunds automatically if full), creates registration, stores answers, records payment in financial events
-2. **send-confirmation-email**: Sends registration confirmation email (non-blocking — failure doesn't block step 3)
-3. **send-slack-notification**: Sends Slack notification for team visibility
+The durable settlement step loads every purchase id from the Checkout Session, processes registration lines first, and only completes add-ons after registration outcome is known. It re-checks capacity, creates registrations idempotently, claims merch stock transactionally, records financial events, and records one coupon redemption. Notification steps then send confirmation emails and Slack messages for successful registrations.
 
-If division or competition fills during payment, the workflow automatically issues a Stripe refund and marks the purchase as `FAILED`. In local dev, `processCheckoutInline` runs the same logic synchronously.
+If a division or competition fills during payment, the workflow marks that registration purchase failed and refunds its exact line amount. If every registration in the session fails, it also refunds every add-on line. Refund calls use stable idempotency keys and retry on Stripe errors. In local dev, `processCheckoutInline` runs the same session-level logic synchronously.
 
 ## Manual Registration Workflow
 

@@ -9,7 +9,7 @@
 
 import "server-only"
 
-import { and, eq, gt, ne, sql } from "drizzle-orm"
+import { and, eq, gt, isNotNull, ne, sql } from "drizzle-orm"
 import { getDb } from "@/db"
 import {
   COMMERCE_PURCHASE_STATUS,
@@ -24,9 +24,9 @@ import { scalingLevelsTable } from "@/db/schemas/scaling"
 import { calculateCompetitionCapacity } from "@/utils/competition-capacity"
 import {
   PENDING_PURCHASE_MAX_AGE_MINUTES,
-  parseCompetitionSettings,
   type PublicCompetitionDivision,
   type PublicDivisionsCompetitionInput,
+  parseCompetitionSettings,
 } from "@/utils/competition-settings"
 import { calculateDivisionCapacity } from "@/utils/division-capacity"
 
@@ -106,6 +106,7 @@ export async function getPublicCompetitionDivisionsForCompetition({
         and(
           eq(commercePurchaseTable.competitionId, competition.id),
           eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
+          isNotNull(commercePurchaseTable.divisionId),
           gt(
             commercePurchaseTable.createdAt,
             new Date(Date.now() - PENDING_PURCHASE_MAX_AGE_MINUTES * 60 * 1000),

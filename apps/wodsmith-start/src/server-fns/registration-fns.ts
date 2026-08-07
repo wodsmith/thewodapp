@@ -12,7 +12,7 @@
 
 import { createId } from "@paralleldrive/cuid2"
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray, isNull, ne, or, sql } from "drizzle-orm"
+import { and, eq, gt, inArray, isNull, ne, or, sql } from "drizzle-orm"
 import type Stripe from "stripe"
 import { z } from "zod"
 import { FEATURES } from "@/config/features"
@@ -81,10 +81,6 @@ import {
   registerForCompetition,
 } from "@/lib/registration-stubs"
 import { getStripe } from "@/lib/stripe"
-import {
-  getAddonUnitBreakdown,
-  multiplyFeeBreakdown,
-} from "@/server/commerce/addons"
 import { recordRefundInitiated } from "@/server/commerce/financial-events"
 import { calculateApplicationFeeCents } from "@/server/commerce/utils"
 import {
@@ -105,6 +101,11 @@ import {
 import { requireVerifiedEmail } from "@/utils/auth"
 import { createToken, getClaimTokenKey } from "@/utils/auth-utils"
 import {
+  allocateCents,
+  type CheckoutFeeLineInput,
+  calculateCheckoutFees,
+} from "@/utils/checkout-fees"
+import {
   DEFAULT_TIMEZONE,
   hasDateStartedInTimezone,
   isDeadlinePassedInTimezone,
@@ -112,6 +113,7 @@ import {
 import {
   getCompetitionSpotsAvailableFn,
   getDivisionSpotsAvailableFn,
+  PENDING_PURCHASE_MAX_AGE_MINUTES,
 } from "./competition-divisions-fns"
 
 // ============================================================================
@@ -542,6 +544,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
       quantity: number
     }
     const validatedAddons: ValidatedAddon[] = []
+    const quantityByProduct = new Map<string, number>()
     if (input.addOns && input.addOns.length > 0) {
       const addonsEnabled = await hasFeature(
         competition.organizingTeamId,
@@ -603,7 +606,6 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
       }
 
       // maxPerAthlete applies across variants of the same product
-      const quantityByProduct = new Map<string, number>()
       for (const addon of validatedAddons) {
         quantityByProduct.set(
           addon.product.id,
@@ -762,7 +764,7 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
         }
       }
       const now = new Date()
-      await db
+      const inviteUpdate = await db
         .update(competitionInvitesTable)
         .set({
           status: COMPETITION_INVITE_STATUS.ACCEPTED_PAID,
@@ -780,6 +782,38 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
             ),
           ),
         )
+
+      const affected =
+        (inviteUpdate as unknown as { rowsAffected?: number }).rowsAffected ??
+        (inviteUpdate as unknown as [{ affectedRows?: number }])[0]
+          ?.affectedRows ??
+        0
+      if (affected === 0) {
+        const invite = await db.query.competitionInvitesTable.findFirst({
+          where: eq(competitionInvitesTable.id, inviteIdForPurchase),
+          columns: { status: true, claimedRegistrationId: true },
+        })
+        const alreadySettled =
+          invite?.status === COMPETITION_INVITE_STATUS.ACCEPTED_PAID &&
+          invite.claimedRegistrationId === claimedRegistrationId
+        if (!alreadySettled) {
+          await db
+            .update(competitionRegistrationsTable)
+            .set({
+              status: REGISTRATION_STATUS.REMOVED,
+              updatedAt: new Date(),
+            })
+            .where(
+              inArray(
+                competitionRegistrationsTable.id,
+                registrationIdsToRollback,
+              ),
+            )
+          throw new Error(
+            "This invitation is no longer available. The registration was not completed.",
+          )
+        }
+      }
       logInfo({
         message: "[Registration] Free-checkout invite flipped to accepted_paid",
         attributes: {
@@ -823,14 +857,6 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
           input.answers,
         )
 
-        // Send registration confirmation email
-        await notifyRegistrationConfirmed({
-          userId,
-          registrationId: result.registrationId,
-          competitionId: input.competitionId,
-          isPaid: false,
-        })
-
         logEntityCreated({
           entity: "registration",
           id: result.registrationId,
@@ -860,6 +886,17 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
         )
       }
 
+      // Confirm only after invite settlement succeeds. A lost guarded update
+      // rolls the registrations back and must never send a success email.
+      for (const registrationId of createdRegistrationIds) {
+        await notifyRegistrationConfirmed({
+          userId,
+          registrationId,
+          competitionId: input.competitionId,
+          isPaid: false,
+        })
+      }
+
       // Record coupon redemption if a coupon covered the full amount
       if (validatedCoupon && couponDiscount > 0) {
         await recordRedemption({
@@ -881,246 +918,288 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
     }
 
     // 7. PAID - Find or create product (idempotent)
-    let product = await db.query.commerceProductTable.findFirst({
-      where: and(
-        eq(
-          commerceProductTable.type,
-          COMMERCE_PRODUCT_TYPE.COMPETITION_REGISTRATION,
+    const ensureCommerceProduct = async ({
+      type,
+      resourceId,
+      name,
+      priceCents,
+    }: {
+      type: (typeof COMMERCE_PRODUCT_TYPE)[keyof typeof COMMERCE_PRODUCT_TYPE]
+      resourceId: string
+      name: string
+      priceCents: number
+    }) => {
+      const existingProduct = await db.query.commerceProductTable.findFirst({
+        where: and(
+          eq(commerceProductTable.type, type),
+          eq(commerceProductTable.resourceId, resourceId),
         ),
-        eq(commerceProductTable.resourceId, input.competitionId),
-      ),
-    })
-
-    if (!product) {
-      const productId = createCommerceProductId()
-      await db.insert(commerceProductTable).values({
-        id: productId,
-        name: `Competition Registration - ${competition.name}`,
-        type: COMMERCE_PRODUCT_TYPE.COMPETITION_REGISTRATION,
-        resourceId: input.competitionId,
-        priceCents: 0, // Individual item prices vary per division
       })
-      product = await db.query.commerceProductTable.findFirst({
-        where: eq(commerceProductTable.id, productId),
+      if (existingProduct) return existingProduct
+
+      await db
+        .insert(commerceProductTable)
+        .values({
+          id: createCommerceProductId(),
+          name,
+          type,
+          resourceId,
+          priceCents,
+        })
+        .onDuplicateKeyUpdate({
+          set: { name, priceCents, updatedAt: new Date() },
+        })
+      return db.query.commerceProductTable.findFirst({
+        where: and(
+          eq(commerceProductTable.type, type),
+          eq(commerceProductTable.resourceId, resourceId),
+        ),
       })
     }
+
+    const product = await ensureCommerceProduct({
+      type: COMMERCE_PRODUCT_TYPE.COMPETITION_REGISTRATION,
+      resourceId: input.competitionId,
+      name: `Competition Registration - ${competition.name}`,
+      priceCents: 0,
+    })
 
     if (!product) {
       throw new Error("Failed to get or create product")
     }
 
-    // 8. Create purchase records and build line items for each division
+    // 8. Build every purchase line first. Stripe assesses one percentage +
+    // fixed processing fee for the Checkout Session, so fee allocation must
+    // happen after registration and merch lines are known.
     const feeConfig = buildFeeConfig(competition, teamFeeOverrides)
-    const purchaseIds: string[] = []
-    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = []
-    let totalChargeCents = 0
-    let totalOrganizerNetCents = 0
+    const registrationDiscounts = allocateCents(
+      couponDiscount,
+      itemFees.map((item) => item.feeCents),
+    )
+    interface PendingCheckoutLine {
+      purchaseId: string
+      kind: "registration" | "addon"
+      productId: string
+      addonProductId: string | null
+      divisionId: string | null
+      variantId: string | null
+      quantity: number
+      feeInput: CheckoutFeeLineInput
+      stripeName: string
+      stripeDescription: string
+      metadata: Record<string, unknown>
+    }
+    const pendingLines: PendingCheckoutLine[] = []
 
-    // Process free items immediately, create purchases for paid items
-    for (const item of itemFees) {
-      if (item.feeCents === 0) {
-        // Register free division immediately
-        const result = await registerForCompetition({
-          competitionId: input.competitionId,
-          userId,
-          divisionId: item.divisionId,
-          teamName: item.teamName,
-          affiliateName: input.affiliateName,
-          teammates: item.teammates,
-          isOrganizerOverride: inviteAuthorized,
-        })
-
-        await db
-          .update(competitionRegistrationsTable)
-          .set({ paymentStatus: COMMERCE_PAYMENT_STATUS.FREE })
-          .where(eq(competitionRegistrationsTable.id, result.registrationId))
-
-        await storeRegistrationAnswers(
-          result.registrationId,
-          userId,
-          input.answers,
-        )
-
-        await notifyRegistrationConfirmed({
-          userId,
-          registrationId: result.registrationId,
-          competitionId: input.competitionId,
-          isPaid: false,
-        })
-
-        logEntityCreated({
-          entity: "registration",
-          id: result.registrationId,
-          parentEntity: "competition",
-          parentId: input.competitionId,
-          attributes: {
-            paymentStatus: "FREE",
-            divisionId: item.divisionId,
-            mixedCheckout: true,
-          },
-        })
-
-        // An invited FREE division can land here when add-ons force the
-        // Stripe path (allFree requires zero add-ons). No purchase row
-        // carries the inviteId for the workflow to flip, so settle the
-        // invite inline exactly like the all-free branch. Throwing on a
-        // lost allocation race aborts before the Stripe session is
-        // created, so the add-ons are never charged.
-        if (
-          inviteIdForPurchase &&
-          item.divisionId === inviteDivisionIdForPurchase
-        ) {
-          await settleInviteForFreeRegistration(
-            [result.registrationId],
-            result.registrationId,
-          )
-        }
-
-        continue
-      }
-
-      // Paid division - create purchase record
-      // Use full fee for Stripe line items; Stripe coupon handles the discount
-      const feeBreakdown = calculateCompetitionFees(item.feeCents, feeConfig)
-      const itemProportion =
-        totalFeeCents > 0 ? item.feeCents / totalFeeCents : 0
-      const itemDiscount = validatedCoupon
-        ? Math.round(couponDiscount * itemProportion)
-        : 0
+    for (const [index, item] of itemFees.entries()) {
+      const division = await db.query.scalingLevelsTable.findFirst({
+        where: eq(scalingLevelsTable.id, item.divisionId),
+      })
       const purchaseId = createCommercePurchaseId()
-      purchaseIds.push(purchaseId)
-
-      await db.insert(commercePurchaseTable).values({
-        id: purchaseId,
-        userId,
+      const itemDiscount = registrationDiscounts[index] ?? 0
+      pendingLines.push({
+        purchaseId,
+        kind: "registration",
         productId: product.id,
-        status: COMMERCE_PURCHASE_STATUS.PENDING,
-        competitionId: input.competitionId,
+        addonProductId: null,
         divisionId: item.divisionId,
-        totalCents: feeBreakdown.totalChargeCents,
-        platformFeeCents: feeBreakdown.platformFeeCents,
-        stripeFeeCents: feeBreakdown.stripeFeeCents,
-        organizerNetCents: feeBreakdown.organizerNetCents,
-        metadata: JSON.stringify({
+        variantId: null,
+        quantity: 1,
+        feeInput: {
+          key: purchaseId,
+          basePriceCents: item.feeCents,
+          discountCents: itemDiscount,
+          platformFixedCents: item.feeCents === 0 ? 0 : undefined,
+        },
+        stripeName: `${competition.name} - ${division?.label ?? "Registration"}`,
+        stripeDescription: "Competition Registration",
+        metadata: {
           teamName: item.teamName,
           affiliateName: input.affiliateName,
           teammates: item.teammates,
           answers: input.answers,
           couponCode: input.couponCode,
           couponDiscountCents: itemDiscount,
+          isFreeRegistration: item.feeCents === 0,
           inviteId:
             inviteIdForPurchase &&
             item.divisionId === inviteDivisionIdForPurchase
               ? inviteIdForPurchase
               : null,
-        }),
-      })
-
-      totalChargeCents += feeBreakdown.totalChargeCents
-      totalOrganizerNetCents += feeBreakdown.organizerNetCents
-
-      // Get division label for Stripe line item
-      const division = await db.query.scalingLevelsTable.findFirst({
-        where: eq(scalingLevelsTable.id, item.divisionId),
-      })
-
-      lineItems.push({
-        price_data: {
-          currency: "usd",
-          unit_amount: feeBreakdown.totalChargeCents,
-          product_data: {
-            name: `${competition.name} - ${division?.label ?? "Registration"}`,
-            description: "Competition Registration",
-          },
         },
-        quantity: 1,
       })
     }
 
-    // 8.5. Add-on (merch) line items. Each selection becomes its own
-    // purchase row referencing a lazily created ADDON commerce product
-    // (resourceId = catalog product id). Pricing is per-unit all-in
-    // (percentage platform fee only — no fixed fee on merch) multiplied by
-    // quantity, so the form summary, the Stripe line item, and the purchase
-    // row are cent-identical. The checkout workflow completes these without
-    // creating registrations.
+    // Each add-on selection has its own purchase row, but quantity is folded
+    // into one exact Stripe line so allocated transaction fees remain exact.
     for (const {
       product: addonProduct,
       variant,
       quantity,
     } of validatedAddons) {
-      let addonCommerceProduct = await db.query.commerceProductTable.findFirst({
-        where: and(
-          eq(commerceProductTable.type, COMMERCE_PRODUCT_TYPE.ADDON),
-          eq(commerceProductTable.resourceId, addonProduct.id),
-        ),
+      const addonCommerceProduct = await ensureCommerceProduct({
+        type: COMMERCE_PRODUCT_TYPE.ADDON,
+        resourceId: addonProduct.id,
+        name: addonProduct.name,
+        priceCents: addonProduct.priceCents,
       })
-      if (!addonCommerceProduct) {
-        const addonCommerceProductId = createCommerceProductId()
-        await db.insert(commerceProductTable).values({
-          id: addonCommerceProductId,
-          name: addonProduct.name,
-          type: COMMERCE_PRODUCT_TYPE.ADDON,
-          resourceId: addonProduct.id,
-          priceCents: addonProduct.priceCents,
-        })
-        addonCommerceProduct = await db.query.commerceProductTable.findFirst({
-          where: eq(commerceProductTable.id, addonCommerceProductId),
-        })
-      }
       if (!addonCommerceProduct) {
         throw new Error("Failed to get or create add-on product")
       }
-
-      const unitBreakdown = getAddonUnitBreakdown(
-        addonProduct.priceCents,
-        feeConfig,
-      )
-      const lineBreakdown = multiplyFeeBreakdown(unitBreakdown, quantity)
-
       const purchaseId = createCommercePurchaseId()
-      purchaseIds.push(purchaseId)
-
-      await db.insert(commercePurchaseTable).values({
-        id: purchaseId,
-        userId,
+      pendingLines.push({
+        purchaseId,
+        kind: "addon",
         productId: addonCommerceProduct.id,
-        status: COMMERCE_PURCHASE_STATUS.PENDING,
-        competitionId: input.competitionId,
+        addonProductId: addonProduct.id,
         divisionId: null,
         variantId: variant?.id ?? null,
         quantity,
-        totalCents: lineBreakdown.totalChargeCents,
-        platformFeeCents: lineBreakdown.platformFeeCents,
-        stripeFeeCents: lineBreakdown.stripeFeeCents,
-        organizerNetCents: lineBreakdown.organizerNetCents,
-        metadata: JSON.stringify({
+        feeInput: {
+          key: purchaseId,
+          basePriceCents: addonProduct.priceCents * quantity,
+          platformFixedCents: 0,
+        },
+        stripeName: variant
+          ? `${addonProduct.name} (${variant.label})${quantity > 1 ? ` × ${quantity}` : ""}`
+          : `${addonProduct.name}${quantity > 1 ? ` × ${quantity}` : ""}`,
+        stripeDescription: `Event add-on - ${competition.name}`,
+        metadata: {
           addonProductId: addonProduct.id,
           addonName: addonProduct.name,
           variantLabel: variant?.label ?? null,
           quantity,
           unitPriceCents: addonProduct.priceCents,
-          unitChargeCents: unitBreakdown.totalChargeCents,
-        }),
+        },
       })
+    }
 
-      totalChargeCents += lineBreakdown.totalChargeCents
-      totalOrganizerNetCents += lineBreakdown.organizerNetCents
-
+    const checkoutFees = calculateCheckoutFees(
+      pendingLines.map((line) => line.feeInput),
+      feeConfig,
+    )
+    const feesByPurchaseId = new Map(
+      checkoutFees.lines.map((line) => [line.key, line]),
+    )
+    const purchaseIds = pendingLines.map((line) => line.purchaseId)
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = []
+    for (const line of pendingLines) {
+      const fees = feesByPurchaseId.get(line.purchaseId)
+      if (!fees || fees.totalChargeCents === 0) continue
       lineItems.push({
         price_data: {
           currency: "usd",
-          unit_amount: unitBreakdown.totalChargeCents,
+          unit_amount: fees.totalChargeCents,
           product_data: {
-            name: variant
-              ? `${addonProduct.name} (${variant.label})`
-              : addonProduct.name,
-            description: `Event add-on - ${competition.name}`,
+            name: line.stripeName,
+            description: line.stripeDescription,
           },
         },
-        quantity,
+        quantity: 1,
       })
     }
+    const totalChargeCents = checkoutFees.totalChargeCents
+    const totalOrganizerNetCents = checkoutFees.totalOrganizerNetCents
+
+    // Serialize per-product athlete-limit checks with the purchase inserts.
+    // Locking the catalog rows closes the concurrent-checkout TOCTOU race.
+    await db.transaction(async (tx) => {
+      const addonProductIds = [
+        ...new Set(
+          pendingLines
+            .map((line) => line.addonProductId)
+            .filter((id): id is string => Boolean(id)),
+        ),
+      ].sort()
+      if (addonProductIds.length > 0) {
+        await tx
+          .select({ id: competitionProductsTable.id })
+          .from(competitionProductsTable)
+          .where(inArray(competitionProductsTable.id, addonProductIds))
+          .orderBy(competitionProductsTable.id)
+          .for("update")
+
+        const cutoff = new Date(
+          Date.now() - PENDING_PURCHASE_MAX_AGE_MINUTES * 60 * 1000,
+        )
+        const existing = await tx
+          .select({
+            addonProductId: commerceProductTable.resourceId,
+            quantity: commercePurchaseTable.quantity,
+          })
+          .from(commercePurchaseTable)
+          .innerJoin(
+            commerceProductTable,
+            eq(commercePurchaseTable.productId, commerceProductTable.id),
+          )
+          .where(
+            and(
+              eq(commercePurchaseTable.userId, userId),
+              eq(commerceProductTable.type, COMMERCE_PRODUCT_TYPE.ADDON),
+              inArray(commerceProductTable.resourceId, addonProductIds),
+              or(
+                eq(
+                  commercePurchaseTable.status,
+                  COMMERCE_PURCHASE_STATUS.COMPLETED,
+                ),
+                and(
+                  eq(
+                    commercePurchaseTable.status,
+                    COMMERCE_PURCHASE_STATUS.PENDING,
+                  ),
+                  gt(commercePurchaseTable.createdAt, cutoff),
+                ),
+              ),
+            ),
+          )
+        const existingByProduct = new Map<string, number>()
+        for (const row of existing) {
+          existingByProduct.set(
+            row.addonProductId,
+            (existingByProduct.get(row.addonProductId) ?? 0) + row.quantity,
+          )
+        }
+        for (const [addonProductId, requested] of quantityByProduct) {
+          const addonProduct = validatedAddons.find(
+            (addon) => addon.product.id === addonProductId,
+          )?.product
+          if (
+            addonProduct?.maxPerAthlete != null &&
+            (existingByProduct.get(addonProductId) ?? 0) + requested >
+              addonProduct.maxPerAthlete
+          ) {
+            throw new Error(
+              `Maximum ${addonProduct.maxPerAthlete} per athlete for ${addonProduct.name}`,
+            )
+          }
+        }
+      }
+
+      await tx.insert(commercePurchaseTable).values(
+        pendingLines.map((line) => {
+          const fees = feesByPurchaseId.get(line.purchaseId)
+          if (!fees) throw new Error("Missing checkout fee allocation")
+          return {
+            id: line.purchaseId,
+            userId,
+            productId: line.productId,
+            status: COMMERCE_PURCHASE_STATUS.PENDING,
+            competitionId: input.competitionId,
+            divisionId: line.divisionId,
+            variantId: line.variantId,
+            quantity: line.quantity,
+            totalCents: fees.totalChargeCents,
+            platformFeeCents: fees.platformFeeCents,
+            stripeFeeCents: fees.stripeFeeCents,
+            organizerNetCents: fees.organizerNetCents,
+            metadata: JSON.stringify({
+              ...line.metadata,
+              couponDiscountCents: fees.discountCents,
+            }),
+          }
+        }),
+      )
+    })
 
     // If no paid items remain (all were free after splitting), return
     if (purchaseIds.length === 0 || lineItems.length === 0) {
@@ -1160,7 +1239,6 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
       const applicationFeeAmount = calculateApplicationFeeCents({
         totalChargeCents,
         totalOrganizerNetCents,
-        discountCents: couponDiscount,
       })
       if (applicationFeeAmount < totalChargeCents - totalOrganizerNetCents) {
         logWarning({
@@ -1184,37 +1262,42 @@ export const initiateRegistrationPaymentFn = createServerFn({ method: "POST" })
       }
     }
 
-    // Create transient Stripe coupon and attach to session if applicable
+    // The coupon was already allocated directly across registration lines.
+    // Keeping it in metadata lets the session workflow record one redemption
+    // without asking Stripe to apply the discount a second time.
     if (validatedCoupon && couponDiscount > 0) {
-      const stripeCouponId = `wod-${validatedCoupon.id}-${purchaseIds[0]}`
-      await getStripe().coupons.create({
-        id: stripeCouponId,
-        amount_off: couponDiscount,
-        currency: "usd",
-        duration: "once",
-        max_redemptions: 1,
-        metadata: { couponId: validatedCoupon.id, purchaseId: purchaseIds[0] },
-      })
-      sessionParams.discounts = [{ coupon: stripeCouponId }]
       sessionParams.metadata = {
         ...sessionParams.metadata,
         couponId: validatedCoupon.id,
-        stripeCouponId,
         couponCode: input.couponCode ?? "",
         couponDiscountCents: couponDiscount.toString(),
       }
     }
 
-    const checkoutSession =
-      await getStripe().checkout.sessions.create(sessionParams)
-
-    // 11. Update all purchases with Checkout Session ID
-    for (const purchaseId of purchaseIds) {
+    let checkoutSession: Stripe.Checkout.Session
+    try {
+      checkoutSession =
+        await getStripe().checkout.sessions.create(sessionParams)
+    } catch (error) {
+      // Release capacity and per-athlete reservations immediately when Stripe
+      // cannot create the session. Otherwise retries are blocked for 30 min.
       await db
         .update(commercePurchaseTable)
-        .set({ stripeCheckoutSessionId: checkoutSession.id })
-        .where(eq(commercePurchaseTable.id, purchaseId))
+        .set({ status: COMMERCE_PURCHASE_STATUS.CANCELLED })
+        .where(
+          and(
+            inArray(commercePurchaseTable.id, purchaseIds),
+            eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
+          ),
+        )
+      throw error
     }
+
+    // 11. Update all purchases with Checkout Session ID
+    await db
+      .update(commercePurchaseTable)
+      .set({ stripeCheckoutSessionId: checkoutSession.id })
+      .where(inArray(commercePurchaseTable.id, purchaseIds))
 
     logInfo({
       message: "[Registration] Checkout session created",
@@ -1248,7 +1331,11 @@ export const getRegistrationFeeBreakdownFn = createServerFn({ method: "GET" })
       data,
     }): Promise<
       | { isFree: true; totalCents: 0; registrationFeeCents: 0 }
-      | ({ isFree: false; registrationFeeCents: number } & FeeBreakdown)
+      | ({
+          isFree: false
+          registrationFeeCents: number
+          feeConfig: ReturnType<typeof buildFeeConfig>
+        } & FeeBreakdown)
     > => {
       const db = getDb()
 
@@ -1291,6 +1378,7 @@ export const getRegistrationFeeBreakdownFn = createServerFn({ method: "GET" })
 
       return {
         isFree: false,
+        feeConfig,
         ...breakdown,
       }
     },

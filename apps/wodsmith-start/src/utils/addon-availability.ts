@@ -6,7 +6,7 @@
  * Authoritative stock enforcement lives in the Stripe checkout workflow;
  * these helpers cover display and submit-time soft checks.
  */
-import { COMPETITION_PRODUCT_STATUS } from "@/db/schemas/competition-products"
+import { COMPETITION_PRODUCT_STATUS } from "@/db/schema"
 import { getEndOfDayInTimezone } from "@/utils/timezone-utils"
 
 export interface AddonAvailabilityInput {

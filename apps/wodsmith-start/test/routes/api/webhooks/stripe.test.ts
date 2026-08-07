@@ -200,10 +200,12 @@ describe('Stripe Webhook Handler', () => {
             amount_total: 5000,
             customer_email: 'athlete@test.com',
             metadata: {
-              purchaseId: 'purchase-1',
+              purchaseIds: ['purchase-1'],
               competitionId: 'comp-1',
-              divisionId: 'div-1',
               userId: 'user-1',
+              couponId: undefined,
+              couponCode: undefined,
+              couponDiscountCents: undefined,
             },
           },
         },
@@ -454,7 +456,7 @@ describe('Stripe Webhook Handler', () => {
     }) {
       mockDb.query.commercePurchaseTable = {
         findFirst: vi.fn().mockResolvedValue(purchase),
-        findMany: vi.fn().mockResolvedValue([]),
+        findMany: vi.fn().mockResolvedValue(purchase ? [purchase] : []),
       }
       mockDb.query.competitionsTable = {
         findFirst: vi.fn().mockResolvedValue(competition ?? null),

@@ -65,7 +65,7 @@ The Merch page gives you both reports you need:
 
 ## Refunds
 
-If a size oversells during simultaneous checkouts, the extra order is refunded automatically and the athlete's registration is unaffected. To refund a merch purchase for any other reason, issue the refund from your Stripe dashboard — it's recorded in your WODsmith revenue ledger automatically.
+If a size oversells during simultaneous checkouts, that merch line is refunded automatically and the athlete's registration is unaffected. For other refunds, issue the exact partial amount from Stripe. Multi-item dashboard refunds may need manual reconciliation in WODsmith because Stripe does not identify which checkout line was refunded.
 
 ---
 

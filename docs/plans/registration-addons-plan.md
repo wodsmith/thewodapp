@@ -56,11 +56,11 @@ Migration generated with `pnpm db:generate --name=registration-addons` (no hand-
 
 ## Pricing & fees
 
-- Per-unit all-in charge = `calculateCompetitionFees(priceCents, { ...competitionFeeConfig, platformFixedCents: 0 })`
-  — merch pays the percentage platform fee but **not** the $2 fixed fee (memo recommendation), and follows
-  the competition's existing pass-stripe/pass-platform configuration.
-- Purchase totals = per-unit breakdown × quantity (no rounding drift between the fee summary, the Stripe
-  line item `unit_amount × quantity`, and the recorded purchase row).
+- The complete checkout is priced once by `calculateCheckoutFees`. Merch pays the percentage platform fee
+  but not the $2 registration fixed fee, and Stripe's fixed processing fee is applied once per Checkout
+  Session before being allocated exactly across purchase rows.
+- Quantity is multiplied into the merch base price before transaction fees are calculated. The form,
+  Stripe line items, and recorded purchase rows use the same session-level allocation.
 - Coupons never discount merch: the discount base remains the registration subtotal only
   (`couponDiscount = min(amountOff, registration fees)`), unchanged.
 
@@ -69,16 +69,17 @@ Migration generated with `pnpm db:generate --name=registration-addons` (no hand-
 - Input gains `addOns: [{ productId, variantId?, quantity }]` (optional, duplicates rejected).
 - Validation: entitlement on organizing team; product belongs to competition, `ACTIVE`, deadline not
   passed (`isDeadlinePassedInTimezone`); variant required iff product has variants and must belong to it;
-  quantity ≤ maxPerAthlete; soft stock check (`soldQty + qty ≤ stockQty`).
-- The all-free shortcut only applies when registration total after coupon AND add-on total are both zero —
-  a free division + paid shirt routes through Stripe (free divisions still register immediately inside the
-  paid path, as today).
+  quantity ≤ maxPerAthlete; soft stock check (`soldQty + qty ≤ stockQty`). Before purchase insert, catalog
+  rows are locked and completed plus recent pending quantities are counted across every variant.
+- The all-free shortcut requires no add-ons. A free division plus a paid shirt routes through Stripe, and
+  the free registration is represented by a zero-dollar pending purchase until the session settles.
 - Add-on purchases are appended to `purchaseIds`/`lineItems`; session metadata unchanged in shape
   (`purchaseIds` comma list), so the webhook fan-out needs no changes.
 
 ## Workflow branch (`stripe-checkout-workflow.ts`)
 
-`createRegistration` short-circuits to `completeAddonPurchase` when the purchase's product type is `ADDON`:
+One workflow reconciles all purchase ids from the Checkout Session. It settles registration purchases
+first, then handles add-ons with the complete registration outcome available:
 
 1. Idempotency: already COMPLETED → skip.
 2. Stock (only when variantId + stockQty set): atomic
@@ -88,18 +89,18 @@ Migration generated with `pnpm db:generate --name=registration-addons` (no hand-
 3. Deadline mode needs no re-check (commitment made at checkout creation; Stripe's 30-minute session expiry
    bounds the race).
 4. Group behavior: if every registration purchase in the same checkout session has FAILED (capacity
-   auto-refund path), the add-on is refunded too instead of completing. (Workflows per purchase run in
-   parallel, so a rare ordering race can still complete an add-on before a registration fails — logged,
-   accepted for v1.)
-5. Otherwise mark COMPLETED + `recordPaymentCompleted`. Returns null so email/Slack registration steps skip.
+   auto-refund path), every add-on is refunded too instead of completing. Successful registrations always
+   settle before merch, removing the former parallel ordering race.
+5. Otherwise mark COMPLETED + `recordPaymentCompleted`. Registration results continue to the invite,
+   email, and Slack steps; add-on rows do not create their own notifications.
 
 `checkout.session.expired` already cancels all PENDING purchases for the session — covers add-ons for free.
 
 ## Server fns (new `src/server-fns/competition-addon-fns.ts`)
 
 - `listCompetitionAddonsFn` (organizer; products + variants + sold counts + `entitled` flag)
-- `getPublicCompetitionAddonsFn` (athlete; entitled + ACTIVE + deadline-not-passed only; includes per-unit
-  all-in charge and per-variant soldOut flags)
+- `getPublicCompetitionAddonsFn` (athlete; entitled + ACTIVE + deadline-not-passed only; includes base price,
+  session fee configuration, and per-variant soldOut flags)
 - `createCompetitionAddonFn` / `updateCompetitionAddonFn` (with variant upsert) / `archiveCompetitionAddonFn`
 - `getAddonSalesReportFn` (counts by product/variant over COMPLETED purchases + pickup list)
 - Auth mirrors coupons: site admin or organizing-team admin/owner; mutations also require the entitlement.
@@ -117,18 +118,19 @@ Migration generated with `pnpm db:generate --name=registration-addons` (no hand-
 
 ## Tests
 
-- Pure logic in `src/utils/addon-availability.ts`: availability (status/deadline/timezone), variant stock
-  math, per-unit fee multiplication — unit tested.
+- Pure logic in `src/utils/addon-availability.ts` and `src/utils/checkout-fees.ts`: availability,
+  stock math, one-per-session fee calculation, and exact cents allocation — unit tested.
 - `competition-addon-fns` validation tested with `FakeDrizzleDb` mocks, following `coupon-fns.test.ts`.
 
 ## Risks / explicit decisions
 
-- Merch platform fee is %-only (no $2 fixed). Single-line change in `buildAddonFeeConfig` if revisited.
+- Merch platform fee is %-only (no $2 registration fixed fee).
 - `settings.store.enabled` toggle from the memo is **not** implemented: the entitlement is the
   account-level gate and per-product status (ACTIVE/HIDDEN/ARCHIVED) is the organizer kill switch; a third
   competition-level toggle adds surface without need.
-- Add-on refunds beyond the automatic oversold/group cases are organizer-via-Stripe-dashboard for v1
-  (`charge.refunded` webhook already records them in the ledger).
+- Add-on refunds beyond the automatic oversold/group cases are organizer-via-Stripe-dashboard for v1.
+  Multi-line dashboard refunds without purchase metadata are intentionally left for manual reconciliation
+  instead of being attributed to an arbitrary purchase row.
 - Merch does not transfer with registrations (`purchase_transfers` untouched — it targets a specific
   purchase row, and add-on rows are never linked to registrations).
 - Production rollout requires inserting the `registration_addons` feature row (same one-time step used for

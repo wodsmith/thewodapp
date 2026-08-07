@@ -53,7 +53,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
-import { COMPETITION_PRODUCT_STATUS } from "@/db/schemas/competition-products"
+import { COMPETITION_PRODUCT_STATUS } from "@/db/schema"
 import {
   archiveCompetitionAddonFn,
   createCompetitionAddonFn,
@@ -68,7 +68,8 @@ export const Route = createFileRoute("/compete/organizer/$competitionId/merch")(
     component: MerchPage,
     loader: async ({ parentMatchPromise }) => {
       const parentMatch = await parentMatchPromise
-      const { competition } = parentMatch.loaderData!
+      const competition = parentMatch.loaderData?.competition
+      if (!competition) throw new Error("Competition not found")
 
       const [{ entitled, addons }, report] = await Promise.all([
         listCompetitionAddonsFn({

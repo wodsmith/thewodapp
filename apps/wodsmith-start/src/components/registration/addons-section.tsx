@@ -134,7 +134,7 @@ export function AddOnsSection({
                   <div className="flex items-baseline justify-between gap-3">
                     <p className="font-medium">{addon.name}</p>
                     <p className="shrink-0 text-sm font-semibold">
-                      ${(addon.unitChargeCents / 100).toFixed(2)}
+                      ${(addon.priceCents / 100).toFixed(2)}
                     </p>
                   </div>
                   {addon.description ? (

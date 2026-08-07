@@ -21,12 +21,14 @@ import {
   competitionProductsTable,
   competitionProductVariantsTable,
   competitionsTable,
+  createCompetitionProductId,
+  createCompetitionProductVariantId,
   teamTable,
   userTable,
 } from "@/db/schema"
 import { getEvlog } from "@/lib/evlog"
 import { logInfo } from "@/lib/logging"
-import { getAddonUnitBreakdown } from "@/server/commerce/addons"
+import type { FeeConfiguration } from "@/server/commerce/fee-calculator"
 import { buildFeeConfig, type TeamFeeOverrides } from "@/server/commerce/utils"
 import { hasFeature } from "@/server/entitlements"
 import {
@@ -320,33 +322,32 @@ export const createCompetitionAddonFn = createServerFn({ method: "POST" })
     })
 
     const db = getDb()
-    const { createCompetitionProductId, createCompetitionProductVariantId } =
-      await import("@/db/schemas/common")
-
     const productId = createCompetitionProductId()
-    await db.insert(competitionProductsTable).values({
-      id: productId,
-      competitionId: input.competitionId,
-      name: input.name,
-      description: input.description || null,
-      imageUrl: input.imageUrl || null,
-      priceCents: input.priceCents,
-      maxPerAthlete: input.maxPerAthlete ?? null,
-      availableUntil: input.availableUntil ?? null,
-      status: input.status ?? COMPETITION_PRODUCT_STATUS.ACTIVE,
-    })
+    await db.transaction(async (tx) => {
+      await tx.insert(competitionProductsTable).values({
+        id: productId,
+        competitionId: input.competitionId,
+        name: input.name,
+        description: input.description || null,
+        imageUrl: input.imageUrl || null,
+        priceCents: input.priceCents,
+        maxPerAthlete: input.maxPerAthlete ?? null,
+        availableUntil: input.availableUntil ?? null,
+        status: input.status ?? COMPETITION_PRODUCT_STATUS.ACTIVE,
+      })
 
-    if (input.variants && input.variants.length > 0) {
-      await db.insert(competitionProductVariantsTable).values(
-        input.variants.map((variant, index) => ({
-          id: createCompetitionProductVariantId(),
-          productId,
-          label: variant.label,
-          stockQty: variant.stockQty ?? null,
-          sortOrder: index,
-        })),
-      )
-    }
+      if (input.variants && input.variants.length > 0) {
+        await tx.insert(competitionProductVariantsTable).values(
+          input.variants.map((variant, index) => ({
+            id: createCompetitionProductVariantId(),
+            productId,
+            label: variant.label,
+            stockQty: variant.stockQty ?? null,
+            sortOrder: index,
+          })),
+        )
+      }
+    })
 
     logInfo({
       message: "[Addons] Add-on created",
@@ -411,9 +412,6 @@ export const updateCompetitionAddonFn = createServerFn({ method: "POST" })
         .where(eq(competitionProductsTable.id, product.id))
 
       if (input.variants !== undefined) {
-        const { createCompetitionProductVariantId } = await import(
-          "@/db/schemas/common"
-        )
         const existing =
           await tx.query.competitionProductVariantsTable.findMany({
             where: eq(competitionProductVariantsTable.productId, product.id),
@@ -495,6 +493,7 @@ export const archiveCompetitionAddonFn = createServerFn({ method: "POST" })
   .handler(async ({ data: input }) => {
     const session = await requireVerifiedEmail()
     assertTeamManageAccess(session, input.teamId)
+    await requireAddonEntitlement(input.teamId)
     const product = await getOwnedAddon(input.productId, input.teamId)
 
     const db = getDb()
@@ -533,8 +532,8 @@ export interface PublicAddon {
   imageUrl: string | null
   /** Raw product price per unit */
   priceCents: number
-  /** All-in per-unit charge (price + fees passed to the customer) */
-  unitChargeCents: number
+  /** Session fee settings used by the registration order preview. */
+  feeConfig: FeeConfiguration
   maxPerAthlete: number | null
   availableUntil: string | null
   variants: PublicAddonVariant[]
@@ -594,8 +593,7 @@ export const getPublicCompetitionAddonsFn = createServerFn({ method: "GET" })
         description: product.description,
         imageUrl: product.imageUrl,
         priceCents: product.priceCents,
-        unitChargeCents: getAddonUnitBreakdown(product.priceCents, feeConfig)
-          .totalChargeCents,
+        feeConfig,
         maxPerAthlete: product.maxPerAthlete,
         availableUntil: product.availableUntil,
         variants: product.variants.map((variant) => ({

@@ -264,7 +264,7 @@ export async function seed(client: Connection): Promise<void> {
 			updated_at: ts,
 			update_counter: 0,
 		},
-		// @lat: [[commerce#Registration Add-ons#Entitlement]]
+  // @lat: [[commerce#Registration Add-ons#Entitlement Gate]]
 		{
 			id: "feat_registration_addons",
 			key: "registration_addons",
