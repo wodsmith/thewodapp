@@ -10,6 +10,7 @@ import type {
   Waiver,
 } from "@/db/schema"
 import { trackEvent } from "@/lib/posthog"
+import type { PublicAddon } from "@/server-fns/competition-addon-fns"
 import type { PublicCompetitionDivision } from "@/server-fns/competition-divisions-fns"
 import { validateCouponForCheckoutFn } from "@/server-fns/coupon-fns"
 import { initiateRegistrationPaymentFn } from "@/server-fns/registration-fns"
@@ -20,6 +21,9 @@ import {
   getCouponSession,
   setCouponSession,
 } from "@/utils/coupon-cookie"
+import { addonSelectionKey } from "./addons-section"
+import type { FeeData } from "./fee-breakdown"
+import type { AddonLineItem } from "./registration-sections"
 
 export interface Teammate {
   email: string
@@ -71,6 +75,11 @@ export interface UseRegistrationFormInput {
   prefillTeamName?: string
   /** Logged-in athlete email, used to prevent self-inviting as a teammate. */
   userEmail?: string | null
+  /**
+   * Purchasable add-ons (merch) for this competition. Empty when the
+   * organizer has none or lacks the registration_addons entitlement.
+   */
+  addons?: PublicAddon[]
 }
 
 const normalizeEmail = (email: string | null | undefined) =>
@@ -123,6 +132,7 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
     prefillTeammates = [],
     prefillTeamName = "",
     userEmail,
+    addons = [],
   } = input
 
   const navigate = useNavigate()
@@ -194,8 +204,80 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
     return next
   })
 
-  const [divisionFees, setDivisionFees] = useState<Map<string, number>>(
+  const [divisionFees, setDivisionFees] = useState<Map<string, FeeData>>(
     new Map(),
+  )
+
+  // Add-on (merch) selections, keyed by `${productId}::${variantId ?? ""}`.
+  const [addonQuantities, setAddonQuantities] = useState<Map<string, number>>(
+    new Map(),
+  )
+
+  const setAddonQuantity = (
+    productId: string,
+    variantId: string | null,
+    quantity: number,
+  ) => {
+    setAddonQuantities((prev) => {
+      const next = new Map(prev)
+      const key = addonSelectionKey(productId, variantId)
+      if (quantity <= 0) {
+        next.delete(key)
+      } else {
+        next.set(key, quantity)
+      }
+      return next
+    })
+  }
+
+  const buildAddonSelections = () => {
+    const selections: Array<{
+      productId: string
+      variantId?: string
+      quantity: number
+    }> = []
+    for (const addon of addons) {
+      if (addon.variants.length > 0) {
+        for (const variant of addon.variants) {
+          const quantity =
+            addonQuantities.get(addonSelectionKey(addon.id, variant.id)) ?? 0
+          if (quantity > 0) {
+            selections.push({
+              productId: addon.id,
+              variantId: variant.id,
+              quantity,
+            })
+          }
+        }
+      } else {
+        const quantity =
+          addonQuantities.get(addonSelectionKey(addon.id, null)) ?? 0
+        if (quantity > 0) {
+          selections.push({ productId: addon.id, quantity })
+        }
+      }
+    }
+    return selections
+  }
+
+  const addonLineItems: AddonLineItem[] = buildAddonSelections().map(
+    (selection) => {
+      const addon = addons.find((a) => a.id === selection.productId)
+      const variant = selection.variantId
+        ? (addon?.variants.find((v) => v.id === selection.variantId) ?? null)
+        : null
+      return {
+        key: addonSelectionKey(
+          selection.productId,
+          selection.variantId ?? null,
+        ),
+        name: addon?.name ?? "Add-on",
+        variantLabel: variant?.label ?? null,
+        quantity: selection.quantity,
+        lineTotalCents: (addon?.priceCents ?? 0) * selection.quantity,
+        feeConfig: addon?.feeConfig,
+      }
+    },
   )
 
   // Prune fee entries for deselected divisions
@@ -207,7 +289,7 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
         if (!selectedSet.has(key)) changed = true
       }
       if (!changed) return prev
-      const next = new Map<string, number>()
+      const next = new Map<string, FeeData>()
       for (const [k, v] of prev) {
         if (selectedSet.has(k)) next.set(k, v)
       }
@@ -215,14 +297,14 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
     })
   }, [selectedDivisionIds])
 
-  const handleFeesLoaded = (
-    divisionId: string,
-    fees: { isFree: boolean; totalChargeCents?: number } | null,
-  ) => {
+  const handleFeesLoaded = (divisionId: string, fees: FeeData | null) => {
     setDivisionFees((prev) => {
       const next = new Map(prev)
-      if (fees && !fees.isFree && fees.totalChargeCents) {
-        next.set(divisionId, fees.totalChargeCents)
+      if (fees) {
+        // Track free divisions as $0 rather than absent — the fee summary
+        // gates its totals (and add-on lines) on every selected division
+        // having reported, so a free division must still count as loaded.
+        next.set(divisionId, fees)
       } else {
         next.delete(divisionId)
       }
@@ -483,6 +565,21 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
       return
     }
 
+    // Add-on caps apply across variants of the same product
+    const addonSelections = buildAddonSelections()
+    for (const addon of addons) {
+      if (addon.maxPerAthlete === null) continue
+      const total = addonSelections
+        .filter((s) => s.productId === addon.id)
+        .reduce((sum, s) => sum + s.quantity, 0)
+      if (total > addon.maxPerAthlete) {
+        toast.error(
+          `Maximum ${addon.maxPerAthlete} per athlete for ${addon.name}`,
+        )
+        return
+      }
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -514,6 +611,7 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
           affiliateName: affiliateName || undefined,
           answers,
           couponCode: activeCoupon?.code,
+          ...(addonSelections.length > 0 ? { addOns: addonSelections } : {}),
           ...(inviteToken ? { inviteToken } : {}),
         },
       })
@@ -570,6 +668,7 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
     publicDivisions,
     waivers,
     questions,
+    addons,
 
     // state
     isSubmitting,
@@ -587,6 +686,8 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
     setCouponCodeInput,
     teamEntries,
     divisionFees,
+    addonQuantities,
+    addonLineItems,
     answers,
     agreedWaivers,
     allRequiredWaiversAgreed,
@@ -598,6 +699,7 @@ export function useRegistrationForm(input: UseRegistrationFormInput) {
     getDivision,
     handleDivisionToggle,
     handleFeesLoaded,
+    setAddonQuantity,
     handleApplyCoupon,
     handleRemoveCoupon,
     updateTeamEntry,

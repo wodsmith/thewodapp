@@ -8,6 +8,7 @@ export * from "./schemas/billing"
 export * from "./schemas/commerce"
 export * from "./schemas/common"
 export * from "./schemas/competition-invites"
+export * from "./schemas/competition-products"
 export * from "./schemas/competitions"
 // @lat: [[crew#Crew Billing State And Audit]]
 export * from "./schemas/crew-billing-events"

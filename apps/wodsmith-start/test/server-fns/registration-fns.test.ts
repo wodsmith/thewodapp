@@ -76,10 +76,16 @@ vi.mock('@/server/commerce/financial-events', () => ({
 const mockGetDivisionSpotsAvailableFn = vi.fn()
 const mockGetCompetitionSpotsAvailableFn = vi.fn()
 vi.mock('@/server-fns/competition-divisions-fns', () => ({
+  PENDING_PURCHASE_MAX_AGE_MINUTES: 30,
   getDivisionSpotsAvailableFn: (...args: unknown[]) =>
     mockGetDivisionSpotsAvailableFn(...args),
   getCompetitionSpotsAvailableFn: (...args: unknown[]) =>
     mockGetCompetitionSpotsAvailableFn(...args),
+}))
+
+const mockHasFeature = vi.fn()
+vi.mock('@/server/entitlements', () => ({
+  hasFeature: (...args: unknown[]) => mockHasFeature(...args),
 }))
 
 // Mock timezone utils
@@ -175,6 +181,11 @@ const initiatePayment = initiateRegistrationPaymentFn as unknown as (args: {
     }>
     affiliateName?: string
     answers?: Array<{questionId: string; answer: string}>
+    addOns?: Array<{
+      productId: string
+      variantId?: string
+      quantity: number
+    }>
   }
 }) => Promise<{
   purchaseId: string | null
@@ -978,10 +989,83 @@ describe('registration-fns', () => {
         // Purchase insert should include metadata with team info
         expect(mockDb.insert).toHaveBeenCalled()
       })
+
+      it('cancels every pending purchase when Stripe session creation fails', async () => {
+        setupPaidMocks()
+        mockStripeCheckoutCreate.mockRejectedValueOnce(
+          new Error('Stripe unavailable'),
+        )
+
+        await expect(
+          initiatePayment({
+            data: {
+              competitionId: testCompetitionId,
+              items: [{divisionId: 'div-rx'}, {divisionId: 'div-scaled'}],
+            },
+          }),
+        ).rejects.toThrow('Stripe unavailable')
+
+        expect(mockDb.update).toHaveBeenCalledTimes(1)
+      })
+
+      // @lat: [[commerce#Registration Add-ons#Availability]]
+      it('counts prior purchases toward the cross-variant athlete limit', async () => {
+        setupPaidMocks()
+        mockHasFeature.mockResolvedValue(true)
+        mockDb.query.competitionProductsTable = {
+          findMany: vi.fn().mockResolvedValue([
+            {
+              id: 'addon-1',
+              competitionId: testCompetitionId,
+              name: 'Event tee',
+              priceCents: 2500,
+              maxPerAthlete: 2,
+              availableUntil: null,
+              status: 'ACTIVE',
+            },
+          ]),
+          findFirst: vi.fn().mockResolvedValue(null),
+        }
+        mockDb.query.competitionProductVariantsTable = {
+          findMany: vi.fn().mockResolvedValue([]),
+          findFirst: vi.fn().mockResolvedValue(null),
+        }
+        mockDb.query.commerceProductTable = {
+          findFirst: vi
+            .fn()
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce({id: 'prod-registration'})
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce({id: 'prod-addon'}),
+          findMany: vi.fn().mockResolvedValue([]),
+        }
+        mockDb.setMockReturnValue([
+          {
+            id: 'existing-row',
+            label: 'Test fixture',
+            groupId: null,
+            addonProductId: 'addon-1',
+            quantity: 2,
+          },
+        ])
+
+        await expect(
+          initiatePayment({
+            data: {
+              competitionId: testCompetitionId,
+              items: [{divisionId: 'div-rx'}],
+              addOns: [{productId: 'addon-1', quantity: 1}],
+              answers: [{questionId: 'existing-row', answer: 'fixture'}],
+            },
+          }),
+        ).rejects.toThrow('Maximum 2 per athlete for Event tee')
+
+        expect(mockStripeCheckoutCreate).not.toHaveBeenCalled()
+      })
     })
 
     describe('mixed free and paid divisions', () => {
-      it('registers free immediately, creates checkout for paid', async () => {
+      it('holds free registration until the mixed checkout settles', async () => {
         setupBasePaymentMocks()
 
         // First division free, second paid
@@ -1050,19 +1134,15 @@ describe('registration-fns', () => {
         expect(result.isFree).toBe(false)
         expect(result.totalCents).toBe(5400)
 
-        // Free division registered immediately
-        expect(mockRegisterForCompetition).toHaveBeenCalledTimes(1)
-        expect(mockRegisterForCompetition).toHaveBeenCalledWith(
-          expect.objectContaining({divisionId: 'div-free'}),
-        )
-
-        // Confirmation email for free division only
-        expect(mockNotifyRegistrationConfirmed).toHaveBeenCalledTimes(1)
+        // Neither registration is finalized until Stripe confirms the session.
+        expect(mockRegisterForCompetition).not.toHaveBeenCalled()
+        expect(mockNotifyRegistrationConfirmed).not.toHaveBeenCalled()
 
         // Stripe has 1 line item (paid only)
         const stripeArgs = mockStripeCheckoutCreate.mock.calls[0]?.[0] as any
         expect(stripeArgs.line_items).toHaveLength(1)
-        expect(stripeArgs.metadata.multiDivision).toBe('false')
+        expect(stripeArgs.metadata.multiDivision).toBe('true')
+        expect(stripeArgs.metadata.purchaseIds.split(',')).toHaveLength(2)
       })
 
       it('returns isFree when all divisions end up free after fee lookup', async () => {

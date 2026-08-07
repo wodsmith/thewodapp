@@ -107,6 +107,10 @@ export const commercePurchaseTable = mysqlTable(
     competitionId: varchar({ length: 255 }),
     divisionId: varchar({ length: 255 }),
 
+    // Context for registration add-on purchases
+    variantId: varchar({ length: 255 }),
+    quantity: int({ unsigned: true }).notNull().default(1),
+
     // Amounts (all in cents)
     totalCents: int().notNull(), // Amount charged to customer
     platformFeeCents: int().notNull(), // Wodsmith revenue
@@ -132,6 +136,7 @@ export const commercePurchaseTable = mysqlTable(
     ),
     index("commerce_purchase_competition_idx").on(table.competitionId),
     index("commerce_purchase_stripe_pi_idx").on(table.stripePaymentIntentId),
+    index("commerce_purchase_variant_idx").on(table.variantId),
   ],
 )
 

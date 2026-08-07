@@ -10,17 +10,17 @@
  * - account.application.deauthorized: Clears team Stripe connection (inline)
  */
 
+import { env } from "cloudflare:workers"
 import { createFileRoute } from "@tanstack/react-router"
 import { json } from "@tanstack/react-start"
-import { env } from "cloudflare:workers"
 import { and, eq } from "drizzle-orm"
 import type Stripe from "stripe"
 import { getDb } from "@/db"
 import {
   COMMERCE_PURCHASE_STATUS,
-  FINANCIAL_EVENT_TYPE,
   commercePurchaseTable,
   competitionsTable,
+  FINANCIAL_EVENT_TYPE,
   financialEventTable,
   teamTable,
 } from "@/db/schema"
@@ -32,8 +32,8 @@ import {
 } from "@/lib/logging/posthog-otel-logger"
 import { getStripe } from "@/lib/stripe"
 import {
-	recordDisputeEvent,
-	recordRefundCompleted,
+  recordDisputeEvent,
+  recordRefundCompleted,
 } from "@/server/commerce/financial-events"
 import { notifyPaymentExpired } from "@/server/notifications"
 import type { CheckoutCompletedParams } from "@/workflows/stripe-checkout-workflow"
@@ -234,15 +234,13 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 
           if (!paymentIntentId) {
             logWarning({
-              message:
-                "[Stripe Webhook] Dispute has no payment_intent",
+              message: "[Stripe Webhook] Dispute has no payment_intent",
               attributes: { disputeId: dispute.id },
             })
             return
           }
 
-          const result =
-            await findPurchaseByPaymentIntent(paymentIntentId)
+          const result = await findPurchaseByPaymentIntent(paymentIntentId)
           if (!result) {
             logWarning({
               message:
@@ -260,7 +258,10 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
           const existing = await db.query.financialEventTable.findFirst({
             where: and(
               eq(financialEventTable.stripeDisputeId, dispute.id),
-              eq(financialEventTable.eventType, FINANCIAL_EVENT_TYPE.DISPUTE_OPENED),
+              eq(
+                financialEventTable.eventType,
+                FINANCIAL_EVENT_TYPE.DISPUTE_OPENED,
+              ),
             ),
             columns: { id: true },
           })
@@ -297,15 +298,15 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 
           if (!paymentIntentId) return
 
-          const result =
-            await findPurchaseByPaymentIntent(paymentIntentId)
+          const result = await findPurchaseByPaymentIntent(paymentIntentId)
           if (!result) return
 
-          const eventType = dispute.status === "won"
-            ? FINANCIAL_EVENT_TYPE.DISPUTE_WON
-            : dispute.status === "lost"
-              ? FINANCIAL_EVENT_TYPE.DISPUTE_LOST
-              : null
+          const eventType =
+            dispute.status === "won"
+              ? FINANCIAL_EVENT_TYPE.DISPUTE_WON
+              : dispute.status === "lost"
+                ? FINANCIAL_EVENT_TYPE.DISPUTE_LOST
+                : null
           if (!eventType) return
 
           // Idempotency: skip if we already recorded this dispute resolution
@@ -370,36 +371,61 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 
           if (!paymentIntentId) return
 
-          const result =
-            await findPurchaseByPaymentIntent(paymentIntentId)
-          if (!result) return
-
           const db = getDb()
+          const purchases = await db.query.commercePurchaseTable.findMany({
+            where: eq(
+              commercePurchaseTable.stripePaymentIntentId,
+              paymentIntentId,
+            ),
+          })
+          if (purchases.length === 0) return
 
           // Check each refund on the charge
           for (const refund of charge.refunds?.data ?? []) {
             if (refund.status !== "succeeded") continue
 
             // Skip if we already recorded this refund (idempotency)
-            const existing =
-              await db.query.financialEventTable.findFirst({
-                where: and(
-                  eq(
-                    financialEventTable.stripeRefundId,
-                    refund.id,
-                  ),
-                  eq(
-                    financialEventTable.eventType,
-                    FINANCIAL_EVENT_TYPE.REFUND_COMPLETED,
-                  ),
+            const existing = await db.query.financialEventTable.findFirst({
+              where: and(
+                eq(financialEventTable.stripeRefundId, refund.id),
+                eq(
+                  financialEventTable.eventType,
+                  FINANCIAL_EVENT_TYPE.REFUND_COMPLETED,
                 ),
-                columns: { id: true },
-              })
+              ),
+              columns: { id: true },
+            })
             if (existing) continue
 
+            const metadataPurchaseId = refund.metadata?.purchaseId
+            const purchase = metadataPurchaseId
+              ? purchases.find(
+                  (candidate) => candidate.id === metadataPurchaseId,
+                )
+              : purchases.length === 1
+                ? purchases[0]
+                : undefined
+            if (!purchase?.competitionId) {
+              logWarning({
+                message:
+                  "[Stripe Webhook] Cannot attribute dashboard refund across a multi-line checkout",
+                attributes: {
+                  paymentIntentId,
+                  refundId: refund.id,
+                  purchaseCount: purchases.length,
+                },
+              })
+              continue
+            }
+            const competition = await db.query.competitionsTable.findFirst({
+              where: eq(competitionsTable.id, purchase.competitionId),
+              columns: { organizingTeamId: true },
+            })
+            if (!competition) continue
+
             await recordRefundCompleted({
-              purchaseId: result.purchase.id,
-              teamId: result.teamId,
+              purchaseId: purchase.id,
+              teamId: competition.organizingTeamId,
               amountCents: refund.amount,
               stripePaymentIntentId: paymentIntentId,
               stripeRefundId: refund.id,
@@ -410,7 +436,7 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
               message:
                 "[Stripe Webhook] Recorded REFUND_COMPLETED from charge.refunded",
               attributes: {
-                purchaseId: result.purchase.id,
+                purchaseId: purchase.id,
                 refundId: refund.id,
                 amount: refund.amount,
               },
@@ -490,124 +516,73 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
                   ? session.payment_intent
                   : (session.payment_intent?.id ?? null)
 
-              // Dispatch a workflow for EACH purchase (each division independent)
-              // Collect errors so one failure doesn't abort remaining purchases
-              const workflowErrors: Array<{
-                purchaseId: string
-                error: unknown
-              }> = []
-
-              for (const purchaseId of purchaseIds) {
-                // Look up division from the purchase record
-                const purchase =
-                  await getDb().query.commercePurchaseTable.findFirst({
-                    where: eq(commercePurchaseTable.id, purchaseId),
-                  })
-
-                if (!purchase) {
-                  logWarning({
-                    message:
-                      "[Stripe Webhook] Purchase not found, falling back to session metadata",
-                    attributes: { purchaseId, eventId: event.id },
-                  })
-                }
-
-                const divisionId =
-                  purchase?.divisionId ?? session.metadata?.divisionId ?? ""
-
-                const workflowParams: CheckoutCompletedParams = {
-                  stripeEventId: event.id,
-                  session: {
-                    id: session.id,
-                    payment_intent: paymentIntent,
-                    amount_total: purchase?.totalCents ?? session.amount_total,
-                    customer_email: session.customer_email,
-                    metadata: {
-                      purchaseId,
-                      competitionId,
-                      divisionId,
-                      userId,
-                      couponId: session.metadata?.couponId,
-                      stripeCouponId: session.metadata?.stripeCouponId,
-                      couponCode: session.metadata?.couponCode,
-                      couponDiscountCents:
-                        session.metadata?.couponDiscountCents,
-                    },
+              const workflowParams: CheckoutCompletedParams = {
+                stripeEventId: event.id,
+                session: {
+                  id: session.id,
+                  payment_intent: paymentIntent,
+                  amount_total: session.amount_total,
+                  customer_email: session.customer_email,
+                  metadata: {
+                    purchaseIds,
+                    competitionId,
+                    userId,
+                    couponId: session.metadata?.couponId,
+                    couponCode: session.metadata?.couponCode,
+                    couponDiscountCents: session.metadata?.couponDiscountCents,
                   },
-                }
-
-                // Use event.id + purchaseId as key for multi-division idempotency
-                const workflowId =
-                  purchaseIds.length > 1
-                    ? `${event.id}-${purchaseId}`
-                    : event.id
-
-                const workflow =
-                  "STRIPE_CHECKOUT_WORKFLOW" in env
-                    ? (env.STRIPE_CHECKOUT_WORKFLOW as
-                        | Workflow<CheckoutCompletedParams>
-                        | undefined)
-                    : undefined
-
-                if (workflow && typeof workflow.create === "function") {
-                  try {
-                    await workflow.create({
-                      id: workflowId,
-                      params: workflowParams,
-                    })
-                    logInfo({
-                      message:
-                        "[Stripe Webhook] Dispatched checkout to workflow",
-                      attributes: {
-                        eventId: event.id,
-                        workflowId,
-                        purchaseId,
-                        competitionId,
-                        divisionId,
-                      },
-                    })
-                  } catch (workflowErr) {
-                    const isConflict =
-                      workflowErr instanceof Error &&
-                      workflowErr.message.includes("already exists")
-                    if (isConflict) {
-                      logInfo({
-                        message:
-                          "[Stripe Webhook] Workflow already exists for event (idempotent)",
-                        attributes: { eventId: event.id, workflowId },
-                      })
-                    } else {
-                      logError({
-                        message: "[Stripe Webhook] Failed to dispatch workflow",
-                        error: workflowErr,
-                        attributes: {
-                          eventId: event.id,
-                          workflowId,
-                          purchaseId,
-                        },
-                      })
-                      workflowErrors.push({ purchaseId, error: workflowErr })
-                    }
-                  }
-                } else {
-                  // Local dev: process inline
-                  logInfo({
-                    message:
-                      "[Stripe Webhook] Workflow binding unavailable, processing inline",
-                    attributes: { eventId: event.id, purchaseId },
-                  })
-                  const { processCheckoutInline } = await import(
-                    "@/workflows/stripe-checkout-workflow"
-                  )
-                  await processCheckoutInline(workflowParams)
-                }
+                },
               }
 
-              // If any workflow dispatches failed, throw so Stripe retries
-              if (workflowErrors.length > 0) {
-                throw new Error(
-                  `Failed to dispatch ${workflowErrors.length} of ${purchaseIds.length} workflows`,
+              const workflow =
+                "STRIPE_CHECKOUT_WORKFLOW" in env
+                  ? (env.STRIPE_CHECKOUT_WORKFLOW as
+                      | Workflow<CheckoutCompletedParams>
+                      | undefined)
+                  : undefined
+
+              if (workflow && typeof workflow.create === "function") {
+                try {
+                  await workflow.create({
+                    id: event.id,
+                    params: workflowParams,
+                  })
+                  logInfo({
+                    message:
+                      "[Stripe Webhook] Dispatched checkout session to workflow",
+                    attributes: {
+                      eventId: event.id,
+                      purchaseIds: purchaseIds.join(","),
+                      competitionId,
+                    },
+                  })
+                } catch (workflowErr) {
+                  const isConflict =
+                    workflowErr instanceof Error &&
+                    workflowErr.message.includes("already exists")
+                  if (isConflict) {
+                    logInfo({
+                      message:
+                        "[Stripe Webhook] Workflow already exists for event (idempotent)",
+                      attributes: { eventId: event.id },
+                    })
+                  } else {
+                    throw workflowErr
+                  }
+                }
+              } else {
+                logInfo({
+                  message:
+                    "[Stripe Webhook] Workflow binding unavailable, processing session inline",
+                  attributes: {
+                    eventId: event.id,
+                    purchaseIds: purchaseIds.join(","),
+                  },
+                })
+                const { processCheckoutInline } = await import(
+                  "@/workflows/stripe-checkout-workflow"
                 )
+                await processCheckoutInline(workflowParams)
               }
               break
             }
@@ -625,21 +600,15 @@ export const Route = createFileRoute("/api/webhooks/stripe")({
 
             // Financial event tracking (disputes, refunds)
             case "charge.dispute.created":
-              await handleDisputeCreated(
-                event.data.object as Stripe.Dispute,
-              )
+              await handleDisputeCreated(event.data.object as Stripe.Dispute)
               break
 
             case "charge.dispute.closed":
-              await handleDisputeClosed(
-                event.data.object as Stripe.Dispute,
-              )
+              await handleDisputeClosed(event.data.object as Stripe.Dispute)
               break
 
             case "charge.refunded":
-              await handleChargeRefunded(
-                event.data.object as Stripe.Charge,
-              )
+              await handleChargeRefunded(event.data.object as Stripe.Charge)
               break
 
             case "account.application.authorized":
