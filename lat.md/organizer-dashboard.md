@@ -22,9 +22,9 @@ For in-person competitions, the Registrations stat card exposes a `Go to Check-I
 
 ## Competition Editing
 
-The edit page allows organizers to modify competition name, dates, description, registration window, timezone, and series group.
+The edit page lets organizers modify core details while preserving supported stored competition types such as benchmark.
 
-Fetches competition groups for the organizing team. Uses `OrganizerCompetitionEditForm` component.
+The type picker shows all registered types for existing competitions, even when a type is unavailable during generic creation. Other editable fields include dates, description, registration window, timezone, and series group.
 
 ## Division Management
 

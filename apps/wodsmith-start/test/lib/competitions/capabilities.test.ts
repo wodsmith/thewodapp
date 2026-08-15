@@ -3,7 +3,9 @@ import {
 	COMPETITION_TYPE_REGISTRY,
 	type CompetitionCapability,
 	competitionCan,
+	competitionTypeOptions,
 	isSelectableCompetitionTypeValue,
+	isCompetitionTypeValue,
 	resultsEntryMode,
 	resultsNavLabel,
 	isSelectableType,
@@ -36,6 +38,18 @@ const EXPECTED = {
 		leaderboardVariant: "standard",
 		selectableOnCreate: true,
 	},
+	benchmark: {
+		videoSubmissions: false,
+		submissionWindows: false,
+		optInResultPublishing: false,
+		heatScheduling: false,
+		dayOfCheckIn: false,
+		physicalVenue: false,
+		volunteerScheduling: false,
+		organizerEntersResults: false,
+		leaderboardVariant: "standard",
+		selectableOnCreate: false,
+	},
 	online: {
 		videoSubmissions: true,
 		submissionWindows: true,
@@ -52,7 +66,7 @@ const EXPECTED = {
 
 describe("competition type capabilities", () => {
 	// @lat: [[competition-type-capabilities#Capability Truth Table Test#Current Type Matrix]]
-	it("pins every in-person and online capability to the existing behavior table", () => {
+	it("pins every registered competition type to the existing behavior table", () => {
 		for (const [type, expected] of Object.entries(EXPECTED)) {
 			for (const capability of CAPABILITIES) {
 				expect(competitionCan(type, capability), `${type}:${capability}`).toBe(
@@ -68,6 +82,7 @@ describe("competition type capabilities", () => {
 	// @lat: [[competition-type-capabilities#Capability Truth Table Test#Registry Metadata Alignment]]
 	it("keeps registry metadata aligned with the supported type identities", () => {
 		expect(Object.keys(COMPETITION_TYPE_REGISTRY).sort()).toEqual([
+			"benchmark",
 			"in-person",
 			"online",
 		])
@@ -82,18 +97,31 @@ describe("competition type capabilities", () => {
 	// @lat: [[competition-type-capabilities#Capability Truth Table Test#Unknown Type Fallback]]
 	it("falls back safely for unknown competition types", () => {
 		for (const capability of CAPABILITIES) {
-			expect(competitionCan("benchmark", capability)).toBe(false)
+			expect(competitionCan("unsupported", capability)).toBe(false)
 		}
 
-		expect(leaderboardVariant("benchmark")).toBe("standard")
-		expect(isSelectableType("benchmark")).toBe(false)
+		expect(leaderboardVariant("unsupported")).toBe("standard")
+		expect(isSelectableType("unsupported")).toBe(false)
 	})
 
 	// @lat: [[competition-type-capabilities#Create Picker Selectability Test]]
-	it("derives create-picker type options from selectable registry entries only", () => {
+	it("keeps benchmark editable while excluding it from the create picker", () => {
+		const registeredOptions = competitionTypeOptions()
 		const selectableTypes = selectableCompetitionTypes()
 		const pickerOptions = selectableCompetitionTypeOptions()
 
+		expect(isCompetitionTypeValue("benchmark")).toBe(true)
+		expect(isSelectableCompetitionTypeValue("benchmark")).toBe(false)
+		expect(isCompetitionTypeValue("unsupported")).toBe(false)
+		expect(isCompetitionTypeValue(null)).toBe(false)
+		expect(isSelectableCompetitionTypeValue(null)).toBe(false)
+
+		expect(registeredOptions).toContainEqual({
+			id: "benchmark",
+			label: "Benchmark",
+			description: "Perpetual athlete benchmark tracking",
+			displayLabel: "Benchmark - Perpetual athlete benchmark tracking",
+		})
 		expect(selectableTypes.map((type) => type.id)).toEqual([
 			"in-person",
 			"online",
@@ -102,8 +130,6 @@ describe("competition type capabilities", () => {
 			expect(isSelectableType(type.id)).toBe(true)
 			expect(isSelectableCompetitionTypeValue(type.id)).toBe(true)
 		}
-		expect(isSelectableCompetitionTypeValue("benchmark")).toBe(false)
-		expect(isSelectableCompetitionTypeValue(null)).toBe(false)
 
 		expect(pickerOptions).toEqual([
 			{

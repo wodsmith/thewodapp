@@ -16,6 +16,7 @@ import { and, eq, inArray, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
+  type CompetitionType,
   competitionRegistrationsTable,
   competitionsTable,
   REGISTRATION_STATUS,
@@ -51,7 +52,7 @@ async function requireCheckInAccess(competitionId: string): Promise<{
     id: string
     organizingTeamId: string
     competitionTeamId: string | null
-    competitionType: "in-person" | "online"
+    competitionType: CompetitionType
   }
   userId: string
 }> {

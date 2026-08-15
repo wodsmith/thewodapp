@@ -1,3 +1,5 @@
+import type { CompetitionType } from "@/db/schemas/competitions"
+
 // @lat: [[competition-type-capabilities#Registry Source of Truth]]
 export type CompetitionCapability =
   | "videoSubmissions"
@@ -32,8 +34,16 @@ export interface CompetitionTypePickerOption {
 const EMPTY_CAPABILITIES: ReadonlySet<CompetitionCapability> = new Set()
 
 export const COMPETITION_TYPE_REGISTRY: Readonly<
-  Record<"in-person" | "online", CompetitionTypeDef>
+  Record<CompetitionType, CompetitionTypeDef>
 > = {
+  benchmark: {
+    id: "benchmark",
+    label: "Benchmark",
+    createPickerDescription: "Perpetual athlete benchmark tracking",
+    leaderboardVariant: "standard",
+    selectableOnCreate: false,
+    capabilities: EMPTY_CAPABILITIES,
+  },
   "in-person": {
     id: "in-person",
     label: "In-Person",
@@ -64,27 +74,34 @@ export const COMPETITION_TYPE_REGISTRY: Readonly<
 
 export type CompetitionTypeId = keyof typeof COMPETITION_TYPE_REGISTRY
 
+export function isCompetitionTypeValue(
+  value: unknown,
+): value is CompetitionTypeId {
+  return (
+    typeof value === "string" && Object.hasOwn(COMPETITION_TYPE_REGISTRY, value)
+  )
+}
+
 export function competitionCan(
   type: string,
   capability: CompetitionCapability,
 ): boolean {
-  return (
-    COMPETITION_TYPE_REGISTRY[type as keyof typeof COMPETITION_TYPE_REGISTRY]
-      ?.capabilities ?? EMPTY_CAPABILITIES
-  ).has(capability)
+  const capabilities = isCompetitionTypeValue(type)
+    ? COMPETITION_TYPE_REGISTRY[type].capabilities
+    : EMPTY_CAPABILITIES
+  return capabilities.has(capability)
 }
 
 export function leaderboardVariant(type: string): LeaderboardVariant {
-  return (
-    COMPETITION_TYPE_REGISTRY[type as keyof typeof COMPETITION_TYPE_REGISTRY]
-      ?.leaderboardVariant ?? "standard"
-  )
+  return isCompetitionTypeValue(type)
+    ? COMPETITION_TYPE_REGISTRY[type].leaderboardVariant
+    : "standard"
 }
 
 export function isSelectableType(type: string): type is CompetitionTypeId {
   return (
-    COMPETITION_TYPE_REGISTRY[type as keyof typeof COMPETITION_TYPE_REGISTRY]
-      ?.selectableOnCreate ?? false
+    isCompetitionTypeValue(type) &&
+    COMPETITION_TYPE_REGISTRY[type].selectableOnCreate
   )
 }
 
@@ -92,6 +109,15 @@ export function isSelectableCompetitionTypeValue(
   value: unknown,
 ): value is CompetitionTypeId {
   return typeof value === "string" && isSelectableType(value)
+}
+
+export function competitionTypeOptions(): CompetitionTypePickerOption[] {
+  return Object.values(COMPETITION_TYPE_REGISTRY).map((definition) => ({
+    id: definition.id,
+    label: definition.label,
+    description: definition.createPickerDescription,
+    displayLabel: `${definition.label} - ${definition.createPickerDescription}`,
+  }))
 }
 
 export function selectableCompetitionTypes(): CompetitionTypeDef[] {

@@ -52,6 +52,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
+import type { CompetitionType } from "@/db/schemas/competitions"
 import {
   competitionCan,
   resultsNavLabel,
@@ -65,7 +66,7 @@ import { cn } from "@/utils/cn"
 
 interface CompetitionSidebarProps {
   competitionId: string
-  competitionType?: "in-person" | "online"
+  competitionType?: CompetitionType
   children: React.ReactNode
 }
 
@@ -83,7 +84,7 @@ interface NavGroup {
 
 const getNavigation = (
   basePath: string,
-  competitionType?: "in-person" | "online",
+  competitionType?: CompetitionType,
 ): { overview: NavItem; groups: NavGroup[] } => {
   const type = competitionType ?? ""
 

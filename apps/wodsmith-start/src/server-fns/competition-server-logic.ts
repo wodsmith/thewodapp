@@ -12,6 +12,7 @@ import { getDb } from "@/db"
 import {
   type Competition,
   type CompetitionGroup,
+  type CompetitionType,
   competitionGroupsTable,
   competitionsTable,
 } from "@/db/schemas/competitions"
@@ -193,7 +194,7 @@ export async function createCompetition(params: {
   groupId?: string
   settings?: string
   timezone?: string // IANA timezone string (e.g., "America/Denver")
-  competitionType?: "in-person" | "online"
+  competitionType?: CompetitionType
 }): Promise<{ competitionId: string; competitionTeamId: string }> {
   const db = getDb()
 
@@ -340,7 +341,7 @@ export async function updateCompetition(
     settings: string | null
     visibility: "public" | "private"
     status: "draft" | "published"
-    competitionType: "in-person" | "online"
+    competitionType: CompetitionType
     profileImageUrl: string | null
     bannerImageUrl: string | null
     timezone: string // IANA timezone string
