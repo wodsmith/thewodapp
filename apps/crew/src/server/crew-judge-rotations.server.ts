@@ -2,6 +2,7 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm"
 import { getDb } from "../db"
 import {
+  type CompetitionType,
   competitionHeatAssignmentsTable,
   competitionHeatsTable,
   competitionJudgeRotationsTable,
@@ -74,7 +75,7 @@ export interface CrewJudgeEvent {
   startDate: string
   endDate: string
   timezone: string | null
-  competitionType: "in-person" | "online"
+  competitionType: CompetitionType
 }
 
 export interface CrewJudgeWorkout {

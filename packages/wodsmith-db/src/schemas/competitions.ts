@@ -114,9 +114,9 @@ export const competitionsTable = mysqlTable(
       .$type<"draft" | "published">()
       .default("draft")
       .notNull(),
-    // Competition type: in-person = traditional venue-based, online = virtual/remote with video submissions
+    // Competition type: benchmark = perpetual tracking, in-person = venue-based, online = remote video submissions
     competitionType: varchar({ length: 15 })
-      .$type<"in-person" | "online">()
+      .$type<CompetitionType>()
       .default("in-person")
       .notNull(),
     // Competition branding images
@@ -484,6 +484,7 @@ export type CompetitionVisibility =
 
 // Competition type constants
 export const COMPETITION_TYPES = {
+  BENCHMARK: "benchmark",
   IN_PERSON: "in-person",
   ONLINE: "online",
 } as const

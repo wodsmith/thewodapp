@@ -21,7 +21,9 @@ import { TEAM_PERMISSIONS, type Team, teamTable } from "@/db/schemas/teams"
 import { ROLES_ENUM } from "@/db/schemas/users"
 import {
   type CompetitionTypeId,
+  isCompetitionTypeValue,
   isSelectableCompetitionTypeValue,
+  type SelectableCompetitionTypeId,
 } from "@/lib/competitions/capabilities"
 import { getEvlog } from "@/lib/evlog"
 import {
@@ -97,7 +99,7 @@ const createCompetitionInputSchema = z.object({
   settings: z.string().optional(),
   timezone: z.string().optional(),
   competitionType: z
-    .custom<CompetitionTypeId>(
+    .custom<SelectableCompetitionTypeId>(
       isSelectableCompetitionTypeValue,
       "Select a supported competition type",
     )
@@ -119,7 +121,7 @@ const updateCompetitionInputSchema = z.object({
   status: z.enum(["draft", "published"]).optional(),
   competitionType: z
     .custom<CompetitionTypeId>(
-      isSelectableCompetitionTypeValue,
+      isCompetitionTypeValue,
       "Select a supported competition type",
     )
     .optional(),

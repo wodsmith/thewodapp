@@ -4,13 +4,13 @@ lat:
 ---
 # Competition Type Capabilities
 
-Competition type capabilities define which product behaviors each stored competition type enables while keeping existing in-person and online behavior unchanged.
+Competition type capabilities define product behavior for in-person, online, and benchmark competitions while unknown stored values fail closed.
 
 ## Registry Source of Truth
 
-The registry maps each competition type to named capabilities, its leaderboard variant, and create-picker selectability without adding a database field.
+The registry maps every supported stored type to capabilities, leaderboard behavior, create selectability, and organizer-facing labels.
 
-[[apps/wodsmith-start/src/lib/competitions/capabilities.ts#COMPETITION_TYPE_REGISTRY]] keeps `competitionType` as the stored discriminator and exposes [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#competitionCan]], [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#leaderboardVariant]], and [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#isSelectableType]] for later call-site refactors. In-person competitions retain heat scheduling, day-of check-in, physical venue, volunteer scheduling, and organizer-entered results. Online competitions retain video submissions, submission windows, opt-in result publishing, and the online leaderboard variant.
+[[apps/wodsmith-start/src/lib/competitions/capabilities.ts#COMPETITION_TYPE_REGISTRY]] keeps `competitionType` as the stored discriminator. In-person retains venue workflows and organizer-entered results. Online retains video submissions, submission windows, opt-in publishing, and its leaderboard variant. Benchmark supports perpetual athlete tracking with the standard leaderboard, exposes no venue or video capabilities, remains unavailable during generic creation, and stays editable through its registered label.
 
 Server submission gates now consume the registry for the API, server-function, and leaderboard paths: score-window checks use `submissionWindows`, while video submission checks use `videoSubmissions`. The dedicated leaderboard refactor also routes the online table decision through `leaderboardVariant` and the hidden-until-published default through `optInResultPublishing`; [[apps/wodsmith-start/src/server/competition-leaderboard.ts#getCompetitionLeaderboard]] stayed minimal because GitNexus reports HIGH blast radius.
 
@@ -18,9 +18,9 @@ The `scoringAlgorithm === "online"` axis remains separate from `competitionType 
 
 ## Capability Truth Table Test
 
-The truth-table test pins every capability and leaderboard variant for in-person and online competitions before call sites are refactored.
+The truth-table test pins capabilities, leaderboard variants, and create selectability for every registered competition type.
 
-[[apps/wodsmith-start/test/lib/competitions/capabilities.test.ts]] verifies each capability for both current types, confirms registry metadata matches type identity, and covers the unknown-type fallback. This is the PR-1 safety net for the M0 competition-type capability registry.
+[[apps/wodsmith-start/test/lib/competitions/capabilities.test.ts]] verifies in-person, online, and benchmark behavior, registry metadata alignment, and the unknown-type fallback.
 
 Focused PR-2 server-function tests pin that in-person score saves pass the submission-window gate, online score saves still honor closed windows, and in-person video submissions still reject before writes. PR-3 adds [[apps/wodsmith-start/test/components/leaderboard-page-content.test.tsx]] coverage for standard versus online leaderboard table selection plus [[apps/wodsmith-start/test/server/competition-leaderboard-capability-gates.test.ts]] coverage for opt-in result publishing defaults and the leaderboard video-submission fetch gate. PR-4 adds [[apps/wodsmith-start/test/lib/competitions/scheduling-check-in-gates.test.ts]] coverage for the heat scheduling and day-of check-in gates used by the public schedule, judge rotations, check-in routes, and check-in server functions. PR-5 adds [[apps/wodsmith-start/test/lib/competitions/venue-volunteer-gates.test.ts]] and [[apps/wodsmith-start/test/components/competition-location-card.test.tsx]] coverage for physical venue display and volunteer schedule-tab gates.
 
@@ -38,9 +38,9 @@ This test verifies unknown competition types fail closed for capabilities, use t
 
 ## Create Picker Selectability Test
 
-The create-picker test pins that selectable competition type options are derived from registry selectability while exposing only current types.
+The picker test separates types available during generic creation from registered types that existing competitions may retain and edit.
 
-[[apps/wodsmith-start/test/lib/competitions/capabilities.test.ts]] verifies [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#selectableCompetitionTypes]] returns only in-person and online type definitions, with each entry passing [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#isSelectableType]] and [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#isSelectableCompetitionTypeValue]]. [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#selectableCompetitionTypeOptions]] provides the registry-backed label and description text that the generic organizer create and edit form pickers render, while the form and server schemas use the same selectable-value guard.
+[[apps/wodsmith-start/src/lib/competitions/capabilities.ts#selectableCompetitionTypes]] and [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#selectableCompetitionTypeOptions]] expose only in-person and online for creation. [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#competitionTypeOptions]] includes benchmark for edit forms, while [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#isCompetitionTypeValue]] lets update validation preserve any registered type without making benchmark create-selectable.
 
 ## Scheduling and Check-In Gates Test
 

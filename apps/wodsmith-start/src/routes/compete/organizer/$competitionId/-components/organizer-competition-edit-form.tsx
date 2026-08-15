@@ -39,11 +39,13 @@ import { Textarea } from "@/components/ui/textarea"
 import type { Competition, CompetitionGroup } from "@/db/schemas/competitions"
 import {
   type CompetitionTypeId,
-  isSelectableCompetitionTypeValue,
-  selectableCompetitionTypeOptions,
+  competitionTypeOptions,
+  isCompetitionTypeValue,
 } from "@/lib/competitions/capabilities"
 import { updateCompetitionFn } from "@/server-fns/competition-fns"
 import { COMMON_US_TIMEZONES, DEFAULT_TIMEZONE } from "@/utils/timezone-utils"
+
+const COMPETITION_TYPE_OPTIONS = competitionTypeOptions()
 
 /**
  * Format a date value for HTML date inputs.
@@ -81,7 +83,7 @@ const formSchema = z
         "Slug must be lowercase letters, numbers, and hyphens only",
       ),
     competitionType: z.custom<CompetitionTypeId>(
-      isSelectableCompetitionTypeValue,
+      isCompetitionTypeValue,
       "Select a supported competition type",
     ),
     isMultiDay: z.boolean(),
@@ -351,7 +353,7 @@ export function OrganizerCompetitionEditForm({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {selectableCompetitionTypeOptions().map((option) => (
+                  {COMPETITION_TYPE_OPTIONS.map((option) => (
                     <SelectItem key={option.id} value={option.id}>
                       {option.displayLabel}
                     </SelectItem>
@@ -359,9 +361,11 @@ export function OrganizerCompetitionEditForm({
                 </SelectContent>
               </Select>
               <FormDescription>
-                {field.value === "online"
-                  ? "Athletes submit video recordings of their workouts"
-                  : "Athletes compete at a physical venue"}
+                {
+                  COMPETITION_TYPE_OPTIONS.find(
+                    (option) => option.id === field.value,
+                  )?.description
+                }
               </FormDescription>
               <FormMessage />
             </FormItem>
