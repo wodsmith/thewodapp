@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, expectTypeOf, it } from "vitest"
 import {
 	COMPETITION_TYPE_REGISTRY,
 	type CompetitionCapability,
+	type SelectableCompetitionTypeId,
 	competitionCan,
 	competitionTypeOptions,
 	isSelectableCompetitionTypeValue,
@@ -109,6 +110,10 @@ describe("competition type capabilities", () => {
 		const registeredOptions = competitionTypeOptions()
 		const selectableTypes = selectableCompetitionTypes()
 		const pickerOptions = selectableCompetitionTypeOptions()
+
+		expectTypeOf<SelectableCompetitionTypeId>().toEqualTypeOf<
+			"in-person" | "online"
+		>()
 
 		expect(isCompetitionTypeValue("benchmark")).toBe(true)
 		expect(isSelectableCompetitionTypeValue("benchmark")).toBe(false)

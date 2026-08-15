@@ -33,9 +33,7 @@ export interface CompetitionTypePickerOption {
 
 const EMPTY_CAPABILITIES: ReadonlySet<CompetitionCapability> = new Set()
 
-export const COMPETITION_TYPE_REGISTRY: Readonly<
-  Record<CompetitionType, CompetitionTypeDef>
-> = {
+export const COMPETITION_TYPE_REGISTRY = {
   benchmark: {
     id: "benchmark",
     label: "Benchmark",
@@ -70,9 +68,14 @@ export const COMPETITION_TYPE_REGISTRY: Readonly<
       "optInResultPublishing",
     ]),
   },
-}
+} as const satisfies Readonly<Record<CompetitionType, CompetitionTypeDef>>
 
 export type CompetitionTypeId = keyof typeof COMPETITION_TYPE_REGISTRY
+export type SelectableCompetitionTypeId = {
+  [Type in CompetitionTypeId]: (typeof COMPETITION_TYPE_REGISTRY)[Type]["selectableOnCreate"] extends true
+    ? Type
+    : never
+}[CompetitionTypeId]
 
 export function isCompetitionTypeValue(
   value: unknown,
@@ -98,7 +101,9 @@ export function leaderboardVariant(type: string): LeaderboardVariant {
     : "standard"
 }
 
-export function isSelectableType(type: string): type is CompetitionTypeId {
+export function isSelectableType(
+  type: string,
+): type is SelectableCompetitionTypeId {
   return (
     isCompetitionTypeValue(type) &&
     COMPETITION_TYPE_REGISTRY[type].selectableOnCreate
@@ -107,17 +112,23 @@ export function isSelectableType(type: string): type is CompetitionTypeId {
 
 export function isSelectableCompetitionTypeValue(
   value: unknown,
-): value is CompetitionTypeId {
+): value is SelectableCompetitionTypeId {
   return typeof value === "string" && isSelectableType(value)
 }
 
-export function competitionTypeOptions(): CompetitionTypePickerOption[] {
-  return Object.values(COMPETITION_TYPE_REGISTRY).map((definition) => ({
+const COMPETITION_TYPE_OPTIONS: ReadonlyArray<CompetitionTypePickerOption> =
+  Object.values(COMPETITION_TYPE_REGISTRY).map((definition) => ({
     id: definition.id,
     label: definition.label,
     description: definition.createPickerDescription,
     displayLabel: `${definition.label} - ${definition.createPickerDescription}`,
   }))
+const SELECTABLE_COMPETITION_TYPE_OPTIONS = COMPETITION_TYPE_OPTIONS.filter(
+  (option) => isSelectableType(option.id),
+)
+
+export function competitionTypeOptions(): ReadonlyArray<CompetitionTypePickerOption> {
+  return COMPETITION_TYPE_OPTIONS
 }
 
 export function selectableCompetitionTypes(): CompetitionTypeDef[] {
@@ -126,13 +137,8 @@ export function selectableCompetitionTypes(): CompetitionTypeDef[] {
   )
 }
 
-export function selectableCompetitionTypeOptions(): CompetitionTypePickerOption[] {
-  return selectableCompetitionTypes().map((definition) => ({
-    id: definition.id,
-    label: definition.label,
-    description: definition.createPickerDescription,
-    displayLabel: `${definition.label} - ${definition.createPickerDescription}`,
-  }))
+export function selectableCompetitionTypeOptions(): ReadonlyArray<CompetitionTypePickerOption> {
+  return SELECTABLE_COMPETITION_TYPE_OPTIONS
 }
 
 export function canOrganizerEnterResults(type: string): boolean {

@@ -23,6 +23,7 @@ import {
   type CompetitionTypeId,
   isCompetitionTypeValue,
   isSelectableCompetitionTypeValue,
+  type SelectableCompetitionTypeId,
 } from "@/lib/competitions/capabilities"
 import { getEvlog } from "@/lib/evlog"
 import {
@@ -98,7 +99,7 @@ const createCompetitionInputSchema = z.object({
   settings: z.string().optional(),
   timezone: z.string().optional(),
   competitionType: z
-    .custom<CompetitionTypeId>(
+    .custom<SelectableCompetitionTypeId>(
       isSelectableCompetitionTypeValue,
       "Select a supported competition type",
     )

@@ -272,6 +272,10 @@ export function OrganizerCompetitionForm({
           onSuccess?.(result.competition.id)
         }
       } else {
+        if (!isSelectableCompetitionTypeValue(data.competitionType)) {
+          throw new Error("Select a supported competition type")
+        }
+
         // Create new competition
         const result = await createCompetitionFn({
           data: {

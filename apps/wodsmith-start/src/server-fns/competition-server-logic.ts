@@ -17,6 +17,7 @@ import {
   competitionsTable,
 } from "@/db/schemas/competitions"
 import { teamTable } from "@/db/schemas/teams"
+import type { SelectableCompetitionTypeId } from "@/lib/competitions/capabilities"
 import { generateSlug } from "@/utils/slugify"
 
 /* -------------------------------------------------------------------------- */
@@ -194,7 +195,7 @@ export async function createCompetition(params: {
   groupId?: string
   settings?: string
   timezone?: string // IANA timezone string (e.g., "America/Denver")
-  competitionType?: CompetitionType
+  competitionType?: SelectableCompetitionTypeId
 }): Promise<{ competitionId: string; competitionTeamId: string }> {
   const db = getDb()
 
