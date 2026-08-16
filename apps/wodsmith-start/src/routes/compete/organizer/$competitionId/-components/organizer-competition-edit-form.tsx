@@ -244,6 +244,16 @@ export function OrganizerCompetitionEditForm({
   }
 
   async function onSubmit(data: FormValues) {
+    if (
+      competition.competitionType !== "benchmark" &&
+      data.competitionType === "benchmark" &&
+      !window.confirm(
+        "Convert this competition to a benchmark? Venue, heat schedule, check-in, volunteer, and video-submission configuration will no longer be available. Existing data will be retained.",
+      )
+    ) {
+      return
+    }
+
     // For single-day competitions, endDate = startDate
     const effectiveEndDate =
       data.isMultiDay && data.endDate ? data.endDate : data.startDate

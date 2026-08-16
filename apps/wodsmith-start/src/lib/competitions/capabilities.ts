@@ -40,7 +40,7 @@ export const COMPETITION_TYPE_REGISTRY = {
     createPickerDescription: "Perpetual athlete benchmark tracking",
     leaderboardVariant: "standard",
     selectableOnCreate: false,
-    capabilities: EMPTY_CAPABILITIES,
+    capabilities: new Set(["organizerEntersResults"]),
   },
   "in-person": {
     id: "in-person",

@@ -292,7 +292,7 @@ export function RegistrationSidebar({
                 Volunteer Dashboard
               </a>
             </Button>
-            {competition.competitionType !== "online" && (
+            {competition.competitionType === "in-person" && (
               <Button asChild variant="outline" size="sm" className="w-full">
                 <a href={`/compete/${competition.slug}/check-in`}>
                   <ClipboardCheck className="mr-2 h-4 w-4" />

@@ -10,7 +10,7 @@ Competition type capabilities define product behavior for in-person, online, and
 
 The registry maps every supported stored type to capabilities, leaderboard behavior, create selectability, and organizer-facing labels.
 
-[[apps/wodsmith-start/src/lib/competitions/capabilities.ts#COMPETITION_TYPE_REGISTRY]] keeps `competitionType` as the stored discriminator. In-person retains venue workflows and organizer-entered results. Online retains video submissions, submission windows, opt-in publishing, and its leaderboard variant. Benchmark supports perpetual athlete tracking with the standard leaderboard, exposes no venue or video capabilities, remains unavailable during generic creation, and stays editable through its registered label.
+[[apps/wodsmith-start/src/lib/competitions/capabilities.ts#COMPETITION_TYPE_REGISTRY]] keeps `competitionType` as the stored discriminator. In-person retains venue workflows and organizer-entered results. Online retains video submissions, submission windows, opt-in publishing, and its leaderboard variant. Benchmark supports perpetual athlete tracking, the standard leaderboard, and organizer-entered results while exposing no venue or video capabilities; it remains unavailable during generic creation and stays editable through its registered label.
 
 Server submission gates now consume the registry for the API, server-function, and leaderboard paths: score-window checks use `submissionWindows`, while video submission checks use `videoSubmissions`. The dedicated leaderboard refactor also routes the online table decision through `leaderboardVariant` and the hidden-until-published default through `optInResultPublishing`; [[apps/wodsmith-start/src/server/competition-leaderboard.ts#getCompetitionLeaderboard]] stayed minimal because GitNexus reports HIGH blast radius.
 
@@ -91,6 +91,8 @@ This test verifies unregistered competition types expose no venue or volunteer s
 PR-6 tests pin that result-entry labels and sidebar tabs come from capabilities rather than direct competition-type checks.
 
 [[apps/wodsmith-start/test/lib/competitions/capabilities.test.ts]] covers the result-entry mode and Results/Submissions label helper. [[apps/wodsmith-start/test/components/competition-sidebar-capability-gates.test.ts]] covers organizer and cohost sidebar labels plus capability-gated schedule, check-in, venue, and submission-window tabs while preserving online Volunteers links for non-scheduling volunteer workflows. [[apps/wodsmith-start/test/routes/compete/results-route-capability-branching.test.ts]] covers the organizer and cohost results route branch selectors for organizer-entered versus athlete-submitted modes.
+
+The legacy Crew surface treats benchmark as a fail-closed type: it omits venue, heat, judge, check-in, and results navigation, and its score-write gate rejects benchmark competitions. Benchmark results remain available through the capability-aware wodsmith-start organizer and cohost routes.
 
 ### Registry Results Mode Labels
 

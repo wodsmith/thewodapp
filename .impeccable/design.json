@@ -247,16 +247,16 @@
       "domain-ember": {
         "role": "secondary",
         "displayName": "Domain Ember",
-        "canonical": "#f97316",
+        "canonical": "#ea580c",
         "tonalRamp": [
-          "oklch(15% 0.1867 47.6)",
-          "oklch(27% 0.1867 47.6)",
-          "oklch(39% 0.1867 47.6)",
-          "oklch(51% 0.1867 47.6)",
-          "oklch(63% 0.1867 47.6)",
-          "oklch(75% 0.1867 47.6)",
-          "oklch(87% 0.1867 47.6)",
-          "oklch(95% 0.1867 47.6)"
+          "oklch(15% 0.19 41.1)",
+          "oklch(27% 0.19 41.1)",
+          "oklch(39% 0.19 41.1)",
+          "oklch(51% 0.19 41.1)",
+          "oklch(63% 0.19 41.1)",
+          "oklch(75% 0.19 41.1)",
+          "oklch(87% 0.19 41.1)",
+          "oklch(95% 0.19 41.1)"
         ]
       },
       "domain-ember-soft": {
@@ -556,8 +556,8 @@
       "kind": "chip",
       "refersTo": "domain-chip",
       "description": "Shared categorical filter using a domain tone without competing with the primary action.",
-      "html": "<button class=\"ds-domain-chip\" type=\"button\" aria-pressed=\"true\"><i aria-hidden=\"true\"></i>Strength <span>12</span></button>",
-      "css": ".ds-domain-chip { min-height: 34px; display: inline-flex; align-items: center; gap: 7px; padding: 0 11px; border: 1px solid var(--orange, #f97316); border-radius: 999px; background: #3d2113; color: var(--text, #f7f4ef); font: 600 11px/1.45 var(--font-body, \"Public Sans\", sans-serif); } .ds-domain-chip i { width: 7px; height: 7px; border-radius: 2px; background: var(--orange, #f97316); } .ds-domain-chip span { color: var(--subtle, #918981); font: 700 13px/1 var(--font-condensed, \"Barlow Condensed\", sans-serif); } .ds-domain-chip:hover { background: #3d2113; } .ds-domain-chip:focus-visible { outline: 2px solid var(--focus, #fdba74); outline-offset: 3px; }"
+      "html": "<button class=\"ds-domain-chip\" type=\"button\" aria-pressed=\"true\">Strength <span>12</span></button>",
+      "css": ".ds-domain-chip { min-height: 34px; display: inline-flex; align-items: center; gap: 7px; padding: 0 11px; border: 1px solid var(--line-strong, #484039); border-radius: 999px; background: var(--surface-soft, #1d1a17); color: var(--text, #f7f4ef); font: 600 11px/1.45 var(--font-body, \"Public Sans\", sans-serif); } .ds-domain-chip span { color: var(--subtle, #918981); font: 700 13px/1 var(--font-condensed, \"Barlow Condensed\", sans-serif); } .ds-domain-chip:hover { background: var(--surface-raised, #171513); } .ds-domain-chip:focus-visible { outline: 2px solid var(--focus, #fdba74); outline-offset: 3px; }"
     },
     {
       "name": "Shared Content Panel",

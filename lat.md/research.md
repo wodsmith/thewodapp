@@ -18,7 +18,7 @@ The source plan is `docs/plans/organic-organizer-acquisition-strategy.md`. It se
 
 The benchmark display research compares three workout-section concepts for browsing 58 published tests by training domain without changing the public competition shell.
 
-The runnable artifacts live in `docs/mockups/benchmark-density/`: Domain Rail uses grouped progressive disclosure, Benchmark Matrix uses aligned sortable rows, and Domain Board uses a compact seven-zone overview. All share the live benchmark names and responsive search/filter behavior.
+The runnable artifacts live in `docs/mockups/benchmark-density/`: Domain Rail uses grouped progressive disclosure, Benchmark Matrix uses aligned sortable rows, and Domain Board uses a compact seven-zone overview. All share a 58-name research snapshot captured from the live demo and responsive search/filter behavior; production reads database workouts instead.
 
 The Domain Rail is now selected for production benchmark competitions; Benchmark Matrix and Domain Board remain comparison prototypes.
 
@@ -30,4 +30,4 @@ Benchmark competitions use a dense domain directory while every other competitio
 
 [[apps/wodsmith-start/src/server-fns/athlete-score-fns.ts#getBenchmarkViewerScores]] reads the authenticated viewer's division-scoped scores in one batch. Missing sessions, ambiguous registrations, and missing scores return an empty map, so rows never expose another athlete's data.
 
-[[apps/wodsmith-start/src/server-fns/competition-workouts-page-fns.ts#getPublicWorkoutsPageDataFn]] includes viewer scores only when the benchmark route opts in. Focused tests cover classification, ordering, filtering, batching, authentication, and division isolation.
+[[apps/wodsmith-start/src/server-fns/competition-workouts-page-fns.ts#getPublicWorkoutsPageDataFn]] includes viewer scores only when either public benchmark route opts in and queries only rendered top-level workouts. Focused tests cover classification, ordering, filtering, batching, authentication, and division isolation.

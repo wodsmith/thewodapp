@@ -17,6 +17,7 @@ const domainCodes = {
   Running: "RN",
   Rowing: "RW",
   "CrossFit benchmarks": "CF",
+  "Other benchmarks": "OT",
 }
 const illustrativeScores = new Map([
   ["Strict Press", "145 lb"],
@@ -31,6 +32,7 @@ const illustrativeScores = new Map([
   ["Cindy (rounds in 20)", "22 + 8"],
 ])
 let railCollapsed = window.localStorage.getItem("benchmark-domain-rail-collapsed") === "true"
+let preSearchExpandedState = null
 
 function slugify(value) {
   return value.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")
@@ -110,6 +112,14 @@ function setCurrentDomain(domain) {
 
 function applySearch() {
   const query = searchInput.value.trim().toLowerCase()
+  if (query && preSearchExpandedState === null) {
+    preSearchExpandedState = new Map(
+      [...groupsContainer.querySelectorAll(".domain-group")].map((group) => [
+        group.dataset.domain,
+        group.querySelector(".domain-group__heading").getAttribute("aria-expanded") === "true",
+      ]),
+    )
+  }
   searchField.classList.toggle("has-value", query.length > 0)
   let visibleTotal = 0
   let visibleDomains = 0
@@ -131,6 +141,10 @@ function applySearch() {
     if (query) {
       group.querySelector(".domain-list").hidden = false
       group.querySelector(".domain-group__heading").setAttribute("aria-expanded", "true")
+    } else if (preSearchExpandedState) {
+      const expanded = preSearchExpandedState.get(group.dataset.domain) ?? false
+      group.querySelector(".domain-list").hidden = !expanded
+      group.querySelector(".domain-group__heading").setAttribute("aria-expanded", String(expanded))
     }
     if (visibleInGroup > 0) visibleDomains += 1
     visibleTotal += visibleInGroup
@@ -139,6 +153,7 @@ function applySearch() {
     const firstVisibleDomain = rail.querySelector("button[data-domain]:not([hidden])")
     if (firstVisibleDomain) setCurrentDomain(firstVisibleDomain.dataset.domain)
   }
+  if (!query) preSearchExpandedState = null
 
   resultCount.innerHTML = `<strong>${visibleTotal}</strong> workout${visibleTotal === 1 ? "" : "s"} in ${visibleDomains} domain${visibleDomains === 1 ? "" : "s"}`
   groupsContainer.hidden = visibleTotal === 0
@@ -165,7 +180,13 @@ rail.addEventListener("click", (event) => {
   heading.setAttribute("aria-expanded", "true")
   list.hidden = false
   setCurrentDomain(button.dataset.domain)
-  group.scrollIntoView({ behavior: "smooth", block: "start" })
+  const mobileRailOffset = window.matchMedia("(max-width: 720px)").matches
+    ? rail.getBoundingClientRect().height + 16
+    : 20
+  window.scrollTo({
+    top: group.getBoundingClientRect().top + window.scrollY - mobileRailOffset,
+    behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+  })
 })
 
 groupsContainer.addEventListener("click", (event) => {

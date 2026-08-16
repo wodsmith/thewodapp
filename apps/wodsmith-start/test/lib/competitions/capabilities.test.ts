@@ -47,7 +47,7 @@ const EXPECTED = {
 		dayOfCheckIn: false,
 		physicalVenue: false,
 		volunteerScheduling: false,
-		organizerEntersResults: false,
+		organizerEntersResults: true,
 		leaderboardVariant: "standard",
 		selectableOnCreate: false,
 	},
@@ -159,5 +159,8 @@ describe("competition type capabilities", () => {
 
 		expect(resultsEntryMode("online")).toBe("athlete-submitted")
 		expect(resultsNavLabel("online")).toBe("Submissions")
+
+		expect(resultsEntryMode("benchmark")).toBe("organizer-entered")
+		expect(resultsNavLabel("benchmark")).toBe("Results")
 	})
 })

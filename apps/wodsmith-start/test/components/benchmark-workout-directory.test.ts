@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import {
   type BenchmarkDirectoryWorkout,
   filterBenchmarkWorkouts,
+  formatBenchmarkResult,
   getBenchmarkWorkoutDomain,
   groupBenchmarkWorkouts,
 } from "@/components/benchmark-workout-directory"
@@ -78,6 +79,29 @@ describe("getBenchmarkWorkoutDomain", () => {
         scheme: "time",
         movements: [{ name: "Thruster" }, { name: "Pull-Up" }],
         tags: [{ name: "Girl Benchmark" }],
+      }),
+    },
+    {
+      domain: "CrossFit benchmarks",
+      workout: benchmarkWorkout("classic-name", {
+        name: "Karen",
+        scheme: "points",
+      }),
+    },
+    {
+      domain: "CrossFit benchmarks",
+      workout: benchmarkWorkout("hero-tag", {
+        name: "DT",
+        scheme: "time",
+        tags: [{ name: "Hero" }],
+      }),
+    },
+    {
+      domain: "Other benchmarks",
+      workout: benchmarkWorkout("heroic-tag", {
+        name: "Novel test",
+        scheme: "time",
+        tags: [{ name: "Heroic" }],
       }),
     },
   ])("classifies $domain from normalized workout signals", ({ domain, workout }) => {
@@ -209,5 +233,13 @@ describe("filterBenchmarkWorkouts", () => {
 
   it("returns every workout in input order for an empty query", () => {
     expect(filterBenchmarkWorkouts(workouts, "   ")).toEqual(workouts)
+  })
+})
+
+describe("formatBenchmarkResult", () => {
+  it("labels points workouts explicitly", () => {
+    expect(formatBenchmarkResult({ name: "Skill test", scheme: "points" })).toBe(
+      "Points",
+    )
   })
 })

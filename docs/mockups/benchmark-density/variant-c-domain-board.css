@@ -29,6 +29,10 @@
   cursor: pointer;
 }
 
+.domain-overview button[hidden] {
+  display: none;
+}
+
 .domain-overview button:last-child {
   border-right: 0;
 }
@@ -155,11 +159,13 @@
   border-bottom: 1px solid var(--line);
 }
 
-.zone-item:nth-last-child(-n + 2) {
+.zone-item:last-child {
   border-bottom-color: transparent;
 }
 
-.domain-zone[data-size="small"] .zone-item:last-child {
+.domain-zone:not([data-size="small"])
+  .zone-list:has(> .zone-item:nth-child(even):last-child)
+  > .zone-item:nth-last-child(2) {
   border-bottom-color: transparent;
 }
 

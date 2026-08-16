@@ -100,6 +100,11 @@ const DOMAIN_META: Record<
 }
 
 const CROSSFIT_BENCHMARK_NAMES = [
+  "angie",
+  "annie",
+  "barbara",
+  "chelsea",
+  "eva",
   "fran",
   "diane",
   "helen",
@@ -110,6 +115,13 @@ const CROSSFIT_BENCHMARK_NAMES = [
   "nancy",
   "murph",
   "cindy",
+  "jackie",
+  "karen",
+  "kelly",
+  "linda",
+  "lynne",
+  "mary",
+  "nicole",
   "100 wall ball 100 cal row",
   "7 min amrap burpees",
 ]
@@ -127,6 +139,7 @@ const RESULT_LABELS: Readonly<Record<string, string>> = {
   feet: "Distance",
   emom: "EMOM",
   "pass-fail": "Pass / fail",
+  points: "Points",
 }
 
 function normalizeBenchmarkText(value: string): string {
@@ -145,7 +158,10 @@ function containsAny(value: string, terms: readonly string[]): boolean {
 }
 
 function hasExplicitTag(tags: string, terms: readonly string[]): boolean {
-  return terms.some((term) => tags.includes(normalizeBenchmarkText(term)))
+  const paddedTags = ` ${tags} `
+  return terms.some((term) =>
+    paddedTags.includes(` ${normalizeBenchmarkText(term)} `),
+  )
 }
 
 function getWorkoutSearchText(workout: BenchmarkDirectoryWorkout): string {
@@ -183,7 +199,13 @@ export function getBenchmarkWorkoutDomain(
       "hero benchmark",
       "crossfit benchmark",
       "crossfit classic",
+      "girl",
+      "hero",
+      "crossfit girl",
+      "crossfit hero",
       "crossfit open",
+      "girl wod",
+      "hero wod",
       "open workout",
     ]) ||
     CROSSFIT_BENCHMARK_NAMES.some(

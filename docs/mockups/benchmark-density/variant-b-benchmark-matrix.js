@@ -45,7 +45,7 @@ function renderTable() {
   matrixSearchField.classList.toggle("has-value", query.length > 0)
   const visible = sortedWorkouts(BENCHMARKS.filter((workout) => {
     const inDomain = !activeDomain || workout.domain === activeDomain
-    const searchable = `${workout.name} ${workout.domain} ${workout.result} ${workout.pattern}`.toLowerCase()
+    const searchable = `${workout.name} ${workout.domain} ${DOMAIN_META[workout.domain].short} ${workout.result} ${workout.pattern}`.toLowerCase()
     return inDomain && (!query || searchable.includes(query))
   }))
 

@@ -227,8 +227,8 @@ Common primitives feel compact, direct, and instrument-like. Their shared states
 - **Secondary:** light text surface with dark ink for shell sign-up; quiet utility actions use Soft Surface.
 
 ### Chips
-- **Style:** domain filters are 34px-high pills with a one-pixel rule, a seven-pixel categorical marker, compact label, and count.
-- **State:** hover and pressed states use the matching domain wash and domain-colored border. Mobile filters reach 40px high and remain horizontally scrollable.
+- **Style:** domain filters are monochrome 34px-high pills with a one-pixel rule, compact label, and count.
+- **State:** hover and pressed states use Raised or Soft Surface with a Strong Rule. Mobile filters reach 40px high and remain horizontally scrollable.
 
 ### Cards / Containers
 - **Corner Style:** 14px content panels and sidebar cards; 12px alternative-specific grouped zones.
@@ -253,7 +253,7 @@ Common primitives feel compact, direct, and instrument-like. Their shared states
 - **Search:** workout name, result format, tags, and movements filter together. Visible workout and domain counts update in a polite live region; zero results provide an explicit clear action.
 - **Alternatives:** Benchmark Matrix and Domain Board remain comparison prototypes only. They are not production patterns.
 
-Motion is limited to 200ms rail and chevron transforms with reduced-motion fallbacks. Smooth domain scrolling becomes instant under `prefers-reduced-motion: reduce`.
+Motion is limited to the 180ms interaction-transform token for rail and chevron transforms, with reduced-motion fallbacks. Smooth domain scrolling becomes instant under `prefers-reduced-motion: reduce`.
 
 ## Do's and Don'ts
 

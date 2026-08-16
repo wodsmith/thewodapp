@@ -96,6 +96,9 @@ export const getPublicWorkoutsPageDataFn = createServerFn({ method: "GET" })
     const workouts = workoutsResult.workouts
     const workoutIds = workouts.map((w) => w.workoutId)
     const trackWorkoutIds = workouts.map((w) => w.id)
+    const benchmarkTrackWorkoutIds = workouts
+      .filter((workout) => !workout.parentEventId)
+      .map((workout) => workout.id)
 
     // Wave 2 branches all need the workout IDs from wave 1, so they run as
     // one parallel batch.
@@ -130,8 +133,11 @@ export const getPublicWorkoutsPageDataFn = createServerFn({ method: "GET" })
               ReturnType<typeof getBatchSubmissionStatusFn>
             >["statuses"],
           }),
-      includeBenchmarkViewerScores && trackWorkoutIds.length > 0
-        ? getBenchmarkViewerScores({ competitionId, trackWorkoutIds })
+      includeBenchmarkViewerScores && benchmarkTrackWorkoutIds.length > 0
+        ? getBenchmarkViewerScores({
+            competitionId,
+            trackWorkoutIds: benchmarkTrackWorkoutIds,
+          })
         : Promise.resolve({} as BenchmarkViewerScores),
     ])
 

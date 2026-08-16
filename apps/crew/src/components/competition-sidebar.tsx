@@ -51,11 +51,12 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
+import type { CompetitionType } from "@/db/schemas/competitions"
 import { cn } from "@/utils/cn"
 
 interface CompetitionSidebarProps {
   competitionId: string
-  competitionType?: "in-person" | "online"
+  competitionType?: CompetitionType
   children: React.ReactNode
 }
 
@@ -73,7 +74,7 @@ interface NavGroup {
 
 const getNavigation = (
   basePath: string,
-  competitionType?: "in-person" | "online",
+  competitionType?: CompetitionType,
 ): { overview: NavItem; groups: NavGroup[] } => ({
   overview: {
     label: "Overview",
@@ -95,13 +96,17 @@ const getNavigation = (
           icon: Layers,
         },
         { label: "Events", href: `${basePath}/events`, icon: Trophy },
-        {
-          label: "Venues & lanes",
-          href: `${basePath}/locations`,
-          icon: MapPin,
-        },
+        ...(competitionType === "in-person"
+          ? [
+              {
+                label: "Venues & lanes",
+                href: `${basePath}/locations`,
+                icon: MapPin,
+              },
+            ]
+          : []),
         // Heat Schedule only for in-person competitions
-        ...(competitionType !== "online"
+        ...(competitionType === "in-person"
           ? [
               {
                 label: "Heat schedule",
@@ -147,18 +152,18 @@ const getNavigation = (
     {
       label: "Volunteers & judging",
       items: [
-        {
-          label: "Volunteer roster",
-          href: `${basePath}/volunteers`,
-          icon: UserCheck,
-        },
-        {
-          label: "Volunteer shifts",
-          href: `${basePath}/volunteers/shifts`,
-          icon: Calendar,
-        },
-        ...(competitionType !== "online"
+        ...(competitionType === "in-person"
           ? [
+              {
+                label: "Volunteer roster",
+                href: `${basePath}/volunteers`,
+                icon: UserCheck,
+              },
+              {
+                label: "Volunteer shifts",
+                href: `${basePath}/volunteers/shifts`,
+                icon: Calendar,
+              },
               {
                 label: "Judge assignments",
                 href: `${basePath}/volunteers/judges`,
@@ -178,7 +183,7 @@ const getNavigation = (
       items: [
         // Check-in landing page only for in-person competitions; it explains
         // the flow and opens the volunteer-facing kiosk in a new tab.
-        ...(competitionType !== "online"
+        ...(competitionType === "in-person"
           ? [
               {
                 label: "Check-in / athlete status",
@@ -187,11 +192,15 @@ const getNavigation = (
               },
             ]
           : []),
-        {
-          label: competitionType === "online" ? "Submissions" : "Results",
-          href: `${basePath}/results`,
-          icon: Medal,
-        },
+        ...(competitionType !== "benchmark"
+          ? [
+              {
+                label: competitionType === "online" ? "Submissions" : "Results",
+                href: `${basePath}/results`,
+                icon: Medal,
+              },
+            ]
+          : []),
         {
           label: "Leaderboard preview",
           href: `${basePath}/leaderboard-preview`,

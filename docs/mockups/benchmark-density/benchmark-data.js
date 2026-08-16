@@ -1,3 +1,5 @@
+// Research snapshot captured from the live demo on 2026-08-15. Production
+// renders database workouts and owns classification in BenchmarkWorkoutDirectory.
 window.DOMAIN_META = {
   "Strength & barbell": { short: "Strength", tone: "ember", description: "Presses, pulls, squats and Olympic lifts", order: 1 },
   "Gymnastics & skill": { short: "Gymnastics", tone: "sky", description: "Bodyweight strength, control and skill", order: 2 },
@@ -6,6 +8,7 @@ window.DOMAIN_META = {
   Running: { short: "Running", tone: "sand", description: "Short speed through long aerobic work", order: 5 },
   Rowing: { short: "Rowing", tone: "cyan", description: "Sprint, middle and long distance", order: 6 },
   "CrossFit benchmarks": { short: "Classics", tone: "rose", description: "Girls, heroes and Open tests", order: 7 },
+  "Other benchmarks": { short: "Other", tone: "rose", description: "Benchmarks outside the established domains", order: 8 },
 }
 
 window.BENCHMARKS = [
@@ -80,9 +83,9 @@ window.BENCHMARKS = [
   }
 })
 
-window.BENCHMARK_DOMAINS = Object.keys(window.DOMAIN_META).sort(
-  (a, b) => window.DOMAIN_META[a].order - window.DOMAIN_META[b].order,
-)
+window.BENCHMARK_DOMAINS = Object.keys(window.DOMAIN_META)
+  .filter((domain) => window.BENCHMARKS.some((workout) => workout.domain === domain))
+  .sort((a, b) => window.DOMAIN_META[a].order - window.DOMAIN_META[b].order)
 
 window.escapeBenchmarkHtml = (value) =>
   String(value)

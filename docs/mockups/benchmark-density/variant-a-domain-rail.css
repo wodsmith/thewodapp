@@ -200,7 +200,7 @@
 }
 
 .domain-row:hover {
-  background: #161310;
+  background: var(--surface-raised);
 }
 
 .domain-row__name {
@@ -297,7 +297,7 @@
     flex: 0 0 auto;
     padding-inline: 12px;
     border: 1px solid var(--line);
-    background: #13110f;
+    background: var(--surface-raised);
   }
 
   .domain-rail button[aria-current="true"] {

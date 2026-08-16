@@ -33,7 +33,7 @@ function renderZone(domain) {
   const meta = DOMAIN_META[domain]
   const workouts = BENCHMARKS.filter((workout) => workout.domain === domain)
   const zoneId = `board-${boardSlug(domain)}`
-  const startsOpen = window.matchMedia("(min-width: 721px)").matches || meta.order <= 2
+  const startsOpen = window.matchMedia("(min-width: 721px)").matches || meta.order === 1
   return `
     <details class="domain-zone tone-${meta.tone}" data-domain="${escapeBenchmarkHtml(domain)}" data-size="${workouts.length < 8 ? "small" : "large"}" id="${zoneId}" ${startsOpen ? "open" : ""}>
       <summary class="domain-zone__summary">

@@ -45,11 +45,12 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import type { CohostMembershipMetadata } from "@/db/schemas/cohost"
+import type { CompetitionType } from "@/db/schemas/competitions"
 
 interface CohostSidebarProps {
   competitionId: string
   competitionName: string
-  competitionType?: "in-person" | "online"
+  competitionType?: CompetitionType
   permissions: CohostMembershipMetadata
   children: React.ReactNode
 }
@@ -68,7 +69,7 @@ interface NavGroup {
 
 const getNavigation = (
   basePath: string,
-  competitionType?: "in-person" | "online",
+  competitionType?: CompetitionType,
   permissions?: CohostMembershipMetadata,
 ): { overview: NavItem; groups: NavGroup[] } => ({
   overview: {
@@ -103,7 +104,7 @@ const getNavigation = (
                 : []),
             ]
           : []),
-        ...(permissions?.locations
+        ...(competitionType === "in-person" && permissions?.locations
           ? [
               {
                 label: "Locations",
@@ -144,7 +145,7 @@ const getNavigation = (
     {
       label: "Run Competition",
       items: [
-        ...(competitionType !== "online" && permissions?.schedule
+        ...(competitionType === "in-person" && permissions?.schedule
           ? [
               {
                 label: "Schedule",
@@ -153,7 +154,7 @@ const getNavigation = (
               },
             ]
           : []),
-        ...(permissions?.volunteers
+        ...(competitionType === "in-person" && permissions?.volunteers
           ? [
               {
                 label: "Volunteers",
@@ -162,7 +163,7 @@ const getNavigation = (
               },
             ]
           : []),
-        ...(permissions?.results
+        ...(competitionType !== "benchmark" && permissions?.results
           ? [
               {
                 label: competitionType === "online" ? "Submissions" : "Results",

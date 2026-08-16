@@ -24,7 +24,7 @@ For in-person competitions, the Registrations stat card exposes a `Go to Check-I
 
 The edit page lets organizers modify core details while preserving supported stored competition types such as benchmark.
 
-The type picker shows all registered types for existing competitions, even when a type is unavailable during generic creation. Other editable fields include dates, description, registration window, timezone, and series group.
+The type picker shows all registered types for existing competitions, even when a type is unavailable during generic creation. Converting an existing competition to benchmark requires explicit confirmation because venue, heat, check-in, volunteer, and video workflows become unavailable while their stored data is retained. Other editable fields include dates, description, registration window, timezone, and series group.
 
 ## Division Management
 

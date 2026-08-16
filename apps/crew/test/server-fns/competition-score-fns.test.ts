@@ -407,6 +407,31 @@ describe('Competition Score Server Functions (TanStack)', () => {
   })
 
   describe('saveCompetitionScoreFn', () => {
+    it('rejects Crew score entry for benchmark competitions', async () => {
+      mockDbInstance = createDbMock({
+        withSubmissionWindowCheck: true,
+        competition: {competitionType: 'benchmark'},
+      })
+
+      await expect(
+        saveCompetitionScoreFn({
+          data: {
+            competitionId: 'comp-1',
+            organizingTeamId: 'team-1',
+            trackWorkoutId: 'tw-1',
+            workoutId: 'wod-1',
+            registrationId: 'reg-1',
+            userId: 'user-1',
+            divisionId: 'div-1',
+            score: '5:00',
+            scoreStatus: 'scored',
+          },
+        }),
+      ).rejects.toThrow(
+        'Crew score entry is not available for benchmark competitions',
+      )
+    })
+
     it('throws error when workout info is not provided', async () => {
       mockDbInstance = createDbMock({withSubmissionWindowCheck: true})
 
