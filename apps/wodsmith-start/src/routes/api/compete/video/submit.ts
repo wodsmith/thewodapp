@@ -40,7 +40,6 @@ import {
 import type { TiebreakScheme } from "@/db/schemas/workouts"
 import { workouts } from "@/db/schemas/workouts"
 import { competitionCan } from "@/lib/competitions/capabilities"
-import { perpetualSubmissionsClosed } from "@/lib/competitions/perpetual-dates"
 import {
   computeSortKey,
   encodeScore,
@@ -89,16 +88,6 @@ async function checkVideoSubmissionWindow(
       allowed: false,
       reason: "Video submissions are only for online competitions",
     }
-  }
-
-  if (competitionCan(competition.competitionType, "perpetual")) {
-    if (perpetualSubmissionsClosed(competition)) {
-      return {
-        allowed: false,
-        reason: "Submissions have closed for this competition",
-      }
-    }
-    return { allowed: true }
   }
 
   const [event] = await db

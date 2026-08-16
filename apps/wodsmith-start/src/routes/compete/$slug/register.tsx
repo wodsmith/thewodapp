@@ -23,6 +23,7 @@ import {
   userTable,
   waiverSignaturesTable,
 } from "@/db/schema"
+import { getPublicCompetitionAddonsFn } from "@/server-fns/competition-addon-fns"
 import {
   getPublicCompetitionDivisionsFn,
   parseCompetitionSettings,
@@ -342,6 +343,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
       { waivers },
       { questions },
       invitePrefill,
+      { addons },
     ] = await Promise.all([
       getUserCompetitionRegistrationsFn({
         data: {
@@ -361,6 +363,9 @@ export const Route = createFileRoute("/compete/$slug/register")({
       inviteToken
         ? getInvitePrefillFn({ data: { slug, token: inviteToken } })
         : Promise.resolve({ priorTeam: null as null }),
+      getPublicCompetitionAddonsFn({
+        data: { competitionId: competition.id },
+      }),
     ])
 
     // Invite-flow short-circuit: if the URL specifies a division (the claim
@@ -415,6 +420,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
         previousAnswers: [],
         signedWaiverIds: [],
         invitePriorTeam: null,
+        addons: [],
       }
     }
 
@@ -456,6 +462,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
         previousAnswers: [],
         signedWaiverIds: [],
         invitePriorTeam: null,
+        addons: [],
       }
     }
 
@@ -480,6 +487,7 @@ export const Route = createFileRoute("/compete/$slug/register")({
       previousAnswers,
       signedWaiverIds,
       invitePriorTeam: invitePrefill.priorTeam,
+      addons,
     }
   },
 })
@@ -506,6 +514,7 @@ function RegisterPage() {
     previousAnswers,
     signedWaiverIds,
     invitePriorTeam,
+    addons,
   } = Route.useLoaderData()
 
   const {
@@ -557,6 +566,7 @@ function RegisterPage() {
     removedDivisionIds,
     previousAnswers,
     signedWaiverIds,
+    addons,
   }
 
   return (

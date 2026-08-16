@@ -7,7 +7,7 @@ These requirements define the v1 benchmark leaderboard product and record assump
 - Benchmark boards use a distinct `competitionType: "benchmark"` behind the competition-type capability registry.
 - The current checkout already has a capability registry for `in-person` and `online`; v1 extends it with `benchmark` rather than creating a second registry.
 - Benchmark boards declare `videoSubmissions` and `perpetual`, and intentionally do not declare `submissionWindows`, `optInResultPublishing`, physical-venue, heat, check-in, volunteer, or organizer-entered-results capabilities.
-- The first seed is derived from `/Users/zacjones/Downloads/HillerFit_Training_Guide.pdf`.
+- The first seed is derived from the owner-provided `HillerFit_Training_Guide.pdf` artifact.
 - The PDF is source data only. We are not building any HillerFit-branded page, route, tab, product navigation item, marketing surface, logo, call to action, theme treatment, or other customer-facing product area.
 - The sex axis is a score variant, not a division. Athletes rank together in one Open division; `scores.benchmarkVariant` snapshots `user.gender` at submit time.
 - v1 is best-to-date, not all-time history. The live `scores` row is kept monotonic with a keep-best-on-write guard; `score_attempts`, windows, and invalidation-restore are v2.
@@ -18,7 +18,7 @@ These requirements define the v1 benchmark leaderboard product and record assump
 
 The local PDF is the source of truth for the first seed. Before completing M1:
 
-- Extract the included tests, categories, units, and tier thresholds from `/Users/zacjones/Downloads/HillerFit_Training_Guide.pdf`.
+- Extract the included tests, categories, units, and tier thresholds from the owner-provided `HillerFit_Training_Guide.pdf` artifact.
 - Record any extraction assumptions in the seed file or a companion receipt.
 - Ask the owner if a threshold, unit, category, or deferred-test status is missing or ambiguous.
 

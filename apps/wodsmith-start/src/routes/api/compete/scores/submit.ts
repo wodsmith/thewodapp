@@ -77,7 +77,7 @@ async function checkSubmissionWindow(
   if (!competition) {
     return {
       isOpen: false,
-      reason: "Submission windows are not available for this competition type",
+      reason: "Competition not found",
     }
   }
 

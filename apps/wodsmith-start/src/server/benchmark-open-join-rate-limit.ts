@@ -1,3 +1,5 @@
+import { getKV } from "@/utils/kv-session"
+
 interface BenchmarkOpenJoinRateLimitInput {
   userId: string
   competitionId: string
@@ -12,11 +14,9 @@ interface BenchmarkOpenJoinRateLimitResult {
 const WINDOW_MS = 60_000
 const MAX_ATTEMPTS = 10
 const PRUNE_THRESHOLD = 1_000
+const KV_PREFIX = "rate-limit:benchmark-open-join:"
 
-// Per-isolate in-memory limiter: Cloudflare Workers isolates don't share
-// memory, so this only bounds attempts within a single isolate and resets on
-// isolate recycle. Acceptable as a soft guard for open-join spam; a shared
-// store (KV/Durable Object) would be needed for strict global enforcement.
+// Local/test fallback when the Cloudflare KV binding is unavailable.
 const attemptsByKey = new Map<string, { count: number; resetAt: number }>()
 
 function pruneExpiredEntries(nowMs: number) {
@@ -34,6 +34,39 @@ export async function checkBenchmarkOpenJoinRateLimit({
 }: BenchmarkOpenJoinRateLimitInput): Promise<BenchmarkOpenJoinRateLimitResult> {
   const key = `${competitionId}:${userId}`
   const nowMs = now.getTime()
+  const kv = getKV()
+
+  if (kv) {
+    const kvKey = `${KV_PREFIX}${key}`
+    const current = await kv.get<{ count: number; resetAt: number }>(
+      kvKey,
+      "json",
+    )
+
+    if (!current || current.resetAt <= nowMs) {
+      const resetAt = nowMs + WINDOW_MS
+      await kv.put(kvKey, JSON.stringify({ count: 1, resetAt }), {
+        expirationTtl: Math.ceil(WINDOW_MS / 1000),
+      })
+      return { allowed: true }
+    }
+
+    if (current.count >= MAX_ATTEMPTS) {
+      return {
+        allowed: false,
+        retryAfterSeconds: Math.ceil((current.resetAt - nowMs) / 1000),
+      }
+    }
+
+    await kv.put(
+      kvKey,
+      JSON.stringify({ count: current.count + 1, resetAt: current.resetAt }),
+      {
+        expirationTtl: Math.max(1, Math.ceil((current.resetAt - nowMs) / 1000)),
+      },
+    )
+    return { allowed: true }
+  }
 
   if (attemptsByKey.size >= PRUNE_THRESHOLD) {
     pruneExpiredEntries(nowMs)

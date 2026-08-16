@@ -19,15 +19,31 @@
 import type { WorkflowEvent, WorkflowStep } from "cloudflare:workers"
 import { WorkflowEntrypoint } from "cloudflare:workers"
 import * as Sentry from "@sentry/cloudflare"
-import { and, count, eq, gt, ne, sql } from "drizzle-orm"
+import {
+  and,
+  count,
+  eq,
+  gt,
+  inArray,
+  isNotNull,
+  isNull,
+  ne,
+  notInArray,
+  or,
+  sql,
+} from "drizzle-orm"
 import { getDb } from "@/db"
+import type { CommercePurchase } from "@/db/schema"
 import {
   COMMERCE_PAYMENT_STATUS,
+  COMMERCE_PRODUCT_TYPE,
   COMMERCE_PURCHASE_STATUS,
   COMPETITION_INVITE_STATUS,
+  commerceProductTable,
   commercePurchaseTable,
   competitionDivisionsTable,
   competitionInvitesTable,
+  competitionProductVariantsTable,
   competitionRegistrationAnswersTable,
   competitionRegistrationsTable,
   competitionsTable,
@@ -44,22 +60,22 @@ import { getSentryOptions } from "@/lib/sentry/server"
 import { notifyCompetitionRegistration } from "@/lib/slack"
 import { getStripe } from "@/lib/stripe"
 import {
-  notifyRegistrationConfirmed,
-  registerForCompetition,
-} from "@/server/registration"
-import { recordRedemption, cleanupStripeCoupon } from "@/server/coupons"
-import {
   recordPaymentCompleted,
   recordRefundCompleted,
 } from "@/server/commerce/financial-events"
-import { PENDING_PURCHASE_MAX_AGE_MINUTES } from "@/server-fns/competition-divisions-fns"
-import { calculateDivisionCapacity } from "@/utils/division-capacity"
-import { calculateCompetitionCapacity } from "@/utils/competition-capacity"
 import {
   getOccupiedCountForBucket,
   resolveAllocationForInvite,
 } from "@/server/competition-invites/claim"
 import { assertInviteWithinAllocation } from "@/server/competition-invites/identity"
+import { recordRedemption } from "@/server/coupons"
+import {
+  notifyRegistrationConfirmed,
+  registerForCompetition,
+} from "@/server/registration"
+import { PENDING_PURCHASE_MAX_AGE_MINUTES } from "@/server-fns/competition-divisions-fns"
+import { calculateCompetitionCapacity } from "@/utils/competition-capacity"
+import { calculateDivisionCapacity } from "@/utils/division-capacity"
 
 export interface CheckoutCompletedParams {
   stripeEventId: string
@@ -69,9 +85,12 @@ export interface CheckoutCompletedParams {
     amount_total: number | null
     customer_email: string | null
     metadata: {
-      purchaseId: string
+      purchaseIds?: string[]
+      /** Legacy single-purchase webhook payload. */
+      purchaseId?: string
       competitionId: string
-      divisionId: string
+      /** Legacy payload field; purchase rows are now authoritative. */
+      divisionId?: string
       userId: string
       couponId?: string
       stripeCouponId?: string
@@ -107,17 +126,356 @@ interface RegistrationStepResult {
    * non-invite registration.
    */
   inviteId: string | null
+  isPaid: boolean
+}
+
+interface StoredRegistrationData {
+  teamName?: string
+  affiliateName?: string
+  teammates?: Array<{
+    email: string
+    firstName?: string
+    lastName?: string
+    affiliateName?: string
+  }>
+  answers?: Array<{
+    questionId: string
+    answer: string
+  }>
+  inviteId?: string | null
+  isFreeRegistration?: boolean
 }
 
 // =========================================================================
 // Standalone processing functions (used by both Workflow and inline fallback)
 // =========================================================================
 
+const affectedRows = (result: unknown): number =>
+  (result as { rowsAffected?: number }).rowsAffected ??
+  (result as [{ affectedRows?: number }])[0]?.affectedRows ??
+  0
+
+function parseRegistrationData(
+  purchaseId: string,
+  metadata: string | null,
+): StoredRegistrationData {
+  if (!metadata) return {}
+  try {
+    return JSON.parse(metadata) as StoredRegistrationData
+  } catch {
+    logWarning({
+      message: "[Workflow] Failed to parse purchase metadata",
+      attributes: { purchaseId },
+    })
+    return {}
+  }
+}
+
+async function buildRegistrationStepResult({
+  session,
+  purchase,
+  registrationId,
+  registrationData,
+}: {
+  session: CheckoutCompletedParams["session"]
+  purchase: CommercePurchase
+  registrationId: string
+  registrationData: StoredRegistrationData
+}): Promise<RegistrationStepResult> {
+  const db = getDb()
+  const competitionId = purchase.competitionId
+  const divisionId = purchase.divisionId
+  if (!competitionId || !divisionId) {
+    throw new Error(`Registration purchase ${purchase.id} is missing context`)
+  }
+
+  const [competition, division, user, registration] = await Promise.all([
+    db.query.competitionsTable.findFirst({
+      where: eq(competitionsTable.id, competitionId),
+    }),
+    db.query.scalingLevelsTable.findFirst({
+      where: eq(scalingLevelsTable.id, divisionId),
+    }),
+    db.query.userTable.findFirst({ where: eq(userTable.id, purchase.userId) }),
+    db.query.competitionRegistrationsTable.findFirst({
+      where: eq(competitionRegistrationsTable.id, registrationId),
+    }),
+  ])
+  if (!competition) throw new Error(`Competition not found: ${competitionId}`)
+
+  const isFree =
+    registrationData.isFreeRegistration === true || purchase.totalCents === 0
+  const teamName = registrationData.teamName ?? registration?.teamName ?? null
+  return {
+    registrationId,
+    userId: purchase.userId,
+    competitionId,
+    divisionId,
+    purchaseId: purchase.id,
+    amountTotal: purchase.totalCents,
+    customerEmail: session.customer_email,
+    userName: user
+      ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || null
+      : null,
+    competitionName: competition.name,
+    divisionName: division?.label ?? null,
+    teamName,
+    registrationDivisionId: divisionId,
+    registrationTeamName: teamName,
+    registrationPendingTeammates: registration?.pendingTeammates ?? null,
+    competitionSlug: competition.slug,
+    competitionStartDate: competition.startDate,
+    userEmail: user?.email ?? null,
+    userFirstName: user?.firstName ?? null,
+    inviteId: registrationData.inviteId ?? null,
+    isPaid: !isFree,
+  }
+}
+
+async function refundCheckoutPurchase(
+  session: CheckoutCompletedParams["session"],
+  purchase: CommercePurchase,
+  reason: string,
+  kind: "registration" | "addon",
+): Promise<void> {
+  const db = getDb()
+  if (purchase.status === COMMERCE_PURCHASE_STATUS.COMPLETED) return
+
+  let refundId: string | undefined
+  if (purchase.totalCents > 0) {
+    if (!session.payment_intent) {
+      throw new Error(`Cannot refund ${purchase.id}: missing payment intent`)
+    }
+    try {
+      const refund = await getStripe().refunds.create(
+        {
+          payment_intent: session.payment_intent,
+          amount: purchase.totalCents,
+          reverse_transfer: true,
+          refund_application_fee: false,
+          reason: "requested_by_customer",
+          metadata: {
+            purchaseId: purchase.id,
+            kind: `${kind}_auto_refund`,
+          },
+        },
+        { idempotencyKey: `checkout-auto-refund:${purchase.id}` },
+      )
+      refundId = refund.id
+    } catch (error) {
+      logError({
+        message: "[Workflow] Failed to issue automatic refund",
+        error: error instanceof Error ? error : new Error(String(error)),
+        attributes: {
+          purchaseId: purchase.id,
+          paymentIntentId: session.payment_intent,
+          kind,
+        },
+      })
+      // Leave an add-on PENDING (or a registration FAILED) and fail the
+      // durable step. The stable idempotency key makes the retry safe.
+      throw error
+    }
+  }
+
+  await db
+    .update(commercePurchaseTable)
+    .set({
+      status: COMMERCE_PURCHASE_STATUS.FAILED,
+      stripePaymentIntentId: session.payment_intent ?? undefined,
+      completedAt: new Date(),
+    })
+    .where(eq(commercePurchaseTable.id, purchase.id))
+
+  const competition = purchase.competitionId
+    ? await db.query.competitionsTable.findFirst({
+        where: eq(competitionsTable.id, purchase.competitionId),
+        columns: { organizingTeamId: true },
+      })
+    : null
+  if (refundId && competition && session.payment_intent) {
+    try {
+      await recordRefundCompleted({
+        purchaseId: purchase.id,
+        teamId: competition.organizingTeamId,
+        amountCents: purchase.totalCents,
+        stripePaymentIntentId: session.payment_intent,
+        stripeRefundId: refundId,
+        reason,
+      })
+    } catch (eventError) {
+      logWarning({
+        message: "[Workflow] Failed to record automatic refund event",
+        error: eventError,
+        attributes: { purchaseId: purchase.id, refundId },
+      })
+    }
+  }
+
+  logInfo({
+    message: "[Workflow] Automatic refund completed",
+    attributes: {
+      purchaseId: purchase.id,
+      refundId,
+      amountCents: purchase.totalCents,
+      kind,
+      reason,
+    },
+  })
+}
+
+/**
+ * Complete an ADDON (registration merch) purchase after registration lines
+ * reach terminal states for the same Checkout Session.
+ *
+ * Responsibilities:
+ *  1. Stock: atomically increment the variant's soldQty with a conditional
+ *     UPDATE; zero rows affected means the variant oversold during payment
+ *     → partial-refund just this line, then mark FAILED.
+ *     Deadline-only products need no re-check — availability was validated
+ *     at checkout creation and Stripe's session expiry bounds the race.
+ *  3. Mark COMPLETED + record the PAYMENT_COMPLETED financial event.
+ */
+// @lat: [[commerce#Registration Add-ons#Checkout Session Settlement]]
+async function completeAddonPurchase(
+  session: CheckoutCompletedParams["session"],
+  purchase: CommercePurchase,
+): Promise<void> {
+  const db = getDb()
+
+  if (purchase.status !== COMMERCE_PURCHASE_STATUS.PENDING) {
+    logInfo({
+      message: "[Workflow] Add-on purchase not pending, skipping",
+      attributes: { purchaseId: purchase.id, status: purchase.status },
+    })
+    return
+  }
+
+  const competition = purchase.competitionId
+    ? await db.query.competitionsTable.findFirst({
+        where: eq(competitionsTable.id, purchase.competitionId),
+        columns: { id: true, organizingTeamId: true },
+      })
+    : null
+
+  // Stock claim and completion in ONE transaction, gated by the
+  // conditional PENDING→COMPLETED transition. The workflow step retries the
+  // whole function on a transient failure; without the transaction a retry
+  // after a successful soldQty increment (but before the status write) would
+  // claim the stock a second time. With it, either both writes committed
+  // (retry short-circuits on the status guard) or neither did.
+  // Thrown inside the transaction to roll back a stock claim when a
+  // concurrent run already completed this purchase.
+  class AddonAlreadyProcessed extends Error {}
+
+  let outcome: "completed" | "oversold"
+  try {
+    outcome = await db.transaction(async (tx) => {
+      // Atomic stock claim (only for variant-tracked products). Zero rows
+      // affected = the variant oversold during payment.
+      if (purchase.variantId) {
+        const claimResult = await tx
+          .update(competitionProductVariantsTable)
+          .set({
+            soldQty: sql`${competitionProductVariantsTable.soldQty} + ${purchase.quantity}`,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(competitionProductVariantsTable.id, purchase.variantId),
+              or(
+                isNull(competitionProductVariantsTable.stockQty),
+                sql`${competitionProductVariantsTable.soldQty} + ${purchase.quantity} <= ${competitionProductVariantsTable.stockQty}`,
+              ),
+            ),
+          )
+        if (affectedRows(claimResult) === 0) {
+          // Nothing written yet — safe to return and refund outside.
+          return "oversold" as const
+        }
+      }
+
+      const completeResult = await tx
+        .update(commercePurchaseTable)
+        .set({
+          status: COMMERCE_PURCHASE_STATUS.COMPLETED,
+          stripePaymentIntentId: session.payment_intent ?? undefined,
+          completedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(commercePurchaseTable.id, purchase.id),
+            eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
+          ),
+        )
+      if (affectedRows(completeResult) === 0) {
+        // A concurrent run already settled this purchase — abort so the
+        // stock claim above rolls back instead of double-counting.
+        throw new AddonAlreadyProcessed()
+      }
+
+      return "completed" as const
+    })
+  } catch (err) {
+    if (err instanceof AddonAlreadyProcessed) {
+      logInfo({
+        message:
+          "[Workflow] Add-on purchase already settled by a concurrent run, skipping",
+        attributes: { purchaseId: purchase.id },
+      })
+      return
+    }
+    throw err
+  }
+
+  if (outcome === "oversold") {
+    await refundCheckoutPurchase(
+      session,
+      purchase,
+      "Add-on sold out during payment - automatic refund",
+      "addon",
+    )
+    return
+  }
+
+  if (competition) {
+    try {
+      await recordPaymentCompleted({
+        purchaseId: purchase.id,
+        teamId: competition.organizingTeamId,
+        totalCents: purchase.totalCents,
+        platformFeeCents: purchase.platformFeeCents,
+        stripeFeeCents: purchase.stripeFeeCents,
+        organizerNetCents: purchase.organizerNetCents,
+        stripePaymentIntentId: session.payment_intent ?? undefined,
+      })
+    } catch (eventErr) {
+      logWarning({
+        message: "[Workflow] Failed to record add-on payment event (non-fatal)",
+        error: eventErr,
+        attributes: { purchaseId: purchase.id },
+      })
+    }
+  }
+
+  logInfo({
+    message: "[Workflow] Add-on purchase completed",
+    attributes: {
+      purchaseId: purchase.id,
+      competitionId: purchase.competitionId,
+      variantId: purchase.variantId,
+      quantity: purchase.quantity,
+      totalCents: purchase.totalCents,
+    },
+  })
+}
+
 async function createRegistration(
   session: CheckoutCompletedParams["session"],
+  purchaseId: string,
+  sessionPurchaseIds: string[],
 ): Promise<RegistrationStepResult | null> {
   const db = getDb()
-  const { purchaseId, competitionId, divisionId, userId } = session.metadata
 
   // IDEMPOTENCY CHECK 1: Get purchase and check status
   const existingPurchase = await db.query.commercePurchaseTable.findFirst({
@@ -129,16 +487,40 @@ async function createRegistration(
       message: "[Workflow] Purchase not found",
       attributes: { purchaseId },
     })
+    throw new Error(`Purchase not found: ${purchaseId}`)
+  }
+
+  if (
+    existingPurchase.status === COMMERCE_PURCHASE_STATUS.FAILED ||
+    existingPurchase.status === COMMERCE_PURCHASE_STATUS.CANCELLED
+  ) {
     return null
   }
 
-  if (existingPurchase.status === COMMERCE_PURCHASE_STATUS.COMPLETED) {
-    logInfo({
-      message: "[Workflow] Purchase already completed, skipping registration",
-      attributes: { purchaseId },
-    })
+  // ADDON purchases (registration merch) complete without creating a
+  // registration. Branch before the registration idempotency checks — they
+  // key on divisionId, which add-on purchases don't have.
+  const purchaseProduct = await db.query.commerceProductTable.findFirst({
+    where: eq(commerceProductTable.id, existingPurchase.productId),
+    columns: { type: true },
+  })
+  if (purchaseProduct?.type === COMMERCE_PRODUCT_TYPE.ADDON) {
     return null
   }
+  if (!purchaseProduct) {
+    throw new Error(`Product not found for registration purchase ${purchaseId}`)
+  }
+
+  const competitionId = existingPurchase.competitionId
+  const divisionId = existingPurchase.divisionId
+  const userId = existingPurchase.userId
+  if (!competitionId || !divisionId) {
+    throw new Error(`Registration purchase ${purchaseId} is missing context`)
+  }
+  const registrationData = parseRegistrationData(
+    purchaseId,
+    existingPurchase.metadata,
+  )
 
   // IDEMPOTENCY CHECK 2: Check if registration already exists
   // Primary: by commercePurchaseId (set after registerForCompetition + update)
@@ -177,8 +559,11 @@ async function createRegistration(
         .update(competitionRegistrationsTable)
         .set({
           commercePurchaseId: purchaseId,
-          paymentStatus: COMMERCE_PAYMENT_STATUS.PAID,
-          paidAt: new Date(),
+          paymentStatus:
+            existingPurchase.totalCents === 0
+              ? COMMERCE_PAYMENT_STATUS.FREE
+              : COMMERCE_PAYMENT_STATUS.PAID,
+          paidAt: existingPurchase.totalCents === 0 ? null : new Date(),
         })
         .where(eq(competitionRegistrationsTable.id, regToReconcile.id))
     }
@@ -187,38 +572,16 @@ async function createRegistration(
       .update(commercePurchaseTable)
       .set({
         status: COMMERCE_PURCHASE_STATUS.COMPLETED,
+        stripePaymentIntentId: session.payment_intent ?? undefined,
         completedAt: new Date(),
       })
       .where(eq(commercePurchaseTable.id, purchaseId))
-    return null
-  }
-
-  // Parse stored registration data from purchase metadata
-  let registrationData: {
-    teamName?: string
-    affiliateName?: string
-    teammates?: Array<{
-      email: string
-      firstName?: string
-      lastName?: string
-      affiliateName?: string
-    }>
-    answers?: Array<{
-      questionId: string
-      answer: string
-    }>
-    inviteId?: string | null
-  } = {}
-
-  if (existingPurchase.metadata) {
-    try {
-      registrationData = JSON.parse(existingPurchase.metadata)
-    } catch {
-      logWarning({
-        message: "[Workflow] Failed to parse purchase metadata",
-        attributes: { purchaseId },
-      })
-    }
+    return buildRegistrationStepResult({
+      session,
+      purchase: existingPurchase,
+      registrationId: regToReconcile.id,
+      registrationData,
+    })
   }
 
   // Capacity check — direct DB query instead of createServerFn wrapper
@@ -231,7 +594,7 @@ async function createRegistration(
       message: "[Workflow] Competition not found for capacity check",
       attributes: { competitionId },
     })
-    return null
+    throw new Error(`Competition not found: ${competitionId}`)
   }
 
   const divisionConfig = await db.query.competitionDivisionsTable.findFirst({
@@ -239,11 +602,6 @@ async function createRegistration(
       eq(competitionDivisionsTable.competitionId, competitionId),
       eq(competitionDivisionsTable.divisionId, divisionId),
     ),
-  })
-
-  // Fetch division label separately for notification display
-  const divisionRecord = await db.query.scalingLevelsTable.findFirst({
-    where: eq(scalingLevelsTable.id, divisionId),
   })
 
   const [registrations, pendingPurchases] = await Promise.all([
@@ -265,8 +623,13 @@ async function createRegistration(
           eq(commercePurchaseTable.competitionId, competitionId),
           eq(commercePurchaseTable.divisionId, divisionId),
           eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
-          gt(commercePurchaseTable.createdAt, new Date(Date.now() - PENDING_PURCHASE_MAX_AGE_MINUTES * 60 * 1000)),
-          sql`${commercePurchaseTable.id} != ${purchaseId}`,
+          gt(
+            commercePurchaseTable.createdAt,
+            new Date(Date.now() - PENDING_PURCHASE_MAX_AGE_MINUTES * 60 * 1000),
+          ),
+          sessionPurchaseIds.length > 0
+            ? notInArray(commercePurchaseTable.id, sessionPurchaseIds)
+            : undefined,
         ),
       ),
   ])
@@ -293,7 +656,6 @@ async function createRegistration(
       },
     })
 
-    // Mark purchase as failed
     await db
       .update(commercePurchaseTable)
       .set({
@@ -301,58 +663,6 @@ async function createRegistration(
         completedAt: new Date(),
       })
       .where(eq(commercePurchaseTable.id, purchaseId))
-
-    // Trigger automatic refund
-    if (session.payment_intent) {
-      try {
-        const stripe = getStripe()
-        const refund = await stripe.refunds.create({
-          payment_intent: session.payment_intent,
-          reason: "requested_by_customer",
-        })
-        logInfo({
-          message: "[Workflow] Refund issued for division-full scenario",
-          attributes: {
-            purchaseId,
-            paymentIntentId: session.payment_intent,
-            refundId: refund.id,
-          },
-        })
-
-        // Record refund in financial event log
-        try {
-          await recordRefundCompleted({
-            purchaseId,
-            teamId: competition.organizingTeamId,
-            amountCents: existingPurchase.totalCents,
-            stripePaymentIntentId: session.payment_intent,
-            stripeRefundId: refund.id,
-            reason:
-              "Division filled during payment - automatic refund",
-          })
-        } catch (eventErr) {
-          logWarning({
-            message:
-              "[Workflow] Failed to record refund event (non-fatal)",
-            error: eventErr,
-            attributes: { purchaseId },
-          })
-        }
-      } catch (refundError) {
-        logError({
-          message: "[Workflow] Failed to issue automatic refund",
-          error:
-            refundError instanceof Error
-              ? refundError
-              : new Error(String(refundError)),
-          attributes: {
-            purchaseId,
-            paymentIntentId: session.payment_intent,
-          },
-        })
-      }
-    }
-
     return null
   }
 
@@ -378,8 +688,21 @@ async function createRegistration(
           and(
             eq(commercePurchaseTable.competitionId, competitionId),
             eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.PENDING),
-            gt(commercePurchaseTable.createdAt, new Date(Date.now() - PENDING_PURCHASE_MAX_AGE_MINUTES * 60 * 1000)),
-            sql`${commercePurchaseTable.id} != ${purchaseId}`,
+            // ADDON (merch) purchases share competitionId but have no
+            // division and must not occupy registration capacity — an
+            // athlete's own pending add-on would otherwise count against
+            // their registration here and could trigger a wrongful
+            // competition-full auto-refund.
+            isNotNull(commercePurchaseTable.divisionId),
+            gt(
+              commercePurchaseTable.createdAt,
+              new Date(
+                Date.now() - PENDING_PURCHASE_MAX_AGE_MINUTES * 60 * 1000,
+              ),
+            ),
+            sessionPurchaseIds.length > 0
+              ? notInArray(commercePurchaseTable.id, sessionPurchaseIds)
+              : undefined,
           ),
         ),
     ])
@@ -392,8 +715,7 @@ async function createRegistration(
 
     if (compCapacity.isFull) {
       logError({
-        message:
-          "[Workflow] Competition filled during payment - refund needed",
+        message: "[Workflow] Competition filled during payment - refund needed",
         attributes: {
           purchaseId,
           competitionId,
@@ -410,58 +732,6 @@ async function createRegistration(
           completedAt: new Date(),
         })
         .where(eq(commercePurchaseTable.id, purchaseId))
-
-      if (session.payment_intent) {
-        try {
-          const stripe = getStripe()
-          const refund = await stripe.refunds.create({
-            payment_intent: session.payment_intent,
-            reason: "requested_by_customer",
-          })
-          logInfo({
-            message:
-              "[Workflow] Refund issued for competition-full scenario",
-            attributes: {
-              purchaseId,
-              paymentIntentId: session.payment_intent,
-              refundId: refund.id,
-            },
-          })
-
-          // Record refund in financial event log
-          try {
-            await recordRefundCompleted({
-              purchaseId,
-              teamId: competition.organizingTeamId,
-              amountCents: existingPurchase.totalCents,
-              stripePaymentIntentId: session.payment_intent,
-              stripeRefundId: refund.id,
-              reason:
-                "Competition filled during payment - automatic refund",
-            })
-          } catch (eventErr) {
-            logWarning({
-              message:
-                "[Workflow] Failed to record refund event (non-fatal)",
-              error: eventErr,
-              attributes: { purchaseId },
-            })
-          }
-        } catch (refundError) {
-          logError({
-            message: "[Workflow] Failed to issue automatic refund",
-            error:
-              refundError instanceof Error
-                ? refundError
-                : new Error(String(refundError)),
-            attributes: {
-              purchaseId,
-              paymentIntentId: session.payment_intent,
-            },
-          })
-        }
-      }
-
       return null
     }
   }
@@ -521,7 +791,6 @@ async function createRegistration(
           },
         })
 
-        // Mark purchase as failed
         await db
           .update(commercePurchaseTable)
           .set({
@@ -529,60 +798,6 @@ async function createRegistration(
             completedAt: new Date(),
           })
           .where(eq(commercePurchaseTable.id, purchaseId))
-
-        // Trigger automatic refund — same pattern as the
-        // division-full / competition-full branches above.
-        if (session.payment_intent) {
-          try {
-            const stripe = getStripe()
-            const refund = await stripe.refunds.create({
-              payment_intent: session.payment_intent,
-              reason: "requested_by_customer",
-            })
-            logInfo({
-              message:
-                "[Workflow] Refund issued for invite-allocation-full scenario",
-              attributes: {
-                purchaseId,
-                paymentIntentId: session.payment_intent,
-                refundId: refund.id,
-              },
-            })
-
-            try {
-              await recordRefundCompleted({
-                purchaseId,
-                teamId: competition.organizingTeamId,
-                amountCents: existingPurchase.totalCents,
-                stripePaymentIntentId: session.payment_intent,
-                stripeRefundId: refund.id,
-                reason:
-                  "Invite source allocation filled during payment - automatic refund",
-              })
-            } catch (eventErr) {
-              logWarning({
-                message:
-                  "[Workflow] Failed to record refund event (non-fatal)",
-                error: eventErr,
-                attributes: { purchaseId },
-              })
-            }
-          } catch (refundError) {
-            logError({
-              message:
-                "[Workflow] Failed to issue automatic refund (allocation-full)",
-              error:
-                refundError instanceof Error
-                  ? refundError
-                  : new Error(String(refundError)),
-              attributes: {
-                purchaseId,
-                paymentIntentId: session.payment_intent,
-              },
-            })
-          }
-        }
-
         return null
       }
     }
@@ -605,8 +820,10 @@ async function createRegistration(
       .update(competitionRegistrationsTable)
       .set({
         commercePurchaseId: purchaseId,
-        paymentStatus: COMMERCE_PAYMENT_STATUS.PAID,
-        paidAt: new Date(),
+        paymentStatus: registrationData.isFreeRegistration
+          ? COMMERCE_PAYMENT_STATUS.FREE
+          : COMMERCE_PAYMENT_STATUS.PAID,
+        paidAt: registrationData.isFreeRegistration ? null : new Date(),
       })
       .where(eq(competitionRegistrationsTable.id, result.registrationId))
 
@@ -645,32 +862,10 @@ async function createRegistration(
       })
     } catch (eventErr) {
       logWarning({
-        message:
-          "[Workflow] Failed to record payment event (non-fatal)",
+        message: "[Workflow] Failed to record payment event (non-fatal)",
         error: eventErr,
         attributes: { purchaseId },
       })
-    }
-
-    // Record coupon redemption if present
-    if (session.metadata.couponId && session.metadata.stripeCouponId) {
-      try {
-        await recordRedemption({
-          couponId: session.metadata.couponId,
-          userId,
-          purchaseId,
-          competitionId,
-          amountOffCents: Number(session.metadata.couponDiscountCents || 0),
-          stripeCouponId: session.metadata.stripeCouponId,
-        })
-        await cleanupStripeCoupon(session.metadata.stripeCouponId)
-      } catch (couponErr) {
-        logWarning({
-          message: "[Workflow] Coupon redemption/cleanup failed (non-fatal)",
-          error: couponErr,
-          attributes: { purchaseId, couponId: session.metadata.couponId },
-        })
-      }
     }
 
     logInfo({
@@ -683,44 +878,18 @@ async function createRegistration(
       },
     })
 
-    // Fetch user for notifications
-    const user = await db.query.userTable.findFirst({
-      where: eq(userTable.id, userId),
-    })
-
-    return {
+    return buildRegistrationStepResult({
+      session,
+      purchase: existingPurchase,
       registrationId: result.registrationId,
-      userId,
-      competitionId,
-      divisionId,
-      purchaseId,
-      amountTotal: session.amount_total,
-      customerEmail: session.customer_email,
-      userName: user
-        ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || null
-        : null,
-      competitionName: competition.name,
-      divisionName: divisionRecord?.label ?? null,
-      teamName: registrationData.teamName ?? null,
-      registrationDivisionId: divisionId,
-      registrationTeamName: registrationData.teamName ?? null,
-      registrationPendingTeammates: null,
-      competitionSlug: competition.slug,
-      competitionStartDate: competition.startDate,
-      userEmail: user?.email ?? null,
-      userFirstName: user?.firstName ?? null,
-      inviteId: registrationData.inviteId ?? null,
-    }
+      registrationData,
+    })
   } catch (err) {
     logError({
       message: "[Workflow] Failed to create registration",
       error: err,
       attributes: { purchaseId, competitionId, userId },
     })
-    await db
-      .update(commercePurchaseTable)
-      .set({ status: COMMERCE_PURCHASE_STATUS.FAILED })
-      .where(eq(commercePurchaseTable.id, purchaseId))
     // Re-throw to trigger step retry
     throw err
   }
@@ -755,10 +924,7 @@ async function updateCompetitionInviteStatus(
     .where(
       and(
         eq(competitionInvitesTable.id, result.inviteId),
-        eq(
-          competitionInvitesTable.status,
-          COMPETITION_INVITE_STATUS.PENDING,
-        ),
+        eq(competitionInvitesTable.status, COMPETITION_INVITE_STATUS.PENDING),
       ),
     )
 
@@ -797,7 +963,7 @@ async function sendConfirmationEmail(
       userId: result.userId,
       registrationId: result.registrationId,
       competitionId: result.competitionId,
-      isPaid: true,
+      isPaid: result.isPaid,
       amountPaidCents: result.amountTotal ?? undefined,
       prefetched: {
         user: {
@@ -835,13 +1001,149 @@ async function sendConfirmationEmail(
   }
 }
 
+async function processCheckoutSession(
+  session: CheckoutCompletedParams["session"],
+): Promise<RegistrationStepResult[]> {
+  const db = getDb()
+  const sessionPurchaseIds = session.metadata.purchaseIds ?? []
+  const purchaseIds = [
+    ...new Set(
+      (sessionPurchaseIds.length > 0
+        ? sessionPurchaseIds
+        : session.metadata.purchaseId
+          ? [session.metadata.purchaseId]
+          : []
+      ).filter(Boolean),
+    ),
+  ]
+  if (purchaseIds.length === 0) {
+    throw new Error("Checkout Session has no purchase IDs")
+  }
+
+  const purchases = await db.query.commercePurchaseTable.findMany({
+    where: inArray(commercePurchaseTable.id, purchaseIds),
+  })
+  if (purchases.length !== purchaseIds.length) {
+    const found = new Set(purchases.map((purchase) => purchase.id))
+    throw new Error(
+      `Checkout Session references missing purchases: ${purchaseIds.filter((id) => !found.has(id)).join(",")}`,
+    )
+  }
+  const products = await db.query.commerceProductTable.findMany({
+    where: inArray(commerceProductTable.id, [
+      ...new Set(purchases.map((purchase) => purchase.productId)),
+    ]),
+    columns: { id: true, type: true },
+  })
+  const productTypeById = new Map(
+    products.map((product) => [product.id, product.type]),
+  )
+  const registrationPurchases = purchases.filter(
+    (purchase) =>
+      productTypeById.get(purchase.productId) !== COMMERCE_PRODUCT_TYPE.ADDON,
+  )
+  const addonPurchases = purchases.filter(
+    (purchase) =>
+      productTypeById.get(purchase.productId) === COMMERCE_PRODUCT_TYPE.ADDON,
+  )
+
+  // Registration lines are authoritative and always settle before merch.
+  const registrationResults: RegistrationStepResult[] = []
+  for (const purchase of registrationPurchases) {
+    const result = await createRegistration(session, purchase.id, purchaseIds)
+    if (result) registrationResults.push(result)
+  }
+
+  const settledRegistrations = registrationPurchases.length
+    ? await db.query.commercePurchaseTable.findMany({
+        where: inArray(
+          commercePurchaseTable.id,
+          registrationPurchases.map((purchase) => purchase.id),
+        ),
+      })
+    : []
+  const nonterminalRegistration = settledRegistrations.find(
+    (purchase) =>
+      purchase.status === COMMERCE_PURCHASE_STATUS.PENDING ||
+      purchase.status === COMMERCE_PURCHASE_STATUS.CANCELLED,
+  )
+  if (nonterminalRegistration) {
+    throw new Error(
+      `Registration purchase did not reach a terminal state: ${nonterminalRegistration.id}`,
+    )
+  }
+
+  const completedRegistrationCount = settledRegistrations.filter(
+    (purchase) => purchase.status === COMMERCE_PURCHASE_STATUS.COMPLETED,
+  ).length
+  for (const purchase of settledRegistrations) {
+    if (purchase.status === COMMERCE_PURCHASE_STATUS.FAILED) {
+      await refundCheckoutPurchase(
+        session,
+        purchase,
+        "Registration could not be completed after payment",
+        "registration",
+      )
+    }
+  }
+
+  for (const originalPurchase of addonPurchases) {
+    const purchase = await db.query.commercePurchaseTable.findFirst({
+      where: eq(commercePurchaseTable.id, originalPurchase.id),
+    })
+    if (!purchase)
+      throw new Error(`Add-on purchase not found: ${originalPurchase.id}`)
+    if (registrationPurchases.length > 0 && completedRegistrationCount === 0) {
+      await refundCheckoutPurchase(
+        session,
+        purchase,
+        "All registrations in this checkout failed",
+        "addon",
+      )
+      continue
+    }
+    await completeAddonPurchase(session, purchase)
+  }
+
+  if (
+    session.metadata.couponId &&
+    completedRegistrationCount > 0 &&
+    Number(session.metadata.couponDiscountCents || 0) > 0
+  ) {
+    try {
+      await recordRedemption({
+        couponId: session.metadata.couponId,
+        userId: session.metadata.userId,
+        purchaseId:
+          settledRegistrations.find(
+            (purchase) =>
+              purchase.status === COMMERCE_PURCHASE_STATUS.COMPLETED,
+          )?.id ?? null,
+        competitionId: session.metadata.competitionId,
+        amountOffCents: Number(session.metadata.couponDiscountCents),
+      })
+    } catch (couponError) {
+      logWarning({
+        message: "[Workflow] Coupon redemption recording failed",
+        error: couponError,
+        attributes: {
+          couponId: session.metadata.couponId,
+          checkoutSessionId: session.id,
+        },
+      })
+    }
+  }
+
+  return registrationResults
+}
+
 async function sendSlackNotification(
   result: RegistrationStepResult,
   session: CheckoutCompletedParams["session"],
 ): Promise<void> {
   try {
     await notifyCompetitionRegistration({
-      amountCents: session.amount_total ?? 0,
+      amountCents: result.amountTotal ?? 0,
       customerEmail: session.customer_email ?? result.userEmail ?? undefined,
       customerName: result.userName ?? undefined,
       competitionName: result.competitionName,
@@ -874,90 +1176,86 @@ class StripeCheckoutWorkflowBase extends WorkflowEntrypoint<
 > {
   async run(event: WorkflowEvent<CheckoutCompletedParams>, step: WorkflowStep) {
     const { session } = event.payload
-    const { purchaseId, competitionId } = session.metadata
+    const { competitionId } = session.metadata
 
-    // Step 1: Core registration (critical path)
-    const registrationResult = await step.do(
-      "create-registration",
+    // The entire Checkout Session is one durable critical section. This
+    // guarantees registration outcomes are known before merch is completed
+    // or refunded.
+    const registrationResults = await step.do(
+      "process-checkout-session",
       {
         retries: { limit: 3, delay: "1 second", backoff: "exponential" },
       },
       async () => {
-        return await createRegistration(session)
+        return await processCheckoutSession(session)
       },
     )
 
-    if (!registrationResult) {
+    if (registrationResults.length === 0) {
       logInfo({
         message:
-          "[Workflow] Registration step returned null, skipping notifications",
-        attributes: { purchaseId, competitionId },
+          "[Workflow] Checkout session settled without new registration notifications",
+        attributes: {
+          purchaseIds: session.metadata.purchaseIds?.join(",") ?? "",
+          competitionId,
+        },
       })
       return
     }
 
-    // Step 2a: Flip competition invite status to `accepted_paid` when the
-    // purchase originated from an invite. Critical for invite-backed
-    // purchases — silently continuing on failure would strand the invite
-    // in `pending` forever, because Cloudflare Workflows cache successful
-    // step outputs and a re-running workflow would skip step 1 (already
-    // succeeded) without re-attempting this step. Surface the failure so
-    // the workflow itself fails and gets retried by Stripe's webhook
-    // delivery, or alerts on a permanent fault.
-    await step.do(
-      "update-competition-invite-status",
-      {
-        retries: { limit: 3, delay: "1 second", backoff: "exponential" },
-      },
-      async () => {
-        await updateCompetitionInviteStatus(registrationResult)
-      },
-    )
-
-    // Step 2: Send confirmation email (non-critical, retries independently)
-    // Wrapped in try-catch so email failure doesn't block Slack notification
-    try {
+    for (const registrationResult of registrationResults) {
       await step.do(
-        "send-confirmation-email",
+        `update-competition-invite-${registrationResult.purchaseId}`,
         {
-          retries: { limit: 3, delay: "2 seconds", backoff: "exponential" },
+          retries: { limit: 3, delay: "1 second", backoff: "exponential" },
         },
         async () => {
-          await sendConfirmationEmail(registrationResult)
+          await updateCompetitionInviteStatus(registrationResult)
         },
       )
-    } catch (emailErr) {
-      logWarning({
-        message:
-          "[Workflow] Email step failed after retries, continuing to Slack",
-        error: emailErr,
-        attributes: {
-          purchaseId,
-          registrationId: registrationResult.registrationId,
-        },
-      })
-    }
 
-    // Step 3: Send Slack notification (non-critical, retries independently)
-    try {
-      await step.do(
-        "send-slack-notification",
-        {
-          retries: { limit: 2, delay: "1 second", backoff: "linear" },
-        },
-        async () => {
-          await sendSlackNotification(registrationResult, session)
-        },
-      )
-    } catch (slackErr) {
-      logWarning({
-        message: "[Workflow] Slack step failed after retries",
-        error: slackErr,
-        attributes: {
-          purchaseId,
-          registrationId: registrationResult.registrationId,
-        },
-      })
+      try {
+        await step.do(
+          `send-confirmation-email-${registrationResult.purchaseId}`,
+          {
+            retries: { limit: 3, delay: "2 seconds", backoff: "exponential" },
+          },
+          async () => {
+            await sendConfirmationEmail(registrationResult)
+          },
+        )
+      } catch (emailErr) {
+        logWarning({
+          message:
+            "[Workflow] Email step failed after retries, continuing to Slack",
+          error: emailErr,
+          attributes: {
+            purchaseId: registrationResult.purchaseId,
+            registrationId: registrationResult.registrationId,
+          },
+        })
+      }
+
+      try {
+        await step.do(
+          `send-slack-notification-${registrationResult.purchaseId}`,
+          {
+            retries: { limit: 2, delay: "1 second", backoff: "linear" },
+          },
+          async () => {
+            await sendSlackNotification(registrationResult, session)
+          },
+        )
+      } catch (slackErr) {
+        logWarning({
+          message: "[Workflow] Slack step failed after retries",
+          error: slackErr,
+          attributes: {
+            purchaseId: registrationResult.purchaseId,
+            registrationId: registrationResult.registrationId,
+          },
+        })
+      }
     }
   }
 }
@@ -980,49 +1278,35 @@ export async function processCheckoutInline(
   params: CheckoutCompletedParams,
 ): Promise<void> {
   const { session } = params
+  const registrationResults = await processCheckoutSession(session)
 
-  const registrationResult = await createRegistration(session)
-
-  if (!registrationResult) {
-    return
-  }
-
-  try {
+  for (const registrationResult of registrationResults) {
     await updateCompetitionInviteStatus(registrationResult)
-  } catch (err) {
-    logWarning({
-      message: "[Inline Checkout] Invite status flip failed, continuing",
-      error: err,
-      attributes: {
-        purchaseId: registrationResult.purchaseId,
-        inviteId: registrationResult.inviteId ?? null,
-      },
-    })
-  }
 
-  try {
-    await sendConfirmationEmail(registrationResult)
-  } catch (err) {
-    logWarning({
-      message: "[Inline Checkout] Email notification failed, continuing",
-      error: err,
-      attributes: {
-        purchaseId: registrationResult.purchaseId,
-        competitionId: registrationResult.competitionId,
-      },
-    })
-  }
+    try {
+      await sendConfirmationEmail(registrationResult)
+    } catch (err) {
+      logWarning({
+        message: "[Inline Checkout] Email notification failed, continuing",
+        error: err,
+        attributes: {
+          purchaseId: registrationResult.purchaseId,
+          competitionId: registrationResult.competitionId,
+        },
+      })
+    }
 
-  try {
-    await sendSlackNotification(registrationResult, session)
-  } catch (err) {
-    logWarning({
-      message: "[Inline Checkout] Slack notification failed, continuing",
-      error: err,
-      attributes: {
-        purchaseId: registrationResult.purchaseId,
-        competitionId: registrationResult.competitionId,
-      },
-    })
+    try {
+      await sendSlackNotification(registrationResult, session)
+    } catch (err) {
+      logWarning({
+        message: "[Inline Checkout] Slack notification failed, continuing",
+        error: err,
+        attributes: {
+          purchaseId: registrationResult.purchaseId,
+          competitionId: registrationResult.competitionId,
+        },
+      })
+    }
   }
 }

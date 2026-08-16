@@ -1165,13 +1165,6 @@ export async function createBenchmarkTest({
     }
   }
 
-  const existingTests = await db
-    .select({ position: benchmarkTestsTable.position })
-    .from(benchmarkTestsTable)
-    .where(eq(benchmarkTestsTable.batteryId, battery.id))
-  const nextPosition =
-    existingTests.reduce((max, row) => Math.max(max, row.position), 0) + 1
-
   const scoreModelConfig = resolveBenchmarkTestScoreModel({
     scheme: test.scheme,
     scoreModel: test.scoreModel,
@@ -1209,6 +1202,22 @@ export async function createBenchmarkTest({
 
   let createdTestId = ""
   await db.transaction(async (tx) => {
+    // Serialize position allocation per battery so concurrent creates cannot
+    // derive the same (batteryId, position) unique key.
+    await tx
+      .select({ id: benchmarkBatteriesTable.id })
+      .from(benchmarkBatteriesTable)
+      .where(eq(benchmarkBatteriesTable.id, battery.id))
+      .limit(1)
+      .for("update")
+
+    const existingTests = await tx
+      .select({ position: benchmarkTestsTable.position })
+      .from(benchmarkTestsTable)
+      .where(eq(benchmarkTestsTable.batteryId, battery.id))
+    const nextPosition =
+      existingTests.reduce((max, row) => Math.max(max, row.position), 0) + 1
+
     await tx.insert(benchmarkTestsTable).values({
       batteryId: battery.id,
       categoryKey: test.categoryKey,

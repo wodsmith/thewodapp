@@ -135,6 +135,7 @@ export function BenchmarkStatLine({
   submission,
 }: BenchmarkStatLineProps) {
   const overall = entry.benchmarkOverallScore ?? entry.totalPoints
+  const scoreMax = entry.benchmarkScoreMax ?? 100
   const tests = [...entry.eventResults].sort(
     (a, b) => a.trackOrder - b.trackOrder,
   )
@@ -151,7 +152,7 @@ export function BenchmarkStatLine({
               {formatBenchmarkNumber(overall)}
             </span>
             <span className="pb-2 text-sm text-muted-foreground">
-              {entry.benchmarkOverallScore === null ? "pts" : "/100"}
+              {entry.benchmarkOverallScore === null ? "pts" : `/${scoreMax}`}
             </span>
           </div>
           {entry.benchmarkRatingBand ? (
@@ -180,7 +181,10 @@ export function BenchmarkStatLine({
                   <div
                     className="h-full rounded-sm bg-primary"
                     style={{
-                      width: `${Math.max(0, Math.min(100, category.score))}%`,
+                      width: `${Math.max(
+                        0,
+                        Math.min(100, (category.score / scoreMax) * 100),
+                      )}%`,
                     }}
                   />
                 </div>

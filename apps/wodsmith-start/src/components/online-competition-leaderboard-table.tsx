@@ -187,7 +187,7 @@ function formatBenchmarkOverall(entry: CompetitionLeaderboardEntry): string {
   if (entry.benchmarkOverallScore === null) {
     return `${entry.totalPoints} pts`
   }
-  return `${formatBenchmarkNumber(entry.benchmarkOverallScore)}/100`
+  return `${formatBenchmarkNumber(entry.benchmarkOverallScore)}/${entry.benchmarkScoreMax ?? 100}`
 }
 
 function formatBenchmarkTier(tier: number | null | undefined): string {

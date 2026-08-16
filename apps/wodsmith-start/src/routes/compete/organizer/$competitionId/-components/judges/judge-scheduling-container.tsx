@@ -29,6 +29,7 @@ import type {
   CompetitionJudgeRotation,
   JudgeAssignmentVersion,
 } from "@/db/schema"
+import type { CompetitionType } from "@/db/schemas/competitions"
 import type { LaneShiftPattern } from "@/db/schemas/volunteers"
 import { canUseHeatScheduling } from "@/lib/competitions/scheduling-check-in-gates"
 import { calculateCoverage } from "@/lib/judge-rotation-utils"
@@ -121,7 +122,7 @@ interface JudgeSchedulingContainerProps {
   competitionId: string
   competitionSlug: string
   organizingTeamId: string
-  competitionType: string
+  competitionType: CompetitionType
   events: CompetitionWorkout[]
   heats: HeatWithAssignments[]
   judges: JudgeVolunteerInfo[]

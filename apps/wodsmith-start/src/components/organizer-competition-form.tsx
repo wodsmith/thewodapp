@@ -233,11 +233,12 @@ export function OrganizerCompetitionForm({
   useEffect(() => {
     if (
       !canCreateBenchmarks &&
+      !(isEditMode && initialCompetitionType === "benchmark") &&
       form.getValues("competitionType") === "benchmark"
     ) {
       form.setValue("competitionType", "in-person")
     }
-  }, [canCreateBenchmarks, form])
+  }, [canCreateBenchmarks, form, initialCompetitionType, isEditMode])
 
   // Track selected divisions for series template
   const templateData = watchedGroupId
@@ -322,6 +323,10 @@ export function OrganizerCompetitionForm({
           onSuccess?.(result.competition.id)
         }
       } else {
+        if (!isSelectableCompetitionTypeValue(data.competitionType)) {
+          throw new Error("Select a supported competition type")
+        }
+
         // Create new competition
         const result = await createCompetitionFn({
           data: {

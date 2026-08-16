@@ -101,6 +101,8 @@ export interface CompetitionLeaderboardEntry {
   affiliate: string | null
   /** Benchmark Overall score on the battery's 0..scoreMax scale. */
   benchmarkOverallScore: number | null
+  /** Maximum score configured for the benchmark battery. */
+  benchmarkScoreMax: number | null
   /** Benchmark rating band for the Overall score, if configured. */
   benchmarkRatingBand: BenchmarkLeaderboardRatingBand | null
   /** Benchmark category score breakdown, ordered by the battery config. */
@@ -1187,6 +1189,7 @@ export async function getCompetitionLeaderboard(params: {
       teamMembers,
       affiliate: getAffiliate(reg.registration.metadata, reg.user.id),
       benchmarkOverallScore: null,
+      benchmarkScoreMax: benchmarkContext?.scoreMax ?? null,
       benchmarkRatingBand: null,
       benchmarkCategoryScores: [],
       // Gender is only surfaced where it's benchmark context (threshold
@@ -1740,6 +1743,7 @@ export async function getCompetitionLeaderboard(params: {
       })
 
       entry.benchmarkOverallScore = aggregate.overallScore
+      entry.benchmarkScoreMax = benchmarkContext.scoreMax
       entry.benchmarkCategoryScores = aggregate.categories
       entry.benchmarkRatingBand = findBenchmarkRatingBand(
         aggregate.overallScore,

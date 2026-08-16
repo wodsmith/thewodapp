@@ -47,7 +47,9 @@ import {
   sortKeyToString,
   type WorkoutScheme,
 } from "@/lib/scoring"
+import { isBenchmarkCompetition } from "@/server/benchmark-submissions"
 import { getSessionFromCookie } from "@/utils/auth"
+import { AppError } from "@/utils/errors"
 
 // ============================================================================
 // Types
@@ -448,6 +450,13 @@ export const submitAthleteScoreFn = createServerFn({ method: "POST" })
           },
         })
         throw new Error("Not authenticated")
+      }
+
+      if (await isBenchmarkCompetition(data.competitionId)) {
+        throw new AppError(
+          "UNPROCESSABLE_CONTENT",
+          "Benchmark scores must be submitted through the benchmark submission flow",
+        )
       }
 
       const db = getDb()

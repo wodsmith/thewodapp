@@ -197,6 +197,30 @@ export function getTeamPlatformFee(team?: TeamFeeOverrides): {
 }
 
 /**
+ * Application fee for a destination-charge Checkout Session.
+ *
+ * Fees are computed from undiscounted purchase totals (coupons are
+ * organizer-funded and don't shrink the platform fee), but Stripe rejects
+ * sessions whose application_fee_amount exceeds the amount actually
+ * charged — reachable when a large coupon meets organizer-absorbed fees.
+ * Clamp to the post-discount charge so checkout succeeds with the maximum
+ * collectable fee instead of failing at session creation.
+ */
+export function calculateApplicationFeeCents({
+  totalChargeCents,
+  totalOrganizerNetCents,
+  discountCents = 0,
+}: {
+  totalChargeCents: number
+  totalOrganizerNetCents: number
+  discountCents?: number
+}): number {
+  const uncappedFeeCents = totalChargeCents - totalOrganizerNetCents
+  const customerPaysCents = Math.max(0, totalChargeCents - discountCents)
+  return Math.max(0, Math.min(uncappedFeeCents, customerPaysCents))
+}
+
+/**
  * Format cents as a dollar amount string
  * @example formatCents(5325) => "$53.25"
  */

@@ -49,6 +49,19 @@ export const benchmarkRatingBandSchema = z
 export const benchmarkRatingBandsSchema = z
   .array(benchmarkRatingBandSchema)
   .min(1)
+  .superRefine((bands, ctx) => {
+    const seen = new Set<string>()
+    for (const [index, band] of bands.entries()) {
+      if (seen.has(band.key)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Duplicate benchmark rating band key: ${band.key}`,
+          path: [index, "key"],
+        })
+      }
+      seen.add(band.key)
+    }
+  })
 
 export const benchmarkVideoPolicySchema = z.enum([
   "never",

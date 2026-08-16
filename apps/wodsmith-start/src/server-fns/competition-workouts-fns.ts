@@ -323,6 +323,7 @@ async function resolveBenchmarkTestLink({
       ),
     )
     .limit(1)
+    .for("update")
 
   if (!test) {
     throw new Error("Benchmark test not found for this competition")
@@ -1651,6 +1652,29 @@ export const saveCompetitionEventFn = createServerFn({ method: "POST" })
     })
 
     await db.transaction(async (tx) => {
+      const [ownedEvent] = await tx
+        .select({ id: trackWorkoutsTable.id })
+        .from(trackWorkoutsTable)
+        .innerJoin(
+          programmingTracksTable,
+          eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
+        )
+        .innerJoin(workouts, eq(trackWorkoutsTable.workoutId, workouts.id))
+        .where(
+          and(
+            eq(trackWorkoutsTable.id, data.trackWorkoutId),
+            eq(trackWorkoutsTable.workoutId, data.workoutId),
+            eq(programmingTracksTable.ownerTeamId, data.teamId),
+            eq(workouts.teamId, data.teamId),
+          ),
+        )
+        .limit(1)
+        .for("update")
+
+      if (!ownedEvent) {
+        throw new Error("Competition event does not belong to this team")
+      }
+
       // 1. Update workout table
       const workoutUpdateData: Record<string, unknown> = {
         name: data.name,

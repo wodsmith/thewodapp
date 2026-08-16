@@ -123,6 +123,8 @@ The **Judge Schedule** tab is the rotation grid. You set:
 
 Click **Publish Rotations** when ready. Judges see their assignments on their **Schedule** view; they can't see them until you publish.
 
+Use **View printable schedule** for paper event-day copies. Choose **Master grid** to print every heat and lane with its judge, team, and athlete roster, or **Judge packets** to print all personal run sheets at once. You can also select one judge before printing a replacement copy. Each personal sheet includes heat time, venue, lane, team, athletes, division, and workout brief.
+
 ## Broadcasts During the Event
 
 Broadcasts are the fastest way to reach all athletes, all volunteers, or just one division.

@@ -16,7 +16,7 @@ This strategy makes the implementation testable without requiring the full histo
 ## Integration Tests
 
 - Seed validation asserts every included test has 10 thresholds per variant and every included test has a matching tagged `trackWorkout`.
-- Seed validation traces test names, categories, units, included/deferred status, and thresholds back to `/Users/zacjones/Downloads/HillerFit_Training_Guide.pdf` or a checked-in extraction receipt.
+- Seed validation traces test names, categories, units, included/deferred status, and thresholds back to the owner-provided `HillerFit_Training_Guide.pdf` artifact or a checked-in extraction receipt.
 - Publish/read validation rejects malformed categories JSON, stale `testCount`, missing thresholds, missing variant tables, and team-sized batteries.
 - Publish/read validation rejects missing or duplicate `benchmarkTestId` mappings so every benchmark test has exactly one scorable event.
 - Submission writes Open division `scalingLevelId` and `scores.benchmarkVariant`.

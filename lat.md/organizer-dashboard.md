@@ -24,7 +24,7 @@ For in-person competitions, the Registrations stat card exposes a `Go to Check-I
 
 The edit page allows organizers to modify competition metadata while preserving type-specific behavior.
 
-Fetches competition groups for the organizing team. Uses `OrganizerCompetitionEditForm` to edit name, dates, description, registration window, timezone, series group, visibility, status, images, and selectable competition types. Stored benchmark competitions display their type without submitting generic type updates.
+Fetches competition groups for the organizing team. Uses `OrganizerCompetitionEditForm` to edit name, dates, description, registration window, timezone, series group, visibility, status, images, and standard competition types. Stored benchmark competitions display their type without submitting generic type updates.
 
 ## Division Management
 
@@ -160,6 +160,52 @@ For parent events with sub-events, the results loader fetches all child score-en
 
 For **online competitions**: Shows a submissions overview with links to individual video verification pages at `/events/{eventId}/submissions/`. Layout mirrors the volunteer review index (`/compete/$slug/review`) — parent events render as cards with their child sub-events listed inline, each row showing per-event total / reviewed / pending counts and a progress bar. Counts come from [[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#getSubmissionCountsByEventFn]], which gates on `requireSubmissionReviewAccess(competitionId)`, filters the requested trackWorkoutIds to those belonging to the competition's programming track (so callers can't enumerate counts across tenants), then issues grouped `COUNT() ... GROUP BY trackWorkoutId` queries for total and reviewed counts — autochunked as needed to respect MySQL parameter limits. It inner-joins `competition_registrations` to exclude submissions from removed registrations, matching the leaderboard and in-person results entry filter. This replaces the prior per-event `getEventSubmissionsFn` fan-out, which materialized full submission rows (with autochunked user/division/registration lookups) just to compute three numbers per event. The per-event review list ([[apps/wodsmith-start/src/server-fns/video-submission-fns.ts#getOrganizerSubmissionsFn]]) applies the same removed-registration filter on its registration join.
 
+### Clear Results
+
+Organizers can permanently clear one saved score from its athlete row on an in-person results page after confirming an irreversible warning.
+
+Each saved row exposes a compact trash action beside its status; unsaved rows and non-organizer score-entry surfaces do not expose it. The confirmation uses one high-contrast orange danger palette throughout, names the athlete or team and, for a parent event, the sub-event before calling [[apps/wodsmith-start/src/server-fns/competition-score-fns.ts#deleteCompetitionScoreFn]].
+
+After deletion, only the cleared row resets its local input state. Draft or invalid values in other rows remain untouched because they may not have reached auto-save yet.
+
+The server requires `MANAGE_COMPETITIONS`, verifies the organizing team and event belong to the competition, and scopes the delete to the athlete, event, and exact division. A transaction deletes round breakdowns before their parent score because the schema does not declare a database cascade.
+
+#### Confirms destructive clear
+
+The row action requires explicit confirmation, identifies the affected athlete or team, and consistently uses the accessible orange danger palette.
+
+#### Cancel is non-mutating
+
+Opening and canceling confirmation neither auto-saves a focused draft edit nor clears the existing saved result.
+
+#### Hides clear without organizer callback
+
+Score-entry surfaces that do not receive the organizer-only clear callback never render the destructive action.
+
+#### Preserves other row drafts
+
+Clearing a saved result resets only its row and preserves partial or invalid draft input in every other row.
+
+#### Deletes score and rounds
+
+An owned score deletion removes its round breakdowns before removing the parent score.
+
+#### Rejects event outside competition
+
+The delete action rejects a track workout that does not belong to the requested competition before opening a transaction.
+
+#### Rejects mismatched organizing team
+
+The delete action rejects a competition whose organizing team differs from the team supplied by the caller.
+
+#### Missing score is idempotent
+
+Clearing a valid athlete, event, and division scope with no matching score succeeds without issuing delete statements.
+
+#### Deletes null-division score
+
+A required `null` division explicitly targets an open score through the null scaling-level scope and deletes its rounds and parent score.
+
 ### Division Results Publish Gate
 
 Controls whether scores for a given (event, division) pair are visible on the public leaderboard. Organizers toggle publish state per event-division from the results entry UI.
@@ -172,6 +218,8 @@ Publish state lives in `competitionsTable.settings.divisionResults[trackWorkoutI
 Defaults: when `divisionResults` is absent entirely, online competitions treat everything as hidden (opt-in publishing) while in-person competitions show everything (backwards compat for gyms that never opted into the gate). Organizers can bulk-publish all divisions for an event from `QuickActionsDivisionResults`.
 
 Benchmark (perpetual) competitions auto-publish by default: `settings.resultsAutoPublish` defaults to `true`, making [[apps/wodsmith-start/src/server/competition-leaderboard.ts#resolveLeaderboardDivisionResults]] skip the gate entirely so scores appear on the public leaderboard as they come in. The organizer overview's `QuickActionsDivisionResults` card shows an "Auto-publish / Manual publishing" selector (only for perpetual types) backed by [[apps/wodsmith-start/src/server-fns/division-results-fns.ts#setResultsAutoPublishFn]], which rejects non-perpetual competition types. Flipping to manual re-enables the standard per-division gate with hidden-until-published semantics.
+
+All three settings mutations lock the competition row inside a transaction for their full read-modify-write cycle. Concurrent division-publish and auto-publish changes therefore serialize instead of overwriting unrelated settings.
 
 ## Check-In Kiosk
 
@@ -233,6 +281,16 @@ When the selected event has no athlete heats, the judge assignment and rotation 
 
 The volunteers/judges and judges-ai route loaders load all per-event judge data (heat assignments, rotations + event defaults, version history, active versions) through one batched call — [[apps/wodsmith-start/src/server-fns/judge-scheduling-fns.ts#getJudgeSchedulingDataForEventsFn]] — which issues a constant number of `inArray` queries for any event count and returns records keyed by trackWorkoutId. This replaced four per-event server-fn fan-outs (4N round trips, ~10N queries). The single-event fns (`getJudgeHeatAssignmentsFn`, `getRotationsForEventFn`, `getVersionHistoryFn`, `getActiveVersionFn`) remain for targeted refreshes. The "adjust for occupied lanes" feature (`adjustRotationsForOccupiedLanesFn`) splits rotations to skip unoccupied lanes; cohost routes use `cohostAdjustRotationsForOccupiedLanesFn` via the `onAdjustRotationsForOccupiedLanes` override prop on `RotationTimeline`.
 
+### Judge Schedule Printouts
+
+The authenticated print center produces a master lane grid and paper run sheets for every assigned judge, so event-day staff can work from paper.
+
+The printable schedule at `/compete/{slug}/judges-schedule` is linked from [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/-components/judges/judge-scheduling-container.tsx#JudgeSchedulingContainer]], [[apps/wodsmith-start/src/routes/compete/organizer/$competitionId/-components/quick-actions-heats.tsx#QuickActionsHeats]], and the organizer or volunteer actions in [[apps/wodsmith-start/src/components/competition-hero.tsx#CompetitionHero]]. Access requires `MANAGE_COMPETITIONS` on the organizing team or membership in the competition team, which keeps draft workout briefs out of anonymous slug routes while preserving organizer and volunteer workflows.
+
+[[apps/wodsmith-start/src/server-fns/judge-scheduling-fns.ts#getJudgesScheduleDataFn]] batches active assignments, heat lanes, team registrations, complete athlete-team rosters, base workout briefs, and per-division workout descriptions. Account-backed and invitation-backed judges retain distinct assignee identities and names so pending volunteers receive separate packets. Team rosters combine active athlete memberships with named pending teammates, and fall back to the registration owner only when no athlete memberships exist, avoiding coach or manager names on judge sheets.
+
+[[apps/wodsmith-start/src/routes/compete/$slug/-components/judges-schedule-content.tsx#JudgesScheduleContent]] offers two print modes: a scrollable heat-by-lane grid with judge, team or athlete, roster, division, time, venue, and floating floor judges; and judge packets that can print all judges or one selected judge. Each lane assignment uses its division-specific workout brief when present, preserves an explicitly blank override, and falls back to the base description only when the override is missing. Every printed master event and personal packet carries a compact WODsmith Compete brand mark. Printed packets use a compact assignment table plus one brief per unique event, division, and description so each judge starts on a fresh page without repeated workout text.
+
 ### AI Judge Scheduling
 
 Optional AI-augmented entry point that proposes judge rotations for organizer review.
@@ -277,6 +335,12 @@ Discount codes that reduce registration fees for athletes.
 
 Requires `PRODUCT_COUPONS` entitlement. `CouponsPage` handles creating and deactivating coupons with code, discount amount, usage limits, and expiration. Uses `createCouponFn`, `listCouponsFn`, `deactivateCouponFn`. All three server functions authorize both platform admins (`session.user.role === "admin"`) and team admin/owner members.
 
+## Merch
+
+Registration add-ons (merch) management for a competition, gated behind the `registration_addons` entitlement.
+
+`MerchPage` at `/compete/organizer/$competitionId/merch` renders a locked state when the organizing team lacks the entitlement. When entitled: product CRUD (price, size variants with optional stock, order-by deadline, max per athlete, ACTIVE/HIDDEN/ARCHIVED status) plus two fulfillment tables — counts-by-variant for the print shop and the per-athlete pickup list. Uses `listCompetitionAddonsFn`, `createCompetitionAddonFn`, `updateCompetitionAddonFn`, `archiveCompetitionAddonFn`, and `getAddonSalesReportFn`. See [[commerce#Registration Add-ons]] for the checkout and payment flow.
+
 ## Sponsors
 
 Manages sponsor logos and groupings displayed on the competition's public page.
@@ -320,6 +384,40 @@ Teammates and pending invites inherit their captain's match against registration
 [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#applyAthleteQuestionFilters]] computes the set of `athleteTeamId`s whose captain's registration matched every filter, then keeps all teammates and pending invites on those teams. Captains/solos are still matched individually by `registrationId`. Without inheritance, filters silently dropped the three non-captain rows per team.
 
 Each `Recipient` carries its `athleteTeamId` (captain/teammate/invite) or `null` (solo) so the inheritance step has the team context without re-fetching.
+
+### Athlete waiver-status filters
+
+Athlete announcements can target people who have signed or not signed each required athlete waiver.
+
+The composer loads required athlete waivers and adds `signed` / `unsigned` choices alongside registration-question filters. Waiver filters are available only for all-athlete and division audiences; multiple waiver and question filters compose with AND logic.
+
+[[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#applyAthleteWaiverFilters]] validates every selected waiver still belongs to the competition and is required for athletes, then batch-loads [[packages/wodsmith-db/src/schemas/waivers.ts#waiverSignaturesTable]] by recipient user id. Unlike question-answer filters, waiver status is per athlete and is never inherited from a captain. Pending invite recipients have no user or signature, so they match `unsigned` and never `signed`.
+
+[[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#filterRecipientsByWaiverStatus]] is the shared pure status matcher covered by broadcast unit tests. Both [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#sendBroadcastFn]] and [[apps/wodsmith-start/src/server-fns/broadcast-fns.ts#previewAudienceFn]] call the same database-backed helper so the preview count matches the sent audience.
+
+#### All-athlete waiver filters
+
+All-athlete audiences accept required-waiver status filters without requiring a division.
+
+#### Division waiver filters
+
+Division audiences accept required-waiver status filters when a valid division id is supplied.
+
+#### Non-athlete waiver filters
+
+Public, volunteer, and pending-teammate audiences reject athlete waiver-status filters.
+
+#### Signed status matching
+
+The signed status keeps only athletes with a signature for the selected waiver.
+
+#### Unsigned status matching
+
+The unsigned status keeps athletes and pending invitees who lack a signature for the selected waiver.
+
+#### Multiple waiver filters
+
+Multiple selected waiver statuses combine with AND logic.
 
 ### Pending teammate invites filter
 

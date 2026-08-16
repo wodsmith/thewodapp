@@ -1,7 +1,9 @@
 import { FEATURES } from "@/config/features"
 import type { CompetitionTypeId } from "@/lib/competitions/capabilities"
 import { hasFeature } from "@/server/entitlements"
+import { AppError } from "@/utils/errors"
 
+// @lat: [[competition-type-capabilities#Benchmark Rollout Gates]]
 export async function assertBenchmarkCreationAccess({
   teamId,
   competitionType,
@@ -16,7 +18,8 @@ export async function assertBenchmarkCreationAccess({
     FEATURES.CREATE_BENCHMARKS,
   )
   if (!canCreateBenchmarks) {
-    throw new Error(
+    throw new AppError(
+      "FORBIDDEN",
       "Your team does not have access to create benchmark competitions",
     )
   }

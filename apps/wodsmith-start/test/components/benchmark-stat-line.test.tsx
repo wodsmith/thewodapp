@@ -50,6 +50,7 @@ function createEntry(): CompetitionLeaderboardEntry {
     teamMembers: [],
     affiliate: "WODsmith Gym",
     benchmarkOverallScore: 72.5,
+    benchmarkScoreMax: 200,
     benchmarkGender: "male",
     benchmarkRatingBand: {
       key: "regional",
@@ -194,11 +195,12 @@ const submissionContext = {
 }
 
 describe("BenchmarkStatLine", () => {
-  it("renders Overall/100, category scores, per-test tiers, and states", () => {
+  // @lat: [[competition-type-capabilities#Benchmark Editor and Stat Presentation Tests#Renders the Configurable Score Scale]]
+  it("renders the configured score scale, category scores, tiers, and states", () => {
     render(<BenchmarkStatLine entry={createEntry()} />)
 
     expect(screen.getByText("72.5")).toBeInTheDocument()
-    expect(screen.getByText("/100")).toBeInTheDocument()
+    expect(screen.getByText("/200")).toBeInTheDocument()
     expect(screen.getByText("Regional")).toBeInTheDocument()
     expect(screen.getAllByText("Strength").length).toBeGreaterThan(0)
     expect(screen.getAllByText("Engine").length).toBeGreaterThan(0)
@@ -216,6 +218,7 @@ describe("BenchmarkStatLine", () => {
     expect(screen.getByText("Excluded")).toBeInTheDocument()
   })
 
+  // @lat: [[competition-type-capabilities#Benchmark Editor and Stat Presentation Tests#Keeps Deferred Tests Read-Only]]
   it("keeps unavailable (deferred) tests read-only even with submission context", () => {
     render(
       <BenchmarkStatLine entry={createEntry()} submission={submissionContext} />,

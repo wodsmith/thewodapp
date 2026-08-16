@@ -61,35 +61,21 @@ describe("athlete score submission capability gates", () => {
     mockSession.mockResolvedValue({ userId: "user-1" })
   })
 
-  it("allows benchmark score submission without submission-window rows", async () => {
-    mockLimit
-      .mockResolvedValueOnce([{ id: "reg-1", divisionId: "open" }])
-      .mockResolvedValueOnce([{ competitionType: "benchmark" }])
-      .mockResolvedValueOnce([{ workoutId: "workout-1", trackId: "track-1" }])
-      .mockResolvedValueOnce([
-        {
-          scheme: "time",
-          scoreType: "min",
-          tiebreakScheme: null,
-          timeCap: null,
+  // @lat: [[competition-type-capabilities#Perpetual Submission Gate Test#Rejects Generic Athlete Benchmark Scores]]
+  it("rejects benchmark scores outside the benchmark flow", async () => {
+    mockLimit.mockResolvedValueOnce([{ id: "battery-1" }])
+
+    await expect(
+      submitAthleteScoreFn({
+        data: {
+          competitionId: "comp-1",
+          trackWorkoutId: "tw-1",
+          score: "10:00",
+          status: "scored",
         },
-      ])
-      .mockResolvedValueOnce([{ ownerTeamId: "team-1" }])
-      .mockResolvedValueOnce([{ id: "score-1" }])
-
-    const result = await submitAthleteScoreFn({
-      data: {
-        competitionId: "comp-1",
-        trackWorkoutId: "tw-1",
-        score: "10:00",
-        status: "scored",
-      },
-    })
-
-    expect(result).toEqual({
-      success: true,
-      scoreId: "score-1",
-      message: "Score submitted successfully",
-    })
+      }),
+    ).rejects.toThrow(
+      "Benchmark scores must be submitted through the benchmark submission flow",
+    )
   })
 })

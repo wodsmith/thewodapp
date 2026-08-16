@@ -212,7 +212,6 @@ export const getDivisionResultsStatusFn = createServerFn({ method: "GET" })
 
       const db = getDb()
 
-      // Get competition with settings
       const [competition] = await db
         .select()
         .from(competitionsTable)
@@ -552,50 +551,54 @@ export const publishDivisionResultsFn = createServerFn({ method: "POST" })
 
       const db = getDb()
 
-      // Get competition with settings
-      const [competition] = await db
-        .select()
-        .from(competitionsTable)
-        .where(eq(competitionsTable.id, data.competitionId))
+      return db.transaction(async (tx) => {
+        // Lock the shared settings row for the full read-modify-write cycle.
+        const [competition] = await tx
+          .select()
+          .from(competitionsTable)
+          .where(eq(competitionsTable.id, data.competitionId))
+          .limit(1)
+          .for("update")
 
-      if (!competition) {
-        throw new Error("Competition not found")
-      }
+        if (!competition) {
+          throw new Error("Competition not found")
+        }
 
-      if (competition.organizingTeamId !== data.organizingTeamId) {
-        throw new Error("Competition does not belong to this team")
-      }
+        if (competition.organizingTeamId !== data.organizingTeamId) {
+          throw new Error("Competition does not belong to this team")
+        }
 
-      // Parse current settings
-      const settings = parseCompetitionSettings(competition.settings) ?? {}
+        // Parse current settings
+        const settings = parseCompetitionSettings(competition.settings) ?? {}
 
-      // Update division results status for this event+division
-      const divisionResults: DivisionResultsSchema =
-        settings.divisionResults ?? {}
-      const publishedAt = data.publish ? Date.now() : null
+        // Update division results status for this event+division
+        const divisionResults: DivisionResultsSchema =
+          settings.divisionResults ?? {}
+        const publishedAt = data.publish ? Date.now() : null
 
-      // Ensure the event entry exists
-      if (!divisionResults[data.eventId]) {
-        divisionResults[data.eventId] = {}
-      }
+        // Ensure the event entry exists
+        if (!divisionResults[data.eventId]) {
+          divisionResults[data.eventId] = {}
+        }
 
-      divisionResults[data.eventId][data.divisionId] = { publishedAt }
+        divisionResults[data.eventId][data.divisionId] = { publishedAt }
 
-      // Save updated settings
-      const newSettings = stringifyCompetitionSettings({
-        ...settings,
-        divisionResults,
+        // Save updated settings
+        const newSettings = stringifyCompetitionSettings({
+          ...settings,
+          divisionResults,
+        })
+
+        await tx
+          .update(competitionsTable)
+          .set({ settings: newSettings, updatedAt: new Date() })
+          .where(eq(competitionsTable.id, data.competitionId))
+
+        return {
+          success: true,
+          publishedAt: publishedAt ? new Date(publishedAt) : null,
+        }
       })
-
-      await db
-        .update(competitionsTable)
-        .set({ settings: newSettings, updatedAt: new Date() })
-        .where(eq(competitionsTable.id, data.competitionId))
-
-      return {
-        success: true,
-        publishedAt: publishedAt ? new Date(publishedAt) : null,
-      }
     },
   )
 
@@ -629,64 +632,68 @@ export const publishAllDivisionResultsFn = createServerFn({ method: "POST" })
 
       const db = getDb()
 
-      // Get competition with settings
-      const [competition] = await db
-        .select()
-        .from(competitionsTable)
-        .where(eq(competitionsTable.id, data.competitionId))
+      return db.transaction(async (tx) => {
+        // Lock the shared settings row for the full read-modify-write cycle.
+        const [competition] = await tx
+          .select()
+          .from(competitionsTable)
+          .where(eq(competitionsTable.id, data.competitionId))
+          .limit(1)
+          .for("update")
 
-      if (!competition) {
-        throw new Error("Competition not found")
-      }
+        if (!competition) {
+          throw new Error("Competition not found")
+        }
 
-      if (competition.organizingTeamId !== data.organizingTeamId) {
-        throw new Error("Competition does not belong to this team")
-      }
+        if (competition.organizingTeamId !== data.organizingTeamId) {
+          throw new Error("Competition does not belong to this team")
+        }
 
-      // Parse current settings
-      const settings = parseCompetitionSettings(competition.settings) ?? {}
-      const scalingGroupId = settings?.divisions?.scalingGroupId
+        // Parse current settings
+        const settings = parseCompetitionSettings(competition.settings) ?? {}
+        const scalingGroupId = settings?.divisions?.scalingGroupId
 
-      if (!scalingGroupId) {
-        return { success: true, updatedCount: 0 }
-      }
+        if (!scalingGroupId) {
+          return { success: true, updatedCount: 0 }
+        }
 
-      // Get all divisions
-      const divisions = await db
-        .select({ id: scalingLevelsTable.id })
-        .from(scalingLevelsTable)
-        .where(eq(scalingLevelsTable.scalingGroupId, scalingGroupId))
+        // Get all divisions
+        const divisions = await tx
+          .select({ id: scalingLevelsTable.id })
+          .from(scalingLevelsTable)
+          .where(eq(scalingLevelsTable.scalingGroupId, scalingGroupId))
 
-      if (divisions.length === 0) {
-        return { success: true, updatedCount: 0 }
-      }
+        if (divisions.length === 0) {
+          return { success: true, updatedCount: 0 }
+        }
 
-      // Update all divisions for this specific event
-      const divisionResults: DivisionResultsSchema =
-        settings.divisionResults ?? {}
-      const publishedAt = data.publish ? Date.now() : null
+        // Update all divisions for this specific event
+        const divisionResults: DivisionResultsSchema =
+          settings.divisionResults ?? {}
+        const publishedAt = data.publish ? Date.now() : null
 
-      // Ensure the event entry exists
-      if (!divisionResults[data.eventId]) {
-        divisionResults[data.eventId] = {}
-      }
+        // Ensure the event entry exists
+        if (!divisionResults[data.eventId]) {
+          divisionResults[data.eventId] = {}
+        }
 
-      for (const division of divisions) {
-        divisionResults[data.eventId][division.id] = { publishedAt }
-      }
+        for (const division of divisions) {
+          divisionResults[data.eventId][division.id] = { publishedAt }
+        }
 
-      // Save updated settings
-      const newSettings = stringifyCompetitionSettings({
-        ...settings,
-        divisionResults,
+        // Save updated settings
+        const newSettings = stringifyCompetitionSettings({
+          ...settings,
+          divisionResults,
+        })
+
+        await tx
+          .update(competitionsTable)
+          .set({ settings: newSettings, updatedAt: new Date() })
+          .where(eq(competitionsTable.id, data.competitionId))
+
+        return { success: true, updatedCount: divisions.length }
       })
-
-      await db
-        .update(competitionsTable)
-        .set({ settings: newSettings, updatedAt: new Date() })
-        .where(eq(competitionsTable.id, data.competitionId))
-
-      return { success: true, updatedCount: divisions.length }
     },
   )
 
@@ -723,37 +730,41 @@ export const setResultsAutoPublishFn = createServerFn({ method: "POST" })
 
       const db = getDb()
 
-      // Get competition with settings
-      const [competition] = await db
-        .select()
-        .from(competitionsTable)
-        .where(eq(competitionsTable.id, data.competitionId))
+      return db.transaction(async (tx) => {
+        // Lock the shared settings row for the full read-modify-write cycle.
+        const [competition] = await tx
+          .select()
+          .from(competitionsTable)
+          .where(eq(competitionsTable.id, data.competitionId))
+          .limit(1)
+          .for("update")
 
-      if (!competition) {
-        throw new Error("Competition not found")
-      }
+        if (!competition) {
+          throw new Error("Competition not found")
+        }
 
-      if (competition.organizingTeamId !== data.organizingTeamId) {
-        throw new Error("Competition does not belong to this team")
-      }
+        if (competition.organizingTeamId !== data.organizingTeamId) {
+          throw new Error("Competition does not belong to this team")
+        }
 
-      if (!competitionCan(competition.competitionType, "perpetual")) {
-        throw new Error(
-          "Auto-publishing results is only available for benchmark competitions",
-        )
-      }
+        if (!competitionCan(competition.competitionType, "perpetual")) {
+          throw new Error(
+            "Auto-publishing results is only available for benchmark competitions",
+          )
+        }
 
-      const settings = parseCompetitionSettings(competition.settings) ?? {}
-      const newSettings = stringifyCompetitionSettings({
-        ...settings,
-        resultsAutoPublish: data.autoPublish,
+        const settings = parseCompetitionSettings(competition.settings) ?? {}
+        const newSettings = stringifyCompetitionSettings({
+          ...settings,
+          resultsAutoPublish: data.autoPublish,
+        })
+
+        await tx
+          .update(competitionsTable)
+          .set({ settings: newSettings, updatedAt: new Date() })
+          .where(eq(competitionsTable.id, data.competitionId))
+
+        return { success: true, resultsAutoPublish: data.autoPublish }
       })
-
-      await db
-        .update(competitionsTable)
-        .set({ settings: newSettings, updatedAt: new Date() })
-        .where(eq(competitionsTable.id, data.competitionId))
-
-      return { success: true, resultsAutoPublish: data.autoPublish }
     },
   )

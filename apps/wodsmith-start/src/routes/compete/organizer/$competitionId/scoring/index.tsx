@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, notFound } from "@tanstack/react-router"
 import { competitionCan } from "@/lib/competitions/capabilities"
 import { getCompetitionWorkoutsFn } from "@/server-fns/competition-workouts-fns"
 import { ScoringSettingsForm } from "../-components/scoring-settings-form"
@@ -12,7 +12,7 @@ export const Route = createFileRoute(
     const parentMatch = await parentMatchPromise
     const loaderData = parentMatch.loaderData
     if (!loaderData) {
-      throw new Error("Competition scoring route data is unavailable")
+      throw notFound()
     }
     const { competition } = loaderData
 

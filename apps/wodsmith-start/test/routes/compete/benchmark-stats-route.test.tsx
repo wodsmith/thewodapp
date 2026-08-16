@@ -77,6 +77,7 @@ function createStatsEntry(): LeaderboardEntry {
     teamMembers: [],
     affiliate: "WODsmith Gym",
     benchmarkOverallScore: 72.5,
+    benchmarkScoreMax: 100,
     benchmarkGender: "male",
     benchmarkRatingBand: {
       key: "regional",

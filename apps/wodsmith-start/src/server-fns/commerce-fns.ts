@@ -8,14 +8,14 @@
  */
 
 import { createServerFn } from "@tanstack/react-start"
-import { and, eq, inArray, sql } from "drizzle-orm"
+import { and, eq, inArray, isNotNull, sql } from "drizzle-orm"
 import { z } from "zod"
 import { getDb } from "@/db"
 import {
   COMMERCE_PURCHASE_STATUS,
   commercePurchaseTable,
-  competitionDivisionsTable,
   competitionDivisionFeesTable,
+  competitionDivisionsTable,
   competitionGroupsTable,
   competitionsTable,
   scalingLevelsTable,
@@ -380,6 +380,10 @@ export const getSeriesRevenueStatsFn = createServerFn({ method: "GET" })
         and(
           inArray(commercePurchaseTable.competitionId, competitionIds),
           eq(commercePurchaseTable.status, COMMERCE_PURCHASE_STATUS.COMPLETED),
+          // Registration revenue only: ADDON (merch) purchases have no
+          // division and would land in an "Unknown" bucket and inflate
+          // series totals. Merch revenue is reported on the Merch page.
+          isNotNull(commercePurchaseTable.divisionId),
         ),
       )
       .groupBy(

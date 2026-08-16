@@ -1269,14 +1269,26 @@ export const getBatchEventVideoSubmissionsFn = createServerFn({
         BenchmarkSubmissionContext | null
       >()
       if (competition?.competitionType === "benchmark") {
-        const contexts = await Promise.all(
-          data.trackWorkoutIds.map((twId) =>
-            getBenchmarkSubmissionContext(data.competitionId, twId),
-          ),
-        )
-        data.trackWorkoutIds.forEach((twId, index) => {
-          benchmarkContextMap.set(twId, contexts[index])
-        })
+        const uniqueTrackWorkoutIds = [...new Set(data.trackWorkoutIds)]
+        const contextConcurrency = 8
+        for (
+          let offset = 0;
+          offset < uniqueTrackWorkoutIds.length;
+          offset += contextConcurrency
+        ) {
+          const batch = uniqueTrackWorkoutIds.slice(
+            offset,
+            offset + contextConcurrency,
+          )
+          const contexts = await Promise.all(
+            batch.map((twId) =>
+              getBenchmarkSubmissionContext(data.competitionId, twId),
+            ),
+          )
+          batch.forEach((twId, index) => {
+            benchmarkContextMap.set(twId, contexts[index])
+          })
+        }
       }
 
       const now = new Date()

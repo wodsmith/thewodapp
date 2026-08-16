@@ -2,8 +2,7 @@
  * Judges Schedule Page
  *
  * A printable page showing all heats with their assigned judges.
- * Accessible to anyone with the direct link (security through obscurity).
- * The navigation link to this page is only shown to judges and organizers.
+ * Restricted to competition organizers and competition-team members.
  */
 
 import { createFileRoute, Link } from "@tanstack/react-router"
@@ -22,7 +21,7 @@ export const Route = createFileRoute("/compete/$slug/judges-schedule")({
       throw new Error("Competition not found")
     }
 
-    // Fetch judges schedule data (no auth required - accessible via direct link)
+    // The server function authorizes organizers and competition-team members.
     const { events } = await getJudgesScheduleDataFn({
       data: {
         competitionId: competition.id,
@@ -78,7 +77,7 @@ function JudgesSchedulePage() {
 
           <Button onClick={handlePrint}>
             <Printer className="mr-2 h-4 w-4" />
-            Print Schedule
+            Print current view
           </Button>
         </div>
       </div>

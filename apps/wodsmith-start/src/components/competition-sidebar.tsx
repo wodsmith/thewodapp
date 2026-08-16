@@ -29,6 +29,7 @@ import {
   Menu,
   ReceiptText,
   Settings,
+  ShoppingBag,
   Sparkles,
   Tag,
   Trophy,
@@ -52,6 +53,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
+import type { CompetitionType } from "@/db/schemas/competitions"
 import {
   competitionCan,
   resultsNavLabel,
@@ -65,7 +67,7 @@ import { cn } from "@/utils/cn"
 
 interface CompetitionSidebarProps {
   competitionId: string
-  competitionType?: string
+  competitionType?: CompetitionType
   children: React.ReactNode
 }
 
@@ -83,7 +85,7 @@ interface NavGroup {
 
 const getNavigation = (
   basePath: string,
-  competitionType?: string,
+  competitionType?: CompetitionType,
 ): { overview: NavItem; groups: NavGroup[] } => {
   const type = competitionType ?? ""
 
@@ -238,6 +240,7 @@ const getNavigation = (
           { label: "Pricing", href: `${basePath}/pricing`, icon: ReceiptText },
           { label: "Revenue", href: `${basePath}/revenue`, icon: DollarSign },
           { label: "Coupons", href: `${basePath}/coupons`, icon: Tag },
+          { label: "Merch", href: `${basePath}/merch`, icon: ShoppingBag },
           { label: "Sponsors", href: `${basePath}/sponsors`, icon: Sparkles },
           ...(competitionCan(type, "cohosts")
             ? [

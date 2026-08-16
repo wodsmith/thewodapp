@@ -111,6 +111,7 @@ export interface UseScoreRowStateResult {
   handleInputChange: (newValue: string) => void
   handleRoundScoreChange: (roundIndex: number, newValue: string) => void
   handleTieBreakChange: (newValue: string) => void
+  suppressNextBlurSubmit: () => void
   handleBlur: (field: "score" | "tieBreak" | "secondary" | "round") => void
   handleKeyDown: (
     e: KeyboardEvent<HTMLInputElement>,
@@ -435,6 +436,21 @@ export function useScoreRowState({
     }, 0)
   }
 
+  const suppressNextBlurSubmit = () => {
+    const activeEl = document.activeElement
+    const isScoreField =
+      activeEl === scoreInputRef.current ||
+      activeEl === tieBreakInputRef.current ||
+      activeEl === secondaryInputRef.current ||
+      Array.from(roundInputRefs.current.values()).includes(
+        activeEl as HTMLInputElement,
+      )
+
+    if (isScoreField) {
+      shouldSkipNextBlurSubmitRef.current = true
+    }
+  }
+
   const handleKeyDown = (
     e: KeyboardEvent<HTMLInputElement>,
     field: "score" | "tieBreak" | "secondary",
@@ -577,6 +593,7 @@ export function useScoreRowState({
     handleInputChange,
     handleRoundScoreChange,
     handleTieBreakChange,
+    suppressNextBlurSubmit,
     handleBlur,
     handleKeyDown,
     handleConfirmWarning,

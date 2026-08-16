@@ -108,4 +108,13 @@ describe("Benchmark schema", () => {
 
 		expect(result.success).toBe(false)
 	})
+
+	it("rejects duplicate rating band keys", () => {
+		const result = benchmarkRatingBandsSchema.safeParse([
+			{ key: "advanced", label: "Advanced", minScore: 70, maxScore: 89 },
+			{ key: "advanced", label: "Advanced Again", minScore: 90, maxScore: 100 },
+		])
+
+		expect(result.success).toBe(false)
+	})
 })

@@ -26,6 +26,7 @@ describe("BenchmarkSettingsForm", () => {
     vi.clearAllMocks()
   })
 
+  // @lat: [[competition-type-capabilities#Benchmark Editor and Stat Presentation Tests#Uses Customer-Facing Benchmark Copy]]
   it("renders inline as benchmark settings without battery terminology", () => {
     render(<BenchmarkSettingsForm settings={createSettings()} onSave={onSave} />)
 
@@ -38,6 +39,7 @@ describe("BenchmarkSettingsForm", () => {
     expect(screen.queryByText(/battery/i)).not.toBeInTheDocument()
   })
 
+  // @lat: [[competition-type-capabilities#Benchmark Editor and Stat Presentation Tests#Requires a Settings Change]]
   it("keeps save disabled until something changes", () => {
     render(<BenchmarkSettingsForm settings={createSettings()} onSave={onSave} />)
 
@@ -50,6 +52,7 @@ describe("BenchmarkSettingsForm", () => {
     expect(save).not.toBeDisabled()
   })
 
+  // @lat: [[competition-type-capabilities#Benchmark Editor and Stat Presentation Tests#Warns Before Tier Reduction]]
   it("warns before destructive tier-count reductions", () => {
     render(<BenchmarkSettingsForm settings={createSettings()} onSave={onSave} />)
 
@@ -62,6 +65,7 @@ describe("BenchmarkSettingsForm", () => {
     ).toBeInTheDocument()
   })
 
+  // @lat: [[competition-type-capabilities#Benchmark Editor and Stat Presentation Tests#Submits Normalized Settings]]
   it("submits the parsed draft on save", async () => {
     render(<BenchmarkSettingsForm settings={createSettings()} onSave={onSave} />)
 
@@ -83,6 +87,7 @@ describe("BenchmarkSettingsForm", () => {
     })
   })
 
+  // @lat: [[competition-type-capabilities#Benchmark Editor and Stat Presentation Tests#Surfaces Save Failures]]
   it("surfaces a toast when onSave rejects", async () => {
     onSave.mockRejectedValueOnce(new Error("nope"))
     render(<BenchmarkSettingsForm settings={createSettings()} onSave={onSave} />)

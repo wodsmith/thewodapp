@@ -749,6 +749,9 @@ export function EditTestDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
+  // A parent render recreates the editable test object. Reset only when the
+  // dialog opens or the selected test identity changes.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: test.id is the intentional stable reset key
   useEffect(() => {
     if (!open) return
     setName(test.name)
@@ -760,7 +763,7 @@ export function EditTestDialog({
     setScoreModel(test.scoreModel ?? "standard")
     setHybridFlipTier(test.hybridFlipTier ?? null)
     setThresholds({})
-  }, [open, test])
+  }, [open, test.id])
 
   // Time-based schemes are always entered as times, so pick the unit for the
   // organizer; leaving a time scheme falls back to the test's original unit.

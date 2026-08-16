@@ -1644,12 +1644,53 @@ export const saveCompetitionScoresFn = createServerFn({ method: "POST" })
 /**
  * Delete a competition score
  */
+// @lat: [[organizer-dashboard#Results Entry#Clear Results]]
 export const deleteCompetitionScoreFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
     deleteCompetitionScoreInputSchema.parse(data),
   )
   .handler(async ({ data }): Promise<{ success: boolean }> => {
     const db = getDb()
+
+    const [competition] = await db
+      .select({
+        organizingTeamId: competitionsTable.organizingTeamId,
+      })
+      .from(competitionsTable)
+      .where(eq(competitionsTable.id, data.competitionId))
+      .limit(1)
+
+    if (!competition) {
+      throw new Error("Competition not found")
+    }
+
+    if (competition.organizingTeamId !== data.organizingTeamId) {
+      throw new Error("Competition does not belong to this team")
+    }
+
+    await requireTeamPermission(
+      competition.organizingTeamId,
+      TEAM_PERMISSIONS.MANAGE_COMPETITIONS,
+    )
+
+    const [ownedTrackWorkout] = await db
+      .select({ id: trackWorkoutsTable.id })
+      .from(trackWorkoutsTable)
+      .innerJoin(
+        programmingTracksTable,
+        eq(trackWorkoutsTable.trackId, programmingTracksTable.id),
+      )
+      .where(
+        and(
+          eq(trackWorkoutsTable.id, data.trackWorkoutId),
+          eq(programmingTracksTable.competitionId, data.competitionId),
+        ),
+      )
+      .limit(1)
+
+    if (!ownedTrackWorkout) {
+      throw new Error("Event does not belong to this competition")
+    }
 
     getEvlog()?.set({
       action: "delete_score",
@@ -1673,10 +1714,6 @@ export const deleteCompetitionScoreFn = createServerFn({ method: "POST" })
       },
     })
 
-    // Delete from scores table (score_rounds are cascade deleted). Always
-    // scope by division (or explicit null) so removing one registration's
-    // score never wipes the athlete's score in a sibling division when a
-    // workout is shared across divisions.
     const deleteConditions = [
       eq(scoresTable.competitionEventId, data.trackWorkoutId),
       eq(scoresTable.userId, data.userId),
@@ -1684,7 +1721,23 @@ export const deleteCompetitionScoreFn = createServerFn({ method: "POST" })
         ? eq(scoresTable.scalingLevelId, data.divisionId)
         : isNull(scoresTable.scalingLevelId),
     ]
-    await db.delete(scoresTable).where(and(...deleteConditions))
+
+    await db.transaction(async (tx) => {
+      const scoreRows = await tx
+        .select({ id: scoresTable.id })
+        .from(scoresTable)
+        .where(and(...deleteConditions))
+
+      if (scoreRows.length === 0) return
+
+      const scoreIds = scoreRows.map((score) => score.id)
+      // The schema relation has no database cascade, so round breakdowns
+      // must be removed before deleting their parent score.
+      await tx
+        .delete(scoreRoundsTable)
+        .where(inArray(scoreRoundsTable.scoreId, scoreIds))
+      await tx.delete(scoresTable).where(inArray(scoresTable.id, scoreIds))
+    })
 
     logEntityDeleted({
       entity: "score",

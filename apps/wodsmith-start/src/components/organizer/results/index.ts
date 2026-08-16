@@ -1,7 +1,11 @@
 // Results Entry Components
 
 export { HeatScoreGroup } from "./heat-score-group"
-export { ResultsEntryForm, type SaveScoreFn } from "./results-entry-form"
+export {
+  type ClearScoreFn,
+  ResultsEntryForm,
+  type SaveScoreFn,
+} from "./results-entry-form"
 export {
   type ScoreEntryData,
   ScoreInputRow,

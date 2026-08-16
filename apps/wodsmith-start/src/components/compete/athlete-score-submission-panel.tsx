@@ -196,10 +196,12 @@ export function AthleteScoreSubmissionPanel({
   // Monotonic token shared by the fetch effect and refreshSubmissions so a
   // stale response (e.g. after a division switch) never overwrites newer data.
   const fetchSeqRef = useRef(0)
+  const refreshSeqRef = useRef(0)
 
   useEffect(() => {
     if (!registration?.id || !division?.id || trackWorkoutIds.length === 0) {
       fetchSeqRef.current++
+      refreshSeqRef.current++
       setSubmissions([])
       setFetchError(false)
       setLoading(false)
@@ -207,6 +209,7 @@ export function AthleteScoreSubmissionPanel({
     }
 
     const seq = ++fetchSeqRef.current
+    refreshSeqRef.current++
     setLoading(true)
     setFetchError(false)
 
@@ -237,7 +240,8 @@ export function AthleteScoreSubmissionPanel({
     if (!registration?.id || !division?.id || trackWorkoutIds.length === 0) {
       return
     }
-    const seq = ++fetchSeqRef.current
+    const fetchSeq = fetchSeqRef.current
+    const refreshSeq = ++refreshSeqRef.current
     getAthleteDivisionSubmissionsFn({
       data: {
         competitionId,
@@ -247,7 +251,12 @@ export function AthleteScoreSubmissionPanel({
       },
     })
       .then((result) => {
-        if (seq === fetchSeqRef.current) setSubmissions(result.submissions)
+        if (
+          fetchSeq === fetchSeqRef.current &&
+          refreshSeq === refreshSeqRef.current
+        ) {
+          setSubmissions(result.submissions)
+        }
       })
       .catch(() => {})
   }, [competitionId, registration?.id, division?.id, trackWorkoutIds])

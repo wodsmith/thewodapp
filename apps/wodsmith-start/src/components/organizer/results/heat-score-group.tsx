@@ -39,6 +39,10 @@ interface HeatScoreGroupProps {
   savingIds: Set<string>
   /** Saved state by registrationId */
   savedIds: Set<string>
+  /** Per-row reset versions used to clear only the selected row's local state. */
+  rowResetKeys: Record<string, number>
+  /** Optional organizer-only action for clearing one athlete's saved result. */
+  onClearScore?: (athlete: EventScoreEntryAthlete) => Promise<void>
   /** Score change handler */
   onScoreChange: (athlete: EventScoreEntryAthlete, data: ScoreEntryData) => void
   /** Tab to next athlete - called with global index */
@@ -63,6 +67,8 @@ export function HeatScoreGroup({
   scores,
   savingIds,
   savedIds,
+  rowResetKeys,
+  onClearScore,
   onScoreChange,
   onTabNext,
   rowRefs,
@@ -87,7 +93,9 @@ export function HeatScoreGroup({
   // Calculate completion stats
   const totalAthletes = heatAthletes.length
   const scoredAthletes = heatAthletes.filter(
-    (item) => savedIds.has(item.registrationId) || item.athlete.existingResult,
+    (item) =>
+      savedIds.has(item.registrationId) ||
+      (!rowResetKeys[item.registrationId] && item.athlete.existingResult),
   ).length
   const isComplete = scoredAthletes === totalAthletes && totalAthletes > 0
 
@@ -170,6 +178,7 @@ export function HeatScoreGroup({
             {heatAthletes.map((item, index) => (
               <div key={item.registrationId}>
                 <ScoreInputRow
+                  key={`${item.registrationId}-${rowResetKeys[item.registrationId] ?? 0}`}
                   ref={(handle) => {
                     if (handle) {
                       rowRefs.current.set(item.registrationId, handle)
@@ -177,7 +186,11 @@ export function HeatScoreGroup({
                       rowRefs.current.delete(item.registrationId)
                     }
                   }}
-                  athlete={item.athlete}
+                  athlete={
+                    rowResetKeys[item.registrationId]
+                      ? { ...item.athlete, existingResult: null }
+                      : item.athlete
+                  }
                   laneNumber={item.laneNumber}
                   workoutScheme={workoutScheme}
                   scoreType={scoreType}
@@ -188,6 +201,9 @@ export function HeatScoreGroup({
                   value={scores[item.registrationId]}
                   isSaving={savingIds.has(item.registrationId)}
                   isSaved={savedIds.has(item.registrationId)}
+                  onClear={
+                    onClearScore ? () => onClearScore(item.athlete) : undefined
+                  }
                   onChange={(data) => onScoreChange(item.athlete, data)}
                   onTabNext={() => onTabNext(startIndex + index)}
                 />

@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getRegistrationFeeBreakdownFn } from "@/server-fns/registration-fns"
 
-type FeeData = {
+export type FeeData = {
   isFree: boolean
   registrationFeeCents?: number
   platformFeeCents?: number
@@ -12,6 +12,7 @@ type FeeData = {
   totalChargeCents?: number
   stripeFeesPassedToCustomer?: boolean
   platformFeesPassedToCustomer?: boolean
+  feeConfig?: import("@/server/commerce/fee-calculator").FeeConfiguration
 }
 
 type FeeBreakdownProps = {
@@ -19,6 +20,8 @@ type FeeBreakdownProps = {
   divisionId: string | null
   /** Hide the per-division total line (when showing a combined total externally) */
   hideTotal?: boolean
+  /** Combined summaries render transaction-level fees once below all lines. */
+  hideFees?: boolean
   /** Report loaded fee data to parent */
   onFeesLoaded?: (divisionId: string, fees: FeeData | null) => void
 }
@@ -27,6 +30,7 @@ export function FeeBreakdown({
   competitionId,
   divisionId,
   hideTotal,
+  hideFees,
   onFeesLoaded,
 }: FeeBreakdownProps) {
   const [fees, setFees] = useState<FeeData | null>(null)
@@ -101,18 +105,20 @@ export function FeeBreakdown({
           {formatCents(fees.registrationFeeCents ?? 0)}
         </span>
       </div>
-      {fees.platformFeeCents != null && fees.platformFeeCents > 0 && (
-        <div className="flex justify-between text-muted-foreground">
-          <span>
-            Platform Fee
-            {!fees.platformFeesPassedToCustomer && (
-              <span className="ml-1 text-xs italic">(included)</span>
-            )}
-          </span>
-          <span>{formatCents(fees.platformFeeCents)}</span>
-        </div>
-      )}
-      {fees.stripeFeeCents != null && fees.stripeFeeCents > 0 && (
+      {!hideFees &&
+        fees.platformFeeCents != null &&
+        fees.platformFeeCents > 0 && (
+          <div className="flex justify-between text-muted-foreground">
+            <span>
+              Platform Fee
+              {!fees.platformFeesPassedToCustomer && (
+                <span className="ml-1 text-xs italic">(included)</span>
+              )}
+            </span>
+            <span>{formatCents(fees.platformFeeCents)}</span>
+          </div>
+        )}
+      {!hideFees && fees.stripeFeeCents != null && fees.stripeFeeCents > 0 && (
         <div className="flex justify-between text-muted-foreground">
           <span>
             Processing Fee

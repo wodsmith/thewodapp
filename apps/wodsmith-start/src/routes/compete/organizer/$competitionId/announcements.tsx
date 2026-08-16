@@ -30,7 +30,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import type { QuestionFilter } from "@/server-fns/broadcast-fns"
+import type { Waiver } from "@/db/schemas/waivers"
+import type { QuestionFilter, WaiverFilter } from "@/server-fns/broadcast-fns"
 import {
   getDistinctAnswersFn,
   listBroadcastsFn,
@@ -43,6 +44,7 @@ import {
   getCompetitionQuestionsFn,
   getVolunteerQuestionsFn,
 } from "@/server-fns/registration-questions-fns"
+import { getCompetitionWaiversFn } from "@/server-fns/waiver-fns"
 
 // Get parent route API to access its loader data
 const parentRoute = getRouteApi("/compete/organizer/$competitionId")
@@ -54,13 +56,17 @@ export const Route = createFileRoute(
   component: BroadcastsPage,
   loader: async ({ params, parentMatchPromise }) => {
     const parentMatch = await parentMatchPromise
-    const { competition } = parentMatch.loaderData!
+    if (!parentMatch.loaderData) {
+      throw new Error("Competition data is unavailable")
+    }
+    const { competition } = parentMatch.loaderData
 
     const [
       { broadcasts },
       divisionsResult,
       { questions: athleteQuestions },
       { questions: volunteerQuestions },
+      { waivers },
     ] = await Promise.all([
       listBroadcastsFn({ data: { competitionId: params.competitionId } }),
       getCompetitionDivisionsWithCountsFn({
@@ -75,6 +81,9 @@ export const Route = createFileRoute(
       getVolunteerQuestionsFn({
         data: { competitionId: params.competitionId },
       }),
+      getCompetitionWaiversFn({
+        data: { competitionId: params.competitionId },
+      }),
     ])
 
     const divisions = (divisionsResult.divisions ?? []).map(
@@ -84,13 +93,24 @@ export const Route = createFileRoute(
       }),
     )
 
-    return { broadcasts, divisions, athleteQuestions, volunteerQuestions }
+    return {
+      broadcasts,
+      divisions,
+      athleteQuestions,
+      volunteerQuestions,
+      athleteWaivers: waivers.filter((waiver) => waiver.required),
+    }
   },
 })
 
 function BroadcastsPage() {
-  const { broadcasts, divisions, athleteQuestions, volunteerQuestions } =
-    Route.useLoaderData()
+  const {
+    broadcasts,
+    divisions,
+    athleteQuestions,
+    volunteerQuestions,
+    athleteWaivers,
+  } = Route.useLoaderData()
   const { competition } = parentRoute.useLoaderData()
   const router = useRouter()
   const [isComposing, setIsComposing] = useState(false)
@@ -120,6 +140,7 @@ function BroadcastsPage() {
           divisions={divisions}
           athleteQuestions={athleteQuestions}
           volunteerQuestions={volunteerQuestions}
+          athleteWaivers={athleteWaivers}
           onSent={() => {
             setIsComposing(false)
             router.invalidate()
@@ -217,6 +238,7 @@ function ComposeCard({
   divisions,
   athleteQuestions,
   volunteerQuestions,
+  athleteWaivers,
   onSent,
   onCancel,
 }: {
@@ -224,6 +246,7 @@ function ComposeCard({
   divisions: Division[]
   athleteQuestions: RegistrationQuestion[]
   volunteerQuestions: RegistrationQuestion[]
+  athleteWaivers: Waiver[]
   onSent: () => void
   onCancel: () => void
 }) {
@@ -233,6 +256,7 @@ function ComposeCard({
   const [divisionId, setDivisionId] = useState<string>("")
   const [volunteerRole, setVolunteerRole] = useState<string>("")
   const [questionFilters, setQuestionFilters] = useState<QuestionFilter[]>([])
+  const [waiverFilters, setWaiverFilters] = useState<WaiverFilter[]>([])
   const [shouldSendEmail, setShouldSendEmail] = useState(true)
   const [audienceCount, setAudienceCount] = useState<number | null>(null)
   const [isSending, setIsSending] = useState(false)
@@ -253,6 +277,9 @@ function ComposeCard({
     return []
   }, [filterType, athleteQuestions, volunteerQuestions])
 
+  const relevantWaivers =
+    filterType === "all" || filterType === "division" ? athleteWaivers : []
+
   const audienceFilter = useMemo(() => {
     const base =
       filterType === "division" && divisionId
@@ -270,11 +297,15 @@ function ComposeCard({
                 type: filterType as "all" | "public" | "volunteers",
               }
 
-    if (questionFilters.length > 0) {
-      return { ...base, questionFilters }
+    if (questionFilters.length > 0 || waiverFilters.length > 0) {
+      return {
+        ...base,
+        ...(questionFilters.length > 0 ? { questionFilters } : {}),
+        ...(waiverFilters.length > 0 ? { waiverFilters } : {}),
+      }
     }
     return base
-  }, [filterType, divisionId, volunteerRole, questionFilters])
+  }, [filterType, divisionId, volunteerRole, questionFilters, waiverFilters])
 
   // Auto-fetch recipient count when filter is complete
   const filterReady =
@@ -328,6 +359,25 @@ function ComposeCard({
           )
         }
         return [...prev, { questionId, values }]
+      })
+      setAudienceCount(null)
+    },
+    [],
+  )
+
+  const updateWaiverFilter = useCallback(
+    (waiverId: string, status: WaiverFilter["status"] | null) => {
+      setWaiverFilters((prev) => {
+        if (!status) {
+          return prev.filter((filter) => filter.waiverId !== waiverId)
+        }
+        const existing = prev.find((filter) => filter.waiverId === waiverId)
+        if (existing) {
+          return prev.map((filter) =>
+            filter.waiverId === waiverId ? { ...filter, status } : filter,
+          )
+        }
+        return [...prev, { waiverId, status }]
       })
       setAudienceCount(null)
     },
@@ -415,6 +465,7 @@ function ComposeCard({
                 setDivisionId("")
                 setVolunteerRole("")
                 setQuestionFilters([])
+                setWaiverFilters([])
                 setShowQuestionFilters(false)
                 setAudienceCount(null)
               }}
@@ -490,10 +541,10 @@ function ComposeCard({
           </div>
         </div>
 
-        {/* Question Filters — hidden for "Everyone (Public)" since it targets all users */}
+        {/* Registration filters — hidden for "Everyone (Public)" since it targets all users */}
         {filterReady &&
           filterType !== "public" &&
-          relevantQuestions.length > 0 && (
+          (relevantQuestions.length > 0 || relevantWaivers.length > 0) && (
             <div className="space-y-3">
               {!showQuestionFilters ? (
                 <Button
@@ -502,21 +553,22 @@ function ComposeCard({
                   onClick={() => setShowQuestionFilters(true)}
                 >
                   <Filter className="mr-2 h-4 w-4" />
-                  Filter by registration questions
+                  Filter by registration details
                 </Button>
               ) : (
                 <div className="space-y-3 rounded-md border p-4">
                   <div className="flex items-center justify-between">
                     <Label className="text-sm font-medium">
-                      Filter by registration questions
+                      Filter by registration details
                     </Label>
                     <Button
                       variant="ghost"
                       size="sm"
-                      aria-label="Close registration question filters"
+                      aria-label="Close registration filters"
                       onClick={() => {
                         setShowQuestionFilters(false)
                         setQuestionFilters([])
+                        setWaiverFilters([])
                         setAudienceCount(null)
                       }}
                     >
@@ -524,25 +576,57 @@ function ComposeCard({
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Narrow recipients by their answers. Multiple questions are
-                    combined with AND logic.
+                    Narrow recipients by question answers or waiver status.
+                    Multiple filters are combined with AND logic.
                   </p>
                   <div className="space-y-4">
-                    {relevantQuestions.map((question) => (
-                      <QuestionFilterRow
-                        key={question.id}
-                        question={question}
-                        competitionId={competitionId}
-                        selectedValues={
-                          questionFilters.find(
-                            (f) => f.questionId === question.id,
-                          )?.values ?? []
-                        }
-                        onChange={(values) =>
-                          updateQuestionFilter(question.id, values)
-                        }
-                      />
-                    ))}
+                    {relevantQuestions.length > 0 && (
+                      <div className="space-y-4">
+                        {relevantWaivers.length > 0 && (
+                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Registration questions
+                          </p>
+                        )}
+                        {relevantQuestions.map((question) => (
+                          <QuestionFilterRow
+                            key={question.id}
+                            question={question}
+                            competitionId={competitionId}
+                            selectedValues={
+                              questionFilters.find(
+                                (f) => f.questionId === question.id,
+                              )?.values ?? []
+                            }
+                            onChange={(values) =>
+                              updateQuestionFilter(question.id, values)
+                            }
+                          />
+                        ))}
+                      </div>
+                    )}
+                    {relevantWaivers.length > 0 && (
+                      <div className="space-y-3">
+                        {relevantQuestions.length > 0 && (
+                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Waivers
+                          </p>
+                        )}
+                        {relevantWaivers.map((waiver) => (
+                          <WaiverFilterRow
+                            key={waiver.id}
+                            waiver={waiver}
+                            selectedStatus={
+                              waiverFilters.find(
+                                (filter) => filter.waiverId === waiver.id,
+                              )?.status ?? null
+                            }
+                            onChange={(status) =>
+                              updateWaiverFilter(waiver.id, status)
+                            }
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -569,6 +653,39 @@ function ComposeCard({
                               : "Remove filter"
                           }
                           onClick={() => updateQuestionFilter(f.questionId, [])}
+                          className="ml-1 rounded-full p-0.5 hover:bg-muted-foreground/20"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    )
+                  })}
+                </div>
+              )}
+              {waiverFilters.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {waiverFilters.map((filter) => {
+                    const waiver = relevantWaivers.find(
+                      (candidate) => candidate.id === filter.waiverId,
+                    )
+                    return (
+                      <Badge
+                        key={filter.waiverId}
+                        variant="secondary"
+                        className="gap-1 pr-1"
+                      >
+                        {waiver?.title}:{" "}
+                        {filter.status === "signed" ? "Signed" : "Not signed"}
+                        <button
+                          type="button"
+                          aria-label={
+                            waiver
+                              ? `Remove filter for ${waiver.title}`
+                              : "Remove waiver filter"
+                          }
+                          onClick={() =>
+                            updateWaiverFilter(filter.waiverId, null)
+                          }
                           className="ml-1 rounded-full p-0.5 hover:bg-muted-foreground/20"
                         >
                           <X className="h-3 w-3" />
@@ -605,6 +722,39 @@ function ComposeCard({
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+function WaiverFilterRow({
+  waiver,
+  selectedStatus,
+  onChange,
+}: {
+  waiver: Waiver
+  selectedStatus: WaiverFilter["status"] | null
+  onChange: (status: WaiverFilter["status"] | null) => void
+}) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_180px] sm:items-center">
+      <Label htmlFor={`waiver-filter-${waiver.id}`} className="text-sm">
+        {waiver.title}
+      </Label>
+      <Select
+        value={selectedStatus ?? "any"}
+        onValueChange={(value) =>
+          onChange(value === "any" ? null : (value as WaiverFilter["status"]))
+        }
+      >
+        <SelectTrigger id={`waiver-filter-${waiver.id}`} className="h-8">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="any">Any status</SelectItem>
+          <SelectItem value="unsigned">Not signed</SelectItem>
+          <SelectItem value="signed">Signed</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
   )
 }
 

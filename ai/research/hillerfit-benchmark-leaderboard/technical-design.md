@@ -12,7 +12,7 @@ This design defines the components and contracts engineers should build for v1.
 - Submission wrapper: benchmark-specific write logic around `submitVideoFn` snapshots variant, writes Open division, applies keep-best-on-write, and resets stale verification.
 - Leaderboard integration: `server/competition-leaderboard.ts` loads benchmark context once, supplies `EventScoreInput.variant`, skips publish gating, preserves half tiers, ranks by Overall/100, and exposes benchmark fields.
 - Stats route: `/compete/$slug/stats` reuses leaderboard data to render a per-athlete stat line.
-- Seed module: a training-PDF-derived benchmark seed creates the benchmark battery, tests, thresholds, Open division, workouts, and benchmark competition. The source artifact is `/Users/zacjones/Downloads/HillerFit_Training_Guide.pdf`; it feeds data, not branded pages or routes.
+- Seed module: a training-PDF-derived benchmark seed creates the benchmark battery, tests, thresholds, Open division, workouts, and benchmark competition. The owner-provided `HillerFit_Training_Guide.pdf` artifact feeds data, not branded pages or routes.
 
 ## Data Model
 

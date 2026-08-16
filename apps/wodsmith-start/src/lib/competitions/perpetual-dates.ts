@@ -1,11 +1,13 @@
 // @lat: [[competition-type-capabilities#Perpetual End Dates]]
 import { isDeadlinePassed, isSameDateString } from "@/utils/date-utils"
+import { isDeadlinePassedInTimezone } from "@/utils/timezone-utils"
 import { competitionCan } from "./capabilities"
 
 interface CompetitionDates {
   competitionType: string
   startDate: string
   endDate: string
+  timezone?: string | null
 }
 
 /**
@@ -29,5 +31,7 @@ export function perpetualSubmissionsClosed(
 ): boolean {
   if (!competitionCan(competition.competitionType, "perpetual")) return false
   if (isOpenEnded(competition)) return false
-  return isDeadlinePassed(competition.endDate)
+  return competition.timezone
+    ? isDeadlinePassedInTimezone(competition.endDate, competition.timezone)
+    : isDeadlinePassed(competition.endDate)
 }

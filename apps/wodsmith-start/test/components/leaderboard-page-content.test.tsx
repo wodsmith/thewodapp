@@ -177,6 +177,7 @@ const createMockEntry = (
 	teamMembers: [],
 	affiliate: null,
 	benchmarkOverallScore: null,
+	benchmarkScoreMax: null,
 	benchmarkRatingBand: null,
 	benchmarkCategoryScores: [],
 	benchmarkGender: null,
@@ -807,6 +808,7 @@ describe("LeaderboardPageContent", () => {
 		const createBenchmarkEntry = () =>
 			createMockEntry({
 				benchmarkOverallScore: 72.5,
+				benchmarkScoreMax: 100,
 				benchmarkGender: "male",
 				eventResults: [
 					createMockEventResult({

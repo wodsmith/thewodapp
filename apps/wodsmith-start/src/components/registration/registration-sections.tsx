@@ -37,13 +37,15 @@ import {
 } from "@/components/ui/select"
 import type { Competition, ScalingLevel, Team, Waiver } from "@/db/schema"
 import { isOpenEnded } from "@/lib/competitions/perpetual-dates"
+import type { FeeConfiguration } from "@/server/commerce/fee-calculator"
 import type { PublicCompetitionDivision } from "@/server-fns/competition-divisions-fns"
 import type { RegistrationQuestion } from "@/server-fns/registration-questions-fns"
+import { allocateCents, calculateCheckoutFees } from "@/utils/checkout-fees"
 import { cn } from "@/utils/cn"
 import type { CompetitionCapacityResult } from "@/utils/competition-capacity"
 import { isSameDateString } from "@/utils/date-utils"
 import { AffiliateCombobox } from "./affiliate-combobox"
-import { FeeBreakdown } from "./fee-breakdown"
+import { FeeBreakdown, type FeeData } from "./fee-breakdown"
 import type { TeamEntry, Teammate } from "./use-registration-form"
 
 // ─── utils ──────────────────────────────────────────────────────────────────
@@ -256,7 +258,7 @@ export function CompetitionDetailsCard({
    * invite-locked mode — invitees bypass the public registration window,
    * so the row is irrelevant and surfaces "TBA - TBA" when dates aren't
    * configured, which contradicts the "you can register now" CTA.
-  */
+   */
   hideRegistrationWindow?: boolean
 }) {
   const isPerpetual = isOpenEnded(competition)
@@ -730,6 +732,16 @@ export function CouponCodeSection({
   )
 }
 
+export interface AddonLineItem {
+  key: string
+  name: string
+  variantLabel: string | null
+  quantity: number
+  /** Organizer-set price multiplied by quantity, before checkout fees. */
+  lineTotalCents: number
+  feeConfig?: FeeConfiguration
+}
+
 export function FeeSummarySection({
   competitionId,
   selectedDivisionIds,
@@ -737,29 +749,36 @@ export function FeeSummarySection({
   divisionFees,
   onFeesLoaded,
   activeCoupon,
+  addonLineItems = [],
 }: {
   competitionId: string
   selectedDivisionIds: string[]
   getDivision: (id: string) => ScalingLevel | undefined
-  divisionFees: Map<string, number>
+  divisionFees: Map<string, FeeData>
   onFeesLoaded: (
     divisionId: string,
     fees: { isFree: boolean; totalChargeCents?: number } | null,
   ) => void
   activeCoupon: { code: string; amountOffCents: number } | null
+  addonLineItems?: AddonLineItem[]
 }) {
   const isMulti = selectedDivisionIds.length > 1
   const hasSelectedDivisions = selectedDivisionIds.length > 0
+  const hasAddons = addonLineItems.length > 0
   const selectedFeeValues = selectedDivisionIds
     .map((divisionId) => divisionFees.get(divisionId))
-    .filter((fee): fee is number => fee !== undefined)
+    .filter((fee): fee is FeeData => fee !== undefined)
   const hasLoadedSelectedFees =
     selectedFeeValues.length === selectedDivisionIds.length
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Registration Fee{isMulti ? "s" : ""}</CardTitle>
+        <CardTitle>
+          {hasAddons
+            ? "Order Summary"
+            : `Registration Fee${isMulti ? "s" : ""}`}
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {!hasSelectedDivisions ? (
@@ -771,7 +790,7 @@ export function FeeSummarySection({
         ) : null}
         {selectedDivisionIds.map((divisionId) => {
           const division = getDivision(divisionId)
-          const hideDivTotal = isMulti || !!activeCoupon
+          const hideDivTotal = isMulti || !!activeCoupon || hasAddons
           return (
             <div key={divisionId}>
               {isMulti && (
@@ -783,6 +802,7 @@ export function FeeSummarySection({
                 competitionId={competitionId}
                 divisionId={divisionId}
                 hideTotal={hideDivTotal}
+                hideFees={hideDivTotal}
                 onFeesLoaded={onFeesLoaded}
               />
             </div>
@@ -790,43 +810,124 @@ export function FeeSummarySection({
         })}
         {hasSelectedDivisions && hasLoadedSelectedFees
           ? (() => {
-              const subtotal = selectedFeeValues.reduce((sum, c) => sum + c, 0)
-              if (!activeCoupon) {
+              const registrationBaseCents = selectedFeeValues.reduce(
+                (sum, fees) => sum + (fees.registrationFeeCents ?? 0),
+                0,
+              )
+              if (!activeCoupon && !hasAddons) {
                 if (!isMulti) return null
+              }
+              const discount = activeCoupon
+                ? Math.min(activeCoupon.amountOffCents, registrationBaseCents)
+                : 0
+              const feeConfig =
+                selectedFeeValues.find((fees) => fees.feeConfig)?.feeConfig ??
+                addonLineItems.find((item) => item.feeConfig)?.feeConfig
+              if (!feeConfig) {
+                const fallbackTotal = selectedFeeValues.reduce(
+                  (sum, fees) => sum + (fees.totalChargeCents ?? 0),
+                  0,
+                )
                 return (
                   <div className="flex justify-between font-medium pt-2 border-t">
                     <span>Total</span>
                     <span className="text-lg">
-                      ${(subtotal / 100).toFixed(2)}
+                      ${(fallbackTotal / 100).toFixed(2)}
                     </span>
                   </div>
                 )
               }
-              const discount = Math.min(activeCoupon.amountOffCents, subtotal)
-              const total = subtotal - discount
+              const registrationDiscounts = allocateCents(
+                discount,
+                selectedFeeValues.map((fees) => fees.registrationFeeCents ?? 0),
+              )
+              const checkout = calculateCheckoutFees(
+                [
+                  ...selectedFeeValues.map((fees, index) => ({
+                    key: `registration:${selectedDivisionIds[index]}`,
+                    basePriceCents: fees.registrationFeeCents ?? 0,
+                    discountCents: registrationDiscounts[index] ?? 0,
+                    platformFixedCents:
+                      (fees.registrationFeeCents ?? 0) === 0 ? 0 : undefined,
+                  })),
+                  ...addonLineItems.map((item) => ({
+                    key: item.key,
+                    basePriceCents: item.lineTotalCents,
+                    platformFixedCents: 0,
+                  })),
+                ],
+                feeConfig,
+              )
+              const checkoutLines = new Map(
+                checkout.lines.map((line) => [line.key, line]),
+              )
               return (
                 <>
-                  {isMulti && (
+                  {(isMulti || hasAddons) && (
                     <div className="flex justify-between text-sm pt-2 border-t">
-                      <span>Subtotal</span>
-                      <span>${(subtotal / 100).toFixed(2)}</span>
+                      <span>Registration subtotal</span>
+                      <span>${(registrationBaseCents / 100).toFixed(2)}</span>
                     </div>
                   )}
-                  <div
-                    className={cn(
-                      "flex justify-between text-sm text-emerald-700 dark:text-emerald-400",
-                      !isMulti && "pt-2 border-t",
-                    )}
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <Tag className="h-3.5 w-3.5" />
-                      Coupon ({activeCoupon.code})
-                    </span>
-                    <span>-${(discount / 100).toFixed(2)}</span>
-                  </div>
+                  {activeCoupon && (
+                    <div className="flex justify-between text-sm text-emerald-700 dark:text-emerald-400">
+                      <span className="flex items-center gap-1.5">
+                        <Tag className="h-3.5 w-3.5" />
+                        Coupon ({activeCoupon.code})
+                      </span>
+                      <span>-${(discount / 100).toFixed(2)}</span>
+                    </div>
+                  )}
+                  {addonLineItems.map((item) => (
+                    <div
+                      key={item.key}
+                      className="flex justify-between text-sm"
+                    >
+                      <span>
+                        {item.name}
+                        {item.variantLabel ? ` (${item.variantLabel})` : ""}
+                        {item.quantity > 1 ? ` × ${item.quantity}` : ""}
+                      </span>
+                      <span>
+                        $
+                        {(
+                          (checkoutLines.get(item.key)?.registrationFeeCents ??
+                            item.lineTotalCents) / 100
+                        ).toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                  {checkout.totalPlatformFeeCents > 0 && (
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>
+                        Platform fee
+                        {!feeConfig.passPlatformFeesToCustomer
+                          ? " (included)"
+                          : ""}
+                      </span>
+                      <span>
+                        ${(checkout.totalPlatformFeeCents / 100).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+                  {checkout.totalStripeFeeCents > 0 && (
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>
+                        Processing fee
+                        {!feeConfig.passStripeFeesToCustomer
+                          ? " (included)"
+                          : ""}
+                      </span>
+                      <span>
+                        ${(checkout.totalStripeFeeCents / 100).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between font-medium pt-2 border-t">
                     <span>Total</span>
-                    <span className="text-lg">${(total / 100).toFixed(2)}</span>
+                    <span className="text-lg">
+                      ${(checkout.totalChargeCents / 100).toFixed(2)}
+                    </span>
                   </div>
                 </>
               )

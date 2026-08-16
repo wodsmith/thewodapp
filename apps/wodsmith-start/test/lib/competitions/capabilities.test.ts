@@ -1,9 +1,12 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, expectTypeOf, it } from "vitest"
 import {
 	COMPETITION_TYPE_REGISTRY,
 	type CompetitionCapability,
+	type SelectableCompetitionTypeId,
 	competitionCan,
+	competitionTypeOptions,
 	isSelectableCompetitionTypeValue,
+	isCompetitionTypeValue,
 	resultsEntryMode,
 	resultsNavLabel,
 	isSelectableType,
@@ -123,10 +126,28 @@ describe("competition type capabilities", () => {
 	})
 
 	// @lat: [[competition-type-capabilities#Create Picker Selectability Test]]
-	it("derives create-picker type options from selectable registry entries only", () => {
+	it("derives all create-picker options from registered selectable types", () => {
+		const registeredOptions = competitionTypeOptions()
 		const selectableTypes = selectableCompetitionTypes()
 		const pickerOptions = selectableCompetitionTypeOptions()
 
+		expectTypeOf<SelectableCompetitionTypeId>().toEqualTypeOf<
+			"in-person" | "online" | "benchmark"
+		>()
+
+		expect(isCompetitionTypeValue("benchmark")).toBe(true)
+		expect(isSelectableCompetitionTypeValue("benchmark")).toBe(true)
+		expect(isCompetitionTypeValue("unsupported")).toBe(false)
+		expect(isCompetitionTypeValue(null)).toBe(false)
+		expect(isSelectableCompetitionTypeValue(null)).toBe(false)
+
+		expect(registeredOptions).toContainEqual({
+			id: "benchmark",
+			label: "Benchmark",
+			description: "Perpetual benchmark board with video submissions",
+			displayLabel:
+				"Benchmark - Perpetual benchmark board with video submissions",
+		})
 		expect(selectableTypes.map((type) => type.id)).toEqual([
 			"in-person",
 			"online",
@@ -136,7 +157,6 @@ describe("competition type capabilities", () => {
 			expect(isSelectableType(type.id)).toBe(true)
 			expect(isSelectableCompetitionTypeValue(type.id)).toBe(true)
 		}
-		expect(isSelectableCompetitionTypeValue(null)).toBe(false)
 
 		expect(pickerOptions).toEqual([
 			{

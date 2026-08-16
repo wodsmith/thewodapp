@@ -4,11 +4,11 @@ lat:
 ---
 # Competition Type Capabilities
 
-Competition type capabilities define which product behaviors each stored competition type enables while keeping existing in-person and online behavior unchanged.
+Competition type capabilities define product behavior for in-person, online, and benchmark competitions while unknown stored values fail closed.
 
 ## Registry Source of Truth
 
-The registry maps each competition type to named capabilities, its leaderboard variant, and create-picker selectability without adding a database field.
+The registry maps every supported stored type to capabilities, leaderboard behavior, create selectability, and organizer-facing labels.
 
 [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#COMPETITION_TYPE_REGISTRY]] keeps `competitionType` as the stored discriminator and exposes [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#competitionCan]], [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#leaderboardVariant]], and [[apps/wodsmith-start/src/lib/competitions/capabilities.ts#isSelectableType]] for later call-site refactors. In-person competitions retain heat scheduling, day-of check-in, physical venue, volunteer scheduling, and organizer-entered results. Online competitions retain video submissions, submission windows, opt-in result publishing, and the online leaderboard variant. Benchmark competitions retain video submissions and the online leaderboard visual variant, add `perpetual` and `benchmarkScoringTiers`, and intentionally skip submission windows and opt-in result publishing.
 
@@ -66,7 +66,7 @@ This test verifies the organizer create form keeps standard competition types av
 
 Benchmark rollout uses a team entitlement for organizer creation and a separate PostHog flag for public navigation visibility.
 
-[[apps/wodsmith-start/src/server/benchmark-creation-access.ts#assertBenchmarkCreationAccess]] requires the organizing team to have the `create_benchmarks` feature before [[apps/wodsmith-start/src/server-fns/competition-fns.ts#createCompetitionFn]] creates a benchmark competition. [[apps/wodsmith-start/src/server-fns/team-fns.ts#getOrganizerTeamsFn]] exposes that entitlement to the create form so Benchmark is offered only for eligible teams. The feature catalog remains manageable through the generic admin entitlement page.
+[[apps/wodsmith-start/src/server/benchmark-creation-access.ts#assertBenchmarkCreationAccess]] requires the organizing team to have the `create_benchmarks` feature before [[apps/wodsmith-start/src/server-fns/competition-fns.ts#createCompetitionFn]] creates a benchmark competition. Create and update mutations first require an authenticated site admin or a member with `MANAGE_COMPETITIONS`; changing an existing competition to benchmark repeats the entitlement check, and denied creation returns the typed `FORBIDDEN` application error. [[apps/wodsmith-start/src/server-fns/team-fns.ts#getOrganizerTeamsFn]] exposes that entitlement to the create form so Benchmark is offered only for eligible teams. The feature catalog remains manageable through the generic admin entitlement page.
 
 The public Benchmarks link is independent of organizer entitlement. [[apps/wodsmith-start/src/components/compete-nav.tsx#CompeteNav]] reads PostHog flag `benchmark-comp-type` through [[apps/wodsmith-start/src/lib/posthog/hooks.ts#useFeatureFlagEnabled]], fails closed while flags load, and passes the result to the mobile nav. Direct benchmark URLs remain available.
 
@@ -90,7 +90,7 @@ This test verifies desktop and mobile Benchmarks navigation visibility follows t
 
 Benchmark tier data enriches the leaderboard and stats as display context; ranking always uses the online algorithm (forced at save and read time), not a mutually exclusive tier-scoring mode.
 
-[[apps/wodsmith-start/src/server/benchmark-leaderboard.ts#loadBenchmarkLeaderboardContext]] loads the battery/threshold context for any competition granting `benchmarkScoringTiers`, returning no context for malformed global battery/category data while retaining valid per-test context when another test is unmapped or its event is still draft. [[apps/wodsmith-start/src/server/competition-leaderboard.ts#getCompetitionLeaderboard]] computes per-event display tiers straight from the threshold tables via [[apps/wodsmith-start/src/lib/scoring/algorithms/absolute-tier.ts#calculateAbsoluteTier]], aggregates category scores, Overall/100, and rating for entries that have tiered scores, and leaves `totalPoints` to the ranking algorithm. [[apps/wodsmith-start/src/components/online-competition-leaderboard-table.tsx#OnlineCompetitionLeaderboardTable]] shows benchmark columns whenever entries carry tier data rather than keying on the algorithm, and [[apps/wodsmith-start/src/routes/compete/$slug/stats.tsx#BenchmarkStatsPage]] gates on the `benchmarkScoringTiers` capability. The organizer tiers page has no "activate tier scoring" action; the legacy `absolute_tier` ranking algorithm and its one-way online migration were removed once no competition used them.
+[[apps/wodsmith-start/src/server/benchmark-leaderboard.ts#loadBenchmarkLeaderboardContext]] loads the battery/threshold context for any competition granting `benchmarkScoringTiers`, returning no context for malformed global battery/category data while retaining valid per-test context when another test is unmapped or its event is still draft. [[apps/wodsmith-start/src/server/competition-leaderboard.ts#getCompetitionLeaderboard]] computes per-event display tiers straight from the threshold tables via [[apps/wodsmith-start/src/lib/scoring/algorithms/absolute-tier.ts#calculateAbsoluteTier]], aggregates category scores, the overall score on the battery's configured `scoreMax` scale, and rating for entries that have tiered scores, and leaves `totalPoints` to the ranking algorithm. It carries `benchmarkScoreMax` with each entry so compact and table views render the configured denominator and normalize progress against the same scale. [[apps/wodsmith-start/src/components/online-competition-leaderboard-table.tsx#OnlineCompetitionLeaderboardTable]] shows benchmark columns whenever entries carry tier data rather than keying on the algorithm, and [[apps/wodsmith-start/src/routes/compete/$slug/stats.tsx#BenchmarkStatsPage]] gates on the `benchmarkScoringTiers` capability. The organizer tiers page has no "activate tier scoring" action; the legacy `absolute_tier` ranking algorithm and its one-way online migration were removed once no competition used them.
 
 ## Benchmark Category Grouping
 
@@ -110,7 +110,7 @@ This test verifies the category and gender filter selects appear only when leade
 
 Benchmark competitions require only a start date; the end date is optional so the leaderboard can live on forever. The NOT NULL `endDate` column stores `endDate === startDate` as the "no end date set" sentinel.
 
-[[apps/wodsmith-start/src/lib/competitions/perpetual-dates.ts#isOpenEnded]] detects the sentinel and [[apps/wodsmith-start/src/lib/competitions/perpetual-dates.ts#perpetualSubmissionsClosed]] reports when an explicit end date has passed. The organizer create and edit forms hide the multi-day toggle for perpetual types and offer an optional end-date field (blank ⇒ sentinel). All perpetual submission gates — score window-status, legacy score/video API submit, `checkVideoSubmissionAllowed`, the batched event-window resolver, and athlete score windows — close submissions once a set end date passes, while the leaderboard stays visible forever. Date displays (competition card, hero, registration sections, SportsEvent JSON-LD) show "Since {start}" only for open-ended boards and a normal date range when an end date is set.
+[[apps/wodsmith-start/src/lib/competitions/perpetual-dates.ts#isOpenEnded]] detects the sentinel and [[apps/wodsmith-start/src/lib/competitions/perpetual-dates.ts#perpetualSubmissionsClosed]] reports when an explicit end date has passed in the competition's configured timezone. The organizer create and edit forms hide the multi-day toggle for perpetual types and offer an optional end-date field (blank ⇒ sentinel). Dedicated benchmark submission gates close submissions once a set end date passes, while generic direct score/video APIs reject benchmark writes before applying their event-window rules and the leaderboard stays visible forever. Date displays (competition card, hero, registration sections, SportsEvent JSON-LD) show "Since {start}" only for open-ended boards and a normal date range when an end date is set.
 
 ## Perpetual End Date Tests
 
@@ -139,6 +139,44 @@ The window-status test pins benchmark as open without submission-window rows whi
 The submission-gate tests pin benchmark submissions as perpetual while preventing unsafe direct API bypasses.
 
 [[apps/wodsmith-start/test/server-fns/benchmark-submission-m3.test.ts]] verifies the benchmark `submitVideoFn` path accepts writes without seeded submission-window rows while applying profile-variant, Open-division, evidence-policy, best-retention rules, and the requirement that athletes register before scoring. [[apps/wodsmith-start/test/routes/api/compete/submission-gates.test.ts]] verifies the legacy direct score and video API submit routes reject benchmark-backed competitions so they cannot bypass the shared benchmark write helper. [[apps/wodsmith-start/test/components/video-submission-form.test.tsx]] verifies the generic event-detail submission form keeps the registration-required state for unregistered athletes.
+
+Open benchmark joins use a shared KV-backed rate-limit bucket in production, with the process-local map retained only as a test/local fallback. Rejoining restores a previously removed registration to active status instead of leaving the athlete unable to submit.
+
+### Rejects Generic Athlete Benchmark Scores
+
+The generic athlete score mutation rejects benchmark competitions so writes cannot bypass tier, evidence, and best-retention rules in the dedicated benchmark flow.
+
+## Benchmark Editor and Stat Presentation Tests
+
+These component tests pin the organizer settings workflow and athlete-facing score presentation to the benchmark configuration contract.
+
+### Uses Customer-Facing Benchmark Copy
+
+The settings editor labels the feature as a benchmark and never exposes the internal battery term.
+
+### Requires a Settings Change
+
+The save action stays disabled until the organizer changes a settings field.
+
+### Warns Before Tier Reduction
+
+Reducing the tier count warns that thresholds above the new maximum will be removed.
+
+### Submits Normalized Settings
+
+Saving parses numeric fields and trims optional descriptive text before invoking the mutation.
+
+### Surfaces Save Failures
+
+Rejected settings saves surface their error message through the page toast.
+
+### Renders the Configurable Score Scale
+
+The compact benchmark stat line renders the entry's configured score denominator instead of assuming 100.
+
+### Keeps Deferred Tests Read-Only
+
+Deferred tests remain visible but cannot open the athlete submission editor.
 
 ## Video Submission Route Gates Test
 

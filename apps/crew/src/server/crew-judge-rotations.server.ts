@@ -2,6 +2,7 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm"
 import { getDb } from "../db"
 import {
+  type CompetitionType,
   competitionHeatAssignmentsTable,
   competitionHeatsTable,
   competitionJudgeRotationsTable,
@@ -51,8 +52,6 @@ type RotationQueryDb = Pick<DbClient, "select" | "query">
 type CompetitionJudgeRotation =
   typeof competitionJudgeRotationsTable.$inferSelect
 type JudgeAssignmentVersion = typeof judgeAssignmentVersionsTable.$inferSelect
-type StoredCompetitionType =
-  (typeof competitionsTable.$inferSelect)["competitionType"]
 type CrewJudgeHeatRow = {
   id: string
   trackWorkoutId: string
@@ -76,7 +75,7 @@ export interface CrewJudgeEvent {
   startDate: string
   endDate: string
   timezone: string | null
-  competitionType: StoredCompetitionType
+  competitionType: CompetitionType
 }
 
 export interface CrewJudgeWorkout {

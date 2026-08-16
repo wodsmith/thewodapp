@@ -45,6 +45,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import type { CohostMembershipMetadata } from "@/db/schemas/cohost"
+import type { CompetitionType } from "@/db/schemas/competitions"
 import {
   competitionCan,
   resultsNavLabel,
@@ -55,7 +56,7 @@ import { canDisplayPhysicalVenue } from "@/lib/competitions/venue-volunteer-gate
 interface CohostSidebarProps {
   competitionId: string
   competitionName: string
-  competitionType?: string
+  competitionType?: CompetitionType
   permissions: CohostMembershipMetadata
   children: React.ReactNode
 }
@@ -74,7 +75,7 @@ interface NavGroup {
 
 const getNavigation = (
   basePath: string,
-  competitionType?: string,
+  competitionType?: CompetitionType,
   permissions?: CohostMembershipMetadata,
 ): { overview: NavItem; groups: NavGroup[] } => {
   const type = competitionType ?? ""

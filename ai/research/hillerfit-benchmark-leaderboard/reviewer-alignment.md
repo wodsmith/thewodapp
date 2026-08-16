@@ -39,7 +39,7 @@ Dependencies:
 - M1 schema/seed must provide complete category caches, test rows, one-to-one event mappings, and threshold rows.
 - M2 absolute-tier scoring supplies the `0 / 0.5 / 1..10` tier semantics.
 - M3 submission supplies profile-variant snapshots and best-to-date writes.
-- The first seed derives source data from `/Users/zacjones/Downloads/HillerFit_Training_Guide.pdf`.
+- The first seed derives source data from the owner-provided `HillerFit_Training_Guide.pdf` artifact, which is not checked into the repository.
 - No HillerFit-branded customer-facing pages, routes, stats pages, navigation, marketing copy, logos, calls to action, or theme treatments.
 
 Definition of done:

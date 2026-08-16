@@ -330,7 +330,13 @@ export async function ensureBenchmarkOpenJoinRegistration({
         athleteTeamId: null,
         metadata: JSON.stringify({ benchmarkOpenJoin: true }),
       })
-      .onDuplicateKeyUpdate({ set: { updatedAt: now } })
+      .onDuplicateKeyUpdate({
+        set: {
+          status: REGISTRATION_STATUS.ACTIVE,
+          registeredAt: now,
+          updatedAt: now,
+        },
+      })
 
     const [createdRegistration] = await tx
       .select({

@@ -202,7 +202,10 @@ function BenchmarksPage() {
 
         {/* ── Grid ───────────────────────────────────────────── */}
         {sorted.length === 0 ? (
-          <EmptyState searchQuery={deferredSearchQuery} />
+          <EmptyState
+            searchQuery={deferredSearchQuery}
+            onClearSearch={() => handleSearchChange("")}
+          />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {sorted.map((comp, i) => (
@@ -233,9 +236,13 @@ function BenchmarksPage() {
 // Empty state
 // ---------------------------------------------------------------------------
 
-function EmptyState({ searchQuery }: { searchQuery?: string }) {
-  const navigate = useNavigate({ from: Route.fullPath })
-
+function EmptyState({
+  searchQuery,
+  onClearSearch,
+}: {
+  searchQuery?: string
+  onClearSearch: () => void
+}) {
   return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
       <div className="h-px w-12 bg-border mb-6" />
@@ -252,7 +259,7 @@ function EmptyState({ searchQuery }: { searchQuery?: string }) {
           variant="ghost"
           size="sm"
           className="mt-4 text-muted-foreground"
-          onClick={() => navigate({ search: {} })}
+          onClick={onClearSearch}
         >
           Clear search
         </Button>

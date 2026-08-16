@@ -15,7 +15,7 @@ This file records what implementers should treat as settled, what still requires
 - Compute v1 as best-to-date from the live `scores` row with keep-best-on-write.
 - Do not declare `optInResultPublishing` for benchmark.
 - Defer Weighted C2B, Open 16.2, and Open 18.4 from v1 scoring.
-- Use `/Users/zacjones/Downloads/HillerFit_Training_Guide.pdf` as the source artifact for the first benchmark seed.
+- Use the owner-provided `HillerFit_Training_Guide.pdf` artifact as the source for the first benchmark seed; it is not checked into the repository.
 - Treat the PDF as source data only; do not build any HillerFit-branded page, route, tab, product navigation item, marketing surface, logo, call to action, theme treatment, or customer-facing product area.
 - The first seed sets `videoPolicy: "never"` and `isOpenJoin: false`, so athletes register through the normal flow before scoring; the guarded open-join checks stay dormant until M3 wires the lazy-register path into the submit flow.
 - M3 uses a small mockable in-process benchmark open-join rate-limit boundary because no shared app-level limiter exists yet. A durable store-backed limiter can replace the boundary without changing the benchmark submission helper contract.
